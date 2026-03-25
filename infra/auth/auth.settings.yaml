@@ -1,0 +1,83 @@
+base_path: /api/v1/auth
+base_url: http://localhost:3002
+config_file_path: ./config
+load_db_settings: true
+better_auth_secret: change-me-with-a-strong-random-secret
+
+database:
+  url: ${AUTH_DATABASE_URL:postgres://postgres:postgres@infra-postgres:5432/postgres}
+  schema: auth
+  settings_table: service_settings
+  settings_key: auth
+
+email:
+  verification_enabled: false
+# redis:
+#   enabled: true
+#   url: redis://redis:6379
+#   key_prefix: auth-service
+#   connect_timeout_ms: 10000
+
+# passkey:
+#   rp_id: auth.example.com
+#   rp_name: Lepton Control Plane
+#   origin: https://auth.example.com
+
+# features:
+#   email_password: true
+#   social_oauth: true
+#   passkey: false
+#   two_factor: false
+#   magic_link: false
+#   email_otp: false
+#   anonymous: false
+#   phone_number: false
+#   organization: true
+#   oauth_provider: true
+#   oidc_provider: true
+#   sso: true
+#   scim: true
+#   api_keys: true
+#   agent_auth: true
+#   jwt: true
+#   bearer: true
+
+# session:
+#   expires_in_seconds: 604800
+#   update_age_seconds: 86400
+#   cookie_cache_enabled: true
+#   cookie_cache_max_age_seconds: 300
+#   store_session_in_database: true
+
+# rate_limit:
+#   enabled: true
+#   window_seconds: 60
+#   max_requests: 120
+#   storage: secondary-storage
+
+# jwt:
+#   issuer: https://auth.example.com
+#   audience: https://auth.example.com
+#   algorithm: RS256
+#   private_key_pem: ""
+#   public_key_pem: ""
+#   jwks_path: /.well-known/jwks.json
+
+# scim:
+#   base_path: /scim/v2
+#   token_ttl_seconds: 31536000
+#   provider_ownership_required: true
+
+# api_keys:
+#   default_prefix: lk
+#   default_expires_in_days: 90
+#   allow_multiple_per_org: true
+#   max_per_org: 100
+
+# sms:
+#   provider: console
+#   from: ""
+
+# whatsapp:
+#   provider: console
+#   from: ""

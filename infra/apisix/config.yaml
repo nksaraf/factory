@@ -1,0 +1,32 @@
+#
+# APISIX Configuration — Standalone mode (no etcd)
+#
+apisix:
+  node_listen: 8005
+  enable_ipv6: false
+  enable_admin: false
+
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+
+# --- OpenTelemetry ---
+plugin_attr:
+  opentelemetry:
+    trace_id_source: x-request-id
+    resource:
+      service.name: infra-gateway
+    collector:
+      address: infra-clickstack-otel:4318
+      request_timeout: 3
+      request_headers:
+        authorization: 575a0fc7-426a-4a2f-869a-60d1ef14d99e
+
+plugins:
+  - proxy-rewrite
+  - cors
+  - opentelemetry
+  - real-ip
+  - response-rewrite
+  - redirect

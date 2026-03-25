@@ -1,0 +1,223 @@
+# Infrastructure services (prefix: infra-)
+services:
+  infra-postgres:
+    image: postgres:16-alpine
+    ports:
+      - "${INFRA_POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  # ---------------------------------------------------------------------------
+  # Better Auth Service — Authentication Provider
+  # ---------------------------------------------------------------------------
+  infra-auth:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
+    platform: linux/amd64
+    build:
+      context: packages/npm/auth-service
+      dockerfile: Dockerfile
+      args:
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
+    restart: unless-stopped
+    ports:
+      - "${INFRA_AUTH_PORT:-8180}:3000"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    volumes:
+      - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
+    environment:
+      - AUTH_DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      # - AUTH_GOOGLE_AUTH_ENABLED=true
+      - AUTH_BASE_URL=http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/auth/reference || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Observability — ClickStack split setup
+  # https://github.com/ClickHouse/ClickStack
+  # ---------------------------------------------------------------------------
+  infra-clickstack-mongo:
+    image: mongo:5.0.32-focal
+    volumes:
+      - infra-clickstack-db:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  infra-clickstack-ch:
+    image: clickhouse/clickhouse-server:26.1-alpine
+    environment:
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - ./infra/clickstack/clickhouse/config.xml:/etc/clickhouse-server/config.xml:ro
+      - ./infra/clickstack/clickhouse/users.xml:/etc/clickhouse-server/users.xml:ro
+      - infra-clickstack-ch-data:/var/lib/clickhouse
+      - infra-clickstack-ch-logs:/var/log/clickhouse-server
+    restart: on-failure
+
+  infra-clickstack-otel:
+    image: docker.clickhouse.com/clickhouse/clickstack-otel-collector:2
+    ports:
+      - "${INFRA_CLICKSTACK_OTEL_4317_PORT:-4317}:4317"   # OTLP gRPC
+      - "${INFRA_CLICKSTACK_OTEL_4318_PORT:-4318}:4318"   # OTLP HTTP
+    environment:
+      CLICKHOUSE_ENDPOINT: "tcp://infra-clickstack-ch:9000?dial_timeout=10s"
+      HYPERDX_OTEL_EXPORTER_CLICKHOUSE_DATABASE: default
+      HYPERDX_LOG_LEVEL: ${HYPERDX_LOG_LEVEL:-info}
+      OPAMP_SERVER_URL: "http://infra-clickstack-app:4320"
+      HYPERDX_OTEL_EXPORTER_CREATE_LEGACY_SCHEMA: "true"
+    depends_on:
+      - infra-clickstack-ch
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  infra-clickstack-app:
+    image: docker.hyperdx.io/hyperdx/hyperdx:2
+    ports:
+      - "${CLICKSTACK_APP_8080_PORT:-8080}:8080"   # HyperDX UI
+      - "${CLICKSTACK_APP_8000_PORT:-8000}:8000"   # HyperDX API
+    environment:
+      FRONTEND_URL: "http://localhost:${CLICKSTACK_APP_8080_PORT:-8080}"
+      HYPERDX_API_KEY: ${CLICKSTACK_API_KEY}
+      HYPERDX_API_PORT: 8000
+      HYPERDX_APP_PORT: 8080
+      HYPERDX_APP_URL: http://localhost
+      HYPERDX_LOG_LEVEL: ${HYPERDX_LOG_LEVEL:-info}
+      MONGO_URI: "mongodb://infra-clickstack-mongo:27017/hyperdx"
+      SERVER_URL: "http://127.0.0.1:8000"
+      OPAMP_PORT: 4320
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://infra-clickstack-otel:4318"
+      OTEL_SERVICE_NAME: "hdx-oss-app"
+      USAGE_STATS_ENABLED: "false"
+      DEFAULT_CONNECTIONS: '[{"name":"Local ClickHouse","host":"http://infra-clickstack-ch:8123","username":"default","password":""}]'
+      DEFAULT_SOURCES: '[{"from":{"databaseName":"default","tableName":"otel_logs"},"kind":"log","timestampValueExpression":"TimestampTime","name":"Logs","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"Body","serviceNameExpression":"ServiceName","bodyExpression":"Body","eventAttributesExpression":"LogAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,SeverityText,Body","severityTextExpression":"SeverityText","traceIdExpression":"TraceId","spanIdExpression":"SpanId","connection":"Local ClickHouse","traceSourceId":"Traces","sessionSourceId":"Sessions","metricSourceId":"Metrics"},{"from":{"databaseName":"default","tableName":"otel_traces"},"kind":"trace","timestampValueExpression":"Timestamp","name":"Traces","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"SpanName","serviceNameExpression":"ServiceName","eventAttributesExpression":"SpanAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,StatusCode,round(Duration/1e6),SpanName","traceIdExpression":"TraceId","spanIdExpression":"SpanId","durationExpression":"Duration","durationPrecision":9,"parentSpanIdExpression":"ParentSpanId","spanNameExpression":"SpanName","spanKindExpression":"SpanKind","statusCodeExpression":"StatusCode","statusMessageExpression":"StatusMessage","connection":"Local ClickHouse","logSourceId":"Logs","sessionSourceId":"Sessions","metricSourceId":"Metrics"},{"from":{"databaseName":"default","tableName":""},"kind":"metric","timestampValueExpression":"TimeUnix","name":"Metrics","resourceAttributesExpression":"ResourceAttributes","metricTables":{"gauge":"otel_metrics_gauge","histogram":"otel_metrics_histogram","sum":"otel_metrics_sum"},"connection":"Local ClickHouse","logSourceId":"Logs","traceSourceId":"Traces","sessionSourceId":"Sessions"},{"from":{"databaseName":"default","tableName":"hyperdx_sessions"},"kind":"session","timestampValueExpression":"TimestampTime","name":"Sessions","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"Body","serviceNameExpression":"ServiceName","bodyExpression":"Body","eventAttributesExpression":"LogAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,SeverityText,Body","severityTextExpression":"SeverityText","traceIdExpression":"TraceId","spanIdExpression":"SpanId","connection":"Local ClickHouse","logSourceId":"Logs","traceSourceId":"Traces","metricSourceId":"Metrics"}]'
+    depends_on:
+      infra-clickstack-otel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # API Gateway (Apache APISIX — auth, CORS, OTEL, routing)
+  # ---------------------------------------------------------------------------
+  infra-gateway:
+    image: apache/apisix:3.11.0-debian
+    ports:
+      - "${INFRA_GATEWAY_PORT:-8005}:8005"
+    environment:
+      CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY}
+    volumes:
+      - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    depends_on:
+      infra-clickstack-otel:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8005/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # API Docs (lightweight Nginx serving Scalar UI)
+  # ---------------------------------------------------------------------------
+  infra-api-docs:
+    image: nginx:alpine
+    volumes:
+      - ./infra/nginx/api-docs.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped
+    depends_on:
+      infra-gateway:
+        condition: service_started
+      infra-reverse-proxy:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # Reverse Proxy (Traefik — routes frontend ↔ API gateway)
+  # ---------------------------------------------------------------------------
+  infra-reverse-proxy:
+    image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}
+    restart: unless-stopped
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic/dynamic.yml
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --api.dashboard=${TRAEFIK_DASHBOARD_ENABLED:-false}
+      - --api.insecure=false
+      - --ping=true
+      - --ping.entrypoint=web
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=${TRAEFIK_ACCESSLOG_ENABLED:-true}
+      - --tracing=true
+      - --tracing.otlp=true
+      - --tracing.otlp.http=true
+      - --tracing.otlp.http.endpoint=http://infra-clickstack-otel:4318/v1/traces
+      - --tracing.otlp.http.headers.authorization=${CLICKSTACK_API_KEY}
+      - --tracing.serviceName=infra-reverse-proxy
+    depends_on:
+      infra-clickstack-otel:
+        condition: service_healthy
+    ports:
+      - "${INFRA_REVERSE_PROXY_PORT:-3001}:80"
+    volumes:
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro # Temporal Web UI
+
+  infra-factory:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+    platform: linux/amd64
+    build:
+      context: ./
+      dockerfile: ./api/Dockerfile
+      args:
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
+    restart: unless-stopped
+    ports:
+      - "${AUTH_SERVICE_PORT:-8181}:3000"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    volumes:
+      - ./infra/factory/application.yml:/app/config/application.yml:ro
+    environment:
+      - AUTH_DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      # - AUTH_GOOGLE_AUTH_ENABLED=true
+      - AUTH_BASE_URL=http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/auth/reference || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  infra-clickstack-db:
+  infra-clickstack-ch-data:
+  infra-clickstack-ch-logs:

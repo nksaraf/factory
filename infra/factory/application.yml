@@ -1,0 +1,13 @@
+# Factory API — loaded by @rio.js/app-config (resolveConfig).
+# Precedence: schema defaults < this file < application-{APP_PROFILE}.yml < config/.env < process.env
+# Env keys: FACTORY_DATABASE_URL, FACTORY_AUTH_JWKS_URL, FACTORY_LOG_LEVEL, FACTORY_LOG_FORMAT
+
+factory:
+  database:
+    # Fall back to DATABASE_URL when unset (interpolation)
+    url: "${DATABASE_URL:postgres://postgres:postgres@infra-postgres:5432/postgres}"
+  auth:
+    jwksUrl: "${FACTORY_AUTH_JWKS_URL:http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}"
+  log:
+    level: info
+    format: json

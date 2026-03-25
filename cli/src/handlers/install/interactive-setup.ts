@@ -37,7 +37,7 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
   if (role === "workbench") {
     const factoryUrl = await input({
       message: "Factory URL",
-      default: defaults.factoryUrl || "https://factory.rio.software",
+      default: defaults.factoryUrl || "https://factory.lepton.software",
       validate: (v) => v.length > 0 || "Required",
     });
 
@@ -69,7 +69,7 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
 
   const domain = await input({
     message: "Domain",
-    default: role === "factory" ? "factory.rio.software" : "",
+    default: role === "factory" ? "factory.lepton.software" : "",
     validate: (v) => v.length > 0 || "Required",
   });
 
@@ -85,7 +85,7 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
   } else {
     factoryUrl = await input({
       message: "Factory URL",
-      default: defaults.factoryUrl || "https://factory.rio.software",
+      default: defaults.factoryUrl || "https://factory.lepton.software",
       validate: (v) => v.length > 0 || "Required",
     });
   }

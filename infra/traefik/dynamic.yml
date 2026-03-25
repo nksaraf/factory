@@ -1,0 +1,23 @@
+# Reverse proxy: /api/v1 -> infra-gateway (APISIX), everything else -> frontend
+# Used by infra-reverse-proxy in docker-compose.infra.yml
+http:
+  routers:
+    gateway-router:
+      rule: "PathPrefix(`/api/v1`)"
+      service: infra-gateway
+      priority: 200
+    # frontend-router:
+    #   rule: "PathPrefix(`/`)"
+    #   service: frontend
+    #   priority: 1
+  services:
+    infra-gateway:
+      loadBalancer:
+        servers:
+          - url: "http://infra-gateway:8005"
+        passHostHeader: true
+    # frontend:
+    #   loadBalancer:
+    #     servers:
+    #       - url: "http://192.168.66.1:3000"
+    #     passHostHeader: true

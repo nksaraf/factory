@@ -39,6 +39,11 @@ export function phaseFail(spinner: Ora, n: number, total: number, label: string,
   spinner.fail(`[${n}/${total}] ${label} — ${error}`);
 }
 
+/** Phase was already completed in a previous run; no spinner. */
+export function phaseSkipped(n: number, total: number, label: string): void {
+  console.log(`  ${styleSuccess("✔")} [${n}/${total}] ${label} ${styleMuted("(skipped — resume)")}`);
+}
+
 /** Format milliseconds as human-readable elapsed time. */
 export function formatElapsed(ms: number): string {
   if (ms < 1000) return `${ms}ms`;

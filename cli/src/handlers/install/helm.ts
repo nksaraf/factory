@@ -77,6 +77,34 @@ export async function helmInstall(opts: HelmInstallOptions): Promise<string> {
   return version;
 }
 
+/** Chart version from an existing release (resume after phase 4). */
+export function getInstalledDxPlatformChartVersion(verbose?: boolean): string {
+  const result = run("helm", [
+    "list",
+    "-n",
+    DX_NAMESPACE,
+    "--kubeconfig",
+    K3S_KUBECONFIG,
+    "-o",
+    "json",
+  ], { verbose });
+  if (result.status !== 0) {
+    throw new Error(`helm list failed: ${result.stderr || "unknown error"}`);
+  }
+  let rows: Array<{ name: string; chart: string }>;
+  try {
+    rows = JSON.parse(result.stdout || "[]") as Array<{ name: string; chart: string }>;
+  } catch {
+    throw new Error("helm list returned invalid JSON");
+  }
+  const rel = rows.find((r) => r.name === RELEASE_NAME);
+  if (!rel) {
+    throw new Error("dx-platform Helm release not found — cannot resume past phase 4");
+  }
+  const m = rel.chart.match(/^dx-platform-(.+)$/);
+  return m ? m[1]! : rel.chart;
+}
+
 export async function helmUpgrade(opts: HelmInstallOptions): Promise<string> {
   const values = configToHelmValues(opts.config);
   const setArgs = helmValuesToSetArgs(values);

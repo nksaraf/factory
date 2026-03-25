@@ -1,9 +1,18 @@
 import type { DxBase } from "../dx-root.js";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
-import type { InstallRole } from "@smp/factory-shared/install-types";
+import type { InstallManifest, InstallRole } from "@smp/factory-shared/install-types";
 import { exitWithError } from "../lib/cli-exit.js";
 import { dxConfigStore, configExists, readConfig, configPath } from "../config.js";
-import { banner, phase, phaseSucceed, phaseFail, printPreflightLine, successLine, infoLine } from "../lib/cli-ui.js";
+import {
+  banner,
+  phase,
+  phaseSucceed,
+  phaseFail,
+  phaseSkipped,
+  printPreflightLine,
+  successLine,
+  infoLine,
+} from "../lib/cli-ui.js";
 import { toDxFlags } from "./dx-flags.js";
 
 const DX_VERSION = process.env.DX_VERSION ?? "0.0.0-dev";
@@ -16,6 +25,10 @@ export function installCommand(app: DxBase) {
       bundle: { type: "string", short: "b", description: "Path to offline bundle directory" },
       role: { type: "string", description: "Installation role: workbench, site, or factory" },
       force: { type: "boolean", description: "Force install over existing installation" },
+      fresh: {
+        type: "boolean",
+        description: "Ignore saved install progress and start from phase 1 (still need --force if k3s exists)",
+      },
     })
     .run(async ({ flags }) => {
       const f = toDxFlags(flags);
@@ -68,6 +81,7 @@ export function installCommand(app: DxBase) {
             networkPodCidr: config.networkPodCidr,
             networkServiceCidr: config.networkServiceCidr,
             installMode: config.installMode,
+            installLastCompletedPhase: config.installLastCompletedPhase,
           });
 
           config = await readConfig();
@@ -104,7 +118,29 @@ export function installCommand(app: DxBase) {
         console.log();
         const TOTAL = 6;
 
-        // Phase 1: Full preflight
+        if (flags.fresh as boolean | undefined) {
+          await dxConfigStore.update((prev) => ({ ...prev, installLastCompletedPhase: "0" }));
+          config = await readConfig();
+        }
+
+        const parseSavedPhase = (raw: string) => {
+          const n = parseInt(raw || "0", 10);
+          if (Number.isNaN(n) || n < 0 || n > 5) return 0;
+          return n;
+        };
+        const lastPhase = parseSavedPhase(config.installLastCompletedPhase);
+
+        if (lastPhase > 0) {
+          infoLine(
+            `Resuming after phase ${lastPhase} (saved in ${configPath()}). Use --fresh to restart phase tracking, or dx install reset-progress to clear only the checkpoint.`
+          );
+          console.log();
+        }
+
+        const persistInstallPhase = async (n: number) => {
+          await dxConfigStore.update((prev) => ({ ...prev, installLastCompletedPhase: String(n) }));
+        };
+
         let s = phase(1, TOTAL, "Preflight");
         let start = Date.now();
         const { runPreflight } = await import("../handlers/install/preflight.js");
@@ -113,6 +149,7 @@ export function installCommand(app: DxBase) {
           domain: config.domain,
           installMode: config.installMode,
           force: flags.force as boolean | undefined,
+          resumeClusterInstall: lastPhase >= 2,
         });
         if (!preflight.passed) {
           phaseFail(s, 1, TOTAL, "Preflight", "checks failed");
@@ -120,52 +157,103 @@ export function installCommand(app: DxBase) {
           exitWithError(f, "Preflight checks failed.", ExitCodes.PREFLIGHT_FAILURE);
         }
         phaseSucceed(s, 1, TOTAL, "Preflight", start);
+        if (lastPhase < 1) await persistInstallPhase(1);
 
-        // Phase 2: K3s
-        s = phase(2, TOTAL, "K3s bootstrap");
-        start = Date.now();
-        const { bootstrapK3s } = await import("../handlers/install/k3s.js");
-        await bootstrapK3s({
-          bundlePath: flags.bundle as string | undefined,
-          verbose: f.verbose,
-        });
-        phaseSucceed(s, 2, TOTAL, "K3s bootstrap", start);
+        if (lastPhase < 2) {
+          s = phase(2, TOTAL, "K3s bootstrap");
+          start = Date.now();
+          const { bootstrapK3s } = await import("../handlers/install/k3s.js");
+          await bootstrapK3s({
+            bundlePath: flags.bundle as string | undefined,
+            verbose: f.verbose,
+          });
+          phaseSucceed(s, 2, TOTAL, "K3s bootstrap", start);
+        } else {
+          phaseSkipped(2, TOTAL, "K3s bootstrap");
+          const { bootstrapK3s } = await import("../handlers/install/k3s.js");
+          await bootstrapK3s({
+            bundlePath: flags.bundle as string | undefined,
+            verbose: f.verbose,
+            skipInstall: true,
+          });
+        }
+        await persistInstallPhase(2);
 
-        // Phase 3: Images
-        s = phase(3, TOTAL, "Loading images");
-        start = Date.now();
-        const { loadImages } = await import("../handlers/install/images.js");
-        loadImages({
-          role,
-          bundlePath: flags.bundle as string | undefined,
-          verbose: f.verbose,
-        });
-        phaseSucceed(s, 3, TOTAL, "Loading images", start);
+        let chartVersion = "";
+        if (lastPhase < 3) {
+          s = phase(3, TOTAL, "Loading images");
+          start = Date.now();
+          const { loadImages } = await import("../handlers/install/images.js");
+          loadImages({
+            role,
+            bundlePath: flags.bundle as string | undefined,
+            verbose: f.verbose,
+          });
+          phaseSucceed(s, 3, TOTAL, "Loading images", start);
+          await persistInstallPhase(3);
+        } else {
+          phaseSkipped(3, TOTAL, "Loading images");
+        }
 
-        // Phase 4: Helm install
-        s = phase(4, TOTAL, "Installing platform");
-        start = Date.now();
-        const { helmInstall } = await import("../handlers/install/helm.js");
-        const chartVersion = await helmInstall({
-          config,
-          bundlePath: flags.bundle as string | undefined,
-          verbose: f.verbose,
-        });
-        phaseSucceed(s, 4, TOTAL, "Installing platform", start);
+        if (lastPhase < 4) {
+          s = phase(4, TOTAL, "Installing platform");
+          start = Date.now();
+          const { helmInstall } = await import("../handlers/install/helm.js");
+          chartVersion = await helmInstall({
+            config,
+            bundlePath: flags.bundle as string | undefined,
+            verbose: f.verbose,
+          });
+          phaseSucceed(s, 4, TOTAL, "Installing platform", start);
+          await persistInstallPhase(4);
+        } else {
+          phaseSkipped(4, TOTAL, "Installing platform");
+          const { getInstalledDxPlatformChartVersion } = await import("../handlers/install/helm.js");
+          chartVersion = getInstalledDxPlatformChartVersion(f.verbose);
+        }
 
-        // Phase 5: Post-install
-        s = phase(5, TOTAL, "Post-install");
-        start = Date.now();
-        const { runPostInstall } = await import("../handlers/install/post-install.js");
-        const manifest = await runPostInstall({
-          config,
-          helmChartVersion: chartVersion,
-          dxVersion: DX_VERSION,
-          verbose: f.verbose,
-        });
-        phaseSucceed(s, 5, TOTAL, "Post-install", start);
+        let manifest: InstallManifest;
+        if (lastPhase < 5) {
+          s = phase(5, TOTAL, "Post-install");
+          start = Date.now();
+          const { runPostInstall } = await import("../handlers/install/post-install.js");
+          manifest = await runPostInstall({
+            config,
+            helmChartVersion: chartVersion,
+            dxVersion: DX_VERSION,
+            verbose: f.verbose,
+          });
+          phaseSucceed(s, 5, TOTAL, "Post-install", start);
+          await persistInstallPhase(5);
+        } else {
+          phaseSkipped(5, TOTAL, "Post-install");
+          const { spawnSync } = await import("node:child_process");
+          const { K3S_KUBECONFIG } = await import("../handlers/install/k3s.js");
+          const proc = spawnSync(
+            "kubectl",
+            [
+              "get",
+              "configmap",
+              "dx-install-manifest",
+              "-n",
+              "dx-system",
+              "--kubeconfig",
+              K3S_KUBECONFIG,
+              "-o",
+              "jsonpath={.data.manifest\\.json}",
+            ],
+            { encoding: "utf8" }
+          );
+          if (proc.status !== 0) {
+            exitWithError(
+              f,
+              "Post-install was skipped on resume but install manifest ConfigMap is missing.",
+              ExitCodes.INSTALL_PHASE_FAILURE
+            );
+          }
+          manifest = JSON.parse(proc.stdout) as typeof manifest;
+        }
 
-        // Phase 6: Health
         s = phase(6, TOTAL, "Health check");
         start = Date.now();
         const { verifyHealth } = await import("../handlers/install/health.js");
@@ -180,7 +268,8 @@ export function installCommand(app: DxBase) {
         }
         phaseSucceed(s, 6, TOTAL, "Health check", start);
 
-        // Success
+        await dxConfigStore.update((prev) => ({ ...prev, installLastCompletedPhase: "0" }));
+
         const label = role === "factory" ? "Factory" : "Site";
         successLine(`${label} ready — https://${config.domain}`, Date.now() - totalStart);
         infoLine(`Config: ${configPath()}`);
@@ -202,6 +291,17 @@ export function installCommand(app: DxBase) {
 
     // --- Subcommands ---
 
+    .command("reset-progress", (c) =>
+      c
+        .meta({
+          description: "Clear saved cluster install checkpoint (installLastCompletedPhase); does not remove k3s or Helm",
+        })
+        .run(async () => {
+          await dxConfigStore.update((prev) => ({ ...prev, installLastCompletedPhase: "0" }));
+          console.log(`Install checkpoint cleared (${configPath()}).`);
+        })
+    )
+
     .command("preflight", (c) =>
       c
         .meta({ description: "Run preflight checks only (dry run)" })
@@ -212,6 +312,7 @@ export function installCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             let role: InstallRole = (flags.role as InstallRole) || "workbench";
+            let installConfig = await readConfig();
             if (!flags.role) {
               if (!configExists()) {
                 const { select } = await import("@inquirer/prompts");
@@ -224,13 +325,21 @@ export function installCommand(app: DxBase) {
                   ],
                 });
               } else {
-                const config = await readConfig();
-                role = config.role as InstallRole;
+                installConfig = await readConfig();
+                role = installConfig.role as InstallRole;
               }
             }
 
+            const saved = parseInt(installConfig.installLastCompletedPhase || "0", 10);
+            const resumeCluster = !Number.isNaN(saved) && saved >= 2;
+
             const { runPreflight } = await import("../handlers/install/preflight.js");
-            const result = runPreflight({ role });
+            const result = runPreflight({
+              role,
+              domain: installConfig.domain,
+              installMode: installConfig.installMode,
+              resumeClusterInstall: resumeCluster,
+            });
 
             printPreflightLine(result.checks);
 

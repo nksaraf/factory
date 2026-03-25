@@ -1,8 +1,30 @@
 {
-  "name": "@smp/factory-local",
+  "name": "@lepton/factory",
   "private": true,
-  "description": "Factory workspace root — dx.yaml and dxi (local dx CLI)",
+  "type": "module",
   "scripts": {
-    "dxi": "bun ./cli/bin/run.js"
-  }
+    "preinstall": "npx get-artifactregistry-token@3.4.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "prettier": "3.8.1",
+    "@trivago/prettier-plugin-sort-imports": "6.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "7.3.1",
+      "react": "19.2.0",
+      "react-dom": "19.2.0",
+      "@types/react": "19.2.1",
+      "@types/react-dom": "19.2.2",
+      "@types/node": "25.0.9",
+      "@aws-sdk/credential-provider-web-identity": "3.972.18",
+      "ioredis": "5.10.1",
+      "drizzle-orm": "0.45.1",
+      "@electric-sql/pglite": "0.3.16",
+      "@types/pg": "8.20.0",
+      "@better-auth/utils": "0.3.1"
+    }
+  },
+  "packageManager": "pnpm@9.15.4"
 }

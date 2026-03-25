@@ -53,10 +53,17 @@ function checkPort(port: number): PreflightCheck {
   return check(`port-${port}`, !inUse, inUse ? `port ${port} in use` : `port ${port}`);
 }
 
-function checkNoExistingK3s(force: boolean): PreflightCheck {
+function checkNoExistingK3s(force: boolean, resumeClusterInstall?: boolean): PreflightCheck {
   const exists = existsSync("/usr/local/bin/k3s") || existsSync("/etc/rancher/k3s");
   if (force && exists) return check("k3s", true, "k3s found (--force)", false);
-  return check("k3s", !exists, exists ? "k3s exists (use --force)" : "no k3s");
+  if (resumeClusterInstall && exists) {
+    return check("k3s", true, "k3s present (resuming after phase 2)", false);
+  }
+  return check(
+    "k3s",
+    !exists,
+    exists ? "k3s exists (use --force, or dx install reset-progress if reinstalling)" : "no k3s"
+  );
 }
 
 function checkDns(domain: string): PreflightCheck {
@@ -70,6 +77,8 @@ export function runPreflight(opts: {
   domain?: string;
   installMode?: string;
   force?: boolean;
+  /** k3s may already be running (recorded progress past phase 2); allow in-use API ports and existing k3s. */
+  resumeClusterInstall?: boolean;
 }): PreflightResult {
   const checks: PreflightCheck[] = [];
 
@@ -80,14 +89,16 @@ export function runPreflight(opts: {
     return { passed, checks, role: opts.role };
   }
 
-  // Site/Factory: full checks
+  const resume = opts.resumeClusterInstall ?? false;
+
+  // Site/Factory: full checks (omit port checks on resume — k3s already bound 6443 / 10250 etc.)
   checks.push(
     checkRoot(),
     checkOs(opts.role),
     checkArch(),
     checkDisk(opts.role),
-    ...REQUIRED_PORTS.map(checkPort),
-    checkNoExistingK3s(opts.force ?? false),
+    ...(resume ? [] : REQUIRED_PORTS.map(checkPort)),
+    checkNoExistingK3s(opts.force ?? false, resume),
   );
 
   if (opts.installMode !== "offline" && opts.domain) {

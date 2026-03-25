@@ -26,6 +26,8 @@ export const DX_CONFIG_FIELDS = {
   networkPodCidr: { type: "string", default: "10.42.0.0/16" },
   networkServiceCidr: { type: "string", default: "10.43.0.0/16" },
   installMode: { type: "string", default: "connected" },
+  /** Last successfully finished cluster install phase (1–6); "0" = none / finished. Used to resume after partial install. */
+  installLastCompletedPhase: { type: "string", default: "0" },
 } as const;
 
 /** Global DX config store at ~/.config/dx/config.json. */

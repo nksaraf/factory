@@ -9,14 +9,20 @@ export interface K3sBootstrapOptions {
   /** Path to offline bundle directory (contains k3s binary). */
   bundlePath?: string;
   verbose?: boolean;
+  /** Only wait for API + read token; skip install (resume after phase 2). */
+  skipInstall?: boolean;
 }
 
 /** Phase 2: Install k3s server and wait for API readiness. */
 export async function bootstrapK3s(opts: K3sBootstrapOptions): Promise<{ joinToken: string }> {
-  if (opts.bundlePath) {
-    installK3sOffline(opts.bundlePath, opts.verbose);
+  if (!opts.skipInstall) {
+    if (opts.bundlePath) {
+      installK3sOffline(opts.bundlePath, opts.verbose);
+    } else {
+      installK3sOnline(opts.verbose);
+    }
   } else {
-    installK3sOnline(opts.verbose);
+    console.log("Using existing k3s installation (resume).");
   }
 
   await waitForK3sReady(opts.verbose);
