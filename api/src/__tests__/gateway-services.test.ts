@@ -212,4 +212,38 @@ describe("Gateway Services", () => {
       });
     });
   });
+
+  describe("Full Gateway Flow", () => {
+    it("creates preview → resolves via gateway lookup → transitions to active", async () => {
+      // 1. Create preview
+      const { preview: p, route: r } = await previewSvc.createPreview(db, {
+        name: "PR #99 - e2e-test",
+        sourceBranch: "e2e-test",
+        commitSha: "e2e000",
+        repo: "github.com/org/app",
+        prNumber: 99,
+        siteName: "app",
+        ownerId: "user_1",
+        createdBy: "system",
+      });
+
+      expect(r.domain).toBe("pr-99--e2e-test--app.preview.dx.dev");
+
+      // 2. Route should be resolvable
+      const found = await gw.lookupRouteByDomain(db, "pr-99--e2e-test--app.preview.dx.dev");
+      expect(found).not.toBeNull();
+      expect(found!.kind).toBe("preview");
+
+      // 3. Transition to active
+      await previewSvc.updatePreviewStatus(db, p.previewId, {
+        status: "active",
+        runtimeClass: "hot",
+        lastAccessedAt: new Date(),
+      });
+
+      const active = await previewSvc.getPreview(db, p.previewId);
+      expect(active!.status).toBe("active");
+      expect(active!.runtimeClass).toBe("hot");
+    });
+  });
 });
