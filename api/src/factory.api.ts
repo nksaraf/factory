@@ -65,6 +65,7 @@ export class FactoryAPI {
 
   static async create(): Promise<FactoryAPI> {
     const settings = await resolveFactorySettings()
+    console.log("settings", settings)
     return new FactoryAPI(settings)
   }
 

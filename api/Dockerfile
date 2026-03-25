@@ -22,7 +22,8 @@ COPY ./shared/package.json ./shared/
 
 RUN npx get-artifactregistry-token@3.4.2
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
 
 COPY ./api ./api
 COPY ./shared ./shared

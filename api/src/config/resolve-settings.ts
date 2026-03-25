@@ -65,6 +65,9 @@ function applyEnvFallbacks(s: FactorySettings): FactorySettings {
 }
 
 export async function resolveFactorySettings(): Promise<FactorySettings> {
+  console.log("CONFIG_DIR", CONFIG_DIR)
+  console.log("process.env", process.env)
+  console.log("factorySettingsSchema", factorySettingsSchema.parse({}))
   const raw = await resolveConfig(factorySettingsSchema, {
     configDir: CONFIG_DIR,
     envPrefix: [],
