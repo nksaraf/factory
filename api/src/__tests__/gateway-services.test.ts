@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestContext, truncateAllTables } from "../test-helpers";
 import * as gw from "../modules/infra/gateway.service";
+import * as previewSvc from "../services/preview/preview.service";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
 
@@ -54,6 +55,111 @@ describe("Gateway Services", () => {
 
       const found = await gw.lookupRouteByDomain(db, "stale.tunnel.dx.dev");
       expect(found).toBeNull();
+    });
+  });
+
+  describe("Preview Service", () => {
+    describe("createPreview", () => {
+      it("creates preview with deploymentTarget and route", async () => {
+        const result = await previewSvc.createPreview(db, {
+          name: "PR #42 - fix-auth-bug",
+          sourceBranch: "fix-auth-bug",
+          commitSha: "a13f000000000000000000000000000000000000",
+          repo: "github.com/org/myapp",
+          prNumber: 42,
+          siteName: "myapp",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+
+        expect(result.preview.previewId).toBeTruthy();
+        expect(result.preview.slug).toBe("pr-42--fix-auth-bug--myapp");
+        expect(result.preview.status).toBe("building");
+        expect(result.deploymentTarget.kind).toBe("preview");
+        expect(result.route.domain).toBe("pr-42--fix-auth-bug--myapp.preview.dx.dev");
+      });
+
+      it("creates branch-only preview (no PR number)", async () => {
+        const result = await previewSvc.createPreview(db, {
+          name: "feat-dashboard",
+          sourceBranch: "feat-dashboard",
+          commitSha: "b24f000000000000000000000000000000000000",
+          repo: "github.com/org/myapp",
+          siteName: "myapp",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+
+        expect(result.preview.slug).toBe("feat-dashboard--myapp");
+        expect(result.preview.prNumber).toBeNull();
+      });
+    });
+
+    describe("getPreview", () => {
+      it("returns preview by id", async () => {
+        const { preview } = await previewSvc.createPreview(db, {
+          name: "PR #1",
+          sourceBranch: "main",
+          commitSha: "abc",
+          repo: "github.com/org/app",
+          prNumber: 1,
+          siteName: "app",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+
+        const found = await previewSvc.getPreview(db, preview.previewId);
+        expect(found).not.toBeNull();
+        expect(found!.previewId).toBe(preview.previewId);
+      });
+
+      it("returns null for non-existent id", async () => {
+        const found = await previewSvc.getPreview(db, "prev_nonexistent");
+        expect(found).toBeNull();
+      });
+    });
+
+    describe("updatePreviewStatus", () => {
+      it("transitions preview to active", async () => {
+        const { preview } = await previewSvc.createPreview(db, {
+          name: "PR #5",
+          sourceBranch: "fix",
+          commitSha: "def",
+          repo: "github.com/org/app",
+          prNumber: 5,
+          siteName: "app",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+
+        const updated = await previewSvc.updatePreviewStatus(db, preview.previewId, {
+          status: "active",
+          runtimeClass: "hot",
+        });
+        expect(updated!.status).toBe("active");
+        expect(updated!.runtimeClass).toBe("hot");
+      });
+    });
+
+    describe("expirePreview", () => {
+      it("marks preview as expired and updates route", async () => {
+        const { preview } = await previewSvc.createPreview(db, {
+          name: "PR #10",
+          sourceBranch: "old",
+          commitSha: "ghi",
+          repo: "github.com/org/app",
+          prNumber: 10,
+          siteName: "app",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+
+        await previewSvc.updatePreviewStatus(db, preview.previewId, { status: "active" });
+        await previewSvc.expirePreview(db, preview.previewId);
+
+        const expired = await previewSvc.getPreview(db, preview.previewId);
+        expect(expired!.status).toBe("expired");
+      });
     });
   });
 });
