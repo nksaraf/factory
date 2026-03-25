@@ -53,7 +53,7 @@ function applyEnvFallbacks(s: FactorySettings): FactorySettings {
       ...s.factory,
       mode,
       database: { url: dbUrl ?? "" },
-      auth: { jwksUrl: jwksUrl ?? "" },
+      auth: { jwksUrl: jwksUrl ?? "", serviceUrl: s.factory.auth.serviceUrl ?? "" },
       log: s.factory.log,
       site: {
         ...s.factory.site,

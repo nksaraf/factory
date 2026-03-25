@@ -1,0 +1,26 @@
+{
+  "ref": "refs/heads/main",
+  "before": "abc123",
+  "after": "def456",
+  "repository": {
+    "id": 12345,
+    "full_name": "acme/my-app",
+    "name": "my-app",
+    "private": true,
+    "default_branch": "main",
+    "clone_url": "https://github.com/acme/my-app.git"
+  },
+  "head_commit": {
+    "id": "def456",
+    "message": "feat: add new feature",
+    "author": {
+      "name": "Alice",
+      "email": "alice@example.com"
+    }
+  },
+  "pusher": {
+    "name": "alice",
+    "email": "alice@example.com"
+  },
+  "action": "completed"
+}
