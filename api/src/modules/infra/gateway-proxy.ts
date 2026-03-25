@@ -1,4 +1,6 @@
 import { LRUCache } from "lru-cache";
+import type { Database } from "../../db/connection";
+import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service";
 
 export type RouteFamily = "tunnel" | "preview" | "sandbox";
 
@@ -139,4 +141,23 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       server.stop();
     },
   };
+}
+
+export function startGateway(opts: { db: Database; port?: number; getTunnelSocket?: (subdomain: string) => WebSocket | undefined }) {
+  const cache = new RouteCache({
+    lookup: (domain) => lookupRouteByDomain(opts.db, domain),
+    maxSize: 10_000,
+    ttlMs: 300_000,
+  });
+
+  // Wire up cache invalidation
+  setRouteChangeListener((domain) => cache.invalidate(domain));
+
+  const gw = createGatewayServer({
+    cache,
+    port: opts.port ?? 9090,
+    getTunnelSocket: opts.getTunnelSocket,
+  });
+
+  return { ...gw, cache };
 }

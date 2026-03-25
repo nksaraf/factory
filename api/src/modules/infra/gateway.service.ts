@@ -5,6 +5,20 @@ import dns from "node:dns/promises";
 import type { Database } from "../../db/connection";
 import { route, domain as domainTable, tunnel } from "../../db/schema";
 
+/**
+ * Route change listener for cache invalidation.
+ * The factory gateway registers its cache.invalidate here.
+ */
+let onRouteChanged: ((domain: string) => void) | null = null;
+
+export function setRouteChangeListener(listener: (domain: string) => void): void {
+  onRouteChanged = listener;
+}
+
+function notifyRouteChanged(domain: string): void {
+  onRouteChanged?.(domain);
+}
+
 // ---------------------------------------------------------------------------
 // Route CRUD
 // ---------------------------------------------------------------------------
@@ -86,6 +100,7 @@ export async function createRoute(
     })
     .returning();
 
+  notifyRouteChanged(row.domain);
   return row;
 }
 
@@ -120,11 +135,14 @@ export async function updateRoute(
     .where(eq(route.routeId, routeId))
     .returning();
 
+  if (row) notifyRouteChanged(row.domain);
   return row ?? null;
 }
 
 export async function deleteRoute(db: Database, routeId: string) {
+  const existing = await getRoute(db, routeId);
   await db.delete(route).where(eq(route.routeId, routeId));
+  if (existing) notifyRouteChanged(existing.domain);
 }
 
 export async function cleanupExpiredRoutes(db: Database): Promise<number> {

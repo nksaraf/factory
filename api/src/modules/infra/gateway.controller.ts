@@ -105,4 +105,9 @@ export function gatewayController(db: Database) {
         handleTunnelConnection(ws.raw as unknown as WebSocket, { db });
       },
     })
+    .onStart(async () => {
+      const { startGateway } = await import("./gateway-proxy");
+      const { getTunnelSocket } = await import("./tunnel-broker");
+      startGateway({ db, port: 9090, getTunnelSocket });
+    })
 }
