@@ -14,7 +14,8 @@ const PKG_ROOT = path.resolve(
 );
 const CONFIG_DIR = path.join(PKG_ROOT, "config");
 
-function emptyToUndefined(s: string): string | undefined {
+function emptyToUndefined(s: string | undefined | null): string | undefined {
+  if (s == null) return undefined;
   const t = s.trim();
   return t === "" ? undefined : t;
 }
@@ -45,8 +46,8 @@ function applyEnvFallbacks(s: FactorySettings): FactorySettings {
   }
 
   // Site config env fallbacks
-  const siteName = emptyToUndefined(s.factory.site.name) ?? process.env.FACTORY_SITE_NAME?.trim() ?? "";
-  const siteFactoryUrl = emptyToUndefined(s.factory.site.factoryUrl) ?? process.env.FACTORY_URL?.trim() ?? "";
+  const siteName = emptyToUndefined(s.factory.site?.name) ?? process.env.FACTORY_SITE_NAME?.trim() ?? "";
+  const siteFactoryUrl = emptyToUndefined(s.factory.site?.factoryUrl) ?? process.env.FACTORY_URL?.trim() ?? "";
 
   return {
     factory: {
@@ -65,12 +66,18 @@ function applyEnvFallbacks(s: FactorySettings): FactorySettings {
 }
 
 export async function resolveFactorySettings(): Promise<FactorySettings> {
-  console.log("CONFIG_DIR", CONFIG_DIR)
-  console.log("process.env", process.env)
-  console.log("factorySettingsSchema", factorySettingsSchema.parse({}))
   const raw = await resolveConfig(factorySettingsSchema, {
     configDir: CONFIG_DIR,
     envPrefix: [],
+    // The bundler can break Zod's nested .default({}) chains, causing
+    // schema.parse({}) inside resolveConfig to return incomplete defaults.
+    // This makes it flag valid YAML keys as "unknown". Suppress the warning
+    // since we re-parse through Zod below to guarantee correctness.
+    warnUnknownKeys: false,
   });
-  return applyEnvFallbacks(raw);
+  // Re-parse through Zod to guarantee nested defaults are applied.
+  // The bundled schema can lose its structure, causing resolveConfig
+  // to return partial objects without defaults.
+  const settings = factorySettingsSchema.parse(raw);
+  return applyEnvFallbacks(settings);
 }
