@@ -233,7 +233,7 @@ export function devCommand(app: DxBase) {
           if (hasAuditableTarget && primaryTarget) {
             try {
               const client = await getFactoryClient();
-              const res = await client.api.v1.fleet["connection-audit"].post({
+              const res = await client.api.v1.factory.fleet["connection-audit"].post({
                 principalId: "cli-user",
                 deploymentTargetId: primaryTarget,
                 connectedResources: {
@@ -328,7 +328,7 @@ export function devCommand(app: DxBase) {
             if (auditEventId) {
               try {
                 const client = await getFactoryClient();
-                await client.api.v1.fleet["connection-audit"][auditEventId].patch({});
+                await client.api.v1.factory.fleet["connection-audit"]({ id: auditEventId }).patch({});
               } catch {
                 // Non-fatal
               }

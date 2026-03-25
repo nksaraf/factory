@@ -9,6 +9,10 @@ import "../lib/db-driver-postgres.js";
 import { ProjectContext } from "../lib/project.js";
 import type { DxBase } from "../dx-root.js";
 import { toDxFlags } from "./dx-flags.js";
+import {
+  actionResult,
+  styleSuccess,
+} from "./list-helpers.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,15 +59,6 @@ async function withDb(
     await fn({ name, driver, url, client });
   } finally {
     await client.close();
-  }
-}
-
-function jsonOut(flags: Record<string, unknown>, data: unknown): void {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
   }
 }
 
@@ -346,14 +341,13 @@ export function dbCommand(app: DxBase) {
           await withDb(flags, async ({ driver, client }) => {
             if (flags.kill != null) {
               const killed = await driver.killQuery(client, flags.kill as number);
-              if (f.json) {
-                jsonOut(flags, { pid: flags.kill, terminated: killed });
-              } else {
-                console.log(killed
-                  ? `Terminated query on PID ${flags.kill}`
-                  : `Failed to terminate PID ${flags.kill} (may have already completed)`
-                );
-              }
+              actionResult(
+                flags,
+                { pid: flags.kill, terminated: killed },
+                killed
+                  ? styleSuccess(`Terminated query on PID ${flags.kill}`)
+                  : `Failed to terminate PID ${flags.kill} (may have already completed)`,
+              );
               return;
             }
 
@@ -395,8 +389,9 @@ export function dbCommand(app: DxBase) {
                   // Table may not exist yet — that's fine, means no migrations applied
                 }
 
-                if (toDxFlags(flags).json) {
-                  jsonOut(flags, { applied });
+                const f = toDxFlags(flags);
+                if (f.json) {
+                  console.log(JSON.stringify({ success: true, data: { applied } }, null, 2));
                 } else {
                   if (applied.length === 0) {
                     console.log("No migrations have been applied yet.");
@@ -435,11 +430,7 @@ export function dbCommand(app: DxBase) {
                 exitWithError(f, "Migration failed.");
               }
 
-              if (f.json) {
-                jsonOut(flags, { success: true });
-              } else {
-                console.log("Migrations applied successfully.");
-              }
+              actionResult(flags, { success: true }, styleSuccess("Migrations applied successfully."));
             })
         )
 
@@ -529,11 +520,7 @@ export function dbCommand(app: DxBase) {
             await client.query("CREATE SCHEMA public");
             await client.query("GRANT ALL ON SCHEMA public TO PUBLIC");
 
-            if (!f.json) {
-              console.log("Database reset. Run 'dx db migrate up' to apply migrations.");
-            } else {
-              jsonOut(flags, { reset: true });
-            }
+            actionResult(flags, { reset: true }, styleSuccess("Database reset. Run 'dx db migrate up' to apply migrations."));
           });
         })
     )
@@ -579,11 +566,7 @@ export function dbCommand(app: DxBase) {
               const msg = err instanceof Error ? err.message : String(err);
               exitWithError(f, `Seed failed (rolled back): ${msg}`);
             }
-            if (f.json) {
-              jsonOut(flags, { seeded: true, fixture });
-            } else {
-              console.log(`Seed "${fixture}" applied successfully.`);
-            }
+            actionResult(flags, { seeded: true, fixture }, styleSuccess(`Seed "${fixture}" applied successfully.`));
           });
         })
     );

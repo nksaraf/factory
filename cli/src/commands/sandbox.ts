@@ -1,34 +1,19 @@
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
-import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
-
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
+import {
+  type ColumnOpt,
+  apiCall,
+  tableOrJson,
+  detailView,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  timeAgo,
+} from "./list-helpers.js";
 
 // Eden client type doesn't include sandbox routes due to conditional plugin
 // registration in factory.api.ts. Routes work at runtime. Use `any` for path access.
@@ -119,7 +104,7 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes.post(body)
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox "${args.name}" created.`));
         })
     )
 
@@ -128,8 +113,14 @@ export function sandboxCommand(app: DxBase) {
       c
         .meta({ description: "List sandboxes" })
         .flags({
+          all: {
+            type: "boolean",
+            alias: "a",
+            description: "Include stopped/destroyed sandboxes",
+          },
           status: {
             type: "string",
+            alias: "s",
             description: "Filter by status",
           },
           "owner-id": {
@@ -140,19 +131,55 @@ export function sandboxCommand(app: DxBase) {
             type: "string",
             description: "Filter by runtime (container|vm)",
           },
+          sort: {
+            type: "string",
+            description: "Sort by: name, status, created (default: name)",
+          },
+          limit: {
+            type: "number",
+            alias: "n",
+            description: "Limit results (default: 50)",
+          },
         })
         .run(async ({ flags }) => {
           const api = await getSandboxApi();
+          const status = flags.all ? undefined : (flags.status as string | undefined);
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes.get({
               query: {
-                status: flags.status as string | undefined,
+                status,
                 ownerId: flags["owner-id"] as string | undefined,
                 runtimeType: flags.runtime as string | undefined,
               },
             })
           );
-          jsonOut(flags, result);
+          const colOpts: ColumnOpt[] = [
+            {},                    // ID
+            {},                    // Name
+            {},                    // Runtime
+            {},                    // CPU
+            {},                    // Memory
+            {},                    // Owner
+            {},                    // Status
+            {},                    // Created
+          ];
+          tableOrJson(
+            flags,
+            result,
+            ["ID", "Name", "Runtime", "CPU", "Memory", "Owner", "Status", "Created"],
+            (r) => [
+              styleMuted(String(r.sandboxId ?? "")),
+              styleBold(String(r.name ?? "")),
+              String(r.runtimeType ?? ""),
+              String(r.cpu ?? "-"),
+              String(r.memory ?? "-"),
+              String(r.ownerId ?? ""),
+              colorStatus(String(r.status ?? "")),
+              timeAgo(r.createdAt as string),
+            ],
+            colOpts,
+            { emptyMessage: "No sandboxes found." },
+          );
         })
     )
 
@@ -173,7 +200,20 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).get()
           );
-          jsonOut(flags, result);
+          detailView(flags, result, [
+            ["ID", (r) => styleMuted(String(r.sandboxId ?? ""))],
+            ["Name", (r) => styleBold(String(r.name ?? ""))],
+            ["Runtime", (r) => String(r.runtimeType ?? "")],
+            ["Status", (r) => colorStatus(String(r.status ?? ""))],
+            ["CPU", (r) => String(r.cpu ?? "")],
+            ["Memory", (r) => String(r.memory ?? "")],
+            ["Storage", (r) => r.storageGb ? `${r.storageGb}GB` : ""],
+            ["Template", (r) => String(r.templateSlug ?? "")],
+            ["Owner", (r) => String(r.ownerId ?? "")],
+            ["Owner Type", (r) => String(r.ownerType ?? "")],
+            ["URL", (r) => String(r.url ?? "")],
+            ["Created", (r) => timeAgo(r.createdAt as string)],
+          ]);
         })
     )
 
@@ -194,7 +234,7 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).start.post()
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} started.`));
         })
     )
 
@@ -215,7 +255,7 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).stop.post()
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} stopped.`));
         })
     )
 
@@ -236,7 +276,7 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).delete()
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} deleted.`));
         })
     )
 
@@ -275,7 +315,7 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).resize.post(body)
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} resized.`));
         })
     )
 
@@ -305,7 +345,7 @@ export function sandboxCommand(app: DxBase) {
               .sandboxes({ id: args.id })
               .extend.post({ minutes: flags.minutes as number })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} TTL extended by ${flags.minutes} minutes.`));
         })
     )
 
@@ -344,7 +384,7 @@ export function sandboxCommand(app: DxBase) {
               const result = await apiCall(flags, () =>
                 api.api.v1.sandboxes({ id: args.id }).snapshots.post(body)
               );
-              jsonOut(flags, result);
+              actionResult(flags, result, styleSuccess(`Snapshot "${flags.name}" created for sandbox ${args.id}.`));
             })
         )
         .command("list", (sc) =>
@@ -363,7 +403,19 @@ export function sandboxCommand(app: DxBase) {
               const result = await apiCall(flags, () =>
                 api.api.v1.sandboxes({ id: args.id }).snapshots.get()
               );
-              jsonOut(flags, result);
+              tableOrJson(
+                flags,
+                result,
+                ["ID", "Name", "Status", "Created"],
+                (r) => [
+                  styleMuted(String(r.sandboxSnapshotId ?? "")),
+                  styleBold(String(r.name ?? "")),
+                  colorStatus(String(r.status ?? "")),
+                  timeAgo(r.createdAt as string),
+                ],
+                undefined,
+                { emptyMessage: "No snapshots found." },
+              );
             })
         )
     )
@@ -396,7 +448,7 @@ export function sandboxCommand(app: DxBase) {
           );
           // args.id is the sandbox, but the restore endpoint is on the snapshot
           void args;
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox restored from snapshot ${flags.snapshot}.`));
         })
     )
 
@@ -423,7 +475,7 @@ export function sandboxCommand(app: DxBase) {
               id: flags.snapshot as string,
             }).clone.post({ name: flags.name as string })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox "${flags.name}" cloned from snapshot ${flags.snapshot}.`));
         })
     )
 
@@ -458,7 +510,7 @@ export function sandboxCommand(app: DxBase) {
               role: (flags.role as string) ?? "viewer",
             })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} shared with ${flags.user}.`));
         })
     )
 
@@ -489,7 +541,7 @@ export function sandboxCommand(app: DxBase) {
               .access({ principalId: flags.user as string })
               .delete()
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Access revoked for ${flags.user} on sandbox ${args.id}.`));
         })
     )
 
@@ -510,7 +562,11 @@ export function sandboxCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.sandboxes({ id: args.id }).access.get()
           );
-          jsonOut(flags, result);
+          tableOrJson(flags, result, ["Principal", "Role", "Granted"], (r) => [
+            styleBold(String(r.principalId ?? "")),
+            String(r.role ?? ""),
+            timeAgo(r.createdAt as string),
+          ], undefined, { emptyMessage: "No access entries." });
         })
     );
 }

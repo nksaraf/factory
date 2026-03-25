@@ -14,14 +14,17 @@ export class GitHubAdapter implements GitHostAdapter {
   private readonly octokit: Octokit;
   private readonly token: string;
   private readonly webhookSecret?: string;
+  private readonly org?: string;
 
   constructor(config: {
     token?: string;
     apiBaseUrl?: string;
     webhookSecret?: string;
+    org?: string;
   }) {
     this.token = config.token ?? "";
     this.webhookSecret = config.webhookSecret;
+    this.org = config.org;
     this.octokit = new Octokit({
       auth: this.token,
       ...(config.apiBaseUrl && config.apiBaseUrl !== "https://api.github.com"
@@ -35,10 +38,15 @@ export class GitHubAdapter implements GitHostAdapter {
   }
 
   async listRepos(): Promise<GitHostRepoInfo[]> {
-    const repos = await this.octokit.paginate(
-      this.octokit.rest.repos.listForAuthenticatedUser,
-      { per_page: 100 },
-    );
+    const repos = this.org
+      ? await this.octokit.paginate(
+          this.octokit.rest.repos.listForOrg,
+          { org: this.org, per_page: 100 },
+        )
+      : await this.octokit.paginate(
+          this.octokit.rest.repos.listForAuthenticatedUser,
+          { per_page: 100 },
+        );
     return repos.map((r) => ({
       externalId: String(r.id),
       fullName: r.full_name,
@@ -81,10 +89,12 @@ export class GitHubAdapter implements GitHostAdapter {
 
   async listOrgMembers(): Promise<GitHostCollaborator[]> {
     try {
-      const { data: orgs } = await this.octokit.rest.orgs.listForAuthenticatedUser();
-      if (orgs.length === 0) return [];
-
-      const org = orgs[0].login;
+      let org = this.org;
+      if (!org) {
+        const { data: orgs } = await this.octokit.rest.orgs.listForAuthenticatedUser();
+        if (orgs.length === 0) return [];
+        org = orgs[0].login;
+      }
       const members = await this.octokit.paginate(
         this.octokit.rest.orgs.listMembers,
         { org, per_page: 100 },

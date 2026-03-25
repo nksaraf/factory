@@ -246,7 +246,7 @@ export class FleetPlaneService {
     return createSnapshotService(this.db, this.sandboxAdapter, input)
   }
 
-  listSnapshots(opts?: { createdBy?: string }) {
+  listSnapshots(opts?: { sandboxId?: string }) {
     return listSnapshotsService(this.db, opts)
   }
 

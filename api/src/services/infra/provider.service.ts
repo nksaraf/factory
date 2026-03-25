@@ -3,7 +3,7 @@ import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import { provider } from "../../db/schema/infra";
 import { getProviderAdapter } from "../../adapters/adapter-registry";
-import type { ProviderType } from "@smp/factory-shared/types";
+import type { Provider, ProviderType } from "@smp/factory-shared/types";
 
 export async function listProviders(
   db: Database,
@@ -69,5 +69,5 @@ export async function syncProvider(db: Database, id: string) {
   const row = await getProvider(db, id);
   if (!row) throw new Error(`Provider not found: ${id}`);
   const adapter = getProviderAdapter(row.providerType as ProviderType, db);
-  return adapter.syncInventory(row as any, db);
+  return adapter.syncInventory(row as unknown as Provider, db);
 }

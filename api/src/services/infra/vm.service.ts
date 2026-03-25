@@ -3,7 +3,7 @@ import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import { vm, provider } from "../../db/schema/infra";
 import { getProviderAdapter } from "../../adapters/adapter-registry";
-import type { ProviderType } from "@smp/factory-shared/types";
+import type { Provider, ProviderType } from "@smp/factory-shared/types";
 
 export async function listVms(
   db: Database,
@@ -95,7 +95,7 @@ async function getVmWithProvider(db: Database, id: string) {
 export async function startVm(db: Database, id: string) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.startVm(prov as any, row.vmId);
+  await adapter.startVm(prov as unknown as Provider, row.vmId);
   const rows = await db
     .update(vm)
     .set({ status: "running" })
@@ -107,7 +107,7 @@ export async function startVm(db: Database, id: string) {
 export async function stopVm(db: Database, id: string) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.stopVm(prov as any, row.vmId);
+  await adapter.stopVm(prov as unknown as Provider, row.vmId);
   const rows = await db
     .update(vm)
     .set({ status: "stopped" })
@@ -119,7 +119,7 @@ export async function stopVm(db: Database, id: string) {
 export async function restartVm(db: Database, id: string) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.restartVm(prov as any, row.vmId);
+  await adapter.restartVm(prov as unknown as Provider, row.vmId);
   const rows = await db
     .update(vm)
     .set({ status: "running" })
@@ -135,7 +135,7 @@ export async function resizeVm(
 ) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.resizeVm(prov as any, row.vmId, spec);
+  await adapter.resizeVm(prov as unknown as Provider, row.vmId, spec);
   const rows = await db
     .update(vm)
     .set(spec)
@@ -151,7 +151,7 @@ export async function migrateVm(
 ) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.migrateVm(prov as any, row.vmId, targetHostId);
+  await adapter.migrateVm(prov as unknown as Provider, row.vmId, targetHostId);
   const rows = await db
     .update(vm)
     .set({ hostId: targetHostId })
@@ -163,13 +163,13 @@ export async function migrateVm(
 export async function snapshotVm(db: Database, id: string) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  return adapter.snapshotVm(prov as any, row.vmId);
+  return adapter.snapshotVm(prov as unknown as Provider, row.vmId);
 }
 
 export async function destroyVm(db: Database, id: string) {
   const { vm: row, provider: prov } = await getVmWithProvider(db, id);
   const adapter = getProviderAdapter(prov.providerType as ProviderType, db);
-  await adapter.destroyVm(prov as any, row.vmId);
+  await adapter.destroyVm(prov as unknown as Provider, row.vmId);
   const rows = await db
     .update(vm)
     .set({ status: "destroying" })

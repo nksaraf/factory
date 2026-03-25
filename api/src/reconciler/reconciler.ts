@@ -164,14 +164,14 @@ export class Reconciler {
     let sshPort: number | null = null;
     let sshHost: string | null = null;
     if (svcResource?.spec) {
-      const ports = (svcResource.spec as any).ports as
+      const ports = (svcResource.spec as Record<string, unknown>).ports as
         | Array<{ name: string; nodePort?: number }>
         | undefined;
       const sshPortSpec = ports?.find((p) => p.name === "ssh");
       if (sshPortSpec?.nodePort) {
         sshPort = sshPortSpec.nodePort;
         // Use cluster endpoint as ssh host
-        sshHost = (cl as any).endpoint ?? null;
+        sshHost = (cl as Record<string, unknown>).endpoint as string ?? null;
       }
     }
 
@@ -255,7 +255,7 @@ export class Reconciler {
         name: comp.name,
         kind: comp.kind,
         ports: (comp.ports ?? []) as Array<{ name: string; port: number; protocol: string }>,
-        healthcheck: comp.healthcheck as any ?? null,
+        healthcheck: (comp.healthcheck as { path: string; portName: string; protocol: string } | null) ?? null,
         isPublic: comp.isPublic,
         stateful: comp.stateful,
         defaultCpu: comp.defaultCpu,

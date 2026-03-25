@@ -51,7 +51,7 @@ export class BundleService {
       .values({
         customerId: opts.customerId,
         siteId: opts.siteId,
-        payload: payload as any,
+        payload: payload as unknown as Record<string, unknown>,
         signature: signed.signature,
         expiresAt: new Date(opts.expiresAt),
         gracePeriodDays: opts.gracePeriodDays ?? 30,

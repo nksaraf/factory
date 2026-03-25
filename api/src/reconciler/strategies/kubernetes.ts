@@ -1,3 +1,4 @@
+import type { ComponentSpec, Workload, DeploymentTarget } from "@smp/factory-shared/types";
 import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
 import type { Database } from "../../db/connection";
 import { cluster } from "../../db/schema/infra";
@@ -21,13 +22,11 @@ export class KubernetesStrategy implements RuntimeStrategy {
     if (!cl) throw new Error(`Cluster not found: ${clusterId}`);
     if (!cl.kubeconfigRef) throw new Error(`Cluster ${clusterId} has no kubeconfig`);
 
-    // Generate and apply resources
-    // Note: `as any` casts are needed here because ReconcileContext uses narrower
-    // inline types while generateResources expects the full shared types.
+    // ReconcileContext uses narrower inline types; cast to the full shared types
     const resources = generateResources(
-      ctx.workload as any,
-      ctx.component as any,
-      ctx.target as any,
+      ctx.workload as unknown as Workload,
+      ctx.component as unknown as ComponentSpec,
+      ctx.target as unknown as DeploymentTarget,
       ctx.moduleName,
     );
 

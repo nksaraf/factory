@@ -30,10 +30,11 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.summary.get({
+            const res = await client.api.v1.factory.observability.metrics.summary.get({
               query: cleanQuery({ site: flags.site, since: flags.since }),
             })
-            const rows = res.data ?? res
+            if (res.error) throw new Error(String(res.error))
+            const rows = res.data
             if (f.json) {
               console.log(JSON.stringify(rows, null, 2))
             } else {
@@ -60,7 +61,7 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics[args.module][args.component].get({
+            const res = await client.api.v1.factory.observability.metrics({ module: args.module })({ component: args.component }).get({
               query: cleanQuery({ site: flags.site, since: flags.since }),
             })
             const data = res.data ?? res
@@ -89,7 +90,7 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.series.get({
+            const res = await client.api.v1.factory.observability.metrics.series.get({
               query: cleanQuery({
                 module: args.module,
                 component: args.component,
@@ -100,7 +101,8 @@ export function metricsCommand(app: DxBase) {
                 interval: flags.interval,
               }),
             })
-            const series = res.data ?? res
+            if (res.error) throw new Error(String(res.error))
+            const series = res.data
             if (f.json) {
               console.log(JSON.stringify(series, null, 2))
             } else if (Array.isArray(series) && series.length > 0) {
@@ -137,7 +139,7 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.series.get({
+            const res = await client.api.v1.factory.observability.metrics.series.get({
               query: cleanQuery({
                 module: args.module,
                 component: args.component,
@@ -158,7 +160,7 @@ export function metricsCommand(app: DxBase) {
       c
         .meta({ description: "Infrastructure / node metrics" })
         .args([
-          { name: "node", type: "string", required: false, description: "Node name" },
+          { name: "node", type: "string", description: "Node name" },
         ])
         .flags({
           site: { type: "string", description: "Target site" },
@@ -169,13 +171,14 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.infra.get({
+            const res = await client.api.v1.factory.observability.metrics.infra.get({
               query: cleanQuery({
                 site: flags.site,
                 since: flags.since,
               }),
             })
-            const rows = res.data ?? res
+            if (res.error) throw new Error(String(res.error))
+            const rows = res.data
             if (f.json) {
               console.log(JSON.stringify(rows, null, 2))
             } else {
@@ -194,8 +197,9 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.summary.get({ query: {} })
-            const rows = res.data ?? res
+            const res = await client.api.v1.factory.observability.metrics.summary.get({ query: {} })
+            if (res.error) throw new Error(String(res.error))
+            const rows = res.data
             if (f.json) {
               console.log(JSON.stringify(rows, null, 2))
             } else {
@@ -217,7 +221,7 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.summary.get({
+            const res = await client.api.v1.factory.observability.metrics.summary.get({
               query: cleanQuery({ since: flags.since }),
             })
             const data = res.data ?? res
@@ -244,12 +248,12 @@ export function metricsCommand(app: DxBase) {
           const f = toDxFlags(flags)
           try {
             const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.metrics.query.post({
+            const res = await client.api.v1.factory.observability.metrics.query.post({
               promql: args.promql,
-              site: flags.site,
-              since: flags.since,
-              until: flags.until,
-              interval: flags.interval,
+              site: flags.site as string | undefined,
+              since: flags.since as string | undefined,
+              until: flags.until as string | undefined,
+              interval: flags.interval as string | undefined,
             })
             const data = res.data ?? res
             console.log(JSON.stringify(data, null, 2))

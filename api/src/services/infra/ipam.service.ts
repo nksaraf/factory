@@ -1,6 +1,6 @@
-import { eq, count, sql } from "drizzle-orm";
+import { and, eq, count, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { subnet, ipAddress } from "../../db/schema/infra";
+import { subnet, ipAddress, vm, host, kubeNode } from "../../db/schema/infra";
 
 // --- Subnet operations ---
 
@@ -79,7 +79,32 @@ export async function listIps(
   db: Database,
   filters?: { subnetId?: string; status?: string; assignedToType?: string }
 ) {
-  let query = db.select().from(ipAddress);
+  const assignedName = sql<string | null>`CASE
+    WHEN ${ipAddress.assignedToType} = 'vm'
+      THEN (SELECT ${vm.slug} FROM ${vm} WHERE ${vm.vmId} = ${ipAddress.assignedToId})
+    WHEN ${ipAddress.assignedToType} = 'host'
+      THEN (SELECT ${host.slug} FROM ${host} WHERE ${host.hostId} = ${ipAddress.assignedToId})
+    WHEN ${ipAddress.assignedToType} = 'kube_node'
+      THEN (SELECT ${kubeNode.name} FROM ${kubeNode} WHERE ${kubeNode.kubeNodeId} = ${ipAddress.assignedToId})
+    ELSE NULL
+  END`.as("assigned_name");
+
+  let query = db
+    .select({
+      ipAddressId: ipAddress.ipAddressId,
+      address: ipAddress.address,
+      subnetId: ipAddress.subnetId,
+      assignedToType: ipAddress.assignedToType,
+      assignedToId: ipAddress.assignedToId,
+      status: ipAddress.status,
+      hostname: ipAddress.hostname,
+      fqdn: ipAddress.fqdn,
+      purpose: ipAddress.purpose,
+      createdAt: ipAddress.createdAt,
+      assignedName,
+    })
+    .from(ipAddress);
+
   if (filters?.subnetId) {
     query = query.where(eq(ipAddress.subnetId, filters.subnetId)) as typeof query;
   }
@@ -93,14 +118,11 @@ export async function listIps(
 }
 
 export async function listAvailableIps(db: Database, subnetId?: string) {
-  let query = db
-    .select()
-    .from(ipAddress)
-    .where(eq(ipAddress.status, "available"));
+  const conditions = [eq(ipAddress.status, "available")];
   if (subnetId) {
-    query = query.where(eq(ipAddress.subnetId, subnetId)) as typeof query;
+    conditions.push(eq(ipAddress.subnetId, subnetId));
   }
-  return query;
+  return db.select().from(ipAddress).where(and(...conditions));
 }
 
 export async function lookupIp(db: Database, address: string) {
@@ -170,7 +192,8 @@ export async function getIpamStats(db: Database, subnetId?: string) {
     ${baseCondition}
   `);
 
-  const row = result.rows[0] as any;
+  const { rows } = result as { rows: Array<{ total: number; available: number; assigned: number; reserved: number }> };
+  const row = rows[0];
   return {
     total: row?.total ?? 0,
     available: row?.available ?? 0,

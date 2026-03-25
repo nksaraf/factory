@@ -120,37 +120,31 @@ export class FactoryAPI {
   }
 
   createApp() {
-    const mode = getMode(this.settings)
     const jwksUrl = getJwksUrl(this.settings)
+    // All routes are registered unconditionally so the return type captures
+    // the full API surface for Eden type-safe clients.  In site-only mode
+    // this.db is null, but factory routes won't receive traffic — they exist
+    // purely for the Eden type chain.
+    const db = this.db as Database
 
-    const app = new Elysia()
+    return new Elysia()
       .use(cors({ credentials: true, origin: true }))
       .use(healthController)
-
-    if (mode === "factory" || mode === "dev") {
-      const db: Database = this.db!
-      app.use(webhookController(db))
-      app.use(this.mountFactoryControllers(db, jwksUrl))
-    }
-
-    if (mode === "site" || mode === "dev") {
-      app.use(this.mountSiteControllers())
-    }
-
-    app.use(
-      openapi({
-        path: "/api/v1/factory/openapi",
-        documentation: {
-          info: {
-            title: "Factory API",
-            version: "0.0.1",
-            description: "Software factory control plane",
+      .use(webhookController(db))
+      .use(this.mountFactoryControllers(db, jwksUrl))
+      .use(this.mountSiteControllers())
+      .use(
+        openapi({
+          path: "/api/v1/factory/openapi",
+          documentation: {
+            info: {
+              title: "Factory API",
+              version: "0.0.1",
+              description: "Software factory control plane",
+            },
           },
-        },
-      })
-    )
-
-    return app
+        })
+      )
   }
 
   async setupDb() {

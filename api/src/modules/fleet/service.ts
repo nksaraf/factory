@@ -1114,10 +1114,10 @@ export async function createSnapshot(
   const [row] = await db
     .insert(sandboxSnapshot)
     .values({
-      deploymentTargetId: input.sandboxId,
-      workloadConfig: result.config,
-      dependencyConfig: {},
-      createdBy: input.createdBy,
+      sandboxId: input.sandboxId,
+      name: `snapshot-${Date.now()}`,
+      runtimeType: "container",
+      snapshotMetadata: { config: result.config, createdBy: input.createdBy },
     })
     .returning();
 
@@ -1130,12 +1130,12 @@ export async function createSnapshot(
 
 export async function listSnapshots(
   db: Database,
-  opts?: { createdBy?: string }
+  opts?: { sandboxId?: string }
 ) {
   const base = db.select().from(sandboxSnapshot);
-  const rows = opts?.createdBy
+  const rows = opts?.sandboxId
     ? await base
-        .where(eq(sandboxSnapshot.createdBy, opts.createdBy))
+        .where(eq(sandboxSnapshot.sandboxId, opts.sandboxId))
         .orderBy(desc(sandboxSnapshot.createdAt))
     : await base.orderBy(desc(sandboxSnapshot.createdAt));
 
@@ -1146,7 +1146,7 @@ export async function getSnapshot(db: Database, snapshotId: string) {
   const [row] = await db
     .select()
     .from(sandboxSnapshot)
-    .where(eq(sandboxSnapshot.snapshotId, snapshotId))
+    .where(eq(sandboxSnapshot.sandboxSnapshotId, snapshotId))
     .limit(1);
 
   return row ?? null;
@@ -1155,7 +1155,7 @@ export async function getSnapshot(db: Database, snapshotId: string) {
 export async function deleteSnapshot(db: Database, snapshotId: string) {
   const [deleted] = await db
     .delete(sandboxSnapshot)
-    .where(eq(sandboxSnapshot.snapshotId, snapshotId))
+    .where(eq(sandboxSnapshot.sandboxSnapshotId, snapshotId))
     .returning();
 
   return deleted ?? null;

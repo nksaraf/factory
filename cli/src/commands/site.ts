@@ -4,32 +4,17 @@ import { getFactoryClient } from "../client.js";
 import { readConfig, resolveFactoryUrl, resolveSiteUrl } from "../config.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
-
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
+import {
+  apiCall,
+  tableOrJson,
+  detailView,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  timeAgo,
+} from "./list-helpers.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getFleetApi(): Promise<any> {
@@ -45,8 +30,10 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "List sites" })
         .flags({
-          product: { type: "string", description: "Filter by product" },
-          status: { type: "string", description: "Filter by status" },
+          product: { type: "string", alias: "p", description: "Filter by product" },
+          status: { type: "string", alias: "s", description: "Filter by status" },
+          sort: { type: "string", description: "Sort by: name, product, status (default: name)" },
+          limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
         })
         .run(async ({ flags }) => {
           const api = await getFleetApi();
@@ -58,7 +45,21 @@ export function siteCommand(app: DxBase) {
               },
             })
           );
-          jsonOut(flags, result);
+          tableOrJson(
+            flags,
+            result,
+            ["ID", "Name", "Product", "Cluster", "Status", "Last Check-in"],
+            (r) => [
+              styleMuted(String(r.siteId ?? "")),
+              styleBold(String(r.name ?? "")),
+              String(r.product ?? ""),
+              String(r.clusterId ?? "-"),
+              colorStatus(String(r.status ?? "")),
+              timeAgo(r.lastCheckinAt as string),
+            ],
+            undefined,
+            { emptyMessage: "No sites found." },
+          );
         })
     )
 
@@ -78,7 +79,16 @@ export function siteCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.fleet.sites({ name: args.name }).get()
           );
-          jsonOut(flags, result);
+          detailView(flags, result, [
+            ["ID", (r) => styleMuted(String(r.siteId ?? ""))],
+            ["Name", (r) => styleBold(String(r.name ?? ""))],
+            ["Product", (r) => String(r.product ?? "")],
+            ["Cluster", (r) => String(r.clusterId ?? "")],
+            ["Status", (r) => colorStatus(String(r.status ?? ""))],
+            ["Release", (r) => String(r.assignedRelease ?? "")],
+            ["Last Check-in", (r) => timeAgo(r.lastCheckinAt as string)],
+            ["Created", (r) => timeAgo(r.createdAt as string)],
+          ]);
         })
     )
 
@@ -113,7 +123,7 @@ export function siteCommand(app: DxBase) {
               clusterId: flags.cluster as string | undefined,
             })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Site "${args.name}" created.`));
         })
     )
 
@@ -135,7 +145,7 @@ export function siteCommand(app: DxBase) {
               query: { name: args.name },
             })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Site "${args.name}" deleted.`));
         })
     )
 
@@ -165,7 +175,7 @@ export function siteCommand(app: DxBase) {
                 releaseVersion: args["release-version"],
               })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Release ${args["release-version"]} assigned to site "${args.name}".`));
         })
     )
 
@@ -193,7 +203,7 @@ export function siteCommand(app: DxBase) {
                 lastAppliedManifestVersion: 0,
               })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Site "${args.name}" checked in.`));
         })
     )
 
@@ -203,11 +213,17 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "Show site agent status" })
         .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
           const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/status`);
-          if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
+          if (!res.ok) exitWithError(f, `Site API error: ${res.status}`);
           const data = await res.json();
-          jsonOut(flags, data.data);
+          detailView(flags, data.data, [
+            ["Status", (r) => colorStatus(String(r.status ?? ""))],
+            ["Site", (r) => String(r.siteName ?? r.siteId ?? "")],
+            ["Version", (r) => String(r.version ?? "")],
+            ["Uptime", (r) => String(r.uptime ?? "")],
+          ]);
         })
     )
 
@@ -215,11 +231,12 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "Force re-reconcile current manifest" })
         .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
           const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/reconcile`, { method: "POST" });
-          if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
+          if (!res.ok) exitWithError(f, `Site API error: ${res.status}`);
           const data = await res.json();
-          jsonOut(flags, data.data ?? data.error);
+          actionResult(flags, data.data ?? data.error, styleSuccess("Reconciliation triggered."));
         })
     )
 
@@ -235,6 +252,7 @@ export function siteCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
           const fs = await import("node:fs");
           const content = fs.readFileSync(args.file, "utf-8");
           const manifest = JSON.parse(content);
@@ -244,9 +262,9 @@ export function siteCommand(app: DxBase) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(manifest),
           });
-          if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
+          if (!res.ok) exitWithError(f, `Site API error: ${res.status}`);
           const data = await res.json();
-          jsonOut(flags, data.data);
+          actionResult(flags, data.data, styleSuccess(`Manifest pushed from ${args.file}.`));
         })
     )
 
@@ -254,11 +272,17 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "List currently applied CRDs" })
         .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
           const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/crds`);
-          if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
+          if (!res.ok) exitWithError(f, `Site API error: ${res.status}`);
           const data = await res.json();
-          jsonOut(flags, data.data);
+          tableOrJson(flags, data, ["Name", "Group", "Version", "Kind"], (r) => [
+            styleBold(String(r.name ?? "")),
+            String(r.group ?? ""),
+            String(r.version ?? ""),
+            String(r.kind ?? ""),
+          ], undefined, { emptyMessage: "No CRDs applied." });
         })
     );
 }

@@ -1,6 +1,7 @@
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
+import type { InstallManifest } from "@smp/factory-shared/install-types"
 import { FleetModel } from "./model"
 import { FleetPlaneService } from "./plane.service"
 
@@ -364,7 +365,7 @@ export function fleetController(db: Database) {
       async ({ params, body }) => {
         const site = await plane.getSite(params.name)
         if (!site) return { error: "Site not found" }
-        return plane.upsertInstallManifest(site.siteId, body as any)
+        return plane.upsertInstallManifest(site.siteId, body as InstallManifest)
       },
       {
         params: FleetModel.siteNameParams,

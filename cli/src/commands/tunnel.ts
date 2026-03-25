@@ -5,15 +5,14 @@ import { exitWithError } from "../lib/cli-exit.js";
 import { openTunnel } from "../lib/tunnel-client.js";
 import { printTable } from "../output.js";
 import { toDxFlags } from "./dx-flags.js";
-
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
+import {
+  apiCall,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+} from "./list-helpers.js";
 
 export function tunnelCommand(app: DxBase) {
   return app
@@ -91,32 +90,26 @@ export function tunnelCommand(app: DxBase) {
         .meta({ description: "List active tunnels" })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
-          try {
-            const api = await getFactoryClient();
-            const res = await (api as any).api.v1.gateway.tunnels.get();
-            if (res.error) {
-              exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-            }
-            const tunnels = res.data?.data ?? [];
-            if (f.json) {
-              jsonOut(flags, tunnels);
-              return;
-            }
-            if (tunnels.length === 0) {
-              console.log("No active tunnels.");
-              return;
-            }
-            const rows = tunnels.map((t: any) => [
-              t.tunnelId,
-              t.subdomain,
-              t.localAddr,
-              t.status,
-            ]);
-            console.log(printTable(["ID", "Subdomain", "Local", "Status"], rows));
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            exitWithError(f, msg);
+          const api = await getFactoryClient();
+          const result = await apiCall(flags, () =>
+            api.api.v1.factory.infra.gateway.tunnels.get()
+          ) as Record<string, unknown> | undefined;
+          const tunnels = ((result?.data ?? []) as Record<string, unknown>[]);
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: tunnels }, null, 2));
+            return;
           }
+          if (tunnels.length === 0) {
+            console.log("No active tunnels.");
+            return;
+          }
+          const rows = tunnels.map((t) => [
+            styleMuted(String(t.tunnelId)),
+            styleBold(String(t.subdomain)),
+            String(t.localAddr),
+            colorStatus(String(t.status)),
+          ]);
+          console.log(printTable(["ID", "Subdomain", "Local", "Status"], rows));
         })
     )
 
@@ -137,21 +130,11 @@ export function tunnelCommand(app: DxBase) {
           if (!id) {
             exitWithError(f, "Usage: dx tunnel close <tunnelId>");
           }
-          try {
-            const api = await getFactoryClient();
-            const res = await (api as any).api.v1.gateway.tunnels[id].delete();
-            if (res.error) {
-              exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-            }
-            if (f.json) {
-              jsonOut(flags, { closed: true, tunnelId: id });
-            } else {
-              console.log(`Tunnel ${id} closed.`);
-            }
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            exitWithError(f, msg);
-          }
+          const api = await getFactoryClient();
+          await apiCall(flags, () =>
+            api.api.v1.factory.infra.gateway.tunnels({ id }).delete()
+          );
+          actionResult(flags, { closed: true, tunnelId: id }, styleSuccess(`Tunnel ${id} closed.`));
         })
     );
 }

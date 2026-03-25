@@ -59,17 +59,11 @@ export function requirePermission(
   permission: string,
 ) {
   return new Elysia({ name: `require-${permission}` }).derive(
-    async ({
-      params,
-      principal,
-      set,
-    }: {
-      params: { resourceId?: string };
-      principal: string;
-      set: { status: number };
-    }) => {
+    async (context) => {
       if (!authClient) return {};
 
+      const params = context.params as Record<string, string | undefined>;
+      const principal = (context as unknown as { principal: string }).principal;
       const resourceId = params.resourceId;
       if (!resourceId) return {};
 
@@ -80,7 +74,7 @@ export function requirePermission(
       });
 
       if (!allowed) {
-        set.status = 403;
+        context.set.status = 403;
         throw new Error("Forbidden");
       }
 

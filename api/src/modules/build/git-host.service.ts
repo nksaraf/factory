@@ -2,9 +2,27 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import { gitHostProvider, gitRepoSync, gitUserSync, repo } from "../../db/schema/build";
-import { createGitHostAdapter } from "../../adapters/adapter-registry";
+import { createGitHostAdapter, type GitHostAdapterConfig } from "../../adapters/adapter-registry";
 import type { GitHostAdapter } from "../../adapters/git-host-adapter";
 import type { AuthAdminClient } from "../../lib/auth-admin-client";
+
+/**
+ * Parse the credentialsEnc field. Supports:
+ * - Plain string token (legacy)
+ * - JSON object with { token, org, webhookSecret, ... }
+ */
+function parseCredentials(credentialsEnc: string | null | undefined): Partial<GitHostAdapterConfig> {
+  if (!credentialsEnc) return {};
+  const trimmed = credentialsEnc.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return { token: trimmed };
+    }
+  }
+  return { token: trimmed };
+}
 
 export type CreateProviderBody = {
   name: string;
@@ -112,7 +130,7 @@ export class GitHostService {
     const adapter =
       opts?.adapter ??
       createGitHostAdapter(provider.hostType, {
-        token: provider.credentialsEnc ?? undefined,
+        ...parseCredentials(provider.credentialsEnc),
         apiBaseUrl: provider.apiBaseUrl,
       });
 
@@ -228,7 +246,7 @@ export class GitHostService {
     const adapter =
       opts?.adapter ??
       createGitHostAdapter(provider.hostType, {
-        token: provider.credentialsEnc ?? undefined,
+        ...parseCredentials(provider.credentialsEnc),
         apiBaseUrl: provider.apiBaseUrl,
       });
 
@@ -320,7 +338,7 @@ export class GitHostService {
     if (!provider) return;
 
     const adapter = createGitHostAdapter(provider.hostType, {
-      token: provider.credentialsEnc ?? undefined,
+      ...parseCredentials(provider.credentialsEnc),
       apiBaseUrl: provider.apiBaseUrl,
     });
 

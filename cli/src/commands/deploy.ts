@@ -1,34 +1,17 @@
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
-import { exitWithError } from "../lib/cli-exit.js";
-import { toDxFlags } from "./dx-flags.js";
-
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
+import {
+  apiCall,
+  tableOrJson,
+  detailView,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  timeAgo,
+} from "./list-helpers.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getFleetApi(): Promise<any> {
@@ -67,7 +50,7 @@ export function deployCommand(app: DxBase) {
               deploymentTargetId: flags.target as string,
             })
           );
-          jsonOut(flags, result);
+          actionResult(flags, result, styleSuccess(`Rollout created for release ${args["release-id"]}.`));
         })
     )
 
@@ -87,19 +70,44 @@ export function deployCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.fleet.rollouts({ id: args.id }).get()
           );
-          jsonOut(flags, result);
+          detailView(flags, result, [
+            ["ID", (r) => styleMuted(String(r.rolloutId ?? ""))],
+            ["Release", (r) => styleBold(String(r.releaseId ?? ""))],
+            ["Target", (r) => String(r.deploymentTargetId ?? "")],
+            ["Status", (r) => colorStatus(String(r.status ?? ""))],
+            ["Started", (r) => timeAgo(r.startedAt as string)],
+            ["Completed", (r) => r.completedAt ? timeAgo(r.completedAt as string) : "-"],
+          ]);
         })
     )
 
     .command("list", (c) =>
       c
         .meta({ description: "List rollouts" })
+        .flags({
+          status: { type: "string", alias: "s", description: "Filter by status" },
+          limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
+        })
         .run(async ({ flags }) => {
           const api = await getFleetApi();
           const result = await apiCall(flags, () =>
             api.api.v1.fleet.rollouts.get()
           );
-          jsonOut(flags, result);
+          tableOrJson(
+            flags,
+            result,
+            ["ID", "Release", "Target", "Status", "Started", "Completed"],
+            (r) => [
+              styleMuted(String(r.rolloutId ?? "")),
+              styleBold(String(r.releaseId ?? "")),
+              String(r.deploymentTargetId ?? ""),
+              colorStatus(String(r.status ?? "")),
+              timeAgo(r.startedAt as string),
+              r.completedAt ? timeAgo(r.completedAt as string) : styleMuted("-"),
+            ],
+            undefined,
+            { emptyMessage: "No rollouts found." },
+          );
         })
     );
 }

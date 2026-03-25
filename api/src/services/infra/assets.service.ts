@@ -6,7 +6,7 @@ import { getCluster } from "./cluster.service";
 import { getVm } from "./vm.service";
 import { getHost } from "./host.service";
 
-interface Asset {
+export interface Asset {
   id: string;
   name: string;
   type: string;
@@ -29,7 +29,8 @@ export async function listAssets(db: Database): Promise<Asset[]> {
     FROM factory_infra.host
     ORDER BY created_at DESC
   `);
-  return result.rows as unknown as Asset[];
+  const { rows } = result as { rows: Asset[] };
+  return rows;
 }
 
 export async function getAsset(db: Database, id: string) {

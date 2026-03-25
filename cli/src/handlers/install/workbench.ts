@@ -40,7 +40,7 @@ export async function runWorkbenchSetup(opts: {
   try {
     const { getFactoryClient } = await import("../../client.js");
     const client = await getFactoryClient(opts.factoryUrl);
-    const res = await client.api.v1.fleet.sites.get();
+    const res = await client.api.v1.factory.fleet.sites.get();
     if (res.data && Array.isArray(res.data) && res.data.length > 0) {
       const sites = res.data as Array<{ name: string }>;
       const chosen = await select({
