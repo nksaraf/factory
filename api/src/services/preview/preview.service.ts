@@ -1,4 +1,4 @@
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, isNull, or } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { preview, deploymentTarget } from "../../db/schema/fleet";
 import { route } from "../../db/schema/gateway";
@@ -199,7 +199,10 @@ export async function runPreviewCleanup(db: Database): Promise<{
       and(
         eq(preview.status, "active"),
         eq(preview.runtimeClass, "hot"),
-        lt(preview.lastAccessedAt, twoHoursAgo)
+        or(
+          lt(preview.lastAccessedAt, twoHoursAgo),
+          and(isNull(preview.lastAccessedAt), lt(preview.createdAt, twoHoursAgo))
+        )
       )
     )
     .returning();
@@ -212,7 +215,10 @@ export async function runPreviewCleanup(db: Database): Promise<{
       and(
         eq(preview.status, "active"),
         eq(preview.runtimeClass, "warm"),
-        lt(preview.lastAccessedAt, twentyFourHoursAgo)
+        or(
+          lt(preview.lastAccessedAt, twentyFourHoursAgo),
+          and(isNull(preview.lastAccessedAt), lt(preview.createdAt, twentyFourHoursAgo))
+        )
       )
     )
     .returning();
@@ -223,7 +229,10 @@ export async function runPreviewCleanup(db: Database): Promise<{
     .where(
       and(
         eq(preview.status, "expired"),
-        lt(preview.expiresAt, thirtyDaysAgo)
+        or(
+          lt(preview.expiresAt, thirtyDaysAgo),
+          and(isNull(preview.expiresAt), lt(preview.updatedAt, thirtyDaysAgo))
+        )
       )
     )
     .returning();

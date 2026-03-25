@@ -350,7 +350,7 @@ export async function createSandboxRoutes(
 ) {
   const baseDomain = input.siteId
     ? `${input.sandboxSlug}.${input.siteId}.dx.dev`
-    : `${input.sandboxSlug}.preview.dx.dev`;
+    : `${input.sandboxSlug}.sandbox.dx.dev`;
 
   const routes: any[] = [];
 
@@ -371,7 +371,7 @@ export async function createSandboxRoutes(
     for (const port of input.publishPorts) {
       const portDomain = input.siteId
         ? `${input.sandboxSlug}-${port}.${input.siteId}.dx.dev`
-        : `${input.sandboxSlug}-${port}.preview.dx.dev`;
+        : `${input.sandboxSlug}-${port}.sandbox.dx.dev`;
 
       const portRoute = await createRoute(db, {
         deploymentTargetId: input.deploymentTargetId,
@@ -390,31 +390,6 @@ export async function createSandboxRoutes(
   }
 
   return routes;
-}
-
-export async function createPreviewRoutes(
-  db: Database,
-  input: {
-    deploymentTargetId: string;
-    siteId?: string;
-    clusterId?: string;
-    prNumber: number;
-    createdBy: string;
-  }
-) {
-  const previewDomain = `pr-${input.prNumber}.preview.dx.dev`;
-
-  return await createRoute(db, {
-    deploymentTargetId: input.deploymentTargetId,
-    siteId: input.siteId,
-    clusterId: input.clusterId,
-    kind: "preview",
-    domain: previewDomain,
-    targetService: `pr-${input.prNumber}`,
-    protocol: "http",
-    status: "active",
-    createdBy: input.createdBy,
-  });
 }
 
 export async function removeTargetRoutes(
@@ -476,7 +451,7 @@ export async function closeTunnel(db: Database, tunnelId: string) {
 
   if (!row) return;
 
-  await db.delete(route).where(eq(route.routeId, row.routeId));
+  await deleteRoute(db, row.routeId);
 }
 
 export async function heartbeatTunnel(db: Database, tunnelId: string) {
@@ -543,7 +518,7 @@ export async function cleanupStaleTunnels(
       .set({ status: "disconnected" })
       .where(eq(tunnel.tunnelId, t.tunnelId));
 
-    await db.delete(route).where(eq(route.routeId, t.routeId));
+    await deleteRoute(db, t.routeId);
   }
 
   return staleTunnels.length;
