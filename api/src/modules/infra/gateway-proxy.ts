@@ -70,3 +70,73 @@ export class RouteCache {
     this.cache.clear();
   }
 }
+
+export interface GatewayServerOptions {
+  cache: RouteCache;
+  port?: number;
+  getTunnelSocket?: (subdomain: string) => WebSocket | undefined;
+}
+
+export function createGatewayServer(opts: GatewayServerOptions) {
+  const { cache, port = 9090 } = opts;
+
+  const server = Bun.serve({
+    port,
+    async fetch(req) {
+      const host = req.headers.get("host") ?? "";
+      const parsed = parseHostname(host);
+
+      if (!parsed) {
+        return new Response("Not Found", { status: 404 });
+      }
+
+      // Build the full domain for route lookup
+      const suffixMap: Record<RouteFamily, string> = {
+        tunnel: ".tunnel.dx.dev",
+        preview: ".preview.dx.dev",
+        sandbox: ".sandbox.dx.dev",
+      };
+      const domain = parsed.slug + suffixMap[parsed.family];
+
+      const route = await cache.get(domain);
+      if (!route) {
+        return new Response("Not Found", { status: 404 });
+      }
+
+      // For tunnels, delegate to tunnel relay (Phase 3)
+      if (parsed.family === "tunnel") {
+        return new Response("Tunnel relay not yet implemented", { status: 501 });
+      }
+
+      // Reverse proxy for preview/sandbox
+      const targetPort = route.targetPort ?? 80;
+      const targetUrl = new URL(req.url);
+      targetUrl.hostname = route.targetService;
+      targetUrl.port = String(targetPort);
+      targetUrl.protocol = "http:";
+
+      try {
+        const proxyRes = await fetch(targetUrl.toString(), {
+          method: req.method,
+          headers: req.headers,
+          body: req.body,
+          redirect: "manual",
+        });
+        return new Response(proxyRes.body, {
+          status: proxyRes.status,
+          statusText: proxyRes.statusText,
+          headers: proxyRes.headers,
+        });
+      } catch {
+        return new Response("Bad Gateway", { status: 502 });
+      }
+    },
+  });
+
+  return {
+    server,
+    stop() {
+      server.stop();
+    },
+  };
+}
