@@ -136,6 +136,23 @@ export async function cleanupExpiredRoutes(db: Database): Promise<number> {
   return rows.length;
 }
 
+/**
+ * Look up a single active route by exact domain match.
+ * Used by the factory gateway for fast hostname-based routing.
+ */
+export async function lookupRouteByDomain(
+  db: Database,
+  domain: string
+): Promise<any | null> {
+  const [row] = await db
+    .select()
+    .from(route)
+    .where(and(eq(route.domain, domain), eq(route.status, "active")))
+    .limit(1);
+
+  return row ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Domain Management
 // ---------------------------------------------------------------------------

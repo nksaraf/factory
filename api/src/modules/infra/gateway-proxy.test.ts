@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parseHostname } from "./gateway-proxy";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { parseHostname, RouteCache } from "./gateway-proxy";
 
 describe("parseHostname", () => {
   it("parses tunnel hostname", () => {
@@ -39,5 +39,54 @@ describe("parseHostname", () => {
   it("returns null for empty or missing host", () => {
     expect(parseHostname("")).toBeNull();
     expect(parseHostname(undefined as any)).toBeNull();
+  });
+});
+
+describe("RouteCache", () => {
+  let cache: RouteCache;
+  const mockLookup = vi.fn();
+
+  beforeEach(() => {
+    mockLookup.mockReset();
+    cache = new RouteCache({ lookup: mockLookup, maxSize: 100, ttlMs: 60_000 });
+  });
+
+  it("calls lookup on cache miss", async () => {
+    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
+    mockLookup.mockResolvedValueOnce(fakeRoute);
+
+    const result = await cache.get("a.tunnel.dx.dev");
+    expect(result).toEqual(fakeRoute);
+    expect(mockLookup).toHaveBeenCalledWith("a.tunnel.dx.dev");
+  });
+
+  it("returns cached value on subsequent calls", async () => {
+    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
+    mockLookup.mockResolvedValueOnce(fakeRoute);
+
+    await cache.get("a.tunnel.dx.dev");
+    const result = await cache.get("a.tunnel.dx.dev");
+    expect(result).toEqual(fakeRoute);
+    expect(mockLookup).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalidate removes entry from cache", async () => {
+    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
+    mockLookup.mockResolvedValue(fakeRoute);
+
+    await cache.get("a.tunnel.dx.dev");
+    cache.invalidate("a.tunnel.dx.dev");
+    await cache.get("a.tunnel.dx.dev");
+    expect(mockLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches null results (negative cache)", async () => {
+    mockLookup.mockResolvedValueOnce(null);
+
+    const r1 = await cache.get("missing.tunnel.dx.dev");
+    const r2 = await cache.get("missing.tunnel.dx.dev");
+    expect(r1).toBeNull();
+    expect(r2).toBeNull();
+    expect(mockLookup).toHaveBeenCalledTimes(1);
   });
 });

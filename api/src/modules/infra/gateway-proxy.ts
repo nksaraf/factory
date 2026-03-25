@@ -1,3 +1,5 @@
+import { LRUCache } from "lru-cache";
+
 export type RouteFamily = "tunnel" | "preview" | "sandbox";
 
 export interface ParsedHost {
@@ -27,4 +29,44 @@ export function parseHostname(host: string | undefined): ParsedHost | null {
   }
 
   return null;
+}
+
+export interface RouteCacheOptions {
+  lookup: (domain: string) => Promise<any | null>;
+  maxSize?: number;
+  ttlMs?: number;
+}
+
+const SENTINEL_NULL = Symbol("null");
+
+export class RouteCache {
+  private cache: LRUCache<string, any>;
+  private lookup: (domain: string) => Promise<any | null>;
+
+  constructor(opts: RouteCacheOptions) {
+    this.lookup = opts.lookup;
+    this.cache = new LRUCache<string, any>({
+      max: opts.maxSize ?? 10_000,
+      ttl: opts.ttlMs ?? 300_000, // 5 min default
+    });
+  }
+
+  async get(domain: string): Promise<any | null> {
+    const cached = this.cache.get(domain);
+    if (cached !== undefined) {
+      return cached === SENTINEL_NULL ? null : cached;
+    }
+
+    const result = await this.lookup(domain);
+    this.cache.set(domain, result ?? SENTINEL_NULL);
+    return result;
+  }
+
+  invalidate(domain: string): void {
+    this.cache.delete(domain);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
 }
