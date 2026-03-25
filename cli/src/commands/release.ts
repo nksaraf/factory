@@ -134,98 +134,99 @@ export function releaseCommand(app: DxBase) {
 
     .command("bundle", (c) =>
       c
-        .meta({ description: "Create an offline bundle for a release (Factory-only)" })
-        .args([
-          {
-            name: "version",
-            type: "string",
-            required: true,
-            description: "Release version to bundle",
-          },
-        ])
-        .flags({
-          role: {
-            type: "string",
-            description: "Bundle role: site (default), factory, or both",
-          },
-          arch: {
-            type: "string",
-            description: "Target architecture: amd64 (default) or arm64",
-          },
-          dxVersion: {
-            type: "string",
-            description: "dx CLI version to include",
-          },
-          k3sVersion: {
-            type: "string",
-            description: "k3s version to include",
-          },
-        })
-        .run(async ({ args, flags }) => {
-          const f = toDxFlags(flags);
-          const api = await getFleetApi();
-
-          const roles = (flags.role as string) === "both"
-            ? ["site", "factory"]
-            : [(flags.role as string) ?? "site"];
-
-          for (const role of roles) {
-            console.log(`Creating ${role} bundle for release ${args.version}...`);
-
-            // Get release to validate it exists
-            const release = await apiCall(flags, () =>
-              api.api.v1.fleet.releases({ version: args.version }).get()
-            );
-
-            if (!release) {
-              exitWithError(f, `Release ${args.version} not found`);
-            }
-
-            // Create bundle record via API
-            const bundle = await apiCall(flags, () =>
-              api.api.v1.fleet.bundles.post({
-                releaseId: (release as any).releaseId,
-                role,
-                arch: (flags.arch as string) ?? "amd64",
-                dxVersion: (flags.dxVersion as string) ?? args.version,
-                k3sVersion: (flags.k3sVersion as string) ?? "v1.31.4+k3s1",
-                helmChartVersion: args.version,
-              })
-            );
-
-            console.log(`Bundle record created: ${JSON.stringify(bundle, null, 2)}`);
-            console.log(
-              `\nTo complete the bundle, run the build pipeline:\n` +
-              `  dx ops build-bundle --bundle-id ${(bundle as any).releaseBundleId}\n`
-            );
-          }
-
-          if (f.json) {
-            console.log(JSON.stringify({ success: true }, null, 2));
-          }
-        })
-    )
-
-    .command("bundle", (c) =>
-      c
-        .meta({ description: "List release bundles" })
-        .flags({
-          releaseId: { type: "string", description: "Filter by release ID" },
-          status: { type: "string", description: "Filter by status" },
-          role: { type: "string", description: "Filter by role (site|factory)" },
-        })
-        .run(async ({ flags }) => {
-          const api = await getFleetApi();
-          const result = await apiCall(flags, () =>
-            api.api.v1.fleet.bundles.get({
-              query: {
-                releaseId: flags.releaseId as string | undefined,
-                status: flags.status as string | undefined,
-                role: flags.role as string | undefined,
+        .meta({ description: "Manage release bundles" })
+        .command("create", (sc) =>
+          sc
+            .meta({ description: "Create an offline bundle for a release (Factory-only)" })
+            .args([
+              {
+                name: "version",
+                type: "string",
+                required: true,
+                description: "Release version to bundle",
+              },
+            ])
+            .flags({
+              role: {
+                type: "string",
+                description: "Bundle role: site (default), factory, or both",
+              },
+              arch: {
+                type: "string",
+                description: "Target architecture: amd64 (default) or arm64",
+              },
+              dxVersion: {
+                type: "string",
+                description: "dx CLI version to include",
+              },
+              k3sVersion: {
+                type: "string",
+                description: "k3s version to include",
               },
             })
-          );
-          jsonOut(flags, result);
-        })
+            .run(async ({ args, flags }) => {
+              const f = toDxFlags(flags);
+              const api = await getFleetApi();
+
+              const roles = (flags.role as string) === "both"
+                ? ["site", "factory"]
+                : [(flags.role as string) ?? "site"];
+
+              for (const role of roles) {
+                console.log(`Creating ${role} bundle for release ${args.version}...`);
+
+                const release = await apiCall(flags, () =>
+                  api.api.v1.fleet.releases({ version: args.version }).get()
+                );
+
+                if (!release) {
+                  exitWithError(f, `Release ${args.version} not found`);
+                }
+
+                const bundle = await apiCall(flags, () =>
+                  api.api.v1.fleet.bundles.post({
+                    releaseId: (release as any).releaseId,
+                    role,
+                    arch: (flags.arch as string) ?? "amd64",
+                    dxVersion: (flags.dxVersion as string) ?? args.version,
+                    k3sVersion: (flags.k3sVersion as string) ?? "v1.31.4+k3s1",
+                    helmChartVersion: args.version,
+                  })
+                );
+
+                console.log(`Bundle record created: ${JSON.stringify(bundle, null, 2)}`);
+                console.log(
+                  `\nTo complete the bundle, run the build pipeline:\n` +
+                  `  dx ops build-bundle --bundle-id ${(bundle as any).releaseBundleId}\n`
+                );
+              }
+
+              if (f.json) {
+                console.log(JSON.stringify({ success: true }, null, 2));
+              }
+            })
+        )
+        .command("list", (sc) =>
+          sc
+            .meta({ description: "List release bundles" })
+            .flags({
+              releaseId: { type: "string", description: "Filter by release ID" },
+              status: { type: "string", description: "Filter by status" },
+              role: { type: "string", description: "Filter by role (site|factory)" },
+            })
+            .run(async ({ flags }) => {
+              const api = await getFleetApi();
+              const result = await apiCall(flags, () =>
+                api.api.v1.fleet.bundles.get({
+                  query: {
+                    releaseId: flags.releaseId as string | undefined,
+                    status: flags.status as string | undefined,
+                    role: flags.role as string | undefined,
+                  },
+                })
+              );
+              jsonOut(flags, result);
+            })
+        )
     );
 }

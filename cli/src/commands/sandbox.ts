@@ -312,58 +312,60 @@ export function sandboxCommand(app: DxBase) {
     // --- snapshot ---
     .command("snapshot", (c) =>
       c
-        .meta({ description: "Create a snapshot of a sandbox" })
-        .args([
-          {
-            name: "id",
-            type: "string",
-            required: true,
-            description: "Sandbox ID",
-          },
-        ])
-        .flags({
-          name: {
-            type: "string",
-            required: true,
-            description: "Snapshot name",
-          },
-          description: {
-            type: "string",
-            description: "Snapshot description",
-          },
-        })
-        .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
-          const body: Record<string, unknown> = {
-            name: flags.name as string,
-          };
-          if (flags.description) body.description = flags.description;
-          const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).snapshots.post(body)
-          );
-          jsonOut(flags, result);
-        })
-    )
-
-    // --- snapshots (list snapshots for a sandbox) ---
-    .command("snapshot", (c) =>
-      c
-        .meta({ description: "List snapshots for a sandbox" })
-        .args([
-          {
-            name: "id",
-            type: "string",
-            required: true,
-            description: "Sandbox ID",
-          },
-        ])
-        .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
-          const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).snapshots.get()
-          );
-          jsonOut(flags, result);
-        })
+        .meta({ description: "Manage sandbox snapshots" })
+        .command("create", (sc) =>
+          sc
+            .meta({ description: "Create a snapshot of a sandbox" })
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Sandbox ID",
+              },
+            ])
+            .flags({
+              name: {
+                type: "string",
+                required: true,
+                description: "Snapshot name",
+              },
+              description: {
+                type: "string",
+                description: "Snapshot description",
+              },
+            })
+            .run(async ({ args, flags }) => {
+              const api = await getSandboxApi();
+              const body: Record<string, unknown> = {
+                name: flags.name as string,
+              };
+              if (flags.description) body.description = flags.description;
+              const result = await apiCall(flags, () =>
+                api.api.v1.sandboxes({ id: args.id }).snapshots.post(body)
+              );
+              jsonOut(flags, result);
+            })
+        )
+        .command("list", (sc) =>
+          sc
+            .meta({ description: "List snapshots for a sandbox" })
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Sandbox ID",
+              },
+            ])
+            .run(async ({ args, flags }) => {
+              const api = await getSandboxApi();
+              const result = await apiCall(flags, () =>
+                api.api.v1.sandboxes({ id: args.id }).snapshots.get()
+              );
+              jsonOut(flags, result);
+            })
+        )
     )
 
     // --- restore ---

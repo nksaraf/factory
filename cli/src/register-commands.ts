@@ -22,6 +22,7 @@ import { logsCommand } from "./commands/logs.js";
 import { metricsCommand } from "./commands/metrics.js";
 import { moduleCommand } from "./commands/module.js";
 import { opsCommand } from "./commands/ops.js";
+import { pkgCommand } from "./commands/pkg.js";
 import { planCommand } from "./commands/plan.js";
 import { pushCommand } from "./commands/push.js";
 import { releaseCommand } from "./commands/release.js";
@@ -65,6 +66,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(metricsCommand(app))
     .command(moduleCommand(app))
     .command(opsCommand(app))
+    .command(pkgCommand(app))
     .command(planCommand(app))
     .command(pushCommand(app))
     .command(releaseCommand(app))
