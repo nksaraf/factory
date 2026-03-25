@@ -2,34 +2,41 @@ import { cors } from "@elysiajs/cors"
 import { openapi } from "@elysiajs/openapi"
 import { Elysia } from "elysia"
 
+import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
+import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
+import { NoopSandboxAdapter } from "./adapters/sandbox-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
-import { agentController } from "./modules/agent/index"
-import { buildController } from "./modules/build/index"
-import { commerceController } from "./modules/commerce/index"
-import { fleetController } from "./modules/fleet/index"
-import { gatewayController } from "./modules/infra/gateway.controller"
-import { healthController } from "./modules/health/index"
-import { infraController } from "./modules/infra/index"
-import { productController } from "./modules/product/index"
-import { sandboxController } from "./modules/infra/sandbox.controller"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
+import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
+import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
+import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
+import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
+import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
+import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
 import { logger } from "./logger"
-import { authPlugin } from "./plugins/auth.plugin"
-import { NoopSandboxAdapter } from "./adapters/sandbox-adapter-noop"
-import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
-import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
+import { agentController } from "./modules/agent/index"
+import { buildController } from "./modules/build/index"
+import { webhookController } from "./modules/build/webhook.controller"
+import { commerceController } from "./modules/commerce/index"
+import { fleetController } from "./modules/fleet/index"
+import { healthController } from "./modules/health/index"
+import { gatewayController } from "./modules/infra/gateway.controller"
+import { infraController } from "./modules/infra/index"
+import { sandboxController } from "./modules/infra/sandbox.controller"
 import { observabilityController } from "./modules/observability/index"
+import { productController } from "./modules/product/index"
 import { siteController } from "./modules/site/index"
 import { SiteReconciler } from "./modules/site/reconciler"
-import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
-import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
-import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
-import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
-import { webhookController } from "./modules/build/webhook.controller"
-import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
-import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
-import { type FactorySettings, getDatabaseUrl, getAuthServiceUrl, getJwksUrl, getMode, getSiteConfig } from "./settings"
+import { authPlugin } from "./plugins/auth.plugin"
+import {
+  type FactorySettings,
+  getAuthServiceUrl,
+  getDatabaseUrl,
+  getJwksUrl,
+  getMode,
+  getSiteConfig,
+} from "./settings"
 
 export class FactoryAPI {
   readonly db: Connection | null
@@ -97,14 +104,19 @@ export class FactoryAPI {
   private mountSiteControllers() {
     const siteConfig = getSiteConfig(this.settings)
     const adapter = new NoopGatewayAdapter()
-    const reconciler = new SiteReconciler({
-      siteName: siteConfig.name,
-      factoryUrl: siteConfig.factoryUrl,
-      namespace: siteConfig.namespace,
-      issuerName: siteConfig.issuerName,
-      pollIntervalMs: siteConfig.pollIntervalMs,
-    }, adapter)
-    return new Elysia({ prefix: "/api/v1/site" }).use(siteController(reconciler))
+    const reconciler = new SiteReconciler(
+      {
+        siteName: siteConfig.name,
+        factoryUrl: siteConfig.factoryUrl,
+        namespace: siteConfig.namespace,
+        issuerName: siteConfig.issuerName,
+        pollIntervalMs: siteConfig.pollIntervalMs,
+      },
+      adapter
+    )
+    return new Elysia({ prefix: "/api/v1/site" }).use(
+      siteController(reconciler)
+    )
   }
 
   createApp() {
@@ -127,6 +139,7 @@ export class FactoryAPI {
 
     app.use(
       openapi({
+        path: "/api/v1/factory/openapi",
         documentation: {
           info: {
             title: "Factory API",
@@ -167,7 +180,7 @@ export class FactoryAPI {
     this.stopGitHostSync = startGitHostSyncLoop(this.db)
 
     if (this.authClient) {
-      bootstrapResourceTypes(this.authClient).catch(err =>
+      bootstrapResourceTypes(this.authClient).catch((err) =>
         logger.warn({ err }, "resource type bootstrap failed")
       )
     }
