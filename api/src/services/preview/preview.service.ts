@@ -148,6 +148,94 @@ export async function expirePreview(db: Database, previewId: string) {
   return await getPreview(db, previewId);
 }
 
+/**
+ * Periodic cleanup job for preview lifecycle transitions.
+ * Should be called every ~5 minutes.
+ *
+ * 1. active + expiresAt < now → expired
+ * 2. active + hot + lastAccessedAt < 2h ago → warm
+ * 3. active + warm + lastAccessedAt < 24h ago → cold
+ * 4. expired + expiresAt < 30d ago → hard delete
+ */
+export async function runPreviewCleanup(db: Database): Promise<{
+  expired: number;
+  scaledToWarm: number;
+  scaledToCold: number;
+  deleted: number;
+}> {
+  const now = new Date();
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // 1. Expire active previews past expiresAt
+  const expiredRows = await db
+    .update(preview)
+    .set({ status: "expired", updatedAt: now })
+    .where(
+      and(
+        eq(preview.status, "active"),
+        lt(preview.expiresAt, now)
+      )
+    )
+    .returning();
+
+  // Also expire their routes
+  for (const p of expiredRows) {
+    const routes = await db
+      .select()
+      .from(route)
+      .where(eq(route.deploymentTargetId, p.deploymentTargetId));
+    for (const r of routes) {
+      await updateRoute(db, r.routeId, { status: "expired" });
+    }
+  }
+
+  // 2. Hot → Warm (idle > 2h)
+  const warmRows = await db
+    .update(preview)
+    .set({ runtimeClass: "warm", updatedAt: now })
+    .where(
+      and(
+        eq(preview.status, "active"),
+        eq(preview.runtimeClass, "hot"),
+        lt(preview.lastAccessedAt, twoHoursAgo)
+      )
+    )
+    .returning();
+
+  // 3. Warm → Cold (idle > 24h)
+  const coldRows = await db
+    .update(preview)
+    .set({ runtimeClass: "cold", updatedAt: now })
+    .where(
+      and(
+        eq(preview.status, "active"),
+        eq(preview.runtimeClass, "warm"),
+        lt(preview.lastAccessedAt, twentyFourHoursAgo)
+      )
+    )
+    .returning();
+
+  // 4. Hard delete expired previews older than 30 days
+  const deletedRows = await db
+    .delete(preview)
+    .where(
+      and(
+        eq(preview.status, "expired"),
+        lt(preview.expiresAt, thirtyDaysAgo)
+      )
+    )
+    .returning();
+
+  return {
+    expired: expiredRows.length,
+    scaledToWarm: warmRows.length,
+    scaledToCold: coldRows.length,
+    deleted: deletedRows.length,
+  };
+}
+
 export async function listPreviews(
   db: Database,
   opts?: {

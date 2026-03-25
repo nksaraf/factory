@@ -4,6 +4,8 @@ import * as gw from "../modules/infra/gateway.service";
 import * as previewSvc from "../services/preview/preview.service";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
+import { preview } from "../db/schema/fleet";
+import { eq } from "drizzle-orm";
 
 describe("Gateway Services", () => {
   let db: Database;
@@ -159,6 +161,54 @@ describe("Gateway Services", () => {
 
         const expired = await previewSvc.getPreview(db, preview.previewId);
         expect(expired!.status).toBe("expired");
+      });
+    });
+
+    describe("runPreviewCleanup", () => {
+      it("marks expired previews based on expiresAt", async () => {
+        const { preview: p } = await previewSvc.createPreview(db, {
+          name: "PR #20",
+          sourceBranch: "old-branch",
+          commitSha: "xyz",
+          repo: "github.com/org/app",
+          prNumber: 20,
+          siteName: "app",
+          ownerId: "user_1",
+          createdBy: "system",
+          expiresAt: new Date(Date.now() - 60_000),
+        });
+        await previewSvc.updatePreviewStatus(db, p.previewId, { status: "active" });
+        await db.update(preview).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(preview.previewId, p.previewId));
+
+        const result = await previewSvc.runPreviewCleanup(db);
+        expect(result.expired).toBeGreaterThanOrEqual(1);
+
+        const updated = await previewSvc.getPreview(db, p.previewId);
+        expect(updated!.status).toBe("expired");
+      });
+
+      it("transitions hot previews to warm after idle period", async () => {
+        const { preview: p } = await previewSvc.createPreview(db, {
+          name: "PR #21",
+          sourceBranch: "idle-branch",
+          commitSha: "abc",
+          repo: "github.com/org/app",
+          prNumber: 21,
+          siteName: "app",
+          ownerId: "user_1",
+          createdBy: "system",
+        });
+        await previewSvc.updatePreviewStatus(db, p.previewId, {
+          status: "active",
+          runtimeClass: "hot",
+          lastAccessedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        });
+
+        const result = await previewSvc.runPreviewCleanup(db);
+        expect(result.scaledToWarm).toBeGreaterThanOrEqual(1);
+
+        const updated = await previewSvc.getPreview(db, p.previewId);
+        expect(updated!.runtimeClass).toBe("warm");
       });
     });
   });
