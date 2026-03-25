@@ -1,13 +1,13 @@
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { SandboxModel } from "./model"
+import { SandboxModel } from "./sandbox.model"
 import * as sandboxSvc from "../../services/sandbox/sandbox.service"
 import * as templateSvc from "../../services/sandbox/sandbox-template.service"
 import * as accessSvc from "../../services/sandbox/sandbox-access.service"
 
 export function sandboxController(db: Database) {
-  return new Elysia({ prefix: "/api/v1" })
+  return new Elysia({ prefix: "/sandbox" })
 
     // --- Sandbox lifecycle ---
     .post("/sandboxes", async ({ body }) => ({

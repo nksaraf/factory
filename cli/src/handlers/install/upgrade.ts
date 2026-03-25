@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { run, runOrThrow } from "../../lib/subprocess.js";
-import { loadSiteConfig } from "../../lib/site-config.js";
+import { readConfig, type DxConfig } from "../../config.js";
 import { K3S_KUBECONFIG } from "./k3s.js";
 import { DX_NAMESPACE, helmUpgrade } from "./helm.js";
 import { loadImages } from "./images.js";
@@ -9,7 +9,6 @@ import type { InstallManifest, InstallRole } from "@smp/factory-shared/install-t
 
 export interface UpgradeOptions {
   bundlePath?: string;
-  configPath?: string;
   version?: string;
   verbose?: boolean;
 }
@@ -38,7 +37,7 @@ export async function runUpgrade(opts: UpgradeOptions): Promise<void> {
   console.log(`Current install: v${manifest.dxVersion} (${role})`);
 
   // 2. Load config (for Helm values)
-  const config = loadSiteConfig(opts.configPath);
+  const config = await readConfig();
 
   // Ensure role hasn't changed
   if (config.role !== role) {

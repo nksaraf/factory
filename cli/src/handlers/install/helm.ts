@@ -2,15 +2,16 @@ import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runOrThrow, run } from "../../lib/subprocess.js";
-import { siteConfigToHelmValues, helmValuesToSetArgs } from "../../lib/site-config.js";
+import { configToHelmValues, helmValuesToSetArgs } from "../../lib/site-config.js";
 import { K3S_KUBECONFIG } from "./k3s.js";
-import type { SiteConfig } from "@smp/factory-shared/site-config-schema";
+import type { DxConfig } from "../../config.js";
+import type { InstallRole } from "@smp/factory-shared/install-types";
 
 const DX_NAMESPACE = "dx-system";
 const RELEASE_NAME = "dx-platform";
 
 export interface HelmInstallOptions {
-  config: SiteConfig;
+  config: DxConfig;
   bundlePath?: string;
   chartVersion?: string;
   registryUrl?: string;
@@ -19,7 +20,7 @@ export interface HelmInstallOptions {
 
 /** Phase 4: Helm install dx-platform chart with role-aware values. */
 export async function helmInstall(opts: HelmInstallOptions): Promise<string> {
-  const values = siteConfigToHelmValues(opts.config);
+  const values = configToHelmValues(opts.config);
   const setArgs = helmValuesToSetArgs(values);
 
   // Ensure namespace exists
@@ -69,7 +70,7 @@ export async function helmInstall(opts: HelmInstallOptions): Promise<string> {
   });
 
   // Wait for pods to be ready
-  await waitForPods(opts.config.role, opts.verbose);
+  await waitForPods(opts.config.role as InstallRole, opts.verbose);
 
   const version = opts.chartVersion ?? "latest";
   console.log(`dx-platform ${version} installed in ${DX_NAMESPACE}.`);
@@ -77,7 +78,7 @@ export async function helmInstall(opts: HelmInstallOptions): Promise<string> {
 }
 
 export async function helmUpgrade(opts: HelmInstallOptions): Promise<string> {
-  const values = siteConfigToHelmValues(opts.config);
+  const values = configToHelmValues(opts.config);
   const setArgs = helmValuesToSetArgs(values);
 
   const baseArgs = [

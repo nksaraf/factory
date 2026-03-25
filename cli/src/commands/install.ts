@@ -1,129 +1,200 @@
 import type { DxBase } from "../dx-root.js";
-
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 import { exitWithError } from "../lib/cli-exit.js";
-import { loadSiteConfig } from "../lib/site-config.js";
+import { dxConfigStore, configExists, readConfig, configPath } from "../config.js";
+import { banner, phase, phaseSucceed, phaseFail, printPreflightLine, successLine, infoLine } from "../lib/cli-ui.js";
 import { toDxFlags } from "./dx-flags.js";
-import { printTable, printKeyValue } from "../output.js";
+
+const DX_VERSION = process.env.DX_VERSION ?? "0.0.0-dev";
 
 export function installCommand(app: DxBase) {
   return app
     .sub("install")
-    .meta({ description: "Install, upgrade, and manage the dx platform on a site or factory" })
+    .meta({ description: "Install, upgrade, and manage the dx platform" })
     .flags({
-      config: { type: "string", short: "c", description: "Path to config.yaml" },
       bundle: { type: "string", short: "b", description: "Path to offline bundle directory" },
-      role: { type: "string", description: "Installation role: site (default) or factory" },
+      role: { type: "string", description: "Installation role: workbench, site, or factory" },
       force: { type: "boolean", description: "Force install over existing installation" },
     })
     .run(async ({ flags }) => {
       const f = toDxFlags(flags);
+      const totalStart = Date.now();
+
       try {
-        const config = loadSiteConfig(flags.config as string | undefined);
-        // CLI --role flag overrides config.yaml
-        if (flags.role) {
-          (config as { role: string }).role = flags.role as string;
+        banner(DX_VERSION);
+
+        let config = await readConfig();
+        const hasExistingConfig = configExists();
+
+        if (hasExistingConfig && config.siteName) {
+          console.log(`  Config found: ${config.role} (${config.context || config.siteName || new URL(config.factoryUrl).hostname})\n`);
+        } else {
+          // Light preflight before wizard
+          console.log("  Checking system...");
+          const { runPreflight } = await import("../handlers/install/preflight.js");
+          const lightPreflight = runPreflight({
+            role: (flags.role as InstallRole) || "workbench",
+          });
+          printPreflightLine(lightPreflight.checks);
+          console.log();
+
+          if (!lightPreflight.passed) {
+            exitWithError(f, "System requirements not met.", ExitCodes.PREFLIGHT_FAILURE);
+          }
+
+          // Interactive wizard
+          const { runWizard } = await import("../handlers/install/interactive-setup.js");
+          const wizard = await runWizard(config);
+
+          // Write wizard results to store
+          await dxConfigStore.write({
+            role: wizard.role,
+            factoryUrl: wizard.factoryUrl,
+            siteUrl: wizard.siteUrl,
+            context: config.context,
+            authBasePath: config.authBasePath,
+            siteName: wizard.siteName,
+            domain: wizard.domain,
+            adminEmail: wizard.adminEmail,
+            tlsMode: wizard.tlsMode,
+            tlsCertPath: wizard.tlsCertPath,
+            tlsKeyPath: wizard.tlsKeyPath,
+            databaseMode: wizard.databaseMode,
+            databaseUrl: wizard.databaseUrl,
+            registryMode: wizard.registryMode,
+            registryUrl: wizard.registryUrl,
+            resourceProfile: wizard.resourceProfile,
+            networkPodCidr: config.networkPodCidr,
+            networkServiceCidr: config.networkServiceCidr,
+            installMode: config.installMode,
+          });
+
+          config = await readConfig();
         }
-        const role: InstallRole = config.role;
 
-        console.log(`dx install — role: ${role}, mode: ${config.install.mode}`);
-        console.log(`Site: ${config.site.name} (${config.site.domain})\n`);
+        const role: InstallRole = (flags.role as InstallRole) || (config.role as InstallRole);
 
-        // Phase 1: Preflight
-        console.log("=== Phase 1: Preflight ===");
+        // Workbench flow
+        if (role === "workbench") {
+          const { runWorkbenchSetup } = await import("../handlers/install/workbench.js");
+          const result = await runWorkbenchSetup({
+            factoryUrl: config.factoryUrl,
+            verbose: f.verbose,
+          });
+
+          // Update context in store if set
+          if (result.context) {
+            await dxConfigStore.update((prev) => ({ ...prev, context: result.context! }));
+          }
+
+          successLine(`Workbench ready — ${new URL(config.factoryUrl).hostname}`, Date.now() - totalStart);
+          infoLine("dx dev       local dev server");
+          infoLine("dx deploy    deploy to site");
+          infoLine("dx status    check platform");
+          console.log();
+
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: result }, null, 2));
+          }
+          return;
+        }
+
+        // Site/Factory — 6-phase cluster install
+        console.log();
+        const TOTAL = 6;
+
+        // Phase 1: Full preflight
+        let s = phase(1, TOTAL, "Preflight");
+        let start = Date.now();
         const { runPreflight } = await import("../handlers/install/preflight.js");
         const preflight = runPreflight({
           role,
-          domain: config.site.domain,
-          installMode: config.install.mode,
+          domain: config.domain,
+          installMode: config.installMode,
           force: flags.force as boolean | undefined,
         });
-
-        const preflightTable = printTable(
-          ["Check", "Status", "Message"],
-          preflight.checks.map((c) => [
-            c.name,
-            c.passed ? "PASS" : c.required ? "FAIL" : "WARN",
-            c.message,
-          ])
-        );
-        console.log(preflightTable + "\n");
-
         if (!preflight.passed) {
-          exitWithError(f, "Preflight checks failed. Fix the issues above and retry.", ExitCodes.PREFLIGHT_FAILURE);
+          phaseFail(s, 1, TOTAL, "Preflight", "checks failed");
+          printPreflightLine(preflight.checks.filter((c) => !c.passed));
+          exitWithError(f, "Preflight checks failed.", ExitCodes.PREFLIGHT_FAILURE);
         }
+        phaseSucceed(s, 1, TOTAL, "Preflight", start);
 
-        // Phase 2: K3s Bootstrap
-        console.log("=== Phase 2: K3s Bootstrap ===");
+        // Phase 2: K3s
+        s = phase(2, TOTAL, "K3s bootstrap");
+        start = Date.now();
         const { bootstrapK3s } = await import("../handlers/install/k3s.js");
-        const { joinToken } = await bootstrapK3s({
+        await bootstrapK3s({
           bundlePath: flags.bundle as string | undefined,
           verbose: f.verbose,
         });
-        console.log(`Join token: ${joinToken.substring(0, 10)}...\n`);
+        phaseSucceed(s, 2, TOTAL, "K3s bootstrap", start);
 
-        // Phase 3: Image Load
-        console.log("=== Phase 3: Image Load ===");
+        // Phase 3: Images
+        s = phase(3, TOTAL, "Loading images");
+        start = Date.now();
         const { loadImages } = await import("../handlers/install/images.js");
         loadImages({
           role,
           bundlePath: flags.bundle as string | undefined,
           verbose: f.verbose,
         });
-        console.log();
+        phaseSucceed(s, 3, TOTAL, "Loading images", start);
 
-        // Phase 4: Platform Install
-        console.log("=== Phase 4: Platform Install ===");
+        // Phase 4: Helm install
+        s = phase(4, TOTAL, "Installing platform");
+        start = Date.now();
         const { helmInstall } = await import("../handlers/install/helm.js");
         const chartVersion = await helmInstall({
           config,
           bundlePath: flags.bundle as string | undefined,
           verbose: f.verbose,
         });
-        console.log();
+        phaseSucceed(s, 4, TOTAL, "Installing platform", start);
 
-        // Phase 5: Post-Install
-        console.log("=== Phase 5: Post-Install ===");
+        // Phase 5: Post-install
+        s = phase(5, TOTAL, "Post-install");
+        start = Date.now();
         const { runPostInstall } = await import("../handlers/install/post-install.js");
-        const dxVersion = process.env.DX_VERSION ?? "0.0.0-dev";
         const manifest = await runPostInstall({
           config,
           helmChartVersion: chartVersion,
-          dxVersion,
+          dxVersion: DX_VERSION,
           verbose: f.verbose,
         });
-        console.log();
+        phaseSucceed(s, 5, TOTAL, "Post-install", start);
 
-        // Phase 6: Health Verification
-        console.log("=== Phase 6: Health Verification ===");
+        // Phase 6: Health
+        s = phase(6, TOTAL, "Health check");
+        start = Date.now();
         const { verifyHealth } = await import("../handlers/install/health.js");
         const healthy = await verifyHealth({
           role,
-          domain: config.site.domain,
+          domain: config.domain,
           verbose: f.verbose,
         });
-
         if (!healthy) {
+          phaseFail(s, 6, TOTAL, "Health check", "verification failed");
           exitWithError(f, "Health verification failed.", ExitCodes.INSTALL_PHASE_FAILURE);
         }
+        phaseSucceed(s, 6, TOTAL, "Health check", start);
 
-        // Summary
-        console.log("\n" + printKeyValue({
-          "Site": config.site.name,
-          "Domain": config.site.domain,
-          "Role": role,
-          "Mode": config.install.mode,
-          "Version": dxVersion,
-          "Planes": manifest.enabledPlanes.join(", "),
-        }));
-
-        console.log("\nInstallation complete.");
+        // Success
+        const label = role === "factory" ? "Factory" : "Site";
+        successLine(`${label} ready — https://${config.domain}`, Date.now() - totalStart);
+        infoLine(`Config: ${configPath()}`);
+        console.log();
 
         if (f.json) {
           console.log(JSON.stringify({ success: true, data: manifest }, null, 2));
         }
       } catch (err) {
+        // Ctrl+C from @inquirer/prompts
+        if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "ExitPromptError") {
+          console.log("\n  Install cancelled.");
+          process.exit(1);
+        }
         const msg = err instanceof Error ? err.message : String(err);
         exitWithError(f, msg, ExitCodes.INSTALL_PHASE_FAILURE);
       }
@@ -135,40 +206,44 @@ export function installCommand(app: DxBase) {
       c
         .meta({ description: "Run preflight checks only (dry run)" })
         .flags({
-          config: { type: "string", short: "c", description: "Path to config.yaml" },
-          role: { type: "string", description: "Installation role: site (default) or factory" },
+          role: { type: "string", description: "Installation role: workbench, site, or factory" },
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
-            const config = loadSiteConfig(flags.config as string | undefined);
-            if (flags.role) (config as { role: string }).role = flags.role as string;
+            let role: InstallRole = (flags.role as InstallRole) || "workbench";
+            if (!flags.role) {
+              if (!configExists()) {
+                const { select } = await import("@inquirer/prompts");
+                role = await select<InstallRole>({
+                  message: "Role",
+                  choices: [
+                    { value: "workbench", name: "Workbench" },
+                    { value: "site", name: "Site" },
+                    { value: "factory", name: "Factory" },
+                  ],
+                });
+              } else {
+                const config = await readConfig();
+                role = config.role as InstallRole;
+              }
+            }
 
             const { runPreflight } = await import("../handlers/install/preflight.js");
-            const result = runPreflight({
-              role: config.role,
-              domain: config.site.domain,
-              installMode: config.install.mode,
-            });
+            const result = runPreflight({ role });
 
-            const table = printTable(
-              ["Check", "Status", "Message"],
-              result.checks.map((c) => [
-                c.name,
-                c.passed ? "PASS" : c.required ? "FAIL" : "WARN",
-                c.message,
-              ])
-            );
-            console.log(table);
+            printPreflightLine(result.checks);
 
             if (f.json) {
               console.log(JSON.stringify({ success: true, data: result }, null, 2));
             }
 
-            if (!result.passed) {
-              process.exit(ExitCodes.PREFLIGHT_FAILURE);
-            }
+            if (!result.passed) process.exit(ExitCodes.PREFLIGHT_FAILURE);
           } catch (err) {
+            if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "ExitPromptError") {
+              console.log("\n  Cancelled.");
+              process.exit(1);
+            }
             const msg = err instanceof Error ? err.message : String(err);
             exitWithError(f, msg, ExitCodes.PREFLIGHT_FAILURE);
           }
@@ -179,7 +254,6 @@ export function installCommand(app: DxBase) {
       c
         .meta({ description: "Upgrade an existing dx platform installation" })
         .flags({
-          config: { type: "string", short: "c", description: "Path to config.yaml" },
           bundle: { type: "string", short: "b", description: "Path to offline bundle directory" },
           version: { type: "string", description: "Target version" },
         })
@@ -189,7 +263,6 @@ export function installCommand(app: DxBase) {
             const { runUpgrade } = await import("../handlers/install/upgrade.js");
             await runUpgrade({
               bundlePath: flags.bundle as string | undefined,
-              configPath: flags.config as string | undefined,
               version: flags.version as string | undefined,
               verbose: f.verbose,
             });
@@ -204,8 +277,8 @@ export function installCommand(app: DxBase) {
       c
         .meta({ description: "Join this node to an existing dx cluster" })
         .flags({
-          server: { type: "string", required: true, description: "Server URL (e.g. https://10.0.0.1:6443)" },
-          token: { type: "string", required: true, description: "Join token from server node" },
+          server: { type: "string", required: true, description: "Server URL" },
+          token: { type: "string", required: true, description: "Join token" },
           bundle: { type: "string", short: "b", description: "Path to offline bundle directory" },
         })
         .run(async ({ flags }) => {
@@ -244,6 +317,7 @@ export function installCommand(app: DxBase) {
             }
 
             const manifest = JSON.parse(proc.stdout);
+            const { printKeyValue, printTable } = await import("../output.js");
 
             if (f.json) {
               console.log(JSON.stringify({ success: true, data: manifest }, null, 2));
@@ -255,9 +329,6 @@ export function installCommand(app: DxBase) {
                 "Version": manifest.dxVersion,
                 "Mode": manifest.installMode,
                 "Installed": manifest.installedAt,
-                "k3s": manifest.k3sVersion,
-                "Chart": manifest.helmChartVersion,
-                "Planes": manifest.enabledPlanes?.join(", "),
               }));
 
               if (manifest.nodes?.length > 0) {
@@ -266,16 +337,6 @@ export function installCommand(app: DxBase) {
                   ["Name", "Role", "IP", "Joined"],
                   manifest.nodes.map((n: { name: string; role: string; ip: string; joinedAt: string }) => [
                     n.name, n.role, n.ip, n.joinedAt,
-                  ])
-                ));
-              }
-
-              if (manifest.upgrades?.length > 0) {
-                console.log("\nUpgrade history:");
-                console.log(printTable(
-                  ["From", "To", "Date"],
-                  manifest.upgrades.map((u: { fromVersion: string; toVersion: string; upgradedAt: string }) => [
-                    u.fromVersion, u.toVersion, u.upgradedAt,
                   ])
                 ));
               }

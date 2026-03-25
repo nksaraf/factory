@@ -43,6 +43,29 @@ export function composeDown(
   }
 }
 
+export function composeStop(
+  composeFile: string,
+  services: string[],
+  opts?: { projectName?: string },
+): void {
+  const args = ["compose"];
+  if (opts?.projectName) args.push("-p", opts.projectName);
+  args.push("-f", composeFile, "stop", ...services);
+  spawnSync("docker", args, { stdio: "inherit" });
+}
+
+export function composeIsRunning(
+  composeFile: string,
+  service: string,
+  opts?: { projectName?: string },
+): boolean {
+  const args = ["compose"];
+  if (opts?.projectName) args.push("-p", opts.projectName);
+  args.push("-f", composeFile, "ps", "-q", service);
+  const result = spawnSync("docker", args, { encoding: "utf8" });
+  return result.status === 0 && result.stdout.trim().length > 0;
+}
+
 export function dockerBuild(
   context: string,
   dockerfile: string,

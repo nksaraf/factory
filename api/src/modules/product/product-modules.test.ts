@@ -13,9 +13,9 @@ describe("product plane (mounted with health)", () => {
     await ctx.client.close();
   });
 
-  it("GET /api/v1/product/modules returns list payload", async () => {
+  it("GET /api/v1/factory/product/modules returns list payload", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/product/modules")
+      new Request("http://localhost/api/v1/factory/product/modules")
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: unknown[]; total: number };

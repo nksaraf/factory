@@ -45,7 +45,7 @@ export function tunnelCommand(app: DxBase) {
 
       console.log(`Opening tunnel for localhost:${port}...`);
 
-      const handle = openTunnel(
+      const handle = await openTunnel(
         {
           port,
           subdomain: flags.subdomain as string | undefined,

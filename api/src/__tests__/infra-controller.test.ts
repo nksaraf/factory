@@ -6,7 +6,7 @@ import {
 } from "../test-helpers";
 import type { PGlite } from "@electric-sql/pglite";
 
-const BASE = "http://localhost/api/v1/infra";
+const BASE = "http://localhost/api/v1/factory/infra";
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {

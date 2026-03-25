@@ -3,7 +3,7 @@ import { Elysia } from "elysia"
 import { AgentModel } from "./model"
 import { AgentService } from "./service"
 
-export const agentController = new Elysia({ prefix: "/api/v1/agent" })
+export const agentController = new Elysia({ prefix: "/agent" })
   .get("/agents", () => AgentService.listAgents(), {
     detail: { tags: ["Agent"], summary: "List agents" },
   })

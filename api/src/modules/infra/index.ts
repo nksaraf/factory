@@ -13,7 +13,7 @@ import * as assetsSvc from "../../services/infra/assets.service"
 import * as pxcSvc from "../../services/infra/proxmox-cluster.service"
 
 export function infraController(db: Database) {
-  return new Elysia({ prefix: "/api/v1/infra" })
+  return new Elysia()
 
     // --- Providers ---
     .get("/providers", async ({ query }) => ({

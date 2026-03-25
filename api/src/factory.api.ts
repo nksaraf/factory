@@ -7,11 +7,11 @@ import { agentController } from "./modules/agent/index"
 import { buildController } from "./modules/build/index"
 import { commerceController } from "./modules/commerce/index"
 import { fleetController } from "./modules/fleet/index"
-import { gatewayController } from "./modules/gateway/index"
+import { gatewayController } from "./modules/infra/gateway.controller"
 import { healthController } from "./modules/health/index"
 import { infraController } from "./modules/infra/index"
 import { productController } from "./modules/product/index"
-import { sandboxController } from "./modules/sandbox/index"
+import { sandboxController } from "./modules/infra/sandbox.controller"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
 import { logger } from "./logger"
@@ -24,6 +24,7 @@ import { siteController } from "./modules/site/index"
 import { SiteReconciler } from "./modules/site/reconciler"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
+import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
 import { type FactorySettings, getDatabaseUrl, getJwksUrl, getMode, getSiteConfig } from "./settings"
 
 export class FactoryAPI {
@@ -33,6 +34,7 @@ export class FactoryAPI {
   readonly observabilityAdapter = new NoopObservabilityAdapter()
   private stopTtlCleanup?: () => void
   private stopProxmoxSync?: () => void
+  private stopWorkTrackerSync?: () => void
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -58,16 +60,19 @@ export class FactoryAPI {
   }
 
   private mountFactoryControllers(db: Database, jwksUrl: string | undefined) {
-    const planeRoutes = new Elysia()
+    const infraRoutes = new Elysia({ prefix: "/infra" })
+      .use(infraController(db))
+      .use(gatewayController(db))
+      .use(sandboxController(db))
+
+    const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
-      .use(productController)
+      .use(productController(db))
       .use(buildController(db))
       .use(agentController)
       .use(commerceController(db))
       .use(fleetController(db))
-      .use(gatewayController(db))
-      .use(infraController(db))
-      .use(sandboxController(db))
+      .use(infraRoutes)
       .use(observabilityController(this.observabilityAdapter))
 
     if (jwksUrl) {
@@ -90,7 +95,7 @@ export class FactoryAPI {
       issuerName: siteConfig.issuerName,
       pollIntervalMs: siteConfig.pollIntervalMs,
     }, adapter)
-    return new Elysia().use(siteController(reconciler))
+    return new Elysia({ prefix: "/api/v1/site" }).use(siteController(reconciler))
   }
 
   createApp() {
@@ -148,11 +153,13 @@ export class FactoryAPI {
     )
     this.stopTtlCleanup = startTtlCleanupLoop(this.db, this.sandboxAdapter)
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)
+    this.stopWorkTrackerSync = startWorkTrackerSyncLoop(this.db)
   }
 
   async close() {
     this.stopTtlCleanup?.()
     this.stopProxmoxSync?.()
+    this.stopWorkTrackerSync?.()
     if (this.db) {
       await this.db.$client.end()
     }

@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { basename, dirname, join } from "node:path";
 
 import { composeToYaml, generateCompose } from "@smp/factory-shared/compose-gen";
@@ -24,6 +25,8 @@ import {
   writeConnectionContext,
   cleanupConnectionContext,
 } from "../lib/connection-context-file.js";
+import { DevController } from "../lib/dev-controller.js";
+import { PortManager } from "../lib/port-manager.js";
 import { toDxFlags } from "./dx-flags.js";
 
 export function devCommand(app: DxBase) {
@@ -257,12 +260,43 @@ export function devCommand(app: DxBase) {
           }
         }
 
+        // Resolve dynamic ports for all components + dependencies
+        const pm = new PortManager(join(project.rootDir, ".dx"));
+        const portRequests = [
+          ...Object.entries(project.moduleConfig.components).map(
+            ([name, ref]) => ({ name, preferred: ref.port ?? undefined }),
+          ),
+          ...Object.entries(project.moduleConfig.dependencies).map(
+            ([name, dep]) => ({ name, preferred: dep.port }),
+          ),
+        ];
+        const resolvedPorts = await pm.resolve(portRequests);
+
+        // Build portMap keyed by compose service names
+        const mod = project.moduleConfig.module;
+        const portMap: Record<string, number> = {};
+        for (const [name, port] of Object.entries(resolvedPorts)) {
+          if (name in project.moduleConfig.components) {
+            // Component service name: module-component
+            const sn = `${mod}-${name}`
+              .toLowerCase()
+              .replace(/[^a-z0-9-]/g, "-")
+              .replace(/-+/g, "-")
+              .replace(/^-|-$/g, "");
+            portMap[sn] = port;
+          } else {
+            // Dependency service name: dep-name
+            const sn = `dep-${name}`.toLowerCase().replace(/_/g, "-");
+            portMap[sn] = port;
+          }
+        }
+
         // Generate compose (with or without connection context)
         const compose = generateCompose(
           project.rootDir,
           project.moduleConfig,
           project.componentConfigs,
-          { componentFilter: filter, connectionContext }
+          { componentFilter: filter, connectionContext, portMap }
         );
         const yamlContent = composeToYaml(compose);
         const composePath = join(
@@ -308,7 +342,194 @@ export function devCommand(app: DxBase) {
         const msg = err instanceof Error ? err.message : String(err);
         exitWithError(f, msg);
       }
-    });
+    })
+    .command("start", (c) =>
+      c
+        .meta({ description: "Start a native dev server for a component" })
+        .args([
+          {
+            name: "component",
+            type: "string" as const,
+            description: "Component name to start",
+          },
+        ])
+        .flags({
+          port: {
+            type: "number" as const,
+            description: "Override the port",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          try {
+            const project = ProjectContext.fromCwd();
+            const ctrl = new DevController(
+              project.rootDir,
+              project.moduleConfig,
+              project.componentConfigs,
+            );
+
+            const component = args.component;
+            if (!component) {
+              console.error("Usage: dx dev start <component>");
+              process.exit(1);
+            }
+
+            const result = await ctrl.start(component, {
+              port: flags.port as number | undefined,
+            });
+
+            if (result.alreadyRunning) {
+              console.log(
+                `${result.name} already running on :${result.port} (PID ${result.pid})`,
+              );
+            } else {
+              if (result.stoppedDocker) {
+                console.log(`Stopped Docker container for ${result.name}`);
+              }
+              console.log(
+                `Started ${result.name} on :${result.port} (PID ${result.pid})`,
+              );
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Error: ${msg}`);
+            process.exit(1);
+          }
+        }),
+    )
+    .command("stop", (c) =>
+      c
+        .meta({ description: "Stop native dev server(s)" })
+        .args([
+          {
+            name: "component",
+            type: "string" as const,
+            description: "Component name (stops all if omitted)",
+          },
+        ])
+        .run(({ args }) => {
+          try {
+            const project = ProjectContext.fromCwd();
+            const ctrl = new DevController(
+              project.rootDir,
+              project.moduleConfig,
+              project.componentConfigs,
+            );
+
+            const stopped = ctrl.stop(args.component || undefined);
+            if (stopped.length === 0) {
+              console.log("No dev servers running.");
+            } else {
+              for (const s of stopped) {
+                console.log(`Stopped ${s.name} (PID ${s.pid})`);
+              }
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Error: ${msg}`);
+            process.exit(1);
+          }
+        }),
+    )
+    .command("restart", (c) =>
+      c
+        .meta({ description: "Restart a native dev server" })
+        .args([
+          {
+            name: "component",
+            type: "string" as const,
+            required: true,
+            description: "Component name to restart",
+          },
+        ])
+        .run(async ({ args }) => {
+          try {
+            const project = ProjectContext.fromCwd();
+            const ctrl = new DevController(
+              project.rootDir,
+              project.moduleConfig,
+              project.componentConfigs,
+            );
+
+            const result = await ctrl.restart(args.component);
+            console.log(
+              `Restarted ${result.name} on :${result.port} (PID ${result.pid})`,
+            );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Error: ${msg}`);
+            process.exit(1);
+          }
+        }),
+    )
+    .command("ps", (c) =>
+      c.meta({ description: "List running dev servers" }).run(() => {
+        try {
+          const project = ProjectContext.fromCwd();
+          const ctrl = new DevController(
+            project.rootDir,
+            project.moduleConfig,
+            project.componentConfigs,
+          );
+
+          const servers = ctrl.ps();
+          if (servers.length === 0) {
+            console.log("No dev servers tracked.");
+            return;
+          }
+          for (const s of servers) {
+            const status = s.running ? "running" : "stopped";
+            console.log(
+              `  ${s.name.padEnd(20)} :${String(s.port ?? "?").padEnd(6)} PID ${String(s.pid ?? "-").padEnd(8)} ${status}`,
+            );
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Error: ${msg}`);
+          process.exit(1);
+        }
+      }),
+    )
+    .command("logs", (c) =>
+      c
+        .meta({ description: "Show dev server logs" })
+        .args([
+          {
+            name: "component",
+            type: "string" as const,
+            required: true,
+            description: "Component name",
+          },
+        ])
+        .flags({
+          follow: {
+            type: "boolean" as const,
+            short: "f",
+            description: "Follow the log output",
+          },
+        })
+        .run(({ args, flags }) => {
+          try {
+            const project = ProjectContext.fromCwd();
+            const ctrl = new DevController(
+              project.rootDir,
+              project.moduleConfig,
+              project.componentConfigs,
+            );
+
+            const logPath = ctrl.logs(args.component);
+            if (flags.follow) {
+              spawnSync("tail", ["-f", logPath], { stdio: "inherit" });
+            } else {
+              console.log(logPath);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Error: ${msg}`);
+            process.exit(1);
+          }
+        }),
+    );
 }
 
 /** Heuristic: infer deployment target kind from its name. */

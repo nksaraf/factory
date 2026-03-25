@@ -57,6 +57,13 @@
       "when": 1774800000000,
       "tag": "0007_install_manifest",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774900000000,
+      "tag": "0008_work_tracker_provider",
+      "breakpoints": true
     }
   ]
 }

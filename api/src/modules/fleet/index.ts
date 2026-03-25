@@ -7,7 +7,7 @@ import { FleetPlaneService } from "./plane.service"
 export function fleetController(db: Database) {
   const plane = new FleetPlaneService(db)
 
-  return new Elysia({ prefix: "/api/v1/fleet" })
+  return new Elysia({ prefix: "/fleet" })
     // ---- Releases ----
     .get("/releases", () => plane.listReleases(), {
       detail: { tags: ["Fleet"], summary: "List releases" },

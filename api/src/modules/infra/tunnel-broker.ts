@@ -1,5 +1,5 @@
 import type { Database } from "../../db/connection";
-import * as gw from "./service";
+import * as gw from "./gateway.service";
 
 /**
  * In-memory map of active tunnel connections.

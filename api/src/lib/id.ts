@@ -43,7 +43,9 @@ export type EntityPrefix =
   | "dom"
   | "tnl"
   | "imfst"
-  | "rbnd";
+  | "rbnd"
+  | "wtp"
+  | "wtpm";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;

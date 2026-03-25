@@ -17,7 +17,7 @@ describe("commerce plane API", () => {
   it("creates a customer with trial status and cust_ ID prefix", async () => {
     await truncateAllTables(ctx.client);
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Acme Corp" }),
@@ -40,7 +40,7 @@ describe("commerce plane API", () => {
 
     // Create two customers
     const res1 = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Alpha Inc" }),
@@ -51,7 +51,7 @@ describe("commerce plane API", () => {
     };
 
     const res2 = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Beta LLC" }),
@@ -63,7 +63,7 @@ describe("commerce plane API", () => {
 
     // List
     const listRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers")
+      new Request("http://localhost/api/v1/factory/commerce/customers")
     );
     expect(listRes.status).toBe(200);
     const listJson = (await listRes.json()) as {
@@ -78,7 +78,7 @@ describe("commerce plane API", () => {
     // Get by ID
     const getRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/customers/${cust1.data.customerId}`
+        `http://localhost/api/v1/factory/commerce/customers/${cust1.data.customerId}`
       )
     );
     expect(getRes.status).toBe(200);
@@ -93,7 +93,7 @@ describe("commerce plane API", () => {
   it("returns 404 for unknown customer", async () => {
     await truncateAllTables(ctx.client);
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers/cust_nonexistent")
+      new Request("http://localhost/api/v1/factory/commerce/customers/cust_nonexistent")
     );
     expect(res.status).toBe(404);
     const json = (await res.json()) as { success: boolean; error: string };
@@ -104,7 +104,7 @@ describe("commerce plane API", () => {
   it("updates customer status from trial to active", async () => {
     await truncateAllTables(ctx.client);
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Gamma Co" }),
@@ -117,7 +117,7 @@ describe("commerce plane API", () => {
 
     const patchRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/customers/${created.data.customerId}`,
+        `http://localhost/api/v1/factory/commerce/customers/${created.data.customerId}`,
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -137,7 +137,7 @@ describe("commerce plane API", () => {
   it("creates and lists plans with includedModules", async () => {
     await truncateAllTables(ctx.client);
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/plans", {
+      new Request("http://localhost/api/v1/factory/commerce/plans", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -163,7 +163,7 @@ describe("commerce plane API", () => {
     expect(created.data.includedModules).toEqual(["billing", "analytics"]);
 
     const listRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/plans")
+      new Request("http://localhost/api/v1/factory/commerce/plans")
     );
     expect(listRes.status).toBe(200);
     const listed = (await listRes.json()) as {
@@ -181,7 +181,7 @@ describe("commerce plane API", () => {
 
     // Create a customer
     const custRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Delta Corp" }),
@@ -204,7 +204,7 @@ describe("commerce plane API", () => {
 
     // Grant entitlement
     const grantRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/entitlements", {
+      new Request("http://localhost/api/v1/factory/commerce/entitlements", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -235,7 +235,7 @@ describe("commerce plane API", () => {
     // List filtered by customerId
     const listRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/entitlements?customerId=${cust.data.customerId}`
+        `http://localhost/api/v1/factory/commerce/entitlements?customerId=${cust.data.customerId}`
       )
     );
     expect(listRes.status).toBe(200);
@@ -251,7 +251,7 @@ describe("commerce plane API", () => {
     // Revoke
     const revokeRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/entitlements?id=${granted.data.entitlementId}`,
+        `http://localhost/api/v1/factory/commerce/entitlements?id=${granted.data.entitlementId}`,
         { method: "DELETE" }
       )
     );
@@ -269,7 +269,7 @@ describe("commerce plane API", () => {
 
     // Create a customer
     const custRes = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "Echo Ltd" }),
@@ -301,7 +301,7 @@ describe("commerce plane API", () => {
 
     // Grant two entitlements
     await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/entitlements", {
+      new Request("http://localhost/api/v1/factory/commerce/entitlements", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -311,7 +311,7 @@ describe("commerce plane API", () => {
       })
     );
     const ent2Res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/commerce/entitlements", {
+      new Request("http://localhost/api/v1/factory/commerce/entitlements", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -327,7 +327,7 @@ describe("commerce plane API", () => {
     // Revoke one entitlement
     await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/entitlements?id=${ent2.data.entitlementId}`,
+        `http://localhost/api/v1/factory/commerce/entitlements?id=${ent2.data.entitlementId}`,
         { method: "DELETE" }
       )
     );
@@ -335,7 +335,7 @@ describe("commerce plane API", () => {
     // Check usage summary
     const usageRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/commerce/usage?customerId=${cust.data.customerId}`
+        `http://localhost/api/v1/factory/commerce/usage?customerId=${cust.data.customerId}`
       )
     );
     expect(usageRes.status).toBe(200);

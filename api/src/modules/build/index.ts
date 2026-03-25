@@ -14,7 +14,7 @@ import { BuildService } from "./service";
 export function buildController(db: Database) {
   const plane = new BuildPlaneService(db);
 
-  return new Elysia({ prefix: "/api/v1/build" })
+  return new Elysia({ prefix: "/build" })
     .post(
       "/builds",
       ({ body }) => BuildService.triggerBuild(body),

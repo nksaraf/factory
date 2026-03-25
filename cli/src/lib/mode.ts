@@ -1,4 +1,4 @@
-import { loadConfig } from "../config.js"
+import { readConfig } from "../config.js"
 
 export type DxMode = "factory" | "site" | "dev"
 
@@ -7,12 +7,13 @@ export type DxMode = "factory" | "site" | "dev"
  *
  * Priority: DX_MODE env → FACTORY_MODE env → config.mode → default "factory"
  */
-export function inferMode(): DxMode {
+export async function inferMode(): Promise<DxMode> {
   const env = process.env.DX_MODE ?? process.env.FACTORY_MODE
   if (env && isValidMode(env)) return env
 
-  const cfg = loadConfig()
-  if (cfg.mode && isValidMode(cfg.mode)) return cfg.mode
+  const config = await readConfig()
+  const mode = config.role === "factory" ? "factory" : config.role === "site" ? "site" : "dev"
+  if (isValidMode(mode)) return mode
 
   return "factory"
 }

@@ -11,6 +11,7 @@ import {
   REGISTRIES,
   loadSaJson,
   checkWriteAccessGate,
+  configureNpmAuth,
   pythonRepositoryUrl,
   pythonTwineEnv,
 } from "./registry.js";
@@ -96,6 +97,15 @@ async function publishNpm(
     console.log("Running build...");
     const rc = runInherit("pnpm", ["run", "build"], { cwd: pkgDir });
     if (rc !== 0) throw new Error("Build failed — fix errors before publishing");
+  }
+
+  // Refresh GCP Artifact Registry token before publishing
+  const saJson = loadSaJson("npm", root);
+  if (saJson) {
+    console.log("Refreshing Artifact Registry token...");
+    if (!configureNpmAuth(saJson, root)) {
+      console.warn("Warning: token refresh failed — publish may fail with 403");
+    }
   }
 
   console.log(`Publishing ${pkgName} to npm Artifact Registry...`);

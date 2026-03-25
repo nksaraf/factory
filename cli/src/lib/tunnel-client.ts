@@ -1,4 +1,4 @@
-import { loadConfig } from "../config.js";
+import { readConfig, resolveFactoryUrl } from "../config.js";
 import { getStoredBearerToken } from "../session-token.js";
 
 export interface TunnelClientOptions {
@@ -17,22 +17,22 @@ export interface TunnelInfo {
  * Opens a WebSocket tunnel to the factory broker.
  *
  * Protocol:
- *  1. Connect to ws(s)://<api>/api/v1/gateway/tunnels/ws
+ *  1. Connect to ws(s)://<api>/api/v1/factory/infra/gateway/tunnels/ws
  *  2. Send { type: "register", localAddr, subdomain?, principalId }
  *  3. Receive { type: "registered", tunnelId, subdomain, url }
  *  4. Keep alive until close
  */
-export function openTunnel(
+export async function openTunnel(
   opts: TunnelClientOptions,
   callbacks: {
     onRegistered: (info: TunnelInfo) => void;
     onError: (err: Error) => void;
     onClose: () => void;
   }
-): { close: () => void } {
-  const cfg = loadConfig();
-  const base = cfg.apiUrl.replace(/\/$/, "");
-  const wsUrl = base.replace(/^http/, "ws") + "/api/v1/gateway/tunnels/ws";
+): Promise<{ close: () => void }> {
+  const config = await readConfig();
+  const base = resolveFactoryUrl(config);
+  const wsUrl = base.replace(/^http/, "ws") + "/api/v1/factory/infra/gateway/tunnels/ws";
 
   const ws = new WebSocket(wsUrl);
   let registered = false;

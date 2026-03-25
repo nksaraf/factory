@@ -2,10 +2,10 @@ import { run, runOrThrow } from "../../lib/subprocess.js";
 import { planesForRole, type InstallManifest, type InstallRole } from "@smp/factory-shared/install-types";
 import { getK3sVersion, K3S_KUBECONFIG } from "./k3s.js";
 import { DX_NAMESPACE } from "./helm.js";
-import type { SiteConfig } from "@smp/factory-shared/site-config-schema";
+import type { DxConfig } from "../../config.js";
 
 export interface PostInstallOptions {
-  config: SiteConfig;
+  config: DxConfig;
   helmChartVersion: string;
   dxVersion: string;
   verbose?: boolean;
@@ -14,28 +14,28 @@ export interface PostInstallOptions {
 /** Phase 5: Post-install setup — admin user, install manifest, Factory registration. */
 export async function runPostInstall(opts: PostInstallOptions): Promise<InstallManifest> {
   const { config } = opts;
-  const apiBase = `https://${config.site.domain}`;
+  const apiBase = `https://${config.domain}`;
 
   // Wait for dx-api health
   await waitForApiHealth(apiBase, opts.verbose);
 
   // Create admin user
-  await createAdminUser(apiBase, config.admin.email, opts.verbose);
+  await createAdminUser(apiBase, config.adminEmail, opts.verbose);
 
   // Build and write install manifest
   const manifest = buildManifest(opts);
   await writeManifestConfigMap(manifest, opts.verbose);
 
   // Connected site: register with Factory
-  if (config.install.mode === "connected" && config.install.factoryUrl) {
-    await registerWithFactory(config.install.factoryUrl, config.site.name, manifest, opts.verbose);
+  if (config.installMode === "connected" && config.factoryUrl) {
+    await registerWithFactory(config.factoryUrl, config.siteName, manifest, opts.verbose);
   }
 
   // Factory self-bootstrap: create self-referencing site record
-  if (config.role === "factory" && !config.install.factoryUrl) {
+  if (config.role === "factory" && !config.factoryUrl) {
     console.log("Factory self-bootstrap: creating self-referencing site record...");
     // The Factory API is now running locally — register this install as the Factory site
-    await registerWithFactory(apiBase, config.site.name, manifest, opts.verbose);
+    await registerWithFactory(apiBase, config.siteName, manifest, opts.verbose);
   }
 
   return manifest;
@@ -91,15 +91,15 @@ function buildManifest(opts: PostInstallOptions): InstallManifest {
 
   return {
     version: 1,
-    role: config.role,
+    role: config.role as InstallRole,
     installedAt: new Date().toISOString(),
     dxVersion: opts.dxVersion,
-    installMode: config.install.mode,
+    installMode: config.installMode as "connected" | "offline",
     k3sVersion: getK3sVersion(),
     helmChartVersion: opts.helmChartVersion,
-    siteName: config.site.name,
-    domain: config.site.domain,
-    enabledPlanes: planesForRole(config.role),
+    siteName: config.siteName,
+    domain: config.domain,
+    enabledPlanes: planesForRole(config.role as InstallRole),
     nodes: [
       {
         name: hostname,
@@ -158,7 +158,7 @@ async function registerWithFactory(
   console.log(`Registering with Factory at ${factoryUrl}...`);
   const result = run("curl", [
     "-sf", "-X", "POST",
-    `${factoryUrl}/api/v1/fleet/sites/${siteName}/install-manifest`,
+    `${factoryUrl}/api/v1/factory/fleet/sites/${siteName}/install-manifest`,
     "-H", "Content-Type: application/json",
     "-d", JSON.stringify(manifest),
     "--max-time", "15",

@@ -57,16 +57,58 @@ export type WorkItemStatus =
   | "in_review"
   | "done";
 
+export type WorkItemKind = "epic" | "story" | "task" | "bug";
+export type WorkItemPriority = "critical" | "high" | "medium" | "low" | "none";
+
 export interface WorkItem {
   workItemId: string;
   moduleId?: string | null;
   title: string;
   status: WorkItemStatus;
+  kind?: WorkItemKind;
+  priority?: WorkItemPriority | null;
+  description?: string | null;
+  labels?: string[];
+  parentWorkItemId?: string | null;
   assignee?: string | null;
   externalId?: string | null;
+  externalKey?: string | null;
   externalUrl?: string | null;
+  workTrackerProviderId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type WorkTrackerKind = "jira" | "linear";
+export type WorkTrackerSyncStatus = "idle" | "syncing" | "error";
+export type WorkTrackerSyncDirection = "pull" | "push" | "bidirectional";
+
+export interface WorkTrackerProvider {
+  workTrackerProviderId: string;
+  name: string;
+  slug: string;
+  kind: WorkTrackerKind;
+  apiUrl: string;
+  credentialsRef?: string | null;
+  defaultProjectKey?: string | null;
+  status: "active" | "inactive";
+  syncEnabled: boolean;
+  syncIntervalMinutes: number;
+  syncStatus: WorkTrackerSyncStatus;
+  lastSyncAt?: string | null;
+  syncError?: string | null;
+  createdAt: string;
+}
+
+export interface WorkTrackerProjectMapping {
+  mappingId: string;
+  workTrackerProviderId: string;
+  moduleId: string;
+  externalProjectId: string;
+  externalProjectName?: string | null;
+  syncDirection: WorkTrackerSyncDirection;
+  filterQuery?: string | null;
+  createdAt: string;
 }
 
 /** Build plane */

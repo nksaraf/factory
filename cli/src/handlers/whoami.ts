@@ -2,13 +2,13 @@ import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { createFactoryAuthClient } from "../auth-factory.js";
 import { styleError, styleInfo, styleSuccess } from "../cli-style.js";
-import { loadConfig } from "../config.js";
+import { readConfig, resolveFactoryUrl } from "../config.js";
 import { ErrorRegistry } from "../errors.js";
 import { getStoredBearerToken } from "../session-token.js";
 import type { DxFlags } from "../stub.js";
 
 export async function runWhoami(flags: DxFlags): Promise<void> {
-  const cfg = loadConfig();
+  const config = await readConfig();
   const token = await getStoredBearerToken();
 
   if (!token) {
@@ -33,7 +33,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
     process.exit(ExitCodes.AUTH_FAILURE);
   }
 
-  const client = createFactoryAuthClient(flags);
+  const client = await createFactoryAuthClient(flags);
   let sessionRes: Awaited<ReturnType<typeof client.getSession>>;
   try {
     sessionRes = await client.getSession();
@@ -117,7 +117,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
             session: session
               ? { id: session.id, expiresAt: session.expiresAt }
               : null,
-            authUrl: `${cfg.authUrl.replace(/\/$/, "")}${cfg.authBasePath}`,
+            authUrl: `${resolveFactoryUrl(config)}${config.authBasePath}`,
           },
           exitCode: ExitCodes.SUCCESS,
         },

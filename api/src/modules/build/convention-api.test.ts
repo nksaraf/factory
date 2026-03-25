@@ -15,7 +15,7 @@ describe("conventions validate API", () => {
 
   it("validates branch names with optional conventions payload", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/conventions/validate", {
+      new Request("http://localhost/api/v1/factory/build/conventions/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -42,7 +42,7 @@ describe("conventions validate API", () => {
 
   it("rejects invalid commits when conventional format required", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/conventions/validate", {
+      new Request("http://localhost/api/v1/factory/build/conventions/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

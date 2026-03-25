@@ -83,6 +83,33 @@ describe("generateCompose", () => {
     expect(api?.depends_on).toBeUndefined();
   });
 
+  it("portMap overrides dependency host ports", () => {
+    const out = generateCompose("/r", sample, {}, { portMap: { "dep-postgres": 15432 } });
+    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
+  });
+
+  it("portMap overrides component host ports", () => {
+    const out = generateCompose("/r", sample, {}, { portMap: { "billing-api": 19000 } });
+    expect(out.services["billing-api"]?.ports).toContain("19000:8080");
+  });
+
+  it("portMap takes precedence over portOffset", () => {
+    const out = generateCompose("/r", sample, {}, {
+      portOffset: 1000,
+      portMap: { "dep-postgres": 15432 },
+    });
+    // portMap wins for postgres
+    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
+    // portOffset applies to unmapped redis
+    expect(out.services["dep-redis"]?.ports).toContain("7379:6379");
+  });
+
+  it("partial portMap: unmapped services use default", () => {
+    const out = generateCompose("/r", sample, {}, { portMap: { "dep-postgres": 15432 } });
+    // redis uses its dx.yaml port (default)
+    expect(out.services["dep-redis"]?.ports).toContain("6379:6379");
+  });
+
   it("composeToYaml returns parseable yaml text", () => {
     const out = generateCompose("/r", sample, {});
     const y = composeToYaml(out);

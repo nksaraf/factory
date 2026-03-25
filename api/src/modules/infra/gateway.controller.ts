@@ -1,12 +1,12 @@
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { GatewayModel } from "./model"
-import * as gw from "./service"
+import { GatewayModel } from "./gateway.model"
+import * as gw from "./gateway.service"
 import { handleTunnelConnection } from "./tunnel-broker"
 
 export function gatewayController(db: Database) {
-  return new Elysia({ prefix: "/api/v1/gateway" })
+  return new Elysia({ prefix: "/gateway" })
     // ---- Routes ----
     .get("/routes", ({ query }) => gw.listRoutes(db, query), {
       query: GatewayModel.routeListQuery,

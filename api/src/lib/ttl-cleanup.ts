@@ -1,7 +1,7 @@
 import type { Database } from "../db/connection"
 import type { SandboxAdapter } from "../adapters/sandbox-adapter"
 import { cleanupExpiredSandboxes } from "../modules/fleet/service"
-import { cleanupExpiredRoutes, cleanupStaleTunnels } from "../modules/gateway/service"
+import { cleanupExpiredRoutes, cleanupStaleTunnels } from "../modules/infra/gateway.service"
 import { logger } from "../logger"
 
 export function startTtlCleanupLoop(

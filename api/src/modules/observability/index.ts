@@ -43,7 +43,7 @@ function toAlertQuery(q: Record<string, string | undefined>): AlertQuery {
 }
 
 export function observabilityController(adapter: ObservabilityAdapter) {
-  return new Elysia({ prefix: "/api/v1/observability" })
+  return new Elysia({ prefix: "/observability" })
     // ---- Logs ----
     .get("/logs", ({ query }) => svc.queryLogs(adapter, toLogQuery(query)), {
       query: ObservabilityModel.logQueryParams,

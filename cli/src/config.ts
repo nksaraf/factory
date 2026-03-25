@@ -1,50 +1,135 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { configDir, createStore } from "@crustjs/store";
+import type { InstallRole } from "@smp/factory-shared/install-types";
 
-import { parse, stringify } from "yaml";
+const DX_CONFIG_DIR = configDir("dx");
 
-export interface DxConfig {
+/** Shared field definitions — used by both global and project-local stores. */
+export const DX_CONFIG_FIELDS = {
+  role: { type: "string", default: "workbench" },
+  factoryUrl: { type: "string", default: "https://factory.rio.software" },
+  siteUrl: { type: "string", default: "" },
+  context: { type: "string", default: "" },
+  authBasePath: { type: "string", default: "/api/v1/auth" },
+  siteName: { type: "string", default: "" },
+  domain: { type: "string", default: "" },
+  adminEmail: { type: "string", default: "" },
+  tlsMode: { type: "string", default: "self-signed" },
+  tlsCertPath: { type: "string", default: "" },
+  tlsKeyPath: { type: "string", default: "" },
+  databaseMode: { type: "string", default: "embedded" },
+  databaseUrl: { type: "string", default: "" },
+  registryMode: { type: "string", default: "embedded" },
+  registryUrl: { type: "string", default: "" },
+  resourceProfile: { type: "string", default: "small" },
+  networkPodCidr: { type: "string", default: "10.42.0.0/16" },
+  networkServiceCidr: { type: "string", default: "10.43.0.0/16" },
+  installMode: { type: "string", default: "connected" },
+} as const;
+
+/** Global DX config store at ~/.config/dx/config.json. */
+export const dxConfigStore = createStore({
+  dirPath: DX_CONFIG_DIR,
+  name: "config",
+  fields: DX_CONFIG_FIELDS,
+});
+
+/** Type of the resolved config object. */
+export type DxConfig = Awaited<ReturnType<typeof dxConfigStore.read>>;
+
+/** Resolved path to the global config file. */
+export function configPath(): string {
+  return path.join(DX_CONFIG_DIR, "config.json");
+}
+
+/** Check if global config exists on disk. */
+export function configExists(): boolean {
+  return existsSync(configPath());
+}
+
+/** Find a project-local .dx/config.json by walking up from cwd. */
+function findProjectConfigDir(): string | undefined {
+  let dir = process.cwd();
+  const root = path.parse(dir).root;
+  while (dir !== root) {
+    const candidate = path.join(dir, ".dx");
+    if (existsSync(path.join(candidate, "config.json"))) {
+      return candidate;
+    }
+    dir = path.dirname(dir);
+  }
+  return undefined;
+}
+
+/** Read merged config: project-local .dx/config.json > global > defaults. */
+export async function readConfig(): Promise<DxConfig> {
+  const global = await dxConfigStore.read();
+  const localDir = findProjectConfigDir();
+  if (!localDir) return global;
+
+  const localStore = createStore({
+    dirPath: localDir,
+    name: "config",
+    fields: DX_CONFIG_FIELDS,
+  });
+  const local = await localStore.read();
+
+  const merged = { ...global };
+  for (const [key, val] of Object.entries(local)) {
+    if (typeof val === "string" && val.length > 0) {
+      (merged as Record<string, string>)[key] = val;
+    }
+  }
+  return merged;
+}
+
+/** Resolve the factory API URL from config. */
+export function resolveFactoryUrl(config: DxConfig): string {
+  return config.factoryUrl.replace(/\/$/, "");
+}
+
+/** Resolve the site API URL from config. Returns empty string if not set. */
+export function resolveSiteUrl(config: DxConfig): string {
+  return config.siteUrl.replace(/\/$/, "");
+}
+
+// --- Legacy compatibility shim ---
+
+export interface LegacyDxConfig {
   apiUrl: string;
-  /** Better Auth service origin (no trailing path segment for base path). */
   authUrl: string;
-  /** Path mounted on authUrl (e.g. /api/v1/auth). */
   authBasePath: string;
-  /**
-   * Optional API bearer (legacy). Prefer `~/.config/dx/session.json` from
-   * `dx auth login`.
-   */
   token?: string;
   defaultSite?: string;
-  /** CLI operating mode: factory (control plane), site (agent), or dev (product developer). */
   mode?: "factory" | "site" | "dev";
-  /** URL of the local site-agent API (used in site mode). */
   siteUrl?: string;
 }
 
-const CONFIG_DIR = path.join(homedir(), ".config", "dx");
-const CONFIG_PATH = path.join(CONFIG_DIR, "config.yaml");
-
-const DEFAULTS: DxConfig = {
-  apiUrl: "http://127.0.0.1:4100",
-  authUrl: "http://127.0.0.1:8180",
-  authBasePath: "/api/v1/auth",
-};
-
-export function configPath(): string {
-  return CONFIG_PATH;
-}
-
-export function loadConfig(): DxConfig {
-  if (!existsSync(CONFIG_PATH)) {
-    return { ...DEFAULTS };
+/** @deprecated Use readConfig() instead. Sync shim for unmigrated callers. */
+export function loadConfig(): LegacyDxConfig {
+  const file = configPath();
+  let parsed: Record<string, string> = {};
+  try {
+    const raw = readFileSync(file, "utf8");
+    parsed = JSON.parse(raw);
+  } catch {
+    // No config file — use defaults
   }
-  const raw = readFileSync(CONFIG_PATH, "utf8");
-  const parsed = parse(raw) as Partial<DxConfig>;
-  return { ...DEFAULTS, ...parsed };
+  const factoryUrl = (parsed.factoryUrl || "https://factory.rio.software").replace(/\/$/, "");
+  const role = parsed.role || "workbench";
+  return {
+    apiUrl: factoryUrl,
+    authUrl: factoryUrl,
+    authBasePath: parsed.authBasePath || "/api/v1/auth",
+    token: undefined,
+    defaultSite: parsed.siteName || undefined,
+    mode: role === "factory" ? "factory" : role === "site" ? "site" : "dev",
+    siteUrl: parsed.siteUrl || undefined,
+  };
 }
 
-export function saveConfig(config: DxConfig): void {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_PATH, stringify(config), "utf8");
+/** @deprecated Use dxConfigStore.write() instead. */
+export function saveConfig(_config: LegacyDxConfig): void {
+  // No-op during migration
 }

@@ -3,7 +3,7 @@ import type { SiteReconciler } from "./reconciler"
 import { SiteModel } from "./model"
 
 export function siteController(reconciler: SiteReconciler) {
-  return new Elysia({ prefix: "/api/v1/site" })
+  return new Elysia({ prefix: "/site" })
 
     .get("/status", () => {
       return { data: reconciler.getStatus() }

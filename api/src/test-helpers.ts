@@ -12,11 +12,11 @@ import { agentController } from "./modules/agent/index";
 import { buildController } from "./modules/build/index";
 import { commerceController } from "./modules/commerce/index";
 import { fleetController } from "./modules/fleet/index";
-import { gatewayController } from "./modules/gateway/index";
+import { gatewayController } from "./modules/infra/gateway.controller";
 import { healthController } from "./modules/health/index";
 import { infraController } from "./modules/infra/index";
 import { productController } from "./modules/product/index";
-import { sandboxController } from "./modules/sandbox/index";
+import { sandboxController } from "./modules/infra/sandbox.controller";
 
 /**
  * PGlite cannot handle multi-statement SQL in a single prepared statement.
@@ -84,18 +84,24 @@ export async function createTestContext() {
 
   const database = db as unknown as Database;
 
-  const app = new Elysia()
-    .use(cors({ credentials: true, origin: true }))
-    .use(healthController)
+  const infraRoutes = new Elysia({ prefix: "/infra" })
+    .use(infraController(database))
+    .use(gatewayController(database))
+    .use(sandboxController(database));
+
+  const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", database)
-    .use(productController)
+    .use(productController(database))
     .use(buildController(database))
     .use(agentController)
     .use(commerceController(database))
     .use(fleetController(database))
-    .use(gatewayController(database))
-    .use(infraController(database))
-    .use(sandboxController(database));
+    .use(infraRoutes)
+
+  const app = new Elysia()
+    .use(cors({ credentials: true, origin: true }))
+    .use(healthController)
+    .use(factoryRoutes);
 
   return { app, db, client };
 }

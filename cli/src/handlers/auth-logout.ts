@@ -8,7 +8,7 @@ import type { DxFlags } from "../stub.js";
 export async function runAuthLogout(flags: DxFlags): Promise<void> {
   const hadToken = Boolean(await getStoredBearerToken());
   if (hadToken) {
-    const client = createFactoryAuthClient(flags);
+    const client = await createFactoryAuthClient(flags);
     await client.signOut().catch(() => {
       /* still clear local session */
     });

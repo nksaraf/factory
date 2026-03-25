@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateTraefikYaml, type TraefikRoute } from "../modules/gateway/traefik-sync";
+import { generateTraefikYaml, type TraefikRoute } from "../modules/infra/traefik-sync";
 
 describe("generateTraefikYaml", () => {
   const baseRoute: TraefikRoute = {

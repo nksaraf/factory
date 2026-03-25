@@ -44,6 +44,7 @@ export function generateCompose(
   componentConfigs: Record<string, DxComponentYaml>,
   options?: {
     portOffset?: number;
+    portMap?: Record<string, number>;
     componentFilter?: string[];
     connectionContext?: ResolvedConnectionContext;
   }
@@ -68,7 +69,7 @@ export function generateCompose(
     const depContainerPort = dep.container_port ?? dep.port;
     const svc: ComposeService = {
       image: dep.image,
-      ports: [`${dep.port + offset}:${depContainerPort}`],
+      ports: [`${options?.portMap?.[sn] ?? (dep.port + offset)}:${depContainerPort}`],
       environment: { ...(dep.env ?? {}) },
     };
     const depVolumes = dep.volumes ?? [];
@@ -147,7 +148,7 @@ export function generateCompose(
         };
 
     if (ref.port != null) {
-      const hostP = ref.port + offset;
+      const hostP = options?.portMap?.[sn] ?? (ref.port + offset);
       const containerP = ref.container_port ?? ref.port;
       svc.ports = [`${hostP}:${containerP}`];
     }

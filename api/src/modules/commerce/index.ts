@@ -10,7 +10,7 @@ export function commerceController(db: Database) {
   const signingKey = process.env.ENTITLEMENT_SIGNING_KEY
   const bundleSvc = signingKey ? new BundleService(db, signingKey) : null
 
-  return new Elysia({ prefix: "/api/v1/commerce" })
+  return new Elysia({ prefix: "/commerce" })
     .get(
       "/customers",
       async ({ query }) => ({

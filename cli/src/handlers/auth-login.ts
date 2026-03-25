@@ -2,7 +2,7 @@ import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { createFactoryAuthClient } from "../auth-factory.js";
 import { styleError, styleSuccess } from "../cli-style.js";
-import { loadConfig } from "../config.js";
+import { readConfig, resolveFactoryUrl } from "../config.js";
 import { ErrorRegistry } from "../errors.js";
 import { getStoredBearerToken, SESSION_FILE } from "../session-token.js";
 import type { DxFlags } from "../stub.js";
@@ -157,7 +157,7 @@ export async function runAuthLogin(
   flags: DxFlags,
   args: AuthLoginArgs
 ): Promise<void> {
-  const cfg = loadConfig();
+  const config = await readConfig();
   let email =
     args.email?.trim() ||
     process.env.DX_AUTH_EMAIL?.trim() ||
@@ -194,7 +194,7 @@ export async function runAuthLogin(
     );
   }
 
-  const client = createFactoryAuthClient(flags);
+  const client = await createFactoryAuthClient(flags);
   let result: Awaited<ReturnType<typeof client.signIn.email>>;
   try {
     result = await client.signIn.email({
@@ -244,7 +244,7 @@ export async function runAuthLogin(
           data: {
             user: result.data?.user ?? null,
             sessionPath: SESSION_FILE,
-            authUrl: `${cfg.authUrl.replace(/\/$/, "")}${cfg.authBasePath}`,
+            authUrl: `${resolveFactoryUrl(config)}${config.authBasePath}`,
           },
           exitCode: ExitCodes.SUCCESS,
         },

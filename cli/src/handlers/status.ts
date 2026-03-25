@@ -2,7 +2,7 @@ import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { styleError, styleInfo, styleSuccess } from "../cli-style.js";
 import { getFactoryClient } from "../client.js";
-import { loadConfig } from "../config.js";
+import { readConfig, resolveFactoryUrl } from "../config.js";
 import { ErrorRegistry } from "../errors.js";
 import { type DxFlags } from "../stub.js";
 
@@ -52,8 +52,8 @@ function exitApiUnreachable(
 }
 
 export async function runStatus(flags: DxFlags): Promise<void> {
-  const { apiUrl } = loadConfig();
-  const displayUrl = apiUrl.replace(/\/$/, "");
+  const config = await readConfig();
+  const displayUrl = resolveFactoryUrl(config);
 
   try {
     const api = await getFactoryClient();

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Installation role: site (default, lightweight) or factory (full platform). */
-export type InstallRole = "site" | "factory";
+/** Installation role: workbench (developer), site (edge), or factory (control plane). */
+export type InstallRole = "workbench" | "site" | "factory";
 
 /** Install connectivity mode. */
 export type InstallMode = "connected" | "offline";
@@ -63,7 +63,7 @@ export interface InstallManifest {
   upgrades: ManifestUpgrade[];
 }
 
-/** Manifest for an offline bundle (bundle/manifest.json). */
+/** Manifest for an offline bundle (bundle/manifest.json). Cluster-only — workbenches don't use bundles. */
 export const bundleManifestSchema = z.object({
   version: z.literal(1),
   role: z.enum(["site", "factory"]),
@@ -96,7 +96,10 @@ export const FACTORY_PLANES = [
   "agent",
   "sandbox",
 ] as const;
+export const WORKBENCH_PLANES = [] as const;
 
 export function planesForRole(role: InstallRole): string[] {
-  return role === "factory" ? [...FACTORY_PLANES] : [...SITE_PLANES];
+  if (role === "factory") return [...FACTORY_PLANES];
+  if (role === "site") return [...SITE_PLANES];
+  return [...WORKBENCH_PLANES];
 }

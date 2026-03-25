@@ -21,7 +21,7 @@ import { allocateSlug } from "../../lib/slug";
 import { computeManifest } from "../../lib/manifest";
 import type { ManifestV1 } from "@smp/factory-shared/types";
 import type { SandboxAdapter } from "../../adapters/sandbox-adapter";
-import { listRoutes, listDomains, createSandboxRoutes, createPreviewRoutes, removeTargetRoutes } from "../gateway/service";
+import { listRoutes, listDomains, createSandboxRoutes, createPreviewRoutes, removeTargetRoutes } from "../infra/gateway.service";
 
 // ---------------------------------------------------------------------------
 // Release CRUD

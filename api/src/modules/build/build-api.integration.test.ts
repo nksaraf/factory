@@ -19,7 +19,7 @@ describe("build plane API", () => {
   it("creates and lists repos", async () => {
     await truncateAllTables(ctx.client);
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/repos", {
+      new Request("http://localhost/api/v1/factory/build/repos", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -41,7 +41,7 @@ describe("build plane API", () => {
     expect(created.data.slug).toBe("billing-git");
 
     const list = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/repos")
+      new Request("http://localhost/api/v1/factory/build/repos")
     );
     expect(list.status).toBe(200);
     const body = (await list.json()) as { data: { name: string }[] };
@@ -49,7 +49,7 @@ describe("build plane API", () => {
 
     const one = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/build/repos/${created.data.repoId}`
+        `http://localhost/api/v1/factory/build/repos/${created.data.repoId}`
       )
     );
     expect(one.status).toBe(200);
@@ -65,7 +65,7 @@ describe("build plane API", () => {
     });
 
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/modules/billing/versions", {
+      new Request("http://localhost/api/v1/factory/build/modules/billing/versions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ version: "1.0.0" }),
@@ -79,7 +79,7 @@ describe("build plane API", () => {
     expect(json.data.version).toBe("1.0.0");
 
     const list = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/modules/billing/versions")
+      new Request("http://localhost/api/v1/factory/build/modules/billing/versions")
     );
     const listed = (await list.json()) as { data: { version: string }[] };
     expect(listed.data[0]?.version).toBe("1.0.0");
@@ -108,7 +108,7 @@ describe("build plane API", () => {
       .returning();
 
     const ver = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/modules/billing/versions", {
+      new Request("http://localhost/api/v1/factory/build/modules/billing/versions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ version: "1.0.0" }),
@@ -119,7 +119,7 @@ describe("build plane API", () => {
     };
 
     const art = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/artifacts", {
+      new Request("http://localhost/api/v1/factory/build/artifacts", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +134,7 @@ describe("build plane API", () => {
     };
 
     const link = await ctx.app.handle(
-      new Request("http://localhost/api/v1/build/component-artifacts", {
+      new Request("http://localhost/api/v1/factory/build/component-artifacts", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

@@ -3,7 +3,7 @@ import path from "node:path";
 import os from "node:os";
 
 import type { Database } from "../../db/connection";
-import { listRoutes } from "./service";
+import { listRoutes } from "./gateway.service";
 
 /**
  * Generates Traefik file-provider YAML from factory-hosted routes

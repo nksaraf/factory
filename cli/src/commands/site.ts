@@ -1,9 +1,8 @@
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
-import { loadConfig } from "../config.js";
+import { readConfig, resolveFactoryUrl, resolveSiteUrl } from "../config.js";
 import { exitWithError } from "../lib/cli-exit.js";
-import { inferMode } from "../lib/mode.js";
 import { toDxFlags } from "./dx-flags.js";
 
 function jsonOut(flags: Record<string, unknown>, data: unknown) {
@@ -204,7 +203,7 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "Show site agent status" })
         .run(async ({ flags }) => {
-          const url = getSiteApiUrl();
+          const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/status`);
           if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
           const data = await res.json();
@@ -216,7 +215,7 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "Force re-reconcile current manifest" })
         .run(async ({ flags }) => {
-          const url = getSiteApiUrl();
+          const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/reconcile`, { method: "POST" });
           if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
           const data = await res.json();
@@ -239,7 +238,7 @@ export function siteCommand(app: DxBase) {
           const fs = await import("node:fs");
           const content = fs.readFileSync(args.file, "utf-8");
           const manifest = JSON.parse(content);
-          const url = getSiteApiUrl();
+          const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/manifest`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -255,7 +254,7 @@ export function siteCommand(app: DxBase) {
       c
         .meta({ description: "List currently applied CRDs" })
         .run(async ({ flags }) => {
-          const url = getSiteApiUrl();
+          const url = await getSiteApiUrl();
           const res = await fetch(`${url}/api/v1/site/crds`);
           if (!res.ok) exitWithError(toDxFlags(flags), `Site API error: ${res.status}`);
           const data = await res.json();
@@ -264,7 +263,8 @@ export function siteCommand(app: DxBase) {
     );
 }
 
-function getSiteApiUrl(): string {
-  const cfg = loadConfig();
-  return (cfg.siteUrl ?? cfg.apiUrl).replace(/\/$/, "");
+async function getSiteApiUrl(): Promise<string> {
+  const config = await readConfig();
+  const siteUrl = resolveSiteUrl(config);
+  return siteUrl || resolveFactoryUrl(config);
 }

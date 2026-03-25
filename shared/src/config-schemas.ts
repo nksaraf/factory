@@ -28,6 +28,7 @@ export const componentRefBaseSchema = z.object({
   container_port: z.number().optional(),
   healthcheck: z.string().optional(),
   worker: z.boolean().default(false),
+  type: z.enum(["node", "python", "java"]).optional(),
 });
 
 export const buildConfigSchema = z.object({

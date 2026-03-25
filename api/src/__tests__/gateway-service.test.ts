@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestContext, truncateAllTables } from "../test-helpers";
 
-import * as gw from "../modules/gateway/service";
+import * as gw from "../modules/infra/gateway.service";
 import * as fleet from "../modules/fleet/service";
 import * as providerSvc from "../services/infra/provider.service";
 import * as regionSvc from "../services/infra/region.service";
