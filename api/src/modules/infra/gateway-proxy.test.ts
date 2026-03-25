@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { parseHostname, RouteCache, createGatewayServer } from "./gateway-proxy";
+import { parseHostname, RouteCache, createGatewayServer, renderStatusPage } from "./gateway-proxy";
 
 describe("parseHostname", () => {
   it("parses tunnel hostname", () => {
@@ -172,5 +172,31 @@ describe("createGatewayServer", () => {
       headers: { Host: "dead.sandbox.dx.dev" },
     });
     expect(res.status).toBe(502);
+  });
+});
+
+describe("renderStatusPage", () => {
+  it("returns building page for building previews", () => {
+    const html = renderStatusPage("building", "PR #42 - fix-auth-bug", "Building container image...");
+    expect(html).toContain("Building");
+    expect(html).toContain("PR #42 - fix-auth-bug");
+    expect(html).toContain("auto-refresh");
+  });
+
+  it("returns starting page for cold previews", () => {
+    const html = renderStatusPage("cold", "PR #42 - fix-auth-bug");
+    expect(html).toContain("Starting");
+    expect(html).toContain("auto-refresh");
+  });
+
+  it("returns expired page", () => {
+    const html = renderStatusPage("expired", "PR #42 - fix-auth-bug");
+    expect(html).toContain("expired");
+  });
+
+  it("returns failed page", () => {
+    const html = renderStatusPage("failed", "PR #42 - fix-auth-bug", "Build failed: OOM");
+    expect(html).toContain("failed");
+    expect(html).toContain("Build failed: OOM");
   });
 });

@@ -143,6 +143,68 @@ export function createGatewayServer(opts: GatewayServerOptions) {
   };
 }
 
+type StatusPageKind = "building" | "deploying" | "cold" | "expired" | "failed" | "inactive";
+
+export function renderStatusPage(kind: StatusPageKind, previewName: string, message?: string): string {
+  const shouldAutoRefresh = kind === "building" || kind === "deploying" || kind === "cold";
+  const refreshMeta = shouldAutoRefresh ? '<meta http-equiv="refresh" content="5">' : "";
+
+  const titles: Record<StatusPageKind, string> = {
+    building: "Building Preview...",
+    deploying: "Deploying Preview...",
+    cold: "Starting Preview...",
+    expired: "Preview Expired",
+    failed: "Preview Failed",
+    inactive: "Preview Inactive",
+  };
+
+  const descriptions: Record<StatusPageKind, string> = {
+    building: "Your preview environment is being built. This page will auto-refresh.",
+    deploying: "Your preview is being deployed. This page will auto-refresh.",
+    cold: "Your preview is starting up. This page will auto-refresh.",
+    expired: "This preview environment has expired.",
+    failed: "This preview environment failed to deploy.",
+    inactive: "This preview environment has been deactivated.",
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${refreshMeta}
+  <title>${titles[kind]}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; color: #333; }
+    .container { text-align: center; max-width: 480px; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #666; line-height: 1.5; }
+    .name { font-weight: 600; color: #111; }
+    .message { background: #fff3f3; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-top: 1rem; font-size: 0.875rem; color: #991b1b; }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #ddd; border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${shouldAutoRefresh ? '<div class="spinner"></div>' : ""}
+    <h1>${titles[kind]}</h1>
+    <p class="name">${escapeHtml(previewName)}</p>
+    <p>${descriptions[kind]}</p>
+    ${message ? `<div class="message">${escapeHtml(message)}</div>` : ""}
+  </div>
+</body>
+</html>`;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function startGateway(opts: { db: Database; port?: number; getTunnelSocket?: (subdomain: string) => WebSocket | undefined }) {
   const cache = new RouteCache({
     lookup: (domain) => lookupRouteByDomain(opts.db, domain),
