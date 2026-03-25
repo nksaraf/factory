@@ -35,6 +35,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 COPY --from=builder /repo/api/.output ./.output
+COPY --from=builder /repo/api/drizzle ./drizzle
 
 ENV NODE_ENV=production
 ENV PORT=3000

@@ -7,21 +7,9 @@ upstreams:
 - id: auth-service
   nodes:
     infra-auth:3000: 1
-- id: ai-service
+- id: factory-service
   nodes:
-    service-ai:8085: 1
-- id: data-service
-  nodes:
-    service-data:8084: 1
-- id: data-query-service
-  nodes:
-    service-data-query:8087: 1
-- id: graph-service
-  nodes:
-    service-graph:8086: 1
-- id: ml-engine-service
-  nodes:
-    service-ml-engine:8091: 1
+    infra-factory:3000: 1
 - id: api-docs
   nodes:
     infra-api-docs:80: 1
@@ -45,9 +33,9 @@ routes:
           X-Real-IP: $remote_addr
           X-Forwarded-For: $remote_addr
           X-Forwarded-Proto: $scheme
-- id: ai
-  uri: /api/v1/ai*
-  upstream_id: ai-service
+- id: factory
+  uri: /api/v1/factory*
+  upstream_id: factory-service
   plugins:
     cors:
       allow_origins: '**'
@@ -62,104 +50,8 @@ routes:
         name: always_on
     proxy-rewrite:
       regex_uri:
-      - ^/api/v1/ai(.*)
-      - /api/v1/ai$1
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-- id: data
-  uri: /api/v1/data*
-  upstream_id: data-service
-  plugins:
-    cors:
-      allow_origins: '**'
-      allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-      allow_headers: Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
-        Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
-      expose_headers: Content-Length, Content-Type, X-Requested-With
-      allow_credential: true
-      max_age: 3600
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      regex_uri:
-      - ^/api/v1/data(.*)
-      - /api/v1/data$1
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-- id: data-query
-  uri: /api/v1/query*
-  upstream_id: data-query-service
-  plugins:
-    cors:
-      allow_origins: '**'
-      allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-      allow_headers: Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
-        Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
-      expose_headers: Content-Length, Content-Type, X-Requested-With
-      allow_credential: true
-      max_age: 3600
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      regex_uri:
-      - ^/api/v1/query(.*)
-      - /api/v1/query$1
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-  timeout:
-    connect: 10
-    read: 300
-    send: 300
-- id: graph
-  uri: /api/v1/graph*
-  upstream_id: graph-service
-  plugins:
-    cors:
-      allow_origins: '**'
-      allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-      allow_headers: Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
-        Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
-      expose_headers: Content-Length, Content-Type, X-Requested-With
-      allow_credential: true
-      max_age: 3600
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      regex_uri:
-      - ^/api/v1/graph(.*)
-      - /api/v1/graph$1
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-- id: ml-engine
-  uri: /api/v1/ml*
-  upstream_id: ml-engine-service
-  plugins:
-    cors:
-      allow_origins: '**'
-      allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-      allow_headers: Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
-        Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
-      expose_headers: Content-Length, Content-Type, X-Requested-With
-      allow_credential: true
-      max_age: 3600
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      regex_uri:
-      - ^/api/v1/ml(.*)
-      - /api/v1/ml$1
+      - ^/api/v1/factory(.*)
+      - /api/v1/factory$1
       headers:
         set:
           X-Real-IP: $remote_addr

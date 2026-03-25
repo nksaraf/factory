@@ -42,5 +42,4 @@ dist-ssr
 .vercel/output
 index.html
 app.config.time*
-.npmrc
 /rough-notes

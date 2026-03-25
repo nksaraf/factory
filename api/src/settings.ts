@@ -50,13 +50,13 @@ export type FactorySettings = z.infer<typeof factorySettingsSchema>;
 
 /** Non-empty connection URL, or undefined. */
 export function getDatabaseUrl(s: FactorySettings): string | undefined {
-  const v = s.factory.database.url.trim();
+  const v = (s.factory.database.url ?? "").trim();
   return v === "" ? undefined : v;
 }
 
 /** Non-empty JWKS URL, or undefined. */
 export function getJwksUrl(s: FactorySettings): string | undefined {
-  const v = s.factory.auth.jwksUrl.trim();
+  const v = (s.factory.auth.jwksUrl ?? "").trim();
   return v === "" ? undefined : v;
 }
 
@@ -67,7 +67,7 @@ export function getMode(s: FactorySettings): FactoryMode {
 
 /** Non-empty auth service URL, or undefined. */
 export function getAuthServiceUrl(s: FactorySettings): string | undefined {
-  const v = s.factory.auth.serviceUrl.trim();
+  const v = (s.factory.auth.serviceUrl ?? "").trim();
   return v === "" ? undefined : v;
 }
 
