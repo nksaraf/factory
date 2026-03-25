@@ -4,7 +4,6 @@ import type { Database } from "../../db/connection"
 import { SandboxModel } from "./sandbox.model"
 import * as sandboxSvc from "../../services/sandbox/sandbox.service"
 import * as templateSvc from "../../services/sandbox/sandbox-template.service"
-import * as accessSvc from "../../services/sandbox/sandbox-access.service"
 
 export function sandboxController(db: Database) {
   return new Elysia({ prefix: "/sandbox" })
@@ -127,43 +126,6 @@ export function sandboxController(db: Database) {
       params: SandboxModel.idParams,
       body: SandboxModel.cloneSnapshotBody,
       detail: { tags: ["Sandbox"], summary: "Clone sandbox from snapshot" },
-    })
-
-    // --- Access / sharing ---
-    .get("/sandboxes/:id/access", async ({ params, set }) => {
-      const row = await sandboxSvc.getSandbox(db, params.id)
-      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await accessSvc.listAccess(db, params.id) }
-    }, {
-      params: SandboxModel.idParams,
-      detail: { tags: ["Sandbox"], summary: "List sandbox access" },
-    })
-    .post("/sandboxes/:id/access", async ({ params, body, set }) => {
-      const row = await sandboxSvc.getSandbox(db, params.id)
-      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      return {
-        success: true,
-        data: await accessSvc.grantAccess(db, {
-          sandboxId: params.id,
-          principalId: body.principalId,
-          principalType: body.principalType as "user" | "agent",
-          role: body.role as any,
-          grantedBy: body.grantedBy,
-        }),
-      }
-    }, {
-      params: SandboxModel.idParams,
-      body: SandboxModel.grantAccessBody,
-      detail: { tags: ["Sandbox"], summary: "Grant sandbox access" },
-    })
-    .delete("/sandboxes/:id/access/:principalId", async ({ params, set }) => {
-      const row = await sandboxSvc.getSandbox(db, params.id)
-      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      await accessSvc.revokeAccess(db, params.id, params.principalId)
-      return { success: true, data: { sandboxId: params.id, principalId: params.principalId } }
-    }, {
-      params: SandboxModel.accessParams,
-      detail: { tags: ["Sandbox"], summary: "Revoke sandbox access" },
     })
 
     // --- Templates ---

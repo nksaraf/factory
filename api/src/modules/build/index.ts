@@ -10,6 +10,7 @@ import type { Database } from "../../db/connection";
 import { BuildModel } from "./model";
 import { BuildPlaneService } from "./plane.service";
 import { BuildService } from "./service";
+import { gitHostController } from "./git-host.controller";
 
 export function buildController(db: Database) {
   const plane = new BuildPlaneService(db);
@@ -190,5 +191,6 @@ export function buildController(db: Database) {
           summary: "Validate branch or commit conventions",
         },
       }
-    );
+    )
+    .use(gitHostController(db));
 }

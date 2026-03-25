@@ -21,6 +21,7 @@ export const factorySettingsSchema = z.object({
       auth: z
         .object({
           jwksUrl: z.string().default(""),
+          serviceUrl: z.string().default(""),
         })
         .default({}),
       log: z
@@ -62,6 +63,12 @@ export function getJwksUrl(s: FactorySettings): string | undefined {
 /** Resolved run mode. */
 export function getMode(s: FactorySettings): FactoryMode {
   return s.factory.mode;
+}
+
+/** Non-empty auth service URL, or undefined. */
+export function getAuthServiceUrl(s: FactorySettings): string | undefined {
+  const v = s.factory.auth.serviceUrl.trim();
+  return v === "" ? undefined : v;
 }
 
 /** Site-side config (meaningful only when mode is "site" or "dev"). */

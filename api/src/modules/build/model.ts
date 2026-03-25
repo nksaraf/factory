@@ -42,6 +42,24 @@ export const BuildModel = {
     value: t.String(),
     conventions: t.Optional(t.Any()),
   }),
+  createGitHostProviderBody: t.Object({
+    name: t.String(),
+    hostType: t.String(),
+    apiBaseUrl: t.String(),
+    authMode: t.String(),
+    credentialsEnc: t.Optional(t.String()),
+    teamId: t.String(),
+  }),
+  updateGitHostProviderBody: t.Object({
+    name: t.Optional(t.String()),
+    credentialsEnc: t.Optional(t.String()),
+    authMode: t.Optional(t.String()),
+  }),
+  listGitHostProvidersQuery: t.Object({
+    teamId: t.Optional(t.String()),
+    limit: t.Optional(t.Number()),
+    offset: t.Optional(t.Number()),
+  }),
 } as const;
 
 export type BuildModels = {

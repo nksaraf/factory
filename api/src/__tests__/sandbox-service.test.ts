@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { createTestContext, truncateAllTables } from "../test-helpers";
 import * as sandboxSvc from "../services/sandbox/sandbox.service";
 import * as templateSvc from "../services/sandbox/sandbox-template.service";
-import * as accessSvc from "../services/sandbox/sandbox-access.service";
 import { deploymentTarget } from "../db/schema/fleet";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
@@ -30,7 +29,7 @@ describe("Sandbox Services", () => {
   // CRUD
   // =========================================================================
   describe("CRUD", () => {
-    it("createSandbox creates deployment target (kind=sandbox) + sandbox + owner access", async () => {
+    it("createSandbox creates deployment target (kind=sandbox) + sandbox", async () => {
       const sbx = await sandboxSvc.createSandbox(db, {
         name: "test-sandbox",
         ownerId: "user_1",
@@ -46,10 +45,6 @@ describe("Sandbox Services", () => {
       const fetched = await sandboxSvc.getSandbox(db, sbx.sandboxId);
       expect(fetched).not.toBeNull();
       expect(fetched!.status).toBe("provisioning");
-
-      // Verify owner access was created
-      const role = await accessSvc.checkAccess(db, sbx.sandboxId, "user_1");
-      expect(role).toBe("owner");
     });
 
     it("createSandbox with no runtimeType auto-selects container", async () => {
@@ -309,7 +304,7 @@ describe("Sandbox Services", () => {
       expect(restored.memory).toBe("2Gi");
     });
 
-    it("cloneSandbox creates new sandbox + deployment target + owner access with clonedFromSnapshotId", async () => {
+    it("cloneSandbox creates new sandbox + deployment target with clonedFromSnapshotId", async () => {
       const sbx = await sandboxSvc.createSandbox(db, {
         name: "clone-src",
         ownerId: "user_1",
@@ -339,136 +334,6 @@ describe("Sandbox Services", () => {
       const fetched = await sandboxSvc.getSandbox(db, cloned.sandboxId);
       expect(fetched).not.toBeNull();
       expect(fetched!.status).toBe("provisioning");
-
-      // Verify owner access for new owner
-      const role = await accessSvc.checkAccess(
-        db,
-        cloned.sandboxId,
-        "user_2"
-      );
-      expect(role).toBe("owner");
-    });
-  });
-
-  // =========================================================================
-  // Access
-  // =========================================================================
-  describe("Access", () => {
-    it("createSandbox auto-creates owner access", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "access-test",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      const entries = await accessSvc.listAccess(db, sbx.sandboxId);
-      expect(entries).toHaveLength(1);
-      expect(entries[0].principalId).toBe("user_1");
-      expect(entries[0].role).toBe("owner");
-    });
-
-    it("grantAccess creates access with role", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "grant-test",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      const access = await accessSvc.grantAccess(db, {
-        sandboxId: sbx.sandboxId,
-        principalId: "user_2",
-        principalType: "user",
-        role: "editor",
-        grantedBy: "user_1",
-      });
-
-      expect(access.role).toBe("editor");
-      expect(access.principalId).toBe("user_2");
-    });
-
-    it("grantAccess existing principal updates role (upsert)", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "upsert-test",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      await accessSvc.grantAccess(db, {
-        sandboxId: sbx.sandboxId,
-        principalId: "user_2",
-        principalType: "user",
-        role: "viewer",
-        grantedBy: "user_1",
-      });
-
-      const updated = await accessSvc.grantAccess(db, {
-        sandboxId: sbx.sandboxId,
-        principalId: "user_2",
-        principalType: "user",
-        role: "editor",
-        grantedBy: "user_1",
-      });
-
-      expect(updated.role).toBe("editor");
-
-      // Should still be just 2 entries (owner + user_2)
-      const entries = await accessSvc.listAccess(db, sbx.sandboxId);
-      expect(entries).toHaveLength(2);
-    });
-
-    it("revokeAccess deletes access", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "revoke-test",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      await accessSvc.grantAccess(db, {
-        sandboxId: sbx.sandboxId,
-        principalId: "user_2",
-        principalType: "user",
-        role: "editor",
-        grantedBy: "user_1",
-      });
-
-      await accessSvc.revokeAccess(db, sbx.sandboxId, "user_2");
-
-      const role = await accessSvc.checkAccess(db, sbx.sandboxId, "user_2");
-      expect(role).toBeNull();
-    });
-
-    it("revokeAccess owner is rejected", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "revoke-owner",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      await expect(
-        accessSvc.revokeAccess(db, sbx.sandboxId, "user_1")
-      ).rejects.toThrow("Cannot revoke owner access");
-    });
-
-    it("checkAccess returns role or null", async () => {
-      const sbx = await sandboxSvc.createSandbox(db, {
-        name: "check-test",
-        ownerId: "user_1",
-        ownerType: "user",
-      });
-
-      const ownerRole = await accessSvc.checkAccess(
-        db,
-        sbx.sandboxId,
-        "user_1"
-      );
-      expect(ownerRole).toBe("owner");
-
-      const noRole = await accessSvc.checkAccess(
-        db,
-        sbx.sandboxId,
-        "user_unknown"
-      );
-      expect(noRole).toBeNull();
     });
   });
 

@@ -3,9 +3,6 @@ import { t, type UnwrapSchema } from "elysia"
 export const SandboxModel = {
   idParams: t.Object({ id: t.String() }),
 
-  // Access sub-resource params
-  accessParams: t.Object({ id: t.String(), principalId: t.String() }),
-
   // Sandbox lifecycle
   createSandboxBody: t.Object({
     name: t.String(),
@@ -53,14 +50,6 @@ export const SandboxModel = {
     name: t.String(),
     ownerId: t.String(),
     ownerType: t.String(),
-  }),
-
-  // Access / sharing
-  grantAccessBody: t.Object({
-    principalId: t.String(),
-    principalType: t.String(),
-    role: t.String(),
-    grantedBy: t.String(),
   }),
 
   // Templates

@@ -25,21 +25,30 @@ import { SiteReconciler } from "./modules/site/reconciler"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
-import { type FactorySettings, getDatabaseUrl, getJwksUrl, getMode, getSiteConfig } from "./settings"
+import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
+import { webhookController } from "./modules/build/webhook.controller"
+import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
+import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
+import { type FactorySettings, getDatabaseUrl, getAuthServiceUrl, getJwksUrl, getMode, getSiteConfig } from "./settings"
 
 export class FactoryAPI {
   readonly db: Connection | null
   readonly settings: FactorySettings
   readonly sandboxAdapter = new NoopSandboxAdapter()
   readonly observabilityAdapter = new NoopObservabilityAdapter()
+  readonly authClient: FactoryAuthResourceClient | null
   private stopTtlCleanup?: () => void
   private stopProxmoxSync?: () => void
   private stopWorkTrackerSync?: () => void
+  private stopGitHostSync?: () => void
 
   constructor(settings: FactorySettings) {
     this.settings = settings
     const mode = getMode(settings)
     const url = getDatabaseUrl(settings)
+    const authUrl = getAuthServiceUrl(settings)
+
+    this.authClient = authUrl ? new FactoryAuthResourceClient(authUrl) : null
 
     if (mode === "site") {
       // Site mode does not require a database
@@ -108,6 +117,7 @@ export class FactoryAPI {
 
     if (mode === "factory" || mode === "dev") {
       const db: Database = this.db!
+      app.use(webhookController(db))
       app.use(this.mountFactoryControllers(db, jwksUrl))
     }
 
@@ -154,12 +164,20 @@ export class FactoryAPI {
     this.stopTtlCleanup = startTtlCleanupLoop(this.db, this.sandboxAdapter)
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)
     this.stopWorkTrackerSync = startWorkTrackerSyncLoop(this.db)
+    this.stopGitHostSync = startGitHostSyncLoop(this.db)
+
+    if (this.authClient) {
+      bootstrapResourceTypes(this.authClient).catch(err =>
+        logger.warn({ err }, "resource type bootstrap failed")
+      )
+    }
   }
 
   async close() {
     this.stopTtlCleanup?.()
     this.stopProxmoxSync?.()
     this.stopWorkTrackerSync?.()
+    this.stopGitHostSync?.()
     if (this.db) {
       await this.db.$client.end()
     }

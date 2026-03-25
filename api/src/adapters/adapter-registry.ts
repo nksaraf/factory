@@ -7,6 +7,7 @@ import type { WorkTrackerAdapter } from "./work-tracker-adapter";
 import type { GitHostAdapter } from "./git-host-adapter";
 import { ProxmoxAdapter } from "./proxmox.adapter";
 import { NoopGitHostAdapter } from "./git-host-adapter-noop";
+import { GitHubAdapter } from "./git-host-adapter-github";
 import { NoopObservabilityAdapter } from "./observability-adapter-noop";
 import { NoopWorkTrackerAdapter } from "./work-tracker-adapter-noop";
 import { JiraWorkTrackerAdapter } from "./work-tracker-adapter-jira";
@@ -75,8 +76,9 @@ export function createGitHostAdapter(
   type: string,
   _config: GitHostAdapterConfig = {},
 ): GitHostAdapter {
+  if (type === "github") return new GitHubAdapter(config);
   if (type === "noop") return new NoopGitHostAdapter();
   throw new Error(
-    `No git host adapter for type: ${type}. Supported: noop`,
+    `No git host adapter for type: ${type}. Supported: github, noop`,
   );
 }

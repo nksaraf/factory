@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import type { FactoryAuthResourceClient } from "../lib/auth-resource-client";
 
 export interface AuthUser {
   id: string;
@@ -42,6 +43,49 @@ export function authPlugin(jwksUrl: string) {
         );
       }
     }
+  );
+}
+
+/**
+ * Permission enforcement middleware.
+ *
+ * Checks if the authenticated user has a specific permission on a resource
+ * by calling the auth-service's resource-permissions check endpoint.
+ *
+ * Expects `resourceId` in path params and `principal` in context.
+ */
+export function requirePermission(
+  authClient: FactoryAuthResourceClient | null,
+  permission: string,
+) {
+  return new Elysia({ name: `require-${permission}` }).derive(
+    async ({
+      params,
+      principal,
+      set,
+    }: {
+      params: { resourceId?: string };
+      principal: string;
+      set: { status: number };
+    }) => {
+      if (!authClient) return {};
+
+      const resourceId = params.resourceId;
+      if (!resourceId) return {};
+
+      const allowed = await authClient.checkPermission({
+        resourceId,
+        permission,
+        userId: principal,
+      });
+
+      if (!allowed) {
+        set.status = 403;
+        throw new Error("Forbidden");
+      }
+
+      return {};
+    },
   );
 }
 

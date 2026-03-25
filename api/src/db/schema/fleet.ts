@@ -407,25 +407,8 @@ export const sandboxSnapshot = factoryFleet.table(
   ]
 );
 
-export const sandboxAccess = factoryFleet.table(
-  "sandbox_access",
-  {
-    sandboxAccessId: text("sandbox_access_id").primaryKey().$defaultFn(() => newId("sba")),
-    sandboxId: text("sandbox_id").notNull()
-      .references(() => sandbox.sandboxId, { onDelete: "cascade" }),
-    principalId: text("principal_id").notNull(),
-    principalType: text("principal_type").notNull(),
-    role: text("role").notNull(),
-    grantedBy: text("granted_by").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [
-    uniqueIndex("sandbox_access_unique").on(t.sandboxId, t.principalId),
-    index("sandbox_access_principal_idx").on(t.principalType, t.principalId),
-    check("sandbox_access_role_valid", sql`${t.role} IN ('owner', 'editor', 'viewer')`),
-    check("sandbox_access_principal_type_valid", sql`${t.principalType} IN ('user', 'agent')`),
-  ]
-);
+// sandboxAccess table removed — access control is now handled by
+// auth-service resource permissions with parentId-based inheritance.
 
 export const connectionAuditEvent = factoryFleet.table(
   "connection_audit_event",

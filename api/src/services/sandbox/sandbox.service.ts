@@ -5,7 +5,6 @@ import {
   sandbox,
   sandboxTemplate,
   sandboxSnapshot,
-  sandboxAccess,
   deploymentTarget,
 } from "../../db/schema/fleet";
 
@@ -133,14 +132,7 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
     })
     .returning();
 
-  // 7. Create sandboxAccess row (owner role)
-  await db.insert(sandboxAccess).values({
-    sandboxId: sbx!.sandboxId,
-    principalId: data.ownerId,
-    principalType: data.ownerType,
-    role: "owner",
-    grantedBy: data.ownerId,
-  });
+  // Access control is now handled by auth-service resource permissions
 
   return sbx!;
 }

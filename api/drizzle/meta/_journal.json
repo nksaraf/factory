@@ -64,6 +64,20 @@
       "when": 1774900000000,
       "tag": "0008_work_tracker_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774950000000,
+      "tag": "0009_git_host_provider",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774960000000,
+      "tag": "0010_drop_sandbox_access",
+      "breakpoints": true
     }
   ]
 }

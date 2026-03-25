@@ -45,7 +45,12 @@ export type EntityPrefix =
   | "imfst"
   | "rbnd"
   | "wtp"
-  | "wtpm";
+  | "wtpm"
+  | "ghp"
+  | "ghi"
+  | "whe"
+  | "grs"
+  | "gus";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;

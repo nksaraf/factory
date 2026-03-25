@@ -686,3 +686,61 @@ export interface SandboxAccess {
   grantedBy: string;
   createdAt: string;
 }
+
+/** Git Host Provider */
+export type GitHostType = "github" | "gitlab" | "gitea" | "bitbucket";
+export type GitHostAuthMode = "pat" | "github_app" | "oauth";
+export type GitHostStatus = "active" | "inactive" | "error";
+export type GitHostSyncStatus = "idle" | "syncing" | "error";
+
+export interface GitHostProvider {
+  gitHostProviderId: string;
+  name: string;
+  slug: string;
+  hostType: GitHostType;
+  apiBaseUrl: string;
+  authMode: GitHostAuthMode;
+  status: GitHostStatus;
+  teamId: string;
+  lastSyncAt: string | null;
+  syncStatus: GitHostSyncStatus;
+  syncError: string | null;
+  createdAt: string;
+}
+
+export type WebhookEventStatus = "pending" | "processing" | "completed" | "failed";
+
+export interface WebhookEvent {
+  webhookEventId: string;
+  gitHostProviderId: string;
+  deliveryId: string;
+  eventType: string;
+  action: string | null;
+  status: WebhookEventStatus;
+  errorMessage: string | null;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface GitRepoSync {
+  gitRepoSyncId: string;
+  repoId: string;
+  gitHostProviderId: string;
+  externalRepoId: string;
+  externalFullName: string;
+  isPrivate: boolean;
+  lastSyncAt: string | null;
+  createdAt: string;
+}
+
+export interface GitUserSync {
+  gitUserSyncId: string;
+  gitHostProviderId: string;
+  externalUserId: string;
+  externalLogin: string;
+  authUserId: string | null;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  syncedAt: string;
+}
