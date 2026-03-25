@@ -1,0 +1,18 @@
+export const ExitCodes = {
+  SUCCESS: 0,
+  GENERAL_FAILURE: 1,
+  USAGE_ERROR: 2,
+  AUTH_FAILURE: 3,
+  CONNECTION_FAILURE: 4,
+  TIMEOUT: 5,
+  CONVENTION_VIOLATION: 6,
+  CONFLICT: 7,
+  NOT_FOUND: 8,
+  PARTIAL_FAILURE: 10,
+  PREFLIGHT_FAILURE: 20,
+  INSTALL_PHASE_FAILURE: 21,
+  UPGRADE_FAILURE: 22,
+  JOIN_FAILURE: 23,
+} as const;
+
+export type ExitCode = (typeof ExitCodes)[keyof typeof ExitCodes];

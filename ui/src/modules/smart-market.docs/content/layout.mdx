@@ -1,0 +1,110 @@
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@rio.js/ui-next/components/card"
+import { Separator } from "@rio.js/ui-next/components/separator"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@rio.js/ui-next/components/accordion"
+import { ScrollArea } from "@rio.js/ui-next/components/scroll-area"
+import { Button } from "@rio.js/ui-next/components/button"
+
+# Layout
+
+Structural components for organizing content.
+
+## Card
+
+<ComponentPreview className="block">
+  <Card className="w-full max-w-sm">
+    <CardHeader>
+      <CardTitle>Card Title</CardTitle>
+      <CardDescription>Card description with supporting text.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <p className="text-sm">This is the card body content. It can contain any elements.</p>
+    </CardContent>
+    <CardFooter className="flex justify-end gap-2">
+      <Button variant="outline" size="sm">Cancel</Button>
+      <Button size="sm">Save</Button>
+    </CardFooter>
+  </Card>
+</ComponentPreview>
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+    <CardDescription>Description text.</CardDescription>
+  </CardHeader>
+  <CardContent>Content here</CardContent>
+  <CardFooter>Footer actions</CardFooter>
+</Card>
+```
+
+## Separator
+
+<ComponentPreview>
+  <div className="space-y-4 w-full max-w-sm">
+    <div>
+      <h4 className="text-sm font-medium">Section One</h4>
+      <p className="text-sm text-muted-foreground">First section content.</p>
+    </div>
+    <Separator />
+    <div>
+      <h4 className="text-sm font-medium">Section Two</h4>
+      <p className="text-sm text-muted-foreground">Second section content.</p>
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Separator />
+```
+
+## Accordion
+
+<ComponentPreview className="block">
+  <Accordion type="single" collapsible className="w-full max-w-sm">
+    <AccordionItem value="item-1">
+      <AccordionTrigger>What is this?</AccordionTrigger>
+      <AccordionContent>
+        A collapsible section for organizing related content.
+      </AccordionContent>
+    </AccordionItem>
+    <AccordionItem value="item-2">
+      <AccordionTrigger>How do I use it?</AccordionTrigger>
+      <AccordionContent>
+        Wrap your content in AccordionItem with a trigger and content.
+      </AccordionContent>
+    </AccordionItem>
+    <AccordionItem value="item-3">
+      <AccordionTrigger>Can I open multiple?</AccordionTrigger>
+      <AccordionContent>
+        Set type="multiple" to allow multiple items open at once.
+      </AccordionContent>
+    </AccordionItem>
+  </Accordion>
+</ComponentPreview>
+
+```tsx
+<Accordion type="single" collapsible>
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Question</AccordionTrigger>
+    <AccordionContent>Answer</AccordionContent>
+  </AccordionItem>
+</Accordion>
+```
+
+## Scroll Area
+
+<ComponentPreview>
+  <ScrollArea className="h-48 w-48 rounded-md border p-4">
+    {Array.from({ length: 20 }, (_, i) => (
+      <div key={i} className="py-1 text-sm">
+        Item {i + 1}
+      </div>
+    ))}
+  </ScrollArea>
+</ComponentPreview>
+
+```tsx
+<ScrollArea className="h-48 w-48 rounded-md border p-4">
+  {items.map(item => <div key={item}>{item}</div>)}
+</ScrollArea>
+```

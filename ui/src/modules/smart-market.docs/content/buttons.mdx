@@ -1,0 +1,305 @@
+import { Button } from "@rio.js/ui/components/button"
+import { ButtonGroup, ButtonGroupText, ButtonGroupSeparator } from "@rio.js/ui/components/button-group"
+
+# Buttons
+
+The `Button` component is the primary interactive element for triggering actions. It supports multiple visual variants, sizes, and rich props like icons, loading state, tooltips, and keyboard shortcuts.
+
+```tsx
+import { Button } from "@rio.js/ui/components/button"
+```
+
+## Variants
+
+Use the `variant` prop to change the visual style of the button.
+
+<VariantGrid>
+  <Button variant="primary">Primary</Button>
+  <Button variant="secondary">Secondary</Button>
+  <Button variant="destructive">Destructive</Button>
+  <Button variant="success">Success</Button>
+  <Button variant="outline">Outline</Button>
+  <Button variant="ghost">Ghost</Button>
+  <Button variant="link">Link</Button>
+</VariantGrid>
+
+```tsx
+<Button variant="primary">Primary</Button>
+<Button variant="secondary">Secondary</Button>
+<Button variant="destructive">Destructive</Button>
+<Button variant="success">Success</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="link">Link</Button>
+```
+
+### When to use each variant
+
+- **primary** — The main call-to-action on a page. Use sparingly (one per section).
+- **secondary** — Secondary actions that complement the primary action.
+- **destructive** — Dangerous actions like deleting resources. Pair with a confirmation dialog.
+- **success** — Positive confirmations like "Approve" or "Complete".
+- **outline** — Neutral actions with lower visual weight. Good for toolbars.
+- **ghost** — Minimal buttons for inline actions, icon buttons, or dense UIs.
+- **link** — Inline text actions that look like links but behave as buttons.
+
+## Sizes
+
+<VariantGrid>
+  <Button size="sm">Small</Button>
+  <Button size="md">Medium</Button>
+  <Button size="lg">Large</Button>
+  <Button size="icon" icon="icon-[ph--gear-duotone]" />
+</VariantGrid>
+
+```tsx
+<Button size="sm">Small</Button>
+<Button size="md">Medium</Button>
+<Button size="lg">Large</Button>
+<Button size="icon" icon="icon-[ph--gear-duotone]" />
+```
+
+| Size | Height | Use case |
+|------|--------|----------|
+| `sm` | 32px | Dense UIs, table rows, toolbars |
+| `md` | 36px | Default for most actions |
+| `lg` | 40px | Hero sections, prominent CTAs |
+| `icon` | 36x36px | Icon-only buttons (toolbar, controls) |
+
+## Icons
+
+Use the `icon` and `iconRight` props for Iconify icons. These render before or after the button text.
+
+<VariantGrid>
+  <Button icon="icon-[ph--plus-bold]">Create New</Button>
+  <Button variant="destructive" icon="icon-[ph--trash-duotone]">Delete</Button>
+  <Button variant="outline" iconRight="icon-[ph--download-duotone]">Download</Button>
+  <Button variant="ghost" iconRight="icon-[ph--caret-right-bold]">Next</Button>
+</VariantGrid>
+
+```tsx
+<Button icon="icon-[ph--plus-bold]">Create New</Button>
+<Button variant="destructive" icon="icon-[ph--trash-duotone]">Delete</Button>
+<Button variant="outline" iconRight="icon-[ph--download-duotone]">Download</Button>
+<Button variant="ghost" iconRight="icon-[ph--caret-right-bold]">Next</Button>
+```
+
+### Icon-only buttons
+
+Use `size="icon"` with just an `icon` prop for compact icon buttons. Always provide a `tooltip` for accessibility.
+
+<VariantGrid>
+  <Button size="icon" variant="outline" icon="icon-[ph--gear-duotone]" tooltip="Settings" />
+  <Button size="icon" variant="ghost" icon="icon-[ph--bell-duotone]" tooltip="Notifications" />
+  <Button size="icon" variant="ghost" icon="icon-[ph--magnifying-glass-bold]" tooltip="Search" />
+  <Button size="icon" variant="destructive" icon="icon-[ph--trash-duotone]" tooltip="Delete" />
+</VariantGrid>
+
+```tsx
+<Button size="icon" variant="outline" icon="icon-[ph--gear-duotone]" tooltip="Settings" />
+<Button size="icon" variant="ghost" icon="icon-[ph--bell-duotone]" tooltip="Notifications" />
+<Button size="icon" variant="ghost" icon="icon-[ph--magnifying-glass-bold]" tooltip="Search" />
+<Button size="icon" variant="destructive" icon="icon-[ph--trash-duotone]" tooltip="Delete" />
+```
+
+## Loading State
+
+The `loading` prop replaces the left icon with a spinner and disables the button.
+
+<VariantGrid>
+  <Button loading>Saving...</Button>
+  <Button loading variant="secondary">Processing</Button>
+  <Button loading variant="outline">Uploading</Button>
+</VariantGrid>
+
+```tsx
+<Button loading>Saving...</Button>
+<Button loading variant="secondary">Processing</Button>
+<Button loading variant="outline">Uploading</Button>
+```
+
+## Disabled State
+
+<VariantGrid>
+  <Button disabled>Disabled</Button>
+  <Button disabled variant="secondary">Disabled</Button>
+  <Button disabled variant="outline">Disabled</Button>
+  <Button disabled variant="ghost">Disabled</Button>
+</VariantGrid>
+
+```tsx
+<Button disabled>Disabled</Button>
+```
+
+## Tooltips and Shortcuts
+
+Use `tooltip` for hover hints and `shortcut` to display a keyboard shortcut badge.
+
+<VariantGrid>
+  <Button tooltip="Create a new workspace" icon="icon-[ph--plus-bold]">New Workspace</Button>
+  <Button variant="outline" shortcut="⌘K" icon="icon-[ph--magnifying-glass-bold]">Search</Button>
+  <Button variant="ghost" tooltip="Save your changes" shortcut="⌘S" icon="icon-[ph--floppy-disk-duotone]">Save</Button>
+</VariantGrid>
+
+```tsx
+<Button tooltip="Create a new workspace" icon="icon-[ph--plus-bold]">
+  New Workspace
+</Button>
+<Button variant="outline" shortcut="⌘K" icon="icon-[ph--magnifying-glass-bold]">
+  Search
+</Button>
+<Button variant="ghost" tooltip="Save changes" shortcut="⌘S" icon="icon-[ph--floppy-disk-duotone]">
+  Save
+</Button>
+```
+
+## Permission Gating
+
+Use `allowed` and `reason` to gate actions behind permissions. When `allowed={false}`, the button is disabled and the `reason` is shown as a tooltip.
+
+<VariantGrid>
+  <Button allowed={false} reason="You need admin access to delete workspaces" variant="destructive" icon="icon-[ph--trash-duotone]">Delete Workspace</Button>
+  <Button allowed={true} icon="icon-[ph--pencil-duotone]">Edit</Button>
+</VariantGrid>
+
+```tsx
+<Button
+  allowed={false}
+  reason="You need admin access to delete workspaces"
+  variant="destructive"
+  icon="icon-[ph--trash-duotone]"
+>
+  Delete Workspace
+</Button>
+```
+
+## Variant Combinations
+
+Mixing variants with sizes and icons for common patterns.
+
+<VariantGrid>
+  <Button size="sm" icon="icon-[ph--plus-bold]">Add Item</Button>
+  <Button size="lg" variant="primary" icon="icon-[ph--rocket-launch-duotone]">Launch Project</Button>
+  <Button size="sm" variant="outline" icon="icon-[ph--funnel-duotone]">Filter</Button>
+  <Button size="sm" variant="ghost" icon="icon-[ph--dots-three-bold]" />
+</VariantGrid>
+
+```tsx
+<Button size="sm" icon="icon-[ph--plus-bold]">Add Item</Button>
+<Button size="lg" variant="primary" icon="icon-[ph--rocket-launch-duotone]">Launch Project</Button>
+<Button size="sm" variant="outline" icon="icon-[ph--funnel-duotone]">Filter</Button>
+<Button size="sm" variant="ghost" icon="icon-[ph--dots-three-bold]" />
+```
+
+---
+
+## Button Group
+
+The `ButtonGroup` component merges adjacent buttons into a single visual unit by collapsing borders and rounding.
+
+```tsx
+import { ButtonGroup, ButtonGroupText, ButtonGroupSeparator } from "@rio.js/ui/components/button-group"
+```
+
+### Horizontal (default)
+
+<VariantGrid>
+  <ButtonGroup>
+    <Button variant="outline" icon="icon-[ph--text-align-left-bold]" size="icon" />
+    <Button variant="outline" icon="icon-[ph--text-align-center-bold]" size="icon" />
+    <Button variant="outline" icon="icon-[ph--text-align-right-bold]" size="icon" />
+  </ButtonGroup>
+</VariantGrid>
+
+```tsx
+<ButtonGroup>
+  <Button variant="outline" icon="icon-[ph--text-align-left-bold]" size="icon" />
+  <Button variant="outline" icon="icon-[ph--text-align-center-bold]" size="icon" />
+  <Button variant="outline" icon="icon-[ph--text-align-right-bold]" size="icon" />
+</ButtonGroup>
+```
+
+### With Labels
+
+<VariantGrid>
+  <ButtonGroup>
+    <Button variant="outline">Day</Button>
+    <Button variant="outline">Week</Button>
+    <Button variant="outline">Month</Button>
+  </ButtonGroup>
+</VariantGrid>
+
+```tsx
+<ButtonGroup>
+  <Button variant="outline">Day</Button>
+  <Button variant="outline">Week</Button>
+  <Button variant="outline">Month</Button>
+</ButtonGroup>
+```
+
+### With Text Segment
+
+<VariantGrid>
+  <ButtonGroup>
+    <Button variant="outline" icon="icon-[ph--minus-bold]" size="icon" />
+    <ButtonGroupText>100%</ButtonGroupText>
+    <Button variant="outline" icon="icon-[ph--plus-bold]" size="icon" />
+  </ButtonGroup>
+</VariantGrid>
+
+```tsx
+<ButtonGroup>
+  <Button variant="outline" icon="icon-[ph--minus-bold]" size="icon" />
+  <ButtonGroupText>100%</ButtonGroupText>
+  <Button variant="outline" icon="icon-[ph--plus-bold]" size="icon" />
+</ButtonGroup>
+```
+
+### Vertical Orientation
+
+<VariantGrid>
+  <ButtonGroup orientation="vertical">
+    <Button variant="outline" icon="icon-[ph--arrow-up-bold]" size="icon" />
+    <Button variant="outline" icon="icon-[ph--arrow-down-bold]" size="icon" />
+  </ButtonGroup>
+</VariantGrid>
+
+```tsx
+<ButtonGroup orientation="vertical">
+  <Button variant="outline" icon="icon-[ph--arrow-up-bold]" size="icon" />
+  <Button variant="outline" icon="icon-[ph--arrow-down-bold]" size="icon" />
+</ButtonGroup>
+```
+
+---
+
+## API Reference
+
+### Button Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"primary" \| "secondary" \| "destructive" \| "success" \| "outline" \| "ghost" \| "link"` | `"default"` | Visual style |
+| `size` | `"sm" \| "md" \| "lg" \| "icon"` | `"md"` | Button size |
+| `icon` | `string` | — | Iconify icon class rendered before children |
+| `iconRight` | `string` | — | Iconify icon class rendered after children |
+| `loading` | `boolean` | `false` | Shows spinner and disables button |
+| `tooltip` | `string \| ReactNode` | — | Tooltip content on hover |
+| `shortcut` | `string` | — | Keyboard shortcut badge (e.g. `"⌘K"`) |
+| `allowed` | `boolean` | — | Permission gate. `false` disables and shows `reason` |
+| `reason` | `string` | — | Tooltip text when `allowed` is `false` |
+| `description` | `string` | — | Fallback tooltip when `tooltip` is not set |
+| `asChild` | `boolean` | `false` | Render as child element via Radix Slot |
+| `disabled` | `boolean` | `false` | Standard HTML disabled state |
+
+### ButtonGroup Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Layout direction |
+
+### ButtonGroupText Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `asChild` | `boolean` | `false` | Render as child element via Radix Slot |

@@ -1,0 +1,106 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rio.js/ui-next/components/tabs"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@rio.js/ui-next/components/breadcrumb"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@rio.js/ui-next/components/dropdown-menu"
+import { Button } from "@rio.js/ui-next/components/button"
+import { MoreHorizontal, Settings, User, LogOut } from "lucide-react"
+
+# Navigation
+
+Components for navigating between views and actions.
+
+## Tabs
+
+<ComponentPreview className="block">
+  <Tabs defaultValue="overview" className="w-full max-w-md">
+    <TabsList>
+      <TabsTrigger value="overview">Overview</TabsTrigger>
+      <TabsTrigger value="analytics">Analytics</TabsTrigger>
+      <TabsTrigger value="settings">Settings</TabsTrigger>
+    </TabsList>
+    <TabsContent value="overview" className="mt-4 text-sm">
+      Overview content goes here.
+    </TabsContent>
+    <TabsContent value="analytics" className="mt-4 text-sm">
+      Analytics content goes here.
+    </TabsContent>
+    <TabsContent value="settings" className="mt-4 text-sm">
+      Settings content goes here.
+    </TabsContent>
+  </Tabs>
+</ComponentPreview>
+
+```tsx
+<Tabs defaultValue="overview">
+  <TabsList>
+    <TabsTrigger value="overview">Overview</TabsTrigger>
+    <TabsTrigger value="analytics">Analytics</TabsTrigger>
+  </TabsList>
+  <TabsContent value="overview">Content</TabsContent>
+</Tabs>
+```
+
+## Breadcrumb
+
+<ComponentPreview>
+  <Breadcrumb>
+    <BreadcrumbList>
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/">Home</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/docs">Docs</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbPage>Navigation</BreadcrumbPage>
+      </BreadcrumbItem>
+    </BreadcrumbList>
+  </Breadcrumb>
+</ComponentPreview>
+
+```tsx
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/">Home</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>Current</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>
+```
+
+## Dropdown Menu
+
+<ComponentPreview>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline" size="icon">
+        <MoreHorizontal />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem><User className="mr-2 h-4 w-4" /> Profile</DropdownMenuItem>
+      <DropdownMenuItem><Settings className="mr-2 h-4 w-4" /> Settings</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem><LogOut className="mr-2 h-4 w-4" /> Sign out</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</ComponentPreview>
+
+```tsx
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline" size="icon">
+      <MoreHorizontal />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem>Profile</DropdownMenuItem>
+    <DropdownMenuItem>Settings</DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+```

@@ -1,0 +1,193 @@
+# Feedback
+
+Components for communicating status, information, and context to users.
+
+```tsx
+import { Alert, AlertDescription, AlertTitle } from "@rio.js/ui-next/components/alert"
+```
+
+---
+
+## Alert
+
+A prominent banner for surfacing important messages. Use for inline feedback like errors, warnings, or informational notices.
+
+<ComponentPreview className="block space-y-3">
+  <Alert>
+    <span className="icon-[ph--info-duotone] h-4 w-4" />
+    <AlertTitle>Information</AlertTitle>
+    <AlertDescription>This is a default informational alert.</AlertDescription>
+  </Alert>
+  <Alert variant="destructive">
+    <span className="icon-[ph--warning-circle-duotone] h-4 w-4" />
+    <AlertTitle>Error</AlertTitle>
+    <AlertDescription>Something went wrong. Please try again.</AlertDescription>
+  </Alert>
+</ComponentPreview>
+
+```tsx
+<Alert>
+  <span className="icon-[ph--info-duotone] h-4 w-4" />
+  <AlertTitle>Information</AlertTitle>
+  <AlertDescription>Informational message.</AlertDescription>
+</Alert>
+
+<Alert variant="destructive">
+  <span className="icon-[ph--warning-circle-duotone] h-4 w-4" />
+  <AlertTitle>Error</AlertTitle>
+  <AlertDescription>Error message.</AlertDescription>
+</Alert>
+```
+
+### Variants
+
+| Variant | Use case |
+|---------|----------|
+| `default` | General information, tips, or neutral notices |
+| `destructive` | Errors, failures, or critical warnings |
+
+### When to use
+
+- **Alert** — Persistent, inline messages related to a section or form. The user can read and act on them.
+- **Toast** — Ephemeral notifications for actions that completed (success, error). Auto-dismiss.
+- **Alert Dialog** — Blocking confirmation before destructive actions.
+
+---
+
+## Tooltip
+
+A small popup that appears on hover to provide additional context. Use for icon-only buttons, truncated text, or brief explanations.
+
+```tsx
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rio.js/ui-next/components/tooltip"
+```
+
+<ComponentPreview>
+  <TooltipProvider>
+    <div className="flex gap-4">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline">Hover me</Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>This is a tooltip</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline" size="icon">
+            <span className="icon-[ph--info-duotone]" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>More information</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  </TooltipProvider>
+</ComponentPreview>
+
+```tsx
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="outline">Hover me</Button>
+    </TooltipTrigger>
+    <TooltipContent>Tooltip text</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+### Placement
+
+Use the `side` prop on `TooltipContent` to control where the tooltip appears.
+
+```tsx
+<TooltipContent side="top">Above</TooltipContent>
+<TooltipContent side="bottom">Below</TooltipContent>
+<TooltipContent side="left">Left</TooltipContent>
+<TooltipContent side="right">Right</TooltipContent>
+```
+
+### TooltipProvider
+
+Wrap your app or a section in `TooltipProvider` to share delay and configuration across tooltips. Typically placed once near the root.
+
+---
+
+## Popover
+
+A floating panel anchored to a trigger element. Use for rich content that requires interaction — filters, settings, or mini-forms.
+
+```tsx
+import { Popover, PopoverContent, PopoverTrigger } from "@rio.js/ui-next/components/popover"
+```
+
+<ComponentPreview>
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button variant="outline">Open Popover</Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-64">
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">Popover Content</h4>
+        <p className="text-sm text-muted-foreground">
+          This is a popover with rich content. It stays open until dismissed.
+        </p>
+      </div>
+    </PopoverContent>
+  </Popover>
+</ComponentPreview>
+
+```tsx
+<Popover>
+  <PopoverTrigger asChild>
+    <Button>Open Popover</Button>
+  </PopoverTrigger>
+  <PopoverContent className="w-64">
+    {/* Rich content here */}
+  </PopoverContent>
+</Popover>
+```
+
+### When to use Tooltip vs Popover
+
+- **Tooltip** — Brief, text-only hints. Appears on hover, disappears on leave. Non-interactive.
+- **Popover** — Rich, interactive content. Opened by click, stays open until dismissed.
+
+---
+
+## API Reference
+
+### Alert Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"default" \| "destructive"` | `"default"` | Visual style |
+| `className` | `string` | — | Additional CSS classes |
+
+### TooltipContent Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` | Preferred placement |
+| `sideOffset` | `number` | `4` | Distance from trigger in pixels |
+| `align` | `"start" \| "center" \| "end"` | `"center"` | Alignment along the side |
+| `color` | `"popover" \| "accent"` | `"popover"` | Background color style |
+| `arrow` | `boolean` | `true` | Whether to show the tooltip arrow |
+
+### TooltipProvider Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `delayDuration` | `number` | `200` | Delay in ms before tooltip appears |
+| `skipDelayDuration` | `number` | `300` | Time in ms before resetting delay after leaving |
+
+### PopoverContent Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"bottom"` | Preferred placement |
+| `sideOffset` | `number` | `4` | Distance from trigger in pixels |
+| `align` | `"start" \| "center" \| "end"` | `"center"` | Alignment along the side |
+| `className` | `string` | — | Additional CSS classes |

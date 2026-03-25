@@ -1,0 +1,70 @@
+{
+  "id": "smart-market.scouts",
+  "displayName": "Scouts",
+  "description": "AI-powered spatial exploration and analysis",
+  "version": "0.0.1",
+  "publisher": "rio.js",
+  "engines": {
+    "rio": ">=0.0.1"
+  },
+  "category": "platform",
+  "tags": ["scouts", "explore", "ai"],
+  "categories": ["core"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--compass-duotone]",
+      "label": "Scouts",
+      "order": 0
+    },
+    "routePrefix": "/scouts"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "smart-market.scouts.route.redirect.layout",
+        "displayName": "Scouts Redirect",
+        "path": "/(root)/(app)/scouts"
+      },
+      {
+        "id": "smart-market.scouts.route.redirect.page",
+        "displayName": "Scouts Redirect",
+        "path": "/(root)/(app)/scouts/"
+      },
+      {
+        "id": "smart-market.scouts.route.layout",
+        "displayName": "Scouts",
+        "path": "/(root)/(app)/scouts/:spaceSlug"
+      },
+      {
+        "id": "smart-market.scouts.route.page",
+        "displayName": "Scouts",
+        "path": "/(root)/(app)/scouts/:spaceSlug/"
+      },
+      {
+        "id": "smart-market.scouts.route.session.page",
+        "displayName": "Scout Session",
+        "path": "/(root)/(app)/scouts/:spaceSlug/:sessionId/"
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "sidebarGroups": [],
+    "sidebarItems": [
+      {
+        "id": "smart-market.scouts.sidebar.item.scouts",
+        "displayName": "Scouts",
+        "icon": "icon-[ph--compass-duotone]",
+        "href": "/scouts",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 0
+      }
+    ],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

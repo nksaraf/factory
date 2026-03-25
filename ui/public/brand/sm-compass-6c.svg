@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="tealGradA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="tealGradB" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="tealGradC" x1="0.5" y1="1" x2="0.5" y2="0">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    Compass-as-S: Four points arranged so the negative space
+    between them traces an "S" curve through the center.
+    The compass is rotated ~15° and the points are offset
+    to create the S-shaped channel.
+  -->
+
+  <!-- Upper-right point (NE) — curves right to start the S -->
+  <path d="M 256,56 L 310,210 Q 290,240 256,248 L 230,210 Z" fill="url(#tealGradC)"/>
+
+  <!-- Right point (E) — shifted slightly south -->
+  <path d="M 456,280 L 300,280 Q 272,268 268,248 L 300,228 Z" fill="url(#tealGradA)"/>
+
+  <!-- Lower-left point (SW) — curves left to complete the S -->
+  <path d="M 256,456 L 202,302 Q 222,272 256,264 L 282,302 Z" fill="url(#tealGradB)"/>
+
+  <!-- Left point (W) — shifted slightly north -->
+  <path d="M 56,232 L 212,232 Q 240,244 244,264 L 212,284 Z" fill="url(#tealGradA)"/>
+
+  <!-- S-curve accent line through the center (the reveal) -->
+  <path d="M 280,100 Q 340,200 260,256 Q 180,312 240,412"
+        fill="none" stroke="#14b8a6" stroke-width="2" opacity="0.35"
+        stroke-linecap="round"/>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="256" r="14" fill="#14b8a6"/>
+  <circle cx="256" cy="256" r="6" fill="#f0fdfa"/>
+</svg>

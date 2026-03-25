@@ -1,0 +1,152 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { runDx } from "./run-dx.js";
+
+/**
+ * Auth service HTTP origin (same host as JWKS). Defaults match CLI `loadConfig()` and docker infra-auth port mapping.
+ * Override with FACTORY_AUTH_TEST_URL / FACTORY_AUTH_TEST_BASE_PATH when needed.
+ */
+const AUTH_ORIGIN = (
+  process.env.FACTORY_AUTH_TEST_URL ?? "http://127.0.0.1:8180"
+).replace(/\/$/, "");
+const AUTH_BASE_PATH =
+  process.env.FACTORY_AUTH_TEST_BASE_PATH ?? "/api/v1/auth";
+
+/** Trusted browser origin for Better Auth CSRF/origin checks (defaults to auth URL). */
+const AUTH_REQUEST_ORIGIN =
+  process.env.FACTORY_AUTH_TEST_ORIGIN ?? AUTH_ORIGIN;
+
+const JWKS_URL = `${AUTH_ORIGIN}${AUTH_BASE_PATH}/.well-known/jwks.json`;
+const SIGN_UP_URL = `${AUTH_ORIGIN}${AUTH_BASE_PATH}/sign-up/email`;
+
+async function jwksReachable(): Promise<boolean> {
+  try {
+    const r = await fetch(JWKS_URL, { signal: AbortSignal.timeout(5000) });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Probe JWKS; skip whole suite when infra-auth is not running (keeps `pnpm test` green locally). */
+const authServiceAvailable = await jwksReachable();
+
+function isolatedHome(): string {
+  return mkdtempSync(path.join(os.tmpdir(), "dx-cli-auth-"));
+}
+
+function writeDxConfig(home: string, yaml: string): void {
+  const dir = path.join(home, ".config", "dx");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "config.yaml"), yaml, "utf8");
+}
+
+async function signUpViaAuthApi(email: string, password: string): Promise<void> {
+  const res = await fetch(SIGN_UP_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: AUTH_REQUEST_ORIGIN,
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      name: "Factory CLI integration user",
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`sign-up failed ${res.status}: ${text}`);
+  }
+  try {
+    const body = JSON.parse(text) as { error?: unknown };
+    if (body && typeof body === "object" && "error" in body && body.error) {
+      throw new Error(`sign-up error: ${text}`);
+    }
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      /* non-JSON success bodies are ok */
+    } else {
+      throw e;
+    }
+  }
+}
+
+describe.skipIf(!authServiceAvailable)(
+  "dx CLI (auth integration: sign-up + login)",
+  () => {
+    const clearAuthEnv = {
+      DX_AUTH_EMAIL: "",
+      DX_AUTH_PASSWORD: "",
+      FACTORY_AUTH_EMAIL: "",
+      FACTORY_AUTH_PASSWORD: "",
+    };
+
+    it("POST sign-up/email on JWKS host then dx auth login and whoami", async () => {
+      const email = `factory-cli-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@example.test`;
+      const password = `Pw-${Math.random().toString(36).slice(2, 12)}-aA1`;
+
+      await signUpViaAuthApi(email, password);
+
+      const home = isolatedHome();
+      writeDxConfig(
+        home,
+        `authUrl: ${AUTH_ORIGIN}\nauthBasePath: ${AUTH_BASE_PATH}\napiUrl: http://127.0.0.1:59999\n`
+      );
+
+      const login = runDx(["auth", "login", "-e", email, "--password", password], {
+        home,
+        env: clearAuthEnv,
+      });
+
+      expect(login.status).toBe(0);
+      expect(login.stderr).toBe("");
+      expect(login.stdout).toContain("Signed in");
+      expect(login.stdout).toContain(email);
+
+      const whoami = runDx(["whoami"], { home });
+      expect(whoami.status).toBe(0);
+      expect(whoami.stdout).toContain(email);
+    });
+
+    it("login --json then logout and whoami is denied", async () => {
+      const email = `factory-cli-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@example.test`;
+      const password = `Pw-${Math.random().toString(36).slice(2, 12)}-aA1`;
+
+      await signUpViaAuthApi(email, password);
+
+      const home = isolatedHome();
+      writeDxConfig(
+        home,
+        `authUrl: ${AUTH_ORIGIN}\nauthBasePath: ${AUTH_BASE_PATH}\napiUrl: http://127.0.0.1:59999\n`
+      );
+
+      const loginJson = runDx(
+        ["auth", "login", "--json", "-e", email, "--password", password],
+        { home, env: clearAuthEnv }
+      );
+      expect(loginJson.status).toBe(0);
+      expect(loginJson.stderr).toBe("");
+      const loginBody = JSON.parse(loginJson.stdout) as {
+        success: boolean;
+        data?: { user?: { email?: string }; sessionPath?: string; authUrl?: string };
+      };
+      expect(loginBody.success).toBe(true);
+      expect(loginBody.data?.user?.email).toBe(email);
+      expect(loginBody.data?.sessionPath).toBeTruthy();
+      expect(loginBody.data?.authUrl).toContain(AUTH_ORIGIN);
+
+      const logout = runDx(["auth", "logout"], { home, env: clearAuthEnv });
+      expect(logout.status).toBe(0);
+      expect(logout.stdout).toContain("Signed out");
+
+      const whoami = runDx(["whoami"], { home, env: clearAuthEnv });
+      expect(whoami.status).toBe(3);
+      expect(whoami.stderr).toContain("Not signed in");
+    });
+  }
+);

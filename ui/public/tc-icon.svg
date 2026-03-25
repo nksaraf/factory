@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <!-- Deep forest green rounded square -->
+  <rect x="10" y="10" width="220" height="220" rx="52" fill="#14532D"/>
+
+  <!-- Elegant serif italic "tc" in cream -->
+  <text x="38" y="175" font-family="Georgia, 'Times New Roman', serif" font-size="145" font-weight="400" font-style="italic" fill="#FAF7F2" letter-spacing="-10" opacity="0.95">
+    tc
+  </text>
+
+  <!-- Small green accent dot -->
+  <circle cx="195" cy="55" r="8" fill="#4ADE80" opacity="0.8"/>
+</svg>

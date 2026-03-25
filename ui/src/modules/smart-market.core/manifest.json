@@ -1,0 +1,156 @@
+{
+  "id": "smart-market.core",
+  "displayName": "Smart Market Core",
+  "description": "Core Smart Market functionality",
+  "version": "0.0.1",
+  "publisher": "rio.js",
+  "engines": {
+    "rio": ">=0.0.1"
+  },
+  "category": "platform",
+  "tags": ["core", "datasets", "workflows"],
+  "categories": ["core"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--map-trifold-duotone]",
+      "label": "Platform",
+      "order": 2
+    },
+    "routePrefix": "/my-projects"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "smart-market.core.route.my-workflows.page",
+        "displayName": "Home",
+        "path": "/(root)/(app)/my-workflows/"
+      },
+      {
+        "id": "smart-market.core.route.my-projects.page",
+        "displayName": "My Projects",
+        "path": "/(root)/(app)/my-projects/"
+      },
+      {
+        "id": "smart-market.core.route.datasets.explorer.layout",
+        "displayName": "My Datasets",
+        "path": "/(root)/(app)/datasets/explorer"
+      },
+      {
+        "id": "smart-market.core.route.datasets.explorer.page",
+        "displayName": "My Datasets",
+        "path": "/(root)/(app)/datasets/explorer/"
+      },
+      {
+        "id": "smart-market.core.route.datasets.explorer.dataset.page",
+        "displayName": "My Datasets",
+        "path": "/(root)/(app)/datasets/explorer/:datasetId/"
+      },
+      {
+        "id": "smart-market.core.route.datasets.explorer.dataset-view.layout",
+        "displayName": "My Datasets",
+        "path": "/(root)/(app)/datasets/explorer/:datasetId/:mode"
+      },
+      {
+        "id": "smart-market.core.route.datasets.explorer.dataset-view.page",
+        "displayName": "My Datasets",
+        "path": "/(root)/(app)/datasets/explorer/:datasetId/:mode/"
+      },
+      {
+        "id": "smart-market.core.route.my-reports.page",
+        "displayName": "My Reports",
+        "path": "/(root)/(app)/my-reports/"
+      },
+      {
+        "id": "smart-market.core.route.my-workflows.page",
+        "displayName": "My Pipelines",
+        "path": "/(root)/(app)/my-workflows/"
+      },
+      {
+        "id": "smart-market.core.route.workflow.layout",
+        "displayName": "Workflow",
+        "path": "/(root)/(app)/workflow"
+      },
+      {
+        "id": "smart-market.core.route.workflow.page",
+        "displayName": "Workflow",
+        "path": "/(root)/(app)/workflow/:workflow-id/"
+      },
+      {
+        "id": "smart-market.core.route.project.projectId.layout",
+        "displayName": "Project",
+        "path": "/(root)/(app)/project/:projectId"
+      },
+      {
+        "id": "smart-market.core.route.project.projectId.page",
+        "displayName": "Project",
+        "path": "/(root)/(app)/project/:projectId/"
+      },
+      {
+        "id": "smart-market.core.route.shared-with-me.page",
+        "displayName": "Shared with me",
+        "path": "/(root)/(app)/shared-with-me/"
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "sidebarGroups": [
+      {
+        "id": "smart-market.core.sidebar.group.platform",
+        "displayName": "Platform",
+        "icon": "icon-[duo-icons--app]",
+        "group": "Platform",
+        "order": 0
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "smart-market.core.sidebar.item.my-projects",
+        "displayName": "My Projects",
+        "icon": "icon-[ph--map-trifold-duotone]",
+        "href": "/my-projects",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 1
+      },
+      {
+        "id": "smart-market.core.sidebar.item.my-datasets",
+        "displayName": "My Datasets",
+        "icon": "icon-[ph--database-duotone]",
+        "href": "/datasets/explorer",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 2
+      },
+      {
+        "id": "smart-market.core.sidebar.item.my-reports",
+        "displayName": "My Reports",
+        "icon": "icon-[ph--presentation-chart-duotone]",
+        "href": "/my-reports",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 3
+      },
+      {
+        "id": "smart-market.core.sidebar.item.my-workflows",
+        "displayName": "My Pipelines",
+        "icon": "icon-[ph--pipe-duotone]",
+        "href": "/my-workflows",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 4
+      },
+      {
+        "id": "smart-market.core.sidebar.item.shared-with-me",
+        "displayName": "Shared with me",
+        "icon": "icon-[ph--share-fat-duotone]",
+        "href": "/shared-projects",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 5,
+        "disabled": true
+      }
+    ],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

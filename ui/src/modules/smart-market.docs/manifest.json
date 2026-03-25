@@ -1,0 +1,55 @@
+{
+  "id": "smart-market.docs",
+  "displayName": "Docs",
+  "description": "Platform documentation and UI component reference",
+  "version": "0.0.1",
+  "publisher": "rio.js",
+  "engines": {
+    "rio": ">=0.0.1"
+  },
+  "category": "platform",
+  "tags": ["docs", "documentation", "ui"],
+  "categories": ["core"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--book-open-duotone]",
+      "label": "Docs",
+      "order": 10
+    },
+    "routePrefix": "/docs",
+    "moduleSidebar": {
+      "width": 240,
+      "resizable": true
+    }
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "smart-market.docs.route.layout",
+        "displayName": "Docs Layout",
+        "path": "/(root)/(app)/docs"
+      },
+      {
+        "id": "smart-market.docs.route.index.page",
+        "displayName": "Docs",
+        "path": "/(root)/(app)/docs/"
+      },
+      {
+        "id": "smart-market.docs.route.slug.page",
+        "displayName": "Doc Page",
+        "path": "/(root)/(app)/docs/:slug*"
+      }
+    ],
+    "sidebarGroups": [],
+    "sidebarItems": [],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

@@ -1,0 +1,89 @@
+{
+  "id": "trafficure.core",
+  "displayName": "Trafficure Core",
+  "description": "Core Trafficure functionality",
+  "version": "0.0.1",
+  "publisher": "rio.js",
+  "engines": {
+    "rio": ">=0.0.1"
+  },
+  "categories": [
+    "core"
+  ],
+  "main": "extension.ts",
+  "contributes": {
+    "layouts": [],
+    "views": [],
+    "sidebarGroups": [
+      {
+        "id": "trafficure.core.sidebar.group.platform",
+        "displayName": "Trafficure",
+        "icon": "icon-[duo-icons--app]",
+        "group": "Trafficure",
+        "order": 0
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "trafficure.core.sidebar.item.command-center",
+        "displayName": "Command Center",
+        "icon": "icon-[ph--compass-rose-duotone]",
+        "href": "/command-center",
+        "group": "trafficure.core.sidebar.group.platform",
+        "order": 0,
+        "disabled": true
+      },
+      {
+        "id": "trafficure.core.sidebar.item.alerts",
+        "displayName": "Alerts",
+        "icon": "icon-[ph--alarm-duotone]",
+        "href": "/alerts",
+        "group": "trafficure.core.sidebar.group.platform",
+        "order": 1
+      },
+      {
+        "id": "trafficure.core.sidebar.item.analytics",
+        "displayName": "Analytics",
+        "icon": "icon-[ph--presentation-chart-duotone]",
+        "href": "/analytics",
+        "group": "trafficure.core.sidebar.group.platform",
+        "order": 2
+      },
+      {
+        "id": "trafficure.core.sidebar.item.reports",
+        "displayName": "Reports",
+        "icon": "icon-[ph--file-text-duotone]",
+        "href": "/reports/print/daily-briefing",
+        "group": "trafficure.core.sidebar.group.platform",
+        "order": 3
+      }
+    ],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [
+      {
+        "id": "trafficure.core.layerRenderers.traffic",
+        "rendererType": "traffic",
+        "displayName": "Traffic",
+        "code": "./traffic"
+      },
+      {
+        "id": "trafficure.core.layerRenderers.alerts",
+        "rendererType": "alerts",
+        "displayName": "Alerts",
+        "code": "./alerts"
+      },
+      {
+        "id": "trafficure.core.layerRenderers.roads",
+        "rendererType": "roads",
+        "displayName": "Roads",
+        "code": "./traffic"
+      }
+    ],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": [
+    "onStart"
+  ]
+}

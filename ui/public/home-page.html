@@ -1,0 +1,4703 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      TraffiCure | Real-Time Traffic Data Analytics for Government & City
+      Planners
+    </title>
+    <meta
+      name="description"
+      content="TraffiCure provides real-time traffic data analytics, road management insights, and intelligent traffic management solutions for government agencies, city planners, and traffic police."
+    />
+    <meta
+      name="keywords"
+      content="traffic data, traffic management, ITMS, traffic analytics, road management insights, Google RMI, TomTom alternative, traffic data API, smart traffic, city planning"
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://trafficure.com/" />
+    <link rel="icon" type="image/svg+xml" href="/tc-icon.svg" />
+    <link rel="shortcut icon" href="/tc-icon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://trafficure.com/" />
+    <meta
+      property="og:title"
+      content="TraffiCure | Real-Time Traffic Data Analytics"
+    />
+    <meta
+      property="og:description"
+      content="Traffic data analytics platform for government agencies and city planners."
+    />
+    <meta property="og:image" content="https://trafficure.com/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="TraffiCure | Real-Time Traffic Data Analytics"
+    />
+    <meta
+      name="twitter:description"
+      content="Traffic data analytics for smarter roads."
+    />
+    <meta name="twitter:image" content="https://trafficure.com/og-image.png" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "TraffiCure",
+        "url": "https://trafficure.com",
+        "logo": "https://trafficure.com/tc-icon.svg",
+        "description": "AI-powered traffic data analytics platform for government agencies and city planners. Real-time congestion alerts, traffic analytics dashboards, and daily intelligence reports.",
+        "foundingDate": "2025",
+        "founders": [
+          {
+            "@type": "Person",
+            "name": "Dr. Rajeev Saraf",
+            "jobTitle": "CEO",
+            "url": "https://www.linkedin.com/in/rajeev-saraf-724553/"
+          },
+          {
+            "@type": "Person",
+            "name": "Umang Saraf",
+            "jobTitle": "Product Lead",
+            "url": "https://www.linkedin.com/in/umang-saraf-4803256b/"
+          }
+        ],
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Gurgaon",
+          "addressRegion": "Haryana",
+          "addressCountry": "IN"
+        },
+        "parentOrganization": {
+          "@type": "Organization",
+          "name": "Lepton Software Export & Research Pvt. Ltd.",
+          "url": "https://www.leptonsoftware.com"
+        },
+        "sameAs": ["https://www.linkedin.com/company/lepton-software"],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "sales",
+          "email": "contact@trafficure.com"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "India"
+        },
+        "knowsAbout": [
+          "Traffic management",
+          "Real-time traffic analytics",
+          "Congestion monitoring",
+          "Smart city solutions",
+          "Traffic data intelligence"
+        ]
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "TraffiCure",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "Traffic Management",
+        "operatingSystem": "Web",
+        "url": "https://trafficure.com",
+        "description": "Real-time traffic data analytics platform for government agencies, city planners, and traffic police. Provides congestion alerts, road-level analytics, daily intelligence reports, and AI-powered forecasting.",
+        "featureList": "Real-time congestion alerts, Traffic analytics dashboards, Road baseline calculations, Daily intelligence reports (CityPulse), Customizable alert thresholds, WebSocket live updates, BigQuery data sync, Airflow batch pipelines",
+        "screenshot": "https://trafficure.com/og-image.png",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Free tier available"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "TraffiCure"
+        }
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "TraffiCure",
+        "url": "https://trafficure.com",
+        "description": "AI-powered traffic intelligence platform"
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://trafficure.com"
+          }
+        ]
+      }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        font-size: 16px;
+        overflow-x: hidden;
+      }
+
+      body {
+        font-family:
+          "Instrument Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #faf8f5;
+        color: #1a1a1a;
+        line-height: 1.6;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      :root {
+        --cream: #faf8f5;
+        --cream-dark: #f2ede7;
+        --forest: #0d3b2e;
+        --forest-light: #165c46;
+        --emerald: #1db954;
+        --emerald-muted: #a8e6c3;
+        --black: #0a0a0a;
+        --charcoal: #2d2d2d;
+        --warm-gray: #6b6560;
+        --light-gray: #b8b2aa;
+        --border: #e8e2da;
+        --serif: "DM Serif Display", Georgia, serif;
+        --sans: "Instrument Sans", -apple-system, sans-serif;
+        --mono: "JetBrains Mono", monospace;
+        --max-w: 1240px;
+      }
+
+      ::selection {
+        background: var(--emerald-muted);
+        color: var(--forest);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button {
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+        background: none;
+      }
+
+      img {
+        max-width: 100%;
+        display: block;
+      }
+
+      .container {
+        max-width: var(--max-w);
+        margin: 0 auto;
+        padding: 0 32px;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 0 20px;
+        }
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--sans);
+        font-size: 15px;
+        font-weight: 600;
+        padding: 16px 32px;
+        border-radius: 60px;
+        transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        letter-spacing: -0.01em;
+      }
+
+      .btn-forest {
+        background: var(--forest);
+        color: #fff;
+      }
+
+      .btn-forest:hover {
+        background: var(--forest-light);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(13, 59, 46, 0.25);
+      }
+
+      .btn-outline {
+        background: transparent;
+        color: var(--forest);
+        border: 1.5px solid var(--forest);
+      }
+
+      .btn-outline:hover {
+        background: var(--forest);
+        color: #fff;
+      }
+
+      .btn-white {
+        background: #fff;
+        color: var(--forest);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .btn-white:hover {
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--forest);
+        background: rgba(13, 59, 46, 0.06);
+        padding: 8px 18px;
+        border-radius: 100px;
+        font-family: var(--mono);
+      }
+
+      .pill-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--emerald);
+        animation: blink 2s ease infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      /* ===== NAV ===== */
+      .nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        padding: 20px 0;
+        transition: all 0.4s ease;
+      }
+
+      .nav.scrolled {
+        background: rgba(250, 248, 245, 0.92);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 0;
+      }
+
+      .nav .container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .nav-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        object-fit: contain;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .nav-links a {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--warm-gray);
+        padding: 8px 16px;
+        border-radius: 8px;
+        transition: all 0.2s;
+      }
+
+      .nav-links a:hover {
+        color: var(--black);
+        background: rgba(0, 0, 0, 0.04);
+      }
+
+      .nav-cta a[href="/auth/sign-in"]:hover {
+        color: var(--black);
+        background: rgba(0, 0, 0, 0.04);
+      }
+
+      @media (max-width: 900px) {
+        .nav-links {
+          display: none;
+        }
+
+        .nav-cta a[href="/auth/sign-in"] {
+          padding: 10px 20px;
+          font-size: 13px;
+        }
+
+        .nav-cta .btn {
+          display: none;
+        }
+      }
+
+      .nav-mobile-toggle {
+        display: none;
+        width: 40px;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: transparent;
+        transition: background 0.2s;
+      }
+
+      .nav-mobile-toggle:hover {
+        background: rgba(0, 0, 0, 0.04);
+      }
+
+      .nav-mobile-toggle span {
+        display: block;
+        width: 18px;
+        height: 2px;
+        background: var(--charcoal);
+        border-radius: 1px;
+        position: relative;
+        transition: all 0.3s;
+      }
+
+      .nav-mobile-toggle span::before,
+      .nav-mobile-toggle span::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--charcoal);
+        border-radius: 1px;
+        transition: all 0.3s;
+      }
+
+      .nav-mobile-toggle span::before {
+        top: -6px;
+      }
+
+      .nav-mobile-toggle span::after {
+        top: 6px;
+      }
+
+      @media (max-width: 900px) {
+        .nav-mobile-toggle {
+          display: flex;
+        }
+      }
+
+      /* ===== HERO ===== */
+      .hero {
+        padding: 180px 0 100px;
+        position: relative;
+      }
+
+      .hero-top {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .hero-pill {
+        margin-bottom: 32px;
+      }
+
+      .hero h1 {
+        font-family: var(--serif);
+        font-size: clamp(44px, 7vw, 88px);
+        font-weight: 400;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        color: var(--black);
+        max-width: 900px;
+        margin-bottom: 28px;
+      }
+
+      .hero h1 em {
+        font-style: italic;
+        color: var(--forest);
+        position: relative;
+      }
+
+      .hero h1 em::after {
+        content: "";
+        position: absolute;
+        bottom: 4px;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: var(--emerald-muted);
+        border-radius: 4px;
+        z-index: -1;
+        opacity: 0.5;
+      }
+
+      .hero-sub {
+        font-size: 19px;
+        color: var(--warm-gray);
+        max-width: 540px;
+        line-height: 1.7;
+        margin-bottom: 44px;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 64px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero-proof {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero-proof span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--warm-gray);
+        font-weight: 500;
+      }
+
+      .hero-proof .check {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--forest);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      /* ===== 3D DASHBOARD MOCKUP ===== */
+      .hero-3d {
+        margin-top: 80px;
+        position: relative;
+        perspective: 1800px;
+        display: flex;
+        gap: 28px;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 480px;
+      }
+
+      @media (max-width: 900px) {
+        .hero-3d {
+          flex-direction: column;
+          align-items: center;
+          perspective: none;
+          gap: 20px;
+          min-height: auto;
+        }
+      }
+
+      /* Shared panel styles */
+      .panel-3d {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow:
+          0 2px 4px rgba(0, 0, 0, 0.02),
+          0 8px 24px rgba(0, 0, 0, 0.05),
+          0 24px 64px rgba(0, 0, 0, 0.06);
+        transition:
+          transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+          box-shadow 0.6s ease;
+        will-change: transform;
+      }
+
+      .panel-3d:hover {
+        box-shadow:
+          0 4px 8px rgba(0, 0, 0, 0.03),
+          0 16px 40px rgba(0, 0, 0, 0.08),
+          0 32px 80px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Left panel — Alerts — tilted right */
+      .panel-alerts {
+        width: 380px;
+        flex-shrink: 0;
+        transform: rotateY(8deg) rotateX(2deg) translateZ(0);
+        transform-origin: right center;
+        z-index: 2;
+      }
+
+      .panel-alerts:hover {
+        transform: rotateY(3deg) rotateX(1deg) translateZ(10px);
+      }
+
+      @media (max-width: 900px) {
+        .panel-alerts {
+          width: 100%;
+          max-width: 420px;
+          transform: none;
+        }
+
+        .panel-alerts:hover {
+          transform: translateY(-4px);
+        }
+      }
+
+      /* Right panel — Analytics — tilted left */
+      .panel-analytics {
+        width: 520px;
+        flex-shrink: 0;
+        transform: rotateY(-6deg) rotateX(2deg) translateZ(-20px);
+        transform-origin: left center;
+        margin-top: 32px;
+        z-index: 1;
+      }
+
+      .panel-analytics:hover {
+        transform: rotateY(-2deg) rotateX(1deg) translateZ(0);
+      }
+
+      @media (max-width: 900px) {
+        .panel-analytics {
+          width: 100%;
+          max-width: 520px;
+          transform: none;
+          margin-top: 0;
+        }
+
+        .panel-analytics:hover {
+          transform: translateY(-4px);
+        }
+      }
+
+      /* Panel header bar */
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--cream);
+      }
+
+      .ph-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .ph-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .ph-title {
+        flex: 1;
+        text-align: center;
+        font-size: 12px;
+        font-family: var(--mono);
+        font-weight: 500;
+        color: var(--warm-gray);
+        letter-spacing: 0.02em;
+      }
+
+      /* Tab bar */
+      .ptabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid var(--border);
+        background: #fff;
+      }
+
+      .ptab {
+        padding: 10px 20px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--light-gray);
+        font-family: var(--sans);
+        position: relative;
+        transition: color 0.2s;
+      }
+
+      .ptab.on {
+        color: var(--forest);
+      }
+
+      .ptab.on::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--forest);
+        border-radius: 1px;
+      }
+
+      .ptab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 18px;
+        padding: 0 6px;
+        border-radius: 100px;
+        font-size: 10px;
+        font-weight: 700;
+        font-family: var(--mono);
+        margin-left: 6px;
+      }
+
+      .ptab.on .ptab-count {
+        background: rgba(13, 59, 46, 0.08);
+        color: var(--forest);
+      }
+
+      .ptab:not(.on) .ptab-count {
+        background: rgba(0, 0, 0, 0.04);
+        color: var(--light-gray);
+      }
+
+      /* Alert items */
+      .al-list {
+        padding: 8px 12px;
+      }
+
+      .al-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        margin-bottom: 4px;
+        transition: background 0.2s;
+        cursor: default;
+      }
+
+      .al-item:hover {
+        background: var(--cream);
+      }
+
+      .al-sev {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 7px;
+        flex-shrink: 0;
+      }
+
+      .al-sev.crit {
+        background: #dc2626;
+      }
+
+      .al-sev.warn {
+        background: #f59e0b;
+      }
+
+      .al-sev.ok {
+        background: #16a34a;
+      }
+
+      .al-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .al-road {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--charcoal);
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .al-meta {
+        font-size: 11px;
+        color: var(--light-gray);
+        font-family: var(--mono);
+        margin-top: 3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .al-dur {
+        font-size: 11px;
+        font-family: var(--mono);
+        font-weight: 600;
+        color: var(--warm-gray);
+        white-space: nowrap;
+      }
+
+      /* Status bar */
+      .al-status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 20px;
+        border-top: 1px solid var(--border);
+        background: var(--cream);
+        font-size: 11px;
+        font-family: var(--mono);
+        color: var(--light-gray);
+      }
+
+      .al-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--emerald);
+        display: inline-block;
+        margin-right: 4px;
+      }
+
+      /* Analytics panel — road detail */
+      .an-header {
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .an-road-tag {
+        font-size: 11px;
+        font-family: var(--mono);
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(13, 59, 46, 0.06);
+        color: var(--forest);
+      }
+
+      .an-road-name {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .an-road-city {
+        font-size: 12px;
+        color: var(--light-gray);
+        font-family: var(--mono);
+      }
+
+      /* Speed row */
+      .an-speeds {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .an-speed-cell {
+        padding: 20px 24px;
+        text-align: center;
+        border-right: 1px solid var(--border);
+      }
+
+      .an-speed-cell:last-child {
+        border-right: none;
+      }
+
+      .an-speed-label {
+        font-size: 10px;
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--light-gray);
+        margin-bottom: 4px;
+      }
+
+      .an-speed-num {
+        font-family: var(--serif);
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .an-speed-delta {
+        font-size: 11px;
+        font-weight: 600;
+        margin-top: 4px;
+      }
+
+      .an-speed-delta.up {
+        color: var(--forest-light);
+      }
+
+      .an-speed-delta.dn {
+        color: #dc2626;
+      }
+
+      /* Heatmap grid */
+      .an-heat-wrap {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .an-heat-label {
+        font-size: 11px;
+        font-family: var(--mono);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--charcoal);
+        margin-bottom: 12px;
+      }
+
+      .an-heat {
+        display: grid;
+        grid-template-columns: 32px repeat(12, 1fr);
+        gap: 3px;
+        align-items: center;
+      }
+
+      .an-heat-day {
+        font-size: 9px;
+        font-family: var(--mono);
+        color: var(--light-gray);
+        text-align: right;
+        padding-right: 4px;
+      }
+
+      .an-heat-cell {
+        aspect-ratio: 1;
+        border-radius: 4px;
+        transition: transform 0.15s;
+      }
+
+      .an-heat-cell:hover {
+        transform: scale(1.3);
+        z-index: 2;
+      }
+
+      .heat-0 {
+        background: #f0f7ec;
+      }
+
+      .heat-1 {
+        background: #c6e5b3;
+      }
+
+      .heat-2 {
+        background: #8fcc6f;
+      }
+
+      .heat-3 {
+        background: #4ba53b;
+      }
+
+      .heat-4 {
+        background: #2d7a2e;
+      }
+
+      .heat-5 {
+        background: #1a4d1a;
+      }
+
+      /* Trend mini chart */
+      .an-trend {
+        padding: 20px 24px;
+      }
+
+      .an-trend-label {
+        font-size: 11px;
+        font-family: var(--mono);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--charcoal);
+        margin-bottom: 12px;
+      }
+
+      .an-trend-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 64px;
+      }
+
+      .an-trend-bar {
+        flex: 1;
+        border-radius: 3px 3px 0 0;
+        min-height: 4px;
+        transition: all 0.3s ease;
+      }
+
+      /* Floating badges */
+      .hero-badge-float {
+        position: absolute;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 20px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 10;
+      }
+
+      .hbf-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .hbf1 {
+        top: 10%;
+        right: 2%;
+        animation: floatA 7s ease-in-out infinite;
+      }
+
+      .hbf1 .hbf-icon {
+        background: rgba(13, 59, 46, 0.06);
+        color: var(--forest);
+      }
+
+      .hbf2 {
+        bottom: 14%;
+        left: 2%;
+        animation: floatA 7s ease-in-out 3s infinite;
+      }
+
+      .hbf2 .hbf-icon {
+        background: rgba(29, 185, 84, 0.08);
+        color: var(--emerald);
+      }
+
+      @keyframes floatA {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+
+        50% {
+          transform: translateY(-12px);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .hero-badge-float {
+          display: none;
+        }
+      }
+
+      /* ===== GOOGLE MAPS SECTION ===== */
+      .gmap {
+        padding: 120px 0 100px;
+        background: #fff;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .gmap::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .gmap-header {
+        text-align: center;
+        margin-bottom: 64px;
+      }
+
+      .gmap-header h2 {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 52px);
+        font-weight: 400;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+        color: var(--black);
+      }
+
+      .gmap-header h2 em {
+        font-style: italic;
+        color: var(--forest);
+      }
+
+      .gmap-header .gm-sub {
+        font-size: 15px;
+        color: var(--warm-gray);
+        max-width: 420px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      /* Two-column layout: map + stats */
+      .gmap-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      @media (max-width: 900px) {
+        .gmap-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Map tile */
+      .gmap-map {
+        background: linear-gradient(145deg, #eff6ea, #f5f2ea, #eaf0ef);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        position: relative;
+        min-height: 380px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .gmap-map-inner {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .bm-grid {
+        position: absolute;
+        inset: 0;
+      }
+
+      .bm-road {
+        position: absolute;
+        background: var(--border);
+        border-radius: 2px;
+      }
+
+      .bm-road-h {
+        height: 3px;
+        left: 0;
+        right: 0;
+      }
+
+      .bm-road-v {
+        width: 3px;
+        top: 0;
+        bottom: 0;
+      }
+
+      .bm-node {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        z-index: 2;
+        transform: translate(-50%, -50%);
+      }
+
+      .bm-node.active {
+        animation: nodePulse 2.5s ease-in-out infinite;
+      }
+
+      @keyframes nodePulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(13, 59, 46, 0.3);
+        }
+
+        50% {
+          box-shadow: 0 0 0 8px rgba(13, 59, 46, 0);
+        }
+      }
+
+      .bm-label {
+        position: absolute;
+        background: #fff;
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 10px;
+        font-family: var(--mono);
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 3;
+        white-space: nowrap;
+      }
+
+      .bm-route {
+        position: absolute;
+        border-radius: 3px;
+        z-index: 1;
+        opacity: 0.85;
+      }
+
+      .gmap-legend {
+        display: flex;
+        gap: 16px;
+        padding: 14px 24px;
+        border-top: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        font-size: 10px;
+        font-family: var(--mono);
+        color: var(--warm-gray);
+      }
+
+      /* Stats column */
+      .gmap-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .gstat {
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 32px 36px;
+        flex: 1;
+        display: flex;
+        align-items: baseline;
+        gap: 20px;
+        transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      .gstat:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      }
+
+      .gstat-num {
+        font-family: var(--serif);
+        font-size: clamp(32px, 3.5vw, 44px);
+        color: var(--forest);
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .gstat-text {
+        font-size: 14px;
+        color: var(--warm-gray);
+        line-height: 1.5;
+      }
+
+      .gstat-label {
+        font-size: 10px;
+        font-family: var(--mono);
+        color: var(--light-gray);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 4px;
+      }
+
+      /* ===== FEATURES (not modules) ===== */
+      .features {
+        padding: 140px 0;
+      }
+
+      .features-header {
+        text-align: center;
+        margin-bottom: 72px;
+      }
+
+      .features-header h2 {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 52px);
+        font-weight: 400;
+        line-height: 1.1;
+        margin-bottom: 16px;
+      }
+
+      .features-header h2 em {
+        font-style: italic;
+        color: var(--forest);
+      }
+
+      .features-header p {
+        font-size: 17px;
+        color: var(--warm-gray);
+        max-width: 560px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      .feat-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        overflow: hidden;
+        margin-bottom: 24px;
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      .feat-card:hover {
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.06);
+        transform: translateY(-3px);
+      }
+
+      @media (max-width: 900px) {
+        .feat-card {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .feat-card.flip {
+        direction: rtl;
+      }
+
+      .feat-card.flip > * {
+        direction: ltr;
+      }
+
+      .feat-info {
+        padding: 56px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .feat-name {
+        font-family: var(--serif);
+        font-size: clamp(26px, 3vw, 36px);
+        font-weight: 400;
+        line-height: 1.15;
+        margin-bottom: 14px;
+        letter-spacing: -0.02em;
+      }
+
+      .feat-desc {
+        font-size: 15px;
+        color: var(--warm-gray);
+        line-height: 1.75;
+        margin-bottom: 28px;
+      }
+
+      .feat-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .feat-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--charcoal);
+        line-height: 1.55;
+      }
+
+      .feat-check {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(13, 59, 46, 0.06);
+        color: var(--forest);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .feat-visual {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        position: relative;
+      }
+
+      .feat-card:nth-child(1) .feat-visual {
+        background: linear-gradient(135deg, #f0f7ec, #fafaf5);
+      }
+
+      .feat-card:nth-child(2) .feat-visual {
+        background: linear-gradient(135deg, #ecf0f7, #f5f8fa);
+      }
+
+      .feat-card:nth-child(3) .feat-visual {
+        background: linear-gradient(135deg, #f5f0f7, #faf5fc);
+      }
+
+      /* Mockup cards */
+      .mock {
+        width: 100%;
+        max-width: 340px;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+      }
+
+      .mock-head {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .mock-head h4 {
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 400;
+      }
+
+      .mock-head .tag {
+        font-size: 10px;
+        font-family: var(--mono);
+        padding: 3px 10px;
+        border-radius: 100px;
+        background: rgba(13, 59, 46, 0.06);
+        color: var(--forest);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .mock-body {
+        padding: 16px 20px;
+      }
+
+      .alert-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+      }
+
+      .alert-row.crit {
+        background: #fef2f2;
+      }
+
+      .alert-row.warn {
+        background: #fefce8;
+      }
+
+      .alert-row.ok {
+        background: #f0fdf4;
+      }
+
+      .alert-pip {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      .alert-row.crit .alert-pip {
+        background: #dc2626;
+      }
+
+      .alert-row.warn .alert-pip {
+        background: #ca8a04;
+      }
+
+      .alert-row.ok .alert-pip {
+        background: #16a34a;
+      }
+
+      .alert-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--charcoal);
+      }
+
+      .alert-time {
+        font-size: 11px;
+        color: var(--light-gray);
+        margin-top: 3px;
+        font-family: var(--mono);
+      }
+
+      .an-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .an-mini {
+        flex: 1;
+        background: var(--cream);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      .an-label {
+        font-size: 10px;
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--light-gray);
+      }
+
+      .an-val {
+        font-family: var(--serif);
+        font-size: 24px;
+        margin: 4px 0;
+      }
+
+      .an-bar {
+        width: 100%;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .an-fill {
+        height: 100%;
+        border-radius: 2px;
+      }
+
+      .an-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 5px;
+        height: 80px;
+        margin-top: 12px;
+      }
+
+      .an-col {
+        flex: 1;
+        border-radius: 4px 4px 0 0;
+        background: rgba(13, 59, 46, 0.1);
+        min-height: 6px;
+        transition: all 0.3s;
+      }
+
+      .an-col:hover {
+        background: rgba(13, 59, 46, 0.2);
+      }
+
+      .an-col.hi {
+        background: var(--forest);
+      }
+
+      .rp-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .rp-item:last-child {
+        border-bottom: none;
+      }
+
+      .rp-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--cream);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 16px;
+        color: var(--forest);
+      }
+
+      .rp-info {
+        flex: 1;
+      }
+
+      .rp-name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .rp-meta {
+        font-size: 11px;
+        color: var(--light-gray);
+        font-family: var(--mono);
+      }
+
+      .rp-badge {
+        font-size: 10px;
+        font-family: var(--mono);
+        font-weight: 500;
+        padding: 4px 12px;
+        border-radius: 100px;
+        background: rgba(13, 59, 46, 0.06);
+        color: var(--forest);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      /* ===== WHY DIFFERENT — clean line-art style ===== */
+      .why {
+        padding: 140px 0;
+        background: #fff;
+      }
+
+      .why-header {
+        text-align: center;
+        margin-bottom: 80px;
+      }
+
+      .why-header h2 {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 52px);
+        font-weight: 400;
+        line-height: 1.1;
+        margin-bottom: 16px;
+      }
+
+      .why-header h2 em {
+        font-style: italic;
+        color: var(--forest);
+      }
+
+      .why-header p {
+        font-size: 17px;
+        color: var(--warm-gray);
+        max-width: 520px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      .why-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 48px 56px;
+      }
+
+      @media (max-width: 900px) {
+        .why-grid {
+          gap: 40px 36px;
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .why-grid {
+          grid-template-columns: 1fr;
+          gap: 36px;
+        }
+      }
+
+      .why-card {
+        position: relative;
+        padding: 0;
+      }
+
+      .why-card svg.why-ico {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 20px;
+        stroke: var(--charcoal);
+        stroke-width: 1.5;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .why-card h3 {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+        color: var(--black);
+      }
+
+      .why-card p {
+        font-size: 14px;
+        color: var(--warm-gray);
+        line-height: 1.7;
+      }
+
+      /* ===== TRAFFIC PROBLEM (reframed) ===== */
+      .traffic {
+        padding: 140px 0;
+        background: var(--black);
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .traffic::before {
+        content: "";
+        position: absolute;
+        top: -30%;
+        right: -15%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(
+          circle,
+          rgba(29, 185, 84, 0.08) 0%,
+          transparent 70%
+        );
+      }
+
+      .traffic .pill {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .traffic .pill .pill-dot {
+        background: var(--emerald);
+      }
+
+      .traffic-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+      }
+
+      @media (max-width: 900px) {
+        .traffic-layout {
+          grid-template-columns: 1fr;
+          gap: 48px;
+        }
+      }
+
+      .traffic h2 {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 48px);
+        font-weight: 400;
+        line-height: 1.1;
+        margin-bottom: 20px;
+      }
+
+      .traffic h2 em {
+        font-style: italic;
+        color: var(--emerald-muted);
+      }
+
+      .traffic-desc {
+        font-size: 17px;
+        color: rgba(255, 255, 255, 0.45);
+        line-height: 1.75;
+        margin-bottom: 32px;
+      }
+
+      .traffic-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .t-stat {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 28px;
+        transition: all 0.3s;
+      }
+
+      .t-stat:hover {
+        background: rgba(255, 255, 255, 0.07);
+        transform: translateY(-2px);
+      }
+
+      .t-stat-num {
+        font-family: var(--serif);
+        font-size: 40px;
+        line-height: 1;
+        margin-bottom: 6px;
+      }
+
+      .t-stat:nth-child(1) .t-stat-num {
+        color: var(--emerald-muted);
+      }
+
+      .t-stat:nth-child(2) .t-stat-num {
+        color: #f59e0b;
+      }
+
+      .t-stat:nth-child(3) .t-stat-num {
+        color: #ef8a8a;
+      }
+
+      .t-stat:nth-child(4) .t-stat-num {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .t-stat-desc {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.4);
+        line-height: 1.5;
+      }
+
+      /* ===== COMPARISON (pushed lower) ===== */
+      .compare {
+        padding: 140px 0;
+      }
+
+      .compare-header {
+        text-align: center;
+        margin-bottom: 64px;
+      }
+
+      .compare-header h2 {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 48px);
+        font-weight: 400;
+        line-height: 1.15;
+        margin-bottom: 16px;
+      }
+
+      .compare-header h2 em {
+        font-style: italic;
+        color: var(--forest);
+      }
+
+      .compare-header p {
+        font-size: 17px;
+        color: var(--warm-gray);
+        max-width: 480px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      .comp-table {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+      }
+
+      .comp-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .comp-row:last-child {
+        border-bottom: none;
+      }
+
+      .comp-row.ch {
+        background: var(--forest);
+        color: #fff;
+      }
+
+      .comp-row.ch .comp-cell {
+        font-weight: 700;
+        font-size: 14px;
+        font-family: var(--mono);
+        letter-spacing: 0.02em;
+      }
+
+      .comp-cell {
+        padding: 18px 28px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+      }
+
+      .comp-cell:not(:first-child) {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .comp-row:not(.ch):nth-child(even) {
+        background: var(--cream);
+      }
+
+      .comp-yes {
+        font-weight: 700;
+        color: var(--forest);
+      }
+
+      .comp-meh {
+        color: #b8860b;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .comp-no {
+        color: var(--light-gray);
+      }
+
+      @media (max-width: 600px) {
+        .comp-row {
+          grid-template-columns: 1.5fr 1fr 1fr;
+        }
+
+        .comp-cell {
+          padding: 14px 14px;
+          font-size: 12px;
+        }
+      }
+
+      /* ===== CTA ===== */
+      .cta {
+        padding: 140px 0;
+      }
+
+      .cta-box {
+        background: var(--forest);
+        border-radius: 28px;
+        padding: 88px 64px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta-box::before {
+        content: "";
+        position: absolute;
+        top: -80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(
+          circle,
+          rgba(29, 185, 84, 0.15) 0%,
+          transparent 70%
+        );
+      }
+
+      .cta-box > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .cta-box h2 {
+        font-family: var(--serif);
+        font-size: clamp(28px, 4vw, 48px);
+        font-weight: 400;
+        color: #fff;
+        line-height: 1.15;
+        margin-bottom: 16px;
+        letter-spacing: -0.02em;
+      }
+
+      .cta-box h2 em {
+        font-style: italic;
+        color: var(--emerald-muted);
+      }
+
+      .cta-box p {
+        font-size: 17px;
+        color: rgba(255, 255, 255, 0.5);
+        max-width: 460px;
+        margin: 0 auto 40px;
+        line-height: 1.7;
+      }
+
+      .cta-actions {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn-outline-w {
+        border-radius: 60px;
+        background: transparent;
+        color: #fff;
+        border: 1.5px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .btn-outline-w:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+
+      @media (max-width: 768px) {
+        .cta-box {
+          padding: 56px 28px;
+          border-radius: 20px;
+        }
+      }
+
+      /* ===== FOOTER ===== */
+      .foot {
+        padding: 56px 0 36px;
+        border-top: 1px solid var(--border);
+      }
+
+      .foot-top {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 48px;
+        margin-bottom: 48px;
+      }
+
+      @media (max-width: 900px) {
+        .foot-top {
+          grid-template-columns: 1fr 1fr;
+          gap: 32px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .foot-top {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .foot-brand p {
+        font-size: 14px;
+        color: var(--warm-gray);
+        line-height: 1.7;
+        margin-top: 16px;
+        max-width: 260px;
+      }
+
+      .foot-col h4 {
+        font-size: 12px;
+        font-family: var(--mono);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--charcoal);
+        margin-bottom: 16px;
+      }
+
+      .foot-col a {
+        display: block;
+        font-size: 14px;
+        color: var(--warm-gray);
+        padding: 4px 0;
+        transition: color 0.2s;
+      }
+
+      .foot-col a:hover {
+        color: var(--forest);
+      }
+
+      .foot-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .foot-bottom p {
+        font-size: 12px;
+        color: var(--light-gray);
+        font-family: var(--mono);
+      }
+
+      .foot-social {
+        display: flex;
+        gap: 12px;
+      }
+
+      .foot-social a {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--cream);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--warm-gray);
+        transition: all 0.2s;
+      }
+
+      .foot-social a:hover {
+        background: var(--forest);
+        color: #fff;
+      }
+
+      .foot-social a svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      @media (max-width: 600px) {
+        .foot-bottom {
+          flex-direction: column;
+          gap: 16px;
+          text-align: center;
+        }
+      }
+
+      /* Scroll reveal */
+      .sr {
+        opacity: 0;
+        transform: translateY(32px);
+        transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .sr.vis {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .sr-d1 {
+        transition-delay: 0.1s;
+      }
+
+      .sr-d2 {
+        transition-delay: 0.2s;
+      }
+
+      .sr-d3 {
+        transition-delay: 0.3s;
+      }
+
+      /* CTA glow cursor effect */
+      .cta-box {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta-glow {
+        position: absolute;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(
+          circle,
+          rgba(29, 185, 84, 0.15) 0%,
+          transparent 70%
+        );
+        border-radius: 50%;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .cta-box:hover .cta-glow {
+        opacity: 1;
+      }
+
+      /* Subtle grain texture overlay */
+      body::after {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.02;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      /* Selection color for dark sections */
+      .traffic ::selection {
+        background: rgba(29, 185, 84, 0.3);
+        color: #fff;
+      }
+
+      /* Smooth loading */
+      body {
+        animation: fadeIn 0.5s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- NAV -->
+    <nav class="nav" id="nav">
+      <div class="container">
+        <a href="#" class="nav-brand">
+          <img src="/tc-icon.svg" alt="TraffiCure logo" class="nav-mark" />
+          TraffiCure
+        </a>
+        <div class="nav-links">
+          <a href="#data">The Data</a>
+          <a href="#features">Features</a>
+          <a href="#why">Why Us</a>
+        </div>
+        <!-- <button class="nav-mobile-toggle" aria-label="Menu"><span></span></button> -->
+        <div
+          class="nav-cta"
+          style="display: flex; align-items: center; gap: 12px"
+        >
+          <a
+            href="/auth/sign-in"
+            target="_parent"
+            style="
+              font-size: 14px;
+              font-weight: 500;
+              color: var(--warm-gray);
+              padding: 12px 24px;
+              border-radius: 8px;
+              transition: all 0.2s;
+              text-decoration: none;
+            "
+            >Sign In</a
+          >
+          <a
+            href="#cta"
+            class="btn btn-forest"
+            style="padding: 12px 24px; font-size: 14px"
+            >Book a Demo</a
+          >
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-top">
+          <div class="pill hero-pill">
+            <span class="pill-dot"></span> Powered by Google Maps
+          </div>
+          <h1>See every road.<br />Predict <em>every jam.</em></h1>
+          <p class="hero-sub">
+            Traffic costs your city crores every year in lost time, fuel, and
+            productivity. TraffiCure is the software-only platform that turns
+            Google Maps data into traffic intelligence — no cameras, no
+            construction.
+          </p>
+          <div class="hero-actions">
+            <a href="#cta" class="btn btn-forest"
+              >Request a Demo
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
+            <a href="#data" class="btn btn-outline">See the Data</a>
+          </div>
+          <div class="hero-proof">
+            <span><span class="check">&#10003;</span> 100% software</span>
+            <span><span class="check">&#10003;</span> Deploys in weeks</span>
+            <span
+              ><span class="check">&#10003;</span> Every road, every city</span
+            >
+          </div>
+        </div>
+
+        <!-- 3D TWO-PANEL MOCKUP -->
+        <div class="hero-3d">
+          <div class="hero-badge-float hbf1">
+            <div class="hbf-icon">13</div>
+            <div>
+              <span style="font-size: 11px; color: var(--light-gray)"
+                >Active Alerts</span
+              ><br /><span style="color: #dc2626; font-weight: 700"
+                >Kolkata</span
+              >
+            </div>
+          </div>
+          <div class="hero-badge-float hbf2">
+            <div class="hbf-icon">2m</div>
+            <div>
+              <span style="font-size: 11px; color: var(--light-gray)"
+                >Refresh Rate</span
+              ><br /><span style="color: var(--forest); font-weight: 700"
+                >Real-time</span
+              >
+            </div>
+          </div>
+
+          <!-- LEFT PANEL — TRAFFIC ALERTS -->
+          <div class="panel-3d panel-alerts">
+            <div class="ph">
+              <div class="ph-dots">
+                <div class="ph-dot" style="background: #ff5f57"></div>
+                <div class="ph-dot" style="background: #febc2e"></div>
+                <div class="ph-dot" style="background: #28c840"></div>
+              </div>
+              <div class="ph-title">Traffic Alerts</div>
+            </div>
+            <div class="ptabs">
+              <div class="ptab on">
+                Active Alerts<span class="ptab-count">13</span>
+              </div>
+              <div class="ptab">
+                Resolved Alerts<span class="ptab-count">397</span>
+              </div>
+            </div>
+            <div class="al-list">
+              <div class="al-item">
+                <div class="al-sev crit"></div>
+                <div class="al-info">
+                  <div class="al-road">PARK ST (F42-G13)</div>
+                  <div class="al-meta">
+                    <span>9:18 AM &rarr; 10:12 AM</span>
+                  </div>
+                </div>
+                <div class="al-dur">54 min</div>
+              </div>
+              <div class="al-item">
+                <div class="al-sev crit"></div>
+                <div class="al-info">
+                  <div class="al-road">MAA FLYOVER (X1-G41)</div>
+                  <div class="al-meta">
+                    <span>10:27 AM &rarr; ongoing</span>
+                  </div>
+                </div>
+                <div class="al-dur">9 min</div>
+              </div>
+              <div class="al-item">
+                <div class="al-sev warn"></div>
+                <div class="al-info">
+                  <div class="al-road">SHAKESPEARE SRN (B6-H22)</div>
+                  <div class="al-meta">
+                    <span>9:42 AM &rarr; 10:16 AM</span>
+                  </div>
+                </div>
+                <div class="al-dur">34 min</div>
+              </div>
+              <div class="al-item">
+                <div class="al-sev ok"></div>
+                <div class="al-info">
+                  <div class="al-road">SUHRAWARDY AVE (O3-G14)</div>
+                  <div class="al-meta"><span>8:55 AM &rarr; 9:48 AM</span></div>
+                </div>
+                <div class="al-dur">53 min</div>
+              </div>
+              <div class="al-item">
+                <div class="al-sev warn"></div>
+                <div class="al-info">
+                  <div class="al-road">AJC BOSE RD (C8-D19)</div>
+                  <div class="al-meta">
+                    <span>10:05 AM &rarr; ongoing</span>
+                  </div>
+                </div>
+                <div class="al-dur">31 min</div>
+              </div>
+            </div>
+            <div class="al-status">
+              <span><span class="al-status-dot"></span>System Online</span>
+              <span style="margin-left: auto">Active: 13</span>
+              <span>Resolved: 397</span>
+            </div>
+          </div>
+
+          <!-- RIGHT PANEL — TRAFFIC ANALYTICS -->
+          <div class="panel-3d panel-analytics">
+            <div class="ph">
+              <div class="ph-dots">
+                <div class="ph-dot" style="background: #ff5f57"></div>
+                <div class="ph-dot" style="background: #febc2e"></div>
+                <div class="ph-dot" style="background: #28c840"></div>
+              </div>
+              <div class="ph-title">Traffic Analytics</div>
+            </div>
+            <div class="an-header">
+              <div class="an-road-tag">O3-G14</div>
+              <div>
+                <div class="an-road-name">Suhrawardy Avenue</div>
+                <div class="an-road-city">Kolkata &bull; 0.5 km</div>
+              </div>
+            </div>
+            <div class="an-speeds">
+              <div class="an-speed-cell">
+                <div class="an-speed-label">Current</div>
+                <div class="an-speed-num" style="color: var(--forest)">36</div>
+                <div class="an-speed-delta up">&uarr; 2 km/h 7-day</div>
+              </div>
+              <div class="an-speed-cell">
+                <div class="an-speed-label">Usual</div>
+                <div class="an-speed-num" style="color: var(--charcoal)">
+                  41
+                </div>
+                <div class="an-speed-delta dn">11% more delay</div>
+              </div>
+              <div class="an-speed-cell">
+                <div class="an-speed-label">Free Flow</div>
+                <div class="an-speed-num" style="color: var(--light-gray)">
+                  66
+                </div>
+                <div class="an-speed-delta" style="color: var(--warm-gray)">
+                  55% of capacity
+                </div>
+              </div>
+            </div>
+            <!-- Busy Hours Heatmap -->
+            <div class="an-heat-wrap">
+              <div class="an-heat-label">Busy Hours Pattern</div>
+              <div class="an-heat">
+                <div class="an-heat-day">Mon</div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-day">Tue</div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-day">Wed</div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-day">Thu</div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-day">Fri</div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-5"></div>
+                <div class="an-heat-cell heat-4"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-day">Sat</div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-3"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-day">Sun</div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-0"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-2"></div>
+                <div class="an-heat-cell heat-1"></div>
+                <div class="an-heat-cell heat-0"></div>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-top: 8px;
+                  font-size: 9px;
+                  font-family: var(--mono);
+                  color: var(--light-gray);
+                "
+              >
+                <span>6am</span><span>8</span><span>10</span><span>12</span
+                ><span>2pm</span><span>4</span><span>6</span><span>8</span
+                ><span>10</span><span>12</span><span>2am</span><span>4</span>
+              </div>
+            </div>
+            <!-- Speed Trend -->
+            <div class="an-trend">
+              <div class="an-trend-label">Speed Trend &mdash; Last 30 Days</div>
+              <div class="an-trend-chart">
+                <div
+                  class="an-trend-bar"
+                  style="height: 55%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 48%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 62%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 44%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 38%; background: #dc2626; opacity: 0.6"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 52%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 58%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 65%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 42%; background: #dc2626; opacity: 0.6"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 56%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 60%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 70%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 54%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 48%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 62%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 35%; background: #dc2626; opacity: 0.6"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 50%; background: var(--forest); opacity: 0.7"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 58%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 64%; background: var(--forest)"
+                ></div>
+                <div
+                  class="an-trend-bar"
+                  style="height: 52%; background: var(--forest); opacity: 0.7"
+                ></div>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-top: 6px;
+                  font-size: 9px;
+                  font-family: var(--mono);
+                  color: var(--light-gray);
+                "
+              >
+                <span>Jan 18</span><span>Jan 25</span><span>Feb 1</span
+                ><span>Feb 8</span><span>Feb 15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GOOGLE MAPS DATA -->
+    <section class="gmap" id="data">
+      <div class="container">
+        <div class="gmap-header sr">
+          <div class="pill"><span class="pill-dot"></span> The Data</div>
+          <h2>Built on <em>Google Maps.</em></h2>
+          <p class="gm-sub">
+            Probe data from a billion smartphones, refreshed every two minutes,
+            across every road in your city.
+          </p>
+        </div>
+
+        <div class="gmap-grid sr">
+          <!-- Left: abstract road network -->
+          <div class="gmap-map">
+            <div class="gmap-map-inner">
+              <div class="bm-grid">
+                <div class="bm-road bm-road-h" style="top: 22%"></div>
+                <div class="bm-road bm-road-h" style="top: 42%"></div>
+                <div class="bm-road bm-road-h" style="top: 62%"></div>
+                <div class="bm-road bm-road-h" style="top: 82%"></div>
+                <div class="bm-road bm-road-v" style="left: 18%"></div>
+                <div class="bm-road bm-road-v" style="left: 42%"></div>
+                <div class="bm-road bm-road-v" style="left: 66%"></div>
+                <div class="bm-road bm-road-v" style="left: 86%"></div>
+                <div
+                  class="bm-route"
+                  style="
+                    height: 5px;
+                    top: calc(22% - 1px);
+                    left: 18%;
+                    width: 24%;
+                    background: #16a34a;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    height: 5px;
+                    top: calc(22% - 1px);
+                    left: 42%;
+                    width: 24%;
+                    background: #f59e0b;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    height: 5px;
+                    top: calc(42% - 1px);
+                    left: 18%;
+                    width: 48%;
+                    background: #dc2626;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    height: 5px;
+                    top: calc(42% - 1px);
+                    left: 66%;
+                    width: 20%;
+                    background: #16a34a;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    height: 5px;
+                    top: calc(62% - 1px);
+                    left: 42%;
+                    width: 44%;
+                    background: #16a34a;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    width: 5px;
+                    left: calc(42% - 1px);
+                    top: 22%;
+                    height: 20%;
+                    background: #f59e0b;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    width: 5px;
+                    left: calc(66% - 1px);
+                    top: 42%;
+                    height: 20%;
+                    background: #16a34a;
+                  "
+                ></div>
+                <div
+                  class="bm-route"
+                  style="
+                    width: 5px;
+                    left: calc(18% - 1px);
+                    top: 42%;
+                    height: 40%;
+                    background: #16a34a;
+                  "
+                ></div>
+                <div
+                  class="bm-node active"
+                  style="top: 22%; left: 42%; background: #f59e0b"
+                ></div>
+                <div
+                  class="bm-node active"
+                  style="top: 42%; left: 42%; background: #dc2626"
+                ></div>
+                <div
+                  class="bm-node"
+                  style="top: 42%; left: 66%; background: #16a34a"
+                ></div>
+                <div
+                  class="bm-node active"
+                  style="top: 62%; left: 66%; background: #16a34a"
+                ></div>
+                <div
+                  class="bm-node"
+                  style="top: 82%; left: 18%; background: #16a34a"
+                ></div>
+                <div
+                  class="bm-label"
+                  style="top: 14%; left: 24%; color: #f59e0b"
+                >
+                  18 km/h
+                </div>
+                <div
+                  class="bm-label"
+                  style="top: 34%; left: 22%; color: #dc2626"
+                >
+                  8 km/h
+                </div>
+                <div
+                  class="bm-label"
+                  style="top: 54%; right: 8%; color: #16a34a"
+                >
+                  42 km/h
+                </div>
+              </div>
+            </div>
+            <div class="gmap-legend">
+              <span style="display: flex; align-items: center; gap: 5px"
+                ><span
+                  style="
+                    width: 12px;
+                    height: 3px;
+                    border-radius: 2px;
+                    background: #16a34a;
+                  "
+                ></span
+                >Clear</span
+              >
+              <span style="display: flex; align-items: center; gap: 5px"
+                ><span
+                  style="
+                    width: 12px;
+                    height: 3px;
+                    border-radius: 2px;
+                    background: #f59e0b;
+                  "
+                ></span
+                >Slow</span
+              >
+              <span style="display: flex; align-items: center; gap: 5px"
+                ><span
+                  style="
+                    width: 12px;
+                    height: 3px;
+                    border-radius: 2px;
+                    background: #dc2626;
+                  "
+                ></span
+                >Congested</span
+              >
+              <span
+                style="
+                  margin-left: auto;
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                "
+                ><span
+                  style="
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: var(--emerald);
+                    animation: blink 2s ease infinite;
+                  "
+                ></span
+                >Live</span
+              >
+            </div>
+          </div>
+
+          <!-- Right: three stats stacked -->
+          <div class="gmap-stats">
+            <div class="gstat sr">
+              <div class="gstat-num">2 min</div>
+              <div>
+                <div class="gstat-text">Network-wide refresh cycle</div>
+                <div class="gstat-label">Refresh Rate</div>
+              </div>
+            </div>
+            <div class="gstat sr sr-d1">
+              <div class="gstat-num">1B+</div>
+              <div>
+                <div class="gstat-text">
+                  Smartphones feeding live speed data
+                </div>
+                <div class="gstat-label">Data Sources</div>
+              </div>
+            </div>
+            <div class="gstat sr sr-d2">
+              <div class="gstat-num">100%</div>
+              <div>
+                <div class="gstat-text">
+                  Road coverage, not just camera junctions
+                </div>
+                <div class="gstat-label">Coverage</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES (not "modules") -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="features-header sr">
+          <div class="pill">
+            <span class="pill-dot"></span> What TraffiCure Does
+          </div>
+          <h2>From real-time alerts to<br /><em>long-term proof.</em></h2>
+          <p>
+            One platform that covers every time horizon &mdash; catch congestion
+            as it happens, understand why it keeps happening, and prove your
+            interventions are working.
+          </p>
+        </div>
+
+        <!-- Real-time Alerts — modeled on real TraffiCure UI -->
+        <div class="feat-card sr">
+          <div class="feat-info">
+            <h3 class="feat-name">Real-Time Congestion Alerts</h3>
+            <p class="feat-desc">
+              The moment traffic deviates from normal on any road in the city,
+              your team knows. Alerts push to your command centre, mobile
+              phones, email, or WhatsApp &mdash; so you can intervene before the
+              situation escalates.
+            </p>
+            <ul class="feat-list">
+              <li>
+                <span class="feat-check">&#10003;</span> Configurable speed
+                thresholds per corridor
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Multi-channel delivery
+                &mdash; email, WhatsApp, SMS
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Live command centre
+                dashboard
+              </li>
+            </ul>
+          </div>
+          <div class="feat-visual">
+            <div class="mock" style="max-width: 380px">
+              <!-- Tab bar like real UI -->
+              <div
+                style="display: flex; border-bottom: 1px solid var(--border)"
+              >
+                <div
+                  style="
+                    padding: 12px 20px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--forest);
+                    border-bottom: 2px solid var(--forest);
+                  "
+                >
+                  Active Alerts
+                  <span
+                    style="
+                      font-size: 10px;
+                      font-family: var(--mono);
+                      background: rgba(13, 59, 46, 0.08);
+                      padding: 2px 8px;
+                      border-radius: 100px;
+                      margin-left: 4px;
+                    "
+                    >13</span
+                  >
+                </div>
+                <div
+                  style="
+                    padding: 12px 20px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: var(--light-gray);
+                  "
+                >
+                  Resolved
+                  <span
+                    style="
+                      font-size: 10px;
+                      font-family: var(--mono);
+                      background: rgba(0, 0, 0, 0.04);
+                      padding: 2px 8px;
+                      border-radius: 100px;
+                      margin-left: 4px;
+                    "
+                    >397</span
+                  >
+                </div>
+              </div>
+              <div style="padding: 8px 12px">
+                <!-- Alert rows from real Kolkata data -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 11px 14px;
+                    border-radius: 12px;
+                    margin-bottom: 3px;
+                    background: #fef2f2;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #dc2626;
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <div style="flex: 1; min-width: 0">
+                    <div
+                      style="
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: var(--charcoal);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      "
+                    >
+                      PARK ST
+                      <span
+                        style="
+                          font-weight: 400;
+                          color: var(--light-gray);
+                          font-size: 11px;
+                          font-family: var(--mono);
+                        "
+                        >(F42-G13)</span
+                      >
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      9:18 AM &rarr; 10:12 AM
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-family: var(--mono);
+                      font-weight: 700;
+                      color: #dc2626;
+                      white-space: nowrap;
+                    "
+                  >
+                    54 min
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 11px 14px;
+                    border-radius: 12px;
+                    margin-bottom: 3px;
+                    background: #fef2f2;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #dc2626;
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <div style="flex: 1; min-width: 0">
+                    <div
+                      style="
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: var(--charcoal);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      "
+                    >
+                      MAA FLYOVER
+                      <span
+                        style="
+                          font-weight: 400;
+                          color: var(--light-gray);
+                          font-size: 11px;
+                          font-family: var(--mono);
+                        "
+                        >(X1-G41)</span
+                      >
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      10:27 AM &rarr; ongoing
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-family: var(--mono);
+                      font-weight: 700;
+                      color: #dc2626;
+                      white-space: nowrap;
+                    "
+                  >
+                    9 min
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 11px 14px;
+                    border-radius: 12px;
+                    margin-bottom: 3px;
+                    background: #fefce8;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #f59e0b;
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <div style="flex: 1; min-width: 0">
+                    <div
+                      style="
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: var(--charcoal);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      "
+                    >
+                      SHAKESPEARE SRN
+                      <span
+                        style="
+                          font-weight: 400;
+                          color: var(--light-gray);
+                          font-size: 11px;
+                          font-family: var(--mono);
+                        "
+                        >(B6-H22)</span
+                      >
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      9:42 AM &rarr; 10:16 AM
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-family: var(--mono);
+                      font-weight: 700;
+                      color: #f59e0b;
+                      white-space: nowrap;
+                    "
+                  >
+                    34 min
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 11px 14px;
+                    border-radius: 12px;
+                    margin-bottom: 3px;
+                    background: #f0fdf4;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #16a34a;
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <div style="flex: 1; min-width: 0">
+                    <div
+                      style="
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: var(--charcoal);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      "
+                    >
+                      AJC BOSE RD
+                      <span
+                        style="
+                          font-weight: 400;
+                          color: var(--light-gray);
+                          font-size: 11px;
+                          font-family: var(--mono);
+                        "
+                        >(C8-D19)</span
+                      >
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      8:55 AM &rarr; 9:48 AM
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-family: var(--mono);
+                      font-weight: 700;
+                      color: #16a34a;
+                      white-space: nowrap;
+                    "
+                  >
+                    53 min
+                  </div>
+                </div>
+              </div>
+              <!-- Status bar -->
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 12px;
+                  padding: 10px 20px;
+                  border-top: 1px solid var(--border);
+                  background: var(--cream);
+                  font-size: 10px;
+                  font-family: var(--mono);
+                  color: var(--light-gray);
+                "
+              >
+                <span style="display: flex; align-items: center; gap: 4px"
+                  ><span
+                    style="
+                      width: 6px;
+                      height: 6px;
+                      border-radius: 50%;
+                      background: var(--emerald);
+                    "
+                  ></span
+                  >Online</span
+                >
+                <span style="margin-left: auto">Active: 13</span>
+                <span>Resolved: 397</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deep Analytics — modeled on real TraffiCure analytics panel -->
+        <div class="feat-card flip sr">
+          <div class="feat-info">
+            <h3 class="feat-name">Deep Road-Level Analytics</h3>
+            <p class="feat-desc">
+              Go beyond the surface. See speed profiles for any road across 24
+              hours, compare today against 7-day or 31-day averages, and
+              identify the root cause of recurring congestion patterns.
+            </p>
+            <ul class="feat-list">
+              <li>
+                <span class="feat-check">&#10003;</span> 24-hour speed profiles
+                for any road
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Historical comparison
+                &mdash; 7-day and 31-day
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Network-wide congestion
+                heatmaps
+              </li>
+            </ul>
+          </div>
+          <div class="feat-visual">
+            <div class="mock" style="max-width: 380px">
+              <!-- Road header -->
+              <div
+                style="
+                  padding: 16px 20px;
+                  border-bottom: 1px solid var(--border);
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                "
+              >
+                <span
+                  style="
+                    font-size: 10px;
+                    font-family: var(--mono);
+                    font-weight: 600;
+                    padding: 3px 10px;
+                    border-radius: 8px;
+                    background: rgba(13, 59, 46, 0.06);
+                    color: var(--forest);
+                  "
+                  >O3-G14</span
+                >
+                <div>
+                  <div
+                    style="
+                      font-size: 14px;
+                      font-weight: 700;
+                      letter-spacing: -0.01em;
+                    "
+                  >
+                    Suhrawardy Avenue
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--light-gray);
+                      font-family: var(--mono);
+                    "
+                  >
+                    Kolkata &bull; 0.5 km
+                  </div>
+                </div>
+              </div>
+              <!-- Speed metrics row -->
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  border-bottom: 1px solid var(--border);
+                "
+              >
+                <div
+                  style="
+                    padding: 16px;
+                    text-align: center;
+                    border-right: 1px solid var(--border);
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      font-family: var(--mono);
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                      color: var(--light-gray);
+                    "
+                  >
+                    Current
+                  </div>
+                  <div
+                    style="
+                      font-family: var(--serif);
+                      font-size: 28px;
+                      color: var(--forest);
+                      line-height: 1.2;
+                    "
+                  >
+                    36
+                  </div>
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-weight: 600;
+                      color: var(--forest-light);
+                    "
+                  >
+                    &uarr;2 km/h 7-day
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 16px;
+                    text-align: center;
+                    border-right: 1px solid var(--border);
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      font-family: var(--mono);
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                      color: var(--light-gray);
+                    "
+                  >
+                    Usual
+                  </div>
+                  <div
+                    style="
+                      font-family: var(--serif);
+                      font-size: 28px;
+                      color: var(--charcoal);
+                      line-height: 1.2;
+                    "
+                  >
+                    41
+                  </div>
+                  <div
+                    style="font-size: 10px; font-weight: 600; color: #dc2626"
+                  >
+                    11% more delay
+                  </div>
+                </div>
+                <div style="padding: 16px; text-align: center">
+                  <div
+                    style="
+                      font-size: 9px;
+                      font-family: var(--mono);
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                      color: var(--light-gray);
+                    "
+                  >
+                    Free Flow
+                  </div>
+                  <div
+                    style="
+                      font-family: var(--serif);
+                      font-size: 28px;
+                      color: var(--light-gray);
+                      line-height: 1.2;
+                    "
+                  >
+                    66
+                  </div>
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-weight: 500;
+                      color: var(--warm-gray);
+                    "
+                  >
+                    55% capacity
+                  </div>
+                </div>
+              </div>
+              <!-- Speed progress bar -->
+              <div
+                style="
+                  padding: 14px 20px;
+                  border-bottom: 1px solid var(--border);
+                "
+              >
+                <div
+                  style="
+                    width: 100%;
+                    height: 6px;
+                    background: var(--border);
+                    border-radius: 3px;
+                    overflow: hidden;
+                  "
+                >
+                  <div
+                    style="
+                      width: 55%;
+                      height: 100%;
+                      border-radius: 3px;
+                      background: linear-gradient(
+                        90deg,
+                        var(--forest),
+                        var(--emerald)
+                      );
+                    "
+                  ></div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 6px;
+                    font-size: 9px;
+                    font-family: var(--mono);
+                    color: var(--light-gray);
+                  "
+                >
+                  <span>0 km/h</span><span>36 of 66 km/h</span
+                  ><span>66 km/h</span>
+                </div>
+              </div>
+              <!-- Mini heatmap -->
+              <div style="padding: 14px 20px">
+                <div
+                  style="
+                    font-size: 10px;
+                    font-family: var(--mono);
+                    font-weight: 600;
+                    letter-spacing: 0.04em;
+                    text-transform: uppercase;
+                    color: var(--charcoal);
+                    margin-bottom: 8px;
+                  "
+                >
+                  Busy Hours
+                </div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 24px repeat(12, 1fr);
+                    gap: 2px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      font-family: var(--mono);
+                      color: var(--light-gray);
+                      display: flex;
+                      align-items: center;
+                      justify-content: flex-end;
+                      padding-right: 3px;
+                    "
+                  >
+                    M
+                  </div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #2d7a2e;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #1a4d1a;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      font-size: 8px;
+                      font-family: var(--mono);
+                      color: var(--light-gray);
+                      display: flex;
+                      align-items: center;
+                      justify-content: flex-end;
+                      padding-right: 3px;
+                    "
+                  >
+                    W
+                  </div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #2d7a2e;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      font-size: 8px;
+                      font-family: var(--mono);
+                      color: var(--light-gray);
+                      display: flex;
+                      align-items: center;
+                      justify-content: flex-end;
+                      padding-right: 3px;
+                    "
+                  >
+                    F
+                  </div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #1a4d1a;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #1a4d1a;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #4ba53b;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #1a4d1a;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #1a4d1a;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #2d7a2e;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      font-size: 8px;
+                      font-family: var(--mono);
+                      color: var(--light-gray);
+                      display: flex;
+                      align-items: center;
+                      justify-content: flex-end;
+                      padding-right: 3px;
+                    "
+                  >
+                    S
+                  </div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #8fcc6f;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #c6e5b3;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      aspect-ratio: 1;
+                      border-radius: 3px;
+                      background: #f0f7ec;
+                    "
+                  ></div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 5px;
+                    font-size: 8px;
+                    font-family: var(--mono);
+                    color: var(--light-gray);
+                  "
+                >
+                  <span>6am</span><span>10</span><span>2pm</span><span>6pm</span
+                  ><span>10</span><span>2am</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automated Reports -->
+        <div class="feat-card sr">
+          <div class="feat-info">
+            <h3 class="feat-name">Automated Performance Reports</h3>
+            <p class="feat-desc">
+              Daily, weekly, and monthly reports land in your inbox and WhatsApp
+              automatically. No manual data-pulling, no Excel gymnastics. Just
+              clear, consistent proof that your traffic management is working.
+            </p>
+            <ul class="feat-list">
+              <li>
+                <span class="feat-check">&#10003;</span> Scheduled delivery via
+                email and WhatsApp
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Corridor and
+                network-level views
+              </li>
+              <li>
+                <span class="feat-check">&#10003;</span> Before/after impact
+                measurement
+              </li>
+            </ul>
+          </div>
+          <div class="feat-visual">
+            <div class="mock" style="max-width: 380px">
+              <div
+                style="
+                  padding: 16px 20px;
+                  border-bottom: 1px solid var(--border);
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <div style="font-family: var(--serif); font-size: 15px">
+                  Scheduled Reports
+                </div>
+                <span
+                  style="
+                    font-size: 10px;
+                    font-family: var(--mono);
+                    padding: 3px 10px;
+                    border-radius: 100px;
+                    background: rgba(13, 59, 46, 0.06);
+                    color: var(--forest);
+                    letter-spacing: 0.04em;
+                    text-transform: uppercase;
+                  "
+                  >3 active</span
+                >
+              </div>
+              <div style="padding: 8px 16px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    padding: 14px 0;
+                    border-bottom: 1px solid var(--border);
+                  "
+                >
+                  <div
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 12px;
+                      background: linear-gradient(
+                        135deg,
+                        rgba(13, 59, 46, 0.08),
+                        rgba(13, 59, 46, 0.03)
+                      );
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--forest)"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                      />
+                      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                    </svg>
+                  </div>
+                  <div style="flex: 1">
+                    <div style="font-size: 13px; font-weight: 700">
+                      Daily Speed Report
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      Every day, 9:00 AM
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-family: var(--mono);
+                      font-weight: 600;
+                      padding: 4px 12px;
+                      border-radius: 100px;
+                      background: rgba(13, 59, 46, 0.06);
+                      color: var(--forest);
+                    "
+                  >
+                    ACTIVE
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    padding: 14px 0;
+                    border-bottom: 1px solid var(--border);
+                  "
+                >
+                  <div
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 12px;
+                      background: linear-gradient(
+                        135deg,
+                        rgba(29, 185, 84, 0.08),
+                        rgba(29, 185, 84, 0.02)
+                      );
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#16A34A"
+                      stroke-width="2"
+                    >
+                      <path d="M18 20V10M12 20V4M6 20v-6" />
+                    </svg>
+                  </div>
+                  <div style="flex: 1">
+                    <div style="font-size: 13px; font-weight: 700">
+                      Weekly Congestion Digest
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      Mondays, 8:00 AM
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-family: var(--mono);
+                      font-weight: 600;
+                      padding: 4px 12px;
+                      border-radius: 100px;
+                      background: rgba(13, 59, 46, 0.06);
+                      color: var(--forest);
+                    "
+                  >
+                    ACTIVE
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    padding: 14px 0;
+                  "
+                >
+                  <div
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 12px;
+                      background: linear-gradient(
+                        135deg,
+                        rgba(139, 92, 246, 0.08),
+                        rgba(139, 92, 246, 0.02)
+                      );
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#7C3AED"
+                      stroke-width="2"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <path d="M16 2v4M8 2v4M3 10h18" />
+                    </svg>
+                  </div>
+                  <div style="flex: 1">
+                    <div style="font-size: 13px; font-weight: 700">
+                      Monthly Performance
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--light-gray);
+                        font-family: var(--mono);
+                        margin-top: 2px;
+                      "
+                    >
+                      1st of month
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-family: var(--mono);
+                      font-weight: 600;
+                      padding: 4px 12px;
+                      border-radius: 100px;
+                      background: rgba(13, 59, 46, 0.06);
+                      color: var(--forest);
+                    "
+                  >
+                    ACTIVE
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY DIFFERENT — clean line-art icons -->
+    <section class="why" id="why">
+      <div class="container">
+        <div class="why-header sr">
+          <div class="pill"><span class="pill-dot"></span> Why TraffiCure</div>
+          <h2>A fundamentally <em>different</em><br />approach to traffic.</h2>
+          <p>
+            We didn't build another camera system. We started from scratch with
+            a question: what if you could monitor every road without installing
+            anything?
+          </p>
+        </div>
+        <div class="why-grid">
+          <div class="why-card sr">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <path
+                d="M20 16V7a2 2 0 00-2-2H6a2 2 0 00-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 01-.9 1.45H3.62a1 1 0 01-.9-1.45L4 16"
+              />
+              <path d="M9 10h6M12 7v6" />
+            </svg>
+            <h3>100% Software</h3>
+            <p>
+              No cameras, no sensors, no poles, no fiber. Deploy on cloud
+              infrastructure and go live in weeks, not years.
+            </p>
+          </div>
+          <div class="why-card sr sr-d1">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path
+                d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"
+              />
+            </svg>
+            <h3>Every Road, Every City</h3>
+            <p>
+              Arterials, collectors, neighbourhood streets. Not just the
+              junctions where cameras happen to be installed.
+            </p>
+          </div>
+          <div class="why-card sr sr-d2">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <h3>Google Maps Data</h3>
+            <p>
+              Built on probe data from a billion smartphones navigating real
+              roads every day. The richest mobility signal on earth.
+            </p>
+          </div>
+          <div class="why-card sr">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <h3>Predict, Don't React</h3>
+            <p>
+              See congestion building before it peaks. Move from reactive
+              policing to proactive traffic management.
+            </p>
+          </div>
+          <div class="why-card sr sr-d1">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+            </svg>
+            <h3>Subscription Pricing</h3>
+            <p>
+              No crores in capex. Start with what you need, scale as you see
+              results. Predictable annual budgeting.
+            </p>
+          </div>
+          <div class="why-card sr sr-d2">
+            <svg class="why-ico" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            <h3>Live in Weeks</h3>
+            <p>
+              No construction, no procurement cycles, no land acquisition. Cloud
+              setup with data flowing from day one.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRAFFIC PROBLEM (reframed) -->
+    <section class="traffic">
+      <div class="container">
+        <div class="traffic-layout">
+          <div class="sr">
+            <div class="pill"><span class="pill-dot"></span> The Challenge</div>
+            <h2>
+              Traffic isn't just an <em>inconvenience.</em><br />It's a crisis.
+            </h2>
+            <p class="traffic-desc">
+              Cities are growing faster than infrastructure can keep up. Traffic
+              congestion costs billions in wasted fuel, lost productivity, and
+              pollution &mdash; and most cities still don't have a data-driven
+              way to manage it.
+            </p>
+            <a
+              href="#cta"
+              class="btn"
+              style="
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 60px;
+              "
+              >See how TraffiCure helps
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+          <div class="traffic-stats sr sr-d1">
+            <div class="t-stat">
+              <div class="t-stat-num">1.5L Cr</div>
+              <div class="t-stat-desc">
+                Annual cost of traffic congestion to India's economy
+              </div>
+            </div>
+            <div class="t-stat">
+              <div class="t-stat-num">1.5 hr</div>
+              <div class="t-stat-desc">
+                Average daily commute time in India's top 6 metros
+              </div>
+            </div>
+            <div class="t-stat">
+              <div class="t-stat-num">11%</div>
+              <div class="t-stat-desc">
+                Of total fuel consumed in India is wasted in traffic jams
+              </div>
+            </div>
+            <div class="t-stat">
+              <div class="t-stat-num">Zero</div>
+              <div class="t-stat-desc">
+                Most cities have no real-time traffic management system at all
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON (lower) -->
+    <section class="compare">
+      <div class="container">
+        <div class="compare-header sr">
+          <div class="pill">
+            <span class="pill-dot"></span> Already Have ITMS?
+          </div>
+          <h2>See how TraffiCure<br /><em>compares.</em></h2>
+          <p>
+            If your city already has camera-based ITMS, TraffiCure works
+            alongside it &mdash; filling the gaps hardware can't reach.
+          </p>
+        </div>
+        <div class="comp-table sr">
+          <div class="comp-row ch">
+            <div class="comp-cell">Capability</div>
+            <div class="comp-cell">TraffiCure</div>
+            <div class="comp-cell">Camera ITMS</div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Network Coverage</div>
+            <div class="comp-cell"><span class="comp-yes">100%</span></div>
+            <div class="comp-cell"><span class="comp-meh">15-20%</span></div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Deployment Time</div>
+            <div class="comp-cell"><span class="comp-yes">2-4 weeks</span></div>
+            <div class="comp-cell"><span class="comp-meh">2-3 years</span></div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Hardware Required</div>
+            <div class="comp-cell"><span class="comp-yes">None</span></div>
+            <div class="comp-cell">
+              <span class="comp-meh">Cameras, sensors, fiber</span>
+            </div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Capex</div>
+            <div class="comp-cell"><span class="comp-yes">Zero</span></div>
+            <div class="comp-cell"><span class="comp-meh">50 Cr+</span></div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Data Freshness</div>
+            <div class="comp-cell">
+              <span class="comp-yes">Every 2 min</span>
+            </div>
+            <div class="comp-cell"><span class="comp-meh">Varies</span></div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Predictive Alerts</div>
+            <div class="comp-cell"><span class="comp-yes">Built-in</span></div>
+            <div class="comp-cell"><span class="comp-no">&mdash;</span></div>
+          </div>
+          <div class="comp-row">
+            <div class="comp-cell">Automated Reports</div>
+            <div class="comp-cell">
+              <span class="comp-yes">Daily / Weekly / Monthly</span>
+            </div>
+            <div class="comp-cell">
+              <span class="comp-meh">Manual export</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta" id="cta">
+      <div class="container">
+        <div class="cta-box sr" id="ctaBox">
+          <div class="cta-glow" id="ctaGlow"></div>
+          <h2>Ready to see every road<br />in <em>your city?</em></h2>
+          <p>
+            Get a live demo using your city's actual road data. No commitment,
+            no hardware &mdash; just the insight you've been missing.
+          </p>
+          <div class="cta-actions">
+            <a
+              href="mailto:hello@leptonmaps.com?subject=TraffiCure%20Demo%20Request"
+              class="btn btn-white"
+              style="border-radius: 60px; font-weight: 700"
+            >
+              Book a Demo
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
+            <a
+              href="mailto:hello@leptonmaps.com?subject=TraffiCure%20Info"
+              class="btn btn-outline-w"
+              >Contact Sales</a
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="foot">
+      <div class="container">
+        <div class="foot-top">
+          <div class="foot-brand">
+            <div class="nav-brand">
+              <img src="/tc-icon.svg" alt="TraffiCure logo" class="nav-mark" />
+              TraffiCure
+            </div>
+            <p>
+              Software-first traffic intelligence. Powered by Google Maps data.
+              Built by Lepton Software.
+            </p>
+          </div>
+          <div class="foot-col">
+            <h4>Platform</h4>
+            <a href="#features">Real-Time Alerts</a>
+            <a href="#features">Road Analytics</a>
+            <a href="#features">Automated Reports</a>
+            <a href="#data">Data Source</a>
+          </div>
+          <div class="foot-col">
+            <h4>Company</h4>
+            <a href="#">About Lepton Maps</a>
+            <a href="#">Careers</a>
+            <a href="#">Blog</a>
+            <a href="#">Contact</a>
+          </div>
+          <div class="foot-col">
+            <h4>Resources</h4>
+            <a href="#">White Paper</a>
+            <a href="#">Case Studies</a>
+            <a href="#">Documentation</a>
+            <a href="#">Privacy Policy</a>
+          </div>
+        </div>
+        <div class="foot-bottom">
+          <p>&copy; 2026 Lepton Maps. All rights reserved.</p>
+          <div class="foot-social">
+            <a href="#" aria-label="LinkedIn"
+              ><svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+                /></svg
+            ></a>
+            <a href="#" aria-label="X"
+              ><svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                /></svg
+            ></a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // ====== HANDLE IFRAME NAVIGATION ======
+      // Make Sign In link navigate parent window
+      const signInLink = document.querySelector('a[href="/auth/sign-in"]')
+      if (signInLink && window.top !== window) {
+        signInLink.addEventListener("click", function (e) {
+          e.preventDefault()
+          window.top.location.href = "/auth/sign-in"
+        })
+      }
+
+      // ====== NAV SCROLL ======
+      const nav = document.getElementById("nav")
+      let lastScroll = 0
+      window.addEventListener(
+        "scroll",
+        () => {
+          const y = window.scrollY
+          nav.classList.toggle("scrolled", y > 30)
+          lastScroll = y
+        },
+        { passive: true }
+      )
+
+      // ====== SCROLL REVEAL ======
+      const els = document.querySelectorAll(".sr")
+      const obs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("vis")
+              obs.unobserve(e.target)
+            }
+          })
+        },
+        { threshold: 0.12, rootMargin: "0px 0px -30px 0px" }
+      )
+      els.forEach((el) => obs.observe(el))
+
+      // ====== SMOOTH ANCHOR LINKS ======
+      document.querySelectorAll('a[href^="#"]').forEach((a) => {
+        a.addEventListener("click", function (e) {
+          e.preventDefault()
+          const t = document.querySelector(this.getAttribute("href"))
+          if (t) {
+            const y = t.getBoundingClientRect().top + window.scrollY - 80
+            window.scrollTo({ top: y, behavior: "smooth" })
+          }
+        })
+      })
+
+      // ====== ANIMATED COUNTERS ======
+      function animateValue(el, start, end, suffix, duration) {
+        let startTime = null
+        const step = (timestamp) => {
+          if (!startTime) startTime = timestamp
+          const progress = Math.min((timestamp - startTime) / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 4) // easeOutQuart
+          const current = start + eased * (end - start)
+          if (Number.isInteger(end)) {
+            el.textContent = Math.floor(current).toLocaleString() + suffix
+          } else {
+            el.textContent = current.toFixed(1) + suffix
+          }
+          if (progress < 1) requestAnimationFrame(step)
+        }
+        requestAnimationFrame(step)
+      }
+
+      // Animate speed numbers in analytics panel
+      const speedNums = document.querySelectorAll(".an-speed-num")
+      const speedObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              const el = e.target
+              const val = parseInt(el.textContent.trim())
+              if (!isNaN(val)) animateValue(el, 0, val, "", 1000)
+              speedObs.unobserve(el)
+            }
+          })
+        },
+        { threshold: 0.5 }
+      )
+      speedNums.forEach((el) => speedObs.observe(el))
+
+      // Staggered reveal for alert items
+      const alItems = document.querySelectorAll(".al-item")
+      const alObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              alItems.forEach((item, i) => {
+                item.style.opacity = "0"
+                item.style.transform = "translateX(-10px)"
+                setTimeout(() => {
+                  item.style.transition = "all .4s cubic-bezier(.16,1,.3,1)"
+                  item.style.opacity = "1"
+                  item.style.transform = "translateX(0)"
+                }, i * 100)
+              })
+              alObs.unobserve(e.target)
+            }
+          })
+        },
+        { threshold: 0.2 }
+      )
+      if (alItems.length > 0) alObs.observe(alItems[0])
+
+      // Animate gmap stat numbers
+      const gstatNums = document.querySelectorAll(".gstat-num")
+      const gstatObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              const el = e.target
+              el.style.opacity = "0"
+              el.style.transform = "translateY(16px)"
+              const delay =
+                parseInt(
+                  el.closest(".gstat").className.match(/sr-d(\d)/)?.[1] || "0"
+                ) * 150
+              setTimeout(() => {
+                el.style.transition = "all .7s cubic-bezier(.16,1,.3,1)"
+                el.style.opacity = "1"
+                el.style.transform = "translateY(0)"
+              }, delay + 100)
+              gstatObs.unobserve(el)
+            }
+          })
+        },
+        { threshold: 0.3 }
+      )
+      gstatNums.forEach((el) => gstatObs.observe(el))
+
+      // Counter for traffic stats
+      const tStatNums = document.querySelectorAll(".t-stat-num")
+      const tObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              const el = e.target
+              el.style.opacity = "0"
+              el.style.transform = "translateY(12px)"
+              setTimeout(
+                () => {
+                  el.style.transition = "all .7s cubic-bezier(.16,1,.3,1)"
+                  el.style.opacity = "1"
+                  el.style.transform = "translateY(0)"
+                },
+                parseInt(el.closest(".t-stat").dataset.delay || "0")
+              )
+              tObs.unobserve(el)
+            }
+          })
+        },
+        { threshold: 0.3 }
+      )
+      tStatNums.forEach((el) => tObs.observe(el))
+      // add staggered delays
+      document
+        .querySelectorAll(".t-stat")
+        .forEach((s, i) => (s.dataset.delay = i * 120))
+
+      // ====== COMPARISON TABLE — row-by-row reveal ======
+      const compRows = document.querySelectorAll(".comp-row:not(.ch)")
+      const compObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.style.transition = "opacity .5s ease, transform .5s ease"
+              e.target.style.opacity = "1"
+              e.target.style.transform = "translateX(0)"
+              compObs.unobserve(e.target)
+            }
+          })
+        },
+        { threshold: 0.2 }
+      )
+      compRows.forEach((r, i) => {
+        r.style.opacity = "0"
+        r.style.transform = "translateX(-12px)"
+        r.style.transitionDelay = i * 80 + "ms"
+        compObs.observe(r)
+      })
+
+      // ====== HEATMAP CELL HOVER TOOLTIP ======
+      document.querySelectorAll(".an-heat-cell").forEach((cell) => {
+        cell.style.cursor = "pointer"
+        cell.title = "Congestion level"
+      })
+
+      // ====== 3D PANEL TILT ON MOUSE MOVE ======
+      const hero3d = document.querySelector(".hero-3d")
+      if (hero3d && window.innerWidth > 900) {
+        document.addEventListener("mousemove", (e) => {
+          const rect = hero3d.getBoundingClientRect()
+          if (e.clientY < rect.top - 100 || e.clientY > rect.bottom + 100)
+            return
+          const x = (e.clientX - rect.left) / rect.width - 0.5
+          const y = (e.clientY - rect.top) / rect.height - 0.5
+          const panelL = hero3d.querySelector(".panel-alerts")
+          const panelR = hero3d.querySelector(".panel-analytics")
+          if (panelL)
+            panelL.style.transform = `rotateY(${8 + x * 3}deg) rotateX(${2 - y * 2}deg)`
+          if (panelR)
+            panelR.style.transform = `rotateY(${-6 + x * 3}deg) rotateX(${2 - y * 2}deg)`
+        })
+      }
+
+      // ====== CTA GLOW CURSOR ======
+      const ctaBox = document.getElementById("ctaBox")
+      const ctaGlow = document.getElementById("ctaGlow")
+      if (ctaBox && ctaGlow) {
+        ctaBox.addEventListener("mousemove", (e) => {
+          const rect = ctaBox.getBoundingClientRect()
+          ctaGlow.style.left = e.clientX - rect.left + "px"
+          ctaGlow.style.top = e.clientY - rect.top + "px"
+        })
+      }
+
+      // ====== FEAT CARD — subtle parallax on hover ======
+      document.querySelectorAll(".feat-card").forEach((card) => {
+        const visual = card.querySelector(".feat-visual .mock")
+        if (!visual) return
+        card.addEventListener("mousemove", (e) => {
+          const rect = card.getBoundingClientRect()
+          const x = (e.clientX - rect.left) / rect.width - 0.5
+          const y = (e.clientY - rect.top) / rect.height - 0.5
+          visual.style.transform = `perspective(600px) rotateY(${x * 4}deg) rotateX(${-y * 4}deg)`
+        })
+        card.addEventListener("mouseleave", () => {
+          visual.style.transition = "transform .4s ease"
+          visual.style.transform = "perspective(600px) rotateY(0) rotateX(0)"
+          setTimeout(() => (visual.style.transition = ""), 400)
+        })
+      })
+    </script>
+  </body>
+</html>

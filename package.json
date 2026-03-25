@@ -1,0 +1,8 @@
+{
+  "name": "@smp/factory-local",
+  "private": true,
+  "description": "Factory workspace root — dx.yaml and dxi (local dx CLI)",
+  "scripts": {
+    "dxi": "bun ./cli/bin/run.js"
+  }
+}

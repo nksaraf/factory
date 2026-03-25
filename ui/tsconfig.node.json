@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "types": [],
+    "paths": {
+      "~/*": ["./*"],
+      "@/lib/*": ["./src/lib/*"]
+    }
+  },
+  "include": ["app.config.ts", "app.settings.ts", "env.d.ts", "scripts", "src/lib", "src/better-auth.ts"]
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="northGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="sideGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+
+  <!-- North point (Grow) — elongated, brighter teal -->
+  <polygon points="256,40 280,220 256,240 232,220" fill="url(#northGrad)"/>
+
+  <!-- South point -->
+  <polygon points="256,472 232,292 256,272 280,292" fill="#0f766e"/>
+
+  <!-- East point -->
+  <polygon points="432,256 292,232 272,256 292,280" fill="url(#sideGrad)"/>
+
+  <!-- West point -->
+  <polygon points="80,256 220,280 240,256 220,232" fill="url(#sideGrad)"/>
+
+  <!-- Diagonal accents — thin secondary points -->
+  <polygon points="390,122 288,232 272,224 362,108" fill="#0d9488" opacity="0.4"/>
+  <polygon points="122,390 224,288 240,296 150,404" fill="#0d9488" opacity="0.4"/>
+  <polygon points="390,390 288,280 296,264 404,362" fill="#0d9488" opacity="0.4"/>
+  <polygon points="122,122 224,224 216,240 108,150" fill="#0d9488" opacity="0.4"/>
+
+  <!-- Center ring -->
+  <circle cx="256" cy="256" r="20" fill="#14b8a6"/>
+  <circle cx="256" cy="256" r="10" fill="#f0fdfa"/>
+
+  <!-- Outer ring (subtle) -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#0d9488" stroke-width="1.5" opacity="0.2"/>
+</svg>

@@ -1,0 +1,109 @@
+import { Badge } from "@rio.js/ui-next/components/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@rio.js/ui-next/components/avatar"
+import { Skeleton } from "@rio.js/ui-next/components/skeleton"
+import { Progress } from "@rio.js/ui-next/components/progress"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rio.js/ui-next/components/table"
+
+# Data Display
+
+Components for presenting data and status information.
+
+## Badge
+
+<VariantGrid>
+  <Badge>Default</Badge>
+  <Badge variant="secondary">Secondary</Badge>
+  <Badge variant="destructive">Destructive</Badge>
+  <Badge variant="outline">Outline</Badge>
+</VariantGrid>
+
+```tsx
+<Badge>Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="destructive">Destructive</Badge>
+<Badge variant="outline">Outline</Badge>
+```
+
+## Avatar
+
+<VariantGrid>
+  <Avatar>
+    <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+    <AvatarFallback>CN</AvatarFallback>
+  </Avatar>
+  <Avatar>
+    <AvatarFallback>NS</AvatarFallback>
+  </Avatar>
+  <Avatar>
+    <AvatarFallback>AB</AvatarFallback>
+  </Avatar>
+</VariantGrid>
+
+```tsx
+<Avatar>
+  <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+  <AvatarFallback>CN</AvatarFallback>
+</Avatar>
+```
+
+## Progress
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-4">
+    <Progress value={25} />
+    <Progress value={50} />
+    <Progress value={75} />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Progress value={50} />
+```
+
+## Skeleton
+
+<ComponentPreview>
+  <div className="flex items-center gap-4">
+    <Skeleton className="h-12 w-12 rounded-full" />
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-[200px]" />
+      <Skeleton className="h-4 w-[160px]" />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Skeleton className="h-12 w-12 rounded-full" />
+<Skeleton className="h-4 w-[200px]" />
+```
+
+## Table
+
+<ComponentPreview className="block">
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Name</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Role</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      <TableRow>
+        <TableCell>Alice Johnson</TableCell>
+        <TableCell><Badge>Active</Badge></TableCell>
+        <TableCell>Admin</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell>Bob Smith</TableCell>
+        <TableCell><Badge variant="secondary">Inactive</Badge></TableCell>
+        <TableCell>Editor</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell>Carol Williams</TableCell>
+        <TableCell><Badge variant="outline">Pending</Badge></TableCell>
+        <TableCell>Viewer</TableCell>
+      </TableRow>
+    </TableBody>
+  </Table>
+</ComponentPreview>

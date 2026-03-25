@@ -1,0 +1,9 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [".vercel/output/**"]
+    },
+    "dev": {}
+  }
+}

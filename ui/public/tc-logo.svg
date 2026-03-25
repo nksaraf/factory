@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 100" width="520" height="100">
+  <!-- Dark green background — for dark header/nav usage -->
+  <rect width="520" height="100" rx="12" fill="#14532D"/>
+
+  <!-- Light cream wordmark on dark -->
+  <text x="20" y="65" font-family="Georgia, 'Times New Roman', 'Palatino Linotype', serif" font-size="50" letter-spacing="-1" fill="#FAF7F2" font-weight="400">
+    Traffi<tspan font-style="italic" fill="#4ADE80">Cure</tspan>
+  </text>
+</svg>

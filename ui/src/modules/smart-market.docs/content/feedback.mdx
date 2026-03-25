@@ -1,0 +1,105 @@
+import { Alert, AlertDescription, AlertTitle } from "@rio.js/ui-next/components/alert"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rio.js/ui-next/components/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@rio.js/ui-next/components/popover"
+import { Button } from "@rio.js/ui-next/components/button"
+import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react"
+
+# Feedback
+
+Components for communicating status, information, and context to users.
+
+## Alert
+
+<ComponentPreview className="block space-y-3">
+  <Alert>
+    <Info className="h-4 w-4" />
+    <AlertTitle>Information</AlertTitle>
+    <AlertDescription>This is a default informational alert.</AlertDescription>
+  </Alert>
+  <Alert variant="destructive">
+    <AlertCircle className="h-4 w-4" />
+    <AlertTitle>Error</AlertTitle>
+    <AlertDescription>Something went wrong. Please try again.</AlertDescription>
+  </Alert>
+</ComponentPreview>
+
+```tsx
+<Alert>
+  <Info className="h-4 w-4" />
+  <AlertTitle>Information</AlertTitle>
+  <AlertDescription>Informational message.</AlertDescription>
+</Alert>
+
+<Alert variant="destructive">
+  <AlertCircle className="h-4 w-4" />
+  <AlertTitle>Error</AlertTitle>
+  <AlertDescription>Error message.</AlertDescription>
+</Alert>
+```
+
+## Tooltip
+
+<ComponentPreview>
+  <TooltipProvider>
+    <div className="flex gap-4">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline">Hover me</Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>This is a tooltip</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline" size="icon">
+            <Info />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>More information</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  </TooltipProvider>
+</ComponentPreview>
+
+```tsx
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button>Hover me</Button>
+    </TooltipTrigger>
+    <TooltipContent>Tooltip text</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+## Popover
+
+<ComponentPreview>
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button variant="outline">Open Popover</Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-64">
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">Popover Content</h4>
+        <p className="text-sm text-muted-foreground">
+          This is a popover with rich content. It stays open until dismissed.
+        </p>
+      </div>
+    </PopoverContent>
+  </Popover>
+</ComponentPreview>
+
+```tsx
+<Popover>
+  <PopoverTrigger asChild>
+    <Button>Open Popover</Button>
+  </PopoverTrigger>
+  <PopoverContent>
+    Content here
+  </PopoverContent>
+</Popover>
+```

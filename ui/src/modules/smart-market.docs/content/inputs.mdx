@@ -1,0 +1,111 @@
+import { Input } from "@rio.js/ui-next/components/input"
+import { Textarea } from "@rio.js/ui-next/components/textarea"
+import { Label } from "@rio.js/ui-next/components/label"
+import { Checkbox } from "@rio.js/ui-next/components/checkbox"
+import { Switch } from "@rio.js/ui-next/components/switch"
+import { Slider } from "@rio.js/ui-next/components/slider"
+import { RadioGroup, RadioGroupItem } from "@rio.js/ui-next/components/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rio.js/ui-next/components/select"
+
+# Inputs
+
+Form input components for collecting user data.
+
+## Text Input
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="email">Email</Label>
+    <Input id="email" type="email" placeholder="you@example.com" />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Label htmlFor="email">Email</Label>
+<Input id="email" type="email" placeholder="you@example.com" />
+```
+
+## Textarea
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="message">Message</Label>
+    <Textarea id="message" placeholder="Type your message..." rows={3} />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Textarea placeholder="Type your message..." rows={3} />
+```
+
+## Select
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label>Status</Label>
+    <Select>
+      <SelectTrigger>
+        <SelectValue placeholder="Select status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="active">Active</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+        <SelectItem value="pending">Pending</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+</ComponentPreview>
+
+## Checkbox
+
+<ComponentPreview>
+  <div className="flex items-center gap-2">
+    <Checkbox id="terms" />
+    <Label htmlFor="terms">Accept terms and conditions</Label>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Checkbox id="terms" />
+<Label htmlFor="terms">Accept terms and conditions</Label>
+```
+
+## Switch
+
+<ComponentPreview>
+  <div className="flex items-center gap-2">
+    <Switch id="notifications" />
+    <Label htmlFor="notifications">Enable notifications</Label>
+  </div>
+</ComponentPreview>
+
+## Radio Group
+
+<ComponentPreview>
+  <RadioGroup defaultValue="option-1">
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-1" id="r1" />
+      <Label htmlFor="r1">Option 1</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-2" id="r2" />
+      <Label htmlFor="r2">Option 2</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-3" id="r3" />
+      <Label htmlFor="r3">Option 3</Label>
+    </div>
+  </RadioGroup>
+</ComponentPreview>
+
+## Slider
+
+<ComponentPreview>
+  <div className="w-full max-w-sm">
+    <Slider defaultValue={[50]} max={100} step={1} />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Slider defaultValue={[50]} max={100} step={1} />
+```

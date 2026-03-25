@@ -1,0 +1,689 @@
+/*
+ * @rio.js/ui-next Token System
+ *
+ * Architecture:
+ *   1. Raw Radix palette values (HSL channel triples for opacity modifier support)
+ *   2. Gray switching via class on <html> (sage default)
+ *   3. Semantic accent palettes (primary, secondary, destructive, warning, success)
+ *   4. Semantic aliases (shadcn-compatible)
+ *
+ * Usage: hsl(var(--scale-50))           — opaque
+ *        hsl(var(--scale-50) / 0.5)     — with alpha
+ *
+ * Radix 12-step → Tailwind scale mapping:
+ *   Radix 1→50, 2→100, 3→200, 4→300, 5→400, 6→500, 7→600, 8→700, 9→800, 10→850, 11→900, 12→950
+ */
+
+/* =============================================================================
+   RAW PALETTES — Light Mode
+   ============================================================================= */
+
+:root {
+  /* Sage (green-tinted gray) */
+  --raw-sage-1: 150 33.3% 98.8%;
+  --raw-sage-2: 150 14.3% 97.3%;
+  --raw-sage-3: 160 9.7% 93.9%;
+  --raw-sage-4: 160 6.4% 90.8%;
+  --raw-sage-5: 140 4.9% 88%;
+  --raw-sage-6: 160 3.9% 84.9%;
+  --raw-sage-7: 150 4% 80.4%;
+  --raw-sage-8: 150 2.9% 72.9%;
+  --raw-sage-9: 157 3.4% 54.1%;
+  --raw-sage-10: 157 3.1% 50.2%;
+  --raw-sage-11: 160 3.1% 38.4%;
+  --raw-sage-12: 154 11.9% 11.6%;
+
+  /* Mauve (purple-tinted gray) */
+  --raw-mauve-1: 300 20% 99%;
+  --raw-mauve-2: 270 20% 98%;
+  --raw-mauve-3: 285 14.3% 94.5%;
+  --raw-mauve-4: 276 11.6% 91.6%;
+  --raw-mauve-5: 274 12.3% 88.8%;
+  --raw-mauve-6: 262 11.4% 86.3%;
+  --raw-mauve-7: 258 11.1% 82.4%;
+  --raw-mauve-8: 249 10.4% 75.5%;
+  --raw-mauve-9: 249 6% 57.5%;
+  --raw-mauve-10: 250 5% 53.3%;
+  --raw-mauve-11: 252 4.8% 40.8%;
+  --raw-mauve-12: 257 10.1% 13.5%;
+
+  /* Slate (blue-tinted gray) */
+  --raw-slate-1: 240 20% 99%;
+  --raw-slate-2: 240 20% 98%;
+  --raw-slate-3: 240 11.1% 94.7%;
+  --raw-slate-4: 240 9.5% 91.8%;
+  --raw-slate-5: 230 10.7% 89%;
+  --raw-slate-6: 240 10.1% 86.5%;
+  --raw-slate-7: 233 9.9% 82.2%;
+  --raw-slate-8: 231 10.2% 75.1%;
+  --raw-slate-9: 231 5.9% 57.1%;
+  --raw-slate-10: 226 5.4% 52.7%;
+  --raw-slate-11: 220 5.9% 40%;
+  --raw-slate-12: 210 12.5% 12.5%;
+
+  /* Pure Gray (no tint) */
+  --raw-gray-1: 0 0% 98.8%;
+  --raw-gray-2: 0 0% 97.6%;
+  --raw-gray-3: 0 0% 94.1%;
+  --raw-gray-4: 0 0% 91%;
+  --raw-gray-5: 0 0% 87.8%;
+  --raw-gray-6: 0 0% 85.1%;
+  --raw-gray-7: 0 0% 80.8%;
+  --raw-gray-8: 0 0% 73.3%;
+  --raw-gray-9: 0 0% 55.3%;
+  --raw-gray-10: 0 0% 51.4%;
+  --raw-gray-11: 0 0% 39.2%;
+  --raw-gray-12: 0 0% 12.5%;
+
+  /* Blue (primary accent) */
+  --raw-blue-1: 210 100% 99.2%;
+  --raw-blue-2: 207 100% 97.8%;
+  --raw-blue-3: 205 92.3% 94.9%;
+  --raw-blue-4: 203 100% 91.8%;
+  --raw-blue-5: 206 100% 88%;
+  --raw-blue-6: 207 93% 83.1%;
+  --raw-blue-7: 207 85.2% 76.1%;
+  --raw-blue-8: 206 81.9% 65.3%;
+  --raw-blue-9: 206 100% 50%;
+  --raw-blue-10: 207 95.9% 48%;
+  --raw-blue-11: 208 88.1% 42.9%;
+  --raw-blue-12: 216 70.9% 22.9%;
+
+  /* Indigo (secondary accent) */
+  --raw-indigo-1: 240 33.3% 99.4%;
+  --raw-indigo-2: 225 100% 98.4%;
+  --raw-indigo-3: 222 89.5% 96.3%;
+  --raw-indigo-4: 224 100% 94.1%;
+  --raw-indigo-5: 224 100% 91.2%;
+  --raw-indigo-6: 225 100% 87.8%;
+  --raw-indigo-7: 226 86.7% 82.4%;
+  --raw-indigo-8: 226 75.4% 74.5%;
+  --raw-indigo-9: 226 70% 55.5%;
+  --raw-indigo-10: 226 65.2% 51.6%;
+  --raw-indigo-11: 226 55.7% 50.4%;
+  --raw-indigo-12: 226 49.6% 24.1%;
+
+  /* Tomato (destructive accent) */
+  --raw-tomato-1: 0 100% 99.4%;
+  --raw-tomato-2: 7 100% 98.4%;
+  --raw-tomato-3: 10 92% 95.1%;
+  --raw-tomato-4: 12 100% 91.4%;
+  --raw-tomato-5: 11 100% 88%;
+  --raw-tomato-6: 11 95.1% 83.9%;
+  --raw-tomato-7: 10 82.3% 77.8%;
+  --raw-tomato-8: 10 74.8% 70.4%;
+  --raw-tomato-9: 10 77.9% 53.9%;
+  --raw-tomato-10: 10 73% 50.6%;
+  --raw-tomato-11: 10 81.7% 45.1%;
+  --raw-tomato-12: 8 49.6% 24.1%;
+
+  /* Amber (warning accent) */
+  --raw-amber-1: 40 60% 99%;
+  --raw-amber-2: 51 91.3% 95.5%;
+  --raw-amber-3: 52 100% 88%;
+  --raw-amber-4: 50 100% 80.6%;
+  --raw-amber-5: 50 94.3% 72.5%;
+  --raw-amber-6: 46 84.2% 70.2%;
+  --raw-amber-7: 42 75.4% 64.9%;
+  --raw-amber-8: 38 74.8% 54.9%;
+  --raw-amber-9: 42 100% 62%;
+  --raw-amber-10: 42 100% 54.7%;
+  --raw-amber-11: 35 100% 33.5%;
+  --raw-amber-12: 24 39.8% 22.2%;
+
+  /* Teal (success accent) */
+  --raw-teal-1: 165 66.7% 98.8%;
+  --raw-teal-2: 165 50% 96.9%;
+  --raw-teal-3: 167 63.2% 92.5%;
+  --raw-teal-4: 166 61.9% 87.6%;
+  --raw-teal-5: 168 54.3% 82%;
+  --raw-teal-6: 168 48% 75.1%;
+  --raw-teal-7: 170 42.5% 65.9%;
+  --raw-teal-8: 172 42.1% 52.5%;
+  --raw-teal-9: 173 80.3% 35.9%;
+  --raw-teal-10: 173 84.5% 32.9%;
+  --raw-teal-11: 172 100% 26.1%;
+  --raw-teal-12: 174 64.9% 14.5%;
+}
+
+/* =============================================================================
+     RAW PALETTES — Dark Mode
+     ============================================================================= */
+
+.dark {
+  /* Sage Dark */
+  --raw-sage-1: 150 5.9% 6.7%;
+  --raw-sage-2: 150 4.2% 9.4%;
+  --raw-sage-3: 150 3% 12.9%;
+  --raw-sage-4: 160 3.7% 15.9%;
+  --raw-sage-5: 160 3.2% 18.6%;
+  --raw-sage-6: 150 3.5% 22.4%;
+  --raw-sage-7: 156 3.5% 27.6%;
+  --raw-sage-8: 154 3.7% 37.1%;
+  --raw-sage-9: 157 6.2% 41.4%;
+  --raw-sage-10: 160 5% 46.7%;
+  --raw-sage-11: 157 5.1% 69.4%;
+  --raw-sage-12: 150 5.6% 92.9%;
+
+  /* Mauve Dark */
+  --raw-mauve-1: 270 5.6% 7.1%;
+  --raw-mauve-2: 270 3.8% 10.2%;
+  --raw-mauve-3: 260 4.2% 13.9%;
+  --raw-mauve-4: 270 4.7% 16.9%;
+  --raw-mauve-5: 264 5% 19.8%;
+  --raw-mauve-6: 270 5% 23.5%;
+  --raw-mauve-7: 257 4.7% 29.2%;
+  --raw-mauve-8: 258 5% 39.2%;
+  --raw-mauve-9: 251 4.8% 44.9%;
+  --raw-mauve-10: 251 4.3% 50%;
+  --raw-mauve-11: 258 6.9% 71.8%;
+  --raw-mauve-12: 240 6.2% 93.7%;
+
+  /* Slate Dark */
+  --raw-slate-1: 240 5.6% 7.1%;
+  --raw-slate-2: 220 5.9% 10%;
+  --raw-slate-3: 225 5.7% 13.7%;
+  --raw-slate-4: 210 7.1% 16.5%;
+  --raw-slate-5: 214 7.1% 19.4%;
+  --raw-slate-6: 213 7.7% 22.9%;
+  --raw-slate-7: 213 7.6% 28.4%;
+  --raw-slate-8: 212 7.7% 38.2%;
+  --raw-slate-9: 219 6.3% 43.9%;
+  --raw-slate-10: 222 5.2% 49.2%;
+  --raw-slate-11: 216 6.8% 71%;
+  --raw-slate-12: 220 9.1% 93.5%;
+
+  /* Pure Gray Dark */
+  --raw-gray-1: 0 0% 6.7%;
+  --raw-gray-2: 0 0% 9.8%;
+  --raw-gray-3: 0 0% 13.3%;
+  --raw-gray-4: 0 0% 16.5%;
+  --raw-gray-5: 0 0% 19.2%;
+  --raw-gray-6: 0 0% 22.7%;
+  --raw-gray-7: 0 0% 28.2%;
+  --raw-gray-8: 0 0% 37.6%;
+  --raw-gray-9: 0 0% 43.1%;
+  --raw-gray-10: 0 0% 48.2%;
+  --raw-gray-11: 0 0% 70.6%;
+  --raw-gray-12: 0 0% 93.3%;
+
+  /* Blue Dark */
+  --raw-blue-1: 215 42.2% 8.8%;
+  --raw-blue-2: 218 39.3% 11%;
+  --raw-blue-3: 212 69% 16.5%;
+  --raw-blue-4: 209 100% 19.2%;
+  --raw-blue-5: 207 100% 22.7%;
+  --raw-blue-6: 209 78.8% 29.6%;
+  --raw-blue-7: 211 66.3% 37.3%;
+  --raw-blue-8: 211 65.1% 44.9%;
+  --raw-blue-9: 206 100% 50%;
+  --raw-blue-10: 210 100% 61.6%;
+  --raw-blue-11: 210 100% 72%;
+  --raw-blue-12: 205 100% 88%;
+
+  /* Indigo Dark */
+  --raw-indigo-1: 231 29.2% 9.4%;
+  --raw-indigo-2: 230 31% 11.4%;
+  --raw-indigo-3: 225 50.5% 19%;
+  --raw-indigo-4: 225 54.3% 24.9%;
+  --raw-indigo-5: 225 51.6% 30%;
+  --raw-indigo-6: 226 46.7% 35.3%;
+  --raw-indigo-7: 226 44.5% 41%;
+  --raw-indigo-8: 226 45.1% 47.8%;
+  --raw-indigo-9: 226 70% 55.5%;
+  --raw-indigo-10: 228 72.7% 61.2%;
+  --raw-indigo-11: 228 100% 81%;
+  --raw-indigo-12: 224 100% 92%;
+
+  /* Tomato Dark */
+  --raw-tomato-1: 0 17.1% 8%;
+  --raw-tomato-2: 10 24% 9.8%;
+  --raw-tomato-3: 5 48.1% 15.1%;
+  --raw-tomato-4: 4 64.2% 18.6%;
+  --raw-tomato-5: 5 62.1% 22.7%;
+  --raw-tomato-6: 7 54.9% 27.8%;
+  --raw-tomato-7: 9 49.4% 34.9%;
+  --raw-tomato-8: 10 50.2% 44.9%;
+  --raw-tomato-9: 10 77.9% 53.9%;
+  --raw-tomato-10: 11 81.7% 59.2%;
+  --raw-tomato-11: 12 100% 74.5%;
+  --raw-tomato-12: 10 85.7% 89%;
+
+  /* Amber Dark */
+  --raw-amber-1: 36 29.4% 6.7%;
+  --raw-amber-2: 39 31.8% 8.6%;
+  --raw-amber-3: 36 71.4% 11%;
+  --raw-amber-4: 37 100% 12.4%;
+  --raw-amber-5: 37 100% 15.1%;
+  --raw-amber-6: 39 89.7% 19%;
+  --raw-amber-7: 37 63.8% 27.1%;
+  --raw-amber-8: 36 59.8% 35.1%;
+  --raw-amber-9: 42 100% 62%;
+  --raw-amber-10: 50 100% 52%;
+  --raw-amber-11: 46 100% 54.3%;
+  --raw-amber-12: 41 100% 85.1%;
+
+  /* Teal Dark */
+  --raw-teal-1: 173 23.5% 6.7%;
+  --raw-teal-2: 175 24.4% 8.8%;
+  --raw-teal-3: 174 55.2% 11.4%;
+  --raw-teal-4: 176 93.4% 12%;
+  --raw-teal-5: 175 80% 15.7%;
+  --raw-teal-6: 174 62.6% 21%;
+  --raw-teal-7: 174 57.9% 26.1%;
+  --raw-teal-8: 173 59.5% 31%;
+  --raw-teal-9: 173 80.3% 35.9%;
+  --raw-teal-10: 172 85.5% 37.8%;
+  --raw-teal-11: 170 90.3% 44.5%;
+  --raw-teal-12: 163 69.1% 81%;
+}
+
+/* =============================================================================
+     GRAY SWITCHING — Class on <html>
+     Radix step 1→50, 2→100, 3→200, 4→300, 5→400, 6→500, 7→600, 8→700, 9→800, 10→850, 11→900, 12→950
+     ============================================================================= */
+
+:root,
+.gray-sage {
+  --scale-50: var(--raw-sage-1);
+  --scale-100: var(--raw-sage-2);
+  --scale-200: var(--raw-sage-3);
+  --scale-300: var(--raw-sage-4);
+  --scale-400: var(--raw-sage-5);
+  --scale-500: var(--raw-sage-6);
+  --scale-600: var(--raw-sage-7);
+  --scale-700: var(--raw-sage-8);
+  --scale-800: var(--raw-sage-9);
+  --scale-850: var(--raw-sage-10);
+  --scale-900: var(--raw-sage-11);
+  --scale-950: var(--raw-sage-12);
+}
+
+.gray-mauve {
+  --scale-50: var(--raw-mauve-1);
+  --scale-100: var(--raw-mauve-2);
+  --scale-200: var(--raw-mauve-3);
+  --scale-300: var(--raw-mauve-4);
+  --scale-400: var(--raw-mauve-5);
+  --scale-500: var(--raw-mauve-6);
+  --scale-600: var(--raw-mauve-7);
+  --scale-700: var(--raw-mauve-8);
+  --scale-800: var(--raw-mauve-9);
+  --scale-850: var(--raw-mauve-10);
+  --scale-900: var(--raw-mauve-11);
+  --scale-950: var(--raw-mauve-12);
+}
+
+.gray-slate {
+  --scale-50: var(--raw-slate-1);
+  --scale-100: var(--raw-slate-2);
+  --scale-200: var(--raw-slate-3);
+  --scale-300: var(--raw-slate-4);
+  --scale-400: var(--raw-slate-5);
+  --scale-500: var(--raw-slate-6);
+  --scale-600: var(--raw-slate-7);
+  --scale-700: var(--raw-slate-8);
+  --scale-800: var(--raw-slate-9);
+  --scale-850: var(--raw-slate-10);
+  --scale-900: var(--raw-slate-11);
+  --scale-950: var(--raw-slate-12);
+}
+
+.gray-pure {
+  --scale-50: var(--raw-gray-1);
+  --scale-100: var(--raw-gray-2);
+  --scale-200: var(--raw-gray-3);
+  --scale-300: var(--raw-gray-4);
+  --scale-400: var(--raw-gray-5);
+  --scale-500: var(--raw-gray-6);
+  --scale-600: var(--raw-gray-7);
+  --scale-700: var(--raw-gray-8);
+  --scale-800: var(--raw-gray-9);
+  --scale-850: var(--raw-gray-10);
+  --scale-900: var(--raw-gray-11);
+  --scale-950: var(--raw-gray-12);
+}
+
+/* =============================================================================
+     SEMANTIC ACCENT PALETTES
+     ============================================================================= */
+
+:root {
+  /* Primary — Blue */
+  --primary-50: var(--raw-blue-1);
+  --primary-100: var(--raw-blue-2);
+  --primary-200: var(--raw-blue-3);
+  --primary-300: var(--raw-blue-4);
+  --primary-400: var(--raw-blue-5);
+  --primary-500: var(--raw-blue-6);
+  --primary-600: var(--raw-blue-7);
+  --primary-700: var(--raw-blue-8);
+  --primary-800: var(--raw-blue-9);
+  --primary-850: var(--raw-blue-10);
+  --primary-900: var(--raw-blue-11);
+  --primary-950: var(--raw-blue-12);
+
+  /* Secondary — Indigo */
+  --secondary-50: var(--raw-indigo-1);
+  --secondary-100: var(--raw-indigo-2);
+  --secondary-200: var(--raw-indigo-3);
+  --secondary-300: var(--raw-indigo-4);
+  --secondary-400: var(--raw-indigo-5);
+  --secondary-500: var(--raw-indigo-6);
+  --secondary-600: var(--raw-indigo-7);
+  --secondary-700: var(--raw-indigo-8);
+  --secondary-800: var(--raw-indigo-9);
+  --secondary-850: var(--raw-indigo-10);
+  --secondary-900: var(--raw-indigo-11);
+  --secondary-950: var(--raw-indigo-12);
+
+  /* Destructive — Tomato */
+  --destructive-50: var(--raw-tomato-1);
+  --destructive-100: var(--raw-tomato-2);
+  --destructive-200: var(--raw-tomato-3);
+  --destructive-300: var(--raw-tomato-4);
+  --destructive-400: var(--raw-tomato-5);
+  --destructive-500: var(--raw-tomato-6);
+  --destructive-600: var(--raw-tomato-7);
+  --destructive-700: var(--raw-tomato-8);
+  --destructive-800: var(--raw-tomato-9);
+  --destructive-850: var(--raw-tomato-10);
+  --destructive-900: var(--raw-tomato-11);
+  --destructive-950: var(--raw-tomato-12);
+
+  /* Warning — Amber */
+  --warning-50: var(--raw-amber-1);
+  --warning-100: var(--raw-amber-2);
+  --warning-200: var(--raw-amber-3);
+  --warning-300: var(--raw-amber-4);
+  --warning-400: var(--raw-amber-5);
+  --warning-500: var(--raw-amber-6);
+  --warning-600: var(--raw-amber-7);
+  --warning-700: var(--raw-amber-8);
+  --warning-800: var(--raw-amber-9);
+  --warning-850: var(--raw-amber-10);
+  --warning-900: var(--raw-amber-11);
+  --warning-950: var(--raw-amber-12);
+
+  /* Success — Teal */
+  --success-50: var(--raw-teal-1);
+  --success-100: var(--raw-teal-2);
+  --success-200: var(--raw-teal-3);
+  --success-300: var(--raw-teal-4);
+  --success-400: var(--raw-teal-5);
+  --success-500: var(--raw-teal-6);
+  --success-600: var(--raw-teal-7);
+  --success-700: var(--raw-teal-8);
+  --success-800: var(--raw-teal-9);
+  --success-850: var(--raw-teal-10);
+  --success-900: var(--raw-teal-11);
+  --success-950: var(--raw-teal-12);
+}
+
+/* =============================================================================
+     SEMANTIC ALIASES — shadcn-compatible
+     Used by components. These reference the scale/accent palettes above.
+     ============================================================================= */
+
+:root {
+  --background: var(--scale-50);
+  --foreground: var(--scale-950);
+
+  --muted: var(--scale-200);
+  --muted-foreground: var(--scale-950);
+
+  --card: var(--scale-50);
+  --card-foreground: var(--scale-950);
+
+  --popover: var(--scale-50);
+  --popover-foreground: var(--scale-950);
+
+  --border: var(--scale-500);
+  --input: var(--scale-500);
+
+  --accent: var(--scale-200);
+  --accent-foreground: var(--scale-950);
+
+  --ring: var(--primary-700);
+
+  --radius: 0.5rem;
+
+  /* Base spacing unit — all component spacing is relative to this */
+  --spacing-unit: 0.25rem;
+
+  --font-sans: "Quicksand", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* =============================================================================
+     SPACING DENSITY — Class on <html>
+     Controls the base spacing unit used throughout components.
+     Default: spacing-base (0.25rem = 4px, standard Tailwind)
+     ============================================================================= */
+
+:root,
+.spacing-base {
+  --spacing-unit: 0.25rem;
+}
+
+.spacing-xxs {
+  --spacing-unit: 0.125rem;
+}
+
+.spacing-xs {
+  --spacing-unit: 0.1875rem;
+}
+
+.spacing-sm {
+  --spacing-unit: 0.21875rem;
+}
+
+.spacing-md {
+  --spacing-unit: 0.28125rem;
+}
+
+.spacing-lg {
+  --spacing-unit: 0.3125rem;
+}
+
+.spacing-xl {
+  --spacing-unit: 0.375rem;
+}
+
+.spacing-2xl {
+  --spacing-unit: 0.4375rem;
+}
+
+.spacing-3xl {
+  --spacing-unit: 0.5rem;
+}
+
+.spacing-4xl {
+  --spacing-unit: 0.625rem;
+}
+
+/* =============================================================================
+     RADIUS DENSITY — Class on <html>
+     Controls the base radius used throughout components.
+     Default: radius-base (0.5rem = 8px)
+     ============================================================================= */
+
+:root,
+.radius-base {
+  --radius: 0.5rem;
+}
+
+.radius-none {
+  --radius: 0;
+}
+
+.radius-xxs {
+  --radius: 0.125rem;
+}
+
+.radius-xs {
+  --radius: 0.1875rem;
+}
+
+.radius-sm {
+  --radius: 0.25rem;
+}
+
+.radius-md {
+  --radius: 0.375rem;
+}
+
+.radius-lg {
+  --radius: 0.625rem;
+}
+
+.radius-xl {
+  --radius: 0.75rem;
+}
+
+.radius-2xl {
+  --radius: 1rem;
+}
+
+.radius-3xl {
+  --radius: 1.25rem;
+}
+
+.radius-4xl {
+  --radius: 1.5rem;
+}
+
+.radius-full {
+  --radius: 9999px;
+}
+
+/*
+   * DARK MODE
+   *
+   * IMPORTANT: We must re-declare --scale-* and accent palette mappings here.
+   * CSS custom properties resolve var() at computed-value time on the element
+   * where they're declared. If :root sets --scale-200: var(--raw-sage-3), it
+   * resolves to the light sage-3 value on :root and that concrete value is
+   * inherited. A child with .dark that overrides --raw-sage-3 won't affect
+   * the already-resolved --scale-200. Re-declaring the mapping here forces
+   * re-resolution against the dark --raw-* values.
+   */
+.dark {
+  /* Re-declare gray scale mapping (default: sage) */
+  --scale-50: var(--raw-sage-1);
+  --scale-100: var(--raw-sage-2);
+  --scale-200: var(--raw-sage-3);
+  --scale-300: var(--raw-sage-4);
+  --scale-400: var(--raw-sage-5);
+  --scale-500: var(--raw-sage-6);
+  --scale-600: var(--raw-sage-7);
+  --scale-700: var(--raw-sage-8);
+  --scale-800: var(--raw-sage-9);
+  --scale-850: var(--raw-sage-10);
+  --scale-900: var(--raw-sage-11);
+  --scale-950: var(--raw-sage-12);
+
+  /* Re-declare accent palette mappings */
+  --primary-50: var(--raw-blue-1);
+  --primary-100: var(--raw-blue-2);
+  --primary-200: var(--raw-blue-3);
+  --primary-300: var(--raw-blue-4);
+  --primary-400: var(--raw-blue-5);
+  --primary-500: var(--raw-blue-6);
+  --primary-600: var(--raw-blue-7);
+  --primary-700: var(--raw-blue-8);
+  --primary-800: var(--raw-blue-9);
+  --primary-850: var(--raw-blue-10);
+  --primary-900: var(--raw-blue-11);
+  --primary-950: var(--raw-blue-12);
+
+  --secondary-50: var(--raw-indigo-1);
+  --secondary-100: var(--raw-indigo-2);
+  --secondary-200: var(--raw-indigo-3);
+  --secondary-300: var(--raw-indigo-4);
+  --secondary-400: var(--raw-indigo-5);
+  --secondary-500: var(--raw-indigo-6);
+  --secondary-600: var(--raw-indigo-7);
+  --secondary-700: var(--raw-indigo-8);
+  --secondary-800: var(--raw-indigo-9);
+  --secondary-850: var(--raw-indigo-10);
+  --secondary-900: var(--raw-indigo-11);
+  --secondary-950: var(--raw-indigo-12);
+
+  --destructive-50: var(--raw-tomato-1);
+  --destructive-100: var(--raw-tomato-2);
+  --destructive-200: var(--raw-tomato-3);
+  --destructive-300: var(--raw-tomato-4);
+  --destructive-400: var(--raw-tomato-5);
+  --destructive-500: var(--raw-tomato-6);
+  --destructive-600: var(--raw-tomato-7);
+  --destructive-700: var(--raw-tomato-8);
+  --destructive-800: var(--raw-tomato-9);
+  --destructive-850: var(--raw-tomato-10);
+  --destructive-900: var(--raw-tomato-11);
+  --destructive-950: var(--raw-tomato-12);
+
+  --warning-50: var(--raw-amber-1);
+  --warning-100: var(--raw-amber-2);
+  --warning-200: var(--raw-amber-3);
+  --warning-300: var(--raw-amber-4);
+  --warning-400: var(--raw-amber-5);
+  --warning-500: var(--raw-amber-6);
+  --warning-600: var(--raw-amber-7);
+  --warning-700: var(--raw-amber-8);
+  --warning-800: var(--raw-amber-9);
+  --warning-850: var(--raw-amber-10);
+  --warning-900: var(--raw-amber-11);
+  --warning-950: var(--raw-amber-12);
+
+  --success-50: var(--raw-teal-1);
+  --success-100: var(--raw-teal-2);
+  --success-200: var(--raw-teal-3);
+  --success-300: var(--raw-teal-4);
+  --success-400: var(--raw-teal-5);
+  --success-500: var(--raw-teal-6);
+  --success-600: var(--raw-teal-7);
+  --success-700: var(--raw-teal-8);
+  --success-800: var(--raw-teal-9);
+  --success-850: var(--raw-teal-10);
+  --success-900: var(--raw-teal-11);
+  --success-950: var(--raw-teal-12);
+
+  /* Semantic aliases for dark mode */
+  --background: var(--scale-100);
+  --foreground: var(--scale-950);
+
+  --muted: var(--scale-300);
+  --muted-foreground: var(--scale-900);
+
+  --card: var(--scale-100);
+  --card-foreground: var(--scale-950);
+
+  --popover: var(--scale-100);
+  --popover-foreground: var(--scale-950);
+
+  --border: var(--scale-500);
+  --input: var(--scale-500);
+
+  --accent: var(--scale-300);
+  --accent-foreground: var(--scale-950);
+
+  --ring: var(--primary-700);
+
+  /* Z-Index Layers */
+  --z-base: 0;
+  --z-sticky: 5;
+  --z-dropdown: 10;
+  --z-popover: 20;
+  --z-modal: 30;
+  --z-toast: 40;
+  --z-tooltip: 50;
+
+  /* Animation Tokens */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}

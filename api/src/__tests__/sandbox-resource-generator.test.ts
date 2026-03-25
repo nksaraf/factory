@@ -1,0 +1,163 @@
+import { describe, expect, it } from "vitest";
+import { generateSandboxResources } from "../reconciler/sandbox-resource-generator";
+
+describe("Sandbox Resource Generator", () => {
+  const baseSandbox = {
+    sandboxId: "sbx_test123",
+    slug: "my-sandbox",
+    devcontainerImage: "node:20",
+    devcontainerConfig: {
+      containerEnv: { NODE_ENV: "development" },
+    } as Record<string, unknown>,
+    repos: [
+      {
+        url: "https://github.com/test/repo",
+        branch: "main",
+        clonePath: "repo",
+      },
+    ],
+    cpu: "2000m",
+    memory: "4Gi",
+    storageGb: 20,
+    dockerCacheGb: 30,
+  };
+
+  it("generates 6 resources for a container sandbox", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    expect(resources).toHaveLength(6);
+    expect(resources.map((r) => r.kind)).toEqual([
+      "Namespace",
+      "PersistentVolumeClaim",
+      "PersistentVolumeClaim",
+      "Pod",
+      "Service",
+      "IngressRoute",
+    ]);
+  });
+
+  it("Pod has init container clone-repos with correct git clone/fetch script", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const initContainers = (pod.spec as any).initContainers;
+    expect(initContainers).toHaveLength(1);
+    expect(initContainers[0].name).toBe("clone-repos");
+
+    const script = initContainers[0].command[2] as string;
+    // Should contain git clone with branch and path
+    expect(script).toContain("git clone -b main https://github.com/test/repo /workspace/repo");
+    // Should contain fetch path for existing repos
+    expect(script).toContain("git fetch origin main");
+    expect(script).toContain("git reset --hard origin/main");
+  });
+
+  it("Pod has 2 containers (workspace + dind) and 1 init container (clone-repos)", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const spec = pod.spec as any;
+
+    expect(spec.initContainers).toHaveLength(1);
+    expect(spec.initContainers[0].name).toBe("clone-repos");
+
+    expect(spec.containers).toHaveLength(2);
+    const names = spec.containers.map((c: any) => c.name);
+    expect(names).toContain("workspace");
+    expect(names).toContain("dind");
+  });
+
+  it("workspace container has correct image, limits, env (DOCKER_HOST), and ports 22+8080", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const workspace = (pod.spec as any).containers.find(
+      (c: any) => c.name === "workspace"
+    );
+
+    // Image
+    expect(workspace.image).toBe("node:20");
+
+    // Resource limits
+    expect(workspace.resources.limits.cpu).toBe("2000m");
+    expect(workspace.resources.limits.memory).toBe("4Gi");
+
+    // Env includes DOCKER_HOST and devcontainer env
+    const envMap = Object.fromEntries(
+      workspace.env.map((e: any) => [e.name, e.value])
+    );
+    expect(envMap.DOCKER_HOST).toBe("tcp://localhost:2375");
+    expect(envMap.NODE_ENV).toBe("development");
+
+    // Ports
+    const ports = workspace.ports.map((p: any) => p.containerPort);
+    expect(ports).toContain(22);
+    expect(ports).toContain(8080);
+  });
+
+  it("DinD sidecar mounts docker PVC at /var/lib/docker", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const dind = (pod.spec as any).containers.find(
+      (c: any) => c.name === "dind"
+    );
+
+    expect(dind.image).toBe("docker:dind");
+    expect(dind.securityContext.privileged).toBe(true);
+
+    const mount = dind.volumeMounts.find(
+      (vm: any) => vm.mountPath === "/var/lib/docker"
+    );
+    expect(mount).toBeTruthy();
+    expect(mount.name).toBe("docker-storage");
+  });
+
+  it("workspace PVC size matches storageGb, docker PVC size matches dockerCacheGb", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pvcs = resources.filter((r) => r.kind === "PersistentVolumeClaim");
+    expect(pvcs).toHaveLength(2);
+
+    const workspacePvc = pvcs.find((p) =>
+      p.metadata.name!.includes("workspace")
+    )!;
+    const dockerPvc = pvcs.find((p) => p.metadata.name!.includes("docker"))!;
+
+    expect((workspacePvc.spec as any).resources.requests.storage).toBe("20Gi");
+    expect((dockerPvc.spec as any).resources.requests.storage).toBe("30Gi");
+  });
+
+  it("all resources have dx.dev/sandbox label", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    for (const r of resources) {
+      expect(r.metadata.labels?.["dx.dev/sandbox"]).toBe("sbx_test123");
+    }
+  });
+
+  it("IngressRoute hostname is {slug}.sandbox.dx.dev", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const ingress = resources.find((r) => r.kind === "IngressRoute")!;
+    const route = (ingress.spec as any).routes[0];
+    expect(route.match).toContain("my-sandbox.sandbox.dx.dev");
+  });
+
+  it("uses default image when devcontainerImage is null", () => {
+    const resources = generateSandboxResources({
+      ...baseSandbox,
+      devcontainerImage: null,
+    });
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const workspace = (pod.spec as any).containers.find(
+      (c: any) => c.name === "workspace"
+    );
+    expect(workspace.image).toBe("mcr.microsoft.com/devcontainers/base:ubuntu");
+  });
+
+  it("omits resource limits when cpu and memory are null", () => {
+    const resources = generateSandboxResources({
+      ...baseSandbox,
+      cpu: null,
+      memory: null,
+    });
+    const pod = resources.find((r) => r.kind === "Pod")!;
+    const workspace = (pod.spec as any).containers.find(
+      (c: any) => c.name === "workspace"
+    );
+    expect(workspace.resources).toBeUndefined();
+  });
+});

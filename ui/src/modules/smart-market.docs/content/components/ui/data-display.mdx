@@ -1,0 +1,271 @@
+# Data Display
+
+Components for presenting data, status information, and loading states.
+
+```tsx
+import { Badge } from "@rio.js/ui-next/components/badge"
+```
+
+---
+
+## Badge
+
+Compact labels for status, categories, and counts.
+
+<VariantGrid>
+  <Badge>Default</Badge>
+  <Badge variant="secondary">Secondary</Badge>
+  <Badge variant="destructive">Destructive</Badge>
+  <Badge variant="outline">Outline</Badge>
+</VariantGrid>
+
+```tsx
+<Badge>Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="destructive">Destructive</Badge>
+<Badge variant="outline">Outline</Badge>
+```
+
+### When to use each variant
+
+- **Default** — Primary status indicators, counts, or active states.
+- **Secondary** — Neutral metadata like categories or tags.
+- **Destructive** — Errors, failures, or critical status.
+- **Outline** — Low-emphasis labels, often for inactive or pending states.
+
+---
+
+## Avatar
+
+A circular image with a text fallback for user or entity representation.
+
+```tsx
+import { Avatar, AvatarFallback, AvatarImage } from "@rio.js/ui-next/components/avatar"
+```
+
+<VariantGrid>
+  <Avatar>
+    <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+    <AvatarFallback>CN</AvatarFallback>
+  </Avatar>
+  <Avatar>
+    <AvatarFallback>NS</AvatarFallback>
+  </Avatar>
+  <Avatar>
+    <AvatarFallback>AB</AvatarFallback>
+  </Avatar>
+</VariantGrid>
+
+```tsx
+<Avatar>
+  <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+  <AvatarFallback>CN</AvatarFallback>
+</Avatar>
+```
+
+The `AvatarFallback` renders when the image fails to load or while it's loading. Use 1-2 character initials.
+
+---
+
+## Progress
+
+A horizontal bar indicating completion or loading progress.
+
+```tsx
+import { Progress } from "@rio.js/ui-next/components/progress"
+```
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-4">
+    <div className="space-y-1">
+      <p className="text-sm text-muted-foreground">25% complete</p>
+      <Progress value={25} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm text-muted-foreground">50% complete</p>
+      <Progress value={50} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm text-muted-foreground">75% complete</p>
+      <Progress value={75} />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Progress value={50} />
+```
+
+### Indeterminate state
+
+Omit the `value` prop to show an indeterminate loading bar.
+
+```tsx
+<Progress />
+```
+
+---
+
+## Skeleton
+
+Placeholder shapes that indicate where content will appear while loading.
+
+```tsx
+import { Skeleton } from "@rio.js/ui-next/components/skeleton"
+```
+
+<ComponentPreview>
+  <div className="flex items-center gap-4">
+    <Skeleton className="h-12 w-12 rounded-full" />
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-[200px]" />
+      <Skeleton className="h-4 w-[160px]" />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Skeleton className="h-12 w-12 rounded-full" />
+<Skeleton className="h-4 w-[200px]" />
+<Skeleton className="h-4 w-[160px]" />
+```
+
+### Common patterns
+
+Match skeleton shapes to the content they replace for a smooth loading transition.
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-4">
+    <div className="space-y-2">
+      <Skeleton className="h-5 w-[120px]" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-[80%]" />
+    </div>
+    <Skeleton className="h-32 w-full rounded-lg" />
+    <div className="flex gap-2">
+      <Skeleton className="h-9 w-20 rounded-md" />
+      <Skeleton className="h-9 w-20 rounded-md" />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+{/* Card skeleton */}
+<Skeleton className="h-5 w-[120px]" />   {/* Title */}
+<Skeleton className="h-4 w-full" />       {/* Line 1 */}
+<Skeleton className="h-4 w-[80%]" />      {/* Line 2 */}
+<Skeleton className="h-32 w-full rounded-lg" /> {/* Image */}
+```
+
+---
+
+## Table
+
+A structured data table built on native HTML table elements with consistent styling.
+
+```tsx
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rio.js/ui-next/components/table"
+```
+
+<ComponentPreview className="block">
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Name</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Role</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      <TableRow>
+        <TableCell>Alice Johnson</TableCell>
+        <TableCell><Badge>Active</Badge></TableCell>
+        <TableCell>Admin</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell>Bob Smith</TableCell>
+        <TableCell><Badge variant="secondary">Inactive</Badge></TableCell>
+        <TableCell>Editor</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell>Carol Williams</TableCell>
+        <TableCell><Badge variant="outline">Pending</Badge></TableCell>
+        <TableCell>Viewer</TableCell>
+      </TableRow>
+    </TableBody>
+  </Table>
+</ComponentPreview>
+
+```tsx
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Name</TableHead>
+      <TableHead>Status</TableHead>
+      <TableHead>Role</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    <TableRow>
+      <TableCell>Alice Johnson</TableCell>
+      <TableCell><Badge>Active</Badge></TableCell>
+      <TableCell>Admin</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>
+```
+
+### Table structure
+
+| Component | Maps to | Purpose |
+|-----------|---------|---------|
+| `Table` | `<table>` | Root container |
+| `TableHeader` | `<thead>` | Header row group |
+| `TableBody` | `<tbody>` | Body row group |
+| `TableRow` | `<tr>` | A single row |
+| `TableHead` | `<th>` | Header cell |
+| `TableCell` | `<td>` | Body cell |
+
+---
+
+## API Reference
+
+### Badge Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"default" \| "secondary" \| "destructive" \| "outline"` | `"default"` | Visual style |
+| `className` | `string` | — | Additional CSS classes |
+
+### Avatar Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | — | Additional CSS classes |
+
+### AvatarImage Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `src` | `string` | — | Image URL |
+| `alt` | `string` | — | Alt text for accessibility |
+
+### Progress Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `number` | — | Current progress (0-100). Omit for indeterminate |
+| `max` | `number` | `100` | Maximum value |
+| `className` | `string` | — | Additional CSS classes |
+
+### Skeleton Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | — | Width, height, and border-radius via Tailwind |
+
+### Table Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"default" \| "grid" \| "compact"` | `"default"` | `grid` adds borders to all cells, `compact` reduces padding and uses `text-xs` |

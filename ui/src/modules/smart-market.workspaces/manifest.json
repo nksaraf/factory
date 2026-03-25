@@ -1,0 +1,125 @@
+{
+  "id": "smart-market.workspaces",
+  "displayName": "Workspaces",
+  "description": "Workspace management for Smart Market Platform",
+  "version": "0.0.1",
+  "publisher": "rio.js",
+  "engines": {
+    "rio": ">=0.0.1"
+  },
+  "category": "platform",
+  "tags": ["workspaces", "files"],
+  "categories": ["core"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--folders-duotone]",
+      "label": "Workspaces",
+      "order": 1
+    },
+    "routePrefix": "/w",
+    "moduleSidebar": {
+      "width": 260,
+      "resizable": true
+    }
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "smart-market.workspaces.route.list.page",
+        "displayName": "Workspaces",
+        "path": "/(root)/(app)/w/"
+      },
+      {
+        "id": "smart-market.workspaces.route.workspace.layout",
+        "displayName": "Workspace",
+        "path": "/(root)/(app)/w/:workspaceId"
+      },
+      {
+        "id": "smart-market.workspaces.route.workspace.page",
+        "displayName": "Workspace",
+        "path": "/(root)/(app)/w/:workspaceId/"
+      },
+      {
+        "id": "smart-market.workspaces.route.files.layout",
+        "displayName": "Files",
+        "path": "/(root)/(app)/w/:workspaceId/files"
+      },
+      {
+        "id": "smart-market.workspaces.route.files.page",
+        "displayName": "Files",
+        "path": "/(root)/(app)/w/:workspaceId/files/"
+      },
+      {
+        "id": "smart-market.workspaces.route.files.resource.page",
+        "displayName": "Resource",
+        "path": "/(root)/(app)/w/:workspaceId/files/:resourceId/"
+      }
+    ],
+    "sidebarGroups": [],
+    "sidebarItems": [
+      {
+        "id": "smart-market.workspaces.sidebar.item.workspaces",
+        "displayName": "Workspaces",
+        "icon": "icon-[ph--folders-duotone]",
+        "href": "/w",
+        "group": "smart-market.core.sidebar.group.platform",
+        "order": 0.5
+      }
+    ],
+    "layouts": [],
+    "views": [
+      {
+        "id": "smart-market.workspaces.views.folder",
+        "displayName": "Folder View",
+        "code": "./components/resource-views/folder-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.dataset",
+        "displayName": "Dataset View",
+        "code": "./components/resource-views/dataset-view/dataset-detail-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.map",
+        "displayName": "Map View",
+        "code": "./components/resource-views/map-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.dashboard",
+        "displayName": "Dashboard View",
+        "code": "./components/resource-views/dashboard-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.pipeline",
+        "displayName": "Pipeline View",
+        "code": "./components/resource-views/pipeline-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.ontology",
+        "displayName": "Ontology View",
+        "code": "./components/resource-views/ontology-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.process",
+        "displayName": "Process View",
+        "code": "./components/resource-views/process-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.report",
+        "displayName": "Report View",
+        "code": "./components/resource-views/report-view"
+      },
+      {
+        "id": "smart-market.workspaces.views.agent_session",
+        "displayName": "Agent Session View",
+        "code": "./components/resource-views/agent-session-view/agent-session-detail-view"
+      }
+    ],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

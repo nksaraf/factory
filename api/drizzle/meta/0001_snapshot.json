@@ -1,0 +1,3201 @@
+{
+  "id": "757b51c0-4492-4306-b0c0-8a57ea7973ed",
+  "prevId": "4a165a9d-1f66-4626-a4e1-37b05312dc7e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "factory_agent.agent": {
+      "name": "agent",
+      "schema": "factory_agent",
+      "columns": {
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_type": {
+          "name": "agent_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "capabilities": {
+          "name": "capabilities",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_name_unique": {
+          "name": "agent_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agent_type_valid": {
+          "name": "agent_type_valid",
+          "value": "\"factory_agent\".\"agent\".\"agent_type\" IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')"
+        },
+        "agent_status_valid": {
+          "name": "agent_status_valid",
+          "value": "\"factory_agent\".\"agent\".\"status\" IN ('active', 'disabled')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_agent.agent_execution": {
+      "name": "agent_execution",
+      "schema": "factory_agent",
+      "columns": {
+        "execution_id": {
+          "name": "execution_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "cost_cents": {
+          "name": "cost_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "agent_execution_agent_id_agent_agent_id_fk": {
+          "name": "agent_execution_agent_id_agent_agent_id_fk",
+          "tableFrom": "agent_execution",
+          "tableTo": "agent",
+          "schemaTo": "factory_agent",
+          "columnsFrom": [
+            "agent_id"
+          ],
+          "columnsTo": [
+            "agent_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agent_execution_status_valid": {
+          "name": "agent_execution_status_valid",
+          "value": "\"factory_agent\".\"agent_execution\".\"status\" IN ('pending', 'running', 'succeeded', 'failed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_build.artifact": {
+      "name": "artifact",
+      "schema": "factory_build",
+      "columns": {
+        "artifact_id": {
+          "name": "artifact_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "image_ref": {
+          "name": "image_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_digest": {
+          "name": "image_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "built_at": {
+          "name": "built_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_build.component_artifact": {
+      "name": "component_artifact",
+      "schema": "factory_build",
+      "columns": {
+        "component_artifact_id": {
+          "name": "component_artifact_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "module_version_id": {
+          "name": "module_version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component_id": {
+          "name": "component_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "artifact_id": {
+          "name": "artifact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "component_artifact_module_version_id_module_version_module_version_id_fk": {
+          "name": "component_artifact_module_version_id_module_version_module_version_id_fk",
+          "tableFrom": "component_artifact",
+          "tableTo": "module_version",
+          "schemaTo": "factory_build",
+          "columnsFrom": [
+            "module_version_id"
+          ],
+          "columnsTo": [
+            "module_version_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "component_artifact_component_id_component_spec_component_id_fk": {
+          "name": "component_artifact_component_id_component_spec_component_id_fk",
+          "tableFrom": "component_artifact",
+          "tableTo": "component_spec",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "component_id"
+          ],
+          "columnsTo": [
+            "component_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "component_artifact_artifact_id_artifact_artifact_id_fk": {
+          "name": "component_artifact_artifact_id_artifact_artifact_id_fk",
+          "tableFrom": "component_artifact",
+          "tableTo": "artifact",
+          "schemaTo": "factory_build",
+          "columnsFrom": [
+            "artifact_id"
+          ],
+          "columnsTo": [
+            "artifact_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_build.module_version": {
+      "name": "module_version",
+      "schema": "factory_build",
+      "columns": {
+        "module_version_id": {
+          "name": "module_version_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compatibility_range": {
+          "name": "compatibility_range",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "module_version_module_version_unique": {
+          "name": "module_version_module_version_unique",
+          "columns": [
+            {
+              "expression": "module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "module_version_module_id_module_module_id_fk": {
+          "name": "module_version_module_id_module_module_id_fk",
+          "tableFrom": "module_version",
+          "tableTo": "module",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "module_id"
+          ],
+          "columnsTo": [
+            "module_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_build.repo": {
+      "name": "repo",
+      "schema": "factory_build",
+      "columns": {
+        "repo_id": {
+          "name": "repo_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "git_url": {
+          "name": "git_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_branch": {
+          "name": "default_branch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "repo_name_unique": {
+          "name": "repo_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "repo_module_id_module_module_id_fk": {
+          "name": "repo_module_id_module_module_id_fk",
+          "tableFrom": "repo",
+          "tableTo": "module",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "module_id"
+          ],
+          "columnsTo": [
+            "module_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "repo_kind_valid": {
+          "name": "repo_kind_valid",
+          "value": "\"factory_build\".\"repo\".\"kind\" IN ('product-module', 'platform-module', 'library', 'vendor-module', 'client-project', 'infra', 'docs', 'tool')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_commerce.plan": {
+      "name": "plan",
+      "schema": "factory_commerce",
+      "columns": {
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "included_modules": {
+          "name": "included_modules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_commerce.customer_account": {
+      "name": "customer_account",
+      "schema": "factory_commerce",
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'trial'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "customer_status_valid": {
+          "name": "customer_status_valid",
+          "value": "\"factory_commerce\".\"customer_account\".\"status\" IN ('trial', 'active', 'suspended', 'terminated')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_commerce.entitlement": {
+      "name": "entitlement",
+      "schema": "factory_commerce",
+      "columns": {
+        "entitlement_id": {
+          "name": "entitlement_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "quotas": {
+          "name": "quotas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "entitlement_customer_id_customer_account_customer_id_fk": {
+          "name": "entitlement_customer_id_customer_account_customer_id_fk",
+          "tableFrom": "entitlement",
+          "tableTo": "customer_account",
+          "schemaTo": "factory_commerce",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "customer_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entitlement_module_id_module_module_id_fk": {
+          "name": "entitlement_module_id_module_module_id_fk",
+          "tableFrom": "entitlement",
+          "tableTo": "module",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "module_id"
+          ],
+          "columnsTo": [
+            "module_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "entitlement_status_valid": {
+          "name": "entitlement_status_valid",
+          "value": "\"factory_commerce\".\"entitlement\".\"status\" IN ('active', 'suspended', 'revoked')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.connection_audit_event": {
+      "name": "connection_audit_event",
+      "schema": "factory_fleet",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "principal_id": {
+          "name": "principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "connected_resources": {
+          "name": "connected_resources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "readonly": {
+          "name": "readonly",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "connection_audit_event_deployment_target_id_deployment_target_deployment_target_id_fk": {
+          "name": "connection_audit_event_deployment_target_id_deployment_target_deployment_target_id_fk",
+          "tableFrom": "connection_audit_event",
+          "tableTo": "deployment_target",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "deployment_target_id"
+          ],
+          "columnsTo": [
+            "deployment_target_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_fleet.dependency_workload": {
+      "name": "dependency_workload",
+      "schema": "factory_fleet",
+      "columns": {
+        "dependency_workload_id": {
+          "name": "dependency_workload_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "port": {
+          "name": "port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "env": {
+          "name": "env",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dependency_workload_deployment_target_id_deployment_target_deployment_target_id_fk": {
+          "name": "dependency_workload_deployment_target_id_deployment_target_deployment_target_id_fk",
+          "tableFrom": "dependency_workload",
+          "tableTo": "deployment_target",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "deployment_target_id"
+          ],
+          "columnsTo": [
+            "deployment_target_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dependency_workload_status_valid": {
+          "name": "dependency_workload_status_valid",
+          "value": "\"factory_fleet\".\"dependency_workload\".\"status\" IN ('provisioning', 'running', 'failed', 'stopped')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.deployment_target": {
+      "name": "deployment_target",
+      "schema": "factory_fleet",
+      "columns": {
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cluster_id": {
+          "name": "cluster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "namespace": {
+          "name": "namespace",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trigger": {
+          "name": "trigger",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ttl": {
+          "name": "ttl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tier_policies": {
+          "name": "tier_policies",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "destroyed_at": {
+          "name": "destroyed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "deployment_target_name_unique": {
+          "name": "deployment_target_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deployment_target_kind_status_idx": {
+          "name": "deployment_target_kind_status_idx",
+          "columns": [
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deployment_target_site_id_site_site_id_fk": {
+          "name": "deployment_target_site_id_site_site_id_fk",
+          "tableFrom": "deployment_target",
+          "tableTo": "site",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "site_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "deployment_target_cluster_id_cluster_cluster_id_fk": {
+          "name": "deployment_target_cluster_id_cluster_cluster_id_fk",
+          "tableFrom": "deployment_target",
+          "tableTo": "cluster",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "cluster_id"
+          ],
+          "columnsTo": [
+            "cluster_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "deployment_target_kind_valid": {
+          "name": "deployment_target_kind_valid",
+          "value": "\"factory_fleet\".\"deployment_target\".\"kind\" IN ('production', 'staging', 'sandbox', 'dev')"
+        },
+        "deployment_target_trigger_valid": {
+          "name": "deployment_target_trigger_valid",
+          "value": "\"factory_fleet\".\"deployment_target\".\"trigger\" IN ('manual', 'pr', 'release', 'agent', 'ci')"
+        },
+        "deployment_target_status_valid": {
+          "name": "deployment_target_status_valid",
+          "value": "\"factory_fleet\".\"deployment_target\".\"status\" IN ('provisioning', 'active', 'suspended', 'destroying', 'destroyed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.site": {
+      "name": "site",
+      "schema": "factory_fleet",
+      "columns": {
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product": {
+          "name": "product",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cluster_id": {
+          "name": "cluster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fleet_site_name_unique": {
+          "name": "fleet_site_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fleet_site_product_idx": {
+          "name": "fleet_site_product_idx",
+          "columns": [
+            {
+              "expression": "product",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "site_cluster_id_cluster_cluster_id_fk": {
+          "name": "site_cluster_id_cluster_cluster_id_fk",
+          "tableFrom": "site",
+          "tableTo": "cluster",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "cluster_id"
+          ],
+          "columnsTo": [
+            "cluster_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fleet_site_status_valid": {
+          "name": "fleet_site_status_valid",
+          "value": "\"factory_fleet\".\"site\".\"status\" IN ('provisioning', 'active', 'suspended', 'decommissioned')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.intervention": {
+      "name": "intervention",
+      "schema": "factory_fleet",
+      "columns": {
+        "intervention_id": {
+          "name": "intervention_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workload_id": {
+          "name": "workload_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_id": {
+          "name": "principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "intervention_deployment_target_id_deployment_target_deployment_target_id_fk": {
+          "name": "intervention_deployment_target_id_deployment_target_deployment_target_id_fk",
+          "tableFrom": "intervention",
+          "tableTo": "deployment_target",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "deployment_target_id"
+          ],
+          "columnsTo": [
+            "deployment_target_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "intervention_workload_id_workload_workload_id_fk": {
+          "name": "intervention_workload_id_workload_workload_id_fk",
+          "tableFrom": "intervention",
+          "tableTo": "workload",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "workload_id"
+          ],
+          "columnsTo": [
+            "workload_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_fleet.release": {
+      "name": "release",
+      "schema": "factory_fleet",
+      "columns": {
+        "release_id": {
+          "name": "release_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "release_version_unique": {
+          "name": "release_version_unique",
+          "columns": [
+            {
+              "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "release_status_valid": {
+          "name": "release_status_valid",
+          "value": "\"factory_fleet\".\"release\".\"status\" IN ('draft', 'staging', 'production', 'superseded', 'failed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.release_module_pin": {
+      "name": "release_module_pin",
+      "schema": "factory_fleet",
+      "columns": {
+        "release_module_pin_id": {
+          "name": "release_module_pin_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "release_id": {
+          "name": "release_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module_version_id": {
+          "name": "module_version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "release_module_pin_release_id_release_release_id_fk": {
+          "name": "release_module_pin_release_id_release_release_id_fk",
+          "tableFrom": "release_module_pin",
+          "tableTo": "release",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "release_id"
+          ],
+          "columnsTo": [
+            "release_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "release_module_pin_module_version_id_module_version_module_version_id_fk": {
+          "name": "release_module_pin_module_version_id_module_version_module_version_id_fk",
+          "tableFrom": "release_module_pin",
+          "tableTo": "module_version",
+          "schemaTo": "factory_build",
+          "columnsFrom": [
+            "module_version_id"
+          ],
+          "columnsTo": [
+            "module_version_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_fleet.rollout": {
+      "name": "rollout",
+      "schema": "factory_fleet",
+      "columns": {
+        "rollout_id": {
+          "name": "rollout_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "release_id": {
+          "name": "release_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "rollout_release_idx": {
+          "name": "rollout_release_idx",
+          "columns": [
+            {
+              "expression": "release_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rollout_release_id_release_release_id_fk": {
+          "name": "rollout_release_id_release_release_id_fk",
+          "tableFrom": "rollout",
+          "tableTo": "release",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "release_id"
+          ],
+          "columnsTo": [
+            "release_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rollout_deployment_target_id_deployment_target_deployment_target_id_fk": {
+          "name": "rollout_deployment_target_id_deployment_target_deployment_target_id_fk",
+          "tableFrom": "rollout",
+          "tableTo": "deployment_target",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "deployment_target_id"
+          ],
+          "columnsTo": [
+            "deployment_target_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rollout_status_valid": {
+          "name": "rollout_status_valid",
+          "value": "\"factory_fleet\".\"rollout\".\"status\" IN ('pending', 'in_progress', 'succeeded', 'failed', 'rolled_back')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.workload": {
+      "name": "workload",
+      "schema": "factory_fleet",
+      "columns": {
+        "workload_id": {
+          "name": "workload_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deployment_target_id": {
+          "name": "deployment_target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module_version_id": {
+          "name": "module_version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component_id": {
+          "name": "component_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "artifact_id": {
+          "name": "artifact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "replicas": {
+          "name": "replicas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "env_overrides": {
+          "name": "env_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "resource_overrides": {
+          "name": "resource_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        },
+        "desired_image": {
+          "name": "desired_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actual_image": {
+          "name": "actual_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drift_detected": {
+          "name": "drift_detected",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "last_reconciled_at": {
+          "name": "last_reconciled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "workload_target_component_idx": {
+          "name": "workload_target_component_idx",
+          "columns": [
+            {
+              "expression": "deployment_target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "component_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "workload_deployment_target_id_deployment_target_deployment_target_id_fk": {
+          "name": "workload_deployment_target_id_deployment_target_deployment_target_id_fk",
+          "tableFrom": "workload",
+          "tableTo": "deployment_target",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "deployment_target_id"
+          ],
+          "columnsTo": [
+            "deployment_target_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "workload_module_version_id_module_version_module_version_id_fk": {
+          "name": "workload_module_version_id_module_version_module_version_id_fk",
+          "tableFrom": "workload",
+          "tableTo": "module_version",
+          "schemaTo": "factory_build",
+          "columnsFrom": [
+            "module_version_id"
+          ],
+          "columnsTo": [
+            "module_version_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "workload_component_id_component_spec_component_id_fk": {
+          "name": "workload_component_id_component_spec_component_id_fk",
+          "tableFrom": "workload",
+          "tableTo": "component_spec",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "component_id"
+          ],
+          "columnsTo": [
+            "component_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "workload_artifact_id_artifact_artifact_id_fk": {
+          "name": "workload_artifact_id_artifact_artifact_id_fk",
+          "tableFrom": "workload",
+          "tableTo": "artifact",
+          "schemaTo": "factory_build",
+          "columnsFrom": [
+            "artifact_id"
+          ],
+          "columnsTo": [
+            "artifact_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "workload_status_valid": {
+          "name": "workload_status_valid",
+          "value": "\"factory_fleet\".\"workload\".\"status\" IN ('provisioning', 'running', 'degraded', 'stopped', 'failed', 'completed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.workload_override": {
+      "name": "workload_override",
+      "schema": "factory_fleet",
+      "columns": {
+        "override_id": {
+          "name": "override_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "workload_id": {
+          "name": "workload_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field": {
+          "name": "field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_value": {
+          "name": "previous_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_value": {
+          "name": "new_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reverted_at": {
+          "name": "reverted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reverted_by": {
+          "name": "reverted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "workload_override_workload_id_workload_workload_id_fk": {
+          "name": "workload_override_workload_id_workload_workload_id_fk",
+          "tableFrom": "workload_override",
+          "tableTo": "workload",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": [
+            "workload_id"
+          ],
+          "columnsTo": [
+            "workload_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_infra.cluster": {
+      "name": "cluster",
+      "schema": "factory_infra",
+      "columns": {
+        "cluster_id": {
+          "name": "cluster_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        },
+        "kubeconfig_ref": {
+          "name": "kubeconfig_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cluster_name_unique": {
+          "name": "cluster_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cluster_provider_id_provider_provider_id_fk": {
+          "name": "cluster_provider_id_provider_provider_id_fk",
+          "tableFrom": "cluster",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "provider_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cluster_status_valid": {
+          "name": "cluster_status_valid",
+          "value": "\"factory_infra\".\"cluster\".\"status\" IN ('provisioning', 'ready', 'degraded', 'destroying')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.datacenter": {
+      "name": "datacenter",
+      "schema": "factory_infra",
+      "columns": {
+        "datacenter_id": {
+          "name": "datacenter_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "availability_zone": {
+          "name": "availability_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "datacenter_name_region_unique": {
+          "name": "datacenter_name_region_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "region_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "datacenter_region_id_region_region_id_fk": {
+          "name": "datacenter_region_id_region_region_id_fk",
+          "tableFrom": "datacenter",
+          "tableTo": "region",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "region_id"
+          ],
+          "columnsTo": [
+            "region_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_infra.host": {
+      "name": "host",
+      "schema": "factory_infra",
+      "columns": {
+        "host_id": {
+          "name": "host_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datacenter_id": {
+          "name": "datacenter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipmi_address": {
+          "name": "ipmi_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "cpu_cores": {
+          "name": "cpu_cores",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_mb": {
+          "name": "memory_mb",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disk_gb": {
+          "name": "disk_gb",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rack_location": {
+          "name": "rack_location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "host_name_unique": {
+          "name": "host_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "host_provider_id_provider_provider_id_fk": {
+          "name": "host_provider_id_provider_provider_id_fk",
+          "tableFrom": "host",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "provider_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "host_datacenter_id_datacenter_datacenter_id_fk": {
+          "name": "host_datacenter_id_datacenter_datacenter_id_fk",
+          "tableFrom": "host",
+          "tableTo": "datacenter",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "datacenter_id"
+          ],
+          "columnsTo": [
+            "datacenter_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "host_status_valid": {
+          "name": "host_status_valid",
+          "value": "\"factory_infra\".\"host\".\"status\" IN ('active', 'maintenance', 'offline', 'decommissioned')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.ip_address": {
+      "name": "ip_address",
+      "schema": "factory_infra",
+      "columns": {
+        "ip_address_id": {
+          "name": "ip_address_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subnet_id": {
+          "name": "subnet_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_to_type": {
+          "name": "assigned_to_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_to_id": {
+          "name": "assigned_to_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'available'"
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fqdn": {
+          "name": "fqdn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ip_address_unique": {
+          "name": "ip_address_unique",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ip_address_subnet_id_subnet_subnet_id_fk": {
+          "name": "ip_address_subnet_id_subnet_subnet_id_fk",
+          "tableFrom": "ip_address",
+          "tableTo": "subnet",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "subnet_id"
+          ],
+          "columnsTo": [
+            "subnet_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ip_status_valid": {
+          "name": "ip_status_valid",
+          "value": "\"factory_infra\".\"ip_address\".\"status\" IN ('available', 'assigned', 'reserved', 'dhcp')"
+        },
+        "ip_assigned_to_type_valid": {
+          "name": "ip_assigned_to_type_valid",
+          "value": "\"factory_infra\".\"ip_address\".\"assigned_to_type\" IS NULL OR \"factory_infra\".\"ip_address\".\"assigned_to_type\" IN ('vm', 'host', 'kube_node', 'cluster', 'service')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.kube_node": {
+      "name": "kube_node",
+      "schema": "factory_infra",
+      "columns": {
+        "kube_node_id": {
+          "name": "kube_node_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cluster_id": {
+          "name": "cluster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vm_id": {
+          "name": "vm_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ready'"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "kube_node_cluster_name_unique": {
+          "name": "kube_node_cluster_name_unique",
+          "columns": [
+            {
+              "expression": "cluster_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "kube_node_cluster_id_cluster_cluster_id_fk": {
+          "name": "kube_node_cluster_id_cluster_cluster_id_fk",
+          "tableFrom": "kube_node",
+          "tableTo": "cluster",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "cluster_id"
+          ],
+          "columnsTo": [
+            "cluster_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "kube_node_vm_id_vm_vm_id_fk": {
+          "name": "kube_node_vm_id_vm_vm_id_fk",
+          "tableFrom": "kube_node",
+          "tableTo": "vm",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "vm_id"
+          ],
+          "columnsTo": [
+            "vm_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "kube_node_role_valid": {
+          "name": "kube_node_role_valid",
+          "value": "\"factory_infra\".\"kube_node\".\"role\" IN ('server', 'agent')"
+        },
+        "kube_node_status_valid": {
+          "name": "kube_node_status_valid",
+          "value": "\"factory_infra\".\"kube_node\".\"status\" IN ('ready', 'not_ready', 'paused', 'evacuating')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.provider": {
+      "name": "provider",
+      "schema": "factory_infra",
+      "columns": {
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_type": {
+          "name": "provider_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "credentials_ref": {
+          "name": "credentials_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_kind": {
+          "name": "provider_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'internal'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "provider_type_valid": {
+          "name": "provider_type_valid",
+          "value": "\"factory_infra\".\"provider\".\"provider_type\" IN ('proxmox', 'hetzner', 'aws', 'gcp')"
+        },
+        "provider_status_valid": {
+          "name": "provider_status_valid",
+          "value": "\"factory_infra\".\"provider\".\"status\" IN ('active', 'inactive')"
+        },
+        "provider_kind_valid": {
+          "name": "provider_kind_valid",
+          "value": "\"factory_infra\".\"provider\".\"provider_kind\" IN ('internal', 'cloud', 'partner')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.proxmox_cluster": {
+      "name": "proxmox_cluster",
+      "schema": "factory_infra",
+      "columns": {
+        "proxmox_cluster_id": {
+          "name": "proxmox_cluster_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_host": {
+          "name": "api_host",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_port": {
+          "name": "api_port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 8006
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token_secret": {
+          "name": "token_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ssl_fingerprint": {
+          "name": "ssl_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_status": {
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'idle'"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_error": {
+          "name": "sync_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "proxmox_cluster_name_unique": {
+          "name": "proxmox_cluster_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "proxmox_cluster_provider_id_provider_provider_id_fk": {
+          "name": "proxmox_cluster_provider_id_provider_provider_id_fk",
+          "tableFrom": "proxmox_cluster",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "provider_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sync_status_valid": {
+          "name": "sync_status_valid",
+          "value": "\"factory_infra\".\"proxmox_cluster\".\"sync_status\" IN ('idle', 'syncing', 'error')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.region": {
+      "name": "region",
+      "schema": "factory_infra",
+      "columns": {
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "region_slug_unique": {
+          "name": "region_slug_unique",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "region_provider_id_provider_provider_id_fk": {
+          "name": "region_provider_id_provider_provider_id_fk",
+          "tableFrom": "region",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "provider_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_infra.subnet": {
+      "name": "subnet",
+      "schema": "factory_infra",
+      "columns": {
+        "subnet_id": {
+          "name": "subnet_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cidr": {
+          "name": "cidr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gateway": {
+          "name": "gateway",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "netmask": {
+          "name": "netmask",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vlan_id": {
+          "name": "vlan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vlan_name": {
+          "name": "vlan_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "datacenter_id": {
+          "name": "datacenter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subnet_type": {
+          "name": "subnet_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'vm'"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dns_servers": {
+          "name": "dns_servers",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dns_domain": {
+          "name": "dns_domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "subnet_cidr_unique": {
+          "name": "subnet_cidr_unique",
+          "columns": [
+            {
+              "expression": "cidr",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "subnet_datacenter_id_datacenter_datacenter_id_fk": {
+          "name": "subnet_datacenter_id_datacenter_datacenter_id_fk",
+          "tableFrom": "subnet",
+          "tableTo": "datacenter",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "datacenter_id"
+          ],
+          "columnsTo": [
+            "datacenter_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "subnet_type_valid": {
+          "name": "subnet_type_valid",
+          "value": "\"factory_infra\".\"subnet\".\"subnet_type\" IN ('management', 'storage', 'vm', 'public', 'private', 'other')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.vm": {
+      "name": "vm",
+      "schema": "factory_infra",
+      "columns": {
+        "vm_id": {
+          "name": "vm_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datacenter_id": {
+          "name": "datacenter_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "host_id": {
+          "name": "host_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cluster_id": {
+          "name": "cluster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proxmox_cluster_id": {
+          "name": "proxmox_cluster_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proxmox_vmid": {
+          "name": "proxmox_vmid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vm_type": {
+          "name": "vm_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'qemu'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisioning'"
+        },
+        "cpu": {
+          "name": "cpu",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_mb": {
+          "name": "memory_mb",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disk_gb": {
+          "name": "disk_gb",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ssh_user": {
+          "name": "ssh_user",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vm_provider_id_provider_provider_id_fk": {
+          "name": "vm_provider_id_provider_provider_id_fk",
+          "tableFrom": "vm",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "provider_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "vm_datacenter_id_datacenter_datacenter_id_fk": {
+          "name": "vm_datacenter_id_datacenter_datacenter_id_fk",
+          "tableFrom": "vm",
+          "tableTo": "datacenter",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "datacenter_id"
+          ],
+          "columnsTo": [
+            "datacenter_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "vm_host_id_host_host_id_fk": {
+          "name": "vm_host_id_host_host_id_fk",
+          "tableFrom": "vm",
+          "tableTo": "host",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "host_id"
+          ],
+          "columnsTo": [
+            "host_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "vm_cluster_id_cluster_cluster_id_fk": {
+          "name": "vm_cluster_id_cluster_cluster_id_fk",
+          "tableFrom": "vm",
+          "tableTo": "cluster",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "cluster_id"
+          ],
+          "columnsTo": [
+            "cluster_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "vm_proxmox_cluster_id_proxmox_cluster_proxmox_cluster_id_fk": {
+          "name": "vm_proxmox_cluster_id_proxmox_cluster_proxmox_cluster_id_fk",
+          "tableFrom": "vm",
+          "tableTo": "proxmox_cluster",
+          "schemaTo": "factory_infra",
+          "columnsFrom": [
+            "proxmox_cluster_id"
+          ],
+          "columnsTo": [
+            "proxmox_cluster_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "vm_status_valid": {
+          "name": "vm_status_valid",
+          "value": "\"factory_infra\".\"vm\".\"status\" IN ('provisioning', 'running', 'stopped', 'destroying')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_product.component_spec": {
+      "name": "component_spec",
+      "schema": "factory_product",
+      "columns": {
+        "component_id": {
+          "name": "component_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "port": {
+          "name": "port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "healthcheck_path": {
+          "name": "healthcheck_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_public": {
+          "name": "is_public",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "run_order": {
+          "name": "run_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_replicas": {
+          "name": "default_replicas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "default_cpu": {
+          "name": "default_cpu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'100m'"
+        },
+        "default_memory": {
+          "name": "default_memory",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'128Mi'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "component_spec_module_name_unique": {
+          "name": "component_spec_module_name_unique",
+          "columns": [
+            {
+              "expression": "module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "component_spec_module_id_module_module_id_fk": {
+          "name": "component_spec_module_id_module_module_id_fk",
+          "tableFrom": "component_spec",
+          "tableTo": "module",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "module_id"
+          ],
+          "columnsTo": [
+            "module_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "component_spec_kind_valid": {
+          "name": "component_spec_kind_valid",
+          "value": "\"factory_product\".\"component_spec\".\"kind\" IN ('deployment', 'statefulset', 'job', 'cronjob')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_product.module": {
+      "name": "module",
+      "schema": "factory_product",
+      "columns": {
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product": {
+          "name": "product",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lifecycle_state": {
+          "name": "lifecycle_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "module_name_unique": {
+          "name": "module_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "module_lifecycle_valid": {
+          "name": "module_lifecycle_valid",
+          "value": "\"factory_product\".\"module\".\"lifecycle_state\" IN ('active', 'deprecated', 'retired')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_product.work_item": {
+      "name": "work_item",
+      "schema": "factory_product",
+      "columns": {
+        "work_item_id": {
+          "name": "work_item_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'backlog'"
+        },
+        "assignee": {
+          "name": "assignee",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_url": {
+          "name": "external_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "work_item_status_idx": {
+          "name": "work_item_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "work_item_assignee_idx": {
+          "name": "work_item_assignee_idx",
+          "columns": [
+            {
+              "expression": "assignee",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "work_item_module_id_module_module_id_fk": {
+          "name": "work_item_module_id_module_module_id_fk",
+          "tableFrom": "work_item",
+          "tableTo": "module",
+          "schemaTo": "factory_product",
+          "columnsFrom": [
+            "module_id"
+          ],
+          "columnsTo": [
+            "module_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "work_item_status_valid": {
+          "name": "work_item_status_valid",
+          "value": "\"factory_product\".\"work_item\".\"status\" IN ('backlog', 'ready', 'in_progress', 'in_review', 'done')"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "factory_agent": "factory_agent",
+    "factory_build": "factory_build",
+    "factory_commerce": "factory_commerce",
+    "factory_fleet": "factory_fleet",
+    "factory_infra": "factory_infra",
+    "factory_product": "factory_product"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

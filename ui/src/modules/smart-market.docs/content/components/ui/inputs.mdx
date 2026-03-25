@@ -1,0 +1,370 @@
+# Inputs
+
+Form input components for collecting user data. Built on Radix primitives with consistent sizing, focus states, and accessibility.
+
+```tsx
+import { Input } from "@rio.js/ui-next/components/input"
+import { Label } from "@rio.js/ui-next/components/label"
+```
+
+---
+
+## Text Input
+
+A standard text input with support for all HTML input types, placeholder text, and disabled state.
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="email">Email</Label>
+    <Input id="email" type="email" placeholder="you@example.com" />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Label htmlFor="email">Email</Label>
+<Input id="email" type="email" placeholder="you@example.com" />
+```
+
+### Input types
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-4">
+    <div className="space-y-2">
+      <Label htmlFor="text-input">Text</Label>
+      <Input id="text-input" type="text" placeholder="Enter text..." />
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor="password-input">Password</Label>
+      <Input id="password-input" type="password" placeholder="Enter password..." />
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor="number-input">Number</Label>
+      <Input id="number-input" type="number" placeholder="0" />
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor="search-input">Search</Label>
+      <Input id="search-input" type="search" placeholder="Search..." />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Input type="text" placeholder="Enter text..." />
+<Input type="password" placeholder="Enter password..." />
+<Input type="number" placeholder="0" />
+<Input type="search" placeholder="Search..." />
+```
+
+### Disabled
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="disabled-input">Disabled</Label>
+    <Input id="disabled-input" disabled placeholder="Cannot edit" />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Input disabled placeholder="Cannot edit" />
+```
+
+---
+
+## Textarea
+
+A multi-line text input for longer form content.
+
+```tsx
+import { Textarea } from "@rio.js/ui-next/components/textarea"
+```
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="message">Message</Label>
+    <Textarea id="message" placeholder="Type your message..." rows={3} />
+  </div>
+</ComponentPreview>
+
+```tsx
+<Label htmlFor="message">Message</Label>
+<Textarea id="message" placeholder="Type your message..." rows={3} />
+```
+
+### Disabled
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label htmlFor="disabled-textarea">Notes</Label>
+    <Textarea id="disabled-textarea" disabled placeholder="Read-only content" rows={3} />
+  </div>
+</ComponentPreview>
+
+---
+
+## Select
+
+A dropdown for choosing from a predefined list of options.
+
+```tsx
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rio.js/ui-next/components/select"
+```
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-2">
+    <Label>Status</Label>
+    <Select>
+      <SelectTrigger>
+        <SelectValue placeholder="Select status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="active">Active</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+        <SelectItem value="pending">Pending</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Select status" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="active">Active</SelectItem>
+    <SelectItem value="inactive">Inactive</SelectItem>
+    <SelectItem value="pending">Pending</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+### When to use
+
+- **Select** — When the user must choose exactly one option from a predefined list of 4+ items.
+- **Radio Group** — When there are 2-5 options and all should be visible at once.
+- **Combobox** — When the list is long and the user needs to search/filter.
+
+---
+
+## Checkbox
+
+A toggle for boolean values, often used in forms and settings.
+
+```tsx
+import { Checkbox } from "@rio.js/ui-next/components/checkbox"
+```
+
+<ComponentPreview>
+  <div className="space-y-3">
+    <div className="flex items-center gap-2">
+      <Checkbox id="terms" />
+      <Label htmlFor="terms">Accept terms and conditions</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <Checkbox id="newsletter" defaultChecked />
+      <Label htmlFor="newsletter">Subscribe to newsletter</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <Checkbox id="disabled-check" disabled />
+      <Label htmlFor="disabled-check">Disabled option</Label>
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Checkbox id="terms" />
+<Label htmlFor="terms">Accept terms and conditions</Label>
+```
+
+---
+
+## Switch
+
+A toggle switch for on/off states. Prefer over checkboxes for settings that take immediate effect.
+
+```tsx
+import { Switch } from "@rio.js/ui-next/components/switch"
+```
+
+<ComponentPreview>
+  <div className="space-y-4">
+    <div className="flex items-center gap-2">
+      <Switch id="notifications" />
+      <Label htmlFor="notifications">Enable notifications</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <Switch id="dark-mode" defaultChecked />
+      <Label htmlFor="dark-mode">Dark mode</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <Switch id="disabled-switch" disabled />
+      <Label htmlFor="disabled-switch">Disabled</Label>
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Switch id="notifications" />
+<Label htmlFor="notifications">Enable notifications</Label>
+```
+
+### When to use Switch vs Checkbox
+
+- **Switch** — Instant effect (e.g., toggling a setting on/off). Binary on/off states.
+- **Checkbox** — Deferred effect (e.g., form submission). Can represent "agree/disagree" or selection from a group.
+
+---
+
+## Radio Group
+
+A set of mutually exclusive options where only one can be selected at a time.
+
+```tsx
+import { RadioGroup, RadioGroupItem } from "@rio.js/ui-next/components/radio-group"
+```
+
+<ComponentPreview>
+  <RadioGroup defaultValue="option-1">
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-1" id="r1" />
+      <Label htmlFor="r1">Default plan</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-2" id="r2" />
+      <Label htmlFor="r2">Pro plan</Label>
+    </div>
+    <div className="flex items-center gap-2">
+      <RadioGroupItem value="option-3" id="r3" />
+      <Label htmlFor="r3">Enterprise plan</Label>
+    </div>
+  </RadioGroup>
+</ComponentPreview>
+
+```tsx
+<RadioGroup defaultValue="option-1">
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="option-1" id="r1" />
+    <Label htmlFor="r1">Default plan</Label>
+  </div>
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="option-2" id="r2" />
+    <Label htmlFor="r2">Pro plan</Label>
+  </div>
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="option-3" id="r3" />
+    <Label htmlFor="r3">Enterprise plan</Label>
+  </div>
+</RadioGroup>
+```
+
+---
+
+## Slider
+
+A draggable control for selecting a numeric value within a range.
+
+```tsx
+import { Slider } from "@rio.js/ui-next/components/slider"
+```
+
+<ComponentPreview>
+  <div className="w-full max-w-sm space-y-6">
+    <div className="space-y-2">
+      <Label>Volume (50%)</Label>
+      <Slider defaultValue={[50]} max={100} step={1} />
+    </div>
+    <div className="space-y-2">
+      <Label>Price range</Label>
+      <Slider defaultValue={[25, 75]} max={100} step={5} />
+    </div>
+  </div>
+</ComponentPreview>
+
+```tsx
+<Slider defaultValue={[50]} max={100} step={1} />
+<Slider defaultValue={[25, 75]} max={100} step={5} />
+```
+
+---
+
+## API Reference
+
+### Input Props
+
+Extends all native `<input>` HTML attributes.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `type` | `string` | `"text"` | HTML input type (`text`, `email`, `password`, `number`, `search`, etc.) |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Input height (`sm`: 32px, `default`: 36px, `lg`: 40px) |
+| `pilled` | `boolean` | `false` | Renders with fully rounded corners (pill shape) |
+| `icon` | `boolean \| string` | — | Shows a left icon. Pass an icon name or `true` |
+| `placeholder` | `string` | — | Placeholder text |
+| `disabled` | `boolean` | `false` | Disables the input |
+| `className` | `string` | — | Additional CSS classes |
+
+### Textarea Props
+
+Extends all native `<textarea>` HTML attributes.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `rows` | `number` | — | Number of visible text rows |
+| `placeholder` | `string` | — | Placeholder text |
+| `disabled` | `boolean` | `false` | Disables the textarea |
+
+### Select Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | — | Controlled selected value |
+| `defaultValue` | `string` | — | Uncontrolled default value |
+| `onValueChange` | `(value: string) => void` | — | Called when selection changes |
+| `disabled` | `boolean` | `false` | Disables the select |
+
+### SelectTrigger Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Trigger height (`sm`: 32px, `default`: 36px, `lg`: 40px) |
+| `className` | `string` | — | Additional CSS classes |
+
+### Checkbox Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `checked` | `boolean` | — | Controlled checked state |
+| `defaultChecked` | `boolean` | `false` | Uncontrolled default |
+| `onCheckedChange` | `(checked: boolean) => void` | — | Called when state changes |
+| `disabled` | `boolean` | `false` | Disables the checkbox |
+
+### Switch Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `checked` | `boolean` | — | Controlled on/off state |
+| `defaultChecked` | `boolean` | `false` | Uncontrolled default |
+| `onCheckedChange` | `(checked: boolean) => void` | — | Called when state changes |
+| `disabled` | `boolean` | `false` | Disables the switch |
+
+### RadioGroup Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | — | Controlled selected value |
+| `defaultValue` | `string` | — | Uncontrolled default |
+| `onValueChange` | `(value: string) => void` | — | Called when selection changes |
+| `disabled` | `boolean` | `false` | Disables all radio items |
+| `orientation` | `"horizontal" \| "vertical"` | `"vertical"` | Layout direction |
+
+### Slider Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `number[]` | — | Controlled value(s) |
+| `defaultValue` | `number[]` | — | Uncontrolled default value(s) |
+| `onValueChange` | `(value: number[]) => void` | — | Called when value changes |
+| `min` | `number` | `0` | Minimum value |
+| `max` | `number` | `100` | Maximum value |
+| `step` | `number` | `1` | Step increment |
+| `disabled` | `boolean` | `false` | Disables the slider |
