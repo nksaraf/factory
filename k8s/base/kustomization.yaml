@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: factory
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - auth-configmap.yaml
+  - auth.yaml
+  - factory-configmap.yaml
+  - factory-api.yaml
+  - gateway-configmap.yaml
+  - gateway.yaml
+  - ingress.yaml

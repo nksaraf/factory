@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: factory-ingress
+  namespace: factory
+  annotations:
+    # Uncomment for nginx ingress controller
+    # kubernetes.io/ingress.class: nginx
+    # Uncomment for TLS with cert-manager
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: factory.example.com  # <-- Replace with your domain
+      http:
+        paths:
+          # API routes -> APISIX gateway
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8005
+          # Health check
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8005
+  # Uncomment for TLS
+  # tls:
+  #   - hosts:
+  #       - factory.example.com
+  #     secretName: factory-tls

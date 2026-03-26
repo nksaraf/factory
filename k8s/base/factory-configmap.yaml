@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: factory-config
+  namespace: factory
+data:
+  application.yml: |
+    factory:
+      database:
+        url: "${DATABASE_URL:postgres://postgres:postgres@postgres:5432/postgres}"
+      auth:
+        jwksUrl: "${FACTORY_AUTH_JWKS_URL:http://auth:3000/api/v1/auth/.well-known/jwks.json}"
+      log:
+        level: info
+        format: json

@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: factory
+data:
+  application.yml: |
+    base_path: /api/v1/auth
+    base_url: ${AUTH_BASE_URL}
+    config_file_path: ./config
+    load_db_settings: true
+    better_auth_secret: ${BETTER_AUTH_SECRET}
+
+    database:
+      url: ${AUTH_DATABASE_URL}
+      schema: auth
+      settings_table: service_settings
+      settings_key: auth
+
+    email:
+      verification_enabled: false
+
+    features:
+      email_password: true
+      social_oauth: true
+      email_otp: true
+      organization: true
+      jwt: true
+      bearer: true
+      api_keys: true
+
+    email_otp:
+      otp_length: 6
+      expires_in_seconds: 300
+
+    github_auth:
+      enabled: true
+      client_id: ${GITHUB_OAUTH_CLIENT_ID}
+      client_secret: ${GITHUB_OAUTH_CLIENT_SECRET}
+
+    google_auth:
+      enabled: true
+      client_id: ${GOOGLE_OAUTH_CLIENT_ID}
+      client_secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
