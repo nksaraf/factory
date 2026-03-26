@@ -18,6 +18,10 @@ export interface PackageEntry {
   checked_out_at?: string;
   contributed_at?: string;
   mode: "link" | "contribute";
+  /** Absolute path to the shared bare clone (e.g. ~/.dx/shared-repos/...). */
+  shared_repo?: string;
+  /** True when repo_path / local_path is a git worktree (use worktree remove, not rmSync). */
+  is_worktree?: boolean;
 }
 
 export class PackageState {

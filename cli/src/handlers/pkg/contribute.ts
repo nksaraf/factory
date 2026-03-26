@@ -18,7 +18,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
-import { run } from "../../lib/subprocess.js";
+import { exec, capture } from "../../lib/subprocess.js";
 import { PackageState, type PackageEntry } from "./state.js";
 import {
   resolveSource,
@@ -76,6 +76,15 @@ function resolveLocalPackage(
     if (existsSync(c)) {
       const pt = detectPkgType(c);
       if (pt) matches.push({ dir: c, type: pt, name: localPath });
+    }
+  }
+
+  // Also check flat packages/<name> layout
+  if (matches.length === 0) {
+    const flat = join(root, "packages", localPath);
+    if (existsSync(flat)) {
+      const pt = detectPkgType(flat);
+      if (pt) matches.push({ dir: flat, type: pt, name: localPath });
     }
   }
 
@@ -181,16 +190,11 @@ export async function pkgContribute(
   const tmpDir = mkdtempSync(join(tmpdir(), "dx-pkg-"));
   try {
     console.log(`Cloning ${shortSource(gitUrl)}...`);
-    const cloneArgs = ["clone", "--depth", "1", "--progress"];
+    const cloneArgs = ["git", "clone", "--depth", "1", "--progress"];
     if (opts.ref) cloneArgs.push("--branch", opts.ref);
     cloneArgs.push(gitUrl, join(tmpDir, "repo"));
 
-    const cloneResult = run("git", cloneArgs, { verbose: opts.verbose });
-    if (cloneResult.status !== 0) {
-      throw new Error(
-        `git clone failed:\n${cloneResult.stderr || cloneResult.stdout}`
-      );
-    }
+    await exec(cloneArgs);
 
     const cloned = join(tmpDir, "repo");
 
@@ -202,17 +206,17 @@ export async function pkgContribute(
     renameSync(cloned, repoDest);
 
     // Detect base branch
-    const branchResult = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+    const branchResult = await capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], {
       cwd: repoDest,
     });
     const defaultBranch =
-      branchResult.status === 0
+      branchResult.exitCode === 0
         ? branchResult.stdout.trim()
         : opts.ref ?? "main";
 
     // Create contribute branch
     const checkoutBranch = opts.branch ?? `dx/${name}-contribute`;
-    run("git", ["checkout", "-b", checkoutBranch], { cwd: repoDest });
+    await exec(["git", "checkout", "-b", checkoutBranch], { cwd: repoDest });
 
     // Copy files into staging clone
     const destDir = targetPath
@@ -222,39 +226,27 @@ export async function pkgContribute(
     cpSync(pkg.dir, destDir, { recursive: true, filter });
 
     // Stage and commit
-    run("git", ["add", "-A"], { cwd: repoDest });
-    const commitResult = run(
-      "git",
-      ["commit", "-m", `dx: add ${name} package`],
+    await exec(["git", "add", "-A"], { cwd: repoDest });
+    await exec(
+      ["git", "commit", "-m", `dx: add ${name} package`],
       { cwd: repoDest }
     );
-    if (commitResult.status !== 0) {
-      throw new Error(
-        `Commit failed:\n${commitResult.stderr || commitResult.stdout}`
-      );
-    }
 
     // Push
     console.log(`Pushing branch ${checkoutBranch}...`);
-    const pushResult = run(
-      "git",
-      ["push", "-u", "origin", checkoutBranch],
-      { cwd: repoDest, verbose: opts.verbose }
+    await exec(
+      ["git", "push", "-u", "origin", checkoutBranch],
+      { cwd: repoDest }
     );
-    if (pushResult.status !== 0) {
-      throw new Error(
-        `Push failed:\n${pushResult.stderr || pushResult.stdout}`
-      );
-    }
     console.log("Pushed to remote");
 
     // Create PR via gh
-    const ghCheck = run("which", ["gh"]);
-    if (ghCheck.status === 0) {
+    const ghCheck = await capture(["which", "gh"]);
+    if (ghCheck.exitCode === 0) {
       console.log("Creating pull request...");
-      const prResult = run(
-        "gh",
+      const prResult = await capture(
         [
+          "gh",
           "pr",
           "create",
           "--title",
@@ -268,7 +260,7 @@ export async function pkgContribute(
         ],
         { cwd: repoDest }
       );
-      if (prResult.status === 0) {
+      if (prResult.exitCode === 0) {
         console.log(`Pull request created: ${prResult.stdout.trim()}`);
       } else if (
         (prResult.stdout + prResult.stderr)
@@ -316,7 +308,7 @@ export async function pkgContribute(
  * Sync local files into the staging clone before a push.
  * Returns true if sync succeeded, false if aborted (divergence).
  */
-export function syncToStaging(root: string, entry: PackageEntry): boolean {
+export async function syncToStaging(root: string, entry: PackageEntry): Promise<boolean> {
   if (!entry.repo_path) return false;
   const repoDir = join(root, entry.repo_path);
   const localDir = join(root, entry.local_path);
@@ -324,28 +316,27 @@ export function syncToStaging(root: string, entry: PackageEntry): boolean {
   const branch =
     entry.checkout_branch ??
     `dx/${basename(entry.local_path)}-contribute`;
-  run("git", ["checkout", branch], { cwd: repoDir });
+  await exec(["git", "checkout", branch], { cwd: repoDir });
 
   // Fetch upstream
   console.log("Fetching upstream changes...");
-  run("git", ["fetch", "origin"], { cwd: repoDir });
+  await exec(["git", "fetch", "origin"], { cwd: repoDir });
 
   // Check for divergence
-  const localRev = run("git", ["rev-parse", branch], { cwd: repoDir });
-  const remoteRev = run("git", ["rev-parse", `origin/${branch}`], {
+  const localRev = await capture(["git", "rev-parse", branch], { cwd: repoDir });
+  const remoteRev = await capture(["git", "rev-parse", `origin/${branch}`], {
     cwd: repoDir,
   });
   if (
-    localRev.status === 0 &&
-    remoteRev.status === 0 &&
+    localRev.exitCode === 0 &&
+    remoteRev.exitCode === 0 &&
     localRev.stdout.trim() !== remoteRev.stdout.trim()
   ) {
-    const mergeBase = run(
-      "git",
-      ["merge-base", branch, `origin/${branch}`],
+    const mergeBase = await capture(
+      ["git", "merge-base", branch, `origin/${branch}`],
       { cwd: repoDir }
     );
-    if (mergeBase.status === 0) {
+    if (mergeBase.exitCode === 0) {
       if (mergeBase.stdout.trim() === localRev.stdout.trim()) {
         console.warn(
           "Upstream has new commits on the contribute branch.\n" +
@@ -384,11 +375,11 @@ export function syncToStaging(root: string, entry: PackageEntry): boolean {
 /**
  * Pull upstream changes from the staging clone back to local files.
  */
-export function syncFromStaging(
+export async function syncFromStaging(
   root: string,
   entry: PackageEntry,
   dryRun?: boolean
-): void {
+): Promise<void> {
   if (!entry.repo_path) return;
   const repoDir = join(root, entry.repo_path);
   const localDir = join(root, entry.local_path);
@@ -397,19 +388,18 @@ export function syncFromStaging(
   const contributeBranch =
     entry.checkout_branch ??
     `dx/${basename(entry.local_path)}-contribute`;
-  run("git", ["checkout", contributeBranch], { cwd: repoDir });
+  await exec(["git", "checkout", contributeBranch], { cwd: repoDir });
 
   // Fetch and merge upstream base into contribute branch
   console.log("Fetching upstream changes...");
-  run("git", ["fetch", "origin"], { cwd: repoDir });
+  await exec(["git", "fetch", "origin"], { cwd: repoDir });
 
-  const mergeResult = run(
-    "git",
-    ["merge", `origin/${baseBranch}`, "--no-edit"],
+  const mergeResult = await capture(
+    ["git", "merge", `origin/${baseBranch}`, "--no-edit"],
     { cwd: repoDir }
   );
-  if (mergeResult.status !== 0) {
-    run("git", ["merge", "--abort"], { cwd: repoDir });
+  if (mergeResult.exitCode !== 0) {
+    await exec(["git", "merge", "--abort"], { cwd: repoDir });
     throw new Error(
       `Merge failed — upstream base branch has conflicting changes:\n${mergeResult.stderr || mergeResult.stdout}`
     );

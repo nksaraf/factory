@@ -2,6 +2,10 @@ import type { DxBase } from "../dx-root.js";
 
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
+import { findPkgRoot } from "../handlers/pkg/detect.js";
+
+/** Resolve the dx project root (walks up from cwd to find .dx/). */
+const root = (): string => findPkgRoot(process.cwd());
 
 export function pkgCommand(app: DxBase) {
   return app
@@ -42,7 +46,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgLink } = await import("../handlers/pkg/link.js");
-            await pkgLink(process.cwd(), {
+            await pkgLink(root(), {
               source: args.source as string,
               path: flags.path as string | undefined,
               as: flags.as as string | undefined,
@@ -78,7 +82,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgUnlink } = await import("../handlers/pkg/unlink.js");
-            await pkgUnlink(process.cwd(), {
+            await pkgUnlink(root(), {
               package: args.package as string,
               force: flags.force as boolean | undefined,
               verbose: f.verbose,
@@ -96,7 +100,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgList } = await import("../handlers/pkg/list.js");
-            await pkgList(process.cwd(), f.json);
+            await pkgList(root(), f.json);
           } catch (err) {
             exitWithError(f, err instanceof Error ? err.message : String(err));
           }
@@ -126,7 +130,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgDiff } = await import("../handlers/pkg/diff.js");
-            await pkgDiff(process.cwd(), {
+            await pkgDiff(root(), {
               package: args.package as string,
               stat: flags.stat as boolean | undefined,
               verbose: f.verbose,
@@ -167,7 +171,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgBranch } = await import("../handlers/pkg/branch.js");
-            await pkgBranch(process.cwd(), {
+            await pkgBranch(root(), {
               package: args.package as string,
               switch: flags.switch as string | undefined,
               create: flags.create as string | undefined,
@@ -208,7 +212,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgPush } = await import("../handlers/pkg/push.js");
-            await pkgPush(process.cwd(), {
+            await pkgPush(root(), {
               package: args.package as string,
               branch: flags.branch as string | undefined,
               message: flags.message as string | undefined,
@@ -248,7 +252,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgPull } = await import("../handlers/pkg/pull.js");
-            await pkgPull(process.cwd(), {
+            await pkgPull(root(), {
               package: args.package as string,
               branch: flags.branch as string | undefined,
               dryRun: flags.dryRun as boolean | undefined,
@@ -314,7 +318,7 @@ export function pkgCommand(app: DxBase) {
             const { pkgContribute } = await import(
               "../handlers/pkg/contribute.js"
             );
-            await pkgContribute(process.cwd(), {
+            await pkgContribute(root(), {
               localPath: args.localPath as string,
               target: args.target as string | undefined,
               to: flags.to as string | undefined,
@@ -359,7 +363,7 @@ export function pkgCommand(app: DxBase) {
               : flags.minor
                 ? "minor"
                 : "patch";
-            await pkgBump(process.cwd(), {
+            await pkgBump(root(), {
               package: args.package as string,
               level: level as "major" | "minor" | "patch",
               dryRun: flags.dryRun as boolean | undefined,
@@ -388,7 +392,7 @@ export function pkgCommand(app: DxBase) {
             const { pkgVersions } = await import(
               "../handlers/pkg/versions.js"
             );
-            await pkgVersions(process.cwd(), {
+            await pkgVersions(root(), {
               target: args.target as string | undefined,
               verbose: f.verbose,
             });
@@ -420,7 +424,7 @@ export function pkgCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const { pkgAuth } = await import("../handlers/pkg/auth.js");
-            await pkgAuth(process.cwd(), {
+            await pkgAuth(root(), {
               check: flags.check as boolean | undefined,
               keyFile: flags.keyFile as string | undefined,
               key: flags.key as string | undefined,
@@ -457,7 +461,7 @@ export function pkgCommand(app: DxBase) {
             const { pkgPublish } = await import(
               "../handlers/pkg/publish.js"
             );
-            await pkgPublish(process.cwd(), {
+            await pkgPublish(root(), {
               target: args.target as string,
               dryRun: flags.dryRun as boolean | undefined,
               keyFile: flags.keyFile as string | undefined,
