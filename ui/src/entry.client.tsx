@@ -53,27 +53,20 @@ async function boot() {
   }
 
   rio.extensions.register({
-    "app.core": () => import("@rio.js/app.core"),
-    "auth.core": () => import("@rio.js/auth.core"),
-    "settings.user": () => import("@rio.js/settings.user"),
-    "settings.organization": () => import("@rio.js/settings.organization"),
-    "gis.core": () => import("@rio.js/gis.core"),
-    "gis.flows": () => import("@rio.js/gis.flows"),
-"agents.core": () => import("@rio.js/agents.core"),
-    "smart-market.core": () => import("./modules/smart-market.core"),
-    "smart-market.scouts": () => import("./modules/smart-market.scouts"),
-    "smart-market.workspaces": () =>
-      import("./modules/smart-market.workspaces"),
-    "smart-market.docs": () => import("./modules/smart-market.docs"),
-    "factory.fleet": () => import("./modules/factory.fleet"),
-    "factory.infra": () => import("./modules/factory.infra"),
+    // "app.core": () => import("@rio.js/app.core"),
+    // "auth.core": () => import("@rio.js/auth.core"),
+    // "settings.user": () => import("@rio.js/settings.user"),
+    // "settings.organization": () => import("@rio.js/settings.organization"),
+    // "factory.fleet": () => import("./modules/factory.fleet"),
+    // "factory.infra": () => import("./modules/factory.infra"),
+    "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
 
   const url = new URL(window.location.href)
 
   console.log(rio.env)
   const authService = createAuthClient({
-    baseURL: rio.env.PUBLIC_AUTH_URL,
+    baseURL: "https://dev.trafficure.rio.software",
     basePath: "/api/v1/auth",
     bearer: true,
   })
@@ -81,17 +74,13 @@ async function boot() {
   rio.services.registerSync("auth", authService)
 
   await rio.extensions.enable(
-    "app.core",
-    "auth.core",
-    "settings.user",
-    "settings.organization",
-    // "gis.core",
-    "smart-market.core",
-    "smart-market.scouts",
-    "smart-market.workspaces",
-    "smart-market.docs",
-    "factory.fleet",
-    "factory.infra"
+    // "app.core",
+    // "auth.core",
+    // "settings.user",
+    // "settings.organization",
+    // "factory.fleet",
+    // "factory.infra",
+    "factory.game-viz"
   )
 
   // Extract modules from enabled extensions that have a "module" field
