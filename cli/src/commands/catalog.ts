@@ -1,9 +1,17 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
-import type { CatalogComponent, CatalogResource } from "@smp/factory-shared/catalog";
+import type {
+  CatalogComponent,
+  CatalogResource,
+  CatalogSystem,
+} from "@smp/factory-shared/catalog";
 import type { CatalogFormat } from "@smp/factory-shared/catalog-registry";
+
+// Side-effect import: registers all format adapters
+import "@smp/factory-shared/formats/index";
+import { getCatalogFormat } from "@smp/factory-shared/catalog-registry";
 
 import {
   styleBold,
@@ -23,7 +31,7 @@ setExamples("catalog", [
   "$ dx catalog status       Show catalog source and detected formats",
 ]);
 
-/** Map of format → files to probe for detection. */
+/** Map of format → files to probe for detection (in priority order). */
 const FORMAT_FILES: [CatalogFormat, string[]][] = [
   ["dx-yaml", ["dx.yaml"]],
   ["docker-compose", ["docker-compose.yaml", "docker-compose.yml", "compose.yaml", "compose.yml"]],
@@ -31,8 +39,16 @@ const FORMAT_FILES: [CatalogFormat, string[]][] = [
   ["helm", ["Chart.yaml"]],
 ];
 
-function detectFormats(rootDir: string): { format: CatalogFormat; file: string }[] {
-  const found: { format: CatalogFormat; file: string }[] = [];
+/** Priority order for format fallback. */
+const FORMAT_PRIORITY: CatalogFormat[] = ["dx-yaml", "docker-compose", "backstage", "helm"];
+
+interface DetectedFormat {
+  format: CatalogFormat;
+  file: string;
+}
+
+function detectFormats(rootDir: string): DetectedFormat[] {
+  const found: DetectedFormat[] = [];
   for (const [format, files] of FORMAT_FILES) {
     for (const file of files) {
       if (existsSync(join(rootDir, file))) {
@@ -43,6 +59,55 @@ function detectFormats(rootDir: string): { format: CatalogFormat; file: string }
   }
   return found;
 }
+
+interface CatalogResult {
+  catalog: CatalogSystem;
+  format: CatalogFormat;
+  file: string;
+  rootDir: string;
+  warnings: string[];
+}
+
+/**
+ * Load the catalog using format fallback: dx-yaml → docker-compose → backstage → helm.
+ * Returns null if no catalog source is found.
+ */
+function loadCatalog(cwd: string): CatalogResult | null {
+  // Try ProjectContext first (dx-yaml, walks up the tree)
+  try {
+    const ctx = ProjectContext.fromCwd(cwd);
+    return {
+      catalog: ctx.catalog,
+      format: "dx-yaml",
+      file: ctx.dxYamlPath,
+      rootDir: ctx.rootDir,
+      warnings: [],
+    };
+  } catch {
+    // dx.yaml not found, fall through
+  }
+
+  // Fall back through other formats in priority order (skip dx-yaml, already tried)
+  for (const format of FORMAT_PRIORITY.slice(1)) {
+    const adapter = getCatalogFormat(format);
+    if (adapter.detect(cwd)) {
+      const result = adapter.parse(cwd);
+      // Find the matching file for display
+      const detected = detectFormats(cwd).find((d) => d.format === format);
+      return {
+        catalog: result.system,
+        format,
+        file: detected ? join(cwd, detected.file) : cwd,
+        rootDir: cwd,
+        warnings: result.warnings,
+      };
+    }
+  }
+
+  return null;
+}
+
+// ── Display helpers ──────────────────────────────────────────
 
 function lifecycleColor(lc: string | undefined): string {
   if (!lc) return styleMuted("–");
@@ -66,6 +131,13 @@ function portsStr(ports: { port: number; containerPort?: number; protocol: strin
     .join(", ");
 }
 
+function renderFields(fields: [string, string][]): void {
+  const maxLabel = Math.max(...fields.map(([l]) => l.length));
+  for (const [label, value] of fields) {
+    console.log(`${styleMuted(label.padEnd(maxLabel))}  ${value}`);
+  }
+}
+
 function renderComponentInfo(name: string, c: CatalogComponent): void {
   const fields: [string, string][] = [
     ["Name", styleInfo(name)],
@@ -79,15 +151,12 @@ function renderComponentInfo(name: string, c: CatalogComponent): void {
   if (c.metadata.description) {
     fields.push(["Description", c.metadata.description]);
   }
-
   if (c.spec.image) {
     fields.push(["Image", c.spec.image]);
   }
-
   if (c.spec.ports.length > 0) {
     fields.push(["Ports", portsStr(c.spec.ports)]);
   }
-
   if (c.spec.dev?.command) {
     fields.push(["Dev command", c.spec.dev.command]);
   }
@@ -97,7 +166,6 @@ function renderComponentInfo(name: string, c: CatalogComponent): void {
   if (c.spec.lint) {
     fields.push(["Lint", c.spec.lint]);
   }
-
   if (c.spec.healthchecks) {
     const hc = c.spec.healthchecks;
     const checks: string[] = [];
@@ -106,7 +174,6 @@ function renderComponentInfo(name: string, c: CatalogComponent): void {
     if (hc.start) checks.push("start");
     if (checks.length > 0) fields.push(["Healthchecks", checks.join(", ")]);
   }
-
   if (c.spec.providesApis?.length) {
     fields.push(["Provides APIs", c.spec.providesApis.join(", ")]);
   }
@@ -116,15 +183,10 @@ function renderComponentInfo(name: string, c: CatalogComponent): void {
   if (c.spec.dependsOn?.length) {
     fields.push(["Depends on", c.spec.dependsOn.join(", ")]);
   }
-
   if (c.metadata.tags?.length) {
     fields.push(["Tags", c.metadata.tags.join(", ")]);
   }
-
-  const maxLabel = Math.max(...fields.map(([l]) => l.length));
-  for (const [label, value] of fields) {
-    console.log(`${styleMuted(label.padEnd(maxLabel))}  ${value}`);
-  }
+  renderFields(fields);
 }
 
 function renderResourceInfo(name: string, r: CatalogResource): void {
@@ -139,37 +201,37 @@ function renderResourceInfo(name: string, r: CatalogResource): void {
   if (r.spec.ports.length > 0) {
     fields.push(["Ports", portsStr(r.spec.ports)]);
   }
-
   if (r.spec.healthcheck) {
     fields.push(["Healthcheck", r.spec.healthcheck]);
   }
-
   if (r.spec.dependencyOf?.length) {
     fields.push(["Dependency of", r.spec.dependencyOf.join(", ")]);
   }
-
   if (r.metadata.tags?.length) {
     fields.push(["Tags", r.metadata.tags.join(", ")]);
   }
-
-  const maxLabel = Math.max(...fields.map(([l]) => l.length));
-  for (const [label, value] of fields) {
-    console.log(`${styleMuted(label.padEnd(maxLabel))}  ${value}`);
-  }
+  renderFields(fields);
 }
+
+// ── Command ──────────────────────────────────────────────────
 
 export function catalogCommand(app: DxBase) {
   return app
     .sub("catalog")
     .meta({ description: "Software catalog" })
     .run(({ flags }) => {
-      // Default: list all entries
       const f = toDxFlags(flags);
-      const ctx = ProjectContext.fromCwd();
-      const cat = ctx.catalog;
+      const result = loadCatalog(process.cwd());
+
+      if (!result) {
+        console.error("No catalog source found. Searched for: dx.yaml, docker-compose.yaml, catalog-info.yaml, Chart.yaml");
+        process.exit(1);
+      }
+
+      const cat = result.catalog;
 
       if (f.json) {
-        console.log(JSON.stringify({ success: true, data: cat }, null, 2));
+        console.log(JSON.stringify({ success: true, format: result.format, data: cat }, null, 2));
         return;
       }
 
@@ -193,7 +255,8 @@ export function catalogCommand(app: DxBase) {
 
       console.log(
         styleBold(`${cat.metadata.name}`) +
-          styleMuted(` (${cat.spec.owner})`)
+          styleMuted(` (${cat.spec.owner})`) +
+          styleMuted(` via ${result.format}`)
       );
       console.log("");
       console.log(printTable(["NAME", "KIND", "TYPE", "LIFECYCLE"], rows));
@@ -211,8 +274,14 @@ export function catalogCommand(app: DxBase) {
         ])
         .run(({ args, flags }) => {
           const f = toDxFlags(flags);
-          const ctx = ProjectContext.fromCwd();
-          const cat = ctx.catalog;
+          const result = loadCatalog(process.cwd());
+
+          if (!result) {
+            console.error("No catalog source found.");
+            process.exit(1);
+          }
+
+          const cat = result.catalog;
           const name = args.name;
 
           const component = cat.components[name];
@@ -234,7 +303,7 @@ export function catalogCommand(app: DxBase) {
 
           if (f.json) {
             console.log(
-              JSON.stringify({ success: true, data: entry }, null, 2)
+              JSON.stringify({ success: true, format: result.format, data: entry }, null, 2)
             );
             return;
           }
@@ -244,20 +313,13 @@ export function catalogCommand(app: DxBase) {
           } else if (resource) {
             renderResourceInfo(name, resource);
           } else if (api) {
-            // Simple API display
-            const fields: [string, string][] = [
+            renderFields([
               ["Name", styleInfo(name)],
               ["Kind", api.kind],
               ["Type", api.spec.type],
               ["Lifecycle", lifecycleColor(api.spec.lifecycle)],
               ["Definition", api.spec.definition],
-            ];
-            const maxLabel = Math.max(...fields.map(([l]) => l.length));
-            for (const [label, value] of fields) {
-              console.log(
-                `${styleMuted(label.padEnd(maxLabel))}  ${value}`
-              );
-            }
+            ]);
           }
         })
     )
@@ -267,37 +329,28 @@ export function catalogCommand(app: DxBase) {
         .run(({ flags }) => {
           const f = toDxFlags(flags);
           const cwd = process.cwd();
-
-          let ctx: ProjectContext | undefined;
-          try {
-            ctx = ProjectContext.fromCwd(cwd);
-          } catch {
-            // no dx.yaml
-          }
-
-          const rootDir = ctx?.rootDir ?? cwd;
+          const result = loadCatalog(cwd);
+          const rootDir = result?.rootDir ?? cwd;
           const detected = detectFormats(rootDir);
-          const activeFormat = ctx ? "dx-yaml" : null;
-          const activeFile = ctx ? ctx.dxYamlPath : null;
 
           if (f.json) {
             console.log(
               JSON.stringify({
                 success: true,
                 data: {
-                  active: activeFormat
-                    ? { format: activeFormat, file: activeFile }
+                  active: result
+                    ? { format: result.format, file: result.file }
                     : null,
                   detected: detected.map((d) => ({
                     format: d.format,
                     file: join(rootDir, d.file),
                   })),
                   rootDir,
-                  components: ctx
-                    ? Object.keys(ctx.catalog.components).length
+                  components: result
+                    ? Object.keys(result.catalog.components).length
                     : 0,
-                  resources: ctx
-                    ? Object.keys(ctx.catalog.resources).length
+                  resources: result
+                    ? Object.keys(result.catalog.resources).length
                     : 0,
                 },
               }, null, 2)
@@ -308,16 +361,16 @@ export function catalogCommand(app: DxBase) {
           console.log(styleBold("Catalog Status"));
           console.log("");
 
-          if (activeFormat && activeFile) {
+          if (result) {
             console.log(
-              `${styleMuted("Source:")}     ${styleSuccess(activeFormat)} ${styleMuted("(active)")}`
+              `${styleMuted("Source:")}     ${styleSuccess(result.format)} ${styleMuted("(active)")}`
             );
             console.log(
-              `${styleMuted("File:")}       ${activeFile}`
+              `${styleMuted("File:")}       ${result.file}`
             );
           } else {
             console.log(
-              `${styleMuted("Source:")}     ${styleWarn("none")} — no dx.yaml found`
+              `${styleMuted("Source:")}     ${styleWarn("none")} — no catalog source found`
             );
           }
 
@@ -325,13 +378,21 @@ export function catalogCommand(app: DxBase) {
             `${styleMuted("Root:")}       ${rootDir}`
           );
 
-          if (ctx) {
-            const nComp = Object.keys(ctx.catalog.components).length;
-            const nRes = Object.keys(ctx.catalog.resources).length;
-            const nApi = Object.keys(ctx.catalog.apis ?? {}).length;
+          if (result) {
+            const nComp = Object.keys(result.catalog.components).length;
+            const nRes = Object.keys(result.catalog.resources).length;
+            const nApi = Object.keys(result.catalog.apis ?? {}).length;
             console.log(
               `${styleMuted("Entries:")}    ${nComp} components, ${nRes} resources, ${nApi} APIs`
             );
+
+            if (result.warnings.length > 0) {
+              console.log("");
+              console.log(styleWarn("Warnings:"));
+              for (const w of result.warnings) {
+                console.log(`  ${styleWarn("⚠")} ${w}`);
+              }
+            }
           }
 
           console.log("");
@@ -341,7 +402,7 @@ export function catalogCommand(app: DxBase) {
             console.log(styleMuted("  No catalog files found."));
           } else {
             for (const d of detected) {
-              const isActive = d.format === activeFormat;
+              const isActive = d.format === result?.format;
               const tag = isActive
                 ? styleSuccess(" ← active")
                 : "";
@@ -351,7 +412,6 @@ export function catalogCommand(app: DxBase) {
             }
           }
 
-          // Priority explanation
           console.log("");
           console.log(
             styleMuted("Priority: dx-yaml > docker-compose > backstage > helm")
