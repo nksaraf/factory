@@ -27,7 +27,7 @@ function makeConfig(project: TestProject): {
         api: { path: "./api", port: 14100, worker: false },
         worker: { path: "./worker", worker: true },
       },
-      dependencies: {
+      resources: {
         postgres: {
           image: "postgres:16-alpine",
           port: 5433,

@@ -29,7 +29,7 @@ export async function resolveRepoContext(cwd: string): Promise<RepoContext> {
   if (!match) throw new Error(`Repo with remote URL "${remoteUrl}" not found in factory`);
 
   return {
-    providerId: match.gitHostProviderId,
+    providerId: match.gitHostProviderId ?? "",
     repoSlug: match.slug ?? match.name,
     repoName: match.name,
     defaultBranch: match.defaultBranch ?? "main",

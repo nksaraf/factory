@@ -318,7 +318,6 @@ export function gitCommand(app: DxBase) {
           {
             name: "slug",
             type: "string",
-            required: false,
             description: "Repo slug or ID (interactive picker if omitted)",
           },
         ])
@@ -326,7 +325,7 @@ export function gitCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const api = await getApi();
-            let slug = args.slug as string | undefined;
+            let slug = (args as Record<string, unknown>).slug as string | undefined;
             let gitUrl: string;
             if (!slug) {
               const listRes = await api.api.v1.factory.build.repos.get();
@@ -336,7 +335,7 @@ export function gitCommand(app: DxBase) {
                 return;
               }
               const { search } = await import("@inquirer/prompts");
-              const choices = repos.map((r) => ({
+              const choices = repos.map((r: any) => ({
                 name: `${r.name} (${r.kind ?? "repo"})`,
                 value: r.gitUrl ?? "",
                 description: r.gitUrl ?? undefined,
@@ -347,7 +346,7 @@ export function gitCommand(app: DxBase) {
                   if (!input) return choices;
                   const term = input.toLowerCase();
                   return choices.filter(
-                    (c) =>
+                    (c: any) =>
                       c.name.toLowerCase().includes(term) ||
                       (c.description?.toLowerCase().includes(term) ?? false),
                   );
