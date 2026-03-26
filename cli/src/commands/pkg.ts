@@ -525,5 +525,181 @@ export function pkgCommand(app: DxBase) {
             exitWithError(f, err instanceof Error ? err.message : String(err));
           }
         })
+    )
+
+    // ── doctor ──
+    .command("doctor", (c) =>
+      c
+        .meta({ description: "Run workspace health checks" })
+        .flags({
+          fix: {
+            type: "boolean",
+            description: "Auto-fix safe issues",
+          },
+          category: {
+            type: "string",
+            description: "Run a single check category",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgDoctor } = await import("../handlers/pkg/doctor.js");
+            await pkgDoctor(root(), {
+              fix: flags.fix as boolean | undefined,
+              category: flags.category as string | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── install ──
+    .command("install", (c) =>
+      c
+        .meta({ description: "Install dependencies across workspace" })
+        .flags({
+          frozen: {
+            type: "boolean",
+            description: "Use frozen lockfile (CI mode)",
+          },
+          filter: {
+            type: "string",
+            description: "Filter to specific packages (glob or name)",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgInstall } = await import(
+              "../handlers/pkg/install-workspace.js"
+            );
+            await pkgInstall(root(), {
+              frozen: flags.frozen as boolean | undefined,
+              filter: flags.filter as string | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── run ──
+    .command("run", (c) =>
+      c
+        .meta({ description: "Run scripts across workspace packages" })
+        .args([
+          {
+            name: "script",
+            type: "string",
+            required: true,
+            description: "Script name to run",
+          },
+        ])
+        .flags({
+          filter: {
+            type: "string",
+            description: "Filter to specific packages (glob or name)",
+          },
+          parallel: {
+            type: "boolean",
+            description: "Run scripts in parallel",
+          },
+          continueOnError: {
+            type: "boolean",
+            description: "Continue running even if a script fails",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgRunScript } = await import(
+              "../handlers/pkg/run-script.js"
+            );
+            await pkgRunScript(root(), {
+              script: args.script as string,
+              filter: flags.filter as string | undefined,
+              parallel: flags.parallel as boolean | undefined,
+              continueOnError: flags.continueOnError as boolean | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── deps ──
+    .command("deps", (c) =>
+      c
+        .meta({ description: "Show workspace dependency graph" })
+        .flags({
+          why: {
+            type: "string",
+            description: "Show why a package is depended on",
+          },
+          external: {
+            type: "boolean",
+            description: "Show external (non-workspace) dependencies",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgDeps } = await import("../handlers/pkg/deps.js");
+            await pkgDeps(root(), {
+              why: flags.why as string | undefined,
+              external: flags.external as boolean | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── update ──
+    .command("update", (c) =>
+      c
+        .meta({ description: "Update dependencies across workspace" })
+        .args([
+          {
+            name: "dep",
+            type: "string",
+            description: "Specific dependency to update",
+          },
+        ])
+        .flags({
+          latest: {
+            type: "boolean",
+            description: "Update to latest versions (ignore ranges)",
+          },
+          dryRun: {
+            type: "boolean",
+            description: "Show what would change without applying",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgUpdate } = await import("../handlers/pkg/update.js");
+            await pkgUpdate(root(), {
+              dep: args.dep as string | undefined,
+              latest: flags.latest as boolean | undefined,
+              dryRun: flags.dryRun as boolean | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
     );
 }

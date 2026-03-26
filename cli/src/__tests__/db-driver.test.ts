@@ -68,7 +68,7 @@ describe("findDbDependencies", () => {
         module: "test-mod",
         team: "test",
         components: {},
-        dependencies: {
+        resources: {
           postgres: {
             image: "postgres:16-alpine",
             port: 5433,
@@ -97,7 +97,7 @@ describe("findDbDependencies", () => {
         module: "analytics",
         team: "data",
         components: {},
-        dependencies: {
+        resources: {
           postgres: {
             image: "postgres:16",
             port: 5432,
@@ -132,7 +132,7 @@ describe("findDbDependencies", () => {
         module: "frontend",
         team: "ui",
         components: {},
-        dependencies: {
+        resources: {
           redis: {
             image: "redis:7",
             port: 6379,
