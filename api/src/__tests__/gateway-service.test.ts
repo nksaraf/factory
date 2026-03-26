@@ -331,29 +331,6 @@ describe("Gateway Service", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Preview Routes
-  // ---------------------------------------------------------------------------
-  describe("preview routes", () => {
-    it("creates preview route for PR", async () => {
-      const dt = await fleet.createDeploymentTarget(db, {
-        name: `preview-${Date.now()}`,
-        kind: "sandbox",
-        trigger: "manual",
-        createdBy: "test",
-      });
-
-      const r = await gw.createPreviewRoutes(db, {
-        deploymentTargetId: dt.deploymentTargetId,
-        prNumber: 42,
-        createdBy: "test",
-      });
-
-      expect(r.domain).toBe("pr-42.preview.dx.dev");
-      expect(r.kind).toBe("preview");
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // Tunnel Lifecycle
   // ---------------------------------------------------------------------------
   describe("tunnel lifecycle", () => {

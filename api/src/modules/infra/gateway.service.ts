@@ -5,6 +5,20 @@ import dns from "node:dns/promises";
 import type { Database } from "../../db/connection";
 import { route, domain as domainTable, tunnel } from "../../db/schema";
 
+/**
+ * Route change listener for cache invalidation.
+ * The factory gateway registers its cache.invalidate here.
+ */
+let onRouteChanged: ((domain: string) => void) | null = null;
+
+export function setRouteChangeListener(listener: (domain: string) => void): void {
+  onRouteChanged = listener;
+}
+
+function notifyRouteChanged(domain: string): void {
+  onRouteChanged?.(domain);
+}
+
 // ---------------------------------------------------------------------------
 // Route CRUD
 // ---------------------------------------------------------------------------
@@ -86,6 +100,7 @@ export async function createRoute(
     })
     .returning();
 
+  notifyRouteChanged(row.domain);
   return row;
 }
 
@@ -120,11 +135,14 @@ export async function updateRoute(
     .where(eq(route.routeId, routeId))
     .returning();
 
+  if (row) notifyRouteChanged(row.domain);
   return row ?? null;
 }
 
 export async function deleteRoute(db: Database, routeId: string) {
+  const existing = await getRoute(db, routeId);
   await db.delete(route).where(eq(route.routeId, routeId));
+  if (existing) notifyRouteChanged(existing.domain);
 }
 
 export async function cleanupExpiredRoutes(db: Database): Promise<number> {
@@ -134,6 +152,23 @@ export async function cleanupExpiredRoutes(db: Database): Promise<number> {
     .returning();
 
   return rows.length;
+}
+
+/**
+ * Look up a single active route by exact domain match.
+ * Used by the factory gateway for fast hostname-based routing.
+ */
+export async function lookupRouteByDomain(
+  db: Database,
+  domain: string
+): Promise<any | null> {
+  const [row] = await db
+    .select()
+    .from(route)
+    .where(and(eq(route.domain, domain), eq(route.status, "active")))
+    .limit(1);
+
+  return row ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,7 +350,7 @@ export async function createSandboxRoutes(
 ) {
   const baseDomain = input.siteId
     ? `${input.sandboxSlug}.${input.siteId}.dx.dev`
-    : `${input.sandboxSlug}.preview.dx.dev`;
+    : `${input.sandboxSlug}.sandbox.dx.dev`;
 
   const routes: any[] = [];
 
@@ -336,7 +371,7 @@ export async function createSandboxRoutes(
     for (const port of input.publishPorts) {
       const portDomain = input.siteId
         ? `${input.sandboxSlug}-${port}.${input.siteId}.dx.dev`
-        : `${input.sandboxSlug}-${port}.preview.dx.dev`;
+        : `${input.sandboxSlug}-${port}.sandbox.dx.dev`;
 
       const portRoute = await createRoute(db, {
         deploymentTargetId: input.deploymentTargetId,
@@ -355,31 +390,6 @@ export async function createSandboxRoutes(
   }
 
   return routes;
-}
-
-export async function createPreviewRoutes(
-  db: Database,
-  input: {
-    deploymentTargetId: string;
-    siteId?: string;
-    clusterId?: string;
-    prNumber: number;
-    createdBy: string;
-  }
-) {
-  const previewDomain = `pr-${input.prNumber}.preview.dx.dev`;
-
-  return await createRoute(db, {
-    deploymentTargetId: input.deploymentTargetId,
-    siteId: input.siteId,
-    clusterId: input.clusterId,
-    kind: "preview",
-    domain: previewDomain,
-    targetService: `pr-${input.prNumber}`,
-    protocol: "http",
-    status: "active",
-    createdBy: input.createdBy,
-  });
 }
 
 export async function removeTargetRoutes(
@@ -441,7 +451,7 @@ export async function closeTunnel(db: Database, tunnelId: string) {
 
   if (!row) return;
 
-  await db.delete(route).where(eq(route.routeId, row.routeId));
+  await deleteRoute(db, row.routeId);
 }
 
 export async function heartbeatTunnel(db: Database, tunnelId: string) {
@@ -508,7 +518,7 @@ export async function cleanupStaleTunnels(
       .set({ status: "disconnected" })
       .where(eq(tunnel.tunnelId, t.tunnelId));
 
-    await db.delete(route).where(eq(route.routeId, t.routeId));
+    await deleteRoute(db, t.routeId);
   }
 
   return staleTunnels.length;

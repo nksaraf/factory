@@ -124,7 +124,7 @@ export const deploymentTarget = factoryFleet.table(
     index("deployment_target_kind_status_idx").on(t.kind, t.status),
     check(
       "deployment_target_kind_valid",
-      sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev')`
+      sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev', 'preview')`
     ),
     check(
       "deployment_target_runtime_valid",
@@ -354,6 +354,61 @@ export const sandbox = factoryFleet.table(
     index("sandbox_owner_idx").on(t.ownerType, t.ownerId),
     check("sandbox_runtime_type_valid", sql`${t.runtimeType} IN ('container', 'vm')`),
     check("sandbox_owner_type_valid", sql`${t.ownerType} IN ('user', 'agent')`),
+  ]
+);
+
+export const preview = factoryFleet.table(
+  "preview",
+  {
+    previewId: text("preview_id")
+      .primaryKey()
+      .$defaultFn(() => newId("prev")),
+    deploymentTargetId: text("deployment_target_id")
+      .notNull()
+      .references(() => deploymentTarget.deploymentTargetId, {
+        onDelete: "cascade",
+      }),
+    siteId: text("site_id").references(() => fleetSite.siteId, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    sourceBranch: text("source_branch").notNull(),
+    commitSha: text("commit_sha").notNull(),
+    repo: text("repo").notNull(),
+    prNumber: integer("pr_number"),
+    ownerId: text("owner_id").notNull(),
+    authMode: text("auth_mode").notNull().default("team"),
+    runtimeClass: text("runtime_class").notNull().default("hot"),
+    status: text("status").notNull().default("building"),
+    statusMessage: text("status_message"),
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("preview_slug_unique").on(t.slug),
+    uniqueIndex("preview_deployment_target_unique").on(t.deploymentTargetId),
+    index("preview_site_idx").on(t.siteId),
+    index("preview_status_idx").on(t.status),
+    index("preview_branch_idx").on(t.sourceBranch),
+    check(
+      "preview_auth_mode_valid",
+      sql`${t.authMode} IN ('public', 'team', 'private')`
+    ),
+    check(
+      "preview_runtime_class_valid",
+      sql`${t.runtimeClass} IN ('hot', 'warm', 'cold')`
+    ),
+    check(
+      "preview_status_valid",
+      sql`${t.status} IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed')`
+    ),
   ]
 );
 
