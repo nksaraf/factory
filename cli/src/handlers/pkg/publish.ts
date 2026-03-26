@@ -36,7 +36,7 @@ export async function pkgPublish(
   }
 
   // Check write access gate
-  if (!checkWriteAccessGate(type, root)) {
+  if (!(await checkWriteAccessGate(type, root))) {
     throw new Error(
       `Write access not configured for ${type} registry.\n` +
         "Run 'dx pkg auth' to configure credentials with write access."
@@ -103,7 +103,7 @@ async function publishNpm(
   }
 
   // Refresh GCP Artifact Registry token before publishing
-  const saJson = loadSaJson("npm", root);
+  const saJson = await loadSaJson("npm", root);
   if (saJson) {
     console.log("Refreshing Artifact Registry token...");
     if (!configureNpmAuth(saJson, root)) {
@@ -161,7 +161,7 @@ async function publishPython(
   pkgName: string,
   keyFile?: string
 ): Promise<void> {
-  const saJson = loadSaJson("python", root, keyFile);
+  const saJson = await loadSaJson("python", root, keyFile);
   if (!saJson) {
     throw new Error(
       "No Python registry credentials found.\n" +

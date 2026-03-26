@@ -135,11 +135,11 @@ export function extractEmail(saJson: string): string | null {
   }
 }
 
-export function loadSaJson(
+export async function loadSaJson(
   registryType: string,
   root?: string,
   keyFile?: string
-): string | null {
+): Promise<string | null> {
   // 1. Explicit key file
   if (keyFile) {
     try {
@@ -167,7 +167,20 @@ export function loadSaJson(
     if (decoded) return decoded;
   }
 
-  // 4. .env file
+  // 4. Global store (~/.config/dx/registry-auth.json)
+  try {
+    const { registryAuthStore } = await import("./registry-auth-store.js");
+    const stored = await registryAuthStore.read();
+    const globalB64 = stored[reg.envVar as keyof typeof stored];
+    if (typeof globalB64 === "string" && globalB64.length > 0) {
+      const decoded = decodeSaBase64(globalB64);
+      if (decoded) return decoded;
+    }
+  } catch {
+    // Global store unavailable — fall through
+  }
+
+  // 5. .env file (backward compat)
   if (root) {
     const dotenv = readDotenv(root);
     const envB64 = dotenv[reg.envVar] ?? dotenv[LEGACY_ENV_VAR];
@@ -319,13 +332,27 @@ export function pythonTwineEnv(saJson: string): Record<string, string> {
 // Write-access gate
 // ---------------------------------------------------------------------------
 
-export function checkWriteAccessGate(
+export async function checkWriteAccessGate(
   registryType: string,
   root: string
-): boolean {
+): Promise<boolean> {
   const dotenv = readDotenv(root);
-  const writeAccess =
+  let writeAccess: string | undefined =
     dotenv[WRITE_ACCESS_VAR] ?? process.env[WRITE_ACCESS_VAR];
+
+  // Fall back to global store
+  if (!writeAccess) {
+    try {
+      const { registryAuthStore } = await import("./registry-auth-store.js");
+      const stored = await registryAuthStore.read();
+      if (stored.DX_REGISTRY_WRITE_ACCESS) {
+        writeAccess = stored.DX_REGISTRY_WRITE_ACCESS;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (!writeAccess) return true;
 
   const allowed = new Set(writeAccess.split(",").map((r) => r.trim()));
