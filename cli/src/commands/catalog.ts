@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { join, basename } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
 import type {
@@ -15,6 +15,7 @@ import { getCatalogFormat } from "@smp/factory-shared/catalog-registry";
 
 import {
   styleBold,
+  styleError,
   styleInfo,
   styleMuted,
   styleSuccess,
@@ -42,6 +43,8 @@ const FORMAT_FILES: [CatalogFormat, string[]][] = [
 /** Priority order for format fallback. */
 const FORMAT_PRIORITY: CatalogFormat[] = ["dx-yaml", "docker-compose", "backstage", "helm"];
 
+const GENERATED_DIR = ".dx/generated";
+
 interface DetectedFormat {
   format: CatalogFormat;
   file: string;
@@ -60,28 +63,114 @@ function detectFormats(rootDir: string): DetectedFormat[] {
   return found;
 }
 
+// ── Generate + diff ──────────────────────────────────────────
+
+interface FileDrift {
+  file: string;
+  format: CatalogFormat;
+  status: "added" | "modified";
+}
+
+/**
+ * Generate all format variants from the catalog, write to .dx/generated/,
+ * and diff against existing files in the project root.
+ */
+function generateAndDiff(
+  catalog: CatalogSystem,
+  activeFormat: CatalogFormat,
+  rootDir: string,
+): FileDrift[] {
+  const genDir = join(rootDir, GENERATED_DIR);
+  mkdirSync(genDir, { recursive: true });
+
+  const drifts: FileDrift[] = [];
+
+  for (const format of FORMAT_PRIORITY) {
+    // Skip the active source format — it's the source of truth
+    if (format === activeFormat) continue;
+
+    let generated: Record<string, string>;
+    try {
+      const adapter = getCatalogFormat(format);
+      const result = adapter.generate(catalog, { rootDir });
+      generated = result.files;
+    } catch {
+      // Some adapters may fail to generate (e.g., missing required fields)
+      continue;
+    }
+
+    for (const [filename, content] of Object.entries(generated)) {
+      // Write generated version
+      const genPath = join(genDir, filename);
+      writeFileSync(genPath, content, "utf-8");
+
+      // Compare against existing file in project root
+      const existingPath = join(rootDir, filename);
+      if (!existsSync(existingPath)) {
+        // No existing file — not a drift, just a new generated file
+        continue;
+      }
+
+      const existing = readFileSync(existingPath, "utf-8");
+      if (normalizeForDiff(existing) !== normalizeForDiff(content)) {
+        drifts.push({ file: filename, format, status: "modified" });
+      }
+    }
+  }
+
+  return drifts;
+}
+
+/** Normalize whitespace for comparison: trim trailing, normalize line endings. */
+function normalizeForDiff(s: string): string {
+  return s.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
+}
+
+function renderDriftWarnings(drifts: FileDrift[], quiet: boolean): void {
+  if (drifts.length === 0 || quiet) return;
+
+  console.error("");
+  console.error(
+    styleWarn(`Drift detected in ${drifts.length} file${drifts.length > 1 ? "s" : ""}:`)
+  );
+  for (const d of drifts) {
+    console.error(
+      `  ${styleWarn("⚠")} ${styleBold(d.file)} differs from ${d.format} generation`
+    );
+  }
+  console.error(
+    styleMuted(`  Run 'diff ${GENERATED_DIR}/<file> <file>' to inspect changes.`)
+  );
+}
+
+// ── Catalog loading ──────────────────────────────────────────
+
 interface CatalogResult {
   catalog: CatalogSystem;
   format: CatalogFormat;
   file: string;
   rootDir: string;
   warnings: string[];
+  drifts: FileDrift[];
 }
 
 /**
  * Load the catalog using format fallback: dx-yaml → docker-compose → backstage → helm.
+ * Generates all other format variants and checks for drift.
  * Returns null if no catalog source is found.
  */
 function loadCatalog(cwd: string): CatalogResult | null {
   // Try ProjectContext first (dx-yaml, walks up the tree)
   try {
     const ctx = ProjectContext.fromCwd(cwd);
+    const drifts = generateAndDiff(ctx.catalog, "dx-yaml", ctx.rootDir);
     return {
       catalog: ctx.catalog,
       format: "dx-yaml",
       file: ctx.dxYamlPath,
       rootDir: ctx.rootDir,
       warnings: [],
+      drifts,
     };
   } catch {
     // dx.yaml not found, fall through
@@ -92,7 +181,7 @@ function loadCatalog(cwd: string): CatalogResult | null {
     const adapter = getCatalogFormat(format);
     if (adapter.detect(cwd)) {
       const result = adapter.parse(cwd);
-      // Find the matching file for display
+      const drifts = generateAndDiff(result.system, format, cwd);
       const detected = detectFormats(cwd).find((d) => d.format === format);
       return {
         catalog: result.system,
@@ -100,6 +189,7 @@ function loadCatalog(cwd: string): CatalogResult | null {
         file: detected ? join(cwd, detected.file) : cwd,
         rootDir: cwd,
         warnings: result.warnings,
+        drifts,
       };
     }
   }
@@ -231,7 +321,12 @@ export function catalogCommand(app: DxBase) {
       const cat = result.catalog;
 
       if (f.json) {
-        console.log(JSON.stringify({ success: true, format: result.format, data: cat }, null, 2));
+        console.log(JSON.stringify({
+          success: true,
+          format: result.format,
+          data: cat,
+          drifts: result.drifts,
+        }, null, 2));
         return;
       }
 
@@ -260,6 +355,8 @@ export function catalogCommand(app: DxBase) {
       );
       console.log("");
       console.log(printTable(["NAME", "KIND", "TYPE", "LIFECYCLE"], rows));
+
+      renderDriftWarnings(result.drifts, f.quiet);
     })
     .command("info", (c) =>
       c
@@ -321,6 +418,8 @@ export function catalogCommand(app: DxBase) {
               ["Definition", api.spec.definition],
             ]);
           }
+
+          renderDriftWarnings(result.drifts, f.quiet);
         })
     )
     .command("status", (c) =>
@@ -346,12 +445,14 @@ export function catalogCommand(app: DxBase) {
                     file: join(rootDir, d.file),
                   })),
                   rootDir,
+                  generatedDir: join(rootDir, GENERATED_DIR),
                   components: result
                     ? Object.keys(result.catalog.components).length
                     : 0,
                   resources: result
                     ? Object.keys(result.catalog.resources).length
                     : 0,
+                  drifts: result?.drifts ?? [],
                 },
               }, null, 2)
             );
@@ -363,19 +464,22 @@ export function catalogCommand(app: DxBase) {
 
           if (result) {
             console.log(
-              `${styleMuted("Source:")}     ${styleSuccess(result.format)} ${styleMuted("(active)")}`
+              `${styleMuted("Source:")}      ${styleSuccess(result.format)} ${styleMuted("(active)")}`
             );
             console.log(
-              `${styleMuted("File:")}       ${result.file}`
+              `${styleMuted("File:")}        ${result.file}`
             );
           } else {
             console.log(
-              `${styleMuted("Source:")}     ${styleWarn("none")} — no catalog source found`
+              `${styleMuted("Source:")}      ${styleWarn("none")} — no catalog source found`
             );
           }
 
           console.log(
-            `${styleMuted("Root:")}       ${rootDir}`
+            `${styleMuted("Root:")}        ${rootDir}`
+          );
+          console.log(
+            `${styleMuted("Generated:")}   ${join(rootDir, GENERATED_DIR)}`
           );
 
           if (result) {
@@ -383,16 +487,8 @@ export function catalogCommand(app: DxBase) {
             const nRes = Object.keys(result.catalog.resources).length;
             const nApi = Object.keys(result.catalog.apis ?? {}).length;
             console.log(
-              `${styleMuted("Entries:")}    ${nComp} components, ${nRes} resources, ${nApi} APIs`
+              `${styleMuted("Entries:")}     ${nComp} components, ${nRes} resources, ${nApi} APIs`
             );
-
-            if (result.warnings.length > 0) {
-              console.log("");
-              console.log(styleWarn("Warnings:"));
-              for (const w of result.warnings) {
-                console.log(`  ${styleWarn("⚠")} ${w}`);
-              }
-            }
           }
 
           console.log("");
@@ -416,6 +512,23 @@ export function catalogCommand(app: DxBase) {
           console.log(
             styleMuted("Priority: dx-yaml > docker-compose > backstage > helm")
           );
+
+          // Drift section
+          if (result && result.drifts.length > 0) {
+            console.log("");
+            console.log(styleBold(styleWarn("Drift:")));
+            for (const d of result.drifts) {
+              console.log(
+                `  ${styleWarn("⚠")} ${styleBold(d.file)} differs from ${d.format} generation`
+              );
+              console.log(
+                styleMuted(`    diff ${GENERATED_DIR}/${d.file} ${d.file}`)
+              );
+            }
+          } else if (result) {
+            console.log("");
+            console.log(`${styleBold("Drift:")}       ${styleSuccess("none")} — all formats in sync`);
+          }
         })
     );
 }
