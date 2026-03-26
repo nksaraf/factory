@@ -1,8 +1,11 @@
 /**
  * dx pkg auth — configure and check registry credentials.
+ *
+ * Stores keys globally (~/.config/dx/registry-auth.json) so every project on
+ * the machine can authenticate, and also writes to the local .env for tools
+ * that read credentials from the environment directly.
  */
 
-import { printKeyValue } from "../../output.js";
 import {
   REGISTRIES,
   decodeSaBase64,
@@ -15,6 +18,7 @@ import {
   configureNpmAuth,
   configureDockerAuth,
 } from "./registry.js";
+import { registryAuthStore } from "./registry-auth-store.js";
 
 export interface AuthOptions {
   check?: boolean;
@@ -47,9 +51,9 @@ export async function pkgAuth(root: string, opts: AuthOptions): Promise<void> {
     if (!saJson) throw new Error("Invalid base64 — could not decode");
     b64Value = opts.key;
   } else {
-    throw new Error(
-      "Provide credentials via --key-file <path> or --key <base64>"
-    );
+    // No key provided — re-authenticate from global store
+    await reauthFromGlobal(root);
+    return;
   }
 
   // Validate JSON
@@ -60,15 +64,78 @@ export async function pkgAuth(root: string, opts: AuthOptions): Promise<void> {
 
   console.log(`Service account: ${email}`);
 
-  // Store in .env (same key for all registries)
-  const updates: Record<string, string> = {};
+  // Build update map (same key for all registries + universal key)
+  const updates: Record<string, string> = {
+    GOOGLE_APPLICATION_CREDENTIALS_BASE64: b64Value,
+  };
   for (const reg of Object.values(REGISTRIES)) {
     updates[reg.envVar] = b64Value;
   }
+
+  // 1. Save to global store (~/.config/dx/registry-auth.json)
+  await registryAuthStore.update((prev) => ({ ...prev, ...updates }));
+  console.log("Credentials saved to ~/.config/dx/registry-auth.json (global)");
+
+  // 2. Save to local .env for other tools
   writeDotenv(root, updates);
-  console.log("Credentials saved to .env");
+  console.log("Credentials saved to .env (local)");
 
   // Configure per-registry auth
+  configureRegistries(saJson, root);
+
+  console.log("\nSetup complete.");
+}
+
+// ---------------------------------------------------------------------------
+// Re-authenticate registries from existing global key
+// ---------------------------------------------------------------------------
+
+async function reauthFromGlobal(root: string): Promise<void> {
+  const stored = await registryAuthStore.read();
+
+  // Pick the first non-empty base64 value from the global store
+  const b64 =
+    stored.GOOGLE_APPLICATION_CREDENTIALS_BASE64 ||
+    stored.GCP_NPM_SA_JSON_BASE64 ||
+    stored.GCP_MAVEN_SA_JSON_BASE64 ||
+    stored.GCP_PYTHON_SA_JSON_BASE64 ||
+    stored.GCP_DOCKER_SA_JSON_BASE64;
+
+  if (!b64) {
+    throw new Error(
+      "No credentials found in global store.\n" +
+        "Provide credentials via --key-file <path> or --key <base64>"
+    );
+  }
+
+  const saJson = decodeSaBase64(b64);
+  if (!saJson) {
+    throw new Error("Stored credentials are invalid — run dx pkg auth --key-file <path> to reconfigure");
+  }
+
+  const email = extractEmail(saJson);
+  console.log(`Re-authenticating registries using global key: ${email ?? "unknown"}\n`);
+
+  // Also refresh local .env
+  const updates: Record<string, string> = {
+    GOOGLE_APPLICATION_CREDENTIALS_BASE64: b64,
+  };
+  for (const reg of Object.values(REGISTRIES)) {
+    updates[reg.envVar] = b64;
+  }
+  writeDotenv(root, updates);
+  console.log("Credentials written to .env (local)");
+
+  configureRegistries(saJson, root);
+
+  console.log("\nRe-authentication complete.");
+}
+
+// ---------------------------------------------------------------------------
+// Shared per-registry configurators
+// ---------------------------------------------------------------------------
+
+function configureRegistries(saJson: string, root: string): void {
   const hasGcloud = gcloudAvailable();
 
   configureMavenAuth(saJson);
@@ -87,17 +154,32 @@ export async function pkgAuth(root: string, opts: AuthOptions): Promise<void> {
       "gcloud not found — Docker auth skipped (install gcloud to enable)"
     );
   }
-
-  console.log("\nSetup complete.");
 }
+
+// ---------------------------------------------------------------------------
+// Check configured credentials
+// ---------------------------------------------------------------------------
 
 async function checkCredentials(root: string): Promise<void> {
   console.log("Checking registry credentials...\n");
+
+  // Read both sources
   const dotenv = readDotenv(root);
+  let globalAuth: Record<string, string> = {};
+  try {
+    const stored = await registryAuthStore.read();
+    globalAuth = stored as unknown as Record<string, string>;
+  } catch {
+    // global store unavailable
+  }
+
   let found = false;
 
-  for (const [name, reg] of Object.entries(REGISTRIES)) {
-    const b64 = dotenv[reg.envVar];
+  for (const [_name, reg] of Object.entries(REGISTRIES)) {
+    const globalVal = globalAuth[reg.envVar];
+    const localVal = dotenv[reg.envVar];
+    const b64 = globalVal || localVal;
+
     if (!b64) {
       console.log(`${reg.label}: not configured`);
       continue;
@@ -109,7 +191,24 @@ async function checkCredentials(root: string): Promise<void> {
       continue;
     }
     const email = extractEmail(decoded);
-    console.log(`${reg.label}: ${email ?? "unknown"}`);
+    const source = globalVal ? "(global)" : "(project .env)";
+    console.log(`${reg.label}: ${email ?? "unknown"} ${source}`);
+  }
+
+  // Check GOOGLE_APPLICATION_CREDENTIALS_BASE64
+  const universalB64 =
+    globalAuth["GOOGLE_APPLICATION_CREDENTIALS_BASE64"] ||
+    dotenv["GOOGLE_APPLICATION_CREDENTIALS_BASE64"];
+  if (universalB64) {
+    const decoded = decodeSaBase64(universalB64);
+    const email = decoded ? extractEmail(decoded) : null;
+    const source = globalAuth["GOOGLE_APPLICATION_CREDENTIALS_BASE64"]
+      ? "(global)"
+      : "(project .env)";
+    console.log(
+      `GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${email ?? "set"} ${source}`
+    );
+    found = true;
   }
 
   if (!found) {

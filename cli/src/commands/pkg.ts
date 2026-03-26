@@ -3,6 +3,14 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
 
+/** Inject global registry auth keys into process.env for all pkg subcommands. */
+async function ensurePkgEnv(): Promise<void> {
+  const { loadGlobalAuthEnv } = await import(
+    "../handlers/pkg/registry-auth-store.js"
+  );
+  await loadGlobalAuthEnv();
+}
+
 export function pkgCommand(app: DxBase) {
   return app
     .sub("pkg")
@@ -41,6 +49,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgLink } = await import("../handlers/pkg/link.js");
             await pkgLink(process.cwd(), {
               source: args.source as string,
@@ -77,6 +86,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgUnlink } = await import("../handlers/pkg/unlink.js");
             await pkgUnlink(process.cwd(), {
               package: args.package as string,
@@ -95,6 +105,7 @@ export function pkgCommand(app: DxBase) {
         async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgList } = await import("../handlers/pkg/list.js");
             await pkgList(process.cwd(), f.json);
           } catch (err) {
@@ -125,6 +136,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgDiff } = await import("../handlers/pkg/diff.js");
             await pkgDiff(process.cwd(), {
               package: args.package as string,
@@ -166,6 +178,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgBranch } = await import("../handlers/pkg/branch.js");
             await pkgBranch(process.cwd(), {
               package: args.package as string,
@@ -207,6 +220,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPush } = await import("../handlers/pkg/push.js");
             await pkgPush(process.cwd(), {
               package: args.package as string,
@@ -247,6 +261,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPull } = await import("../handlers/pkg/pull.js");
             await pkgPull(process.cwd(), {
               package: args.package as string,
@@ -311,6 +326,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgContribute } = await import(
               "../handlers/pkg/contribute.js"
             );
@@ -353,6 +369,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgBump } = await import("../handlers/pkg/bump.js");
             const level = flags.major
               ? "major"
@@ -385,6 +402,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgVersions } = await import(
               "../handlers/pkg/versions.js"
             );
@@ -419,6 +437,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgAuth } = await import("../handlers/pkg/auth.js");
             await pkgAuth(process.cwd(), {
               check: flags.check as boolean | undefined,
@@ -454,6 +473,7 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPublish } = await import(
               "../handlers/pkg/publish.js"
             );
