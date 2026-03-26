@@ -1,0 +1,169 @@
+{
+  "id": "factory.fleet",
+  "displayName": "Factory Fleet",
+  "description": "Fleet management — sites, deployments, releases, incidents",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["fleet", "deployments", "releases"],
+  "categories": ["operations"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--rocket-launch-duotone]",
+      "label": "Fleet",
+      "order": 10
+    },
+    "routePrefix": "/fleet"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.fleet.route.home",
+        "displayName": "Fleet",
+        "path": "/(root)/(app)/fleet/"
+      },
+      {
+        "id": "factory.fleet.route.sites",
+        "displayName": "Sites",
+        "path": "/(root)/(app)/fleet/sites/"
+      },
+      {
+        "id": "factory.fleet.route.site-detail",
+        "displayName": "Site Detail",
+        "path": "/(root)/(app)/fleet/sites/:slug/"
+      },
+      {
+        "id": "factory.fleet.route.targets",
+        "displayName": "Deployment Targets",
+        "path": "/(root)/(app)/fleet/targets/"
+      },
+      {
+        "id": "factory.fleet.route.target-detail",
+        "displayName": "Target Detail",
+        "path": "/(root)/(app)/fleet/targets/:slug/"
+      },
+      {
+        "id": "factory.fleet.route.releases",
+        "displayName": "Releases",
+        "path": "/(root)/(app)/fleet/releases/"
+      },
+      {
+        "id": "factory.fleet.route.rollouts",
+        "displayName": "Rollouts",
+        "path": "/(root)/(app)/fleet/rollouts/"
+      },
+      {
+        "id": "factory.fleet.route.incidents",
+        "displayName": "Incidents",
+        "path": "/(root)/(app)/fleet/incidents/"
+      },
+      {
+        "id": "factory.fleet.route.sandboxes",
+        "displayName": "Sandboxes",
+        "path": "/(root)/(app)/fleet/sandboxes/"
+      },
+      {
+        "id": "factory.fleet.route.routes",
+        "displayName": "Routes & Domains",
+        "path": "/(root)/(app)/fleet/routes/"
+      },
+      {
+        "id": "factory.fleet.route.workloads",
+        "displayName": "Workload Inspector",
+        "path": "/(root)/(app)/fleet/workloads/:id/"
+      },
+      {
+        "id": "factory.fleet.route.drift",
+        "displayName": "Drift Report",
+        "path": "/(root)/(app)/fleet/drift/"
+      },
+      {
+        "id": "factory.fleet.route.interventions",
+        "displayName": "Intervention Log",
+        "path": "/(root)/(app)/fleet/interventions/"
+      },
+      {
+        "id": "factory.fleet.route.bundles",
+        "displayName": "Release Bundles",
+        "path": "/(root)/(app)/fleet/bundles/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.fleet.sidebar.group",
+        "displayName": "Fleet",
+        "icon": "icon-[ph--rocket-launch-duotone]",
+        "group": "Fleet",
+        "order": 10
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.fleet.sidebar.sites",
+        "displayName": "Fleet Map",
+        "icon": "icon-[ph--globe-hemisphere-west-duotone]",
+        "href": "/fleet/sites",
+        "group": "factory.fleet.sidebar.group",
+        "order": 1
+      },
+      {
+        "id": "factory.fleet.sidebar.targets",
+        "displayName": "Targets",
+        "icon": "icon-[ph--crosshair-duotone]",
+        "href": "/fleet/targets",
+        "group": "factory.fleet.sidebar.group",
+        "order": 2
+      },
+      {
+        "id": "factory.fleet.sidebar.releases",
+        "displayName": "Releases",
+        "icon": "icon-[ph--package-duotone]",
+        "href": "/fleet/releases",
+        "group": "factory.fleet.sidebar.group",
+        "order": 3
+      },
+      {
+        "id": "factory.fleet.sidebar.rollouts",
+        "displayName": "Rollouts",
+        "icon": "icon-[ph--arrow-circle-up-duotone]",
+        "href": "/fleet/rollouts",
+        "group": "factory.fleet.sidebar.group",
+        "order": 4
+      },
+      {
+        "id": "factory.fleet.sidebar.incidents",
+        "displayName": "Incidents",
+        "icon": "icon-[ph--warning-diamond-duotone]",
+        "href": "/fleet/incidents",
+        "group": "factory.fleet.sidebar.group",
+        "order": 5
+      },
+      {
+        "id": "factory.fleet.sidebar.sandboxes",
+        "displayName": "Sandboxes",
+        "icon": "icon-[ph--terminal-window-duotone]",
+        "href": "/fleet/sandboxes",
+        "group": "factory.fleet.sidebar.group",
+        "order": 6
+      },
+      {
+        "id": "factory.fleet.sidebar.drift",
+        "displayName": "Drift Report",
+        "icon": "icon-[ph--git-diff-duotone]",
+        "href": "/fleet/drift",
+        "group": "factory.fleet.sidebar.group",
+        "order": 7
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}
