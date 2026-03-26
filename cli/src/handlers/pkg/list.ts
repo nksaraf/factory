@@ -4,7 +4,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { run } from "../../lib/subprocess.js";
+import { capture } from "../../lib/subprocess.js";
 import { printTable } from "../../output.js";
 import { PackageState } from "./state.js";
 import { gitRepoDir, gitStatusSummary, shortSource } from "./detect.js";
@@ -45,7 +45,7 @@ export async function pkgList(
         ? join(root, entry.repo_path)
         : undefined;
       if (repoDir && existsSync(repoDir)) {
-        const { status, count } = gitStatusSummary(entry, root);
+        const { status, count } = await gitStatusSummary(entry, root);
         if (status === "modified") {
           statusStr = "local ahead";
           changes = `${count} file${count !== 1 ? "s" : ""}`;
@@ -58,7 +58,7 @@ export async function pkgList(
         changes = "-";
       }
     } else {
-      const { status, count } = gitStatusSummary(entry, root);
+      const { status, count } = await gitStatusSummary(entry, root);
       if (status === "modified") {
         statusStr = "modified";
         changes = `${count} file${count !== 1 ? "s" : ""}`;
@@ -75,10 +75,11 @@ export async function pkgList(
 
     const repoDir = gitRepoDir(entry, root);
     if (existsSync(repoDir)) {
-      const result = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-        cwd: repoDir,
-      });
-      if (result.status === 0) {
+      const result = await capture(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        { cwd: repoDir },
+      );
+      if (result.exitCode === 0) {
         const actual = result.stdout.trim();
         if (actual !== checkoutBranch) {
           branchDisplay = `${actual} (!)`;

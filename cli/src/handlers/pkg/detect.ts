@@ -4,8 +4,9 @@
  */
 
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
-import { run } from "../../lib/subprocess.js";
+import { basename, dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { capture } from "../../lib/subprocess.js";
 import type { PackageEntry } from "./state.js";
 
 /** Expand GitHub shorthand (org/repo) to a full git URL. */
@@ -54,9 +55,45 @@ const TYPE_DIRS: Record<string, string> = {
   python: "python",
 };
 
-/** Target directory for a package type. */
+/**
+ * Target directory for a package.
+ *
+ * Adapts to the project structure:
+ *   - If `packages/<type>/` exists → `packages/<type>/<name>` (standard project)
+ *   - Else if `packages/` exists  → `packages/<name>` (flat layout)
+ *   - Otherwise                   → `<name>/` at root (bare directory)
+ */
 export function targetDir(root: string, pkgType: string, name: string): string {
-  return join(root, "packages", TYPE_DIRS[pkgType], name);
+  const typedDir = join(root, "packages", TYPE_DIRS[pkgType]);
+  if (existsSync(typedDir)) return join(typedDir, name);
+  const packagesDir = join(root, "packages");
+  if (existsSync(packagesDir)) return join(packagesDir, name);
+  return join(root, name);
+}
+
+/**
+ * Resolve an existing package by short name.
+ * Checks `packages/<type>/<name>` for each type, then `packages/<name>`.
+ * Returns the first match or null.
+ */
+export function resolveExistingPackage(
+  root: string,
+  name: string,
+): { dir: string; type: "npm" | "java" | "python"; name: string } | null {
+  for (const typeDir of ["npm", "java", "python"] as const) {
+    const c = join(root, "packages", typeDir, name);
+    if (existsSync(c)) {
+      const pt = detectPkgType(c);
+      if (pt) return { dir: c, type: pt, name };
+    }
+  }
+  // Flat packages/ layout
+  const flat = join(root, "packages", name);
+  if (existsSync(flat)) {
+    const pt = detectPkgType(flat);
+    if (pt) return { dir: flat, type: pt, name };
+  }
+  return null;
 }
 
 /**
@@ -73,25 +110,43 @@ export function gitRepoDir(entry: PackageEntry, root: string): string {
  * Return (status, changedFileCount) for a package.
  * For subpath packages, scopes to source_path within the repo.
  */
-export function gitStatusSummary(
+export async function gitStatusSummary(
   entry: PackageEntry,
-  root: string
-): { status: "clean" | "modified" | "unknown"; count: number } {
+  root: string,
+): Promise<{ status: "clean" | "modified" | "unknown"; count: number }> {
   const repoDir = gitRepoDir(entry, root);
 
-  const args = ["status", "--porcelain"];
+  const args = ["git", "status", "--porcelain"];
   if (entry.source_path) {
     args.push("--", entry.source_path);
   }
 
-  const result = run("git", args, { cwd: repoDir });
-  if (result.status !== 0) return { status: "unknown", count: 0 };
+  const result = await capture(args, { cwd: repoDir });
+  if (result.exitCode !== 0) return { status: "unknown", count: 0 };
 
   const lines = result.stdout
     .split("\n")
     .filter((l) => l.trim().length > 0);
   if (lines.length === 0) return { status: "clean", count: 0 };
   return { status: "modified", count: lines.length };
+}
+
+/**
+ * Walk up from startDir to find the nearest directory containing `.dx/`.
+ * Stops before the home directory (whose `~/.dx` is the shared-repos root,
+ * not a project). Returns `startDir` as fallback so commands still work
+ * from a bare directory.
+ */
+export function findPkgRoot(startDir: string): string {
+  const home = homedir();
+  let dir = startDir;
+  for (;;) {
+    if (existsSync(join(dir, ".dx"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir || parent === home) break;
+    dir = parent;
+  }
+  return startDir; // fallback: cwd itself
 }
 
 /** Shorten a GitHub URL for display. */

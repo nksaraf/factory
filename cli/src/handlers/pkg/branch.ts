@@ -3,7 +3,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { run } from "../../lib/subprocess.js";
+import { exec, capture } from "../../lib/subprocess.js";
 import { PackageState } from "./state.js";
 import { gitRepoDir, gitStatusSummary } from "./detect.js";
 
@@ -27,26 +27,26 @@ export async function pkgBranch(
   const repoDir = gitRepoDir(entry, root);
 
   if (opts.create) {
-    createBranch(root, pm, opts.package, entry, repoDir, opts.create);
+    await createBranch(root, pm, opts.package, entry, repoDir, opts.create);
     return;
   }
 
   if (opts.switch) {
-    switchBranch(root, pm, opts.package, entry, repoDir, opts.switch);
+    await switchBranch(root, pm, opts.package, entry, repoDir, opts.switch);
     return;
   }
 
   // Default: list branches
-  listBranches(repoDir, entry);
+  await listBranches(repoDir, entry);
 }
 
-function guardDirtyState(
+async function guardDirtyState(
   entry: ReturnType<PackageState["get"]>,
   root: string,
   name: string
-): void {
+): Promise<void> {
   if (!entry) return;
-  const { status, count } = gitStatusSummary(entry, root);
+  const { status, count } = await gitStatusSummary(entry, root);
   if (status === "modified") {
     throw new Error(
       `Package '${name}' has ${count} uncommitted change(s)\n` +
@@ -55,70 +55,60 @@ function guardDirtyState(
   }
 }
 
-function switchBranch(
+async function switchBranch(
   root: string,
   pm: PackageState,
   name: string,
   entry: NonNullable<ReturnType<PackageState["get"]>>,
   repoDir: string,
   branch: string
-): void {
+): Promise<void> {
   // Check if already on this branch
-  const currentResult = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+  const currentResult = await capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], {
     cwd: repoDir,
   });
-  if (currentResult.status === 0 && currentResult.stdout.trim() === branch) {
+  if (currentResult.exitCode === 0 && currentResult.stdout.trim() === branch) {
     return;
   }
 
-  guardDirtyState(entry, root, name);
+  await guardDirtyState(entry, root, name);
 
-  const result = run("git", ["checkout", branch], { cwd: repoDir });
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to switch to branch '${branch}':\n${result.stderr || result.stdout}`
-    );
-  }
+  await exec(["git", "checkout", branch], { cwd: repoDir });
 
   entry.checkout_branch = branch;
   pm.add(name, entry);
   console.log(`Switched ${name} to branch ${branch}`);
 }
 
-function createBranch(
+async function createBranch(
   root: string,
   pm: PackageState,
   name: string,
   entry: NonNullable<ReturnType<PackageState["get"]>>,
   repoDir: string,
   branch: string
-): void {
-  guardDirtyState(entry, root, name);
+): Promise<void> {
+  await guardDirtyState(entry, root, name);
 
-  const result = run("git", ["checkout", "-b", branch], { cwd: repoDir });
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to create branch '${branch}':\n${result.stderr || result.stdout}`
-    );
-  }
+  await exec(["git", "checkout", "-b", branch], { cwd: repoDir });
 
   entry.checkout_branch = branch;
   pm.add(name, entry);
   console.log(`Created and switched ${name} to branch ${branch}`);
 }
 
-function listBranches(
+async function listBranches(
   repoDir: string,
   entry: NonNullable<ReturnType<PackageState["get"]>>
-): void {
-  const currentResult = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+): Promise<void> {
+  const currentResult = await capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], {
     cwd: repoDir,
   });
   const currentBranch =
-    currentResult.status === 0 ? currentResult.stdout.trim() : "";
+    currentResult.exitCode === 0 ? currentResult.stdout.trim() : "";
 
-  const listResult = run("git", ["branch", "--list"], { cwd: repoDir });
-  if (listResult.status !== 0) {
+  const listResult = await capture(["git", "branch", "--list"], { cwd: repoDir });
+  if (listResult.exitCode !== 0) {
     throw new Error("Failed to list branches");
   }
 

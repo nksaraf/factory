@@ -5,7 +5,7 @@
 import { existsSync } from "node:fs";
 import { PackageState } from "./state.js";
 import { gitRepoDir } from "./detect.js";
-import { runInherit } from "../../lib/subprocess.js";
+import { exec } from "../../lib/subprocess.js";
 
 export interface DiffOptions {
   package: string;
@@ -36,6 +36,9 @@ export async function pkgDiff(root: string, opts: DiffOptions): Promise<void> {
     diffArgs.push("--", entry.source_path);
   }
 
-  const exitCode = runInherit("git", diffArgs, { cwd: repoDir });
-  if (exitCode !== 0) process.exit(exitCode);
+  try {
+    await exec(["git", ...diffArgs], { cwd: repoDir });
+  } catch {
+    process.exit(1);
+  }
 }

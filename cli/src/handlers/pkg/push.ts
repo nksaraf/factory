@@ -3,7 +3,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { run } from "../../lib/subprocess.js";
+import { exec, capture } from "../../lib/subprocess.js";
 import { PackageState } from "./state.js";
 import { gitRepoDir, gitStatusSummary, shortSource } from "./detect.js";
 
@@ -26,10 +26,7 @@ export async function pkgPush(root: string, opts: PushOptions): Promise<void> {
   // Switch branch if override provided
   if (opts.branch) {
     const repoDir = gitRepoDir(entry, root);
-    const result = run("git", ["checkout", opts.branch], { cwd: repoDir });
-    if (result.status !== 0) {
-      throw new Error(`Failed to switch to branch '${opts.branch}'`);
-    }
+    await exec(["git", "checkout", opts.branch], { cwd: repoDir });
     entry.checkout_branch = opts.branch;
     pm.add(opts.package, entry);
     entry = pm.get(opts.package)!;
@@ -45,7 +42,7 @@ export async function pkgPush(root: string, opts: PushOptions): Promise<void> {
   // For contributed packages, sync local files to staging clone first
   if (entry.mode === "contribute") {
     const { syncToStaging } = await import("./contribute.js");
-    if (!syncToStaging(root, entry)) {
+    if (!(await syncToStaging(root, entry))) {
       throw new Error(
         "Sync to staging failed. Run 'dx pkg pull' to reconcile."
       );
@@ -53,17 +50,16 @@ export async function pkgPush(root: string, opts: PushOptions): Promise<void> {
   }
 
   // Check for changes
-  const { status, count } = gitStatusSummary(entry, root);
+  const { status, count } = await gitStatusSummary(entry, root);
   if (status === "clean") {
     // Check for committed but unpushed changes
     const compareBranch = entry.checkout_branch ?? entry.branch;
-    const unpushedResult = run(
-      "git",
-      ["log", "--oneline", `origin/${compareBranch}..HEAD`],
+    const unpushedResult = await capture(
+      ["git", "log", "--oneline", `origin/${compareBranch}..HEAD`],
       { cwd: repoDir }
     );
     if (
-      unpushedResult.status === 0 &&
+      unpushedResult.exitCode === 0 &&
       !unpushedResult.stdout.trim()
     ) {
       console.log(`No changes to push for ${opts.package}`);
@@ -77,43 +73,28 @@ export async function pkgPush(root: string, opts: PushOptions): Promise<void> {
   if (status !== "clean") {
     console.log("Staging and committing changes...");
     if (entry.source_path) {
-      run("git", ["add", entry.source_path], { cwd: repoDir });
+      await exec(["git", "add", entry.source_path], { cwd: repoDir });
     } else {
-      run("git", ["add", "-A"], { cwd: repoDir });
+      await exec(["git", "add", "-A"], { cwd: repoDir });
     }
-    const commitResult = run("git", ["commit", "-m", message], {
-      cwd: repoDir,
-    });
-    if (commitResult.status !== 0) {
-      throw new Error(
-        `Commit failed:\n${commitResult.stderr || commitResult.stdout}`
-      );
-    }
+    await exec(["git", "commit", "-m", message], { cwd: repoDir });
     console.log("Changes committed");
   }
 
   // Push
   const branch = entry.checkout_branch ?? `dx/${opts.package}-dev`;
   console.log(`Pushing branch ${branch}...`);
-  const pushResult = run("git", ["push", "-u", "origin", branch], {
-    cwd: repoDir,
-    verbose: opts.verbose,
-  });
-  if (pushResult.status !== 0) {
-    throw new Error(
-      `Push failed:\n${pushResult.stderr || pushResult.stdout}`
-    );
-  }
+  await exec(["git", "push", "-u", "origin", branch], { cwd: repoDir });
   console.log("Pushed to remote");
 
   // Create PR via gh CLI
-  const ghCheck = run("which", ["gh"]);
-  if (ghCheck.status === 0) {
+  const ghCheck = await capture(["which", "gh"]);
+  if (ghCheck.exitCode === 0) {
     console.log("Creating pull request...");
     const targetBranch = entry.branch ?? "main";
-    const prResult = run(
-      "gh",
+    const prResult = await capture(
       [
+        "gh",
         "pr",
         "create",
         "--title",
@@ -127,19 +108,18 @@ export async function pkgPush(root: string, opts: PushOptions): Promise<void> {
       ],
       { cwd: repoDir }
     );
-    if (prResult.status === 0) {
+    if (prResult.exitCode === 0) {
       console.log(`Pull request created: ${prResult.stdout.trim()}`);
     } else if (
       prResult.stdout.toLowerCase().includes("already exists") ||
       prResult.stderr.toLowerCase().includes("already exists")
     ) {
       console.log("A pull request already exists for this branch");
-      const urlResult = run(
-        "gh",
-        ["pr", "view", "--json", "url", "-q", ".url"],
+      const urlResult = await capture(
+        ["gh", "pr", "view", "--json", "url", "-q", ".url"],
         { cwd: repoDir }
       );
-      if (urlResult.status === 0 && urlResult.stdout.trim()) {
+      if (urlResult.exitCode === 0 && urlResult.stdout.trim()) {
         console.log(`  ${urlResult.stdout.trim()}`);
       }
     } else {

@@ -26,23 +26,23 @@
   "engines": {
     "bun": ">=1.1.0"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "@crustjs/core": "^0.0.15",
     "@crustjs/plugins": "^0.0.20",
     "@crustjs/store": "^0.0.1",
     "@crustjs/style": "^0.0.1",
+    "@crustjs/crust": "^0.0.23",
     "@elysiajs/eden": "^1.4.0",
     "@inquirer/prompts": "^7.0.0",
     "@rio.js/auth-client": "0.0.2",
     "@smp/factory-shared": "workspace:*",
+    "@smp/factory-api": "workspace:*",
     "elysia": "^1.4.27",
     "ora": "^8.0.0",
     "pg": "^8.13.0",
-    "yaml": "^2.8.0"
-  },
-  "devDependencies": {
-    "@crustjs/crust": "^0.0.23",
-    "@smp/factory-api": "workspace:*",
+    "yaml": "^2.8.0",
+    "@types/bun": "^1.2.0",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.0",
     "typescript": "^5.9.3",

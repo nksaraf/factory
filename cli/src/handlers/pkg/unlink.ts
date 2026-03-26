@@ -8,6 +8,7 @@ import { PackageState } from "./state.js";
 import { gitStatusSummary } from "./detect.js";
 import { removeGitignoreEntry } from "./gitignore.js";
 import { unintegrateNpm, unintegrateJava } from "./integrate.js";
+import { removeWorktree } from "./shared-repo.js";
 
 export interface UnlinkOptions {
   package: string;
@@ -29,7 +30,7 @@ export async function pkgUnlink(
 
   // Check for uncommitted changes (scoped to source_path)
   if (!opts.force) {
-    const { status, count } = gitStatusSummary(entry, root);
+    const { status, count } = await gitStatusSummary(entry, root);
     if (status === "modified") {
       throw new Error(
         `Package '${opts.package}' has ${count} uncommitted change(s)\n` +
@@ -43,8 +44,29 @@ export async function pkgUnlink(
     console.log(
       `Keeping local files at ${entry.local_path} (contributed package)`
     );
+  } else if (entry.is_worktree && entry.shared_repo) {
+    // Worktree-based: remove symlink (if monorepo) then remove worktree
+    let isSymlink = false;
+    try {
+      isSymlink = lstatSync(pkgDir).isSymbolicLink();
+    } catch {}
+
+    if (isSymlink) {
+      unlinkSync(pkgDir);
+      console.log(`Removed symlink ${entry.local_path}`);
+    }
+
+    // The worktree is at repo_path (monorepo) or local_path (single-repo)
+    const worktreePath = entry.repo_path
+      ? join(root, entry.repo_path)
+      : pkgDir;
+
+    if (existsSync(worktreePath)) {
+      await removeWorktree(entry.shared_repo, worktreePath);
+      console.log(`Removed worktree ${entry.repo_path ?? entry.local_path}`);
+    }
   } else {
-    // lstatSync doesn't follow symlinks, so use it to detect broken symlinks too
+    // Legacy: direct rmSync
     let isSymlink = false;
     let exists = false;
     try {
@@ -65,19 +87,19 @@ export async function pkgUnlink(
         `Directory ${entry.local_path} already removed, cleaning up state`
       );
     }
-  }
 
-  // Remove full clone for subpath packages
-  if (entry.repo_path) {
-    const fullRepo = join(root, entry.repo_path);
-    if (existsSync(fullRepo)) {
-      rmSync(fullRepo, { recursive: true });
-      console.log(`Removed repo clone ${entry.repo_path}`);
+    // Remove full clone for subpath packages (legacy)
+    if (entry.repo_path) {
+      const fullRepo = join(root, entry.repo_path);
+      if (existsSync(fullRepo)) {
+        rmSync(fullRepo, { recursive: true });
+        console.log(`Removed repo clone ${entry.repo_path}`);
+      }
     }
   }
 
   // Unintegrate
-  if (entry.type === "npm") unintegrateNpm(root);
+  if (entry.type === "npm") await unintegrateNpm(root);
   else if (entry.type === "java") unintegrateJava(root, opts.package);
 
   // Remove .gitignore entry

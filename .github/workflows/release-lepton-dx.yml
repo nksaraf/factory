@@ -1,0 +1,106 @@
+name: Release lepton-dx
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - "shared/**"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-lepton-dx
+  cancel-in-progress: false
+
+env:
+  BUN_INSTALL_CACHE_DIR: ~/.bun/install/cache
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Cache pnpm store — keyed on lockfile hash
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.dir }}
+            ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: deps-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: deps-
+
+      # Authenticate to Google Artifact Registry for @rio.js/* deps
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter lepton-dx...
+
+      - name: Bump minor version
+        working-directory: cli
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${NEW_VERSION}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "VERSION=${NEW_VERSION}" >> "$GITHUB_ENV"
+          echo "Bumped version: ${CURRENT} → ${NEW_VERSION}"
+
+      - name: Build cross-platform binaries
+        working-directory: cli
+        run: pnpm build:crust
+
+      - name: Publish to npm
+        working-directory: cli
+        run: pnpm release:publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit version bump & tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cli/package.json
+          git commit -m "chore: release lepton-dx@${VERSION}"
+          git tag "lepton-dx@${VERSION}"
+          git push origin main --tags
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | grep '^lepton-dx@' | sed -n '2p')
+          gh release create "lepton-dx@${VERSION}" \
+            --title "lepton-dx@${VERSION}" \
+            --generate-notes \
+            ${PREV_TAG:+--notes-start-tag "$PREV_TAG"}

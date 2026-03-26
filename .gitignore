@@ -50,3 +50,4 @@ deps
 
 
 packages/npm/auth-service/  # dx-pkg-managed
+packages/npm/app-ui/  # dx-pkg-managed

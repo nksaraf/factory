@@ -10,4 +10,5 @@ export * from "./entitlement-bundle";
 export * from "./exit-codes";
 export * from "./org-types";
 export * from "./types";
+export * from "./slug.js";
 export * from "./tunnel-protocol.js";
