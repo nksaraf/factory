@@ -17,6 +17,7 @@ import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
 import { entitlementCommand } from "./commands/entitlement.js";
 import { envCommand } from "./commands/env.js";
+import { factoryCommand } from "./commands/factory.js";
 import { gitCommand } from "./commands/git.js";
 import { infraCommand } from "./commands/infra.js";
 import { installCommand } from "./commands/install.js";
@@ -68,6 +69,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(domainCommand(app))
     .command(entitlementCommand(app))
     .command(envCommand(app))
+    .command(factoryCommand(app))
     .command(gitCommand(app))
     .command(infraCommand(app))
     .command(installCommand(app))
