@@ -14,6 +14,14 @@ import {
   infoLine,
 } from "../lib/cli-ui.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("install", [
+  "$ dx install                       Interactive platform install",
+  "$ dx install --role site           Install as site node",
+  "$ dx install preflight             Run preflight checks",
+  "$ dx install upgrade               Upgrade platform",
+]);
 
 const DX_VERSION = process.env.DX_VERSION ?? "0.0.0-dev";
 
@@ -330,8 +338,8 @@ export function installCommand(app: DxBase) {
           console.log(JSON.stringify({ success: true, data: manifest }, null, 2));
         }
       } catch (err) {
-        // Ctrl+C from @inquirer/prompts
-        if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "ExitPromptError") {
+        // Ctrl+C from prompts
+        if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "CancelledError") {
           console.log("\n  Install cancelled.");
           process.exit(1);
         }
@@ -366,13 +374,13 @@ export function installCommand(app: DxBase) {
             let installConfig = await readConfig();
             if (!flags.role) {
               if (!configExists()) {
-                const { select } = await import("@inquirer/prompts");
+                const { select } = await import("@crustjs/prompts");
                 role = await select<InstallRole>({
                   message: "Role",
                   choices: [
-                    { value: "workbench", name: "Workbench" },
-                    { value: "site", name: "Site" },
-                    { value: "factory", name: "Factory" },
+                    { value: "workbench", label: "Workbench" },
+                    { value: "site", label: "Site" },
+                    { value: "factory", label: "Factory" },
                   ],
                 });
               } else {
@@ -400,7 +408,7 @@ export function installCommand(app: DxBase) {
 
             if (!result.passed) process.exit(ExitCodes.PREFLIGHT_FAILURE);
           } catch (err) {
-            if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "ExitPromptError") {
+            if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "CancelledError") {
               console.log("\n  Cancelled.");
               process.exit(1);
             }

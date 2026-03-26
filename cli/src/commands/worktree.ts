@@ -12,6 +12,13 @@ import { exitWithError } from "../lib/cli-exit.js";
 import { hasUncommittedChanges } from "../lib/git.js";
 import { printTable } from "../output.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("worktree", [
+  "$ dx worktree create feature/x    Create isolated worktree",
+  "$ dx worktree list                List worktrees",
+  "$ dx worktree remove feature/x    Clean up worktree",
+]);
 
 interface WorktreeEntry {
   path: string;

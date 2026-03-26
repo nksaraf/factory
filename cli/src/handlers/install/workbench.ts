@@ -1,4 +1,4 @@
-import { select } from "@inquirer/prompts";
+import { select } from "@crustjs/prompts";
 import ora from "ora";
 import { run } from "../../lib/subprocess.js";
 import { styleSuccess, styleMuted } from "../../cli-style.js";
@@ -45,7 +45,7 @@ export async function runWorkbenchSetup(opts: {
       const sites = res.data as Array<{ name: string }>;
       const chosen = await select({
         message: "Context",
-        choices: sites.map((s) => ({ value: s.name, name: s.name })),
+        choices: sites.map((s) => ({ value: s.name, label: s.name })),
       });
       result.context = chosen;
     } else {

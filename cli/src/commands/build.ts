@@ -6,6 +6,12 @@ import { dockerBuild } from "../lib/docker.js";
 import { ProjectContext } from "../lib/project.js";
 
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("build", [
+  "$ dx build               Build all components",
+  "$ dx build api           Build specific component",
+]);
 
 function imageTag(module: string, component: string): string {
   const safe = `${module}-${component}`.toLowerCase().replace(/[^a-z0-9_.-]/g, "-");

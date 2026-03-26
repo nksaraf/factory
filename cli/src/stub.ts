@@ -5,6 +5,7 @@ import { styleWarn } from "./cli-style.js";
 export type DxFlags = {
   json?: boolean;
   verbose?: boolean;
+  quiet?: boolean;
   debug?: boolean;
 };
 
@@ -37,5 +38,5 @@ export function emitStub(
     process.exit(ExitCodes.GENERAL_FAILURE);
     return;
   }
-  console.log(styleWarn(message));
+  console.error(styleWarn(message));
 }

@@ -12,6 +12,13 @@ import { stageAll, gitCommit, getCurrentBranch } from "../lib/git.js";
 import { gitPushAuto } from "../lib/git-push.js";
 import { resolveRepoContext } from "../lib/repo-context.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("ship", [
+  "$ dx ship                         Commit, push, and open PR",
+  '$ dx ship --title "Add auth"      With PR title',
+  "$ dx ship --draft                 As draft PR",
+]);
 
 export function shipCommand(app: DxBase) {
   return app

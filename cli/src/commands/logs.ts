@@ -7,6 +7,13 @@ import { isDockerRunning } from "../lib/docker.js"
 import { streamDockerLogs, parseDockerLogLine } from "../lib/docker-logs.js"
 import { formatLogEntry, formatLogEntryJson } from "../lib/log-formatter.js"
 import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("logs", [
+  "$ dx logs --follow                 Stream live logs",
+  "$ dx logs --level error --since 1h Errors from last hour",
+  '$ dx logs --grep "timeout"         Search logs',
+])
 
 export function logsCommand(app: DxBase) {
   return app

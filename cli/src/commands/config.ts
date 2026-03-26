@@ -8,6 +8,15 @@ import {
 } from "../handlers/config.js";
 
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("config", [
+  "$ dx config show                    Show merged configuration",
+  "$ dx config get factoryUrl          Get a specific setting",
+  "$ dx config set factoryUrl <url>    Update a setting",
+  "$ dx config path                    Show config file location",
+  "$ dx config reset                   Reset to defaults",
+]);
 
 export function configCommand(app: DxBase) {
   return app

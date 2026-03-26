@@ -1,8 +1,18 @@
 import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
+import { setExamples } from "../plugins/examples-plugin.js";
 
 import { toDxFlags } from "./dx-flags.js";
 import { stubRun } from "./stub-run.js";
+
+setExamples("factory", [
+  "$ dx factory status                Factory API and service status",
+  "$ dx factory health                Deep health check",
+  "$ dx factory connect <url>         Point CLI at a factory instance",
+  "$ dx factory config                View factory configuration",
+  "$ dx factory auth login            Sign in to factory",
+  "$ dx factory install               Install the factory platform",
+]);
 
 export function factoryCommand(app: DxBase) {
   return app

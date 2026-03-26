@@ -1,6 +1,13 @@
 import type { DxBase } from "../dx-root.js";
 
 import { stubRun } from "./stub-run.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("agent", [
+  "$ dx agent list                    List agents",
+  "$ dx agent run my-agent            Run an agent",
+  "$ dx agent show my-agent           Show agent details",
+]);
 
 export function agentCommand(app: DxBase) {
   return app

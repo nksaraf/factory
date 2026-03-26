@@ -9,6 +9,13 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { gitCommit, stageAll } from "../lib/git.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("commit", [
+  "$ dx commit                    Commit staged changes",
+  "$ dx commit --all              Stage all and commit",
+  '$ dx commit --reason "fix"     Commit with reason',
+]);
 
 export function commitCommand(app: DxBase) {
   return app

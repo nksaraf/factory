@@ -9,6 +9,12 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("init", [
+  "$ dx init                Create dx.yaml interactively",
+  "$ dx init --force        Overwrite existing dx.yaml",
+]);
 
 async function promptWithDefault(
   label: string,

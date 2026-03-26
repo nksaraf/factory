@@ -16,6 +16,14 @@ import {
   styleMuted,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("pr", [
+  "$ dx pr list                   List open PRs",
+  "$ dx pr create                 Create PR interactively",
+  "$ dx pr show 42                Show PR details",
+  "$ dx pr merge 42               Merge a PR",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
@@ -164,7 +172,7 @@ export function prCommand(app: DxBase) {
 
             let title = flags.title as string | undefined;
             if (!title) {
-              const { input } = await import("@inquirer/prompts");
+              const { input } = await import("@crustjs/prompts");
               title = await input({ message: "PR title:" });
             }
 

@@ -14,6 +14,13 @@ import {
   styleMuted,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("infra", [
+  "$ dx infra provider list           List providers",
+  "$ dx infra region list             List regions",
+  "$ dx infra cluster list            List clusters",
+]);
 
 async function getInfraApi() {
   return getFactoryClient();

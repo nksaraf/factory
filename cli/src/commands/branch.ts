@@ -9,6 +9,12 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { createBranch, listBranches } from "../lib/git.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("branch", [
+  "$ dx branch create feature/auth    Create a new branch",
+  "$ dx branch list                   List branches",
+]);
 
 export function branchCommand(app: DxBase) {
   return app

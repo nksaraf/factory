@@ -1,6 +1,13 @@
 import type { DxBase } from "../dx-root.js"
 import { runCustomerList, runCustomerShow } from "../handlers/customer.js"
 import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("customer", [
+  "$ dx customer list             List all customers",
+  "$ dx customer list --json      Output as JSON",
+  "$ dx customer show verizon     Show customer details",
+])
 
 export function customerCommand(app: DxBase) {
   return app

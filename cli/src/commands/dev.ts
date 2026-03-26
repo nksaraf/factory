@@ -28,6 +28,14 @@ import {
 import { DevController } from "../lib/dev-controller.js";
 import { PortManager } from "../lib/port-manager.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("dev", [
+  "$ dx dev                           Start local development",
+  "$ dx dev --connect-to staging      Connect to staging",
+  "$ dx dev stop                      Stop local development",
+  "$ dx dev ps                        Show running services",
+]);
 
 export function devCommand(app: DxBase) {
   return app

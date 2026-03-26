@@ -23,30 +23,31 @@ export type { ColumnOpt }
 function formatApiError(error: unknown): string {
   if (!error || typeof error !== "object") return String(error)
   const err = error as Record<string, unknown>
-  const status = err.status ?? err.statusCode
+  const status = (err.status ?? err.statusCode) as number | undefined
+
+  // Human-friendly messages for common HTTP errors
+  if (status === 404) return "Resource not found."
+  if (status === 401 || status === 403)
+    return "Authentication failed. Run 'dx auth login' to sign in."
+  if (status === 409) return "Conflict — the resource already exists or was modified."
+  if (status === 429) return "Rate limit exceeded. Please wait and try again."
+  if (status && status >= 500) return `Server error (${status}). The API may be experiencing issues.`
+
   const raw = (err.value ?? err.message ?? err.error ?? "") as string
 
   // Strip HTML to extract the meaningful error
   if (typeof raw === "string" && raw.includes("<")) {
-    // Pull the <title> for a short summary
     const titleMatch = raw.match(/<title>([^<]+)<\/title>/i)
-    // Pull text from <pre> or <code> blocks for the actual error
     const preMatch = raw.match(/<pre>([^<]*)<\/pre>/is)
     const title = titleMatch?.[1]?.trim()
     const detail = preMatch?.[1]?.trim()
 
     if (detail) {
-      // Extract just the first line of the error (the meaningful part)
-      const firstLine = detail
-        .split("\n")[0]
-        .replace(/^Error:\s*/, "")
-        .trim()
+      const firstLine = detail.split("\n")[0].replace(/^Error:\s*/, "").trim()
       const summary = title ? `${title}: ${firstLine}` : firstLine
       return status ? `[${status}] ${summary}` : summary
     }
-    if (title) {
-      return status ? `[${status}] ${title}` : title
-    }
+    if (title) return status ? `[${status}] ${title}` : title
   }
 
   // Try to parse JSON error strings
@@ -55,22 +56,15 @@ function formatApiError(error: unknown): string {
       const parsed = JSON.parse(raw)
       const msg = parsed.error_msg ?? parsed.error ?? parsed.message
       if (msg) return status ? `[${status}] ${msg}` : msg
-    } catch {
-      /* not JSON */
-    }
+    } catch { /* not JSON */ }
   }
 
-  // Plain error_msg field
   if (err.error_msg)
     return status ? `[${status}] ${err.error_msg}` : String(err.error_msg)
 
-  // Fallback: JSON but truncate if too long
   const json = JSON.stringify(error)
-  if (json.length > 200) {
-    return status
-      ? `[${status}] ${json.slice(0, 200)}...`
-      : `${json.slice(0, 200)}...`
-  }
+  if (json.length > 200)
+    return status ? `[${status}] ${json.slice(0, 200)}...` : `${json.slice(0, 200)}...`
   return status ? `[${status}] ${json}` : json
 }
 
@@ -269,5 +263,5 @@ export function actionResult(
     console.log(JSON.stringify({ success: true, data }, null, 2))
     return
   }
-  console.log(message)
+  console.error(message)
 }

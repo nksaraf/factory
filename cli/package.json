@@ -34,6 +34,7 @@
     "@crustjs/style": "^0.0.1",
     "@crustjs/crust": "^0.0.23",
     "@elysiajs/eden": "^1.4.0",
+    "@crustjs/prompts": "^0.0.10",
     "@inquirer/prompts": "^7.0.0",
     "@rio.js/auth-client": "0.0.2",
     "@smp/factory-shared": "workspace:*",

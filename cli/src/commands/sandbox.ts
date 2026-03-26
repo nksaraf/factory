@@ -14,6 +14,15 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("sandbox", [
+  "$ dx sandbox list                  List sandboxes",
+  "$ dx sandbox create my-sandbox     Create a sandbox",
+  "$ dx sandbox show my-sandbox       Show sandbox details",
+  "$ dx sandbox start my-sandbox      Start a stopped sandbox",
+  "$ dx sandbox stop my-sandbox       Stop a running sandbox",
+]);
 
 // Eden client type doesn't include sandbox routes due to conditional plugin
 // registration in factory.api.ts. Routes work at runtime. Use `any` for path access.

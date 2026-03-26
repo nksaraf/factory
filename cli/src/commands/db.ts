@@ -13,6 +13,14 @@ import {
   actionResult,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("db", [
+  "$ dx db connect                    Connect to database",
+  '$ dx db query --sql "SELECT 1"     Run a query',
+  "$ dx db migrate status             Check migration status",
+  "$ dx db migrate up                 Run pending migrations",
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

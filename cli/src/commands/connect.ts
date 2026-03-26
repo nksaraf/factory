@@ -11,6 +11,13 @@ import {
 import { parseConnectToFlag, parseConnectFlags, mergeConnectionSources } from "../lib/parse-connect-flags.js";
 import { TunnelManager } from "../lib/tunnel-manager.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("connect", [
+  "$ dx connect staging               Connect to staging",
+  "$ dx connect status                Show connection status",
+  "$ dx connect stop                  Disconnect",
+]);
 
 export function connectCommand(app: DxBase) {
   return app

@@ -6,6 +6,12 @@ import { exitWithError } from "../lib/cli-exit.js";
 import { ProjectContext } from "../lib/project.js";
 
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("test", [
+  "$ dx test                Run all tests",
+  "$ dx test api            Run tests for a component",
+]);
 
 export function testCommand(app: DxBase) {
   return app

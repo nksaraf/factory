@@ -13,6 +13,14 @@ import {
   styleSuccess,
   styleWarn,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("domain", [
+  "$ dx domain list                       List all domains",
+  "$ dx domain add --fqdn app.example.com --site us-east",
+  "$ dx domain verify app.example.com     Verify DNS",
+  "$ dx domain remove app.example.com     Remove a domain",
+]);
 
 async function getGatewayApi() {
   return getFactoryClient();
