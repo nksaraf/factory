@@ -11,6 +11,7 @@
 /* @import "@rio.js/ui/styles/dark.css"; */
 /* @import "@rio.js/ui/styles/light.css"; */
 @import "./base.css";
+@import "./globals-factory.css";
 /* @import "./additional-styles/theme.css";
 @import "./additional-styles/utility-patterns.css"; */
 
