@@ -81,7 +81,7 @@ spec:
       containerPort: 3000
       protocol: http
   environment:
-    FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@factory-postgres:5432/${POSTGRES_DB:-postgres}
+    FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@factory-postgres:5432/${POSTGRES_DB:-postgres}
     FACTORY_AUTH_JWKS_URL: http://factory-auth:3000/api/v1/auth/.well-known/jwks.json
     FACTORY_LOG_LEVEL: info
     FACTORY_LOG_FORMAT: json
@@ -222,9 +222,9 @@ spec:
       port: 5432
       protocol: tcp
   environment:
-    POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: postgres
-    POSTGRES_DB: postgres
+    POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    POSTGRES_DB: ${POSTGRES_DB:-postgres}
   secrets:
     - envVar: POSTGRES_PASSWORD
       ref: projects/rio-platform/secrets/factory-postgres-password/versions/latest
@@ -298,7 +298,7 @@ spec:
       containerPort: 3000
       protocol: http
   environment:
-    AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@factory-postgres:5432/${POSTGRES_DB:-postgres}
+    AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@factory-postgres:5432/${POSTGRES_DB:-postgres}
     AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
   secrets:
     - envVar: AUTH_GITHUB_CLIENT_ID

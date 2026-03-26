@@ -240,9 +240,9 @@ describe("factory catalog-info.yaml", () => {
     expect(pg.spec.image).toBe("postgres:16-alpine");
     expect(pg.spec.ports[0]).toMatchObject({ name: "postgres", port: 5432, protocol: "tcp" });
     expect(pg.spec.environment).toMatchObject({
-      POSTGRES_USER: "postgres",
-      POSTGRES_PASSWORD: "postgres",
-      POSTGRES_DB: "postgres",
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}",
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}",
+      POSTGRES_DB: "${POSTGRES_DB:-postgres}",
     });
     expect(pg.spec.volumes).toHaveLength(1);
     expect(pg.spec.volumes[0]).toMatchObject({
