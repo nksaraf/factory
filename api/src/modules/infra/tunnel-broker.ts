@@ -1,5 +1,12 @@
 import type { Database } from "../../db/connection";
 import * as gw from "./gateway.service";
+import { StreamManager } from "./tunnel-streams";
+import {
+  decodeFrame,
+  encodeFrame,
+  buildPingFrame,
+  FrameType,
+} from "@smp/factory-shared/tunnel-protocol";
 
 /**
  * In-memory map of active tunnel connections.
@@ -7,6 +14,7 @@ import * as gw from "./gateway.service";
  */
 const activeTunnels = new Map<string, WebSocket>();
 const subdomainToTunnelId = new Map<string, string>();
+const tunnelStreams = new Map<string, StreamManager>();
 
 /**
  * Generate a random subdomain for tunnel allocation.
@@ -35,10 +43,11 @@ export interface TunnelBrokerOptions {
  * Handle a new tunnel WebSocket connection.
  *
  * Protocol:
- * 1. Client sends JSON: { subdomain?: string, localAddr: string, principalId: string }
- * 2. Server registers tunnel + route, responds: { tunnelId, subdomain, url }
- * 3. Server sends periodic heartbeat pings
- * 4. On close/error, server removes tunnel + route
+ * 1. Client sends JSON: { type: "register", localAddr, subdomain?, principalId }
+ * 2. Server responds JSON: { type: "registered", tunnelId, subdomain, url }
+ * 3. After registration, all messages are binary frames (tunnel-protocol)
+ * 4. Server sends periodic PING frames; client responds with PONG
+ * 5. On close/error, server removes tunnel + route
  */
 export async function handleTunnelConnection(
   ws: WebSocket,
@@ -46,9 +55,33 @@ export async function handleTunnelConnection(
 ): Promise<void> {
   const { db, heartbeatIntervalMs = 30_000 } = opts;
   let tunnelId: string | null = null;
+  let streamManager: StreamManager | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   ws.addEventListener("message", async (event) => {
+    // After registration, handle binary frames
+    if (tunnelId && event.data instanceof ArrayBuffer) {
+      try {
+        const frame = decodeFrame(new Uint8Array(event.data));
+        streamManager?.handleFrame(frame);
+      } catch {
+        // Malformed frame, ignore
+      }
+      return;
+    }
+
+    // Also handle Uint8Array / Buffer for Bun compatibility
+    if (tunnelId && event.data instanceof Uint8Array) {
+      try {
+        const frame = decodeFrame(event.data);
+        streamManager?.handleFrame(frame);
+      } catch {
+        // Malformed frame, ignore
+      }
+      return;
+    }
+
+    // Pre-registration: JSON text messages
     try {
       const msg = JSON.parse(typeof event.data === "string" ? event.data : "");
 
@@ -65,6 +98,12 @@ export async function handleTunnelConnection(
         activeTunnels.set(tunnelId!, ws);
         subdomainToTunnelId.set(subdomain, tunnelId!);
 
+        // Create stream manager for this tunnel
+        streamManager = new StreamManager((data) => {
+          ws.send(data);
+        });
+        tunnelStreams.set(tunnelId!, streamManager);
+
         ws.send(
           JSON.stringify({
             type: "registered",
@@ -74,10 +113,15 @@ export async function handleTunnelConnection(
           })
         );
 
-        // Start heartbeat
+        // Start heartbeat with binary PING frames
         heartbeatTimer = setInterval(async () => {
           if (tunnelId) {
             await gw.heartbeatTunnel(db, tunnelId).catch(() => {});
+            try {
+              ws.send(encodeFrame(buildPingFrame()));
+            } catch {
+              // WS may be closing
+            }
           }
         }, heartbeatIntervalMs);
       }
@@ -97,6 +141,8 @@ export async function handleTunnelConnection(
   async function cleanup() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     if (tunnelId) {
+      streamManager?.cleanup();
+      tunnelStreams.delete(tunnelId);
       const t = await gw.getTunnel(db, tunnelId).catch(() => null);
       if (t) {
         subdomainToTunnelId.delete(t.subdomain);
@@ -110,12 +156,24 @@ export async function handleTunnelConnection(
 
 /**
  * Look up the WebSocket for a given subdomain.
- * Used by the tunnel proxy to forward requests.
+ * Used by the gateway proxy to forward requests.
  */
 export function getTunnelSocket(subdomain: string): WebSocket | undefined {
   const tunnelId = subdomainToTunnelId.get(subdomain);
   if (!tunnelId) return undefined;
   return activeTunnels.get(tunnelId);
+}
+
+/**
+ * Look up the StreamManager for a given subdomain.
+ * Used by the gateway proxy to send HTTP requests through the tunnel.
+ */
+export function getTunnelStreamManager(
+  subdomain: string
+): StreamManager | undefined {
+  const tunnelId = subdomainToTunnelId.get(subdomain);
+  if (!tunnelId) return undefined;
+  return tunnelStreams.get(tunnelId);
 }
 
 /**
