@@ -21,6 +21,7 @@ import { CommandController } from "@rio.js/uikit/components/command-provider"
 import { fsRoutes } from "@rio.js/vinxi/fs-routes"
 import { createClient as createWorkflowsClient } from "@rio.js/workflows/lib/client"
 
+import { FactoryPowerSyncProvider } from "./lib/powersync/provider"
 import { rio } from "./lib/rio"
 
 declare module "@rio.js/client" {
@@ -58,13 +59,14 @@ async function boot() {
     "settings.organization": () => import("@rio.js/settings.organization"),
     "gis.core": () => import("@rio.js/gis.core"),
     "gis.flows": () => import("@rio.js/gis.flows"),
-    "trafficure.core": () => import("./modules/trafficure.core"),
-    "agents.core": () => import("@rio.js/agents.core"),
+"agents.core": () => import("@rio.js/agents.core"),
     "smart-market.core": () => import("./modules/smart-market.core"),
     "smart-market.scouts": () => import("./modules/smart-market.scouts"),
     "smart-market.workspaces": () =>
       import("./modules/smart-market.workspaces"),
     "smart-market.docs": () => import("./modules/smart-market.docs"),
+    "factory.fleet": () => import("./modules/factory.fleet"),
+    "factory.infra": () => import("./modules/factory.infra"),
   })
 
   const url = new URL(window.location.href)
@@ -87,7 +89,9 @@ async function boot() {
     "smart-market.core",
     "smart-market.scouts",
     "smart-market.workspaces",
-    "smart-market.docs"
+    "smart-market.docs",
+    "factory.fleet",
+    "factory.infra"
   )
 
   // Extract modules from enabled extensions that have a "module" field
@@ -160,14 +164,20 @@ async function boot() {
               providers: ["google"],
             }}
           >
-            <ThemeProvider defaultTheme="light" storageKey="trafficure-theme">
-              <TooltipProvider>
-                <Toaster />
-                <RouterProvider router={router} />
-                <CommandController />
-                {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
-              </TooltipProvider>
-            </ThemeProvider>
+            <FactoryPowerSyncProvider
+              powersyncUrl={rio.env.PUBLIC_POWERSYNC_URL ?? ""}
+              factoryApiUrl={rio.env.PUBLIC_FACTORY_API_URL ?? ""}
+              enabled={rio.env.PUBLIC_ENABLE_POWERSYNC === "true"}
+            >
+              <ThemeProvider defaultTheme="light" storageKey="trafficure-theme">
+                <TooltipProvider>
+                  <Toaster />
+                  <RouterProvider router={router} />
+                  <CommandController />
+                  {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
+                </TooltipProvider>
+              </ThemeProvider>
+            </FactoryPowerSyncProvider>
           </AuthProvider>
         </RioClientProvider>
       </AppProvider>
