@@ -49,3 +49,5 @@ api/db/seeds/
 
 deps
 
+
+packages/npm/auth-service/  # dx-pkg-managed

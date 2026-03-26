@@ -1,4 +1,6 @@
 export * from "./api-types";
+export * from "./catalog";
+export * from "./catalog-registry";
 export * from "./compose-gen";
 export * from "./config-loader";
 export * from "./config-schemas";
@@ -6,4 +8,6 @@ export * from "./conventions";
 export * from "./conventions-schema";
 export * from "./entitlement-bundle";
 export * from "./exit-codes";
+export * from "./org-types";
 export * from "./types";
+export * from "./tunnel-protocol.js";

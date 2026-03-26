@@ -6,6 +6,8 @@ import type {
   GitHostCollaborator,
   GitHostCommitStatus,
   GitHostCheckRun,
+  GitHostPullRequest,
+  GitHostPullRequestCreate,
   WebhookVerification,
 } from "./git-host-adapter";
 
@@ -246,5 +248,125 @@ export class GitHubAdapter implements GitHostAdapter {
       ...(update.detailsUrl ? { details_url: update.detailsUrl } : {}),
       ...(update.output ? { output: update.output } : {}),
     });
+  }
+
+  async listPullRequests(
+    repoFullName: string,
+    filters?: { state?: "open" | "closed" | "all" },
+  ): Promise<GitHostPullRequest[]> {
+    const [owner, repoName] = repoFullName.split("/");
+    const pulls = await this.octokit.paginate(
+      this.octokit.rest.pulls.list,
+      { owner, repo: repoName, state: filters?.state ?? "open", per_page: 100 },
+    );
+    return pulls.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      body: pr.body ?? "",
+      state: pr.merged_at ? "merged" : (pr.state as "open" | "closed"),
+      head: pr.head.ref,
+      base: pr.base.ref,
+      url: pr.html_url,
+      draft: pr.draft ?? false,
+      createdAt: pr.created_at,
+      updatedAt: pr.updated_at,
+      author: { login: pr.user?.login ?? "unknown" },
+    }));
+  }
+
+  async getPullRequest(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<GitHostPullRequest | null> {
+    try {
+      const [owner, repoName] = repoFullName.split("/");
+      const { data: pr } = await this.octokit.rest.pulls.get({
+        owner,
+        repo: repoName,
+        pull_number: prNumber,
+      });
+      return {
+        number: pr.number,
+        title: pr.title,
+        body: pr.body ?? "",
+        state: pr.merged ? "merged" : (pr.state as "open" | "closed"),
+        head: pr.head.ref,
+        base: pr.base.ref,
+        url: pr.html_url,
+        draft: pr.draft ?? false,
+        createdAt: pr.created_at,
+        updatedAt: pr.updated_at,
+        author: { login: pr.user?.login ?? "unknown" },
+      };
+    } catch (err: any) {
+      if (err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  async createPullRequest(
+    repoFullName: string,
+    pr: GitHostPullRequestCreate,
+  ): Promise<GitHostPullRequest> {
+    const [owner, repoName] = repoFullName.split("/");
+    const { data } = await this.octokit.rest.pulls.create({
+      owner,
+      repo: repoName,
+      title: pr.title,
+      body: pr.body,
+      head: pr.head,
+      base: pr.base,
+      draft: pr.draft,
+    });
+    return {
+      number: data.number,
+      title: data.title,
+      body: data.body ?? "",
+      state: "open",
+      head: data.head.ref,
+      base: data.base.ref,
+      url: data.html_url,
+      draft: data.draft ?? false,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      author: { login: data.user?.login ?? "unknown" },
+    };
+  }
+
+  async mergePullRequest(
+    repoFullName: string,
+    prNumber: number,
+    method?: "merge" | "squash" | "rebase",
+  ): Promise<void> {
+    const [owner, repoName] = repoFullName.split("/");
+    await this.octokit.rest.pulls.merge({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
+      merge_method: method,
+    });
+  }
+
+  async getPullRequestChecks(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<Array<{ name: string; status: string; conclusion: string | null; url?: string }>> {
+    const [owner, repoName] = repoFullName.split("/");
+    const { data: pr } = await this.octokit.rest.pulls.get({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
+    });
+    const { data } = await this.octokit.rest.checks.listForRef({
+      owner,
+      repo: repoName,
+      ref: pr.head.sha,
+    });
+    return data.check_runs.map((run) => ({
+      name: run.name,
+      status: run.status,
+      conclusion: run.conclusion ?? null,
+      url: run.details_url ?? undefined,
+    }));
   }
 }

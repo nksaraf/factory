@@ -94,5 +94,128 @@ export function gitHostController(db: Database) {
         params: BuildModel.idParams,
         detail: { tags: ["Build"], summary: "Trigger git host sync" },
       },
+    )
+    .get(
+      "/:id/repos/:repoSlug/pulls",
+      async ({ params, query, set }) => {
+        try {
+          const data = await svc.listPullRequests(
+            params.id,
+            params.repoSlug,
+            { state: query.state },
+          );
+          return { success: true, data };
+        } catch (err) {
+          set.status = 400;
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : "failed",
+          };
+        }
+      },
+      {
+        params: BuildModel.repoSlugParams,
+        query: BuildModel.listPullRequestsQuery,
+        detail: { tags: ["Build"], summary: "List pull requests" },
+      },
+    )
+    .post(
+      "/:id/repos/:repoSlug/pulls",
+      async ({ params, body, set }) => {
+        try {
+          const data = await svc.createPullRequest(
+            params.id,
+            params.repoSlug,
+            body,
+          );
+          return { success: true, data };
+        } catch (err) {
+          set.status = 400;
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : "failed",
+          };
+        }
+      },
+      {
+        params: BuildModel.repoSlugParams,
+        body: BuildModel.createPullRequestBody,
+        detail: { tags: ["Build"], summary: "Create pull request" },
+      },
+    )
+    .get(
+      "/:id/repos/:repoSlug/pulls/:prNumber",
+      async ({ params, set }) => {
+        try {
+          const data = await svc.getPullRequest(
+            params.id,
+            params.repoSlug,
+            params.prNumber,
+          );
+          if (!data) {
+            set.status = 404;
+            return { success: false, error: "not_found" };
+          }
+          return { success: true, data };
+        } catch (err) {
+          set.status = 400;
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : "failed",
+          };
+        }
+      },
+      {
+        params: BuildModel.prParams,
+        detail: { tags: ["Build"], summary: "Get pull request" },
+      },
+    )
+    .post(
+      "/:id/repos/:repoSlug/pulls/:prNumber/merge",
+      async ({ params, body, set }) => {
+        try {
+          await svc.mergePullRequest(
+            params.id,
+            params.repoSlug,
+            params.prNumber,
+            body.method,
+          );
+          return { success: true };
+        } catch (err) {
+          set.status = 400;
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : "failed",
+          };
+        }
+      },
+      {
+        params: BuildModel.prParams,
+        body: BuildModel.mergePullRequestBody,
+        detail: { tags: ["Build"], summary: "Merge pull request" },
+      },
+    )
+    .get(
+      "/:id/repos/:repoSlug/pulls/:prNumber/checks",
+      async ({ params, set }) => {
+        try {
+          const data = await svc.getPullRequestChecks(
+            params.id,
+            params.repoSlug,
+            params.prNumber,
+          );
+          return { success: true, data };
+        } catch (err) {
+          set.status = 400;
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : "failed",
+          };
+        }
+      },
+      {
+        params: BuildModel.prParams,
+        detail: { tags: ["Build"], summary: "Get pull request checks" },
+      },
     );
 }

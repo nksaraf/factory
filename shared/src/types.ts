@@ -4,8 +4,9 @@ export type ModuleLifecycleState = "active" | "deprecated" | "retired";
 export interface Module {
   moduleId: string;
   name: string;
-  team: string;
+  teamId: string;
   product?: string | null;
+  description?: string | null;
   lifecycleState: ModuleLifecycleState;
   createdAt: string;
 }
@@ -33,12 +34,18 @@ export interface ComponentHealthcheck {
   protocol: PortProtocol;
 }
 
+import type { CatalogLifecycle } from "./catalog";
+
 export interface ComponentSpec {
   componentId: string;
   moduleId: string;
   name: string;
   slug: string;
   kind: ComponentKind;
+  entityKind: "Component" | "Resource";
+  specType?: string | null;
+  lifecycle?: CatalogLifecycle | null;
+  description?: string | null;
   ports: ComponentPort[];
   healthcheck?: ComponentHealthcheck | null;
   isPublic: boolean;
@@ -179,6 +186,7 @@ export type AgentStatus = "active" | "disabled";
 export interface Agent {
   agentId: string;
   name: string;
+  principalId?: string | null;
   agentType: AgentType;
   status: AgentStatus;
   capabilities: Record<string, unknown>;

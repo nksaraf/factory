@@ -3,7 +3,7 @@ import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import { gitHostProvider, gitRepoSync, gitUserSync, repo } from "../../db/schema/build";
 import { createGitHostAdapter, type GitHostAdapterConfig } from "../../adapters/adapter-registry";
-import type { GitHostAdapter } from "../../adapters/git-host-adapter";
+import type { GitHostAdapter, GitHostPullRequestCreate } from "../../adapters/git-host-adapter";
 import type { AuthAdminClient } from "../../lib/auth-admin-client";
 
 /**
@@ -358,6 +358,96 @@ export class GitHostService {
       default:
         return "viewer";
     }
+  }
+
+  private async resolveRepoFullName(
+    providerId: string,
+    repoSlug: string,
+  ): Promise<{ adapter: GitHostAdapter; externalFullName: string }> {
+    const provider = await this.getProvider(providerId);
+    if (!provider) throw new Error(`Provider not found: ${providerId}`);
+
+    // Find the repo by slug
+    const [repoRow] = await this.db
+      .select()
+      .from(repo)
+      .where(eq(repo.slug, repoSlug))
+      .limit(1);
+
+    if (!repoRow) throw new Error(`Repo not found: ${repoSlug}`);
+
+    // Find the sync record linking repo to this provider
+    const [sync] = await this.db
+      .select()
+      .from(gitRepoSync)
+      .where(
+        and(
+          eq(gitRepoSync.gitHostProviderId, providerId),
+          eq(gitRepoSync.repoId, repoRow.repoId),
+        ),
+      )
+      .limit(1);
+
+    if (!sync) throw new Error(`Repo not synced with provider: ${repoSlug}`);
+
+    const adapter = createGitHostAdapter(provider.hostType, {
+      ...parseCredentials(provider.credentialsEnc),
+      apiBaseUrl: provider.apiBaseUrl,
+    });
+
+    return { adapter, externalFullName: sync.externalFullName };
+  }
+
+  async listPullRequests(
+    providerId: string,
+    repoSlug: string,
+    filters?: { state?: string },
+  ) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    return adapter.listPullRequests(externalFullName, {
+      state: (filters?.state as "open" | "closed" | "all") ?? "open",
+    });
+  }
+
+  async createPullRequest(
+    providerId: string,
+    repoSlug: string,
+    pr: GitHostPullRequestCreate,
+  ) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    return adapter.createPullRequest(externalFullName, pr);
+  }
+
+  async getPullRequest(
+    providerId: string,
+    repoSlug: string,
+    prNumber: number,
+  ) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    return adapter.getPullRequest(externalFullName, prNumber);
+  }
+
+  async mergePullRequest(
+    providerId: string,
+    repoSlug: string,
+    prNumber: number,
+    method?: string,
+  ) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    await adapter.mergePullRequest(
+      externalFullName,
+      prNumber,
+      method as "merge" | "squash" | "rebase" | undefined,
+    );
+  }
+
+  async getPullRequestChecks(
+    providerId: string,
+    repoSlug: string,
+    prNumber: number,
+  ) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    return adapter.getPullRequestChecks(externalFullName, prNumber);
   }
 
   private inferRepoKind(topics?: string[]): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateTraefikYaml, type TraefikRoute } from "../modules/infra/traefik-sync";
+import { generateTraefikYaml, KINDS_WITH_TRAEFIK_ROUTES, type TraefikRoute } from "../modules/infra/traefik-sync";
 
 describe("generateTraefikYaml", () => {
   const baseRoute: TraefikRoute = {
@@ -60,5 +60,54 @@ describe("generateTraefikYaml", () => {
     expect(yaml).toContain("rte_2:");
     expect(yaml).toContain("a.preview.dx.dev");
     expect(yaml).toContain("b.preview.dx.dev");
+  });
+
+  it("generates config for custom_domain routes", () => {
+    const routes: TraefikRoute[] = [
+      {
+        routeId: "rte_custom1",
+        kind: "custom_domain",
+        domain: "app.example.com",
+        targetService: "app.example.com",
+        protocol: "http",
+        tlsMode: "custom",
+        middlewares: [],
+        priority: 100,
+        status: "active",
+      },
+    ];
+    const yaml = generateTraefikYaml(routes);
+    expect(yaml).toContain("app.example.com");
+    expect(yaml).toContain("rte_custom1");
+  });
+
+  it("generates config for ingress routes", () => {
+    const routes: TraefikRoute[] = [
+      {
+        routeId: "rte_ingress1",
+        kind: "ingress",
+        domain: "api.prod.dx.dev",
+        targetService: "api-service",
+        targetPort: 8080,
+        protocol: "http",
+        tlsMode: "auto",
+        middlewares: [],
+        priority: 100,
+        status: "active",
+      },
+    ];
+    const yaml = generateTraefikYaml(routes);
+    expect(yaml).toContain("api.prod.dx.dev");
+  });
+
+  it("returns empty config for no routes", () => {
+    const yaml = generateTraefikYaml([]);
+    expect(yaml).toContain("routers: {}");
+  });
+});
+
+describe("syncFactoryRoutes filtering", () => {
+  it("only generates files for custom_domain and ingress kinds", () => {
+    expect(KINDS_WITH_TRAEFIK_ROUTES).toEqual(["ingress", "custom_domain"]);
   });
 });

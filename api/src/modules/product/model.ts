@@ -5,7 +5,7 @@ export const ProductModel = {
   moduleNameParams: t.Object({ name: t.String() }),
   registerModuleBody: t.Object({
     name: t.String(),
-    team: t.String(),
+    teamId: t.String(),
     product: t.Optional(t.String()),
   }),
 

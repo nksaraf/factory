@@ -10,7 +10,7 @@ export function parseConnectToFlag(
   dxConfig: DxYaml
 ): Record<string, NormalizedProfileEntry> {
   const result: Record<string, NormalizedProfileEntry> = {};
-  for (const dep of Object.keys(dxConfig.dependencies)) {
+  for (const dep of Object.keys(dxConfig.resources)) {
     result[dep] = { target, readonly: false, backend: "direct" };
   }
   for (const conn of Object.keys(dxConfig.connections)) {

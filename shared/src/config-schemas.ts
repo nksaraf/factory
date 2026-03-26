@@ -65,7 +65,7 @@ export const dxYamlSchema = z.object({
    * dx-component.yaml under `path`, with inline winning on conflict.
    */
   components: z.record(componentRefSchema),
-  dependencies: z.record(dependencyConfigSchema).default({}),
+  resources: z.record(dependencyConfigSchema).default({}),
   connections: z.record(connectionConfigSchema).default({}),
 });
 

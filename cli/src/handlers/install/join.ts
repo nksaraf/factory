@@ -1,7 +1,7 @@
 import { existsSync, copyFileSync, chmodSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { run, runOrThrow, runInherit } from "../../lib/subprocess.js";
-import { K3S_KUBECONFIG, getK3sVersion } from "./k3s.js";
+import { getKubeconfig, getK3sVersion } from "./k3s.js";
 import { DX_NAMESPACE } from "./helm.js";
 import { loadImages } from "./images.js";
 import type { InstallManifest } from "@smp/factory-shared/install-types";
@@ -85,7 +85,7 @@ async function waitForNodeJoin(verbose?: boolean, timeoutMs = 120_000): Promise<
   while (Date.now() - start < timeoutMs) {
     const result = run("kubectl", [
       "get", "node", hostname,
-      "--kubeconfig", K3S_KUBECONFIG,
+      "--kubeconfig", getKubeconfig(),
       "-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}",
     ]);
 
@@ -108,7 +108,7 @@ async function appendNodeToManifest(server: string, verbose?: boolean): Promise<
   const proc = spawnSync("kubectl", [
     "get", "configmap", "dx-install-manifest",
     "-n", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "-o", "jsonpath={.data.manifest\\.json}",
   ], { encoding: "utf8" });
 
@@ -138,6 +138,6 @@ async function appendNodeToManifest(server: string, verbose?: boolean): Promise<
 
   spawnSync("kubectl", [
     "apply", "-f", "-",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ], { input: configMapJson, encoding: "utf8" });
 }

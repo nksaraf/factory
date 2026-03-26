@@ -3,6 +3,8 @@ import type {
   GitHostCheckRun,
   GitHostCollaborator,
   GitHostCommitStatus,
+  GitHostPullRequest,
+  GitHostPullRequestCreate,
   GitHostRepoInfo,
   WebhookVerification,
 } from "./git-host-adapter";
@@ -77,4 +79,50 @@ export class NoopGitHostAdapter implements GitHostAdapter {
     _checkRunId: string,
     _update: Partial<GitHostCheckRun>,
   ): Promise<void> {}
+
+  async listPullRequests(
+    _repoFullName: string,
+    _filters?: { state?: "open" | "closed" | "all" },
+  ): Promise<GitHostPullRequest[]> {
+    return [];
+  }
+
+  async getPullRequest(
+    _repoFullName: string,
+    _prNumber: number,
+  ): Promise<GitHostPullRequest | null> {
+    return null;
+  }
+
+  async createPullRequest(
+    _repoFullName: string,
+    _pr: GitHostPullRequestCreate,
+  ): Promise<GitHostPullRequest> {
+    return {
+      number: 0,
+      title: "",
+      body: "",
+      state: "open",
+      head: "",
+      base: "",
+      url: "",
+      draft: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      author: { login: "noop" },
+    };
+  }
+
+  async mergePullRequest(
+    _repoFullName: string,
+    _prNumber: number,
+    _method?: "merge" | "squash" | "rebase",
+  ): Promise<void> {}
+
+  async getPullRequestChecks(
+    _repoFullName: string,
+    _prNumber: number,
+  ): Promise<Array<{ name: string; status: string; conclusion: string | null; url?: string }>> {
+    return [];
+  }
 }

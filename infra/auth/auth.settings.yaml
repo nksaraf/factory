@@ -23,24 +23,28 @@ email:
 #   rp_name: Lepton Control Plane
 #   origin: https://auth.example.com
 
-# features:
-#   email_password: true
-#   social_oauth: true
-#   passkey: false
-#   two_factor: false
-#   magic_link: false
-#   email_otp: false
-#   anonymous: false
-#   phone_number: false
-#   organization: true
-#   oauth_provider: true
-#   oidc_provider: true
-#   sso: true
-#   scim: true
-#   api_keys: true
-#   agent_auth: true
-#   jwt: true
-#   bearer: true
+features:
+  email_password: true
+  social_oauth: true
+  email_otp: true
+  organization: true
+  jwt: true
+  bearer: true
+  api_keys: true
+
+email_otp:
+  otp_length: 6
+  expires_in_seconds: 300
+
+github_auth:
+  enabled: true
+  client_id: ${GITHUB_OAUTH_CLIENT_ID}
+  client_secret: ${GITHUB_OAUTH_CLIENT_SECRET}
+
+google_auth:
+  enabled: true
+  client_id: ${GOOGLE_OAUTH_CLIENT_ID}
+  client_secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
 
 # session:
 #   expires_in_seconds: 604800

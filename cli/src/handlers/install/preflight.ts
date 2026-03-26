@@ -1,6 +1,6 @@
 import { existsSync, statfsSync } from "node:fs";
 import { platform, arch } from "node:os";
-import { run } from "../../lib/subprocess.js";
+import { run, runInherit } from "../../lib/subprocess.js";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 import type { PreflightCheck, PreflightResult } from "@smp/factory-shared/install-types";
 
@@ -72,6 +72,100 @@ function checkDns(domain: string): PreflightCheck {
   return check("dns", ok, ok ? `dns ${domain}` : `dns fail ${domain}`, false);
 }
 
+// --- Auto-install helpers ---
+
+function hasBrew(): boolean {
+  return run("brew", ["--version"]).status === 0;
+}
+
+function hasApt(): boolean {
+  return run("apt-get", ["--version"]).status === 0;
+}
+
+function hasYum(): boolean {
+  return run("yum", ["--version"]).status === 0;
+}
+
+function installViaBrew(pkg: string, verbose?: boolean): boolean {
+  console.log(`  Installing ${pkg} via Homebrew...`);
+  return runInherit("brew", ["install", pkg], { verbose }) === 0;
+}
+
+function installViaApt(pkg: string, verbose?: boolean): boolean {
+  console.log(`  Installing ${pkg} via apt...`);
+  return runInherit("apt-get", ["install", "-y", pkg], { verbose }) === 0;
+}
+
+function installViaYum(pkg: string, verbose?: boolean): boolean {
+  console.log(`  Installing ${pkg} via yum...`);
+  return runInherit("yum", ["install", "-y", pkg], { verbose }) === 0;
+}
+
+function installViaCurl(name: string, script: string, verbose?: boolean): boolean {
+  console.log(`  Installing ${name} via install script...`);
+  const curl = run("curl", ["-fsSL", script]);
+  if (curl.status !== 0) return false;
+  return runInherit("sh", ["-c", curl.stdout], { verbose }) === 0;
+}
+
+function autoInstall(pkg: string, opts?: { brewPkg?: string; aptPkg?: string; curlScript?: string; verbose?: boolean }): boolean {
+  const brewPkg = opts?.brewPkg ?? pkg;
+  const aptPkg = opts?.aptPkg ?? pkg;
+
+  if (platform() === "darwin") {
+    if (hasBrew()) return installViaBrew(brewPkg, opts?.verbose);
+  } else {
+    if (hasApt()) return installViaApt(aptPkg, opts?.verbose);
+    if (hasYum()) return installViaYum(aptPkg, opts?.verbose);
+  }
+
+  if (opts?.curlScript) {
+    return installViaCurl(pkg, opts.curlScript, opts?.verbose);
+  }
+
+  return false;
+}
+
+/** Check for kubectl, auto-install if missing. */
+function ensureKubectl(verbose?: boolean): PreflightCheck {
+  if (run("kubectl", ["version", "--client"]).status === 0) {
+    return check("kubectl", true, "kubectl available");
+  }
+
+  console.log("  kubectl not found, installing...");
+  const installed = autoInstall("kubectl", {
+    brewPkg: "kubernetes-cli",
+    aptPkg: "kubectl",
+    curlScript: "https://raw.githubusercontent.com/kubernetes/kubectl/master/scripts/install.sh",
+    verbose,
+  });
+
+  if (installed && run("kubectl", ["version", "--client"]).status === 0) {
+    return check("kubectl", true, "kubectl installed");
+  }
+
+  return check("kubectl", false, "kubectl install failed");
+}
+
+/** Check for helm, auto-install if missing. */
+function ensureHelm(verbose?: boolean): PreflightCheck {
+  if (run("helm", ["version", "--short"]).status === 0) {
+    return check("helm", true, "helm available");
+  }
+
+  console.log("  helm not found, installing...");
+  const installed = autoInstall("helm", {
+    curlScript: "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3",
+    verbose,
+  });
+
+  if (installed && run("helm", ["version", "--short"]).status === 0) {
+    return check("helm", true, "helm installed");
+  }
+
+  return check("helm", false, "helm install failed");
+}
+
 export function runPreflight(opts: {
   role: InstallRole;
   domain?: string;
@@ -79,6 +173,9 @@ export function runPreflight(opts: {
   force?: boolean;
   /** k3s may already be running (recorded progress past phase 2); allow in-use API ports and existing k3s. */
   resumeClusterInstall?: boolean;
+  /** Targeting a remote cluster via --kubeconfig; skip root, OS, port, and k3s checks. */
+  remoteCluster?: boolean;
+  verbose?: boolean;
 }): PreflightResult {
   const checks: PreflightCheck[] = [];
 
@@ -91,15 +188,25 @@ export function runPreflight(opts: {
 
   const resume = opts.resumeClusterInstall ?? false;
 
-  // Site/Factory: full checks (omit port checks on resume — k3s already bound 6443 / 10250 etc.)
-  checks.push(
-    checkRoot(),
-    checkOs(opts.role),
-    checkArch(),
-    checkDisk(opts.role),
-    ...(resume ? [] : REQUIRED_PORTS.map(checkPort)),
-    checkNoExistingK3s(opts.force ?? false, resume),
-  );
+  if (opts.remoteCluster) {
+    // Remote cluster: check arch, disk, and ensure kubectl + helm are available (auto-install if needed)
+    checks.push(
+      checkArch(),
+      checkDisk("workbench"),
+      ensureKubectl(opts.verbose),
+      ensureHelm(opts.verbose),
+    );
+  } else {
+    // Local install: full checks (omit port checks on resume — k3s already bound 6443 / 10250 etc.)
+    checks.push(
+      checkRoot(),
+      checkOs(opts.role),
+      checkArch(),
+      checkDisk(opts.role),
+      ...(resume ? [] : REQUIRED_PORTS.map(checkPort)),
+      checkNoExistingK3s(opts.force ?? false, resume),
+    );
+  }
 
   if (opts.installMode !== "offline" && opts.domain) {
     checks.push(checkDns(opts.domain));

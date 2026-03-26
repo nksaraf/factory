@@ -11,12 +11,14 @@ import { migrate, migrationsDir } from "./db/migrator"
 import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
 import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
+import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
 import { logger } from "./logger"
 import { presenceController } from "./modules/presence/index"
 import { agentController } from "./modules/agent/index"
+import { identityController } from "./modules/identity/index"
 import { buildController } from "./modules/build/index"
 import { webhookController } from "./modules/build/webhook.controller"
 import { commerceController } from "./modules/commerce/index"
@@ -27,9 +29,10 @@ import { infraController } from "./modules/infra/index"
 import { sandboxController } from "./modules/infra/sandbox.controller"
 import { observabilityController } from "./modules/observability/index"
 import { productController } from "./modules/product/index"
+import { releaseContentController } from "./modules/release-content/index"
 import { siteController } from "./modules/site/index"
 import { SiteReconciler } from "./modules/site/reconciler"
-import { authPlugin } from "./plugins/auth.plugin"
+import { authPlugin, principalPlugin } from "./plugins/auth.plugin"
 import {
   type FactorySettings,
   getAuthServiceUrl,
@@ -51,6 +54,7 @@ export class FactoryAPI {
   private stopProxmoxSync?: () => void
   private stopWorkTrackerSync?: () => void
   private stopGitHostSync?: () => void
+  private stopIdentitySync?: () => void
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -91,11 +95,16 @@ export class FactoryAPI {
       .use(agentController)
       .use(commerceController(db))
       .use(fleetController(db))
+      .use(releaseContentController(db))
+      .use(identityController(db))
       .use(infraRoutes)
       .use(observabilityController(this.observabilityAdapter))
 
     if (jwksUrl) {
-      return new Elysia().use(authPlugin(jwksUrl)).use(planeRoutes)
+      return new Elysia()
+        .use(authPlugin(jwksUrl))
+        .use(principalPlugin(db))
+        .use(planeRoutes)
     }
 
     logger.warn(
@@ -176,6 +185,7 @@ export class FactoryAPI {
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)
     this.stopWorkTrackerSync = startWorkTrackerSyncLoop(this.db)
     this.stopGitHostSync = startGitHostSyncLoop(this.db)
+    this.stopIdentitySync = startIdentitySyncLoop(this.db)
 
     // Set up Redis for presence fan-out (optional — degrades gracefully)
     const redisUrl = getRedisUrl(this.settings)
@@ -204,6 +214,7 @@ export class FactoryAPI {
     this.stopProxmoxSync?.()
     this.stopWorkTrackerSync?.()
     this.stopGitHostSync?.()
+    this.stopIdentitySync?.()
     if (this.redis) {
       this.redis.publisher.disconnect()
       this.redis.subscriber.disconnect()

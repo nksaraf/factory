@@ -1,5 +1,12 @@
 import type { Database } from "../../db/connection";
 import * as gw from "./gateway.service";
+import { StreamManager } from "./tunnel-streams";
+import {
+  decodeFrame,
+  encodeFrame,
+  buildPingFrame,
+  FrameType,
+} from "@smp/factory-shared/tunnel-protocol";
 
 /**
  * In-memory map of active tunnel connections.
@@ -7,6 +14,7 @@ import * as gw from "./gateway.service";
  */
 const activeTunnels = new Map<string, WebSocket>();
 const subdomainToTunnelId = new Map<string, string>();
+const tunnelStreams = new Map<string, StreamManager>();
 
 /**
  * Generate a random subdomain for tunnel allocation.
@@ -31,91 +39,175 @@ export interface TunnelBrokerOptions {
   heartbeatIntervalMs?: number;
 }
 
+interface TunnelState {
+  tunnelId: string | null;
+  streamManager: StreamManager | null;
+  heartbeatTimer: ReturnType<typeof setInterval> | null;
+  cleaning: boolean;
+}
+
+const connectionState = new WeakMap<WebSocket, TunnelState>();
+
+function getOrCreateState(ws: WebSocket): TunnelState {
+  let state = connectionState.get(ws);
+  if (!state) {
+    state = { tunnelId: null, streamManager: null, heartbeatTimer: null, cleaning: false };
+    connectionState.set(ws, state);
+  }
+  return state;
+}
+
 /**
- * Handle a new tunnel WebSocket connection.
+ * Create Elysia-compatible WebSocket handlers for tunnel connections.
  *
  * Protocol:
- * 1. Client sends JSON: { subdomain?: string, localAddr: string, principalId: string }
- * 2. Server registers tunnel + route, responds: { tunnelId, subdomain, url }
- * 3. Server sends periodic heartbeat pings
- * 4. On close/error, server removes tunnel + route
+ * 1. Client sends JSON: { type: "register", localAddr, subdomain?, principalId }
+ * 2. Server responds JSON: { type: "registered", tunnelId, subdomain, url }
+ * 3. After registration, all messages are binary frames (tunnel-protocol)
+ * 4. Server sends periodic PING frames; client responds with PONG
+ * 5. On close, server removes tunnel + route
  */
+export function createTunnelHandlers(opts: TunnelBrokerOptions) {
+  const { db, heartbeatIntervalMs = 30_000 } = opts;
+
+  return {
+    open(ws: WebSocket) {
+      getOrCreateState(ws);
+    },
+
+    async message(ws: WebSocket, data: string | Buffer | ArrayBuffer | Uint8Array) {
+      const state = getOrCreateState(ws);
+
+      // After registration, handle binary frames
+      if (state.tunnelId) {
+        let bytes: Uint8Array | null = null;
+        if (data instanceof ArrayBuffer) {
+          bytes = new Uint8Array(data);
+        } else if (data instanceof Uint8Array || Buffer.isBuffer(data)) {
+          bytes = data instanceof Uint8Array ? data : new Uint8Array(data as Buffer);
+        }
+
+        if (bytes) {
+          try {
+            const frame = decodeFrame(bytes);
+            state.streamManager?.handleFrame(frame);
+          } catch {
+            // Malformed frame, ignore
+          }
+          return;
+        }
+      }
+
+      // Pre-registration: JSON text messages
+      try {
+        const msg = JSON.parse(typeof data === "string" ? data : "");
+
+        if (msg.type === "register" && !state.tunnelId) {
+          const subdomain = msg.subdomain || generateSubdomain();
+          const { tunnel, route } = await gw.registerTunnel(db, {
+            subdomain,
+            principalId: msg.principalId ?? "anonymous",
+            localAddr: msg.localAddr ?? "localhost:3000",
+            createdBy: msg.principalId ?? "anonymous",
+          });
+
+          state.tunnelId = tunnel.tunnelId;
+          activeTunnels.set(state.tunnelId, ws);
+          subdomainToTunnelId.set(subdomain, state.tunnelId);
+
+          // Create stream manager for this tunnel
+          state.streamManager = new StreamManager((frameData) => {
+            ws.send(frameData);
+          });
+          tunnelStreams.set(state.tunnelId, state.streamManager);
+
+          ws.send(
+            JSON.stringify({
+              type: "registered",
+              tunnelId: tunnel.tunnelId,
+              subdomain: tunnel.subdomain,
+              url: `https://${route.domain}`,
+            })
+          );
+
+          // Start heartbeat with binary PING frames
+          state.heartbeatTimer = setInterval(async () => {
+            if (state.tunnelId) {
+              await gw.heartbeatTunnel(db, state.tunnelId).catch(() => {});
+              try {
+                ws.send(encodeFrame(buildPingFrame()));
+              } catch {
+                // WS may be closing
+              }
+            }
+          }, heartbeatIntervalMs);
+        }
+      } catch {
+        ws.send(JSON.stringify({ type: "error", message: "Invalid message" }));
+      }
+    },
+
+    async close(ws: WebSocket) {
+      const state = connectionState.get(ws);
+      if (!state || state.cleaning || !state.tunnelId) return;
+      state.cleaning = true;
+
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      state.streamManager?.cleanup();
+      tunnelStreams.delete(state.tunnelId);
+
+      const t = await gw.getTunnel(db, state.tunnelId).catch(() => null);
+      if (t) {
+        subdomainToTunnelId.delete(t.subdomain);
+      }
+      activeTunnels.delete(state.tunnelId);
+      await gw.closeTunnel(db, state.tunnelId).catch(() => {});
+      state.tunnelId = null;
+    },
+  };
+}
+
+// Keep the old API for backward compatibility (used in tests)
 export async function handleTunnelConnection(
   ws: WebSocket,
   opts: TunnelBrokerOptions
 ): Promise<void> {
-  const { db, heartbeatIntervalMs = 30_000 } = opts;
-  let tunnelId: string | null = null;
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  const handlers = createTunnelHandlers(opts);
+  handlers.open(ws);
 
   ws.addEventListener("message", async (event) => {
-    try {
-      const msg = JSON.parse(typeof event.data === "string" ? event.data : "");
-
-      if (msg.type === "register" && !tunnelId) {
-        const subdomain = msg.subdomain || generateSubdomain();
-        const { tunnel, route } = await gw.registerTunnel(db, {
-          subdomain,
-          principalId: msg.principalId ?? "anonymous",
-          localAddr: msg.localAddr ?? "localhost:3000",
-          createdBy: msg.principalId ?? "anonymous",
-        });
-
-        tunnelId = tunnel.tunnelId;
-        activeTunnels.set(tunnelId!, ws);
-        subdomainToTunnelId.set(subdomain, tunnelId!);
-
-        ws.send(
-          JSON.stringify({
-            type: "registered",
-            tunnelId: tunnel.tunnelId,
-            subdomain: tunnel.subdomain,
-            url: `https://${route.domain}`,
-          })
-        );
-
-        // Start heartbeat
-        heartbeatTimer = setInterval(async () => {
-          if (tunnelId) {
-            await gw.heartbeatTunnel(db, tunnelId).catch(() => {});
-          }
-        }, heartbeatIntervalMs);
-      }
-    } catch {
-      ws.send(JSON.stringify({ type: "error", message: "Invalid message" }));
-    }
+    await handlers.message(ws, event.data);
   });
 
   ws.addEventListener("close", async () => {
-    await cleanup();
+    await handlers.close(ws);
   });
 
   ws.addEventListener("error", async () => {
-    await cleanup();
+    await handlers.close(ws);
   });
-
-  async function cleanup() {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    if (tunnelId) {
-      const t = await gw.getTunnel(db, tunnelId).catch(() => null);
-      if (t) {
-        subdomainToTunnelId.delete(t.subdomain);
-      }
-      activeTunnels.delete(tunnelId);
-      await gw.closeTunnel(db, tunnelId).catch(() => {});
-      tunnelId = null;
-    }
-  }
 }
 
 /**
  * Look up the WebSocket for a given subdomain.
- * Used by the tunnel proxy to forward requests.
+ * Used by the gateway proxy to forward requests.
  */
 export function getTunnelSocket(subdomain: string): WebSocket | undefined {
   const tunnelId = subdomainToTunnelId.get(subdomain);
   if (!tunnelId) return undefined;
   return activeTunnels.get(tunnelId);
+}
+
+/**
+ * Look up the StreamManager for a given subdomain.
+ * Used by the gateway proxy to send HTTP requests through the tunnel.
+ */
+export function getTunnelStreamManager(
+  subdomain: string
+): StreamManager | undefined {
+  const tunnelId = subdomainToTunnelId.get(subdomain);
+  if (!tunnelId) return undefined;
+  return tunnelStreams.get(tunnelId);
 }
 
 /**

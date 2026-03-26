@@ -266,7 +266,7 @@ export function devCommand(app: DxBase) {
           ...Object.entries(project.moduleConfig.components).map(
             ([name, ref]) => ({ name, preferred: ref.port ?? undefined }),
           ),
-          ...Object.entries(project.moduleConfig.dependencies).map(
+          ...Object.entries(project.moduleConfig.resources).map(
             ([name, dep]) => ({ name, preferred: dep.port }),
           ),
         ];

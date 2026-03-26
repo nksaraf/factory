@@ -217,7 +217,7 @@ export class DevController {
         name,
         preferred: ref.port ?? undefined,
       })),
-      ...Object.entries(this.moduleConfig.dependencies).map(
+      ...Object.entries(this.moduleConfig.resources).map(
         ([name, dep]) => ({
           name,
           preferred: dep.port,

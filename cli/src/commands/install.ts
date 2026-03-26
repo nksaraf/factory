@@ -17,6 +17,15 @@ import { toDxFlags } from "./dx-flags.js";
 
 const DX_VERSION = process.env.DX_VERSION ?? "0.0.0-dev";
 
+/** Load kubeconfig from persisted config into the runtime setter. */
+async function hydrateKubeconfig(): Promise<void> {
+  const config = await readConfig();
+  if (config.kubeconfig) {
+    const { setKubeconfig } = await import("../handlers/install/k3s.js");
+    setKubeconfig(config.kubeconfig);
+  }
+}
+
 export function installCommand(app: DxBase) {
   return app
     .sub("install")
@@ -28,6 +37,11 @@ export function installCommand(app: DxBase) {
       fresh: {
         type: "boolean",
         description: "Ignore saved install progress and start from phase 1 (still need --force if k3s exists)",
+      },
+      kubeconfig: {
+        type: "string",
+        short: "k",
+        description: "Path to kubeconfig for a remote k3s/k8s cluster (skips local k3s bootstrap and image loading)",
       },
     })
     .run(async ({ flags }) => {
@@ -48,6 +62,7 @@ export function installCommand(app: DxBase) {
           const { runPreflight } = await import("../handlers/install/preflight.js");
           const lightPreflight = runPreflight({
             role: (flags.role as InstallRole) || "workbench",
+            remoteCluster: !!(flags.kubeconfig as string | undefined),
           });
           printPreflightLine(lightPreflight.checks);
           console.log();
@@ -82,12 +97,28 @@ export function installCommand(app: DxBase) {
             networkServiceCidr: config.networkServiceCidr,
             installMode: config.installMode,
             installLastCompletedPhase: config.installLastCompletedPhase,
+            kubeconfig: config.kubeconfig,
           });
 
           config = await readConfig();
         }
 
         const role: InstallRole = (flags.role as InstallRole) || (config.role as InstallRole);
+        const remoteKubeconfig = flags.kubeconfig as string | undefined;
+
+        // Set kubeconfig for remote cluster mode
+        if (remoteKubeconfig) {
+          const { resolve } = await import("node:path");
+          const { existsSync } = await import("node:fs");
+          const absKubeconfig = resolve(remoteKubeconfig);
+          if (!existsSync(absKubeconfig)) {
+            exitWithError(f, `Kubeconfig not found: ${absKubeconfig}`, ExitCodes.PREFLIGHT_FAILURE);
+          }
+          const { setKubeconfig } = await import("../handlers/install/k3s.js");
+          setKubeconfig(absKubeconfig);
+          await dxConfigStore.update((prev) => ({ ...prev, kubeconfig: absKubeconfig }));
+          infoLine(`Using remote cluster kubeconfig: ${absKubeconfig}`);
+        }
 
         // Workbench flow
         if (role === "workbench") {
@@ -150,6 +181,8 @@ export function installCommand(app: DxBase) {
           installMode: config.installMode,
           force: flags.force as boolean | undefined,
           resumeClusterInstall: lastPhase >= 2,
+          remoteCluster: !!remoteKubeconfig,
+          verbose: f.verbose,
         });
         if (!preflight.passed) {
           phaseFail(s, 1, TOTAL, "Preflight", "checks failed");
@@ -159,7 +192,20 @@ export function installCommand(app: DxBase) {
         phaseSucceed(s, 1, TOTAL, "Preflight", start);
         if (lastPhase < 1) await persistInstallPhase(1);
 
-        if (lastPhase < 2) {
+        if (remoteKubeconfig) {
+          // Remote cluster: skip k3s bootstrap, just verify connectivity
+          s = phase(2, TOTAL, "K3s bootstrap");
+          start = Date.now();
+          const { getKubeconfig } = await import("../handlers/install/k3s.js");
+          const connResult = (await import("../lib/subprocess.js")).run("kubectl", [
+            "get", "nodes", "--kubeconfig", getKubeconfig(),
+          ]);
+          if (connResult.status !== 0) {
+            phaseFail(s, 2, TOTAL, "K3s bootstrap", "cannot reach remote cluster");
+            exitWithError(f, `Cannot connect to remote cluster via ${remoteKubeconfig}`, ExitCodes.INSTALL_PHASE_FAILURE);
+          }
+          phaseSucceed(s, 2, TOTAL, "Remote cluster connected", start);
+        } else if (lastPhase < 2) {
           s = phase(2, TOTAL, "K3s bootstrap");
           start = Date.now();
           const { bootstrapK3s } = await import("../handlers/install/k3s.js");
@@ -168,6 +214,8 @@ export function installCommand(app: DxBase) {
             verbose: f.verbose,
           });
           phaseSucceed(s, 2, TOTAL, "K3s bootstrap", start);
+          const { K3S_KUBECONFIG } = await import("../handlers/install/k3s.js");
+          await dxConfigStore.update((prev) => ({ ...prev, kubeconfig: K3S_KUBECONFIG }));
         } else {
           phaseSkipped(2, TOTAL, "K3s bootstrap");
           const { bootstrapK3s } = await import("../handlers/install/k3s.js");
@@ -180,7 +228,10 @@ export function installCommand(app: DxBase) {
         await persistInstallPhase(2);
 
         let chartVersion = "";
-        if (lastPhase < 3) {
+        if (remoteKubeconfig) {
+          // Remote cluster: skip local image loading — k8s will pull images during helm install
+          phaseSkipped(3, TOTAL, "Loading images (remote cluster)");
+        } else if (lastPhase < 3) {
           s = phase(3, TOTAL, "Loading images");
           start = Date.now();
           const { loadImages } = await import("../handlers/install/images.js");
@@ -228,7 +279,7 @@ export function installCommand(app: DxBase) {
         } else {
           phaseSkipped(5, TOTAL, "Post-install");
           const { spawnSync } = await import("node:child_process");
-          const { K3S_KUBECONFIG } = await import("../handlers/install/k3s.js");
+          const { getKubeconfig } = await import("../handlers/install/k3s.js");
           const proc = spawnSync(
             "kubectl",
             [
@@ -238,7 +289,7 @@ export function installCommand(app: DxBase) {
               "-n",
               "dx-system",
               "--kubeconfig",
-              K3S_KUBECONFIG,
+              getKubeconfig(),
               "-o",
               "jsonpath={.data.manifest\\.json}",
             ],
@@ -369,6 +420,7 @@ export function installCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await hydrateKubeconfig();
             const { runUpgrade } = await import("../handlers/install/upgrade.js");
             await runUpgrade({
               bundlePath: flags.bundle as string | undefined,
@@ -413,11 +465,13 @@ export function installCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await hydrateKubeconfig();
             const { spawnSync } = await import("node:child_process");
+            const { getKubeconfig } = await import("../handlers/install/k3s.js");
             const proc = spawnSync("kubectl", [
               "get", "configmap", "dx-install-manifest",
               "-n", "dx-system",
-              "--kubeconfig", "/etc/rancher/k3s/k3s.yaml",
+              "--kubeconfig", getKubeconfig(),
               "-o", "jsonpath={.data.manifest\\.json}",
             ], { encoding: "utf8" });
 
@@ -466,6 +520,7 @@ export function installCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await hydrateKubeconfig();
             const { runUninstall } = await import("../handlers/install/uninstall.js");
             await runUninstall({
               keepK3s: flags.keepK3s as boolean | undefined,
