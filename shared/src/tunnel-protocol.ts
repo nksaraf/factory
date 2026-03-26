@@ -193,3 +193,27 @@ export function buildPongFrame(): Frame {
     new Uint8Array(0)
   );
 }
+
+/**
+ * Send data as one or more DATA frames, chunking at MAX_PAYLOAD_SIZE.
+ * The last chunk gets the FIN flag.
+ */
+export function buildDataFrames(
+  streamId: number,
+  data: Uint8Array
+): Frame[] {
+  if (data.byteLength === 0) {
+    return [buildDataFrame(streamId, new Uint8Array(0), true)];
+  }
+
+  const frames: Frame[] = [];
+  let offset = 0;
+  while (offset < data.byteLength) {
+    const end = Math.min(offset + MAX_PAYLOAD_SIZE, data.byteLength);
+    const chunk = data.slice(offset, end);
+    const isFin = end >= data.byteLength;
+    frames.push(buildDataFrame(streamId, chunk, isFin));
+    offset = end;
+  }
+  return frames;
+}

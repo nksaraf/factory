@@ -6,6 +6,7 @@ import {
   Flags,
   encodeFrame,
   buildHttpReqFrame,
+  buildDataFrames,
   parseJsonPayload,
 } from "@smp/factory-shared/tunnel-protocol";
 
@@ -73,16 +74,12 @@ export class StreamManager {
       const reqFrame = buildHttpReqFrame(streamId, req);
       this.send(encodeFrame(reqFrame));
 
-      // Send body if present, with FIN flag
+      // Send body if present, chunked at MAX_PAYLOAD_SIZE with FIN on last frame
       if (opts?.body && opts.body.byteLength > 0) {
-        const dataFrame: Frame = {
-          version: reqFrame.version,
-          type: FrameType.DATA,
-          streamId,
-          flags: Flags.FIN,
-          payload: opts.body,
-        };
-        this.send(encodeFrame(dataFrame));
+        const dataFrames = buildDataFrames(streamId, opts.body);
+        for (const df of dataFrames) {
+          this.send(encodeFrame(df));
+        }
       }
     });
   }

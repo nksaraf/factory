@@ -4,7 +4,7 @@ import {
   decodeFrame,
   encodeFrame,
   buildHttpResFrame,
-  buildDataFrame,
+  buildDataFrames,
   buildPongFrame,
   buildRstStreamFrame,
   parseJsonPayload,
@@ -157,10 +157,17 @@ async function forwardToLocal(
       redirect: "manual",
     });
 
-    // Send HTTP_RES frame with status + headers
+    // Send HTTP_RES frame with status + headers (strip hop-by-hop headers)
+    const HOP_BY_HOP = new Set([
+      "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+      "te", "trailer", "transfer-encoding", "upgrade",
+    ]);
+
     const resHeaders: Record<string, string> = {};
     localRes.headers.forEach((val, key) => {
-      resHeaders[key] = val;
+      if (!HOP_BY_HOP.has(key.toLowerCase())) {
+        resHeaders[key] = val;
+      }
     });
     ws.send(
       encodeFrame(
@@ -171,14 +178,11 @@ async function forwardToLocal(
       )
     );
 
-    // Send body as DATA frame(s) with FIN
-    if (localRes.body) {
-      const body = new Uint8Array(await localRes.arrayBuffer());
-      ws.send(encodeFrame(buildDataFrame(streamId, body, true)));
-    } else {
-      ws.send(
-        encodeFrame(buildDataFrame(streamId, new Uint8Array(0), true))
-      );
+    // Send body as DATA frame(s) with FIN, chunking at MAX_PAYLOAD_SIZE
+    const body = localRes.body ? new Uint8Array(await localRes.arrayBuffer()) : new Uint8Array(0);
+    const dataFrames = buildDataFrames(streamId, body);
+    for (const df of dataFrames) {
+      ws.send(encodeFrame(df));
     }
   } catch {
     // Local server unreachable
