@@ -10,6 +10,7 @@ import { commitCommand } from "./commands/commit.js";
 import { configCommand } from "./commands/config.js";
 import { connectCommand } from "./commands/connect.js";
 import { contextCommand } from "./commands/context.js";
+import { catalogCommand } from "./commands/catalog.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -58,6 +59,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(authCommand(app))
     .command(branchCommand(app))
     .command(buildCommand(app))
+    .command(catalogCommand(app))
     .command(commitCommand(app))
     .command(configCommand(app))
     .command(connectCommand(app))

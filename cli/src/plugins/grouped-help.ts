@@ -15,7 +15,7 @@ import { examplesFor } from "./examples-plugin.js";
 const CATEGORIES: [category: string, commands: string[]][] = [
   [
     "Getting Started",
-    ["status", "auth", "config", "whoami", "init", "factory"],
+    ["status", "catalog", "auth", "config", "whoami", "init", "factory"],
   ],
   [
     "Development",

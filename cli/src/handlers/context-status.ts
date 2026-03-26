@@ -51,7 +51,7 @@ function tryLoadProject(cwd: string): ProjectInfo | undefined {
   try {
     const ctx = ProjectContext.fromCwd(cwd);
     return {
-      name: ctx.moduleConfig.name,
+      name: ctx.moduleConfig.module,
       root: ctx.rootDir,
       components: Object.keys(ctx.componentConfigs),
     };
