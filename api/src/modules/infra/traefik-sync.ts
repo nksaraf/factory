@@ -12,6 +12,13 @@ import { listRoutes } from "./gateway.service";
  * Traefik watches the output directory and picks up changes automatically.
  */
 
+/**
+ * Only these route kinds get per-route Traefik config.
+ * High-cardinality kinds (tunnel, preview, sandbox) are routed
+ * through the factory gateway via static wildcard Traefik routers.
+ */
+export const KINDS_WITH_TRAEFIK_ROUTES = ["ingress", "custom_domain"] as const;
+
 export interface TraefikRoute {
   routeId: string;
   kind: string;
@@ -132,7 +139,7 @@ export async function syncFactoryRoutes(
   }
 
   // Write a file per kind (sandbox-routes.yml, tunnel-routes.yml, etc.)
-  const kinds = ["sandbox", "tunnel", "preview", "ingress", "custom_domain"];
+  const kinds = [...KINDS_WITH_TRAEFIK_ROUTES];
   for (const kind of kinds) {
     const routes = byKind.get(kind) ?? [];
     const yaml = generateTraefikYaml(routes);

@@ -2,6 +2,7 @@ import type { Database } from "../db/connection"
 import type { SandboxAdapter } from "../adapters/sandbox-adapter"
 import { cleanupExpiredSandboxes } from "../modules/fleet/service"
 import { cleanupExpiredRoutes, cleanupStaleTunnels } from "../modules/infra/gateway.service"
+import { runPreviewCleanup } from "../services/preview/preview.service"
 import { logger } from "../logger"
 
 export function startTtlCleanupLoop(
@@ -26,6 +27,11 @@ export function startTtlCleanupLoop(
       const staleTunnels = await cleanupStaleTunnels(db)
       if (staleTunnels > 0) {
         logger.info({ count: staleTunnels }, "cleaned up stale tunnels")
+      }
+
+      const previewCleanup = await runPreviewCleanup(db)
+      if (previewCleanup.expired > 0 || previewCleanup.scaledToWarm > 0 || previewCleanup.scaledToCold > 0 || previewCleanup.deleted > 0) {
+        logger.info(previewCleanup, "preview cleanup completed")
       }
     } catch (err) {
       logger.error({ err }, "TTL cleanup failed")

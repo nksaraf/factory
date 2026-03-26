@@ -78,6 +78,20 @@
       "when": 1774960000000,
       "tag": "0010_drop_sandbox_access",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774970000000,
+      "tag": "0011_preview_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1774980000000,
+      "tag": "0012_tunnel_mode_tcp_port",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@ import { Elysia } from "elysia"
 import type { Database } from "../../db/connection"
 import { GatewayModel } from "./gateway.model"
 import * as gw from "./gateway.service"
-import { handleTunnelConnection } from "./tunnel-broker"
+import { createTunnelHandlers } from "./tunnel-broker"
 
 export function gatewayController(db: Database) {
   return new Elysia({ prefix: "/gateway" })
@@ -100,9 +100,17 @@ export function gatewayController(db: Database) {
         detail: { tags: ["Gateway"], summary: "Force-close tunnel" },
       }
     )
-    .ws("/tunnels/ws", {
-      open(ws) {
-        handleTunnelConnection(ws.raw as unknown as WebSocket, { db });
-      },
+    .ws("/tunnels/ws", (() => {
+      const handlers = createTunnelHandlers({ db });
+      return {
+        open(ws: any) { handlers.open(ws.raw as unknown as WebSocket); },
+        async message(ws: any, data: any) { await handlers.message(ws.raw as unknown as WebSocket, data); },
+        async close(ws: any) { await handlers.close(ws.raw as unknown as WebSocket); },
+      };
+    })())
+    .onStart(async () => {
+      const { startGateway } = await import("./gateway-proxy");
+      const { getTunnelStreamManager } = await import("./tunnel-broker");
+      startGateway({ db, port: 9090, getTunnelStreamManager });
     })
 }

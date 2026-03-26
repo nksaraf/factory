@@ -125,6 +125,8 @@ export const tunnel = factoryFleet.table(
     principalId: text("principal_id").notNull(),
     subdomain: text("subdomain").notNull(),
     localAddr: text("local_addr").notNull(),
+    mode: text("mode").notNull().default("http"),
+    tcpPort: integer("tcp_port"),
     brokerNodeId: text("broker_node_id"),
     status: text("status").notNull().default("connecting"),
     connectedAt: timestamp("connected_at", { withTimezone: true })
@@ -140,6 +142,10 @@ export const tunnel = factoryFleet.table(
     check(
       "tunnel_status_valid",
       sql`${t.status} IN ('connecting', 'active', 'disconnected')`
+    ),
+    check(
+      "tunnel_mode_valid",
+      sql`${t.mode} IN ('http', 'tcp')`
     ),
   ]
 );

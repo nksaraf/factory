@@ -51,6 +51,7 @@ export type EntityPrefix =
   | "whe"
   | "grs"
   | "gus"
+  | "prev"
   | "team"
   | "prin"
   | "ptm"
