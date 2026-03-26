@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { run, runOrThrow } from "../../lib/subprocess.js";
 import { readConfig, type DxConfig } from "../../config.js";
-import { K3S_KUBECONFIG } from "./k3s.js";
+import { getKubeconfig } from "./k3s.js";
 import { DX_NAMESPACE, helmUpgrade } from "./helm.js";
 import { loadImages } from "./images.js";
 import { verifyHealth } from "./health.js";
@@ -18,7 +18,7 @@ function readCurrentManifest(): InstallManifest {
   const proc = spawnSync("kubectl", [
     "get", "configmap", "dx-install-manifest",
     "-n", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "-o", "jsonpath={.data.manifest\\.json}",
   ], { encoding: "utf8" });
 
@@ -69,13 +69,13 @@ export async function runUpgrade(opts: UpgradeOptions): Promise<void> {
   const rolloutResult = run("kubectl", [
     "rollout", "status",
     "deployment", "-n", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "--timeout=300s",
   ], { verbose: opts.verbose });
 
   if (rolloutResult.status !== 0) {
     console.error("Rollout did not complete. To rollback:");
-    console.error(`  helm rollback ${DX_NAMESPACE} --kubeconfig ${K3S_KUBECONFIG}`);
+    console.error(`  helm rollback ${DX_NAMESPACE} --kubeconfig ${getKubeconfig()}`);
     throw new Error("Upgrade rollout failed");
   }
 
@@ -97,7 +97,7 @@ export async function runUpgrade(opts: UpgradeOptions): Promise<void> {
 
   spawnSync("kubectl", [
     "apply", "-f", "-",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ], { input: configMapJson, encoding: "utf8" });
 
   // 7. Health verification (Phase 6)
@@ -110,7 +110,7 @@ export async function runUpgrade(opts: UpgradeOptions): Promise<void> {
 
   if (!healthy) {
     console.error("Health checks failed after upgrade. To rollback:");
-    console.error(`  helm rollback dx-platform --kubeconfig ${K3S_KUBECONFIG}`);
+    console.error(`  helm rollback dx-platform --kubeconfig ${getKubeconfig()}`);
     throw new Error("Post-upgrade health check failed");
   }
 

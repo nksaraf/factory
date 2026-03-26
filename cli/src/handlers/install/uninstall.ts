@@ -1,5 +1,5 @@
 import { run, runInherit } from "../../lib/subprocess.js";
-import { K3S_KUBECONFIG } from "./k3s.js";
+import { getKubeconfig } from "./k3s.js";
 import { DX_NAMESPACE, RELEASE_NAME } from "./helm.js";
 
 export interface UninstallOptions {
@@ -14,7 +14,7 @@ export async function runUninstall(opts: UninstallOptions): Promise<void> {
   const helmResult = runInherit("helm", [
     "uninstall", RELEASE_NAME,
     "--namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ], { verbose: opts.verbose });
 
   if (helmResult !== 0) {
@@ -25,7 +25,7 @@ export async function runUninstall(opts: UninstallOptions): Promise<void> {
   console.log("Deleting dx-system namespace...");
   runInherit("kubectl", [
     "delete", "namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "--ignore-not-found",
   ], { verbose: opts.verbose });
 

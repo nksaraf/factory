@@ -72,6 +72,19 @@ export function createBranch(cwd: string, name: string): void {
   }
 }
 
+export function getRemoteUrl(cwd: string): string {
+  const proc = spawnSync("git", ["remote", "get-url", "origin"], { cwd, encoding: "utf8" });
+  if (proc.status !== 0) throw new Error("No git remote 'origin' found");
+  return (proc.stdout || "").trim();
+}
+
+export function getAheadBehind(cwd: string): { ahead: number; behind: number } {
+  const proc = spawnSync("git", ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd, encoding: "utf8" });
+  if (proc.status !== 0) return { ahead: 0, behind: 0 };
+  const [ahead, behind] = (proc.stdout || "").trim().split(/\s+/).map(Number);
+  return { ahead: ahead || 0, behind: behind || 0 };
+}
+
 export function listBranches(cwd: string): string {
   const proc = spawnSync("git", ["branch", "--list"], {
     cwd,

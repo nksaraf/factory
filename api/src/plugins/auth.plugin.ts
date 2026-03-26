@@ -1,6 +1,9 @@
 import { Elysia } from "elysia";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import type { FactoryAuthResourceClient } from "../lib/auth-resource-client";
+import type { Database } from "../db/connection";
+import { IdentityService } from "../modules/identity/identity.service";
+import { logger } from "../logger";
 
 export interface AuthUser {
   id: string;
@@ -41,6 +44,32 @@ export function authPlugin(jwksUrl: string) {
         throw new Error(
           err instanceof Error ? `Invalid token: ${err.message}` : "Invalid token"
         );
+      }
+    }
+  );
+}
+
+/**
+ * Auto-provisioning plugin: resolves or creates an orgPrincipal for
+ * every authenticated request, attaching principalId to context.
+ */
+export function principalPlugin(db: Database) {
+  const identityService = new IdentityService(db);
+
+  return new Elysia({ name: "principal-plugin" }).derive(
+    async (ctx): Promise<{ principalId: string }> => {
+      const user = (ctx as unknown as { user: AuthUser }).user;
+      if (!user?.id) return { principalId: "" };
+
+      try {
+        const principal = await identityService.resolveOrCreatePrincipal({
+          authUserId: user.id,
+          email: user.email,
+        });
+        return { principalId: principal.principalId };
+      } catch (err) {
+        logger.error({ err, authUserId: user.id }, "principal auto-provision failed");
+        return { principalId: "" };
       }
     }
   );

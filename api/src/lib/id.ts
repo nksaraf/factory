@@ -50,7 +50,20 @@ export type EntityPrefix =
   | "ghi"
   | "whe"
   | "grs"
-  | "gus";
+  | "gus"
+  | "team"
+  | "prin"
+  | "ptm"
+  | "scope"
+  | "cdom"
+  | "csys"
+  | "ccmp"
+  | "cres"
+  | "capi"
+  | "elnk"
+  | "idlk"
+  | "tcred"
+  | "tusg";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;

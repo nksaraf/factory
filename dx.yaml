@@ -1,0 +1,86 @@
+module: factory
+team: platform
+
+components:
+  factory-api:
+    path: ./api
+    port: 8181
+    container_port: 3000
+    healthcheck: /api/v1/factory/openapi
+    type: node
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+    build:
+      context: ./
+      dockerfile: ./api/Dockerfile
+    dev:
+      command: pnpm --filter @smp/factory-api dev
+      sync:
+        - ./api/src
+        - ./shared/src
+
+  factory-cli:
+    path: ./cli
+    worker: true
+    type: node
+    dev:
+      command: pnpm --filter lepton-dx dev
+    test: pnpm --filter lepton-dx test
+    lint: pnpm --filter lepton-dx lint
+
+resources:
+  postgres:
+    image: postgres:16-alpine
+    port: 5432
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck: pg_isready -U postgres -d postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  auth:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
+    port: 8180
+    container_port: 3000
+    env:
+      AUTH_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+    healthcheck: "node -e \"fetch('http://localhost:3000/api/v1/auth/reference').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""
+    volumes:
+      - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
+
+  gateway:
+    image: apache/apisix:3.11.0-debian
+    port: 8005
+    env:
+      CLICKSTACK_API_KEY: ""
+    healthcheck: "curl -sf http://localhost:8005/health || exit 1"
+    volumes:
+      - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+
+  reverse-proxy:
+    image: traefik:v3.6.8
+    port: 3001
+    container_port: 80
+    volumes:
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+
+  api-docs:
+    image: nginx:alpine
+    port: 80
+    volumes:
+      - ./infra/nginx/api-docs.html:/usr/share/nginx/html/index.html:ro
+
+connections:
+  database:
+    module: factory
+    component: postgres
+    env_var: DATABASE_URL
+    local_default: postgres://postgres:postgres@postgres:5432/postgres
+
+  auth-service:
+    module: factory
+    component: auth
+    env_var: FACTORY_AUTH_JWKS_URL
+    local_default: http://auth:3000/api/v1/auth/.well-known/jwks.json

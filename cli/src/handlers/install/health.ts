@@ -1,5 +1,5 @@
 import { run } from "../../lib/subprocess.js";
-import { K3S_KUBECONFIG } from "./k3s.js";
+import { getKubeconfig } from "./k3s.js";
 import { DX_NAMESPACE } from "./helm.js";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 import { printTable } from "../../output.js";
@@ -68,7 +68,7 @@ async function runAllChecks(opts: HealthCheckOptions): Promise<ServiceHealth[]> 
 async function checkK3sNodes(verbose?: boolean): Promise<ServiceHealth> {
   const result = run("kubectl", [
     "get", "nodes",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "-o", "jsonpath={.items[*].status.conditions[?(@.type=='Ready')].status}",
   ]);
 
@@ -88,7 +88,7 @@ async function checkK3sNodes(verbose?: boolean): Promise<ServiceHealth> {
 async function checkPods(verbose?: boolean): Promise<ServiceHealth> {
   const result = run("kubectl", [
     "get", "pods", "-n", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "-o", "jsonpath={.items[*].status.phase}",
   ]);
 

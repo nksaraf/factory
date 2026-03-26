@@ -78,12 +78,44 @@ export function releaseCommand(app: DxBase) {
             description: "Release version (e.g. 1.0.0)",
           },
         ])
+        .flags({
+          withContent: {
+            type: "boolean",
+            description: "Generate release content (changelog, notes, docs) after creating the release",
+          },
+          repo: {
+            type: "string",
+            description: "Repository full name (owner/repo) for content generation",
+          },
+        })
         .run(async ({ args, flags }) => {
           const api = await getFleetApi();
           const result = await apiCall(flags, () =>
             api.api.v1.factory.fleet.releases.post({ version: args.version })
           );
           actionResult(flags, result, styleSuccess(`Release "${args.version}" created.`));
+
+          if (flags.withContent) {
+            const repoFullName = flags.repo as string | undefined;
+            if (!repoFullName) {
+              console.log(styleMuted("Skipping content generation: --repo flag is required with --with-content"));
+              return;
+            }
+            console.log(styleMuted(`\nGenerating release content for ${repoFullName}...`));
+            const contentResult = await apiCall(flags, () =>
+              api.api.v1.factory["release-content"].releases({ version: args.version }).generate.post({
+                repoFullName,
+              })
+            );
+            if (contentResult) {
+              const data = contentResult as Record<string, unknown>;
+              console.log(styleSuccess(`Draft PR created: ${data.prUrl}`));
+              const files = data.generatedFiles as string[] | undefined;
+              if (files) {
+                console.log(styleMuted(`Generated files: ${files.join(", ")}`));
+              }
+            }
+          }
         })
     )
 
@@ -141,6 +173,61 @@ export function releaseCommand(app: DxBase) {
               })
           );
           actionResult(flags, result, styleSuccess(`Release "${args.version}" promoted to ${(flags.target as string) ?? "staging"}.`));
+        })
+    )
+
+    .command("content", (c) =>
+      c
+        .meta({ description: "Generate release content (changelog, release notes, API docs, announcements)" })
+        .args([
+          {
+            name: "version",
+            type: "string",
+            required: true,
+            description: "Release version (e.g. 1.0.0)",
+          },
+        ])
+        .flags({
+          repo: {
+            type: "string",
+            description: "Repository full name (owner/repo)",
+            required: true,
+          },
+          outputs: {
+            type: "string",
+            description: "Comma-separated list of outputs: changelog,release-notes,api-docs,internal-docs,announcement",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const repoFullName = flags.repo as string;
+          if (!repoFullName) {
+            const { exitWithError } = await import("../lib/cli-exit.js");
+            exitWithError(toDxFlags(flags), "--repo flag is required");
+          }
+
+          console.log(styleMuted(`Generating release content for v${args.version}...`));
+
+          const api = await getFleetApi();
+          const body: Record<string, unknown> = { repoFullName };
+
+          if (flags.outputs) {
+            body.outputs = (flags.outputs as string).split(",").map((s) => s.trim());
+          }
+
+          const result = await apiCall(flags, () =>
+            api.api.v1.factory["release-content"].releases({ version: args.version }).generate.post(body)
+          );
+
+          if (result) {
+            const data = result as Record<string, unknown>;
+            console.log(styleSuccess(`Draft PR created: ${data.prUrl}`));
+            const files = data.generatedFiles as string[] | undefined;
+            if (files) {
+              for (const file of files) {
+                console.log(`  ${styleMuted("•")} ${file}`);
+              }
+            }
+          }
         })
     )
 

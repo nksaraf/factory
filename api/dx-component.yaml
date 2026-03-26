@@ -1,0 +1,11 @@
+image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+build:
+  context: ./
+  dockerfile: ./api/Dockerfile
+dev:
+  command: pnpm --filter @smp/factory-api dev
+  sync:
+    - ./api/src
+    - ./shared/src
+test: pnpm --filter @smp/factory-api test
+lint: pnpm --filter @smp/factory-api lint

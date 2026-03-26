@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runOrThrow, run } from "../../lib/subprocess.js";
 import { configToHelmValues, helmValuesToSetArgs } from "../../lib/site-config.js";
-import { K3S_KUBECONFIG } from "./k3s.js";
+import { getKubeconfig } from "./k3s.js";
 import type { DxConfig } from "../../config.js";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 
@@ -26,24 +26,24 @@ export async function helmInstall(opts: HelmInstallOptions): Promise<string> {
   // Ensure namespace exists
   run("kubectl", [
     "create", "namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "--dry-run=client", "-o", "yaml",
   ]);
   run("kubectl", [
     "apply", "-f", "-",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ]);
 
   // Actually create namespace
   runOrThrow("kubectl", [
     "create", "namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ]);
 
   const baseArgs = [
     "install", RELEASE_NAME,
     "--namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "--wait",
     "--timeout", "10m",
     ...setArgs,
@@ -84,7 +84,7 @@ export function getInstalledDxPlatformChartVersion(verbose?: boolean): string {
     "-n",
     DX_NAMESPACE,
     "--kubeconfig",
-    K3S_KUBECONFIG,
+    getKubeconfig(),
     "-o",
     "json",
   ], { verbose });
@@ -112,7 +112,7 @@ export async function helmUpgrade(opts: HelmInstallOptions): Promise<string> {
   const baseArgs = [
     "upgrade", RELEASE_NAME,
     "--namespace", DX_NAMESPACE,
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
     "--wait",
     "--timeout", "10m",
     "--reuse-values",
@@ -148,7 +148,7 @@ async function waitForPods(role: string, verbose?: boolean, timeoutMs = 300_000)
   while (Date.now() - start < timeoutMs) {
     const result = run("kubectl", [
       "get", "pods", "-n", DX_NAMESPACE,
-      "--kubeconfig", K3S_KUBECONFIG,
+      "--kubeconfig", getKubeconfig(),
       "-o", "jsonpath={.items[*].status.phase}",
     ]);
 

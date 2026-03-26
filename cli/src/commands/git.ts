@@ -155,6 +155,44 @@ export function gitCommand(app: DxBase) {
               );
               actionResult(flags, undefined, styleSuccess(`Git host provider ${args.id} deleted.`));
             }),
+        )
+
+        .command("update", (c) =>
+          c
+            .meta({ description: "Update a git host provider" })
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Provider ID",
+              },
+            ])
+            .flags({
+              name: {
+                type: "string",
+                description: "New provider name",
+              },
+              token: {
+                type: "string",
+                description: "New access token / credentials",
+              },
+              authMode: {
+                type: "string",
+                description: "New auth mode (pat, github_app, oauth)",
+              },
+            })
+            .run(async ({ args, flags }) => {
+              const api = await getApi();
+              const body: Record<string, unknown> = {};
+              if (flags.name) body.name = flags.name as string;
+              if (flags.token) body.credentialsEnc = flags.token as string;
+              if (flags.authMode) body.authMode = flags.authMode as string;
+              const result = await apiCall(flags, () =>
+                api.api.v1.factory.build["git-host-provider"][args.id].put(body),
+              );
+              actionResult(flags, result, styleSuccess(`Git host provider ${args.id} updated.`));
+            }),
         ),
     )
 
@@ -198,6 +236,76 @@ export function gitCommand(app: DxBase) {
                 undefined,
                 { emptyMessage: "No repos found." },
               );
+            }),
+        )
+
+        .command("create", (c) =>
+          c
+            .meta({ description: "Create a repo" })
+            .flags({
+              name: {
+                type: "string",
+                description: "Repo name",
+              },
+              kind: {
+                type: "string",
+                description:
+                  "Repo kind (product-module, platform-module, library, vendor-module, infra, docs, client-project, tool)",
+              },
+              gitUrl: {
+                type: "string",
+                required: true,
+                description: "Git URL",
+              },
+              branch: {
+                type: "string",
+                description: "Default branch (default: main)",
+              },
+              team: {
+                type: "string",
+                description: "Team ID",
+              },
+            })
+            .run(async ({ flags }) => {
+              const f = toDxFlags(flags);
+
+              const repoKinds = [
+                "product-module",
+                "platform-module",
+                "library",
+                "vendor-module",
+                "infra",
+                "docs",
+                "client-project",
+                "tool",
+              ] as const;
+
+              let name = flags.name as string | undefined;
+              if (!name) {
+                const { input } = await import("@inquirer/prompts");
+                name = await input({ message: "Repo name:" });
+              }
+
+              let kind = flags.kind as string | undefined;
+              if (!kind) {
+                const { select } = await import("@inquirer/prompts");
+                kind = await select({
+                  message: "Repo kind:",
+                  choices: repoKinds.map((k) => ({ name: k, value: k })),
+                });
+              }
+
+              const api = await getApi();
+              const result = await apiCall(flags, () =>
+                api.api.v1.factory.build.repos.post({
+                  name,
+                  kind,
+                  gitUrl: flags.gitUrl as string,
+                  defaultBranch: (flags.branch as string) ?? "main",
+                  teamId: flags.team as string ?? "",
+                }),
+              );
+              actionResult(flags, result, styleSuccess(`Repo "${name}" created.`));
             }),
         ),
     )

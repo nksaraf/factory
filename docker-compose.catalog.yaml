@@ -1,0 +1,182 @@
+# docker-compose.catalog.yaml
+#
+# Catalog-enriched version of docker-compose.yaml.
+# Uses catalog.* labels to declare APIs, ownership, documentation,
+# named ports, and component types for the Software Catalog.
+#
+# This file is equivalent to our dx.yaml and catalog-info.yaml —
+# all three formats parse into the same CatalogSystem.
+
+services:
+  # ─── Components (things we build) ────────────────────────────
+
+  infra-factory:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+    platform: linux/amd64
+    build:
+      context: ./
+      dockerfile: ./api/Dockerfile
+      args:
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
+    restart: unless-stopped
+    ports:
+      - "${INFRA_FACTORY_PORT:-8181}:3000"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+      infra-auth:
+        condition: service_healthy
+    volumes:
+      - ./infra/factory/application.yml:/app/config/application.yml:ro
+    environment:
+      FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/factory/openapi').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.description: "Factory API — product, build, fleet, agent management"
+      catalog.owner: platform
+      catalog.tags: "api,rest,elysia"
+      catalog.lifecycle: production
+      catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      catalog.api.provides: "factory-api"
+      catalog.api.type: openapi
+      catalog.api.consumes: "auth-api"
+      catalog.docs.api: "/api/v1/factory/openapi"
+      catalog.docs.url: "https://docs.internal/factory"
+
+  # ─── Resources (infrastructure) ──────────────────────────────
+
+  infra-postgres:
+    image: postgres:16-alpine
+    ports:
+      - "${INFRA_POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    labels:
+      catalog.description: "Shared PostgreSQL database"
+      catalog.owner: platform
+      catalog.type: database
+      catalog.port.5432.name: postgres
+      catalog.port.5432.protocol: tcp
+
+  infra-auth:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "${INFRA_AUTH_PORT:-8180}:3000"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    volumes:
+      - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
+    environment:
+      AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/auth/reference').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.kind: Resource
+      catalog.description: "Better Auth — authentication, OAuth, organizations, API keys"
+      catalog.owner: platform
+      catalog.type: auth-provider
+      catalog.tags: "auth,oauth,jwt"
+      catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      catalog.api.provides: "auth-api"
+      catalog.docs.url: "https://www.better-auth.com/docs"
+      catalog.docs.api: "/api/v1/auth/reference"
+
+  infra-gateway:
+    image: apache/apisix:3.11.0-debian
+    ports:
+      - "${INFRA_GATEWAY_PORT:-8005}:8005"
+    environment:
+      CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY}
+    volumes:
+      - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8005/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      catalog.description: "APISIX API Gateway — auth, CORS, OTEL, routing"
+      catalog.owner: platform
+      catalog.type: gateway
+      catalog.tags: "gateway,apisix,routing"
+      catalog.port.8005.name: http
+      catalog.port.8005.protocol: http
+
+  infra-reverse-proxy:
+    image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}
+    restart: unless-stopped
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic/dynamic.yml
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --api.dashboard=${TRAEFIK_DASHBOARD_ENABLED:-false}
+      - --api.insecure=false
+      - --ping=true
+      - --ping.entrypoint=web
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=${TRAEFIK_ACCESSLOG_ENABLED:-true}
+      - --tracing=true
+      - --tracing.otlp=true
+      - --tracing.otlp.http=true
+      - --tracing.otlp.http.endpoint=http://infra-clickstack-otel:4318/v1/traces
+      - --tracing.otlp.http.headers.authorization=${CLICKSTACK_API_KEY}
+      - --tracing.serviceName=infra-reverse-proxy
+    ports:
+      - "${INFRA_REVERSE_PROXY_PORT:-3001}:80"
+    volumes:
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+    labels:
+      catalog.description: "Traefik reverse proxy — routes frontend to API gateway"
+      catalog.owner: platform
+      catalog.type: gateway
+      catalog.tags: "traefik,proxy,routing"
+      catalog.port.80.name: http
+      catalog.port.80.protocol: http
+
+  infra-api-docs:
+    image: nginx:alpine
+    volumes:
+      - ./infra/nginx/api-docs.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped
+    depends_on:
+      infra-gateway:
+        condition: service_started
+      infra-reverse-proxy:
+        condition: service_started
+    labels:
+      catalog.kind: Resource
+      catalog.description: "API documentation — Scalar UI served via nginx"
+      catalog.owner: platform
+      catalog.type: other
+      catalog.tags: "docs,nginx,scalar"
+
+volumes:
+  postgres-data:

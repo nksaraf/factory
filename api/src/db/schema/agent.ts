@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { newId } from "../../lib/id";
+import { orgPrincipal } from "./org";
 
 export const factoryAgent = pgSchema("factory_agent");
 
@@ -14,6 +15,10 @@ export const agent = factoryAgent.table(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     agentType: text("agent_type").notNull(),
+    principalId: text("principal_id").references(
+      () => orgPrincipal.principalId,
+      { onDelete: "set null" }
+    ),
     status: text("status").notNull().default("active"),
     capabilities: jsonb("capabilities").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true })

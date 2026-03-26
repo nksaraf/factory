@@ -60,6 +60,31 @@ export const BuildModel = {
     limit: t.Optional(t.Number()),
     offset: t.Optional(t.Number()),
   }),
+  repoSlugParams: t.Object({ id: t.String(), repoSlug: t.String() }),
+  prParams: t.Object({
+    id: t.String(),
+    repoSlug: t.String(),
+    prNumber: t.Numeric(),
+  }),
+  listPullRequestsQuery: t.Object({
+    state: t.Optional(t.String()),
+  }),
+  createPullRequestBody: t.Object({
+    title: t.String(),
+    body: t.Optional(t.String()),
+    head: t.String(),
+    base: t.String(),
+    draft: t.Optional(t.Boolean()),
+  }),
+  mergePullRequestBody: t.Object({
+    method: t.Optional(
+      t.Union([
+        t.Literal("merge"),
+        t.Literal("squash"),
+        t.Literal("rebase"),
+      ]),
+    ),
+  }),
 } as const;
 
 export type BuildModels = {
