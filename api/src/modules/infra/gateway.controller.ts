@@ -107,7 +107,7 @@ export function gatewayController(db: Database) {
     })
     .onStart(async () => {
       const { startGateway } = await import("./gateway-proxy");
-      const { getTunnelSocket } = await import("./tunnel-broker");
-      startGateway({ db, port: 9090, getTunnelSocket });
+      const { getTunnelStreamManager } = await import("./tunnel-broker");
+      startGateway({ db, port: 9090, getTunnelStreamManager });
     })
 }

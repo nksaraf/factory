@@ -1,6 +1,7 @@
 import { LRUCache } from "lru-cache";
 import type { Database } from "../../db/connection";
 import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service";
+import type { StreamManager } from "./tunnel-streams";
 
 export type RouteFamily = "tunnel" | "preview" | "sandbox";
 
@@ -76,7 +77,7 @@ export class RouteCache {
 export interface GatewayServerOptions {
   cache: RouteCache;
   port?: number;
-  getTunnelSocket?: (subdomain: string) => WebSocket | undefined;
+  getTunnelStreamManager?: (subdomain: string) => StreamManager | undefined;
 }
 
 export function createGatewayServer(opts: GatewayServerOptions) {
@@ -105,9 +106,40 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         return new Response("Not Found", { status: 404 });
       }
 
-      // For tunnels, delegate to tunnel relay (Phase 3)
+      // Forward tunnel requests through WebSocket
       if (parsed.family === "tunnel") {
-        return new Response("Tunnel relay not yet implemented", { status: 501 });
+        const sm = opts.getTunnelStreamManager?.(parsed.slug);
+        if (!sm) {
+          return new Response("Tunnel Not Connected", { status: 502 });
+        }
+
+        try {
+          // Build HTTP_REQ payload from incoming request
+          const headerObj: Record<string, string> = {};
+          req.headers.forEach((val, key) => {
+            headerObj[key] = val;
+          });
+
+          const reqBody = req.body
+            ? new Uint8Array(await new Response(req.body).arrayBuffer())
+            : undefined;
+
+          const tunnelRes = await sm.sendHttpRequest(
+            {
+              method: req.method,
+              url: new URL(req.url).pathname + new URL(req.url).search,
+              headers: headerObj,
+            },
+            { body: reqBody, timeoutMs: 30_000 }
+          );
+
+          return new Response(tunnelRes.body, {
+            status: tunnelRes.status,
+            headers: tunnelRes.headers,
+          });
+        } catch {
+          return new Response("Gateway Timeout", { status: 504 });
+        }
       }
 
       // Reverse proxy for preview/sandbox
@@ -205,7 +237,11 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function startGateway(opts: { db: Database; port?: number; getTunnelSocket?: (subdomain: string) => WebSocket | undefined }) {
+export function startGateway(opts: {
+  db: Database;
+  port?: number;
+  getTunnelStreamManager?: (subdomain: string) => StreamManager | undefined;
+}) {
   const cache = new RouteCache({
     lookup: (domain) => lookupRouteByDomain(opts.db, domain),
     maxSize: 10_000,
@@ -218,7 +254,7 @@ export function startGateway(opts: { db: Database; port?: number; getTunnelSocke
   const gw = createGatewayServer({
     cache,
     port: opts.port ?? 9090,
-    getTunnelSocket: opts.getTunnelSocket,
+    getTunnelStreamManager: opts.getTunnelStreamManager,
   });
 
   return { ...gw, cache };
