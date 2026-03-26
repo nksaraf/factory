@@ -9,6 +9,7 @@ import { gitStatusSummary } from "./detect.js";
 import { removeGitignoreEntry } from "./gitignore.js";
 import { unintegrateNpm, unintegrateJava } from "./integrate.js";
 import { removeWorktree } from "./shared-repo.js";
+import { capture } from "../../lib/subprocess.js";
 
 export interface UnlinkOptions {
   package: string;
@@ -40,10 +41,47 @@ export async function pkgUnlink(
   }
 
   // For contributed packages, keep local files (they're real source)
+  // and clean up the staging repo if the PR has been merged.
   if (entry.mode === "contribute") {
     console.log(
-      `Keeping local files at ${entry.local_path} (contributed package)`
+      `Keeping local files at ${entry.local_path} (contributed package)\n` +
+        `  To delete local files: dx pkg remove ${opts.package}`
     );
+
+    // Clean up the staging repo clone
+    const repoDir = entry.repo_path ? join(root, entry.repo_path) : undefined;
+    if (repoDir && existsSync(repoDir)) {
+      // Check if the contribute PR has been merged
+      let prMerged = false;
+      const ghCheck = await capture(["which", "gh"]);
+      if (ghCheck.exitCode === 0) {
+        const prState = await capture(
+          [
+            "gh", "pr", "view", entry.checkout_branch,
+            "--json", "state", "-q", ".state",
+          ],
+          { cwd: repoDir }
+        );
+        if (prState.exitCode === 0) {
+          prMerged = prState.stdout.trim() === "MERGED";
+        }
+      }
+
+      if (prMerged) {
+        rmSync(repoDir, { recursive: true });
+        console.log(`Removed staging repo ${entry.repo_path} (PR merged)`);
+      } else if (opts.force) {
+        rmSync(repoDir, { recursive: true });
+        console.warn(
+          `Removed staging repo ${entry.repo_path} (PR not merged, forced)`
+        );
+      } else {
+        throw new Error(
+          `PR for '${opts.package}' has not been merged yet.\n` +
+            "Use 'dx pkg unlink --force' to remove anyway"
+        );
+      }
+    }
   } else if (entry.is_worktree && entry.shared_repo) {
     // Worktree-based: remove symlink (if monorepo) then remove worktree
     let isSymlink = false;

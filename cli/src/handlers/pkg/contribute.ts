@@ -26,6 +26,7 @@ import {
   shortSource,
 } from "./detect.js";
 import { buildCopyFilter } from "./copy-filter.js";
+import { generateBranchSlug } from "@smp/factory-shared/slug";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -215,7 +216,7 @@ export async function pkgContribute(
         : opts.ref ?? "main";
 
     // Create contribute branch
-    const checkoutBranch = opts.branch ?? `dx/${name}-contribute`;
+    const checkoutBranch = opts.branch ?? `dx/${name}-contribute-${generateBranchSlug()}`;
     await exec(["git", "checkout", "-b", checkoutBranch], { cwd: repoDest });
 
     // Copy files into staging clone

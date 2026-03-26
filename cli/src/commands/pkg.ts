@@ -93,6 +93,40 @@ export function pkgCommand(app: DxBase) {
         })
     )
 
+    // ── remove ──
+    .command("remove", (c) =>
+      c
+        .meta({ description: "Permanently delete a package from the workspace" })
+        .args([
+          {
+            name: "package",
+            type: "string",
+            required: true,
+            description: "Package to remove",
+          },
+        ])
+        .flags({
+          yes: {
+            type: "boolean",
+            short: "y",
+            description: "Skip confirmation prompt",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgRemove } = await import("../handlers/pkg/remove.js");
+            await pkgRemove(root(), {
+              package: args.package as string,
+              yes: flags.yes as boolean | undefined,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
     // ── list ──
     .command("list", (c) =>
       c.meta({ description: "Show linked and contributed packages" }).run(
