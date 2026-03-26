@@ -30,12 +30,12 @@ describe("handleBinaryFrame", () => {
   it("forwards HTTP_REQ to localhost and sends back HTTP_RES + DATA", async () => {
     // Mock global fetch to simulate localhost response
     const originalFetch = globalThis.fetch;
-    (globalThis as any).fetch = vi.fn().mockResolvedValue(
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response("hello from local", {
         status: 200,
         headers: { "content-type": "text/plain" },
       })
-    );
+    ));
 
     const reqFrame = buildHttpReqFrame(2, {
       method: "GET",
@@ -70,7 +70,7 @@ describe("handleBinaryFrame", () => {
 
   it("sends RST_STREAM when localhost is unreachable", async () => {
     const originalFetch = globalThis.fetch;
-    (globalThis as any).fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
 
     const reqFrame = buildHttpReqFrame(4, {
       method: "GET",

@@ -325,17 +325,17 @@ export function gitCommand(app: DxBase) {
           const f = toDxFlags(flags);
           try {
             const api = await getApi();
-            let slug = (args as Record<string, unknown>).slug as string | undefined;
+            let slug = args.slug as string | undefined;
             let gitUrl: string;
             if (!slug) {
               const listRes = await api.api.v1.factory.build.repos.get();
-              const repos = listRes.data?.data;
+              const repos = listRes.data?.data as Array<{ name: string; kind?: string; gitUrl?: string }> | undefined;
               if (!repos || repos.length === 0) {
                 exitWithError(f, "No repos found");
                 return;
               }
               const { search } = await import("@inquirer/prompts");
-              const choices = repos.map((r: any) => ({
+              const choices = repos.map((r) => ({
                 name: `${r.name} (${r.kind ?? "repo"})`,
                 value: r.gitUrl ?? "",
                 description: r.gitUrl ?? undefined,
@@ -346,7 +346,7 @@ export function gitCommand(app: DxBase) {
                   if (!input) return choices;
                   const term = input.toLowerCase();
                   return choices.filter(
-                    (c: any) =>
+                    (c) =>
                       c.name.toLowerCase().includes(term) ||
                       (c.description?.toLowerCase().includes(term) ?? false),
                   );

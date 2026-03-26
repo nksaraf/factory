@@ -25,11 +25,15 @@ export async function resolveRepoContext(cwd: string): Promise<RepoContext> {
   }
 
   const normalized = normalizeGitUrl(remoteUrl);
-  const match = repos.find((r: any) => normalizeGitUrl(r.gitUrl ?? "") === normalized);
+  const match = repos.find((r) => normalizeGitUrl(r.gitUrl ?? "") === normalized);
   if (!match) throw new Error(`Repo with remote URL "${remoteUrl}" not found in factory`);
 
+  if (!match.gitHostProviderId) {
+    throw new Error(`Repo "${match.name}" has no git host provider configured`);
+  }
+
   return {
-    providerId: match.gitHostProviderId ?? "",
+    providerId: match.gitHostProviderId,
     repoSlug: match.slug ?? match.name,
     repoName: match.name,
     defaultBranch: match.defaultBranch ?? "main",
