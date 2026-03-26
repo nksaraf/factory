@@ -1,5 +1,16 @@
 import { readConfig, resolveFactoryUrl } from "../config.js";
 import { getStoredBearerToken } from "../session-token.js";
+import {
+  decodeFrame,
+  encodeFrame,
+  buildHttpResFrame,
+  buildDataFrame,
+  buildPongFrame,
+  buildRstStreamFrame,
+  parseJsonPayload,
+  FrameType,
+  type HttpRequestPayload,
+} from "@smp/factory-shared/tunnel-protocol";
 
 export interface TunnelClientOptions {
   port: number;
@@ -18,9 +29,11 @@ export interface TunnelInfo {
  *
  * Protocol:
  *  1. Connect to ws(s)://<api>/api/v1/factory/infra/gateway/tunnels/ws
- *  2. Send { type: "register", localAddr, subdomain?, principalId }
- *  3. Receive { type: "registered", tunnelId, subdomain, url }
- *  4. Keep alive until close
+ *  2. Send JSON: { type: "register", localAddr, subdomain?, principalId }
+ *  3. Receive JSON: { type: "registered", tunnelId, subdomain, url }
+ *  4. After registration, handle binary frames:
+ *     - HTTP_REQ → forward to localhost:port → send HTTP_RES + DATA back
+ *     - PING → respond with PONG
  */
 export async function openTunnel(
   opts: TunnelClientOptions,
@@ -35,6 +48,7 @@ export async function openTunnel(
   const wsUrl = base.replace(/^http/, "ws") + "/api/v1/factory/infra/gateway/tunnels/ws";
 
   const ws = new WebSocket(wsUrl);
+  ws.binaryType = "arraybuffer";
   let registered = false;
 
   ws.addEventListener("open", async () => {
@@ -50,6 +64,13 @@ export async function openTunnel(
   });
 
   ws.addEventListener("message", (event) => {
+    // After registration, handle binary frames
+    if (registered && event.data instanceof ArrayBuffer) {
+      handleBinaryFrame(new Uint8Array(event.data), ws, opts.port);
+      return;
+    }
+
+    // Pre-registration: JSON text messages
     try {
       const msg = JSON.parse(typeof event.data === "string" ? event.data : "");
       if (msg.type === "registered" && !registered) {
@@ -71,7 +92,7 @@ export async function openTunnel(
     callbacks.onClose();
   });
 
-  ws.addEventListener("error", (event) => {
+  ws.addEventListener("error", () => {
     callbacks.onError(new Error("WebSocket error"));
   });
 
@@ -80,4 +101,87 @@ export async function openTunnel(
       ws.close();
     },
   };
+}
+
+/**
+ * Handle an incoming binary frame from the broker.
+ */
+export function handleBinaryFrame(
+  data: Uint8Array,
+  ws: WebSocket,
+  localPort: number
+): void {
+  let frame;
+  try {
+    frame = decodeFrame(data);
+  } catch {
+    return; // malformed frame
+  }
+
+  switch (frame.type) {
+    case FrameType.PING: {
+      ws.send(encodeFrame(buildPongFrame()));
+      break;
+    }
+
+    case FrameType.HTTP_REQ: {
+      // Forward HTTP request to localhost
+      forwardToLocal(frame.streamId, frame, ws, localPort);
+      break;
+    }
+  }
+}
+
+/**
+ * Forward an HTTP_REQ frame to localhost and stream the response back.
+ */
+async function forwardToLocal(
+  streamId: number,
+  frame: { payload: Uint8Array },
+  ws: WebSocket,
+  localPort: number
+): Promise<void> {
+  let req: HttpRequestPayload;
+  try {
+    req = parseJsonPayload<HttpRequestPayload>(frame as any);
+  } catch {
+    ws.send(encodeFrame(buildRstStreamFrame(streamId)));
+    return;
+  }
+
+  try {
+    const url = `http://localhost:${localPort}${req.url}`;
+    const localRes = await fetch(url, {
+      method: req.method,
+      headers: req.headers,
+      redirect: "manual",
+    });
+
+    // Send HTTP_RES frame with status + headers
+    const resHeaders: Record<string, string> = {};
+    localRes.headers.forEach((val, key) => {
+      resHeaders[key] = val;
+    });
+    ws.send(
+      encodeFrame(
+        buildHttpResFrame(streamId, {
+          status: localRes.status,
+          headers: resHeaders,
+        })
+      )
+    );
+
+    // Send body as DATA frame(s) with FIN
+    if (localRes.body) {
+      const body = new Uint8Array(await localRes.arrayBuffer());
+      ws.send(encodeFrame(buildDataFrame(streamId, body, true)));
+    } else {
+      ws.send(
+        encodeFrame(buildDataFrame(streamId, new Uint8Array(0), true))
+      );
+    }
+  } catch {
+    // Local server unreachable
+    ws.send(encodeFrame(buildRstStreamFrame(streamId)));
+  }
 }
