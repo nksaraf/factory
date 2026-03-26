@@ -60,3 +60,59 @@ export interface HttpResponsePayload {
   status: number;
   headers: Record<string, string>;
 }
+
+/**
+ * Encode a Frame into a binary buffer (header + payload).
+ */
+export function encodeFrame(frame: Frame): Uint8Array {
+  if (frame.payload.byteLength > MAX_PAYLOAD_SIZE) {
+    throw new Error(
+      `Payload size ${frame.payload.byteLength} exceeds max ${MAX_PAYLOAD_SIZE}`
+    );
+  }
+
+  const buf = new Uint8Array(HEADER_SIZE + frame.payload.byteLength);
+  const view = new DataView(buf.buffer);
+
+  buf[0] = frame.version;
+  buf[1] = frame.type;
+  view.setUint32(2, frame.streamId, false); // big-endian
+  buf[6] = frame.flags;
+  view.setUint32(7, frame.payload.byteLength, false); // big-endian
+
+  buf.set(frame.payload, HEADER_SIZE);
+  return buf;
+}
+
+/**
+ * Decode a binary buffer into a Frame.
+ */
+export function decodeFrame(buf: Uint8Array): Frame {
+  if (buf.byteLength < HEADER_SIZE) {
+    throw new Error(
+      `Buffer too short: ${buf.byteLength} bytes, need at least ${HEADER_SIZE}`
+    );
+  }
+
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+
+  const version = buf[0];
+  if (version !== PROTOCOL_VERSION) {
+    throw new Error(`Unknown protocol version: 0x${version.toString(16)}`);
+  }
+
+  const type = buf[1] as FrameType;
+  const streamId = view.getUint32(2, false);
+  const flags = buf[6];
+  const length = view.getUint32(7, false);
+
+  if (buf.byteLength < HEADER_SIZE + length) {
+    throw new Error(
+      `Buffer too short for payload: have ${buf.byteLength - HEADER_SIZE}, need ${length}`
+    );
+  }
+
+  const payload = buf.slice(HEADER_SIZE, HEADER_SIZE + length);
+
+  return { version, type, streamId, flags, payload };
+}
