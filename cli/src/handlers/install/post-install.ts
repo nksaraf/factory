@@ -1,6 +1,6 @@
 import { run, runOrThrow } from "../../lib/subprocess.js";
 import { planesForRole, type InstallManifest, type InstallRole } from "@smp/factory-shared/install-types";
-import { getK3sVersion, K3S_KUBECONFIG } from "./k3s.js";
+import { getK3sVersion, getKubeconfig } from "./k3s.js";
 import { DX_NAMESPACE } from "./helm.js";
 import type { DxConfig } from "../../config.js";
 
@@ -129,14 +129,14 @@ async function writeManifestConfigMap(manifest: InstallManifest, verbose?: boole
 
   const result = run("kubectl", [
     "apply", "-f", "-",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ]);
 
   // kubectl apply reads from stdin — use a different approach
   const { spawnSync } = await import("node:child_process");
   const proc = spawnSync("kubectl", [
     "apply", "-f", "-",
-    "--kubeconfig", K3S_KUBECONFIG,
+    "--kubeconfig", getKubeconfig(),
   ], {
     input: configMapJson,
     encoding: "utf8",

@@ -6,7 +6,7 @@ import type { DxFlags } from "../stub.js"
 export async function runCustomerList(flags: DxFlags): Promise<void> {
   try {
     const api = await getFactoryClient()
-    const res = await api.api.v1.commerce.customers.get()
+    const res = await api.api.v1.factory.commerce.customers.get()
     if (flags.json) {
       console.log(JSON.stringify(res.data, null, 2))
       return
@@ -32,7 +32,7 @@ export async function runCustomerShow(
 ): Promise<void> {
   try {
     const api = await getFactoryClient()
-    const res = await api.api.v1.commerce.customers({ id }).get()
+    const res = await api.api.v1.factory.commerce.customers({ id }).get()
     if (flags.json) {
       console.log(JSON.stringify(res.data, null, 2))
       return

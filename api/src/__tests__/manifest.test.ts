@@ -47,7 +47,7 @@ describe("computeManifest", () => {
           { moduleVersionId: "mv_1", moduleName: "core", version: "1.0.0" },
         ],
       },
-    } as const;
+    };
 
     const m1 = computeManifest(input);
     const m2 = computeManifest(input);

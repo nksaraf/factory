@@ -1,6 +1,9 @@
 import { Elysia } from "elysia";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import type { FactoryAuthResourceClient } from "../lib/auth-resource-client";
+import type { Database } from "../db/connection";
+import { IdentityService } from "../modules/identity/identity.service";
+import { logger } from "../logger";
 
 export interface AuthUser {
   id: string;
@@ -47,6 +50,32 @@ export function authPlugin(jwksUrl: string) {
 }
 
 /**
+ * Auto-provisioning plugin: resolves or creates an orgPrincipal for
+ * every authenticated request, attaching principalId to context.
+ */
+export function principalPlugin(db: Database) {
+  const identityService = new IdentityService(db);
+
+  return new Elysia({ name: "principal-plugin" }).derive(
+    async (ctx): Promise<{ principalId: string }> => {
+      const user = (ctx as unknown as { user: AuthUser }).user;
+      if (!user?.id) return { principalId: "" };
+
+      try {
+        const principal = await identityService.resolveOrCreatePrincipal({
+          authUserId: user.id,
+          email: user.email,
+        });
+        return { principalId: principal.principalId };
+      } catch (err) {
+        logger.error({ err, authUserId: user.id }, "principal auto-provision failed");
+        return { principalId: "" };
+      }
+    }
+  );
+}
+
+/**
  * Permission enforcement middleware.
  *
  * Checks if the authenticated user has a specific permission on a resource
@@ -59,17 +88,11 @@ export function requirePermission(
   permission: string,
 ) {
   return new Elysia({ name: `require-${permission}` }).derive(
-    async ({
-      params,
-      principal,
-      set,
-    }: {
-      params: { resourceId?: string };
-      principal: string;
-      set: { status: number };
-    }) => {
+    async (context) => {
       if (!authClient) return {};
 
+      const params = context.params as Record<string, string | undefined>;
+      const principal = (context as unknown as { principal: string }).principal;
       const resourceId = params.resourceId;
       if (!resourceId) return {};
 
@@ -80,7 +103,7 @@ export function requirePermission(
       });
 
       if (!allowed) {
-        set.status = 403;
+        context.set.status = 403;
         throw new Error("Forbidden");
       }
 

@@ -1,0 +1,96 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    ports:
+      - "3000:3000"
+      - "9090:9090"
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379
+      AUTH_URL: http://auth:8080/api/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    labels:
+      catalog.description: "Main API service"
+      catalog.owner: backend
+      catalog.tags: "api,rest"
+      catalog.api.provides: "orders-api,webhooks-api"
+      catalog.api.consumes: "auth-api"
+      catalog.docs.api: "/api/docs"
+      catalog.docs.runbook: "https://wiki.internal/runbooks/api"
+      catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      catalog.port.9090.name: metrics
+      catalog.port.9090.protocol: http
+
+  worker:
+    build:
+      context: ./worker
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/app
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    labels:
+      catalog.type: worker
+      catalog.description: "Background job processor"
+
+  auth:
+    image: myorg/auth-service:latest
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://auth:auth@postgres:5432/auth
+    labels:
+      catalog.api.provides: "auth-api"
+      catalog.docs.url: "https://docs.internal/auth"
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    labels:
+      catalog.port.5672.name: amqp
+      catalog.port.5672.protocol: tcp
+      catalog.port.15672.name: management-ui
+      catalog.port.15672.protocol: http
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  pgdata:

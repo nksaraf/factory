@@ -1,3 +1,4 @@
+import type { TraceSummary, TraceSpan } from "@smp/factory-shared/observability-types"
 import type { DxBase } from "../dx-root.js"
 import { getFactoryClient } from "../client.js"
 import {
@@ -5,6 +6,7 @@ import {
   formatTraceSummaryTable,
 } from "../lib/log-formatter.js"
 import { toDxFlags } from "./dx-flags.js"
+import { apiCall, styleMuted } from "./list-helpers.js"
 
 export function traceCommand(app: DxBase) {
   return app
@@ -28,33 +30,29 @@ export function traceCommand(app: DxBase) {
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const query: Record<string, string | undefined> = {
-              site: flags.site as string | undefined,
-              module: flags.module as string | undefined,
-              tenant: flags.tenant as string | undefined,
-              minDuration: flags["min-duration"] as string | undefined,
-              status: flags.status as string | undefined,
-              since: flags.since as string | undefined,
-              until: flags.until as string | undefined,
-              limit: flags.limit ? String(flags.limit) : undefined,
-            }
-            for (const k of Object.keys(query)) {
-              if (query[k] === undefined) delete query[k]
-            }
+          const client = await getFactoryClient()
+          const query: Record<string, string | undefined> = {
+            site: flags.site as string | undefined,
+            module: flags.module as string | undefined,
+            tenant: flags.tenant as string | undefined,
+            minDuration: flags["min-duration"] as string | undefined,
+            status: flags.status as string | undefined,
+            since: flags.since as string | undefined,
+            until: flags.until as string | undefined,
+            limit: flags.limit ? String(flags.limit) : undefined,
+          }
+          for (const k of Object.keys(query)) {
+            if (query[k] === undefined) delete query[k]
+          }
 
-            const res = await (client as any).api.v1.observability.traces.get({ query })
-            const traces = res.data ?? res
+          const traces = await apiCall(flags, () =>
+            client.api.v1.factory.observability.traces.get({ query })
+          ) as TraceSummary[] | undefined
 
-            if (f.json) {
-              console.log(JSON.stringify(traces, null, 2))
-            } else {
-              console.log(formatTraceSummaryTable(traces))
-            }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: traces }, null, 2))
+          } else {
+            console.log(formatTraceSummaryTable(traces ?? []))
           }
         })
     )
@@ -77,26 +75,22 @@ export function traceCommand(app: DxBase) {
         })
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const traceId = args["trace-id"]
-            const res = await (client as any).api.v1.observability.traces[traceId].get()
-            const spans = res.data ?? res
+          const client = await getFactoryClient()
+          const traceId = args["trace-id"]
+          const spans = await apiCall(flags, () =>
+            client.api.v1.factory.observability.traces({ traceId }).get()
+          ) as TraceSpan[] | undefined
 
-            if (f.json) {
-              console.log(JSON.stringify(spans, null, 2))
-            } else if (flags.spans) {
-              for (const span of spans) {
-                console.log(
-                  `${span.spanId}  ${span.operationName.padEnd(30)} ${(span.duration / 1000).toFixed(1)}ms  ${span.status}`
-                )
-              }
-            } else {
-              console.log(renderTraceWaterfall(spans))
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: spans }, null, 2))
+          } else if (flags.spans) {
+            for (const span of spans ?? []) {
+              console.log(
+                `${styleMuted(span.spanId)}  ${span.operationName.padEnd(30)} ${(span.duration / 1000).toFixed(1)}ms  ${span.status}`
+              )
             }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
+          } else {
+            console.log(renderTraceWaterfall(spans ?? []))
           }
         })
     )
@@ -110,28 +104,24 @@ export function traceCommand(app: DxBase) {
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const query: Record<string, string | undefined> = {
-              requestId: flags["request-id"] as string | undefined,
-              deployment: flags.deployment as string | undefined,
-              error: flags.error as string | undefined,
-            }
-            for (const k of Object.keys(query)) {
-              if (query[k] === undefined) delete query[k]
-            }
+          const client = await getFactoryClient()
+          const query: Record<string, string | undefined> = {
+            requestId: flags["request-id"] as string | undefined,
+            deployment: flags.deployment as string | undefined,
+            error: flags.error as string | undefined,
+          }
+          for (const k of Object.keys(query)) {
+            if (query[k] === undefined) delete query[k]
+          }
 
-            const res = await (client as any).api.v1.observability.traces.find.get({ query })
-            const traces = res.data ?? res
+          const traces = await apiCall(flags, () =>
+            client.api.v1.factory.observability.traces.find.get({ query })
+          ) as TraceSummary[] | undefined
 
-            if (f.json) {
-              console.log(JSON.stringify(traces, null, 2))
-            } else {
-              console.log(formatTraceSummaryTable(traces))
-            }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: traces }, null, 2))
+          } else {
+            console.log(formatTraceSummaryTable(traces ?? []))
           }
         })
     )

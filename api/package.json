@@ -18,14 +18,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@corsinvest/cv4pve-api-javascript": "^9.1.0",
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/node": "^1.4.5",
     "@elysiajs/openapi": "^1.4.14",
-    "@rio.js/app-config": "0.3.0",
     "@kubernetes/client-node": "^1.0.0",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks-methods": "^6.0.0",
+    "@rio.js/app-config": "0.3.0",
     "@rio.js/vinxi": "^0.0.39",
     "@smp/factory-shared": "workspace:*",
     "cuid": "^3.0.0",

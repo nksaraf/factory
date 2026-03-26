@@ -1,0 +1,3 @@
+image: orders-worker:dev
+dev:
+  command: python -m uvicorn main:app --reload

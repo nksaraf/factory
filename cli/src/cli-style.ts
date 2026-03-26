@@ -25,3 +25,7 @@ export function styleMuted(text: string): string {
 export function styleInfo(text: string): string {
   return s.cyan(text);
 }
+
+export function styleBold(text: string): string {
+  return s.bold(text);
+}

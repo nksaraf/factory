@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { newId } from "../../lib/id";
+import { orgTeam } from "./org";
 
 export const factoryProduct = pgSchema("factory_product");
 
@@ -23,8 +24,11 @@ export const productModule = factoryProduct.table(
       .$defaultFn(() => newId("mod")),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
-    team: text("team").notNull(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => orgTeam.teamId),
     product: text("product"),
+    description: text("description"),
     lifecycleState: text("lifecycle_state").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -52,6 +56,10 @@ export const componentSpec = factoryProduct.table(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     kind: text("kind").notNull(),
+    entityKind: text("entity_kind").notNull().default("Component"),
+    specType: text("spec_type"),
+    lifecycle: text("lifecycle").default("production"),
+    description: text("description"),
     ports: jsonb("ports").notNull().default([]),
     healthcheck: jsonb("healthcheck"),
     isPublic: boolean("is_public").notNull().default(false),
@@ -70,6 +78,14 @@ export const componentSpec = factoryProduct.table(
     check(
       "component_spec_kind_valid",
       sql`${t.kind} IN ('server', 'worker', 'task', 'scheduled', 'site', 'database', 'gateway')`
+    ),
+    check(
+      "component_spec_entity_kind_valid",
+      sql`${t.entityKind} IN ('Component', 'Resource')`
+    ),
+    check(
+      "component_spec_lifecycle_valid",
+      sql`${t.lifecycle} IN ('experimental', 'development', 'production', 'deprecated')`
     ),
   ]
 );

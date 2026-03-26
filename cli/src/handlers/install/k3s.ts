@@ -2,8 +2,20 @@ import { existsSync, copyFileSync, chmodSync } from "node:fs";
 import { run, runOrThrow, runInherit } from "../../lib/subprocess.js";
 
 const K3S_BIN = "/usr/local/bin/k3s";
-const K3S_KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";
+const DEFAULT_KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";
 const NODE_TOKEN_PATH = "/var/lib/rancher/k3s/server/node-token";
+
+let _kubeconfigPath = DEFAULT_KUBECONFIG;
+
+/** Get the active kubeconfig path. */
+export function getKubeconfig(): string {
+  return _kubeconfigPath;
+}
+
+/** Override the kubeconfig path (e.g. for a remote cluster). */
+export function setKubeconfig(path: string): void {
+  _kubeconfigPath = path;
+}
 
 export interface K3sBootstrapOptions {
   /** Path to offline bundle directory (contains k3s binary). */
@@ -84,7 +96,7 @@ async function waitForK3sReady(verbose?: boolean, timeoutMs = 120_000): Promise<
   let delay = 1000;
 
   while (Date.now() - start < timeoutMs) {
-    const result = run("kubectl", ["get", "nodes", "--kubeconfig", K3S_KUBECONFIG]);
+    const result = run("kubectl", ["get", "nodes", "--kubeconfig", getKubeconfig()]);
     if (result.status === 0 && result.stdout.includes("Ready")) {
       console.log("k3s API server is ready.");
       return;
@@ -107,4 +119,4 @@ export function getK3sVersion(): string {
   return match ? match[0] : result.stdout.trim().split(" ")[2] ?? "unknown";
 }
 
-export { K3S_KUBECONFIG };
+export { DEFAULT_KUBECONFIG as K3S_KUBECONFIG };

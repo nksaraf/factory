@@ -70,13 +70,14 @@ export interface GitHostAdapterConfig {
   appId?: string;
   privateKey?: string;
   installationId?: string;
+  org?: string;
 }
 
 export function createGitHostAdapter(
   type: string,
   _config: GitHostAdapterConfig = {},
 ): GitHostAdapter {
-  if (type === "github") return new GitHubAdapter(config);
+  if (type === "github") return new GitHubAdapter(_config);
   if (type === "noop") return new NoopGitHostAdapter();
   throw new Error(
     `No git host adapter for type: ${type}. Supported: github, noop`,

@@ -43,3 +43,10 @@ dist-ssr
 index.html
 app.config.time*
 /rough-notes
+
+api/db/seeds/
+
+deps
+
+
+packages/npm/auth-service/  # dx-pkg-managed

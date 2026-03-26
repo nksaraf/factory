@@ -40,7 +40,7 @@ export function categorizeDeps(
   dxConfig: DxYaml,
   connectionOverrides: Record<string, NormalizedProfileEntry>
 ): { local: string[]; remote: string[] } {
-  const allDeps = Object.keys(dxConfig.dependencies);
+  const allDeps = Object.keys(dxConfig.resources);
   const allConns = Object.keys(dxConfig.connections);
   const overrideKeys = new Set(Object.keys(connectionOverrides));
 
@@ -84,8 +84,8 @@ function buildLayer1Defaults(dxConfig: DxYaml): Record<string, ResolvedEnvEntry>
   }
 
   // Auto-generate DATABASE_URL from postgres dependency
-  if (dxConfig.dependencies.postgres) {
-    const p = dxConfig.dependencies.postgres;
+  if (dxConfig.resources.postgres) {
+    const p = dxConfig.resources.postgres;
     const db = p.env.POSTGRES_DB ?? "postgres";
     const user = p.env.POSTGRES_USER ?? "postgres";
     const pass = p.env.POSTGRES_PASSWORD ?? "postgres";
@@ -93,19 +93,19 @@ function buildLayer1Defaults(dxConfig: DxYaml): Record<string, ResolvedEnvEntry>
       env.DATABASE_URL = {
         value: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${p.port}/${encodeURIComponent(db)}`,
         source: "default",
-        sourceDetail: "dependencies.postgres (auto-generated)",
+        sourceDetail: "resources.postgres (auto-generated)",
       };
     }
   }
 
   // Auto-generate REDIS_URL from redis dependency
-  if (dxConfig.dependencies.redis) {
-    const r = dxConfig.dependencies.redis;
+  if (dxConfig.resources.redis) {
+    const r = dxConfig.resources.redis;
     if (!env.REDIS_URL) {
       env.REDIS_URL = {
         value: `redis://localhost:${r.port}`,
         source: "default",
-        sourceDetail: "dependencies.redis (auto-generated)",
+        sourceDetail: "resources.redis (auto-generated)",
       };
     }
   }
@@ -143,7 +143,7 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
   const { local, remote } = categorizeDeps(dxConfig, connectionOverrides);
 
   for (const [name, override] of Object.entries(connectionOverrides)) {
-    const dep = dxConfig.dependencies[name];
+    const dep = dxConfig.resources[name];
     const conn = dxConfig.connections[name];
 
     if (dep) {
@@ -175,7 +175,7 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
       // For non-direct backends, env points at the tunnel's local port
       if (override.backend !== "direct") {
         if (name === "postgres") {
-          const p = dxConfig.dependencies.postgres!;
+          const p = dxConfig.resources.postgres!;
           const db = p.env.POSTGRES_DB ?? "postgres";
           const user = p.env.POSTGRES_USER ?? "postgres";
           const pass = p.env.POSTGRES_PASSWORD ?? "postgres";

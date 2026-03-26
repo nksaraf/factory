@@ -10,7 +10,7 @@ export async function runEntitlementList(
   try {
     const api = await getFactoryClient()
     const query = opts?.customerId ? { customerId: opts.customerId } : {}
-    const res = await api.api.v1.commerce.entitlements.get({ query })
+    const res = await api.api.v1.factory.commerce.entitlements.get({ query })
     if (flags.json) {
       console.log(JSON.stringify(res.data, null, 2))
       return
@@ -45,7 +45,7 @@ export async function runEntitlementGrant(
 ): Promise<void> {
   try {
     const api = await getFactoryClient()
-    const res = await api.api.v1.commerce.entitlements.post({
+    const res = await api.api.v1.factory.commerce.entitlements.post({
       customerId: opts.customerId,
       moduleId: opts.moduleId,
     })
@@ -66,7 +66,7 @@ export async function runEntitlementRevoke(
 ): Promise<void> {
   try {
     const api = await getFactoryClient()
-    await api.api.v1.commerce.entitlements.delete({ query: { id } })
+    await (api.api.v1.factory.commerce.entitlements.delete as (opts: { query: { id: string } }) => Promise<unknown>)({ query: { id } })
     if (flags.json) {
       console.log(JSON.stringify({ success: true, id }, null, 2))
       return

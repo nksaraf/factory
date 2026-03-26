@@ -40,6 +40,29 @@ export interface GitHostCheckRun {
   output?: { title: string; summary: string };
 }
 
+export interface GitHostPullRequest {
+  number: number;
+  title: string;
+  body: string;
+  state: "open" | "closed" | "merged";
+  head: string;
+  base: string;
+  url: string;
+  draft: boolean;
+  createdAt: string;
+  updatedAt: string;
+  author: { login: string };
+  checksStatus?: "pending" | "success" | "failure";
+}
+
+export interface GitHostPullRequestCreate {
+  title: string;
+  body?: string;
+  head: string;
+  base: string;
+  draft?: boolean;
+}
+
 export interface WebhookVerification {
   valid: boolean;
   eventType: string;
@@ -84,4 +107,32 @@ export interface GitHostAdapter {
     checkRunId: string,
     update: Partial<GitHostCheckRun>,
   ): Promise<void>;
+  listPullRequests(
+    repoFullName: string,
+    filters?: { state?: "open" | "closed" | "all" },
+  ): Promise<GitHostPullRequest[]>;
+  getPullRequest(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<GitHostPullRequest | null>;
+  createPullRequest(
+    repoFullName: string,
+    pr: GitHostPullRequestCreate,
+  ): Promise<GitHostPullRequest>;
+  mergePullRequest(
+    repoFullName: string,
+    prNumber: number,
+    method?: "merge" | "squash" | "rebase",
+  ): Promise<void>;
+  getPullRequestChecks(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<
+    Array<{
+      name: string;
+      status: string;
+      conclusion: string | null;
+      url?: string;
+    }>
+  >;
 }

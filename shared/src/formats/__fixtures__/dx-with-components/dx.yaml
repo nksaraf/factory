@@ -1,0 +1,43 @@
+module: orders
+team: commerce
+components:
+  api:
+    path: ./api
+    port: 3000
+    healthcheck: /healthz
+    type: node
+    build:
+      dockerfile: Dockerfile.dev
+      context: "."
+    dev:
+      command: pnpm dev
+      sync:
+        - ./src:/app/src
+    test: pnpm test
+    lint: pnpm lint
+  worker:
+    path: ./worker
+    worker: true
+    type: python
+    image: orders-worker:latest
+resources:
+  postgres:
+    image: postgres:16
+    port: 5432
+    container_port: 5432
+    env:
+      POSTGRES_DB: orders
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+  rabbitmq:
+    image: rabbitmq:3-management
+    port: 5672
+    env:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+connections:
+  inventory:
+    module: inventory
+    component: api
+    env_var: INVENTORY_URL
+    optional: true

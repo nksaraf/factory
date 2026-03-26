@@ -4,34 +4,17 @@ import { getFactoryClient } from "../client.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { printTable } from "../output.js";
 import { toDxFlags } from "./dx-flags.js";
+import {
+  apiCall,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  styleWarn,
+} from "./list-helpers.js";
 
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
-
-async function getGatewayApi(): Promise<any> {
+async function getGatewayApi() {
   return getFactoryClient();
 }
 
@@ -70,17 +53,17 @@ export function domainCommand(app: DxBase) {
 
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.gateway.domains.post({
+            api.api.v1.factory.infra.gateway.domains.post({
               fqdn,
               siteId: flags.site as string | undefined,
               kind: (flags.kind as string) ?? "custom",
             })
-          ) as any;
+          ) as Record<string, unknown> | undefined;
 
           if (f.json) {
-            jsonOut(flags, result);
+            console.log(JSON.stringify({ success: true, data: result }, null, 2));
           } else {
-            console.log(`Domain registered: ${fqdn}`);
+            console.log(styleSuccess(`Domain registered: ${fqdn}`));
             console.log(`\nTo verify ownership, add these DNS records:`);
             console.log(`  CNAME ${fqdn} → ${result?.siteId ?? "factory"}.sites.dx.dev`);
             console.log(`  TXT   _dx-verify.${fqdn} = ${result?.verificationToken}`);
@@ -110,23 +93,23 @@ export function domainCommand(app: DxBase) {
           // First look up the domain by fqdn to get its ID
           const api = await getGatewayApi();
           const listRes = await apiCall(flags, () =>
-            api.api.v1.gateway.domains.get({ query: {} })
-          ) as any;
+            api.api.v1.factory.infra.gateway.domains.get({ query: {} })
+          ) as Record<string, unknown> | undefined;
 
-          const domains = listRes?.data ?? [];
-          const dom = domains.find((d: any) => d.fqdn === fqdn);
+          const domains = (listRes?.data ?? []) as Record<string, unknown>[];
+          const dom = domains.find((d) => d.fqdn === fqdn);
           if (!dom) {
             exitWithError(f, `Domain ${fqdn} not found. Register it first with: dx domain add ${fqdn}`);
           }
 
           const result = await apiCall(flags, () =>
-            api.api.v1.gateway.domains[dom.domainId].verify.post()
-          ) as any;
+            api.api.v1.factory.infra.gateway.domains({ id: dom.domainId as string }).verify.post()
+          ) as Record<string, unknown> | undefined;
 
           if (f.json) {
-            jsonOut(flags, result);
+            console.log(JSON.stringify({ success: true, data: result }, null, 2));
           } else if (result?.verified) {
-            console.log(`Domain ${fqdn} verified successfully!`);
+            console.log(styleSuccess(`Domain ${fqdn} verified successfully!`));
             if (result.route) {
               console.log(`Route created: https://${fqdn}`);
             }
@@ -145,33 +128,35 @@ export function domainCommand(app: DxBase) {
         .meta({ description: "List domains" })
         .flags({
           site: { type: "string", description: "Filter by site" },
+          sort: { type: "string", description: "Sort by: fqdn, kind, status (default: fqdn)" },
+          limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.gateway.domains.get({
+            api.api.v1.factory.infra.gateway.domains.get({
               query: {
                 siteId: flags.site as string | undefined,
               },
             })
-          ) as any;
+          ) as Record<string, unknown> | undefined;
 
-          const domains = result?.data ?? [];
+          const domains = (result?.data ?? []) as Record<string, unknown>[];
           if (f.json) {
-            jsonOut(flags, domains);
+            console.log(JSON.stringify({ success: true, data: domains }, null, 2));
             return;
           }
           if (domains.length === 0) {
             console.log("No domains registered.");
             return;
           }
-          const rows = domains.map((d: any) => [
-            d.fqdn,
-            d.kind,
-            d.siteId ?? "-",
-            d.dnsVerified ? "verified" : "pending",
-            d.status,
+          const rows = domains.map((d) => [
+            styleBold(String(d.fqdn)),
+            String(d.kind ?? ""),
+            d.siteId ? String(d.siteId) : styleMuted("-"),
+            d.dnsVerified ? styleSuccess("verified") : styleWarn("pending"),
+            colorStatus(String(d.status ?? "")),
           ]);
           console.log(
             printTable(["FQDN", "Kind", "Site", "DNS", "Status"], rows)
@@ -200,24 +185,20 @@ export function domainCommand(app: DxBase) {
           const api = await getGatewayApi();
           // Look up domain by fqdn
           const listRes = await apiCall(flags, () =>
-            api.api.v1.gateway.domains.get({ query: {} })
-          ) as any;
+            api.api.v1.factory.infra.gateway.domains.get({ query: {} })
+          ) as Record<string, unknown> | undefined;
 
-          const domains = listRes?.data ?? [];
-          const dom = domains.find((d: any) => d.fqdn === fqdn);
+          const domains = (listRes?.data ?? []) as Record<string, unknown>[];
+          const dom = domains.find((d) => d.fqdn === fqdn);
           if (!dom) {
             exitWithError(f, `Domain ${fqdn} not found.`);
           }
 
           await apiCall(flags, () =>
-            api.api.v1.gateway.domains[dom.domainId].delete()
+            api.api.v1.factory.infra.gateway.domains({ id: dom.domainId as string }).delete()
           );
 
-          if (f.json) {
-            jsonOut(flags, { removed: true, fqdn });
-          } else {
-            console.log(`Domain ${fqdn} removed.`);
-          }
+          actionResult(flags, { removed: true, fqdn }, styleSuccess(`Domain ${fqdn} removed.`));
         })
     );
 }

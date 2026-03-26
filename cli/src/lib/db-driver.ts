@@ -145,7 +145,7 @@ export function detectDbType(
 export function findDbDependencies(
   ctx: ProjectContext
 ): { name: string; dep: DependencyConfig; dbType: string }[] {
-  const deps = ctx.moduleConfig.dependencies;
+  const deps = ctx.moduleConfig.resources;
   const results: { name: string; dep: DependencyConfig; dbType: string }[] = [];
 
   for (const [name, dep] of Object.entries(deps)) {

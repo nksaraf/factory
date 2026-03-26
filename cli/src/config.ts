@@ -28,6 +28,8 @@ export const DX_CONFIG_FIELDS = {
   installMode: { type: "string", default: "connected" },
   /** Last successfully finished cluster install phase (1–6); "0" = none / finished. Used to resume after partial install. */
   installLastCompletedPhase: { type: "string", default: "0" },
+  /** Path to kubeconfig file for the cluster (set during install, used by dx kube and internal commands). */
+  kubeconfig: { type: "string", default: "" },
 } as const;
 
 /** Global DX config store at ~/.config/dx/config.json. */

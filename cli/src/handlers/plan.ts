@@ -6,7 +6,7 @@ import type { DxFlags } from "../stub.js"
 export async function runPlanList(flags: DxFlags): Promise<void> {
   try {
     const api = await getFactoryClient()
-    const res = await api.api.v1.commerce.plans.get()
+    const res = await api.api.v1.factory.commerce.plans.get()
     if (flags.json) {
       console.log(JSON.stringify(res.data, null, 2))
       return

@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { runOrThrow } from "../../lib/subprocess.js";
 import type { InstallRole, BundleManifest } from "@smp/factory-shared/install-types";
-import { K3S_KUBECONFIG } from "./k3s.js";
+import { getKubeconfig } from "./k3s.js";
 
 export interface ImageLoadOptions {
   role: InstallRole;

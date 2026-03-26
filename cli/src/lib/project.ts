@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 
+import type { CatalogSystem } from "@smp/factory-shared/catalog";
 import {
   findDxYaml,
   loadFullConfig,
@@ -10,6 +11,7 @@ import type {
 } from "@smp/factory-shared/config-schemas";
 import { loadConventions } from "@smp/factory-shared/conventions";
 import type { ConventionsConfig } from "@smp/factory-shared/conventions-schema";
+import { dxYamlToCatalogSystem } from "@smp/factory-shared/formats/dx-yaml.adapter";
 
 export class ProjectContext {
   readonly rootDir: string;
@@ -18,18 +20,23 @@ export class ProjectContext {
   readonly componentConfigs: Record<string, DxComponentYaml>;
   readonly conventions: ConventionsConfig;
 
+  /** Backstage-aligned catalog representation of this project. */
+  readonly catalog: CatalogSystem;
+
   private constructor(
     rootDir: string,
     dxYamlPath: string,
     moduleConfig: DxYaml,
     componentConfigs: Record<string, DxComponentYaml>,
-    conventions: ConventionsConfig
+    conventions: ConventionsConfig,
+    catalog: CatalogSystem,
   ) {
     this.rootDir = rootDir;
     this.dxYamlPath = dxYamlPath;
     this.moduleConfig = moduleConfig;
     this.componentConfigs = componentConfigs;
     this.conventions = conventions;
+    this.catalog = catalog;
   }
 
   static fromCwd(cwd = process.cwd()): ProjectContext {
@@ -40,12 +47,14 @@ export class ProjectContext {
     const rootDir = dirname(dxYamlPath);
     const { module, components } = loadFullConfig(rootDir);
     const conventions = loadConventions(rootDir);
+    const catalog = dxYamlToCatalogSystem(rootDir, module, components);
     return new ProjectContext(
       rootDir,
       dxYamlPath,
       module,
       components,
-      conventions
+      conventions,
+      catalog,
     );
   }
 }

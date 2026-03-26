@@ -42,19 +42,18 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
 
   // 2. Resolve devcontainerImage: explicit > template > undefined
   let devcontainerImage = data.devcontainerImage;
-  let template: typeof templateRows[0] | undefined;
-  type templateRows = Awaited<ReturnType<typeof db.select>>;
+  let template: typeof sandboxTemplate.$inferSelect | undefined;
 
   if (data.templateId) {
     const rows = await db
       .select()
       .from(sandboxTemplate)
       .where(eq(sandboxTemplate.sandboxTemplateId, data.templateId));
-    template = rows[0] as any;
+    template = rows[0];
   }
 
   if (!devcontainerImage && template) {
-    devcontainerImage = (template as any).image ?? undefined;
+    devcontainerImage = template.image ?? undefined;
   }
 
   // 3. Allocate slug
@@ -87,7 +86,7 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
 
   // 4. Compute expiresAt from ttl
   const ttlMinutes =
-    data.ttlMinutes ?? (template as any)?.defaultTtlMinutes ?? undefined;
+    data.ttlMinutes ?? template?.defaultTtlMinutes ?? undefined;
   const expiresAt = ttlMinutes
     ? new Date(Date.now() + ttlMinutes * 60 * 1000)
     : undefined;
@@ -121,13 +120,13 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
       ownerId: data.ownerId,
       ownerType: data.ownerType,
       repos: data.repos ?? [],
-      cpu: data.cpu ?? (template as any)?.defaultCpu ?? undefined,
-      memory: data.memory ?? (template as any)?.defaultMemory ?? undefined,
+      cpu: data.cpu ?? template?.defaultCpu ?? undefined,
+      memory: data.memory ?? template?.defaultMemory ?? undefined,
       storageGb:
-        data.storageGb ?? (template as any)?.defaultStorageGb ?? 10,
+        data.storageGb ?? template?.defaultStorageGb ?? 10,
       dockerCacheGb:
         data.dockerCacheGb ??
-        (template as any)?.defaultDockerCacheGb ??
+        template?.defaultDockerCacheGb ??
         20,
     })
     .returning();

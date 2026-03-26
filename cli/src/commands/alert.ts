@@ -1,8 +1,17 @@
+import type { Alert } from "@smp/factory-shared/observability-types"
 import type { DxBase } from "../dx-root.js"
 import { getFactoryClient } from "../client.js"
 import { formatAlertTable } from "../lib/log-formatter.js"
 import { printKeyValue } from "../output.js"
 import { toDxFlags } from "./dx-flags.js"
+import {
+  apiCall,
+  actionResult,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  colorStatus,
+} from "./list-helpers.js"
 
 function cleanQuery(q: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}
@@ -29,9 +38,9 @@ export function alertCommand(app: DxBase) {
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.alerts.get({
+          const client = await getFactoryClient()
+          const alerts = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts.get({
               query: cleanQuery({
                 site: flags.site,
                 module: flags.module,
@@ -41,15 +50,11 @@ export function alertCommand(app: DxBase) {
                 limit: flags.limit,
               }),
             })
-            const alerts = res.data ?? res
-            if (f.json) {
-              console.log(JSON.stringify(alerts, null, 2))
-            } else {
-              console.log(formatAlertTable(alerts))
-            }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
+          ) as Alert[] | undefined
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: alerts }, null, 2))
+          } else {
+            console.log(formatAlertTable(alerts ?? []))
           }
         })
     )
@@ -59,36 +64,33 @@ export function alertCommand(app: DxBase) {
         .args([{ name: "id", type: "string", required: true, description: "Alert ID" }])
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.alerts[args.id].get()
-            const alert = res.data ?? res
+          const client = await getFactoryClient()
+          const alert = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts({ id: args.id }).get()
+          ) as unknown as Record<string, unknown> | undefined
 
-            if (f.json) {
-              console.log(JSON.stringify(alert, null, 2))
-            } else {
-              console.log(
-                printKeyValue({
-                  ID: alert.id,
-                  Name: alert.name,
-                  Severity: alert.severity,
-                  Status: alert.status,
-                  Site: alert.site,
-                  Module: alert.module,
-                  Since: alert.since,
-                  Description: alert.description,
-                })
-              )
-              if (alert.suggestedActions?.length) {
-                console.log("\nSuggested Actions:")
-                for (const action of alert.suggestedActions) {
-                  console.log(`  - ${action}`)
-                }
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: alert }, null, 2))
+          } else if (alert) {
+            console.log(
+              printKeyValue({
+                ID: styleMuted(String(alert.id ?? "")),
+                Name: styleBold(String(alert.name ?? "")),
+                Severity: String(alert.severity ?? ""),
+                Status: colorStatus(String(alert.status ?? "")),
+                Site: String(alert.site ?? ""),
+                Module: String(alert.module ?? ""),
+                Since: String(alert.since ?? ""),
+                Description: String(alert.description ?? ""),
+              })
+            )
+            const suggestedActions = alert?.suggestedActions as string[] | undefined
+            if (suggestedActions?.length) {
+              console.log("\nSuggested Actions:")
+              for (const action of suggestedActions) {
+                console.log(`  - ${action}`)
               }
             }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
           }
         })
     )
@@ -100,16 +102,13 @@ export function alertCommand(app: DxBase) {
           reason: { type: "string", required: true, description: "Acknowledgment reason" },
         })
         .run(async ({ args, flags }) => {
-          try {
-            const client = await getFactoryClient()
-            await (client as any).api.v1.observability.alerts[args.id].ack.post({
-              reason: flags.reason,
+          const client = await getFactoryClient()
+          const result = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts({ id: args.id }).ack.post({
+              reason: flags.reason as string,
             })
-            console.log(`Alert ${args.id} acknowledged.`)
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
-          }
+          )
+          actionResult(flags, result, styleSuccess(`Alert ${args.id} acknowledged.`))
         })
     )
     .command("resolve", (c) =>
@@ -120,16 +119,13 @@ export function alertCommand(app: DxBase) {
           reason: { type: "string", required: true, description: "Resolution reason" },
         })
         .run(async ({ args, flags }) => {
-          try {
-            const client = await getFactoryClient()
-            await (client as any).api.v1.observability.alerts[args.id].resolve.post({
-              reason: flags.reason,
+          const client = await getFactoryClient()
+          const result = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts({ id: args.id }).resolve.post({
+              reason: flags.reason as string,
             })
-            console.log(`Alert ${args.id} resolved.`)
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
-          }
+          )
+          actionResult(flags, result, styleSuccess(`Alert ${args.id} resolved.`))
         })
     )
     .command("silence", (c) =>
@@ -142,20 +138,16 @@ export function alertCommand(app: DxBase) {
           reason: { type: "string", required: true, description: "Silence reason" },
         })
         .run(async ({ flags }) => {
-          try {
-            const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.alerts.silence.post({
-              module: flags.module,
-              site: flags.site,
-              duration: flags.duration,
-              reason: flags.reason,
+          const client = await getFactoryClient()
+          const data = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts.silence.post({
+              module: flags.module as string | undefined,
+              site: flags.site as string | undefined,
+              duration: flags.duration as string,
+              reason: flags.reason as string,
             })
-            const data = res.data ?? res
-            console.log(`Alerts silenced. Silence ID: ${data.silenceId}`)
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
-          }
+          ) as Record<string, unknown> | undefined
+          actionResult(flags, data, styleSuccess(`Alerts silenced. Silence ID: ${data?.silenceId}`))
         })
     )
     .command("history", (c) =>
@@ -170,9 +162,9 @@ export function alertCommand(app: DxBase) {
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.alerts.get({
+          const client = await getFactoryClient()
+          const alerts = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts.get({
               query: cleanQuery({
                 site: flags.site,
                 module: flags.module,
@@ -182,15 +174,11 @@ export function alertCommand(app: DxBase) {
                 limit: flags.limit,
               }),
             })
-            const alerts = res.data ?? res
-            if (f.json) {
-              console.log(JSON.stringify(alerts, null, 2))
-            } else {
-              console.log(formatAlertTable(alerts))
-            }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
+          ) as Alert[] | undefined
+          if (f.json) {
+            console.log(JSON.stringify({ success: true, data: alerts }, null, 2))
+          } else {
+            console.log(formatAlertTable(alerts ?? []))
           }
         })
     )
@@ -207,29 +195,20 @@ export function alertCommand(app: DxBase) {
           notify: { type: "string", description: "Notification channel" },
         })
         .run(async ({ flags }) => {
-          const f = toDxFlags(flags)
-          try {
-            const client = await getFactoryClient()
-            const res = await (client as any).api.v1.observability.alerts.rules.post({
-              name: flags.name,
-              module: flags.module,
-              component: flags.component,
-              metric: flags.metric,
-              threshold: flags.threshold,
-              severity: flags.severity,
+          const client = await getFactoryClient()
+          const rule = await apiCall(flags, () =>
+            client.api.v1.factory.observability.alerts.rules.post({
+              name: flags.name as string,
+              module: flags.module as string | undefined,
+              component: flags.component as string | undefined,
+              metric: flags.metric as string,
+              threshold: flags.threshold as string,
+              severity: flags.severity as string,
               enabled: true,
-              notify: flags.notify,
+              notify: flags.notify as string | undefined,
             })
-            const rule = res.data ?? res
-            if (f.json) {
-              console.log(JSON.stringify(rule, null, 2))
-            } else {
-              console.log(`Alert rule created: ${rule.id}`)
-            }
-          } catch (err) {
-            console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-            process.exit(1)
-          }
+          ) as unknown as Record<string, unknown> | undefined
+          actionResult(flags, rule, styleSuccess(`Alert rule created: ${rule?.id}`))
         })
     )
     .command("rule", (c) =>
@@ -240,23 +219,20 @@ export function alertCommand(app: DxBase) {
             .meta({ description: "List alert rules" })
             .run(async ({ flags }) => {
               const f = toDxFlags(flags)
-              try {
-                const client = await getFactoryClient()
-                const res = await (client as any).api.v1.observability.alerts.rules.get()
-                const rules = res.data ?? res
-                if (f.json) {
-                  console.log(JSON.stringify(rules, null, 2))
-                } else if (Array.isArray(rules) && rules.length > 0) {
-                  for (const r of rules) {
-                    const state = r.enabled ? "enabled" : "disabled"
-                    console.log(`  ${r.id}  ${r.name.padEnd(24)} ${r.metric} ${r.threshold}  [${r.severity}] ${state}`)
-                  }
-                } else {
-                  console.log("No alert rules configured.")
+              const client = await getFactoryClient()
+              const rules = await apiCall(flags, () =>
+                client.api.v1.factory.observability.alerts.rules.get()
+              )
+              if (f.json) {
+                console.log(JSON.stringify({ success: true, data: rules }, null, 2))
+              } else if (Array.isArray(rules) && rules.length > 0) {
+                for (const r of rules) {
+                  const rule = r as unknown as Record<string, unknown>
+                  const state = rule.enabled ? styleSuccess("enabled") : styleMuted("disabled")
+                  console.log(`  ${styleMuted(String(rule.id))}  ${styleBold(String(rule.name).padEnd(24))} ${rule.metric} ${rule.threshold}  [${rule.severity}] ${state}`)
                 }
-              } catch (err) {
-                console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-                process.exit(1)
+              } else {
+                console.log("No alert rules configured.")
               }
             })
         )
@@ -266,30 +242,26 @@ export function alertCommand(app: DxBase) {
             .args([{ name: "id", type: "string", required: true, description: "Rule ID" }])
             .run(async ({ args, flags }) => {
               const f = toDxFlags(flags)
-              try {
-                const client = await getFactoryClient()
-                const res = await (client as any).api.v1.observability.alerts.rules[args.id].get()
-                const rule = res.data ?? res
-                if (f.json) {
-                  console.log(JSON.stringify(rule, null, 2))
-                } else {
-                  console.log(
-                    printKeyValue({
-                      ID: rule.id,
-                      Name: rule.name,
-                      Module: rule.module,
-                      Component: rule.component,
-                      Metric: rule.metric,
-                      Threshold: rule.threshold,
-                      Severity: rule.severity,
-                      Enabled: String(rule.enabled),
-                      Notify: rule.notify,
-                    })
-                  )
-                }
-              } catch (err) {
-                console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-                process.exit(1)
+              const client = await getFactoryClient()
+              const rule = await apiCall(flags, () =>
+                client.api.v1.factory.observability.alerts.rules({ id: args.id }).get()
+              ) as unknown as Record<string, unknown> | undefined
+              if (f.json) {
+                console.log(JSON.stringify({ success: true, data: rule }, null, 2))
+              } else if (rule) {
+                console.log(
+                  printKeyValue({
+                    ID: styleMuted(String(rule.id ?? "")),
+                    Name: styleBold(String(rule.name ?? "")),
+                    Module: String(rule.module ?? ""),
+                    Component: String(rule.component ?? ""),
+                    Metric: String(rule.metric ?? ""),
+                    Threshold: String(rule.threshold ?? ""),
+                    Severity: String(rule.severity ?? ""),
+                    Enabled: rule.enabled ? styleSuccess("yes") : styleMuted("no"),
+                    Notify: String(rule.notify ?? ""),
+                  })
+                )
               }
             })
         )
@@ -300,34 +272,28 @@ export function alertCommand(app: DxBase) {
             .flags({
               reason: { type: "string", description: "Reason for disabling" },
             })
-            .run(async ({ args }) => {
-              try {
-                const client = await getFactoryClient()
-                await (client as any).api.v1.observability.alerts.rules[args.id].patch({
+            .run(async ({ args, flags }) => {
+              const client = await getFactoryClient()
+              const result = await apiCall(flags, () =>
+                client.api.v1.factory.observability.alerts.rules({ id: args.id }).patch({
                   enabled: false,
                 })
-                console.log(`Alert rule ${args.id} disabled.`)
-              } catch (err) {
-                console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-                process.exit(1)
-              }
+              )
+              actionResult(flags, result, styleSuccess(`Alert rule ${args.id} disabled.`))
             })
         )
         .command("enable", (sc) =>
           sc
             .meta({ description: "Enable an alert rule" })
             .args([{ name: "id", type: "string", required: true, description: "Rule ID" }])
-            .run(async ({ args }) => {
-              try {
-                const client = await getFactoryClient()
-                await (client as any).api.v1.observability.alerts.rules[args.id].patch({
+            .run(async ({ args, flags }) => {
+              const client = await getFactoryClient()
+              const result = await apiCall(flags, () =>
+                client.api.v1.factory.observability.alerts.rules({ id: args.id }).patch({
                   enabled: true,
                 })
-                console.log(`Alert rule ${args.id} enabled.`)
-              } catch (err) {
-                console.error(`Error: ${err instanceof Error ? err.message : String(err)}`)
-                process.exit(1)
-              }
+              )
+              actionResult(flags, result, styleSuccess(`Alert rule ${args.id} enabled.`))
             })
         )
     )

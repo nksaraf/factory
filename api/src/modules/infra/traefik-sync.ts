@@ -55,8 +55,8 @@ export function generateTraefikYaml(routes: TraefikRoute[]): string {
     return "# No active factory routes\nhttp:\n  routers: {}\n  services: {}\n";
   }
 
-  const routers: Record<string, unknown> = {};
-  const services: Record<string, unknown> = {};
+  const routers: Record<string, { rule: string; service: string; priority: number; entryPoints: string[]; tls?: Record<string, never> }> = {};
+  const services: Record<string, { loadBalancer: { servers: Array<{ url: string }> } }> = {};
 
   for (const r of routes) {
     const name = routerName(r);
@@ -78,8 +78,7 @@ export function generateTraefikYaml(routes: TraefikRoute[]): string {
 
   // Build YAML manually to avoid adding a yaml dependency
   const lines: string[] = ["http:", "  routers:"];
-  for (const [name, cfg] of Object.entries(routers)) {
-    const c = cfg as any;
+  for (const [name, c] of Object.entries(routers)) {
     lines.push(`    ${name}:`);
     lines.push(`      rule: "${c.rule}"`);
     lines.push(`      service: ${c.service}`);
@@ -92,8 +91,7 @@ export function generateTraefikYaml(routes: TraefikRoute[]): string {
   }
 
   lines.push("  services:");
-  for (const [name, cfg] of Object.entries(services)) {
-    const c = cfg as any;
+  for (const [name, c] of Object.entries(services)) {
     lines.push(`    ${name}:`);
     lines.push(`      loadBalancer:`);
     lines.push(`        servers:`);
@@ -129,7 +127,7 @@ export async function syncFactoryRoutes(
   // Get active factory-hosted routes (no siteId)
   const { data: allRoutes } = await listRoutes(db, { status: "active" });
   const factoryRoutes = allRoutes.filter(
-    (r: any) => !r.siteId
+    (r) => !r.siteId
   ) as TraefikRoute[];
 
   // Group by kind for separate files

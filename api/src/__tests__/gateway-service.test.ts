@@ -27,8 +27,6 @@ describe("Gateway Service", () => {
     const cluster = await clusterSvc.createCluster(db, {
       name: "test-cluster",
       providerId: provider.providerId,
-      regionId: region.regionId,
-      kubeApiUrl: "https://k8s.test",
     });
     return { provider, region, cluster };
   }

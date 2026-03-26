@@ -41,13 +41,11 @@ export function generateResources(
     ...(workload.resourceOverrides as Record<string, string>),
   };
 
-  const comp = component as any;
-
   switch (component.kind) {
     case "server":
     case "worker":
     case "gateway":
-      if (comp.stateful) {
+      if (component.stateful) {
         resources.push(makeStatefulSet(workload, component, ns, labels, resourceLimits));
       } else {
         resources.push(makeDeployment(workload, component, ns, labels, resourceLimits));
@@ -67,13 +65,11 @@ export function generateResources(
       break;
   }
 
-  const ports: Array<{ name: string; port: number; protocol: string }> = comp.ports ?? [];
-
-  if (ports.length > 0) {
+  if (component.ports.length > 0) {
     resources.push(makeService(component, ns, labels));
   }
 
-  if (component.isPublic && ports.length > 0) {
+  if (component.isPublic && component.ports.length > 0) {
     resources.push(makeIngressRoute(component, ns, labels, target));
   }
 
@@ -97,17 +93,14 @@ function makeContainer(
     ).map(([name, value]) => ({ name, value })),
   };
 
-  const comp = component as any;
-  const ports: Array<{ name: string; port: number; protocol: string }> = comp.ports ?? [];
-
-  if (ports.length > 0) {
-    container.ports = ports.map((p) => ({ name: p.name, containerPort: p.port, protocol: p.protocol }));
+  if (component.ports.length > 0) {
+    container.ports = component.ports.map((p) => ({ name: p.name, containerPort: p.port, protocol: p.protocol }));
   }
 
-  const healthcheck: { path: string; portName: string; protocol: string } | null | undefined = comp.healthcheck;
+  const healthcheck = component.healthcheck;
   if (healthcheck) {
-    const hcPort = ports.find((p) => p.name === healthcheck.portName);
-    const portValue = hcPort ? hcPort.port : (ports[0]?.port ?? 80);
+    const hcPort = component.ports.find((p) => p.name === healthcheck.portName);
+    const portValue = hcPort ? hcPort.port : (component.ports[0]?.port ?? 80);
     container.livenessProbe = {
       httpGet: { path: healthcheck.path, port: portValue },
       initialDelaySeconds: 10,
@@ -228,15 +221,13 @@ function makeService(
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const comp = component as any;
-  const ports: Array<{ name: string; port: number; protocol: string }> = comp.ports ?? [];
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: { name: component.name, namespace: ns, labels },
     spec: {
       selector: { "dx.dev/component": component.name },
-      ports: ports.map((p) => ({ name: p.name, port: p.port, targetPort: p.port, protocol: p.protocol })),
+      ports: component.ports.map((p) => ({ name: p.name, port: p.port, targetPort: p.port, protocol: p.protocol })),
     },
   };
 }
@@ -247,9 +238,7 @@ function makeIngressRoute(
   labels: Record<string, string>,
   target: DeploymentTarget
 ): KubeResource {
-  const comp = component as any;
-  const ports: Array<{ name: string; port: number; protocol: string }> = comp.ports ?? [];
-  const firstPort = ports[0]?.port ?? 80;
+  const firstPort = component.ports[0]?.port ?? 80;
   const host = `${component.name}.${target.name}.dx.dev`;
   return {
     apiVersion: "traefik.io/v1alpha1",

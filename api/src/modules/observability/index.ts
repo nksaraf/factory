@@ -199,7 +199,7 @@ export function observabilityController(adapter: ObservabilityAdapter) {
     )
     .post(
       "/alerts/rules",
-      ({ body }) => svc.createAlertRule(adapter, body),
+      ({ body }) => svc.createAlertRule(adapter, { ...body, severity: body.severity as AlertSeverity }),
       {
         body: ObservabilityModel.alertRuleBody,
         detail: { tags: ["Observability"], summary: "Create alert rule" },

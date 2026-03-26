@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, check, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { newId } from "../../lib/id";
+import { orgTeam } from "./org";
 import { componentSpec, productModule } from "./product";
 
 export const factoryBuild = pgSchema("factory_build");
@@ -19,7 +20,9 @@ export const gitHostProvider = factoryBuild.table(
     authMode: text("auth_mode").notNull(),
     credentialsEnc: text("credentials_enc"),
     status: text("status").notNull().default("active"),
-    teamId: text("team_id").notNull(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => orgTeam.teamId),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     syncStatus: text("sync_status").notNull().default("idle"),
     syncError: text("sync_error"),
@@ -52,7 +55,9 @@ export const repo = factoryBuild.table(
       () => gitHostProvider.gitHostProviderId,
       { onDelete: "set null" },
     ),
-    teamId: text("team_id").notNull(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => orgTeam.teamId),
     gitUrl: text("git_url").notNull(),
     defaultBranch: text("default_branch").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })

@@ -23,11 +23,6 @@ services:
   infra-auth:
     image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
     platform: linux/amd64
-    build:
-      context: packages/npm/auth-service
-      dockerfile: Dockerfile
-      args:
-        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     restart: unless-stopped
     ports:
       - "${INFRA_AUTH_PORT:-8180}:3000"

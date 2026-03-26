@@ -3,6 +3,7 @@ import { Elysia } from "elysia"
 import type { Database } from "../../db/connection"
 import { SandboxModel } from "./sandbox.model"
 import * as sandboxSvc from "../../services/sandbox/sandbox.service"
+import type { CreateSandboxInput } from "../../services/sandbox/sandbox.service"
 import * as templateSvc from "../../services/sandbox/sandbox-template.service"
 
 export function sandboxController(db: Database) {
@@ -11,7 +12,7 @@ export function sandboxController(db: Database) {
     // --- Sandbox lifecycle ---
     .post("/sandboxes", async ({ body }) => ({
       success: true,
-      data: await sandboxSvc.createSandbox(db, body as any),
+      data: await sandboxSvc.createSandbox(db, body as CreateSandboxInput),
     }), {
       body: SandboxModel.createSandboxBody,
       detail: { tags: ["Sandbox"], summary: "Create sandbox" },
@@ -121,7 +122,7 @@ export function sandboxController(db: Database) {
     .post("/sandbox-snapshots/:id/clone", async ({ params, body, set }) => {
       const snap = await sandboxSvc.getSnapshot(db, params.id)
       if (!snap) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await sandboxSvc.cloneSandbox(db, params.id, body as any) }
+      return { success: true, data: await sandboxSvc.cloneSandbox(db, params.id, body as { name: string; ownerId: string; ownerType: "user" | "agent" }) }
     }, {
       params: SandboxModel.idParams,
       body: SandboxModel.cloneSnapshotBody,
@@ -146,7 +147,7 @@ export function sandboxController(db: Database) {
     })
     .post("/sandbox-templates", async ({ body }) => ({
       success: true,
-      data: await templateSvc.createTemplate(db, body as any),
+      data: await templateSvc.createTemplate(db, body as Parameters<typeof templateSvc.createTemplate>[1]),
     }), {
       body: SandboxModel.createTemplateBody,
       detail: { tags: ["Sandbox"], summary: "Create sandbox template" },

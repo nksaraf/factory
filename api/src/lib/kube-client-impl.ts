@@ -18,7 +18,7 @@ export class KubeClientImpl implements KubeClient {
       undefined,
       "factory-reconciler",
       true,
-      { headers: { "Content-Type": "application/apply-patch+yaml" } }
+      k8s.PatchStrategy.ServerSideApply
     );
   }
 
@@ -35,7 +35,7 @@ export class KubeClientImpl implements KubeClient {
         apiVersion: kindToApiVersion(kind),
         kind,
         metadata: { name, namespace },
-      } as k8s.KubernetesObject);
+      } as Required<Pick<k8s.KubernetesObject, "apiVersion" | "kind">> & { metadata: { name: string; namespace?: string } });
       return res as unknown as KubeResource;
     } catch (err: unknown) {
       if (isNotFound(err)) return null;

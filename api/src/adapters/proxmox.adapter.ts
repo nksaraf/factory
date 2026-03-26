@@ -14,7 +14,7 @@ import { createProxmoxClientFromCluster, type ProxmoxClient } from "../lib/proxm
 import { getPrimaryIpFromConfig, getIpFromGuestAgent } from "../lib/proxmox/ip-extraction";
 import { getVmContext } from "../lib/proxmox/resolve-vm";
 import { allocateSlug, slugifyFromLabel } from "../lib/slug";
-import type { ProxmoxNode, ProxmoxNodeStatus } from "../lib/proxmox/types";
+import type { ProxmoxNode, ProxmoxNodeStatus, ProxmoxVmConfig, CloudInitConfig } from "../lib/proxmox/types";
 
 const BYTES_PER_MB = 1024 * 1024;
 const BYTES_PER_GB = 1024 * 1024 * 1024;
@@ -426,7 +426,7 @@ export class ProxmoxAdapter implements ProviderAdapter {
     const ctx = await getVmContext(this.db, externalId);
 
     // Update CPU/memory via config
-    const configUpdate: Record<string, unknown> = {};
+    const configUpdate: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
     if (spec.cpu != null) configUpdate.cores = spec.cpu;
     if (spec.memoryMb != null) configUpdate.memory = spec.memoryMb;
 
@@ -434,7 +434,7 @@ export class ProxmoxAdapter implements ProviderAdapter {
       await ctx.client.updateVmConfig(
         ctx.nodeName,
         ctx.vmid,
-        configUpdate as any,
+        configUpdate,
         ctx.vmType
       );
     }

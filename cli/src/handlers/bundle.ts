@@ -9,7 +9,7 @@ export async function runBundleGenerate(
 ): Promise<void> {
   try {
     const api = await getFactoryClient()
-    const res = await api.api.v1.commerce.bundles.post({
+    const res = await api.api.v1.factory.commerce.bundles.post({
       customerId: opts.customerId,
       siteId: opts.siteId,
       expiresAt: opts.expiresAt,

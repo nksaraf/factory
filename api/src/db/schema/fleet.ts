@@ -13,6 +13,7 @@ import {
 
 import { newId } from "../../lib/id";
 import { artifact, moduleVersion } from "./build";
+import { catalogResource } from "./catalog";
 import { cluster, host, vm } from "./infra";
 import { componentSpec } from "./product";
 
@@ -202,6 +203,10 @@ export const dependencyWorkload = factoryFleet.table(
     image: text("image").notNull(),
     port: integer("port").notNull(),
     env: jsonb("env").notNull().default({}),
+    catalogResourceId: text("catalog_resource_id").references(
+      () => catalogResource.resourceId,
+      { onDelete: "set null" }
+    ),
     status: text("status").notNull().default("provisioning"),
   },
   (t) => [

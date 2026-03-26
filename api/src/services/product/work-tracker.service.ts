@@ -62,7 +62,7 @@ export async function listWorkTrackerProviders(
 ) {
   let query = db.select().from(workTrackerProvider);
   if (filters?.status) {
-    query = query.where(eq(workTrackerProvider.status, filters.status)) as any;
+    query = query.where(eq(workTrackerProvider.status, filters.status)) as typeof query;
   }
   const rows = await query;
   return { data: rows, total: rows.length };

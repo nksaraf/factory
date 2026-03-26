@@ -16,13 +16,11 @@ export function logsCommand(app: DxBase) {
       {
         name: "module",
         type: "string",
-        required: false,
         description: "Module name (or host for infra logs)",
       },
       {
         name: "component",
         type: "string",
-        required: false,
         description: "Component name",
       },
     ])
@@ -188,10 +186,11 @@ async function fetchRemoteLogs(
     process.on("SIGINT", () => ac.abort())
 
     while (!ac.signal.aborted) {
-      const res = await (client as any).api.v1.observability.logs.get({
+      const res = await client.api.v1.factory.observability.logs.get({
         query: { ...query, cursor },
       })
-      const body = res.data ?? res
+      if (res.error) throw new Error(String(res.error))
+      const body = res.data
       if (body.entries?.length) {
         for (const entry of body.entries) {
           if (f.json) {
@@ -207,8 +206,9 @@ async function fetchRemoteLogs(
       }
     }
   } else {
-    const res = await (client as any).api.v1.observability.logs.get({ query })
-    const body = res.data ?? res
+    const res = await client.api.v1.factory.observability.logs.get({ query })
+    if (res.error) throw new Error(String(res.error))
+    const body = res.data
     if (!body.entries?.length) {
       console.log("No log entries found.")
       return

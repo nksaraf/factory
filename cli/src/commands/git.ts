@@ -3,32 +3,16 @@ import type { DxBase } from "../dx-root.js";
 import { getFactoryClient } from "../client.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
-
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>,
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
+import {
+  apiCall,
+  tableOrJson,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  timeAgo,
+} from "./list-helpers.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
@@ -50,7 +34,8 @@ export function gitCommand(app: DxBase) {
             .meta({ description: "List git host providers" })
             .flags({
               teamId: { type: "string", description: "Filter by team ID" },
-              limit: { type: "number", description: "Max results" },
+              limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
+              sort: { type: "string", description: "Sort by: name, type, status (default: name)" },
             })
             .run(async ({ flags }) => {
               const api = await getApi();
@@ -62,7 +47,22 @@ export function gitCommand(app: DxBase) {
                   },
                 }),
               );
-              jsonOut(flags, result);
+              tableOrJson(
+                flags,
+                result,
+                ["ID", "Name", "Type", "Auth", "Sync", "Status", "Last Sync"],
+                (r) => [
+                  styleMuted(String(r.gitHostProviderId ?? "")),
+                  styleBold(String(r.name ?? "")),
+                  String(r.hostType ?? ""),
+                  String(r.authMode ?? ""),
+                  colorStatus(String(r.syncStatus ?? "")),
+                  colorStatus(String(r.status ?? "")),
+                  timeAgo(r.lastSyncAt as string),
+                ],
+                undefined,
+                { emptyMessage: "No git host providers found." },
+              );
             }),
         )
 
@@ -113,7 +113,7 @@ export function gitCommand(app: DxBase) {
                   teamId: flags.teamId as string,
                 }),
               );
-              jsonOut(flags, result);
+              actionResult(flags, result, styleSuccess(`Git host provider "${flags.name}" created.`));
             }),
         )
 
@@ -131,11 +131,9 @@ export function gitCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getApi();
               const result = await apiCall(flags, () =>
-                (api.api.v1.factory.build["git-host-provider"] as any)[
-                  args.id
-                ].sync.post(),
+                api.api.v1.factory.build["git-host-provider"]({ id: args.id }).sync.post(),
               );
-              jsonOut(flags, result);
+              actionResult(flags, result, styleSuccess(`Sync started for provider ${args.id}.`));
             }),
         )
 
@@ -153,11 +151,47 @@ export function gitCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getApi();
               await apiCall(flags, () =>
-                (api.api.v1.factory.build["git-host-provider"] as any)[
-                  args.id
-                ].delete(),
+                api.api.v1.factory.build["git-host-provider"]({ id: args.id }).delete(),
               );
-              console.log("Deleted.");
+              actionResult(flags, undefined, styleSuccess(`Git host provider ${args.id} deleted.`));
+            }),
+        )
+
+        .command("update", (c) =>
+          c
+            .meta({ description: "Update a git host provider" })
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Provider ID",
+              },
+            ])
+            .flags({
+              name: {
+                type: "string",
+                description: "New provider name",
+              },
+              token: {
+                type: "string",
+                description: "New access token / credentials",
+              },
+              authMode: {
+                type: "string",
+                description: "New auth mode (pat, github_app, oauth)",
+              },
+            })
+            .run(async ({ args, flags }) => {
+              const api = await getApi();
+              const body: Record<string, unknown> = {};
+              if (flags.name) body.name = flags.name as string;
+              if (flags.token) body.credentialsEnc = flags.token as string;
+              if (flags.authMode) body.authMode = flags.authMode as string;
+              const result = await apiCall(flags, () =>
+                api.api.v1.factory.build["git-host-provider"][args.id].put(body),
+              );
+              actionResult(flags, result, styleSuccess(`Git host provider ${args.id} updated.`));
             }),
         ),
     )
@@ -175,7 +209,8 @@ export function gitCommand(app: DxBase) {
                 type: "string",
                 description: "Filter by module ID",
               },
-              limit: { type: "number", description: "Max results" },
+              limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
+              sort: { type: "string", description: "Sort by: name, kind (default: name)" },
             })
             .run(async ({ flags }) => {
               const api = await getApi();
@@ -187,7 +222,90 @@ export function gitCommand(app: DxBase) {
                   },
                 }),
               );
-              jsonOut(flags, result);
+              tableOrJson(
+                flags,
+                result,
+                ["ID", "Name", "Kind", "Branch", "Git URL"],
+                (r) => [
+                  styleMuted(String(r.repoId ?? "")),
+                  styleBold(String(r.name ?? "")),
+                  String(r.kind ?? ""),
+                  String(r.defaultBranch ?? ""),
+                  styleMuted(String(r.gitUrl ?? "")),
+                ],
+                undefined,
+                { emptyMessage: "No repos found." },
+              );
+            }),
+        )
+
+        .command("create", (c) =>
+          c
+            .meta({ description: "Create a repo" })
+            .flags({
+              name: {
+                type: "string",
+                description: "Repo name",
+              },
+              kind: {
+                type: "string",
+                description:
+                  "Repo kind (product-module, platform-module, library, vendor-module, infra, docs, client-project, tool)",
+              },
+              gitUrl: {
+                type: "string",
+                required: true,
+                description: "Git URL",
+              },
+              branch: {
+                type: "string",
+                description: "Default branch (default: main)",
+              },
+              team: {
+                type: "string",
+                description: "Team ID",
+              },
+            })
+            .run(async ({ flags }) => {
+              const f = toDxFlags(flags);
+
+              const repoKinds = [
+                "product-module",
+                "platform-module",
+                "library",
+                "vendor-module",
+                "infra",
+                "docs",
+                "client-project",
+                "tool",
+              ] as const;
+
+              let name = flags.name as string | undefined;
+              if (!name) {
+                const { input } = await import("@inquirer/prompts");
+                name = await input({ message: "Repo name:" });
+              }
+
+              let kind = flags.kind as string | undefined;
+              if (!kind) {
+                const { select } = await import("@inquirer/prompts");
+                kind = await select({
+                  message: "Repo kind:",
+                  choices: repoKinds.map((k) => ({ name: k, value: k })),
+                });
+              }
+
+              const api = await getApi();
+              const result = await apiCall(flags, () =>
+                api.api.v1.factory.build.repos.post({
+                  name,
+                  kind,
+                  gitUrl: flags.gitUrl as string,
+                  defaultBranch: (flags.branch as string) ?? "main",
+                  teamId: flags.team as string ?? "",
+                }),
+              );
+              actionResult(flags, result, styleSuccess(`Repo "${name}" created.`));
             }),
         ),
     )
@@ -200,25 +318,58 @@ export function gitCommand(app: DxBase) {
           {
             name: "slug",
             type: "string",
-            required: true,
-            description: "Repo slug or ID",
+            required: false,
+            description: "Repo slug or ID (interactive picker if omitted)",
           },
         ])
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
             const api = await getApi();
-            const res = await api.api.v1.factory.build.repos[
-              args.slug
-            ].get();
-            if (res.error || !res.data?.data) {
-              exitWithError(f, "Repo not found");
+            let slug = args.slug as string | undefined;
+            let gitUrl: string;
+            if (!slug) {
+              const listRes = await api.api.v1.factory.build.repos.get();
+              const repos = listRes.data?.data;
+              if (!repos || repos.length === 0) {
+                exitWithError(f, "No repos found");
+                return;
+              }
+              const { search } = await import("@inquirer/prompts");
+              const choices = repos.map((r) => ({
+                name: `${r.name} (${r.kind ?? "repo"})`,
+                value: r.gitUrl ?? "",
+                description: r.gitUrl ?? undefined,
+              }));
+              gitUrl = await search({
+                message: "Search for a repo to clone",
+                source: (input) => {
+                  if (!input) return choices;
+                  const term = input.toLowerCase();
+                  return choices.filter(
+                    (c) =>
+                      c.name.toLowerCase().includes(term) ||
+                      (c.description?.toLowerCase().includes(term) ?? false),
+                  );
+                },
+              });
+            } else {
+              const res = await api.api.v1.factory.build.repos[
+                slug
+              ].get();
+              if (res.error || !res.data?.data) {
+                exitWithError(f, "Repo not found");
+                return;
+              }
+              gitUrl = res.data.data.gitUrl ?? "";
+            }
+            if (!gitUrl) {
+              exitWithError(f, "Repo has no git URL");
               return;
             }
-            const repo = res.data.data;
             const { execFileSync } = await import("node:child_process");
-            console.log(`Cloning ${repo.gitUrl}...`);
-            execFileSync("git", ["clone", repo.gitUrl], {
+            console.log(`Cloning ${gitUrl}...`);
+            execFileSync("git", ["clone", gitUrl], {
               stdio: "inherit",
             });
           } catch (err) {

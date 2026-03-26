@@ -1,0 +1,10 @@
+build:
+  dockerfile: Dockerfile
+  context: "."
+dev:
+  command: npm run dev
+  sync:
+    - ./src:/app/src
+    - ./package.json:/app/package.json
+test: npm test
+lint: npm run lint

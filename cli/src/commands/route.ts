@@ -4,34 +4,16 @@ import { getFactoryClient } from "../client.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { printTable } from "../output.js";
 import { toDxFlags } from "./dx-flags.js";
+import {
+  apiCall,
+  actionResult,
+  colorStatus,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+} from "./list-helpers.js";
 
-function jsonOut(flags: Record<string, unknown>, data: unknown) {
-  const f = toDxFlags(flags);
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2));
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
-}
-
-async function apiCall(
-  flags: Record<string, unknown>,
-  fn: () => Promise<{ data: unknown; error: unknown }>
-): Promise<unknown> {
-  const f = toDxFlags(flags);
-  try {
-    const res = await fn();
-    if (res.error) {
-      exitWithError(f, `API error: ${JSON.stringify(res.error)}`);
-    }
-    return res.data;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    exitWithError(f, msg);
-  }
-}
-
-async function getGatewayApi(): Promise<any> {
+async function getGatewayApi() {
   return getFactoryClient();
 }
 
@@ -47,37 +29,39 @@ export function routeCommand(app: DxBase) {
         .flags({
           kind: { type: "string", description: "Filter by kind (sandbox, tunnel, preview, ingress, custom_domain)" },
           site: { type: "string", description: "Filter by site ID" },
-          status: { type: "string", description: "Filter by status" },
+          status: { type: "string", alias: "s", description: "Filter by status" },
+          sort: { type: "string", description: "Sort by: domain, kind, status (default: domain)" },
+          limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.gateway.routes.get({
+            api.api.v1.factory.infra.gateway.routes.get({
               query: {
                 kind: flags.kind as string | undefined,
                 siteId: flags.site as string | undefined,
                 status: flags.status as string | undefined,
               },
             })
-          ) as any;
+          ) as Record<string, unknown> | undefined;
 
-          const routes = result?.data ?? [];
+          const routes = (result?.data ?? []) as Record<string, unknown>[];
           if (f.json) {
-            jsonOut(flags, routes);
+            console.log(JSON.stringify({ success: true, data: routes }, null, 2));
             return;
           }
           if (routes.length === 0) {
             console.log("No routes found.");
             return;
           }
-          const rows = routes.map((r: any) => [
-            r.routeId,
-            r.kind,
-            r.domain,
-            r.targetService,
+          const rows = routes.map((r) => [
+            styleMuted(String(r.routeId)),
+            String(r.kind ?? ""),
+            styleBold(String(r.domain)),
+            String(r.targetService ?? ""),
             String(r.targetPort ?? "-"),
-            r.status,
+            colorStatus(String(r.status ?? "")),
           ]);
           console.log(
             printTable(["ID", "Kind", "Domain", "Target", "Port", "Status"], rows)
@@ -106,7 +90,7 @@ export function routeCommand(app: DxBase) {
 
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.gateway.routes.post({
+            api.api.v1.factory.infra.gateway.routes.post({
               kind: (flags.kind as string) ?? "ingress",
               domain: flags.domain as string,
               targetService: flags.target as string,
@@ -115,12 +99,12 @@ export function routeCommand(app: DxBase) {
               pathPrefix: flags.path as string | undefined,
               protocol: flags.protocol as string | undefined,
             })
-          ) as any;
+          ) as Record<string, unknown> | undefined;
 
           if (f.json) {
-            jsonOut(flags, result);
+            console.log(JSON.stringify({ success: true, data: result }, null, 2));
           } else {
-            console.log(`Route created: ${result?.routeId}`);
+            console.log(styleSuccess(`Route created: ${result?.routeId}`));
             console.log(`  Domain: ${result?.domain}`);
             console.log(`  Target: ${result?.targetService}:${result?.targetPort ?? 80}`);
           }
@@ -147,14 +131,10 @@ export function routeCommand(app: DxBase) {
 
           const api = await getGatewayApi();
           await apiCall(flags, () =>
-            api.api.v1.gateway.routes[id].delete()
+            api.api.v1.factory.infra.gateway.routes({ id }).delete()
           );
 
-          if (f.json) {
-            jsonOut(flags, { deleted: true, routeId: id });
-          } else {
-            console.log(`Route ${id} deleted.`);
-          }
+          actionResult(flags, { deleted: true, routeId: id }, styleSuccess(`Route ${id} deleted.`));
         })
     );
 }
