@@ -77,7 +77,9 @@ interface BackstageEntity {
 
 function parseMultiDocYaml(content: string): BackstageEntity[] {
   const docs = content.split(/^---$/m).filter((d) => d.trim().length > 0);
-  return docs.map((doc) => parseYaml(doc) as BackstageEntity);
+  return docs
+    .map((doc) => parseYaml(doc) as BackstageEntity | null)
+    .filter((entity): entity is BackstageEntity => entity != null && typeof entity === "object" && "kind" in entity);
 }
 
 function backstageComponentToCatalog(
