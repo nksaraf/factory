@@ -116,3 +116,80 @@ export function decodeFrame(buf: Uint8Array): Frame {
 
   return { version, type, streamId, flags, payload };
 }
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+/**
+ * Parse a frame's payload as JSON.
+ */
+export function parseJsonPayload<T>(frame: Frame): T {
+  return JSON.parse(decoder.decode(frame.payload));
+}
+
+function jsonPayload(obj: unknown): Uint8Array {
+  return encoder.encode(JSON.stringify(obj));
+}
+
+function makeFrame(
+  type: FrameType,
+  streamId: number,
+  flags: number,
+  payload: Uint8Array
+): Frame {
+  return { version: PROTOCOL_VERSION, type, streamId, flags, payload };
+}
+
+export function buildHttpReqFrame(
+  streamId: number,
+  req: HttpRequestPayload
+): Frame {
+  return makeFrame(FrameType.HTTP_REQ, streamId, Flags.NONE, jsonPayload(req));
+}
+
+export function buildHttpResFrame(
+  streamId: number,
+  res: HttpResponsePayload
+): Frame {
+  return makeFrame(FrameType.HTTP_RES, streamId, Flags.NONE, jsonPayload(res));
+}
+
+export function buildDataFrame(
+  streamId: number,
+  data: Uint8Array,
+  fin: boolean
+): Frame {
+  return makeFrame(
+    FrameType.DATA,
+    streamId,
+    fin ? Flags.FIN : Flags.NONE,
+    data
+  );
+}
+
+export function buildRstStreamFrame(streamId: number): Frame {
+  return makeFrame(
+    FrameType.RST_STREAM,
+    streamId,
+    Flags.RST,
+    new Uint8Array(0)
+  );
+}
+
+export function buildPingFrame(): Frame {
+  return makeFrame(
+    FrameType.PING,
+    0,
+    Flags.NONE,
+    new Uint8Array(0)
+  );
+}
+
+export function buildPongFrame(): Frame {
+  return makeFrame(
+    FrameType.PONG,
+    0,
+    Flags.NONE,
+    new Uint8Array(0)
+  );
+}

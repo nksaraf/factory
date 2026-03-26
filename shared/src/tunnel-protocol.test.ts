@@ -8,6 +8,15 @@ import {
   HEADER_SIZE,
   MAX_PAYLOAD_SIZE,
   type Frame,
+  buildHttpReqFrame,
+  buildHttpResFrame,
+  buildDataFrame,
+  buildRstStreamFrame,
+  buildPingFrame,
+  buildPongFrame,
+  parseJsonPayload,
+  type HttpRequestPayload,
+  type HttpResponsePayload,
 } from "./tunnel-protocol";
 
 describe("tunnel-protocol", () => {
@@ -98,5 +107,61 @@ describe("tunnel-protocol", () => {
       const decoded = decodeFrame(frame);
       expect(decoded.streamId % 2).toBe(0);
     });
+  });
+});
+
+describe("frame builders", () => {
+  it("buildHttpReqFrame encodes request metadata", () => {
+    const frame = buildHttpReqFrame(2, {
+      method: "GET",
+      url: "/api/health",
+      headers: { host: "example.com" },
+    });
+    expect(frame.type).toBe(FrameType.HTTP_REQ);
+    expect(frame.streamId).toBe(2);
+    expect(frame.flags).toBe(Flags.NONE);
+    const parsed = parseJsonPayload<HttpRequestPayload>(frame);
+    expect(parsed.method).toBe("GET");
+    expect(parsed.url).toBe("/api/health");
+  });
+
+  it("buildHttpResFrame encodes response metadata", () => {
+    const frame = buildHttpResFrame(2, {
+      status: 200,
+      headers: { "content-type": "text/plain" },
+    });
+    expect(frame.type).toBe(FrameType.HTTP_RES);
+    const parsed = parseJsonPayload<HttpResponsePayload>(frame);
+    expect(parsed.status).toBe(200);
+  });
+
+  it("buildDataFrame with FIN flag", () => {
+    const body = new TextEncoder().encode("response body");
+    const frame = buildDataFrame(2, body, true);
+    expect(frame.type).toBe(FrameType.DATA);
+    expect(frame.flags).toBe(Flags.FIN);
+    expect(new TextDecoder().decode(frame.payload)).toBe("response body");
+  });
+
+  it("buildDataFrame without FIN flag", () => {
+    const body = new TextEncoder().encode("chunk");
+    const frame = buildDataFrame(2, body, false);
+    expect(frame.flags).toBe(Flags.NONE);
+  });
+
+  it("buildRstStreamFrame", () => {
+    const frame = buildRstStreamFrame(4);
+    expect(frame.type).toBe(FrameType.RST_STREAM);
+    expect(frame.streamId).toBe(4);
+    expect(frame.flags).toBe(Flags.RST);
+  });
+
+  it("buildPingFrame / buildPongFrame round-trip", () => {
+    const ping = buildPingFrame();
+    expect(ping.type).toBe(FrameType.PING);
+    expect(ping.streamId).toBe(0);
+    const pong = buildPongFrame();
+    expect(pong.type).toBe(FrameType.PONG);
+    expect(pong.streamId).toBe(0);
   });
 });
