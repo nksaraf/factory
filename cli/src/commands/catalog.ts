@@ -1,5 +1,9 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import type { DxBase } from "../dx-root.js";
 import type { CatalogComponent, CatalogResource } from "@smp/factory-shared/catalog";
+import type { CatalogFormat } from "@smp/factory-shared/catalog-registry";
 
 import {
   styleBold,
@@ -16,8 +20,29 @@ import { printTable } from "../output.js";
 setExamples("catalog", [
   "$ dx catalog              List all catalog entries",
   "$ dx catalog info api     Show details for a component or resource",
-  "$ dx catalog info --json  Machine-readable catalog info",
+  "$ dx catalog status       Show catalog source and detected formats",
 ]);
+
+/** Map of format → files to probe for detection. */
+const FORMAT_FILES: [CatalogFormat, string[]][] = [
+  ["dx-yaml", ["dx.yaml"]],
+  ["docker-compose", ["docker-compose.yaml", "docker-compose.yml", "compose.yaml", "compose.yml"]],
+  ["backstage", ["catalog-info.yaml", "catalog-info.yml"]],
+  ["helm", ["Chart.yaml"]],
+];
+
+function detectFormats(rootDir: string): { format: CatalogFormat; file: string }[] {
+  const found: { format: CatalogFormat; file: string }[] = [];
+  for (const [format, files] of FORMAT_FILES) {
+    for (const file of files) {
+      if (existsSync(join(rootDir, file))) {
+        found.push({ format, file });
+        break; // one match per format
+      }
+    }
+  }
+  return found;
+}
 
 function lifecycleColor(lc: string | undefined): string {
   if (!lc) return styleMuted("–");
@@ -234,6 +259,103 @@ export function catalogCommand(app: DxBase) {
               );
             }
           }
+        })
+    )
+    .command("status", (c) =>
+      c
+        .meta({ description: "Show catalog source and detected formats" })
+        .run(({ flags }) => {
+          const f = toDxFlags(flags);
+          const cwd = process.cwd();
+
+          let ctx: ProjectContext | undefined;
+          try {
+            ctx = ProjectContext.fromCwd(cwd);
+          } catch {
+            // no dx.yaml
+          }
+
+          const rootDir = ctx?.rootDir ?? cwd;
+          const detected = detectFormats(rootDir);
+          const activeFormat = ctx ? "dx-yaml" : null;
+          const activeFile = ctx ? ctx.dxYamlPath : null;
+
+          if (f.json) {
+            console.log(
+              JSON.stringify({
+                success: true,
+                data: {
+                  active: activeFormat
+                    ? { format: activeFormat, file: activeFile }
+                    : null,
+                  detected: detected.map((d) => ({
+                    format: d.format,
+                    file: join(rootDir, d.file),
+                  })),
+                  rootDir,
+                  components: ctx
+                    ? Object.keys(ctx.catalog.components).length
+                    : 0,
+                  resources: ctx
+                    ? Object.keys(ctx.catalog.resources).length
+                    : 0,
+                },
+              }, null, 2)
+            );
+            return;
+          }
+
+          console.log(styleBold("Catalog Status"));
+          console.log("");
+
+          if (activeFormat && activeFile) {
+            console.log(
+              `${styleMuted("Source:")}     ${styleSuccess(activeFormat)} ${styleMuted("(active)")}`
+            );
+            console.log(
+              `${styleMuted("File:")}       ${activeFile}`
+            );
+          } else {
+            console.log(
+              `${styleMuted("Source:")}     ${styleWarn("none")} — no dx.yaml found`
+            );
+          }
+
+          console.log(
+            `${styleMuted("Root:")}       ${rootDir}`
+          );
+
+          if (ctx) {
+            const nComp = Object.keys(ctx.catalog.components).length;
+            const nRes = Object.keys(ctx.catalog.resources).length;
+            const nApi = Object.keys(ctx.catalog.apis ?? {}).length;
+            console.log(
+              `${styleMuted("Entries:")}    ${nComp} components, ${nRes} resources, ${nApi} APIs`
+            );
+          }
+
+          console.log("");
+          console.log(styleBold("Detected Formats:"));
+
+          if (detected.length === 0) {
+            console.log(styleMuted("  No catalog files found."));
+          } else {
+            for (const d of detected) {
+              const isActive = d.format === activeFormat;
+              const tag = isActive
+                ? styleSuccess(" ← active")
+                : "";
+              console.log(
+                `  ${styleInfo(d.format.padEnd(16))} ${styleMuted(d.file)}${tag}`
+              );
+            }
+          }
+
+          // Priority explanation
+          console.log("");
+          console.log(
+            styleMuted("Priority: dx-yaml > docker-compose > backstage > helm")
+          );
         })
     );
 }
