@@ -189,9 +189,9 @@ async function seedOrg() {
 
   // --- Tool Credentials ---
   await db.insert(s.toolCredential).values([
-    { principalId: id("prin", "alex-chen", "prin"), provider: "claude", keyName: "default", keyHash: "hash_alex_claude", keyPrefix: "sk-ant-" },
-    { principalId: id("prin", "jake-taylor", "prin"), provider: "cursor", keyName: "default", keyHash: "hash_jake_cursor", keyPrefix: "cur-" },
-    { principalId: id("prin", "maria-garcia", "prin"), provider: "claude", keyName: "default", keyHash: "hash_maria_claude", keyPrefix: "sk-ant-" },
+    { principalId: id("prin", "alex-chen", "prin"), provider: "claude", keyName: "default", keyHash: "hash_alex_claude", keyPrefix: "sk_ant_" },
+    { principalId: id("prin", "jake-taylor", "prin"), provider: "cursor", keyName: "default", keyHash: "hash_jake_cursor", keyPrefix: "cur_" },
+    { principalId: id("prin", "maria-garcia", "prin"), provider: "claude", keyName: "default", keyHash: "hash_maria_claude", keyPrefix: "sk_ant_" },
   ]);
 }
 
