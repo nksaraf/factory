@@ -122,18 +122,14 @@ export function initCommand(app: DxBase) {
           }
         }
 
-        // Resolve mode
+        // Resolve mode (default: project)
         let mode: InitOptions["mode"];
         if (flags.standalone || flags.type) {
           mode = "standalone";
         } else if (process.stdin.isTTY) {
           mode = await promptInitMode();
         } else {
-          exitWithError(
-            f,
-            "Cannot determine mode in non-interactive mode. Use --standalone or omit for project mode.",
-            ExitCodes.GENERAL_FAILURE,
-          );
+          mode = "project";
         }
 
         // Resolve standalone type
