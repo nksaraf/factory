@@ -11,6 +11,13 @@ import {
 import { parseConnectToFlag, parseConnectFlags, mergeConnectionSources } from "../lib/parse-connect-flags.js";
 import { TunnelManager } from "../lib/tunnel-manager.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("connect", [
+  "$ dx connect staging               Connect to staging",
+  "$ dx connect status                Show connection status",
+  "$ dx connect stop                  Disconnect",
+]);
 
 export function connectCommand(app: DxBase) {
   return app
@@ -41,7 +48,7 @@ export function connectCommand(app: DxBase) {
 
       try {
         const project = ProjectContext.fromCwd();
-        const connectToOverrides = parseConnectToFlag(target, project.moduleConfig);
+        const connectToOverrides = parseConnectToFlag(target, project.catalog);
 
         // Parse selective --connect flags if present
         const selectiveFlags = flags.connect
@@ -59,7 +66,7 @@ export function connectCommand(app: DxBase) {
         const tierOverlay = loadTierOverlay(project.rootDir, target);
 
         const ctx = resolveEnvVars({
-          dxConfig: project.moduleConfig,
+          catalog: project.catalog,
           tierOverlay: tierOverlay ?? undefined,
           connectionOverrides: overrides,
         });

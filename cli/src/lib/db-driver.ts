@@ -1,5 +1,3 @@
-import type { DependencyConfig } from "@smp/factory-shared/config-schemas";
-
 import type { ProjectContext } from "./project.js";
 
 /** Result row from a query — column name → value. */
@@ -73,12 +71,19 @@ export interface LockInfo {
   lockType: string;
 }
 
+/** Flattened database resource config extracted from a CatalogResource. */
+export interface DbResourceConfig {
+  image: string;
+  port: number;
+  env: Record<string, string>;
+}
+
 /** A database driver provides connection, introspection, and interactive shell support. */
 export interface DbDriver {
   type: string;
 
-  /** Build a connection URL from a dx.yaml dependency config. */
-  buildUrl(dep: DependencyConfig, name: string): string;
+  /** Build a connection URL from a database resource config. */
+  buildUrl(res: DbResourceConfig, name: string): string;
 
   /** Open a programmatic connection. */
   connect(url: string): Promise<DbClient>;
@@ -124,10 +129,10 @@ const DB_KEY_PATTERNS: Record<string, string> = {
   sqlite: "sqlite",
 };
 
-/** Detect database type from dependency key name or image. */
+/** Detect database type from resource name or image. */
 export function detectDbType(
   name: string,
-  dep: DependencyConfig
+  res: DbResourceConfig
 ): string | null {
   // Check key name first
   const byKey = DB_KEY_PATTERNS[name.toLowerCase()];
@@ -135,23 +140,38 @@ export function detectDbType(
 
   // Check image name
   for (const [pattern, type] of DB_IMAGE_PATTERNS) {
-    if (pattern.test(dep.image)) return type;
+    if (pattern.test(res.image)) return type;
   }
 
   return null;
 }
 
-/** Find all database dependencies from a project's dx.yaml. */
+/** Convert a CatalogResource to a DbResourceConfig. */
+function resourceToDbConfig(res: {
+  spec: {
+    image: string;
+    ports: Array<{ port: number }>;
+    environment?: Record<string, string>;
+  };
+}): DbResourceConfig {
+  return {
+    image: res.spec.image,
+    port: res.spec.ports?.[0]?.port ?? 0,
+    env: res.spec.environment ?? {},
+  };
+}
+
+/** Find all database dependencies from a project's catalog. */
 export function findDbDependencies(
   ctx: ProjectContext
-): { name: string; dep: DependencyConfig; dbType: string }[] {
-  const deps = ctx.moduleConfig.resources;
-  const results: { name: string; dep: DependencyConfig; dbType: string }[] = [];
+): { name: string; res: DbResourceConfig; dbType: string }[] {
+  const results: { name: string; res: DbResourceConfig; dbType: string }[] = [];
 
-  for (const [name, dep] of Object.entries(deps)) {
-    const dbType = detectDbType(name, dep);
+  for (const [name, resource] of Object.entries(ctx.catalog.resources)) {
+    const res = resourceToDbConfig(resource);
+    const dbType = detectDbType(name, res);
     if (dbType) {
-      results.push({ name, dep, dbType });
+      results.push({ name, res, dbType });
     }
   }
 
@@ -182,12 +202,12 @@ export function getDriver(type: string): DbDriver {
 export function resolveDbTarget(
   ctx: ProjectContext,
   dbFlag?: string
-): { name: string; dep: DependencyConfig; driver: DbDriver; url: string } {
+): { name: string; res: DbResourceConfig; driver: DbDriver; url: string } {
   const dbDeps = findDbDependencies(ctx);
 
   if (dbDeps.length === 0) {
     throw new Error(
-      "No database dependencies found in dx.yaml. Declare a postgres, mysql, sqlite, or clickhouse dependency."
+      "No database dependencies found. Declare a postgres, mysql, sqlite, or clickhouse service in docker-compose."
     );
   }
 
@@ -198,7 +218,7 @@ export function resolveDbTarget(
     if (!match) {
       const available = dbDeps.map((d) => d.name).join(", ");
       throw new Error(
-        `Database "${dbFlag}" not found in dx.yaml dependencies. Available: ${available}`
+        `Database "${dbFlag}" not found. Available: ${available}`
       );
     }
     selected = match;
@@ -219,11 +239,11 @@ export function resolveDbTarget(
 
   // Check for URL override via env var
   const envKey =
-    `${ctx.moduleConfig.module.toUpperCase().replace(/-/g, "_")}_DATABASE_URL`;
+    `${ctx.systemName.toUpperCase().replace(/-/g, "_")}_DATABASE_URL`;
   const url =
     process.env[envKey] ||
     process.env.DATABASE_URL ||
-    driver.buildUrl(selected.dep, selected.name);
+    driver.buildUrl(selected.res, selected.name);
 
-  return { name: selected.name, dep: selected.dep, driver, url };
+  return { name: selected.name, res: selected.res, driver, url };
 }

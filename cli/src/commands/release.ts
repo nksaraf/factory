@@ -13,6 +13,14 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("release", [
+  "$ dx release list                  List releases",
+  "$ dx release create --version v1.2.0   Create a release",
+  "$ dx release promote <id>         Promote to next stage",
+  "$ dx release status <id>          Check release status",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getFleetApi(): Promise<any> {

@@ -1,6 +1,4 @@
-import { dirname } from "node:path";
-
-import { findDxYaml } from "@smp/factory-shared/config-loader";
+import { findComposeRoot } from "@smp/factory-shared/config-loader";
 import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
 import { loadConventions, validateBranchName } from "@smp/factory-shared/conventions";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
@@ -9,6 +7,12 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { createBranch, listBranches } from "../lib/git.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("branch", [
+  "$ dx branch create feature/auth    Create a new branch",
+  "$ dx branch list                   List branches",
+]);
 
 export function branchCommand(app: DxBase) {
   return app
@@ -34,9 +38,9 @@ export function branchCommand(app: DxBase) {
         .run(({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
-            const dx = findDxYaml(process.cwd());
-            const conventions = dx
-              ? loadConventions(dirname(dx))
+            const root = findComposeRoot(process.cwd());
+            const conventions = root
+              ? loadConventions(root)
               : defaultConventionsConfig();
             const result = validateBranchName(args.name, conventions);
             if (!result.valid && !flags.force) {

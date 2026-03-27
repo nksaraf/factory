@@ -1,8 +1,7 @@
 import { spawnSync } from "node:child_process";
 
-import type { DependencyConfig } from "@smp/factory-shared/config-schemas";
-
 import type {
+  DbResourceConfig,
   ActivityInfo,
   ColumnInfo,
   ConstraintInfo,
@@ -210,11 +209,11 @@ class PgClient implements DbClient {
 const postgresDriver: DbDriver = {
   type: "postgres",
 
-  buildUrl(dep: DependencyConfig): string {
-    const user = dep.env.POSTGRES_USER ?? "postgres";
-    const pass = dep.env.POSTGRES_PASSWORD ?? "postgres";
-    const db = dep.env.POSTGRES_DB ?? "postgres";
-    const port = dep.port;
+  buildUrl(res: DbResourceConfig): string {
+    const user = res.env.POSTGRES_USER ?? "postgres";
+    const pass = res.env.POSTGRES_PASSWORD ?? "postgres";
+    const db = res.env.POSTGRES_DB ?? "postgres";
+    const port = res.port;
     return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${port}/${encodeURIComponent(db)}`;
   },
 

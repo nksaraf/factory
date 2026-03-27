@@ -12,6 +12,13 @@ import {
   styleMuted,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("route", [
+  "$ dx route list                    List all routes",
+  "$ dx route create --domain api.example.com --target my-svc --port 8080",
+  "$ dx route delete <id>             Remove a route",
+]);
 
 async function getGatewayApi() {
   return getFactoryClient();

@@ -13,6 +13,14 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("git", [
+  "$ dx git host list             List git host providers",
+  "$ dx git host create github    Add a git host",
+  "$ dx git repo list             List repositories",
+  "$ dx git clone my-repo         Clone a repository",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
@@ -282,16 +290,16 @@ export function gitCommand(app: DxBase) {
 
               let name = flags.name as string | undefined;
               if (!name) {
-                const { input } = await import("@inquirer/prompts");
+                const { input } = await import("@crustjs/prompts");
                 name = await input({ message: "Repo name:" });
               }
 
               let kind = flags.kind as string | undefined;
               if (!kind) {
-                const { select } = await import("@inquirer/prompts");
+                const { select } = await import("@crustjs/prompts");
                 kind = await select({
                   message: "Repo kind:",
-                  choices: repoKinds.map((k) => ({ name: k, value: k })),
+                  choices: repoKinds.map((k) => ({ label: k, value: k })),
                 });
               }
 

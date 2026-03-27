@@ -8,76 +8,11 @@ import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { parse as parseYaml } from "yaml";
 
-import { DxYamlFormatAdapter, dxYamlToCatalogSystem } from "./dx-yaml.adapter";
 import { DockerComposeFormatAdapter } from "./docker-compose.adapter";
-import { loadFullConfig } from "../config-loader";
 
 const repoRoot = join(import.meta.dirname, "../../..");
 
-// ─── dx.yaml ─────────────────────────────────────────────────
-
-describe("factory dx.yaml", () => {
-  const adapter = new DxYamlFormatAdapter();
-
-  it("detects dx.yaml at repo root", () => {
-    expect(adapter.detect(repoRoot)).toBe(true);
-  });
-
-  it("parses into a valid CatalogSystem", () => {
-    const { system } = adapter.parse(repoRoot);
-    expect(system.kind).toBe("System");
-    expect(system.metadata.name).toBe("factory");
-    expect(system.spec.owner).toBe("platform");
-  });
-
-  it("has factory-api as a component with build config", () => {
-    const { system } = adapter.parse(repoRoot);
-    const api = system.components["factory-api"];
-    expect(api).toBeDefined();
-    expect(api.kind).toBe("Component");
-    expect(api.spec.type).toBe("service");
-    expect(api.spec.build).toBeDefined();
-    expect(api.spec.build!.dockerfile).toBe("./api/Dockerfile");
-    expect(api.spec.ports).toHaveLength(1);
-    expect(api.spec.ports[0].port).toBe(8181);
-  });
-
-  it("has factory-cli as a worker component", () => {
-    const { system } = adapter.parse(repoRoot);
-    const cli = system.components["factory-cli"];
-    expect(cli).toBeDefined();
-    expect(cli.spec.type).toBe("worker");
-  });
-
-  it("has postgres, auth, gateway, reverse-proxy, api-docs as resources", () => {
-    const { system } = adapter.parse(repoRoot);
-    expect(Object.keys(system.resources).sort()).toEqual([
-      "api-docs", "auth", "gateway", "postgres", "reverse-proxy",
-    ]);
-    expect(system.resources.postgres.spec.type).toBe("database");
-    expect(system.resources.postgres.spec.image).toBe("postgres:16-alpine");
-  });
-
-  it("has database and auth-service connections", () => {
-    const { system } = adapter.parse(repoRoot);
-    expect(system.connections).toHaveLength(2);
-    const dbConn = system.connections.find((c) => c.envVar === "DATABASE_URL");
-    expect(dbConn).toBeDefined();
-    expect(dbConn!.targetComponent).toBe("postgres");
-
-    const authConn = system.connections.find((c) => c.envVar === "FACTORY_AUTH_JWKS_URL");
-    expect(authConn).toBeDefined();
-    expect(authConn!.targetComponent).toBe("auth");
-  });
-
-  it("loads dx-component.yaml for factory-api", () => {
-    const config = loadFullConfig(repoRoot);
-    expect(config.components["factory-api"]).toBeDefined();
-    expect(config.components["factory-api"].image).toBeDefined();
-  });
-});
-
-// ─── docker-compose.yaml (original, no catalog labels) ───────
+// ─── docker-compose.yaml ────────────────────────────────────
 
 describe("factory docker-compose.yaml (original)", () => {
   const adapter = new DockerComposeFormatAdapter();

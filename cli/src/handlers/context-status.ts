@@ -51,12 +51,12 @@ function tryLoadProject(cwd: string): ProjectInfo | undefined {
   try {
     const ctx = ProjectContext.fromCwd(cwd);
     return {
-      name: ctx.moduleConfig.module,
+      name: ctx.systemName,
       root: ctx.rootDir,
-      components: Object.keys(ctx.componentConfigs),
+      components: ctx.componentNames,
     };
   } catch {
-    // No dx.yaml found — not a dx project
+    // No compose files found — not a dx project
     return undefined;
   }
 }
@@ -86,7 +86,7 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
     // not in a git repo
   }
 
-  // --- Project context (dx.yaml) ---
+  // --- Project context (docker-compose) ---
   const project = tryLoadProject(cwd);
 
   // --- Output ---

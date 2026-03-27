@@ -1,6 +1,13 @@
 import type { DxBase } from "../dx-root.js";
 
 import { stubRun } from "./stub-run.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("context", [
+  "$ dx context list                  List available contexts",
+  "$ dx context show                  Show current context",
+  "$ dx context use production        Switch context",
+]);
 
 export function contextCommand(app: DxBase) {
   return app

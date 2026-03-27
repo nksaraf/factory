@@ -8,6 +8,7 @@ export function toDxFlags(
     ...flags,
     json: flags.json as boolean | undefined,
     verbose: flags.verbose as boolean | undefined,
+    quiet: flags.quiet as boolean | undefined,
     debug: flags.debug as boolean | undefined,
   };
 }

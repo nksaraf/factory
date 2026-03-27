@@ -1,55 +1,47 @@
-import { styleSuccess, styleMuted } from "../cli-style.js"
 import { getFactoryClient } from "../client.js"
-import { exitWithError } from "../lib/cli-exit.js"
+import {
+  apiCall,
+  colorStatus,
+  detailView,
+  styleBold,
+  styleMuted,
+  tableOrJson,
+  timeAgo,
+} from "../commands/list-helpers.js"
 import type { DxFlags } from "../stub.js"
 
 export async function runCustomerList(flags: DxFlags): Promise<void> {
-  try {
-    const api = await getFactoryClient()
-    const res = await api.api.v1.factory.commerce.customers.get()
-    if (flags.json) {
-      console.log(JSON.stringify(res.data, null, 2))
-      return
-    }
-    const body = res.data as {
-      data: { customerId: string; name: string; status: string }[]
-    }
-    if (!body.data.length) {
-      console.log(styleMuted("No customers found."))
-      return
-    }
-    for (const c of body.data) {
-      console.log(styleSuccess(`${c.customerId}  ${c.name}  [${c.status}]`))
-    }
-  } catch (err) {
-    exitWithError(flags, err instanceof Error ? err.message : String(err))
-  }
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.customers.get()
+  )
+  tableOrJson(
+    flags,
+    data,
+    ["NAME", "SLUG", "STATUS"],
+    (c) => [
+      String(c.name ?? ""),
+      String(c.slug ?? "-"),
+      colorStatus(String(c.status ?? "")),
+    ],
+    undefined,
+    { emptyMessage: "No customers found." }
+  )
 }
 
 export async function runCustomerShow(
   flags: DxFlags,
-  id: string
+  id: string,
 ): Promise<void> {
-  try {
-    const api = await getFactoryClient()
-    const res = await api.api.v1.factory.commerce.customers({ id }).get()
-    if (flags.json) {
-      console.log(JSON.stringify(res.data, null, 2))
-      return
-    }
-    const body = res.data as {
-      data: { customerId: string; name: string; status: string } | null
-    }
-    if (!body?.data) {
-      console.log(styleMuted("Customer not found."))
-      return
-    }
-    console.log(
-      styleSuccess(
-        `${body.data.customerId}  ${body.data.name}  [${body.data.status}]`
-      )
-    )
-  } catch (err) {
-    exitWithError(flags, err instanceof Error ? err.message : String(err))
-  }
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.customers({ id }).get()
+  )
+  detailView(flags, data, [
+    ["Name", (r) => styleBold(String(r.name ?? ""))],
+    ["Slug", (r) => String(r.slug ?? "-")],
+    ["ID", (r) => styleMuted(String(r.customerId ?? ""))],
+    ["Status", (r) => colorStatus(String(r.status ?? ""))],
+    ["Created", (r) => timeAgo(String(r.createdAt ?? ""))],
+  ])
 }

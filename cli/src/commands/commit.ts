@@ -1,6 +1,4 @@
-import { dirname } from "node:path";
-
-import { findDxYaml } from "@smp/factory-shared/config-loader";
+import { findComposeRoot } from "@smp/factory-shared/config-loader";
 import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
 import { loadConventions, validateCommitMessage } from "@smp/factory-shared/conventions";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
@@ -9,6 +7,13 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { gitCommit, stageAll } from "../lib/git.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("commit", [
+  "$ dx commit                    Commit staged changes",
+  "$ dx commit --all              Stage all and commit",
+  '$ dx commit --reason "fix"     Commit with reason',
+]);
 
 export function commitCommand(app: DxBase) {
   return app
@@ -40,9 +45,9 @@ export function commitCommand(app: DxBase) {
     .run(({ args, flags }) => {
       const f = toDxFlags(flags);
       try {
-        const dx = findDxYaml(process.cwd());
-        const conventions = dx
-          ? loadConventions(dirname(dx))
+        const root = findComposeRoot(process.cwd());
+        const conventions = root
+          ? loadConventions(root)
           : defaultConventionsConfig();
         const result = validateCommitMessage(args.message, conventions);
         if (!result.valid && !flags.force) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import type { DxYaml } from "./config-schemas";
+import type { CatalogSystem } from "./catalog";
 import {
   categorizeDeps,
   computeDeterministicPort,
@@ -8,46 +8,71 @@ import {
   resolveEnvVars,
 } from "./env-resolution";
 
-const baseDxConfig: DxYaml = {
-  module: "geoanalytics",
-  team: "analytics-eng",
+const baseCatalog = {
+  kind: "System",
+  metadata: { name: "geoanalytics", namespace: "default" },
+  spec: { owner: "analytics-eng", domain: "analytics", lifecycle: "production" },
   components: {
-    api: { path: "./services/api", port: 8080, worker: false },
-  },
-  dependencies: {
-    postgres: {
-      image: "postgis/postgis:16-3.4",
-      port: 5432,
-      env: {
-        POSTGRES_DB: "geoanalytics",
-        POSTGRES_USER: "dev",
-        POSTGRES_PASSWORD: "dev",
+    api: {
+      kind: "Component",
+      metadata: { name: "api", namespace: "default" },
+      spec: {
+        type: "service",
+        lifecycle: "production",
+        owner: "analytics-eng",
+        build: { context: "./services/api", dockerfile: "Dockerfile" },
+        ports: [{ name: "http", port: 8080, protocol: "http" }],
       },
-      volumes: [],
+    },
+  },
+  resources: {
+    postgres: {
+      kind: "Resource",
+      metadata: { name: "postgres", namespace: "default" },
+      spec: {
+        type: "database",
+        owner: "analytics-eng",
+        lifecycle: "production",
+        image: "postgis/postgis:16-3.4",
+        ports: [{ name: "postgres", port: 5432, protocol: "tcp" }],
+        environment: {
+          POSTGRES_DB: "geoanalytics",
+          POSTGRES_USER: "dev",
+          POSTGRES_PASSWORD: "dev",
+        },
+      },
     },
     redis: {
-      image: "redis:7-alpine",
-      port: 6379,
-      env: {},
-      volumes: [],
+      kind: "Resource",
+      metadata: { name: "redis", namespace: "default" },
+      spec: {
+        type: "cache",
+        owner: "analytics-eng",
+        lifecycle: "production",
+        image: "redis:7-alpine",
+        ports: [{ name: "redis", port: 6379, protocol: "tcp" }],
+      },
     },
   },
-  connections: {
-    auth: {
-      module: "auth",
-      component: "api",
-      env_var: "AUTH_API_URL",
-      local_default: "http://localhost:9090",
+  apis: {},
+  connections: [
+    {
+      name: "auth",
+      targetModule: "auth",
+      targetComponent: "api",
+      envVar: "AUTH_API_URL",
+      localDefault: "http://localhost:9090",
       optional: false,
     },
-    analytics: {
-      module: "analytics",
-      component: "api",
-      env_var: "ANALYTICS_API_URL",
+    {
+      name: "analytics",
+      targetModule: "analytics",
+      targetComponent: "api",
+      envVar: "ANALYTICS_API_URL",
       optional: true,
     },
-  },
-};
+  ],
+} as unknown as CatalogSystem;
 
 describe("computeDeterministicPort", () => {
   test("returns stable port for same input", () => {
@@ -71,13 +96,13 @@ describe("computeDeterministicPort", () => {
 
 describe("categorizeDeps", () => {
   test("all local when no overrides", () => {
-    const { local, remote } = categorizeDeps(baseDxConfig, {});
+    const { local, remote } = categorizeDeps(baseCatalog, {});
     expect(local.sort()).toEqual(["postgres", "redis"]);
     expect(remote).toEqual([]);
   });
 
   test("moves dep to remote when override present", () => {
-    const { local, remote } = categorizeDeps(baseDxConfig, {
+    const { local, remote } = categorizeDeps(baseCatalog, {
       postgres: { target: "staging", readonly: false, backend: "direct" },
     });
     expect(local).toEqual(["redis"]);
@@ -85,7 +110,7 @@ describe("categorizeDeps", () => {
   });
 
   test("connection overrides are also tracked as remote", () => {
-    const { remote } = categorizeDeps(baseDxConfig, {
+    const { remote } = categorizeDeps(baseCatalog, {
       auth: { target: "staging", readonly: false, backend: "direct" },
     });
     expect(remote).toContain("auth");
@@ -93,8 +118,8 @@ describe("categorizeDeps", () => {
 });
 
 describe("resolveEnvVars", () => {
-  test("Layer 1: builds defaults from dx.yaml", () => {
-    const result = resolveEnvVars({ dxConfig: baseDxConfig });
+  test("Layer 1: builds defaults from catalog", () => {
+    const result = resolveEnvVars({ catalog: baseCatalog });
     expect(result.envVars.DATABASE_URL?.value).toBe(
       "postgresql://dev:dev@localhost:5432/geoanalytics"
     );
@@ -106,7 +131,7 @@ describe("resolveEnvVars", () => {
 
   test("Layer 2: tier overlay overrides defaults", () => {
     const result = resolveEnvVars({
-      dxConfig: baseDxConfig,
+      catalog: baseCatalog,
       tierOverlay: {
         DATABASE_URL: "postgresql://staging:5432/geoanalytics",
         LOG_LEVEL: "debug",
@@ -118,13 +143,12 @@ describe("resolveEnvVars", () => {
     expect(result.envVars.DATABASE_URL?.source).toBe("tier");
     expect(result.envVars.LOG_LEVEL?.value).toBe("debug");
     expect(result.envVars.LOG_LEVEL?.source).toBe("tier");
-    // Redis not in tier overlay, stays as default
     expect(result.envVars.REDIS_URL?.source).toBe("default");
   });
 
   test("Layer 3: connection overrides with direct backend use tier values", () => {
     const result = resolveEnvVars({
-      dxConfig: baseDxConfig,
+      catalog: baseCatalog,
       tierOverlay: {
         DATABASE_URL: "postgresql://staging:5432/geoanalytics",
       },
@@ -145,7 +169,7 @@ describe("resolveEnvVars", () => {
 
   test("Layer 3: connection overrides with kubectl backend use tunnel port", () => {
     const result = resolveEnvVars({
-      dxConfig: baseDxConfig,
+      catalog: baseCatalog,
       connectionOverrides: {
         postgres: { target: "staging", readonly: false, backend: "kubectl" },
       },
@@ -159,7 +183,7 @@ describe("resolveEnvVars", () => {
 
   test("Layer 3: module connection override with direct backend", () => {
     const result = resolveEnvVars({
-      dxConfig: baseDxConfig,
+      catalog: baseCatalog,
       tierOverlay: { AUTH_API_URL: "http://auth-staging:8080" },
       connectionOverrides: {
         auth: { target: "staging", readonly: false, backend: "direct" },
@@ -172,7 +196,7 @@ describe("resolveEnvVars", () => {
 
   test("Layer 4: CLI env flags override everything", () => {
     const result = resolveEnvVars({
-      dxConfig: baseDxConfig,
+      catalog: baseCatalog,
       tierOverlay: { DATABASE_URL: "postgresql://staging:5432/db" },
       cliEnvFlags: {
         DATABASE_URL: "postgresql://custom:5432/test",
@@ -188,7 +212,7 @@ describe("resolveEnvVars", () => {
   });
 
   test("empty input produces defaults only", () => {
-    const result = resolveEnvVars({ dxConfig: baseDxConfig });
+    const result = resolveEnvVars({ catalog: baseCatalog });
     expect(result.tunnels).toEqual([]);
     expect(result.remoteDeps).toEqual([]);
     expect(result.localDeps.sort()).toEqual(["postgres", "redis"]);

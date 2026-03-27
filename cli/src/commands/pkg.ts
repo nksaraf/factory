@@ -3,6 +3,16 @@ import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
 import { findPkgRoot } from "../handlers/pkg/detect.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("pkg", [
+  "$ dx pkg list                      List linked packages",
+  "$ dx pkg link ./my-package         Link local package",
+  "$ dx pkg remove ./my-package       Remove a linked package",
+  "$ dx pkg diff                      Show package changes",
+  "$ dx pkg push                      Push package upstream",
+  "$ dx pkg auth --key-file key.pem   Set registry auth key",
+]);
 
 /** Resolve the dx project root (walks up from cwd to find .dx/). */
 const root = (): string => findPkgRoot(process.cwd());

@@ -1,5 +1,11 @@
 import type { DxBase } from "../dx-root.js";
 import { readConfig } from "../config.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("kube", [
+  "$ dx kube get pods                 Forward to kubectl",
+  "$ dx kube logs deployment/api      View pod logs",
+]);
 
 export function kubeCommand(app: DxBase) {
   return app

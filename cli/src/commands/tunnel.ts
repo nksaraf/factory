@@ -13,6 +13,13 @@ import {
   styleMuted,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("tunnel", [
+  "$ dx tunnel --port 3000            Expose port 3000",
+  "$ dx tunnel list                   List active tunnels",
+  "$ dx tunnel close                  Close all tunnels",
+]);
 
 export function tunnelCommand(app: DxBase) {
   return app

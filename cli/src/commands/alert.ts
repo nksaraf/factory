@@ -12,6 +12,14 @@ import {
   styleSuccess,
   colorStatus,
 } from "./list-helpers.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("alert", [
+  "$ dx alert list                    List active alerts",
+  "$ dx alert show <id>               Alert details",
+  "$ dx alert ack <id>                Acknowledge alert",
+  "$ dx alert rule list               List alert rules",
+])
 
 function cleanQuery(q: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}

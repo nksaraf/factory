@@ -1,20 +1,20 @@
-import type { DxYaml } from "@smp/factory-shared/config-schemas";
+import type { CatalogSystem } from "@smp/factory-shared/catalog";
 import type { NormalizedProfileEntry } from "@smp/factory-shared/connection-context-schemas";
 
 /**
  * Expand `--connect-to <target>` into overrides for all deps + connections.
- * Every dependency and connection in dx.yaml gets pointed at the given target.
+ * Every resource and connection in the catalog gets pointed at the given target.
  */
 export function parseConnectToFlag(
   target: string,
-  dxConfig: DxYaml
+  catalog: CatalogSystem
 ): Record<string, NormalizedProfileEntry> {
   const result: Record<string, NormalizedProfileEntry> = {};
-  for (const dep of Object.keys(dxConfig.resources)) {
+  for (const dep of Object.keys(catalog.resources)) {
     result[dep] = { target, readonly: false, backend: "direct" };
   }
-  for (const conn of Object.keys(dxConfig.connections)) {
-    result[conn] = { target, readonly: false, backend: "direct" };
+  for (const conn of catalog.connections) {
+    result[conn.name] = { target, readonly: false, backend: "direct" };
   }
   return result;
 }

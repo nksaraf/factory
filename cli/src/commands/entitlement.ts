@@ -6,6 +6,14 @@ import {
   runEntitlementRevoke,
 } from "../handlers/entitlement.js"
 import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("entitlement", [
+  "$ dx entitlement list                      List all entitlements",
+  "$ dx entitlement list --customer-id <id>   Filter by customer",
+  "$ dx entitlement grant --customer-id <id> --module-id <id>",
+  "$ dx entitlement revoke <id>               Revoke an entitlement",
+])
 
 export function entitlementCommand(app: DxBase) {
   return app

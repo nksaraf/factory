@@ -7,6 +7,13 @@ import {
 } from "../lib/log-formatter.js"
 import { toDxFlags } from "./dx-flags.js"
 import { apiCall, styleMuted } from "./list-helpers.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("trace", [
+  "$ dx trace list                    Recent traces",
+  "$ dx trace show <trace-id>         Trace details with spans",
+  "$ dx trace find --error --since 1h Find error traces",
+])
 
 export function traceCommand(app: DxBase) {
   return app

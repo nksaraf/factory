@@ -1,8 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 
-import { composeToYaml, generateCompose } from "@smp/factory-shared/compose-gen";
 import { resolveEnvVars } from "@smp/factory-shared/env-resolution";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 import { loadTierOverlay } from "@smp/factory-shared/tier-overlay-loader";
@@ -28,6 +26,14 @@ import {
 import { DevController } from "../lib/dev-controller.js";
 import { PortManager } from "../lib/port-manager.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("dev", [
+  "$ dx dev                           Start local development",
+  "$ dx dev --connect-to staging      Connect to staging",
+  "$ dx dev stop                      Stop local development",
+  "$ dx dev ps                        Show running services",
+]);
 
 export function devCommand(app: DxBase) {
   return app
@@ -38,7 +44,7 @@ export function devCommand(app: DxBase) {
         name: "components",
         type: "string",
         variadic: true,
-        description: "Optional component names to include in generated compose",
+        description: "Optional component names to include",
       },
     ])
     .flags({
@@ -92,7 +98,6 @@ export function devCommand(app: DxBase) {
         }
 
         const project = ProjectContext.fromCwd();
-        const filter = args.components?.length ? args.components : undefined;
 
         // Determine if we're doing hybrid dev (any connection flags present)
         const hasConnectionFlags =
@@ -113,7 +118,7 @@ export function devCommand(app: DxBase) {
           const connectToOverrides = flags["connect-to"]
             ? parseConnectToFlag(
                 flags["connect-to"] as string,
-                project.moduleConfig
+                project.catalog
               )
             : undefined;
 
@@ -190,7 +195,7 @@ export function devCommand(app: DxBase) {
 
           // Resolve env vars
           connectionContext = resolveEnvVars({
-            dxConfig: project.moduleConfig,
+            catalog: project.catalog,
             tierOverlay,
             connectionOverrides: overrides,
             cliEnvFlags: envFlags,
@@ -260,55 +265,10 @@ export function devCommand(app: DxBase) {
           }
         }
 
-        // Resolve dynamic ports for all components + dependencies
-        const pm = new PortManager(join(project.rootDir, ".dx"));
-        const portRequests = [
-          ...Object.entries(project.moduleConfig.components).map(
-            ([name, ref]) => ({ name, preferred: ref.port ?? undefined }),
-          ),
-          ...Object.entries(project.moduleConfig.resources).map(
-            ([name, dep]) => ({ name, preferred: dep.port }),
-          ),
-        ];
-        const resolvedPorts = await pm.resolve(portRequests);
-
-        // Build portMap keyed by compose service names
-        const mod = project.moduleConfig.module;
-        const portMap: Record<string, number> = {};
-        for (const [name, port] of Object.entries(resolvedPorts)) {
-          if (name in project.moduleConfig.components) {
-            // Component service name: module-component
-            const sn = `${mod}-${name}`
-              .toLowerCase()
-              .replace(/[^a-z0-9-]/g, "-")
-              .replace(/-+/g, "-")
-              .replace(/^-|-$/g, "");
-            portMap[sn] = port;
-          } else {
-            // Dependency service name: dep-name
-            const sn = `dep-${name}`.toLowerCase().replace(/_/g, "-");
-            portMap[sn] = port;
-          }
-        }
-
-        // Generate compose (with or without connection context)
-        const compose = generateCompose(
-          project.rootDir,
-          project.moduleConfig,
-          project.componentConfigs,
-          { componentFilter: filter, connectionContext, portMap }
-        );
-        const yamlContent = composeToYaml(compose);
-        const composePath = join(
-          project.rootDir,
-          ".dx",
-          "generated",
-          "docker-compose.yaml"
-        );
-        mkdirSync(dirname(composePath), { recursive: true });
-        writeFileSync(composePath, yamlContent, "utf8");
-        if (f.verbose) {
-          console.log(`Generated compose → ${composePath}`);
+        // Use the real compose files directly — no generation needed
+        const composePath = project.composeFiles[0];
+        if (!composePath) {
+          exitWithError(f, "No docker-compose file found");
         }
         composeUp(composePath, {
           build: true,
@@ -364,8 +324,8 @@ export function devCommand(app: DxBase) {
             const project = ProjectContext.fromCwd();
             const ctrl = new DevController(
               project.rootDir,
-              project.moduleConfig,
-              project.componentConfigs,
+              project.catalog,
+              project.composeFiles,
             );
 
             const component = args.component;
@@ -412,8 +372,8 @@ export function devCommand(app: DxBase) {
             const project = ProjectContext.fromCwd();
             const ctrl = new DevController(
               project.rootDir,
-              project.moduleConfig,
-              project.componentConfigs,
+              project.catalog,
+              project.composeFiles,
             );
 
             const stopped = ctrl.stop(args.component || undefined);
@@ -447,8 +407,8 @@ export function devCommand(app: DxBase) {
             const project = ProjectContext.fromCwd();
             const ctrl = new DevController(
               project.rootDir,
-              project.moduleConfig,
-              project.componentConfigs,
+              project.catalog,
+              project.composeFiles,
             );
 
             const result = await ctrl.restart(args.component);
@@ -468,8 +428,8 @@ export function devCommand(app: DxBase) {
           const project = ProjectContext.fromCwd();
           const ctrl = new DevController(
             project.rootDir,
-            project.moduleConfig,
-            project.componentConfigs,
+            project.catalog,
+            project.composeFiles,
           );
 
           const servers = ctrl.ps();
@@ -513,8 +473,8 @@ export function devCommand(app: DxBase) {
             const project = ProjectContext.fromCwd();
             const ctrl = new DevController(
               project.rootDir,
-              project.moduleConfig,
-              project.componentConfigs,
+              project.catalog,
+              project.composeFiles,
             );
 
             const logPath = ctrl.logs(args.component);

@@ -10,6 +10,13 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("module", [
+  "$ dx module list                   List all modules",
+  "$ dx module show core-api          Show module details",
+  "$ dx module version list core-api  List module versions",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {

@@ -1,38 +1,63 @@
 import { describe, expect, it } from "vitest";
 
-import { composeToYaml, generateCompose } from "./compose-gen";
-import type { DxYaml } from "./config-schemas";
+import { composeToYaml, generateComposeFromCatalog } from "./compose-gen";
+import type { CatalogSystem } from "./catalog";
 import type { ResolvedConnectionContext } from "./connection-context-schemas";
 
-const sample: DxYaml = {
-  module: "billing",
-  team: "platform-eng",
+const sample: CatalogSystem = {
+  kind: "System",
+  metadata: { name: "billing", namespace: "default" },
+  spec: { owner: "platform-eng", domain: "payments", lifecycle: "production" },
   components: {
-    api: { path: "./services/api", port: 8080, worker: false },
-  },
-  dependencies: {
-    postgres: {
-      image: "postgres:16-alpine",
-      port: 5432,
-      env: {
-        POSTGRES_DB: "billing",
-        POSTGRES_USER: "dev",
-        POSTGRES_PASSWORD: "dev",
+    api: {
+      kind: "Component",
+      metadata: { name: "api", namespace: "default" },
+      spec: {
+        type: "service",
+        lifecycle: "production",
+        owner: "platform-eng",
+        build: { context: "./services/api", dockerfile: "Dockerfile" },
+        ports: [{ name: "http", port: 8080, protocol: "http" }],
+        dev: { command: "python -m http.server", sync: [] },
       },
     },
-    redis: { image: "redis:7-alpine", port: 6379, env: {} },
   },
-  connections: {},
-};
-
-describe("generateCompose", () => {
-  it("creates dependency and component services", () => {
-    const out = generateCompose("/repo/root", sample, {
-      api: {
-        dev: { command: "python -m http.server", sync: [] },
-        build: { dockerfile: "Dockerfile", context: "." },
+  resources: {
+    postgres: {
+      kind: "Resource",
+      metadata: { name: "postgres", namespace: "default" },
+      spec: {
+        type: "database",
+        owner: "platform-eng",
+        lifecycle: "production",
+        image: "postgres:16-alpine",
+        ports: [{ name: "postgres", port: 5432, protocol: "tcp" }],
+        environment: {
+          POSTGRES_DB: "billing",
+          POSTGRES_USER: "dev",
+          POSTGRES_PASSWORD: "dev",
+        },
       },
-    });
+    },
+    redis: {
+      kind: "Resource",
+      metadata: { name: "redis", namespace: "default" },
+      spec: {
+        type: "cache",
+        owner: "platform-eng",
+        lifecycle: "production",
+        image: "redis:7-alpine",
+        ports: [{ name: "redis", port: 6379, protocol: "tcp" }],
+      },
+    },
+  },
+  apis: {},
+  connections: [],
+} as unknown as CatalogSystem;
+
+describe("generateComposeFromCatalog", () => {
+  it("creates resource and component services", () => {
+    const out = generateComposeFromCatalog(sample);
     expect(out.services["dep-postgres"]).toBeDefined();
     expect(out.services["dep-redis"]).toBeDefined();
     expect(out.services["billing-api"]).toBeDefined();
@@ -52,15 +77,11 @@ describe("generateCompose", () => {
       remoteDeps: ["postgres"],
       localDeps: ["redis"],
     };
-    const out = generateCompose("/repo/root", sample, { api: {} }, { connectionContext: connCtx });
-    // postgres should be omitted from compose
+    const out = generateComposeFromCatalog(sample, { connectionContext: connCtx });
     expect(out.services["dep-postgres"]).toBeUndefined();
-    // redis stays local
     expect(out.services["dep-redis"]).toBeDefined();
-    // component gets resolved env vars
     const api = out.services["billing-api"];
     expect(api?.environment?.DATABASE_URL).toBe("postgresql://staging:5432/billing");
-    // depends_on should only reference local deps
     expect(api?.depends_on).toEqual(["dep-redis"]);
   });
 
@@ -75,7 +96,7 @@ describe("generateCompose", () => {
       remoteDeps: ["postgres", "redis"],
       localDeps: [],
     };
-    const out = generateCompose("/repo/root", sample, { api: {} }, { connectionContext: connCtx });
+    const out = generateComposeFromCatalog(sample, { connectionContext: connCtx });
     expect(out.services["dep-postgres"]).toBeUndefined();
     expect(out.services["dep-redis"]).toBeUndefined();
     const api = out.services["billing-api"];
@@ -83,35 +104,32 @@ describe("generateCompose", () => {
     expect(api?.depends_on).toBeUndefined();
   });
 
-  it("portMap overrides dependency host ports", () => {
-    const out = generateCompose("/r", sample, {}, { portMap: { "dep-postgres": 15432 } });
+  it("portMap overrides resource host ports", () => {
+    const out = generateComposeFromCatalog(sample, { portMap: { "dep-postgres": 15432 } });
     expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
   });
 
   it("portMap overrides component host ports", () => {
-    const out = generateCompose("/r", sample, {}, { portMap: { "billing-api": 19000 } });
+    const out = generateComposeFromCatalog(sample, { portMap: { "billing-api": 19000 } });
     expect(out.services["billing-api"]?.ports).toContain("19000:8080");
   });
 
   it("portMap takes precedence over portOffset", () => {
-    const out = generateCompose("/r", sample, {}, {
+    const out = generateComposeFromCatalog(sample, {
       portOffset: 1000,
       portMap: { "dep-postgres": 15432 },
     });
-    // portMap wins for postgres
     expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
-    // portOffset applies to unmapped redis
     expect(out.services["dep-redis"]?.ports).toContain("7379:6379");
   });
 
   it("partial portMap: unmapped services use default", () => {
-    const out = generateCompose("/r", sample, {}, { portMap: { "dep-postgres": 15432 } });
-    // redis uses its dx.yaml port (default)
+    const out = generateComposeFromCatalog(sample, { portMap: { "dep-postgres": 15432 } });
     expect(out.services["dep-redis"]?.ports).toContain("6379:6379");
   });
 
   it("composeToYaml returns parseable yaml text", () => {
-    const out = generateCompose("/r", sample, {});
+    const out = generateComposeFromCatalog(sample);
     const y = composeToYaml(out);
     expect(y).toContain("services:");
     expect(y).toContain("billing-api:");

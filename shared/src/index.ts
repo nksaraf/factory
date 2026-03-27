@@ -3,7 +3,6 @@ export * from "./catalog";
 export * from "./catalog-registry";
 export * from "./compose-gen";
 export * from "./config-loader";
-export * from "./config-schemas";
 export * from "./conventions";
 export * from "./conventions-schema";
 export * from "./entitlement-bundle";
