@@ -13,6 +13,7 @@ import { contextCommand } from "./commands/context.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
+import { doctorCommand } from "./commands/doctor.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
 import { entitlementCommand } from "./commands/entitlement.js";
@@ -66,6 +67,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(dbCommand(app))
     .command(deployCommand(app))
     .command(devCommand(app))
+    .command(doctorCommand(app))
     .command(domainCommand(app))
     .command(entitlementCommand(app))
     .command(envCommand(app))

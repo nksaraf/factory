@@ -32,7 +32,7 @@ export function installCommand(app: DxBase) {
     .meta({ description: "Install, upgrade, and manage the dx platform" })
     .flags({
       bundle: { type: "string", short: "b", description: "Path to offline bundle directory" },
-      role: { type: "string", description: "Installation role: workbench, site, or factory" },
+      role: { type: "string", description: "Installation role: workbench (default), site, or factory" },
       force: { type: "boolean", description: "Force install over existing installation" },
       fresh: {
         type: "boolean",
@@ -43,6 +43,15 @@ export function installCommand(app: DxBase) {
         short: "k",
         description: "Path to kubeconfig for a remote k3s/k8s cluster (skips local k3s bootstrap and image loading)",
       },
+      yes: { type: "boolean", short: "y", description: "Skip interactive prompts (workbench only)" },
+      dir: { type: "string", description: "Workbench root directory (default: cwd)" },
+      type: {
+        type: "string",
+        short: "t",
+        description: "Workbench type: developer, ci, agent, sandbox, build, testbed",
+      },
+      "registry-key": { type: "string", description: "Base64-encoded GCP service account key for registry auth" },
+      "registry-key-file": { type: "string", description: "Path to GCP service account key file for registry auth" },
     })
     .run(async ({ flags }) => {
       const f = toDxFlags(flags);
@@ -54,28 +63,25 @@ export function installCommand(app: DxBase) {
         let config = await readConfig();
         const hasExistingConfig = configExists();
 
-        if (hasExistingConfig && config.siteName) {
-          console.log(`  Config found: ${config.role} (${config.context || config.siteName || new URL(config.factoryUrl).hostname})\n`);
-        } else {
-          // Light preflight before wizard
-          console.log("  Checking system...");
-          const { runPreflight } = await import("../handlers/install/preflight.js");
-          const lightPreflight = runPreflight({
-            role: (flags.role as InstallRole) || "workbench",
-            remoteCluster: !!(flags.kubeconfig as string | undefined),
-          });
-          printPreflightLine(lightPreflight.checks);
-          console.log();
+        // Determine role: explicit flag > existing config > default to workbench
+        const roleOverride = flags.role as InstallRole | undefined;
+        let role: InstallRole;
 
-          if (!lightPreflight.passed) {
-            exitWithError(f, "System requirements not met.", ExitCodes.PREFLIGHT_FAILURE);
+        if (roleOverride) {
+          role = roleOverride;
+          if (!hasExistingConfig || config.role !== roleOverride) {
+            await dxConfigStore.update((prev) => ({ ...prev, role: roleOverride }));
+            config = await readConfig();
           }
-
-          // Interactive wizard
+        } else if (hasExistingConfig && (config.role === "site" || config.role === "factory")) {
+          // Existing site/factory config — use that role
+          role = config.role as InstallRole;
+          console.log(`  Config found: ${config.role} (${config.context || config.siteName || new URL(config.factoryUrl).hostname})\n`);
+        } else if (roleOverride === "site" || roleOverride === "factory") {
+          // Site/Factory needs the wizard
+          role = roleOverride;
           const { runWizard } = await import("../handlers/install/interactive-setup.js");
           const wizard = await runWizard(config);
-
-          // Write wizard results to store
           await dxConfigStore.write({
             role: wizard.role,
             factoryUrl: wizard.factoryUrl,
@@ -99,11 +105,12 @@ export function installCommand(app: DxBase) {
             installLastCompletedPhase: config.installLastCompletedPhase,
             kubeconfig: config.kubeconfig,
           });
-
           config = await readConfig();
+        } else {
+          // Default to workbench
+          role = "workbench";
         }
 
-        const role: InstallRole = (flags.role as InstallRole) || (config.role as InstallRole);
         const remoteKubeconfig = flags.kubeconfig as string | undefined;
 
         // Set kubeconfig for remote cluster mode
@@ -125,18 +132,26 @@ export function installCommand(app: DxBase) {
           const { runWorkbenchSetup } = await import("../handlers/install/workbench.js");
           const result = await runWorkbenchSetup({
             factoryUrl: config.factoryUrl,
+            dir: flags.dir as string | undefined,
+            type: flags.type as string | undefined,
+            yes: flags.yes as boolean | undefined,
             verbose: f.verbose,
+            registryKey: flags["registry-key"] as string | undefined,
+            registryKeyFile: flags["registry-key-file"] as string | undefined,
           });
 
-          // Update context in store if set
-          if (result.context) {
-            await dxConfigStore.update((prev) => ({ ...prev, context: result.context! }));
-          }
+          // Update global config
+          await dxConfigStore.update((prev) => ({
+            ...prev,
+            role: "workbench",
+            factoryUrl: result.factoryUrl || prev.factoryUrl,
+            context: result.context || prev.context,
+          }));
 
-          successLine(`Workbench ready — ${new URL(config.factoryUrl).hostname}`, Date.now() - totalStart);
+          successLine(`Workbench ready — ${result.workbenchId}`, Date.now() - totalStart);
           infoLine("dx dev       local dev server");
+          infoLine("dx doctor    check workbench health");
           infoLine("dx deploy    deploy to site");
-          infoLine("dx status    check platform");
           console.log();
 
           if (f.json) {

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 import { configDir, createStore } from "@crustjs/store";
 
@@ -85,4 +86,84 @@ export async function writeSession(update: SessionPayload): Promise<void> {
 
 export async function clearAuthSession(): Promise<void> {
   await dxSessionStore.reset();
+}
+
+// ---------------------------------------------------------------------------
+// Named auth profiles
+// ---------------------------------------------------------------------------
+
+/** Directory for per-workbench auth profiles. */
+export const SESSION_PROFILES_DIR = path.join(SESSION_DIR, "sessions");
+
+const SESSION_FIELDS = {
+  bearerToken: { type: "string", default: "" },
+  jwt: { type: "string", default: "" },
+} as const;
+
+/** Create a store for a named auth profile. */
+export function createProfileStore(profileName: string) {
+  return createStore({
+    dirPath: SESSION_PROFILES_DIR,
+    name: profileName,
+    fields: SESSION_FIELDS,
+  });
+}
+
+/** Read session from a named profile. */
+export async function readSessionForProfile(profileName: string): Promise<SessionPayload> {
+  const store = createProfileStore(profileName);
+  const s = await store.read();
+  return toPayload(s);
+}
+
+/** Get bearer token from a named profile. */
+export async function getStoredBearerTokenForProfile(profileName: string): Promise<string | undefined> {
+  const t = (await readSessionForProfile(profileName)).bearerToken;
+  return typeof t === "string" && t.length > 0 ? t : undefined;
+}
+
+/** Write session to a named profile. */
+export async function writeSessionForProfile(profileName: string, update: SessionPayload): Promise<void> {
+  const store = createProfileStore(profileName);
+  await store.update((prev) => {
+    const next = { bearerToken: prev.bearerToken, jwt: prev.jwt };
+    for (const [k, val] of Object.entries(update) as [keyof SessionPayload, string | undefined][]) {
+      if (val === undefined) {
+        next[k] = "";
+      } else {
+        next[k] = val;
+      }
+    }
+    return next;
+  });
+  const after = await store.read();
+  if (after.bearerToken === "" && after.jwt === "") {
+    await store.reset();
+  }
+}
+
+/**
+ * Resolve the active auth profile name.
+ * Walks up from cwd to find `.dx/workbench.json` with an `authProfile` field.
+ * Falls back to "default" (which maps to the global session.json).
+ */
+export function resolveActiveProfile(): string {
+  let dir = process.cwd();
+  const root = path.parse(dir).root;
+  while (dir !== root) {
+    const candidate = path.join(dir, ".dx", "workbench.json");
+    if (existsSync(candidate)) {
+      try {
+        const config = JSON.parse(readFileSync(candidate, "utf8"));
+        if (typeof config.authProfile === "string" && config.authProfile.length > 0) {
+          return config.authProfile;
+        }
+      } catch {
+        // malformed json — fall through
+      }
+      break; // found workbench.json but no profile — use default
+    }
+    dir = path.dirname(dir);
+  }
+  return "default";
 }
