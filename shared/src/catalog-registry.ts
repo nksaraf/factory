@@ -2,12 +2,12 @@
  * Format adapter registry for the Software Catalog.
  *
  * Each adapter can detect, parse, and generate a specific config format
- * (dx-yaml, docker-compose, backstage catalog, helm chart).
+ * (docker-compose, backstage catalog, helm chart).
  */
 
 import type { CatalogSystem } from "./catalog";
 
-export type CatalogFormat = "dx-yaml" | "docker-compose" | "backstage" | "helm";
+export type CatalogFormat = "docker-compose" | "backstage" | "helm";
 
 export interface CatalogParseResult {
   system: CatalogSystem;
@@ -64,7 +64,7 @@ export function getCatalogFormat(format: CatalogFormat): CatalogFormatAdapter {
 /** Auto-detect which format is present. Returns first match in priority order. */
 export async function detectCatalogFormat(
   rootDir: string,
-  preferenceOrder: CatalogFormat[] = ["dx-yaml", "docker-compose", "backstage"]
+  preferenceOrder: CatalogFormat[] = ["docker-compose", "backstage"]
 ): Promise<CatalogFormat | null> {
   for (const format of preferenceOrder) {
     const factory = adapters.get(format);

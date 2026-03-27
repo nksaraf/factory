@@ -11,6 +11,13 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("artifact", [
+  "$ dx artifact list                 List build artifacts",
+  "$ dx artifact show <id>            Artifact details",
+  "$ dx artifact create --image img   Register artifact",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {

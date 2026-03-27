@@ -112,6 +112,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
           });
 
           state.tunnelId = tunnel.tunnelId;
+          if (!state.tunnelId) throw new Error("tunnel registration returned null ID");
           activeTunnels.set(state.tunnelId, ws);
           subdomainToTunnelId.set(subdomain, state.tunnelId);
 

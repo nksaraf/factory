@@ -1,4 +1,4 @@
-import { select, input } from "@inquirer/prompts";
+import { select, input } from "@crustjs/prompts";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 import type { DxConfig } from "../../config.js";
 
@@ -27,9 +27,9 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
   const role = await select<InstallRole>({
     message: "Role",
     choices: [
-      { value: "workbench", name: "Workbench" },
-      { value: "site", name: "Site" },
-      { value: "factory", name: "Factory" },
+      { value: "workbench", label: "Workbench" },
+      { value: "site", label: "Site" },
+      { value: "factory", label: "Factory" },
     ],
     default: "workbench",
   });
@@ -103,8 +103,8 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
   const customize = await select({
     message: "Advanced (TLS, database, resources)",
     choices: [
-      { value: false, name: "Use defaults" },
-      { value: true, name: "Customize" },
+      { value: false, label: "Use defaults" },
+      { value: true, label: "Customize" },
     ],
     default: false,
   });
@@ -113,9 +113,9 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
     tlsMode = await select({
       message: "TLS",
       choices: [
-        { value: "self-signed", name: "Self-signed" },
-        { value: "letsencrypt", name: "Let's Encrypt" },
-        { value: "provided", name: "Provided (bring your own cert)" },
+        { value: "self-signed", label: "Self-signed" },
+        { value: "letsencrypt", label: "Let's Encrypt" },
+        { value: "provided", label: "Provided (bring your own cert)" },
       ],
       default: "self-signed",
     });
@@ -128,8 +128,8 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
     databaseMode = await select({
       message: "Database",
       choices: [
-        { value: "embedded", name: "Embedded" },
-        { value: "external", name: "External" },
+        { value: "embedded", label: "Embedded" },
+        { value: "external", label: "External" },
       ],
       default: "embedded",
     });
@@ -141,9 +141,9 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
     resourceProfile = await select({
       message: "Resources",
       choices: [
-        { value: "small", name: "Small (dev/testing)" },
-        { value: "medium", name: "Medium (production)" },
-        { value: "large", name: "Large (high traffic)" },
+        { value: "small", label: "Small (dev/testing)" },
+        { value: "medium", label: "Medium (production)" },
+        { value: "large", label: "Large (high traffic)" },
       ],
       default: resourceProfile,
     });
@@ -151,8 +151,8 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
     registryMode = await select({
       message: "Registry",
       choices: [
-        { value: "embedded", name: "Embedded" },
-        { value: "external", name: "External" },
+        { value: "embedded", label: "Embedded" },
+        { value: "external", label: "External" },
       ],
       default: "embedded",
     });

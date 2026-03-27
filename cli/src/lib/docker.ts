@@ -7,17 +7,50 @@ export function isDockerRunning(): boolean {
   return proc.status === 0;
 }
 
-export function composeUp(
-  composeFile: string,
-  opts?: { detach?: boolean; build?: boolean; projectName?: string }
-): void {
+/** Build compose args: -f file1 -f file2 --profile p1 --profile p2 */
+function composeFileArgs(
+  composeFiles: string | string[],
+  opts?: { projectName?: string; profiles?: string[] }
+): string[] {
   const args = ["compose"];
   if (opts?.projectName) {
     args.push("-p", opts.projectName);
   }
-  args.push("-f", composeFile, "up");
+  const files = Array.isArray(composeFiles) ? composeFiles : [composeFiles];
+  for (const f of files) {
+    args.push("-f", f);
+  }
+  if (opts?.profiles) {
+    for (const p of opts.profiles) {
+      args.push("--profile", p);
+    }
+  }
+  return args;
+}
+
+export function composeUp(
+  composeFiles: string | string[],
+  opts?: {
+    detach?: boolean;
+    build?: boolean;
+    noBuild?: boolean;
+    projectName?: string;
+    profiles?: string[];
+    services?: string[];
+  }
+): void {
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("up");
   if (opts?.detach !== false) args.push("-d");
-  if (opts?.build) args.push("--build");
+  // Default to --build unless --no-build is specified
+  if (opts?.noBuild) {
+    args.push("--no-build");
+  } else if (opts?.build !== false) {
+    args.push("--build");
+  }
+  if (opts?.services?.length) {
+    args.push(...opts.services);
+  }
   const proc = spawnSync("docker", args, {
     stdio: "inherit",
   });
@@ -27,14 +60,12 @@ export function composeUp(
 }
 
 export function composeDown(
-  composeFile: string,
-  opts?: { projectName?: string }
+  composeFiles: string | string[],
+  opts?: { projectName?: string; profiles?: string[]; volumes?: boolean }
 ): void {
-  const args = ["compose"];
-  if (opts?.projectName) {
-    args.push("-p", opts.projectName);
-  }
-  args.push("-f", composeFile, "down");
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("down");
+  if (opts?.volumes) args.push("--volumes");
   const proc = spawnSync("docker", args, {
     stdio: "inherit",
   });
@@ -44,26 +75,50 @@ export function composeDown(
 }
 
 export function composeStop(
-  composeFile: string,
+  composeFiles: string | string[],
   services: string[],
-  opts?: { projectName?: string },
+  opts?: { projectName?: string; profiles?: string[] },
 ): void {
-  const args = ["compose"];
-  if (opts?.projectName) args.push("-p", opts.projectName);
-  args.push("-f", composeFile, "stop", ...services);
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("stop", ...services);
   spawnSync("docker", args, { stdio: "inherit" });
 }
 
 export function composeIsRunning(
-  composeFile: string,
+  composeFiles: string | string[],
   service: string,
-  opts?: { projectName?: string },
+  opts?: { projectName?: string; profiles?: string[] },
 ): boolean {
-  const args = ["compose"];
-  if (opts?.projectName) args.push("-p", opts.projectName);
-  args.push("-f", composeFile, "ps", "-q", service);
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("ps", "-q", service);
   const result = spawnSync("docker", args, { encoding: "utf8" });
   return result.status === 0 && result.stdout.trim().length > 0;
+}
+
+export function composeRestart(
+  composeFiles: string | string[],
+  services: string[],
+  opts?: { projectName?: string; profiles?: string[] },
+): void {
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("restart", ...services);
+  const proc = spawnSync("docker", args, { stdio: "inherit" });
+  if (proc.status !== 0) {
+    throw new Error("docker compose restart failed");
+  }
+}
+
+export function composeBuild(
+  composeFiles: string | string[],
+  services: string[],
+  opts?: { projectName?: string; profiles?: string[] },
+): void {
+  const args = composeFileArgs(composeFiles, opts);
+  args.push("build", ...services);
+  const proc = spawnSync("docker", args, { stdio: "inherit" });
+  if (proc.status !== 0) {
+    throw new Error("docker compose build failed");
+  }
 }
 
 export function dockerBuild(

@@ -1,23 +1,15 @@
-import { dirname } from "node:path";
-
-import type { CatalogSystem } from "@smp/factory-shared/catalog";
+import type { CatalogComponent, CatalogResource, CatalogSystem } from "@smp/factory-shared/catalog";
 import {
-  findDxYaml,
-  loadFullConfig,
+  discoverComposeFiles,
+  findComposeRoot,
 } from "@smp/factory-shared/config-loader";
-import type {
-  DxComponentYaml,
-  DxYaml,
-} from "@smp/factory-shared/config-schemas";
 import { loadConventions } from "@smp/factory-shared/conventions";
 import type { ConventionsConfig } from "@smp/factory-shared/conventions-schema";
-import { dxYamlToCatalogSystem } from "@smp/factory-shared/formats/dx-yaml.adapter";
+import { DockerComposeFormatAdapter } from "@smp/factory-shared/formats/docker-compose.adapter";
 
 export class ProjectContext {
   readonly rootDir: string;
-  readonly dxYamlPath: string;
-  readonly moduleConfig: DxYaml;
-  readonly componentConfigs: Record<string, DxComponentYaml>;
+  readonly composeFiles: string[];
   readonly conventions: ConventionsConfig;
 
   /** Backstage-aligned catalog representation of this project. */
@@ -25,36 +17,64 @@ export class ProjectContext {
 
   private constructor(
     rootDir: string,
-    dxYamlPath: string,
-    moduleConfig: DxYaml,
-    componentConfigs: Record<string, DxComponentYaml>,
+    composeFiles: string[],
     conventions: ConventionsConfig,
     catalog: CatalogSystem,
   ) {
     this.rootDir = rootDir;
-    this.dxYamlPath = dxYamlPath;
-    this.moduleConfig = moduleConfig;
-    this.componentConfigs = componentConfigs;
+    this.composeFiles = composeFiles;
     this.conventions = conventions;
     this.catalog = catalog;
   }
 
-  static fromCwd(cwd = process.cwd()): ProjectContext {
-    const dxYamlPath = findDxYaml(cwd);
-    if (!dxYamlPath) {
-      throw new Error("No dx.yaml found (searched upward from the current directory).");
+  get systemName(): string {
+    return this.catalog.metadata.name;
+  }
+
+  get owner(): string {
+    return this.catalog.spec.owner;
+  }
+
+  get componentNames(): string[] {
+    return Object.keys(this.catalog.components);
+  }
+
+  get resourceNames(): string[] {
+    return Object.keys(this.catalog.resources);
+  }
+
+  getComponent(name: string): CatalogComponent | undefined {
+    return this.catalog.components[name];
+  }
+
+  getResource(name: string): CatalogResource | undefined {
+    return this.catalog.resources[name];
+  }
+
+  /** Collect all unique profile names from components and resources. */
+  get allProfiles(): string[] {
+    const profiles = new Set<string>();
+    for (const comp of Object.values(this.catalog.components)) {
+      for (const p of comp.spec.profiles ?? []) profiles.add(p);
     }
-    const rootDir = dirname(dxYamlPath);
-    const { module, components } = loadFullConfig(rootDir);
+    for (const res of Object.values(this.catalog.resources)) {
+      for (const p of res.spec.profiles ?? []) profiles.add(p);
+    }
+    return [...profiles].sort();
+  }
+
+  static fromCwd(cwd = process.cwd()): ProjectContext {
+    const rootDir = findComposeRoot(cwd);
+    if (!rootDir) {
+      throw new Error(
+        "No docker-compose file found (searched upward from the current directory).\n" +
+        "Create a docker-compose.yaml or compose/ directory to define your project catalog."
+      );
+    }
+    const composeFiles = discoverComposeFiles(rootDir);
+    const adapter = new DockerComposeFormatAdapter();
+    const { system: catalog } = adapter.parse(rootDir);
     const conventions = loadConventions(rootDir);
-    const catalog = dxYamlToCatalogSystem(rootDir, module, components);
-    return new ProjectContext(
-      rootDir,
-      dxYamlPath,
-      module,
-      components,
-      conventions,
-      catalog,
-    );
+    return new ProjectContext(rootDir, composeFiles, conventions, catalog);
   }
 }

@@ -1,5 +1,6 @@
 import ora, { type Ora } from "ora";
 import { styleSuccess, styleError, styleWarn, styleMuted } from "../cli-style.js";
+import type { ToolchainCheck } from "@smp/factory-shared/install-types";
 
 /** Print the dx install welcome banner. */
 export function banner(version: string): void {
@@ -62,4 +63,18 @@ export function successLine(message: string, totalMs: number): void {
 /** Print indented info lines. */
 export function infoLine(text: string): void {
   console.log(`    ${text}`);
+}
+
+/** Print toolchain check results, one line per tool. */
+export function printToolchainResults(checks: ToolchainCheck[]): void {
+  for (const c of checks) {
+    const versionSuffix = c.minVersion ? ` ${styleMuted(`(>= ${c.minVersion})`)}` : "";
+    if (c.passed) {
+      console.log(`  ${styleSuccess("✔")} ${c.message}${versionSuffix}`);
+    } else if (c.required) {
+      console.log(`  ${styleError("✖")} ${c.message}`);
+    } else {
+      console.log(`  ${styleWarn("⚠")} ${c.message}`);
+    }
+  }
 }

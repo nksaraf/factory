@@ -7,15 +7,20 @@ import { authCommand } from "./commands/auth.js";
 import { branchCommand } from "./commands/branch.js";
 import { buildCommand } from "./commands/build.js";
 import { commitCommand } from "./commands/commit.js";
+import { configCommand } from "./commands/config.js";
 import { connectCommand } from "./commands/connect.js";
 import { contextCommand } from "./commands/context.js";
+import { catalogCommand } from "./commands/catalog.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
+import { doctorCommand } from "./commands/doctor.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
+import { downCommand } from "./commands/down.js";
 import { entitlementCommand } from "./commands/entitlement.js";
 import { envCommand } from "./commands/env.js";
+import { factoryCommand } from "./commands/factory.js";
 import { gitCommand } from "./commands/git.js";
 import { infraCommand } from "./commands/infra.js";
 import { installCommand } from "./commands/install.js";
@@ -40,6 +45,7 @@ import { tenantCommand } from "./commands/tenant.js";
 import { testCommand } from "./commands/test.js";
 import { traceCommand } from "./commands/trace.js";
 import { tunnelCommand } from "./commands/tunnel.js";
+import { upCommand } from "./commands/up.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { workCommand } from "./commands/work.js";
 import { worktreeCommand } from "./commands/worktree.js";
@@ -56,16 +62,21 @@ export function registerCommands(app: DxBase): DxBase {
     .command(authCommand(app))
     .command(branchCommand(app))
     .command(buildCommand(app))
+    .command(catalogCommand(app))
     .command(commitCommand(app))
+    .command(configCommand(app))
     .command(connectCommand(app))
     .command(contextCommand(app))
     .command(customerCommand(app))
     .command(dbCommand(app))
     .command(deployCommand(app))
     .command(devCommand(app))
+    .command(doctorCommand(app))
     .command(domainCommand(app))
+    .command(downCommand(app))
     .command(entitlementCommand(app))
     .command(envCommand(app))
+    .command(factoryCommand(app))
     .command(gitCommand(app))
     .command(infraCommand(app))
     .command(installCommand(app))
@@ -90,6 +101,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(testCommand(app))
     .command(traceCommand(app))
     .command(tunnelCommand(app))
+    .command(upCommand(app))
     .command(whoamiCommand(app))
     .command(workCommand(app))
     .command(worktreeCommand(app));

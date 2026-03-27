@@ -1,7 +1,7 @@
 /**
  * Software Catalog types — Backstage-aligned vocabulary.
  *
- * These types are used by format adapters (dx-yaml, docker-compose, backstage, helm)
+ * These types are used by format adapters (docker-compose, backstage, helm)
  * and the dx dev pipeline. Lyon vocabulary (Module, Team, Principal) lives at the
  * API service boundary; shared/src always speaks Backstage.
  *
@@ -237,6 +237,9 @@ export const catalogComponentSchema = z.object({
     test: z.string().optional(),
     lint: z.string().optional(),
     runtime: z.enum(["node", "python", "java"]).optional(),
+
+    // ── Docker compose profiles ──
+    profiles: z.array(z.string()).optional(),
   }),
 });
 export type CatalogComponent = z.infer<typeof catalogComponentSchema>;
@@ -295,6 +298,9 @@ export const catalogResourceSchema = z.object({
 
     // ── Networking ──
     routes: z.array(catalogRouteSchema).optional(),
+
+    // ── Docker compose profiles ──
+    profiles: z.array(z.string()).optional(),
   }),
 });
 export type CatalogResource = z.infer<typeof catalogResourceSchema>;

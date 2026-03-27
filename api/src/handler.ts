@@ -2,7 +2,7 @@ import { appendHeaders, defineEventHandler, toWebRequest } from "vinxi/http";
 
 import { createServer } from "./server";
 
-const appPromise = createServer();
+const appPromise = globalThis._appPromise ?? createServer();
 
 export default defineEventHandler(async (event) => {
   const app = await appPromise;

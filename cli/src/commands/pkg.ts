@@ -2,6 +2,28 @@ import type { DxBase } from "../dx-root.js";
 
 import { exitWithError } from "../lib/cli-exit.js";
 import { toDxFlags } from "./dx-flags.js";
+import { findPkgRoot } from "../handlers/pkg/detect.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("pkg", [
+  "$ dx pkg list                      List linked packages",
+  "$ dx pkg link ./my-package         Link local package",
+  "$ dx pkg remove ./my-package       Remove a linked package",
+  "$ dx pkg diff                      Show package changes",
+  "$ dx pkg push                      Push package upstream",
+  "$ dx pkg auth --key-file key.pem   Set registry auth key",
+]);
+
+/** Resolve the dx project root (walks up from cwd to find .dx/). */
+const root = (): string => findPkgRoot(process.cwd());
+
+/** Inject global registry auth keys into process.env for all pkg subcommands. */
+async function ensurePkgEnv(): Promise<void> {
+  const { loadGlobalAuthEnv } = await import(
+    "../handlers/pkg/registry-auth-store.js"
+  );
+  await loadGlobalAuthEnv();
+}
 
 export function pkgCommand(app: DxBase) {
   return app
@@ -41,8 +63,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgLink } = await import("../handlers/pkg/link.js");
-            await pkgLink(process.cwd(), {
+            await pkgLink(root(), {
               source: args.source as string,
               path: flags.path as string | undefined,
               as: flags.as as string | undefined,
@@ -77,10 +100,45 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgUnlink } = await import("../handlers/pkg/unlink.js");
-            await pkgUnlink(process.cwd(), {
+            await pkgUnlink(root(), {
               package: args.package as string,
               force: flags.force as boolean | undefined,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── remove ──
+    .command("remove", (c) =>
+      c
+        .meta({ description: "Permanently delete a package from the workspace" })
+        .args([
+          {
+            name: "package",
+            type: "string",
+            required: true,
+            description: "Package to remove",
+          },
+        ])
+        .flags({
+          yes: {
+            type: "boolean",
+            short: "y",
+            description: "Skip confirmation prompt",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgRemove } = await import("../handlers/pkg/remove.js");
+            await pkgRemove(root(), {
+              package: args.package as string,
+              yes: flags.yes as boolean | undefined,
               verbose: f.verbose,
             });
           } catch (err) {
@@ -95,8 +153,9 @@ export function pkgCommand(app: DxBase) {
         async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgList } = await import("../handlers/pkg/list.js");
-            await pkgList(process.cwd(), f.json);
+            await pkgList(root(), f.json);
           } catch (err) {
             exitWithError(f, err instanceof Error ? err.message : String(err));
           }
@@ -125,8 +184,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgDiff } = await import("../handlers/pkg/diff.js");
-            await pkgDiff(process.cwd(), {
+            await pkgDiff(root(), {
               package: args.package as string,
               stat: flags.stat as boolean | undefined,
               verbose: f.verbose,
@@ -166,8 +226,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgBranch } = await import("../handlers/pkg/branch.js");
-            await pkgBranch(process.cwd(), {
+            await pkgBranch(root(), {
               package: args.package as string,
               switch: flags.switch as string | undefined,
               create: flags.create as string | undefined,
@@ -207,8 +268,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPush } = await import("../handlers/pkg/push.js");
-            await pkgPush(process.cwd(), {
+            await pkgPush(root(), {
               package: args.package as string,
               branch: flags.branch as string | undefined,
               message: flags.message as string | undefined,
@@ -247,8 +309,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPull } = await import("../handlers/pkg/pull.js");
-            await pkgPull(process.cwd(), {
+            await pkgPull(root(), {
               package: args.package as string,
               branch: flags.branch as string | undefined,
               dryRun: flags.dryRun as boolean | undefined,
@@ -311,10 +374,11 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgContribute } = await import(
               "../handlers/pkg/contribute.js"
             );
-            await pkgContribute(process.cwd(), {
+            await pkgContribute(root(), {
               localPath: args.localPath as string,
               target: args.target as string | undefined,
               to: flags.to as string | undefined,
@@ -353,13 +417,14 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgBump } = await import("../handlers/pkg/bump.js");
             const level = flags.major
               ? "major"
               : flags.minor
                 ? "minor"
                 : "patch";
-            await pkgBump(process.cwd(), {
+            await pkgBump(root(), {
               package: args.package as string,
               level: level as "major" | "minor" | "patch",
               dryRun: flags.dryRun as boolean | undefined,
@@ -385,10 +450,11 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgVersions } = await import(
               "../handlers/pkg/versions.js"
             );
-            await pkgVersions(process.cwd(), {
+            await pkgVersions(root(), {
               target: args.target as string | undefined,
               verbose: f.verbose,
             });
@@ -419,8 +485,9 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgAuth } = await import("../handlers/pkg/auth.js");
-            await pkgAuth(process.cwd(), {
+            await pkgAuth(root(), {
               check: flags.check as boolean | undefined,
               keyFile: flags.keyFile as string | undefined,
               key: flags.key as string | undefined,
@@ -454,13 +521,190 @@ export function pkgCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
+            await ensurePkgEnv();
             const { pkgPublish } = await import(
               "../handlers/pkg/publish.js"
             );
-            await pkgPublish(process.cwd(), {
+            await pkgPublish(root(), {
               target: args.target as string,
               dryRun: flags.dryRun as boolean | undefined,
               keyFile: flags.keyFile as string | undefined,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── doctor ──
+    .command("doctor", (c) =>
+      c
+        .meta({ description: "Run workspace health checks" })
+        .flags({
+          fix: {
+            type: "boolean",
+            description: "Auto-fix safe issues",
+          },
+          category: {
+            type: "string",
+            description: "Run a single check category",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgDoctor } = await import("../handlers/pkg/doctor.js");
+            await pkgDoctor(root(), {
+              fix: flags.fix as boolean | undefined,
+              category: flags.category as string | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── install ──
+    .command("install", (c) =>
+      c
+        .meta({ description: "Install dependencies across workspace" })
+        .flags({
+          frozen: {
+            type: "boolean",
+            description: "Use frozen lockfile (CI mode)",
+          },
+          filter: {
+            type: "string",
+            description: "Filter to specific packages (glob or name)",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgInstall } = await import(
+              "../handlers/pkg/install-workspace.js"
+            );
+            await pkgInstall(root(), {
+              frozen: flags.frozen as boolean | undefined,
+              filter: flags.filter as string | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── run ──
+    .command("run", (c) =>
+      c
+        .meta({ description: "Run scripts across workspace packages" })
+        .args([
+          {
+            name: "script",
+            type: "string",
+            required: true,
+            description: "Script name to run",
+          },
+        ])
+        .flags({
+          filter: {
+            type: "string",
+            description: "Filter to specific packages (glob or name)",
+          },
+          parallel: {
+            type: "boolean",
+            description: "Run scripts in parallel",
+          },
+          continueOnError: {
+            type: "boolean",
+            description: "Continue running even if a script fails",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgRunScript } = await import(
+              "../handlers/pkg/run-script.js"
+            );
+            await pkgRunScript(root(), {
+              script: args.script as string,
+              filter: flags.filter as string | undefined,
+              parallel: flags.parallel as boolean | undefined,
+              continueOnError: flags.continueOnError as boolean | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── deps ──
+    .command("deps", (c) =>
+      c
+        .meta({ description: "Show workspace dependency graph" })
+        .flags({
+          why: {
+            type: "string",
+            description: "Show why a package is depended on",
+          },
+          external: {
+            type: "boolean",
+            description: "Show external (non-workspace) dependencies",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgDeps } = await import("../handlers/pkg/deps.js");
+            await pkgDeps(root(), {
+              why: flags.why as string | undefined,
+              external: flags.external as boolean | undefined,
+              json: f.json,
+              verbose: f.verbose,
+            });
+          } catch (err) {
+            exitWithError(f, err instanceof Error ? err.message : String(err));
+          }
+        })
+    )
+
+    // ── update ──
+    .command("update", (c) =>
+      c
+        .meta({ description: "Update dependencies across workspace" })
+        .args([
+          {
+            name: "dep",
+            type: "string",
+            description: "Specific dependency to update",
+          },
+        ])
+        .flags({
+          latest: {
+            type: "boolean",
+            description: "Update to latest versions (ignore ranges)",
+          },
+          dryRun: {
+            type: "boolean",
+            description: "Show what would change without applying",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const f = toDxFlags(flags);
+          try {
+            const { pkgUpdate } = await import("../handlers/pkg/update.js");
+            await pkgUpdate(root(), {
+              dep: args.dep as string | undefined,
+              latest: flags.latest as boolean | undefined,
+              dryRun: flags.dryRun as boolean | undefined,
+              json: f.json,
               verbose: f.verbose,
             });
           } catch (err) {

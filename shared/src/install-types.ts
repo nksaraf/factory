@@ -103,3 +103,66 @@ export function planesForRole(role: InstallRole): string[] {
   if (role === "site") return [...SITE_PLANES];
   return [...WORKBENCH_PLANES];
 }
+
+// ---------------------------------------------------------------------------
+// Workbench types
+// ---------------------------------------------------------------------------
+
+/** Workbench subtype for tracking and behavioral differences. */
+export type WorkbenchType = "developer" | "ci" | "agent" | "sandbox" | "build" | "testbed";
+
+/** Result of a single toolchain check (e.g. node, java, docker). */
+export interface ToolchainCheck {
+  name: string;
+  cmd: string;
+  passed: boolean;
+  required: boolean;
+  version?: string;
+  minVersion?: string;
+  message: string;
+}
+
+/** Aggregate result of all toolchain checks. */
+export interface ToolchainResult {
+  passed: boolean;
+  checks: ToolchainCheck[];
+}
+
+/** Persisted workbench config at `<root>/.dx/workbench.json`. */
+export interface WorkbenchConfig {
+  workbenchId: string;
+  type: WorkbenchType;
+  hostname: string;
+  ips: string[];
+  os: string;
+  arch: string;
+  dxVersion: string;
+  authProfile?: string;
+  factoryUrl?: string;
+  factoryRegistered: boolean;
+  registeredAt?: string;
+  createdAt: string;
+  lastInstallAt: string;
+  toolchainVersions: Record<string, string>;
+}
+
+/** Payload sent on every `dx` command to factory. */
+export interface WorkbenchPingPayload {
+  workbenchId: string;
+  command: string;
+  dxVersion: string;
+  timestamp: string;
+  workbenchType: WorkbenchType;
+}
+
+/** Payload sent on `dx install` to register workbench with factory. */
+export interface WorkbenchRegistrationPayload {
+  workbenchId: string;
+  type: WorkbenchType;
+  hostname: string;
+  ips: string[];
+  os: string;
+  arch: string;
+  dxVersion: string;
+  userId?: string;
+}

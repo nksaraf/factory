@@ -101,7 +101,7 @@ function formatChanges(modified: number, untracked: number): string {
   return parts.join(", ");
 }
 
-export async function runStatus(flags: DxFlags): Promise<void> {
+export async function runFactoryStatus(flags: DxFlags): Promise<void> {
   const config = await readConfig();
   const displayUrl = resolveFactoryUrl(config);
   const cwd = process.cwd();

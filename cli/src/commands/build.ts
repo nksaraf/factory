@@ -6,9 +6,15 @@ import { dockerBuild } from "../lib/docker.js";
 import { ProjectContext } from "../lib/project.js";
 
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
 
-function imageTag(module: string, component: string): string {
-  const safe = `${module}-${component}`.toLowerCase().replace(/[^a-z0-9_.-]/g, "-");
+setExamples("build", [
+  "$ dx build               Build all components",
+  "$ dx build api           Build specific component",
+]);
+
+function imageTag(system: string, component: string): string {
+  const safe = `${system}-${component}`.toLowerCase().replace(/[^a-z0-9_.-]/g, "-");
   return `${safe}:latest`;
 }
 
@@ -21,30 +27,30 @@ export function buildCommand(app: DxBase) {
         name: "components",
         type: "string",
         variadic: true,
-        description: "Component names to build (default: all in dx.yaml)",
+        description: "Component names to build (default: all)",
       },
     ])
     .run(({ args, flags }) => {
       const f = toDxFlags(flags);
       try {
         const project = ProjectContext.fromCwd();
-        const mod = project.moduleConfig.module;
         const names =
           args.components?.length && args.components.length > 0
             ? args.components
-            : Object.keys(project.moduleConfig.components);
+            : project.componentNames;
         for (const name of names) {
-          const ref = project.moduleConfig.components[name];
-          if (!ref) {
-            exitWithError(f, `Unknown component "${name}" in dx.yaml`);
+          const comp = project.getComponent(name);
+          if (!comp) {
+            exitWithError(f, `Unknown component "${name}"`);
           }
-          const compCfg = project.componentConfigs[name] ?? {};
-          const dockerfileName = compCfg.build?.dockerfile ?? "Dockerfile";
-          const relCtx = compCfg.build?.context ?? ".";
-          const compRoot = resolve(project.rootDir, ref.path);
-          const context = resolve(compRoot, relCtx);
+          const build = comp!.spec.build;
+          if (!build) {
+            exitWithError(f, `Component "${name}" has no build context`);
+          }
+          const context = resolve(project.rootDir, build!.context);
+          const dockerfileName = build!.dockerfile ?? "Dockerfile";
           const dockerfilePath = join(context, dockerfileName);
-          const tag = imageTag(mod, name);
+          const tag = imageTag(project.systemName, name);
           if (f.verbose) {
             console.log(`docker build -t ${tag} -f ${dockerfilePath} ${context}`);
           }

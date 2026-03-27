@@ -7,8 +7,8 @@
  * documentation links, and inter-service connections.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 import { parse as parseYaml } from "yaml";
 
@@ -255,6 +255,14 @@ interface ParsedLabels {
   apiType?: string;
   links: Array<{ url: string; title: string; type?: string }>;
   extraLabels: Record<string, string>;
+  // dx.* labels for dev workflow
+  devCommand?: string;
+  devSync?: string[];
+  testCommand?: string;
+  lintCommand?: string;
+  runtime?: string;
+  // catalog.connection.* labels
+  connections: Record<string, { module?: string; component?: string; envVar?: string; localDefault?: string }>;
 }
 
 function parseLabels(labels: Record<string, string>): ParsedLabels {
@@ -262,6 +270,7 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
     portOverrides: {},
     links: [],
     extraLabels: {},
+    connections: {},
   };
 
   for (const [key, value] of Object.entries(labels)) {
@@ -302,8 +311,31 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
       result.links.push({ url: value, title: "API Documentation", type: "api-doc" });
     } else if (key === "catalog.docs.runbook") {
       result.links.push({ url: value, title: "Runbook", type: "runbook" });
+    } else if (key.startsWith("catalog.connection.")) {
+      // catalog.connection.<name>.module = "auth"
+      const rest = key.slice("catalog.connection.".length);
+      const dotIdx = rest.indexOf(".");
+      if (dotIdx > 0) {
+        const connName = rest.slice(0, dotIdx);
+        const field = rest.slice(dotIdx + 1);
+        result.connections[connName] ??= {};
+        if (field === "module") result.connections[connName].module = value;
+        else if (field === "component") result.connections[connName].component = value;
+        else if (field === "env_var") result.connections[connName].envVar = value;
+        else if (field === "local_default") result.connections[connName].localDefault = value;
+      }
+    } else if (key === "dx.dev.command") {
+      result.devCommand = value;
+    } else if (key === "dx.dev.sync") {
+      result.devSync = value.split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (key === "dx.test") {
+      result.testCommand = value;
+    } else if (key === "dx.lint") {
+      result.lintCommand = value;
+    } else if (key === "dx.runtime") {
+      result.runtime = value;
     } else {
-      // Preserve non-catalog labels
+      // Preserve non-catalog/non-dx labels
       result.extraLabels[key] = value;
     }
   }
@@ -463,6 +495,16 @@ function serviceToComponent(
 ): CatalogComponent {
   const ports = parsePorts(svc.ports ?? [], labels.portOverrides);
 
+  // Dev workflow: prefer dx.* labels, fall back to compose command
+  const devCommand = labels.devCommand ?? (
+    svc.command
+      ? (Array.isArray(svc.command) ? svc.command.join(" ") : svc.command)
+      : undefined
+  );
+  const dev = (devCommand || labels.devSync)
+    ? { command: devCommand, sync: labels.devSync }
+    : undefined;
+
   return {
     kind: "Component",
     metadata: {
@@ -486,13 +528,11 @@ function serviceToComponent(
       providesApis: labels.providesApis,
       consumesApis: labels.consumesApis,
       dependsOn: extractDependsOn(svc),
-      dev: svc.command
-        ? {
-            command: Array.isArray(svc.command)
-              ? svc.command.join(" ")
-              : svc.command,
-          }
-        : undefined,
+      dev,
+      test: labels.testCommand,
+      lint: labels.lintCommand,
+      runtime: labels.runtime as "node" | "python" | "java" | undefined,
+      profiles: svc.profiles,
     },
   };
 }
@@ -537,6 +577,7 @@ function serviceToResource(
         : Array.isArray(svc.healthcheck?.test)
           ? svc.healthcheck!.test.slice(1).join(" ")
           : undefined,
+      profiles: svc.profiles,
     },
   };
 }
@@ -662,6 +703,11 @@ function normalizeServices(
         })
       : undefined;
 
+    // Normalize profiles
+    const profiles = Array.isArray(rawSvc.profiles)
+      ? rawSvc.profiles.map(String)
+      : undefined;
+
     result[name] = {
       image,
       build,
@@ -674,13 +720,14 @@ function normalizeServices(
       labels,
       platform: rawSvc.platform ? String(rawSvc.platform) : undefined,
       restart: rawSvc.restart ? String(rawSvc.restart) : undefined,
+      profiles,
     };
   }
 
   return result;
 }
 
-// ─── Adapter ─────────────────────────────────────────────────
+// ─── Compose file discovery ──────────────────────────────────
 
 const COMPOSE_FILE_NAMES = [
   "docker-compose.yaml",
@@ -689,34 +736,94 @@ const COMPOSE_FILE_NAMES = [
   "compose.yml",
 ];
 
+/**
+ * Discover compose files in a directory.
+ * Priority: compose/ folder (globbed, sorted alphabetically) > single file at root.
+ */
+export function discoverComposeFiles(rootDir: string): string[] {
+  // 1. Check for compose/ directory
+  const composeDir = join(rootDir, "compose");
+  if (existsSync(composeDir)) {
+    try {
+      const entries = readdirSync(composeDir)
+        .filter((f) => /\.ya?ml$/.test(f))
+        .sort();
+      if (entries.length > 0) {
+        return entries.map((f) => join(composeDir, f));
+      }
+    } catch {
+      // Fall through to single-file check
+    }
+  }
+
+  // 2. Check for single compose file at root
+  for (const f of COMPOSE_FILE_NAMES) {
+    const candidate = join(rootDir, f);
+    if (existsSync(candidate)) {
+      return [candidate];
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Walk up from startDir to find a directory containing compose files.
+ * Returns the root directory or null.
+ */
+export function findComposeRoot(startDir: string): string | null {
+  let dir = startDir;
+  for (;;) {
+    if (discoverComposeFiles(dir).length > 0) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+// ─── Adapter ─────────────────────────────────────────────────
+
 export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
   readonly format = "docker-compose" as const;
 
   detect(rootDir: string): boolean {
-    return COMPOSE_FILE_NAMES.some((f) => existsSync(join(rootDir, f)));
+    return discoverComposeFiles(rootDir).length > 0;
   }
 
   parse(rootDir: string, options?: { env?: Record<string, string | undefined> }): CatalogParseResult {
-    let composePath: string | null = null;
-    for (const f of COMPOSE_FILE_NAMES) {
-      const candidate = join(rootDir, f);
-      if (existsSync(candidate)) {
-        composePath = candidate;
-        break;
-      }
-    }
-    if (!composePath) {
+    const composeFiles = discoverComposeFiles(rootDir);
+    if (composeFiles.length === 0) {
       throw new Error(`No docker-compose file found in ${rootDir}`);
     }
 
-    const raw = readFileSync(composePath, "utf-8");
-    const data = parseYaml(raw) as Record<string, unknown>;
-    const rawServices = (data.services ?? {}) as Record<string, Record<string, unknown>>;
     const processEnv = options?.env ?? (process.env as Record<string, string | undefined>);
-    const services = normalizeServices(rawServices, processEnv);
     const warnings: string[] = [];
 
-    const systemName = basename(rootDir);
+    // Merge services and extensions from all compose files
+    let mergedRawServices: Record<string, Record<string, unknown>> = {};
+    let xCatalog: Record<string, unknown> | undefined;
+    let xConnections: Record<string, Record<string, unknown>> | undefined;
+
+    for (const filePath of composeFiles) {
+      const raw = readFileSync(filePath, "utf-8");
+      const data = parseYaml(raw) as Record<string, unknown>;
+      if (!data) continue;
+
+      const rawServices = (data.services ?? {}) as Record<string, Record<string, unknown>>;
+      mergedRawServices = { ...mergedRawServices, ...rawServices };
+
+      // x-catalog: first file that has it wins
+      if (!xCatalog && data["x-catalog"] && typeof data["x-catalog"] === "object") {
+        xCatalog = data["x-catalog"] as Record<string, unknown>;
+      }
+      // x-connections: merge across files
+      if (data["x-connections"] && typeof data["x-connections"] === "object") {
+        xConnections = { ...xConnections, ...(data["x-connections"] as Record<string, Record<string, unknown>>) };
+      }
+    }
+
+    const services = normalizeServices(mergedRawServices, processEnv);
+
     const components: Record<string, CatalogComponent> = {};
     const resources: Record<string, CatalogResource> = {};
 
@@ -731,27 +838,71 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       }
     }
 
-    // Infer connections from env vars referencing other services
+    // Build connections from multiple sources
+
+    // 1. Infer connections from env vars referencing other services
     const resolvedEnvs: Record<string, Record<string, string>> = {};
     for (const [name, svc] of Object.entries(services)) {
       resolvedEnvs[name] = svc.environment ?? {};
     }
     const inferredConnections = inferConnections(services, resolvedEnvs);
-    const connections: CatalogConnection[] = inferredConnections.map((c) => ({
-      name: c.name,
-      targetModule: systemName,
-      targetComponent: c.toService,
-      envVar: c.envVar,
-      localDefault: c.envValue,
-    }));
 
-    // Extract system-level owner from labels if any service declares it
-    let systemOwner = "unknown";
-    for (const svc of Object.values(services)) {
-      const ownerLabel = svc.labels?.["catalog.owner"];
-      if (ownerLabel) {
-        systemOwner = ownerLabel;
-        break;
+    // 2. Connections from x-connections top-level extension
+    const explicitConnections: CatalogConnection[] = [];
+    if (xConnections) {
+      for (const [connName, conn] of Object.entries(xConnections)) {
+        if (!conn || typeof conn !== "object") continue;
+        explicitConnections.push({
+          name: connName,
+          targetModule: conn.module ? String(conn.module) : basename(rootDir),
+          targetComponent: conn.component ? String(conn.component) : connName,
+          envVar: conn.env_var ? String(conn.env_var) : `${connName.toUpperCase()}_URL`,
+          localDefault: conn.local_default ? String(conn.local_default) : undefined,
+          optional: conn.optional === true ? true : undefined,
+        });
+      }
+    }
+
+    // 3. Connections from catalog.connection.* labels on services
+    for (const [, svc] of Object.entries(services)) {
+      const labels = parseLabels(svc.labels ?? {});
+      for (const [connName, conn] of Object.entries(labels.connections)) {
+        if (!conn.envVar) continue; // need at least env_var
+        explicitConnections.push({
+          name: connName,
+          targetModule: conn.module ?? basename(rootDir),
+          targetComponent: conn.component ?? connName,
+          envVar: conn.envVar,
+          localDefault: conn.localDefault,
+        });
+      }
+    }
+
+    // Merge: explicit connections override inferred ones by envVar
+    const systemName = xCatalog?.name ? String(xCatalog.name) : basename(rootDir);
+    const explicitEnvVars = new Set(explicitConnections.map((c) => c.envVar));
+    const connections: CatalogConnection[] = [
+      ...explicitConnections,
+      ...inferredConnections
+        .filter((c) => !explicitEnvVars.has(c.envVar))
+        .map((c) => ({
+          name: c.name,
+          targetModule: systemName,
+          targetComponent: c.toService,
+          envVar: c.envVar,
+          localDefault: c.envValue,
+        })),
+    ];
+
+    // System-level metadata from x-catalog, falling back to labels
+    let systemOwner = xCatalog?.owner ? String(xCatalog.owner) : undefined;
+    if (!systemOwner) {
+      for (const svc of Object.values(services)) {
+        const ownerLabel = svc.labels?.["catalog.owner"];
+        if (ownerLabel) {
+          systemOwner = ownerLabel;
+          break;
+        }
       }
     }
 
@@ -760,16 +911,21 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       metadata: {
         name: systemName,
         namespace: "default",
+        description: xCatalog?.description ? String(xCatalog.description) : undefined,
       },
       spec: {
-        owner: systemOwner,
+        owner: systemOwner ?? "unknown",
+        domain: xCatalog?.domain ? String(xCatalog.domain) : undefined,
+        lifecycle: xCatalog?.lifecycle ? (String(xCatalog.lifecycle) as CatalogLifecycle) : undefined,
       },
       components,
       resources,
       connections,
       formatExtensions: {
         "docker-compose": {
-          sourceFile: composePath,
+          sourceFiles: composeFiles,
+          // Keep legacy field for backward compat
+          sourceFile: composeFiles[0],
         },
       },
     };

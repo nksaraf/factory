@@ -1,6 +1,4 @@
-import { dirname } from "node:path";
-
-import { findDxYaml } from "@smp/factory-shared/config-loader";
+import { findComposeRoot } from "@smp/factory-shared/config-loader";
 import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
 import { loadConventions, validateCommitMessage } from "@smp/factory-shared/conventions";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
@@ -12,6 +10,13 @@ import { stageAll, gitCommit, getCurrentBranch } from "../lib/git.js";
 import { gitPushAuto } from "../lib/git-push.js";
 import { resolveRepoContext } from "../lib/repo-context.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("ship", [
+  "$ dx ship                         Commit, push, and open PR",
+  '$ dx ship --title "Add auth"      With PR title',
+  "$ dx ship --draft                 As draft PR",
+]);
 
 export function shipCommand(app: DxBase) {
   return app
@@ -39,9 +44,9 @@ export function shipCommand(app: DxBase) {
         const cwd = process.cwd();
 
         // 1. Validate commit message
-        const dx = findDxYaml(cwd);
-        const conventions = dx
-          ? loadConventions(dirname(dx))
+        const root = findComposeRoot(cwd);
+        const conventions = root
+          ? loadConventions(root)
           : defaultConventionsConfig();
         const result = validateCommitMessage(args.message, conventions);
         if (!result.valid && !flags.force) {

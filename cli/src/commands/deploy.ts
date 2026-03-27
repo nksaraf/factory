@@ -12,6 +12,13 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("deploy", [
+  "$ dx deploy list                   List deployments",
+  "$ dx deploy create --release <id>  Create deployment",
+  "$ dx deploy status <id>            Check deployment status",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getFleetApi(): Promise<any> {

@@ -4,7 +4,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { run, runInherit } from "../../lib/subprocess.js";
+import { exec } from "../../lib/subprocess.js";
 import { PackageState } from "./state.js";
 import { detectPkgType } from "./detect.js";
 import {
@@ -36,7 +36,7 @@ export async function pkgPublish(
   }
 
   // Check write access gate
-  if (!checkWriteAccessGate(type, root)) {
+  if (!(await checkWriteAccessGate(type, root))) {
     throw new Error(
       `Write access not configured for ${type} registry.\n` +
         "Run 'dx pkg auth' to configure credentials with write access."
@@ -95,12 +95,15 @@ async function publishNpm(
 
   if ("build" in scripts) {
     console.log("Running build...");
-    const rc = runInherit("pnpm", ["run", "build"], { cwd: pkgDir });
-    if (rc !== 0) throw new Error("Build failed — fix errors before publishing");
+    try {
+      await exec(["pnpm", "run", "build"], { cwd: pkgDir });
+    } catch {
+      throw new Error("Build failed — fix errors before publishing");
+    }
   }
 
   // Refresh GCP Artifact Registry token before publishing
-  const saJson = loadSaJson("npm", root);
+  const saJson = await loadSaJson("npm", root);
   if (saJson) {
     console.log("Refreshing Artifact Registry token...");
     if (!configureNpmAuth(saJson, root)) {
@@ -109,12 +112,13 @@ async function publishNpm(
   }
 
   console.log(`Publishing ${pkgName} to npm Artifact Registry...`);
-  const rc = runInherit(
-    "pnpm",
-    ["publish", "--no-git-checks", "--access", "restricted"],
-    { cwd: pkgDir }
-  );
-  if (rc !== 0) throw new Error("Publish failed");
+  try {
+    await exec(["pnpm", "publish", "--no-git-checks", "--access", "restricted"], {
+      cwd: pkgDir,
+    });
+  } catch {
+    throw new Error("Publish failed");
+  }
 
   console.log(`Published ${pkgName} to npm Artifact Registry`);
   console.log(`  Version: ${pkgJson.version ?? "?"}`);
@@ -134,14 +138,18 @@ async function publishJava(
   }
 
   console.log(`Building ${pkgName}...`);
-  let rc = runInherit("mvn", ["clean", "install", "-DskipTests"], {
-    cwd: pkgDir,
-  });
-  if (rc !== 0) throw new Error("Build failed — fix errors before publishing");
+  try {
+    await exec(["mvn", "clean", "install", "-DskipTests"], { cwd: pkgDir });
+  } catch {
+    throw new Error("Build failed — fix errors before publishing");
+  }
 
   console.log(`Publishing ${pkgName} to Artifact Registry...`);
-  rc = runInherit("mvn", ["deploy", "-DskipTests"], { cwd: pkgDir });
-  if (rc !== 0) throw new Error("Publish failed");
+  try {
+    await exec(["mvn", "deploy", "-DskipTests"], { cwd: pkgDir });
+  } catch {
+    throw new Error("Publish failed");
+  }
 
   console.log(`Published ${pkgName} to GCP Artifact Registry`);
   console.log(`  Registry: ${REGISTRIES.maven.url}`);
@@ -153,7 +161,7 @@ async function publishPython(
   pkgName: string,
   keyFile?: string
 ): Promise<void> {
-  const saJson = loadSaJson("python", root, keyFile);
+  const saJson = await loadSaJson("python", root, keyFile);
   if (!saJson) {
     throw new Error(
       "No Python registry credentials found.\n" +
@@ -165,13 +173,15 @@ async function publishPython(
   const hasUv = existsSync(join(pkgDir, "uv.lock"));
 
   console.log(`Building ${pkgName}...`);
-  let rc: number;
-  if (hasUv) {
-    rc = runInherit("uv", ["build"], { cwd: pkgDir });
-  } else {
-    rc = runInherit("python", ["-m", "build"], { cwd: pkgDir });
+  try {
+    if (hasUv) {
+      await exec(["uv", "build"], { cwd: pkgDir });
+    } else {
+      await exec(["python", "-m", "build"], { cwd: pkgDir });
+    }
+  } catch {
+    throw new Error("Build failed — fix errors before publishing");
   }
-  if (rc !== 0) throw new Error("Build failed — fix errors before publishing");
 
   const repoUrl = pythonRepositoryUrl();
   const twineEnv = pythonTwineEnv(saJson);
@@ -186,12 +196,14 @@ async function publishPython(
   }
 
   console.log(`Publishing ${pkgName} to Python Artifact Registry...`);
-  rc = runInherit(
-    "twine",
-    ["upload", "--repository-url", repoUrl, ...distFiles],
-    { cwd: pkgDir, env: twineEnv }
-  );
-  if (rc !== 0) throw new Error("Publish failed");
+  try {
+    await exec(["twine", "upload", "--repository-url", repoUrl, ...distFiles], {
+      cwd: pkgDir,
+      env: twineEnv,
+    });
+  } catch {
+    throw new Error("Publish failed");
+  }
 
   console.log(`Published ${pkgName} to Python Artifact Registry`);
   console.log(`  Registry: ${repoUrl}`);

@@ -16,6 +16,14 @@ import {
   styleMuted,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("pr", [
+  "$ dx pr list                   List open PRs",
+  "$ dx pr create                 Create PR interactively",
+  "$ dx pr show 42                Show PR details",
+  "$ dx pr merge 42               Merge a PR",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
@@ -102,7 +110,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -112,7 +119,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
             const result = await apiCall(flags, () =>
               api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].get(),
             );
@@ -164,7 +171,7 @@ export function prCommand(app: DxBase) {
 
             let title = flags.title as string | undefined;
             if (!title) {
-              const { input } = await import("@inquirer/prompts");
+              const { input } = await import("@crustjs/prompts");
               title = await input({ message: "PR title:" });
             }
 
@@ -207,7 +214,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -217,7 +223,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
             const result = await apiCall(flags, () =>
               api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].checks.get(),
             );
@@ -248,7 +254,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -272,7 +277,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
 
             let method = "squash";
             if (flags.rebase) method = "rebase";

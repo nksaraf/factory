@@ -4,6 +4,14 @@ import { runAuthLogout } from "../handlers/auth-logout.js";
 
 import { toDxFlags } from "./dx-flags.js";
 import { stubRun } from "./stub-run.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("auth", [
+  "$ dx auth login                     Sign in interactively",
+  "$ dx auth login --email user@co.com Sign in with email",
+  "$ dx auth logout                    End current session",
+  "$ dx auth status                    Check session validity",
+]);
 
 export function authCommand(app: DxBase) {
   return app

@@ -17,20 +17,20 @@ describe("dx infra CLI", () => {
     const { status, stdout, stderr } = runDx(["infra", "--help"], { home });
     expect(status).toBe(0);
     expect(stderr).toBe("");
-    expect(stdout).toContain("providers");
-    expect(stdout).toContain("regions");
-    expect(stdout).toContain("clusters");
-    expect(stdout).toContain("vms");
-    expect(stdout).toContain("hosts");
-    expect(stdout).toContain("kube-nodes");
-    expect(stdout).toContain("subnets");
-    expect(stdout).toContain("ips");
-    expect(stdout).toContain("assets");
+    expect(stdout).toContain("provider");
+    expect(stdout).toContain("region");
+    expect(stdout).toContain("cluster");
+    expect(stdout).toContain("vm");
+    expect(stdout).toContain("host");
+    expect(stdout).toContain("kube-node");
+    expect(stdout).toContain("subnet");
+    expect(stdout).toContain("ip");
+    expect(stdout).toContain("asset");
   });
 
-  it("dx infra providers --help shows subcommands", () => {
+  it("dx infra provider --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "providers", "--help"], {
+    const { status, stdout } = runDx(["infra", "provider", "--help"], {
       home,
     });
     expect(status).toBe(0);
@@ -40,9 +40,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("sync");
   });
 
-  it("dx infra regions --help shows subcommands", () => {
+  it("dx infra region --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "regions", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "region", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("get");
@@ -50,9 +50,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("delete");
   });
 
-  it("dx infra clusters --help shows subcommands", () => {
+  it("dx infra cluster --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "clusters", "--help"], {
+    const { status, stdout } = runDx(["infra", "cluster", "--help"], {
       home,
     });
     expect(status).toBe(0);
@@ -62,9 +62,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("destroy");
   });
 
-  it("dx infra vms --help shows subcommands", () => {
+  it("dx infra vm --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "vms", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "vm", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("get");
@@ -76,9 +76,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("destroy");
   });
 
-  it("dx infra hosts --help shows subcommands", () => {
+  it("dx infra host --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "hosts", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "host", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("get");
@@ -86,9 +86,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("remove");
   });
 
-  it("dx infra kube-nodes --help shows subcommands", () => {
+  it("dx infra kube-node --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "kube-nodes", "--help"], {
+    const { status, stdout } = runDx(["infra", "kube-node", "--help"], {
       home,
     });
     expect(status).toBe(0);
@@ -101,9 +101,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("evacuate");
   });
 
-  it("dx infra subnets --help shows subcommands", () => {
+  it("dx infra subnet --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "subnets", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "subnet", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("get");
@@ -111,9 +111,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("delete");
   });
 
-  it("dx infra ips --help shows subcommands", () => {
+  it("dx infra ip --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "ips", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "ip", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("available");
@@ -124,9 +124,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("lookup");
   });
 
-  it("dx infra assets --help shows subcommands", () => {
+  it("dx infra asset --help shows subcommands", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["infra", "assets", "--help"], { home });
+    const { status, stdout } = runDx(["infra", "asset", "--help"], { home });
     expect(status).toBe(0);
     expect(stdout).toContain("list");
     expect(stdout).toContain("get");

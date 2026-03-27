@@ -525,6 +525,39 @@ export const installManifest = factoryFleet.table(
   ]
 );
 
+export const fleetWorkbench = factoryFleet.table(
+  "workbench",
+  {
+    workbenchId: text("workbench_id").primaryKey(), // client-generated wb-<8hex>
+    type: text("type").notNull().default("developer"),
+    hostname: text("hostname").notNull(),
+    ips: jsonb("ips").notNull().default([]),
+    os: text("os").notNull(),
+    arch: text("arch").notNull(),
+    dxVersion: text("dx_version").notNull(),
+    principalId: text("principal_id"),
+    lastPingAt: timestamp("last_ping_at", { withTimezone: true }),
+    lastCommand: text("last_command"),
+    registeredAt: timestamp("registered_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("fleet_workbench_type_idx").on(t.type),
+    index("fleet_workbench_principal_idx").on(t.principalId),
+    check(
+      "fleet_workbench_type_valid",
+      sql`${t.type} IN ('developer', 'ci', 'agent', 'sandbox', 'build', 'testbed')`
+    ),
+  ]
+);
+
 export const releaseBundle = factoryFleet.table(
   "release_bundle",
   {

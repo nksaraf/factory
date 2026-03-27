@@ -15,6 +15,14 @@ import {
   styleSuccess,
   timeAgo,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("site", [
+  "$ dx site list                     List all sites",
+  "$ dx site show us-east             Show site details",
+  "$ dx site create --name us-west    Create a new site",
+  "$ dx site assign-release us-east   Assign release to site",
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getFleetApi(): Promise<any> {

@@ -17,9 +17,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 
-import type { DxComponentYaml, DxYaml } from "@smp/factory-shared/config-schemas";
+import type { CatalogSystem } from "@smp/factory-shared/catalog";
 
 import { detectServiceType, type ServiceType } from "./detect-service-type.js";
 import { PortManager, isPortFree } from "./port-manager.js";
@@ -159,17 +159,15 @@ function killProcessTree(pid: number): void {
 export class DevController {
   private readonly stateDir: string;
   private readonly portManager: PortManager;
-  private readonly composeFile: string;
   private readonly projectName: string;
 
   constructor(
     private readonly rootDir: string,
-    private readonly moduleConfig: DxYaml,
-    private readonly componentConfigs: Record<string, DxComponentYaml>,
+    private readonly catalog: CatalogSystem,
+    private readonly composeFiles: string[],
   ) {
     this.stateDir = join(rootDir, ".dx", "dev");
     this.portManager = new PortManager(join(rootDir, ".dx"));
-    this.composeFile = join(rootDir, ".dx", "generated", "docker-compose.yaml");
     this.projectName = basename(rootDir);
   }
 
@@ -178,32 +176,35 @@ export class DevController {
   // ------------------------------------------------------------------
 
   resolveComponent(name: string): ResolvedComponent {
-    const ref = this.moduleConfig.components[name];
-    if (!ref) {
-      const available = Object.keys(this.moduleConfig.components).join(", ");
+    const comp = this.catalog.components[name];
+    if (!comp) {
+      const available = Object.keys(this.catalog.components).join(", ");
       throw new Error(
         `Component "${name}" not found. Available: ${available}`,
       );
     }
 
-    const absPath = resolve(this.rootDir, ref.path);
+    const buildContext = comp.spec.build?.context ?? ".";
+    const absPath = resolve(this.rootDir, buildContext);
 
-    // Use explicit type from dx.yaml, or auto-detect from filesystem
+    // Use explicit runtime from catalog, or auto-detect from filesystem
     const type: ServiceType | null =
-      (ref as { type?: ServiceType }).type ?? detectServiceType(absPath);
+      (comp.spec.runtime as ServiceType | undefined) ?? detectServiceType(absPath);
 
     if (!type) {
       throw new Error(
         `Cannot determine service type for "${name}" at ${absPath}. ` +
-          `Add a "type" field (node/python/java) to your dx.yaml component config.`,
+          `Add a "dx.runtime" label (node/python/java) to your docker-compose service.`,
       );
     }
+
+    const preferredPort = comp.spec.ports?.[0]?.port;
 
     return {
       name,
       absPath,
       type,
-      preferredPort: ref.port ?? undefined,
+      preferredPort,
     };
   }
 
@@ -213,16 +214,14 @@ export class DevController {
 
   private async allPortsEnv(): Promise<Record<string, string>> {
     const requests = [
-      ...Object.entries(this.moduleConfig.components).map(([name, ref]) => ({
+      ...Object.entries(this.catalog.components).map(([name, comp]) => ({
         name,
-        preferred: ref.port ?? undefined,
+        preferred: comp.spec.ports?.[0]?.port,
       })),
-      ...Object.entries(this.moduleConfig.resources).map(
-        ([name, dep]) => ({
-          name,
-          preferred: dep.port,
-        }),
-      ),
+      ...Object.entries(this.catalog.resources).map(([name, res]) => ({
+        name,
+        preferred: res.spec.ports?.[0]?.port,
+      })),
     ];
 
     const ports = await this.portManager.resolve(requests);
@@ -238,22 +237,14 @@ export class DevController {
   // Docker coordination
   // ------------------------------------------------------------------
 
-  private composeServiceName(componentName: string): string {
-    const mod = this.moduleConfig.module;
-    return `${mod}-${componentName}`
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-  }
-
   private stopDockerContainer(componentName: string): boolean {
-    if (!existsSync(this.composeFile)) return false;
-    const sn = this.composeServiceName(componentName);
-    if (!composeIsRunning(this.composeFile, sn, { projectName: this.projectName })) {
+    if (this.composeFiles.length === 0) return false;
+    // The service name in compose is the component name itself
+    const sn = componentName;
+    if (!composeIsRunning(this.composeFiles[0], sn, { projectName: this.projectName })) {
       return false;
     }
-    composeStop(this.composeFile, [sn], { projectName: this.projectName });
+    composeStop(this.composeFiles[0], [sn], { projectName: this.projectName });
     return true;
   }
 
@@ -444,4 +435,3 @@ export class DevController {
     return logFile;
   }
 }
-

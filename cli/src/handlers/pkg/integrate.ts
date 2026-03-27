@@ -4,22 +4,32 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { run } from "../../lib/subprocess.js";
+import { exec } from "../../lib/subprocess.js";
 
-/** Run pnpm install to relink workspaces. */
-export function integrateNpm(root: string): void {
-  console.log("Running pnpm install to relink workspaces...");
-  run("pnpm", ["install"], { cwd: root });
+/** Run pnpm install to relink workspaces (skips if no pnpm workspace). */
+export async function integrateNpm(root: string): Promise<void> {
+  if (
+    !existsSync(join(root, "pnpm-workspace.yaml")) &&
+    !existsSync(join(root, "package.json"))
+  ) {
+    return;
+  }
+  await exec(["pnpm", "install"], { cwd: root });
 }
 
-/** Run pnpm install after removing a workspace package. */
-export function unintegrateNpm(root: string): void {
-  console.log("Running pnpm install to restore dependencies...");
-  run("pnpm", ["install"], { cwd: root });
+/** Run pnpm install after removing a workspace package (skips if no pnpm workspace). */
+export async function unintegrateNpm(root: string): Promise<void> {
+  if (
+    !existsSync(join(root, "pnpm-workspace.yaml")) &&
+    !existsSync(join(root, "package.json"))
+  ) {
+    return;
+  }
+  await exec(["pnpm", "install"], { cwd: root });
 }
 
 /** Add module to packages/java/pom.xml and run mvn install. */
-export function integrateJava(root: string, pkgName: string): void {
+export async function integrateJava(root: string, pkgName: string): Promise<void> {
   const pomPath = join(root, "packages", "java", "pom.xml");
   if (!existsSync(pomPath)) {
     console.warn("packages/java/pom.xml not found, skipping Maven integration");
@@ -40,8 +50,7 @@ export function integrateJava(root: string, pkgName: string): void {
     console.log(`Added module ${pkgName} to packages/java/pom.xml`);
   }
 
-  console.log(`Running mvn install for ${pkgName}...`);
-  run("mvn", ["install", "-pl", pkgName, "-DskipTests"], {
+  await exec(["mvn", "install", "-pl", pkgName, "-DskipTests"], {
     cwd: join(root, "packages", "java"),
   });
 }

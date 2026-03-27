@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DependencyConfig } from "@smp/factory-shared/config-schemas";
-
+import type { DbResourceConfig } from "../lib/db-driver.js";
 import {
   detectDbType,
   findDbDependencies,
@@ -14,8 +13,8 @@ import "../lib/db-driver-postgres.js";
 // ── detectDbType ─────────────────────────────────────────────────────────────
 
 describe("detectDbType", () => {
-  function dep(image: string): DependencyConfig {
-    return { image, port: 5432, env: {}, volumes: [] };
+  function dep(image: string): DbResourceConfig {
+    return { image, port: 5432, env: {} };
   }
 
   it("detects postgres from key name", () => {
@@ -62,25 +61,27 @@ describe("detectDbType", () => {
 // ── findDbDependencies ───────────────────────────────────────────────────────
 
 describe("findDbDependencies", () => {
-  it("finds postgres dependency from dx.yaml config", () => {
+  it("finds postgres dependency from catalog resources", () => {
     const ctx = {
-      moduleConfig: {
-        module: "test-mod",
-        team: "test",
-        components: {},
-        dependencies: {
+      catalog: {
+        resources: {
           postgres: {
-            image: "postgres:16-alpine",
-            port: 5433,
-            env: {
-              POSTGRES_DB: "testdb",
-              POSTGRES_USER: "dev",
-              POSTGRES_PASSWORD: "dev",
+            kind: "Resource",
+            metadata: { name: "postgres", namespace: "default" },
+            spec: {
+              type: "database",
+              owner: "test",
+              lifecycle: "development",
+              image: "postgres:16-alpine",
+              ports: [{ port: 5433, name: "postgres" }],
+              environment: {
+                POSTGRES_DB: "testdb",
+                POSTGRES_USER: "dev",
+                POSTGRES_PASSWORD: "dev",
+              },
             },
-            volumes: [],
           },
         },
-        connections: {},
       },
     } as any;
 
@@ -88,36 +89,49 @@ describe("findDbDependencies", () => {
     expect(dbs).toHaveLength(1);
     expect(dbs[0].name).toBe("postgres");
     expect(dbs[0].dbType).toBe("postgres");
-    expect(dbs[0].dep.port).toBe(5433);
+    expect(dbs[0].res.port).toBe(5433);
   });
 
   it("finds multiple database dependencies", () => {
     const ctx = {
-      moduleConfig: {
-        module: "analytics",
-        team: "data",
-        components: {},
-        dependencies: {
+      catalog: {
+        resources: {
           postgres: {
-            image: "postgres:16",
-            port: 5432,
-            env: { POSTGRES_DB: "app" },
-            volumes: [],
+            kind: "Resource",
+            metadata: { name: "postgres", namespace: "default" },
+            spec: {
+              type: "database",
+              owner: "data",
+              lifecycle: "development",
+              image: "postgres:16",
+              ports: [{ port: 5432, name: "postgres" }],
+              environment: { POSTGRES_DB: "app" },
+            },
           },
           clickhouse: {
-            image: "clickhouse/clickhouse-server:24",
-            port: 8123,
-            env: { CLICKHOUSE_DB: "analytics" },
-            volumes: [],
+            kind: "Resource",
+            metadata: { name: "clickhouse", namespace: "default" },
+            spec: {
+              type: "database",
+              owner: "data",
+              lifecycle: "development",
+              image: "clickhouse/clickhouse-server:24",
+              ports: [{ port: 8123, name: "http" }],
+              environment: { CLICKHOUSE_DB: "analytics" },
+            },
           },
           redis: {
-            image: "redis:7-alpine",
-            port: 6379,
-            env: {},
-            volumes: [],
+            kind: "Resource",
+            metadata: { name: "redis", namespace: "default" },
+            spec: {
+              type: "cache",
+              owner: "data",
+              lifecycle: "development",
+              image: "redis:7-alpine",
+              ports: [{ port: 6379, name: "redis" }],
+            },
           },
         },
-        connections: {},
       },
     } as any;
 
@@ -128,19 +142,20 @@ describe("findDbDependencies", () => {
 
   it("returns empty when no database dependencies exist", () => {
     const ctx = {
-      moduleConfig: {
-        module: "frontend",
-        team: "ui",
-        components: {},
-        dependencies: {
+      catalog: {
+        resources: {
           redis: {
-            image: "redis:7",
-            port: 6379,
-            env: {},
-            volumes: [],
+            kind: "Resource",
+            metadata: { name: "redis", namespace: "default" },
+            spec: {
+              type: "cache",
+              owner: "ui",
+              lifecycle: "development",
+              image: "redis:7",
+              ports: [{ port: 6379, name: "redis" }],
+            },
           },
         },
-        connections: {},
       },
     } as any;
 
@@ -159,7 +174,7 @@ describe("postgres driver", () => {
 
   it("builds URL from dependency config", () => {
     const driver = getDriver("postgres");
-    const dep: DependencyConfig = {
+    const dep: DbResourceConfig = {
       image: "postgres:16-alpine",
       port: 5433,
       env: {
@@ -167,7 +182,6 @@ describe("postgres driver", () => {
         POSTGRES_USER: "appuser",
         POSTGRES_PASSWORD: "secret",
       },
-      volumes: [],
     };
 
     const url = driver.buildUrl(dep, "postgres");
@@ -176,11 +190,10 @@ describe("postgres driver", () => {
 
   it("uses default credentials when env vars are missing", () => {
     const driver = getDriver("postgres");
-    const dep: DependencyConfig = {
+    const dep: DbResourceConfig = {
       image: "postgres:16",
       port: 5432,
       env: {},
-      volumes: [],
     };
 
     const url = driver.buildUrl(dep, "postgres");
@@ -189,7 +202,7 @@ describe("postgres driver", () => {
 
   it("URL-encodes special characters in credentials", () => {
     const driver = getDriver("postgres");
-    const dep: DependencyConfig = {
+    const dep: DbResourceConfig = {
       image: "postgres:16",
       port: 5432,
       env: {
@@ -197,7 +210,6 @@ describe("postgres driver", () => {
         POSTGRES_USER: "user@org",
         POSTGRES_PASSWORD: "p@ss/w#rd",
       },
-      volumes: [],
     };
 
     const url = driver.buildUrl(dep, "postgres");

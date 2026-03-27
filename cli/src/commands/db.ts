@@ -13,12 +13,20 @@ import {
   actionResult,
   styleSuccess,
 } from "./list-helpers.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("db", [
+  "$ dx db connect                    Connect to database",
+  '$ dx db query --sql "SELECT 1"     Run a query',
+  "$ dx db migrate status             Check migration status",
+  "$ dx db migrate up                 Run pending migrations",
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Shared db flags inherited by all subcommands. */
 const dbFlags = {
-  db: { type: "string" as const, description: "Database dependency name from dx.yaml (when multiple databases exist)" },
+  db: { type: "string" as const, description: "Database dependency name from docker-compose (when multiple databases exist)" },
   target: { type: "string" as const, description: "Target environment (local, staging, production)" },
 } as const;
 
@@ -38,7 +46,7 @@ async function withDb(
   try {
     project = ProjectContext.fromCwd();
   } catch {
-    exitWithError(f, "No dx.yaml found. Run this command from a module directory.");
+    exitWithError(f, "No docker-compose found. Run this command from a project directory.");
   }
 
   const { name, driver, url } = resolveDbTarget(project, flags.db as string | undefined);
@@ -104,7 +112,7 @@ export function dbCommand(app: DxBase) {
           try {
             project = ProjectContext.fromCwd();
           } catch {
-            exitWithError(f, "No dx.yaml found. Run this command from a module directory.");
+            exitWithError(f, "No docker-compose found. Run this command from a project directory.");
           }
 
           const { name, driver, url } = resolveDbTarget(project, flags.db as string | undefined);
@@ -415,7 +423,7 @@ export function dbCommand(app: DxBase) {
               try {
                 project = ProjectContext.fromCwd();
               } catch {
-                exitWithError(f, "No dx.yaml found.");
+                exitWithError(f, "No docker-compose found.");
               }
 
               const { url } = resolveDbTarget(project, flags.db as string | undefined);
@@ -446,7 +454,7 @@ export function dbCommand(app: DxBase) {
               try {
                 project = ProjectContext.fromCwd();
               } catch {
-                exitWithError(f, "No dx.yaml found.");
+                exitWithError(f, "No docker-compose found.");
               }
 
               const result = spawnSync("bunx", ["drizzle-kit", "generate", "--name", args.name as string], {
@@ -471,7 +479,7 @@ export function dbCommand(app: DxBase) {
               try {
                 project = ProjectContext.fromCwd();
               } catch {
-                exitWithError(f, "No dx.yaml found.");
+                exitWithError(f, "No docker-compose found.");
               }
 
               const { url } = resolveDbTarget(project, flags.db as string | undefined);
@@ -540,7 +548,7 @@ export function dbCommand(app: DxBase) {
           try {
             project = ProjectContext.fromCwd();
           } catch {
-            exitWithError(f, "No dx.yaml found.");
+            exitWithError(f, "No docker-compose found.");
           }
 
           const { existsSync } = await import("node:fs");

@@ -11,6 +11,12 @@ import {
   mergeConnectionSources,
 } from "../lib/parse-connect-flags.js";
 import { toDxFlags } from "./dx-flags.js";
+import { setExamples } from "../plugins/examples-plugin.js";
+
+setExamples("env", [
+  "$ dx env resolve                   Resolve environment variables",
+  "$ dx env resolve --export          Export as shell vars",
+]);
 
 export function envCommand(app: DxBase) {
   return app
@@ -58,7 +64,7 @@ export function envCommand(app: DxBase) {
             const connectToOverrides = flags["connect-to"]
               ? parseConnectToFlag(
                   flags["connect-to"] as string,
-                  project.moduleConfig
+                  project.catalog
                 )
               : undefined;
 
@@ -94,7 +100,7 @@ export function envCommand(app: DxBase) {
               : undefined;
 
             const ctx = resolveEnvVars({
-              dxConfig: project.moduleConfig,
+              catalog: project.catalog,
               tierOverlay,
               connectionOverrides: overrides,
               cliEnvFlags: envFlags,

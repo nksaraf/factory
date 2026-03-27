@@ -6,6 +6,13 @@ import {
 } from "../lib/log-formatter.js"
 import { printTable } from "../output.js"
 import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+
+setExamples("metrics", [
+  "$ dx metrics summary               Overview dashboard",
+  "$ dx metrics show --metric cpu     Specific metric",
+  "$ dx metrics compare --sites a,b   Compare across sites",
+])
 
 function cleanQuery(q: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}

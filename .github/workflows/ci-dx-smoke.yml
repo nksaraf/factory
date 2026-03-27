@@ -1,0 +1,167 @@
+name: CI — dx CLI smoke tests
+
+on:
+  pull_request:
+    paths:
+      - "cli/**"
+      - "shared/**"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ci-dx-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_INSTALL_CACHE_DIR: ~/.bun/install/cache
+
+jobs:
+  # ─── Stage 1: Build CLI binaries for all platforms ───────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.dir }}
+            ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: deps-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: deps-
+
+      # Authenticate to Google Artifact Registry for @rio.js/* deps
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
+
+      - name: "Authenticate with Google Cloud"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+        run: npx get-artifactregistry-token
+
+      - name: Install dependencies
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+        run: pnpm install --frozen-lockfile --filter lepton-dx
+
+      - name: Build — linux-x64
+        working-directory: cli
+        run: pnpm exec crust build --name dx --target linux-x64 --outfile dist/dx-linux-x64
+
+      - name: Build — darwin-arm64
+        working-directory: cli
+        run: pnpm exec crust build --name dx --target darwin-arm64 --outfile dist/dx-darwin-arm64
+
+      - name: Build — windows-x64
+        working-directory: cli
+        run: pnpm exec crust build --name dx --target windows-x64 --outfile dist/dx-windows-x64.exe
+
+      - name: Upload linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dx-linux-x64
+          path: cli/dist/dx-linux-x64
+          retention-days: 1
+
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dx-darwin-arm64
+          path: cli/dist/dx-darwin-arm64
+          retention-days: 1
+
+      - name: Upload windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dx-windows-x64
+          path: cli/dist/dx-windows-x64.exe
+          retention-days: 1
+
+  # ─── Stage 2: Fresh machine — install dx & run a real dev workflow ──
+  smoke-test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: dx-linux-x64
+            binary: dx-linux-x64
+          - os: macos-latest
+            artifact: dx-darwin-arm64
+            binary: dx-darwin-arm64
+          - os: windows-latest
+            artifact: dx-windows-x64
+            binary: dx-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      # ── 1. Download & install the dx binary ──────────────────────────
+      - name: Download dx binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+
+      - name: Install dx on PATH
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            mkdir -p "$USERPROFILE/bin"
+            mv "${{ matrix.binary }}" "$USERPROFILE/bin/dx.exe"
+            echo "$USERPROFILE/bin" >> "$GITHUB_PATH"
+          else
+            chmod +x "${{ matrix.binary }}"
+            sudo mv "${{ matrix.binary }}" /usr/local/bin/dx
+          fi
+
+      # ── 2. Verify the binary works ──────────────────────────────────
+      - name: dx --help
+        shell: bash
+        run: dx --help
+
+      - name: dx --version
+        shell: bash
+        run: dx --version
+
+      # ── 3. Set up dx as a workbench (real developer flow) ───────────
+      - name: dx install --type ci
+        shell: bash
+        run: dx install --type ci -y
+
+      # ── 4. Clone a repo & work inside it ─────────────────────────────
+      - name: dx git clone
+        shell: bash
+        run: dx git clone https://x-access-token:${GH_TOKEN}@github.com/nksaraf/factory.git
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: dx pkg install
+        shell: bash
+        working-directory: factory
+        run: dx pkg install
+
+      - name: dx status
+        shell: bash
+        working-directory: factory
+        run: dx status

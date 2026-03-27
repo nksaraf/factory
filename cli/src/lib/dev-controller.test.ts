@@ -11,34 +11,64 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createTestProject, type TestProject } from "../__tests__/create-test-project.js";
 import { DevController } from "./dev-controller.js";
 
-import type { DxYaml, DxComponentYaml } from "@smp/factory-shared/config-schemas";
+import type { CatalogSystem } from "@smp/factory-shared/catalog";
 
 let project: TestProject;
 
-function makeConfig(project: TestProject): {
-  moduleConfig: DxYaml;
-  componentConfigs: Record<string, DxComponentYaml>;
-} {
+function makeCatalog(): CatalogSystem {
   return {
-    moduleConfig: {
-      module: "test",
-      team: "test-team",
-      components: {
-        api: { path: "./api", port: 14100, worker: false },
-        worker: { path: "./worker", worker: true },
-      },
-      dependencies: {
-        postgres: {
-          image: "postgres:16-alpine",
-          port: 5433,
-          env: { POSTGRES_DB: "test" },
-          volumes: [],
+    kind: "System",
+    metadata: {
+      name: "test",
+      namespace: "default",
+    },
+    spec: {
+      owner: "test-team",
+      domain: "test",
+      lifecycle: "development",
+    },
+    components: {
+      api: {
+        kind: "Component",
+        metadata: { name: "api", namespace: "default" },
+        spec: {
+          type: "service",
+          lifecycle: "development",
+          owner: "test-team",
+          runtime: "node",
+          build: { context: "./api", dockerfile: "./api/Dockerfile" },
+          ports: [{ port: 14100, name: "http" }],
         },
       },
-      connections: {},
+      worker: {
+        kind: "Component",
+        metadata: { name: "worker", namespace: "default" },
+        spec: {
+          type: "service",
+          lifecycle: "development",
+          owner: "test-team",
+          runtime: "python",
+          build: { context: "./worker", dockerfile: "./worker/Dockerfile" },
+        },
+      },
     },
-    componentConfigs: {},
-  };
+    resources: {
+      postgres: {
+        kind: "Resource",
+        metadata: { name: "postgres", namespace: "default" },
+        spec: {
+          type: "database",
+          owner: "test-team",
+          lifecycle: "development",
+          image: "postgres:16-alpine",
+          ports: [{ port: 5433, name: "postgres" }],
+          env: { POSTGRES_DB: "test" },
+        },
+      },
+    },
+    apis: {},
+    connections: [],
+  } as unknown as CatalogSystem;
 }
 
 beforeEach(() => {
@@ -60,8 +90,8 @@ afterEach(() => {
 describe("DevController", () => {
   describe("resolveComponent", () => {
     test("resolves a node component from filesystem markers", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const resolved = ctrl.resolveComponent("api");
       expect(resolved.name).toBe("api");
@@ -71,26 +101,26 @@ describe("DevController", () => {
     });
 
     test("resolves a python component", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const resolved = ctrl.resolveComponent("worker");
       expect(resolved.type).toBe("python");
     });
 
-    test("uses dx.yaml type override", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      // Override the api component to be java via the type field
-      (moduleConfig.components.api as any).type = "java";
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+    test("uses catalog runtime override", () => {
+      const catalog = makeCatalog();
+      // Override the api component to be java via the runtime field
+      (catalog.components.api.spec as any).runtime = "java";
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const resolved = ctrl.resolveComponent("api");
       expect(resolved.type).toBe("java");
     });
 
     test("throws for unknown component", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       expect(() => ctrl.resolveComponent("nonexistent")).toThrow(
         'Component "nonexistent" not found',
@@ -98,12 +128,21 @@ describe("DevController", () => {
     });
 
     test("throws for component with no detectable type", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      // Add a component with no marker files
-      moduleConfig.components.empty = { path: "./empty", worker: false };
+      const catalog = makeCatalog();
+      // Add a component with no marker files and no runtime
+      (catalog.components as any).empty = {
+        kind: "Component",
+        metadata: { name: "empty", namespace: "default" },
+        spec: {
+          type: "service",
+          lifecycle: "development",
+          owner: "test-team",
+          build: { context: "./empty", dockerfile: "./empty/Dockerfile" },
+        },
+      };
       mkdirSync(join(project.rootDir, "empty"), { recursive: true });
 
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       expect(() => ctrl.resolveComponent("empty")).toThrow(
         "Cannot determine service type",
@@ -113,15 +152,15 @@ describe("DevController", () => {
 
   describe("state management", () => {
     test("ps returns empty when no servers tracked", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       expect(ctrl.ps()).toEqual([]);
     });
 
     test("ps reads state files", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       // Simulate a running server by writing state files with our own PID
       const stateDir = join(project.rootDir, ".dx", "dev");
@@ -138,8 +177,8 @@ describe("DevController", () => {
     });
 
     test("ps reports stopped for stale PID", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const stateDir = join(project.rootDir, ".dx", "dev");
       mkdirSync(stateDir, { recursive: true });
@@ -154,8 +193,8 @@ describe("DevController", () => {
     });
 
     test("stop cleans up state files for stale PID", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const stateDir = join(project.rootDir, ".dx", "dev");
       mkdirSync(stateDir, { recursive: true });
@@ -171,8 +210,8 @@ describe("DevController", () => {
     });
 
     test("stop with no arg cleans up all state files", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const stateDir = join(project.rootDir, ".dx", "dev");
       mkdirSync(stateDir, { recursive: true });
@@ -187,8 +226,8 @@ describe("DevController", () => {
     });
 
     test("logs returns log file path", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       const stateDir = join(project.rootDir, ".dx", "dev");
       mkdirSync(stateDir, { recursive: true });
@@ -199,8 +238,8 @@ describe("DevController", () => {
     });
 
     test("logs throws when no log file exists", () => {
-      const { moduleConfig, componentConfigs } = makeConfig(project);
-      const ctrl = new DevController(project.rootDir, moduleConfig, componentConfigs);
+      const catalog = makeCatalog();
+      const ctrl = new DevController(project.rootDir, catalog, []);
 
       expect(() => ctrl.logs("api")).toThrow("No log file found");
     });
