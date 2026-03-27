@@ -68,15 +68,15 @@ jobs:
 
       - name: Build — linux-x64
         working-directory: cli
-        run: crust build --name dx --target linux-x64 --outfile dist/dx-linux-x64
+        run: pnpm exec crust build --name dx --target linux-x64 --outfile dist/dx-linux-x64
 
       - name: Build — darwin-arm64
         working-directory: cli
-        run: crust build --name dx --target darwin-arm64 --outfile dist/dx-darwin-arm64
+        run: pnpm exec crust build --name dx --target darwin-arm64 --outfile dist/dx-darwin-arm64
 
       - name: Build — windows-x64
         working-directory: cli
-        run: crust build --name dx --target windows-x64 --outfile dist/dx-windows-x64.exe
+        run: pnpm exec crust build --name dx --target windows-x64 --outfile dist/dx-windows-x64.exe
 
       - name: Upload linux binary
         uses: actions/upload-artifact@v4
