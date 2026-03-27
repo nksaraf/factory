@@ -31,7 +31,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -146,7 +145,7 @@ jobs:
       # ── 3. Set up dx as a workbench (real developer flow) ───────────
       - name: dx install --type ci
         shell: bash
-        run: dx install --type ci
+        run: dx install --type ci -y
 
       # ── 4. Clone a repo & work inside it ─────────────────────────────
       - name: Clone nksaraf/factory
