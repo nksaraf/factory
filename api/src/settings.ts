@@ -24,6 +24,11 @@ export const factorySettingsSchema = z.object({
           serviceUrl: z.string().default(""),
         })
         .default({}),
+      redis: z
+        .object({
+          url: z.string().default(""),
+        })
+        .default({}),
       log: z
         .object({
           level: z
@@ -68,6 +73,12 @@ export function getMode(s: FactorySettings): FactoryMode {
 /** Non-empty auth service URL, or undefined. */
 export function getAuthServiceUrl(s: FactorySettings): string | undefined {
   const v = (s.factory.auth.serviceUrl ?? "").trim();
+  return v === "" ? undefined : v;
+}
+
+/** Non-empty Redis URL, or undefined. */
+export function getRedisUrl(s: FactorySettings): string | undefined {
+  const v = (s.factory.redis.url ?? "").trim();
   return v === "" ? undefined : v;
 }
 

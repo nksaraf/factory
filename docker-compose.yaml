@@ -178,5 +178,56 @@ services:
       catalog.type: other
       catalog.tags: "docs,nginx,scalar"
 
+  # ---------------------------------------------------------------------------
+  # PowerSync — Postgres-to-client realtime sync engine
+  # ---------------------------------------------------------------------------
+  infra-powersync-mongo:
+    image: mongo:7-jammy
+    volumes:
+      - powersync-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  infra-powersync:
+    image: journeyapps/powersync-service:latest
+    ports:
+      - "${INFRA_POWERSYNC_PORT:-8090}:8080"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+      infra-powersync-mongo:
+        condition: service_healthy
+    volumes:
+      - ./infra/powersync/powersync.yaml:/config/powersync.yaml:ro
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/powersync.yaml
+      POWERSYNC_JWKS_URL: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Redis — used for presence WebSocket fan-out across API instances
+  # ---------------------------------------------------------------------------
+  infra-redis:
+    image: redis:7-alpine
+    ports:
+      - "${INFRA_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres-data:
+  powersync-mongo-data:
+  redis-data:

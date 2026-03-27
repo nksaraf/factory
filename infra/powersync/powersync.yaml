@@ -1,0 +1,136 @@
+# PowerSync Service Configuration
+# Docs: https://docs.powersync.com/self-hosting/configuration
+
+replication:
+  connections:
+    - type: postgresql
+      uri: postgres://powersync_repl:powersync_repl_pass@infra-postgres:5432/postgres
+      sslmode: disable
+      publication: powersync_pub
+
+storage:
+  type: mongodb
+  uri: mongodb://infra-powersync-mongo:27017/powersync
+
+# JWT auth — uses the same JWKS endpoint as the Factory API
+client_auth:
+  jwks:
+    - uri: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}
+
+# Sync rules: define which data each client receives.
+#
+# IMPORTANT: PowerSync expects a column named "id" as the row identifier.
+# Our Postgres tables use custom PK names (site_id, deployment_target_id, etc.),
+# so we alias them to "id" in each SELECT.
+sync_rules:
+  - bucket_definitions:
+
+      # -----------------------------------------------------------------------
+      # Fleet domain
+      # -----------------------------------------------------------------------
+      global_fleet:
+        data:
+          - SELECT site_id AS id, * FROM "factory_fleet"."site"
+          - SELECT deployment_target_id AS id, * FROM "factory_fleet"."deployment_target"
+          - SELECT workload_id AS id, * FROM "factory_fleet"."workload"
+          - SELECT dependency_workload_id AS id, * FROM "factory_fleet"."dependency_workload"
+          - SELECT release_id AS id, * FROM "factory_fleet"."release"
+          - SELECT release_module_pin_id AS id, * FROM "factory_fleet"."release_module_pin"
+          - SELECT rollout_id AS id, * FROM "factory_fleet"."rollout"
+          - SELECT sandbox_id AS id, * FROM "factory_fleet"."sandbox"
+          - SELECT sandbox_template_id AS id, * FROM "factory_fleet"."sandbox_template"
+          - SELECT override_id AS id, * FROM "factory_fleet"."workload_override"
+          - SELECT intervention_id AS id, * FROM "factory_fleet"."intervention"
+          - SELECT manifest_id AS id, * FROM "factory_fleet"."site_manifest"
+          - SELECT install_manifest_id AS id, * FROM "factory_fleet"."install_manifest"
+          - SELECT release_bundle_id AS id, * FROM "factory_fleet"."release_bundle"
+          - SELECT sandbox_snapshot_id AS id, * FROM "factory_fleet"."sandbox_snapshot"
+          - SELECT event_id AS id, * FROM "factory_fleet"."connection_audit_event"
+
+      # -----------------------------------------------------------------------
+      # Product domain
+      # -----------------------------------------------------------------------
+      global_product:
+        data:
+          - SELECT module_id AS id, * FROM "factory_product"."module"
+          - SELECT component_id AS id, * FROM "factory_product"."component_spec"
+          # Exclude credentials_ref from work_tracker_provider (sensitive)
+          - >-
+            SELECT work_tracker_provider_id AS id, work_tracker_provider_id,
+            name, slug, kind, api_url, default_project_key, status, sync_enabled,
+            sync_interval_minutes, sync_status, last_sync_at, sync_error, created_at
+            FROM "factory_product"."work_tracker_provider"
+          - SELECT mapping_id AS id, * FROM "factory_product"."work_tracker_project_mapping"
+          - SELECT work_item_id AS id, * FROM "factory_product"."work_item"
+
+      # -----------------------------------------------------------------------
+      # Build domain
+      # -----------------------------------------------------------------------
+      global_build:
+        data:
+          # Exclude credentials_enc from git_host_provider (sensitive)
+          - >-
+            SELECT git_host_provider_id AS id, git_host_provider_id, name, slug,
+            host_type, api_base_url, auth_mode, status, team_id, last_sync_at,
+            sync_status, sync_error, created_at
+            FROM "factory_build"."git_host_provider"
+          - SELECT repo_id AS id, * FROM "factory_build"."repo"
+          - SELECT module_version_id AS id, * FROM "factory_build"."module_version"
+          - SELECT artifact_id AS id, * FROM "factory_build"."artifact"
+          - SELECT component_artifact_id AS id, * FROM "factory_build"."component_artifact"
+          # Exclude payload from webhook_event (can be very large)
+          - >-
+            SELECT webhook_event_id AS id, webhook_event_id, git_host_provider_id,
+            delivery_id, event_type, action, status, error_message, processed_at,
+            created_at
+            FROM "factory_build"."webhook_event"
+          - SELECT git_repo_sync_id AS id, * FROM "factory_build"."git_repo_sync"
+          - SELECT git_user_sync_id AS id, * FROM "factory_build"."git_user_sync"
+          # NOTE: github_app_installation excluded entirely (contains private keys)
+
+      # -----------------------------------------------------------------------
+      # Infra domain
+      # -----------------------------------------------------------------------
+      global_infra:
+        data:
+          # Exclude credentials_ref from provider (sensitive)
+          - >-
+            SELECT provider_id AS id, provider_id, name, slug, provider_type,
+            url, status, provider_kind, created_at
+            FROM "factory_infra"."provider"
+          # Exclude kubeconfig_ref from cluster (sensitive)
+          - >-
+            SELECT cluster_id AS id, cluster_id, name, slug, provider_id,
+            status, created_at
+            FROM "factory_infra"."cluster"
+          - SELECT region_id AS id, * FROM "factory_infra"."region"
+          - SELECT datacenter_id AS id, * FROM "factory_infra"."datacenter"
+          - SELECT host_id AS id, * FROM "factory_infra"."host"
+          # Exclude token_id, token_secret from proxmox_cluster (sensitive)
+          - >-
+            SELECT proxmox_cluster_id AS id, proxmox_cluster_id, name, slug,
+            provider_id, api_host, api_port, ssl_fingerprint, sync_status,
+            last_sync_at, sync_error, created_at
+            FROM "factory_infra"."proxmox_cluster"
+          - SELECT vm_id AS id, * FROM "factory_infra"."vm"
+          - SELECT kube_node_id AS id, * FROM "factory_infra"."kube_node"
+          - SELECT subnet_id AS id, * FROM "factory_infra"."subnet"
+          - SELECT ip_address_id AS id, * FROM "factory_infra"."ip_address"
+
+      # -----------------------------------------------------------------------
+      # Commerce domain
+      # -----------------------------------------------------------------------
+      global_commerce:
+        data:
+          - SELECT customer_id AS id, * FROM "factory_commerce"."customer_account"
+          - SELECT plan_id AS id, * FROM "factory_commerce"."plan"
+          - SELECT entitlement_id AS id, * FROM "factory_commerce"."entitlement"
+          - SELECT bundle_id AS id, * FROM "factory_commerce"."entitlement_bundle"
+
+      # -----------------------------------------------------------------------
+      # Agent domain
+      # -----------------------------------------------------------------------
+      global_agent:
+        data:
+          - SELECT agent_id AS id, * FROM "factory_agent"."agent"
+          - SELECT execution_id AS id, * FROM "factory_agent"."agent_execution"
