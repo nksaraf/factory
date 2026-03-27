@@ -4,9 +4,11 @@ import type { Database } from "../../db/connection"
 import type { InstallManifest } from "@smp/factory-shared/install-types"
 import { FleetModel } from "./model"
 import { FleetPlaneService } from "./plane.service"
+import { WorkbenchService } from "./workbench.service"
 
 export function fleetController(db: Database) {
   const plane = new FleetPlaneService(db)
+  const workbenchSvc = new WorkbenchService(db)
 
   return new Elysia({ prefix: "/fleet" })
     // ---- Releases ----
@@ -406,6 +408,41 @@ export function fleetController(db: Database) {
         params: FleetModel.releaseBundleIdParams,
         body: FleetModel.updateReleaseBundleBody,
         detail: { tags: ["Fleet"], summary: "Update release bundle status" },
+      }
+    )
+
+    // ---- Workbenches ----
+    .get(
+      "/workbenches",
+      ({ query }) => workbenchSvc.list(query),
+      {
+        query: FleetModel.workbenchListQuery,
+        detail: { tags: ["Fleet"], summary: "List workbenches" },
+      }
+    )
+    .post(
+      "/workbenches",
+      ({ body }) => workbenchSvc.register(body),
+      {
+        body: FleetModel.registerWorkbenchBody,
+        detail: { tags: ["Fleet"], summary: "Register workbench" },
+      }
+    )
+    .get(
+      "/workbenches/:workbenchId",
+      ({ params }) => workbenchSvc.get(params.workbenchId),
+      {
+        params: FleetModel.workbenchIdParams,
+        detail: { tags: ["Fleet"], summary: "Get workbench" },
+      }
+    )
+    .post(
+      "/workbenches/:workbenchId/ping",
+      ({ params, body }) => workbenchSvc.ping(params.workbenchId, body),
+      {
+        params: FleetModel.workbenchIdParams,
+        body: FleetModel.workbenchPingBody,
+        detail: { tags: ["Fleet"], summary: "Ping workbench" },
       }
     )
 }

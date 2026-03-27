@@ -14,6 +14,7 @@ import { catalogCommand } from "./commands/catalog.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
+import { doctorCommand } from "./commands/doctor.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
 import { downCommand } from "./commands/down.js";
@@ -70,6 +71,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(dbCommand(app))
     .command(deployCommand(app))
     .command(devCommand(app))
+    .command(doctorCommand(app))
     .command(domainCommand(app))
     .command(downCommand(app))
     .command(entitlementCommand(app))

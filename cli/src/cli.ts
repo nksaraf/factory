@@ -1,6 +1,7 @@
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { createDxApp } from "./build-app.js";
+import { fireWorkbenchPing } from "./handlers/install/workbench-ping.js";
 
 // --version (long-only, -v stays for --verbose)
 if (process.argv.includes("--version")) {
@@ -36,3 +37,8 @@ try {
   }
   process.exit(ExitCodes.GENERAL_FAILURE);
 }
+
+// Fire-and-forget workbench ping (non-blocking, no await)
+fireWorkbenchPing();
+
+process.exit(ExitCodes.SUCCESS);

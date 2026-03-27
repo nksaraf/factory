@@ -169,6 +169,25 @@ export const FleetModel = {
     status: t.Optional(t.String()),
     role: t.Optional(t.String()),
   }),
+  // Workbenches
+  registerWorkbenchBody: t.Object({
+    workbenchId: t.String(),
+    type: t.String(),
+    hostname: t.String(),
+    ips: t.Array(t.String()),
+    os: t.String(),
+    arch: t.String(),
+    dxVersion: t.String(),
+  }),
+  workbenchPingBody: t.Object({
+    command: t.String(),
+    dxVersion: t.String(),
+    timestamp: t.String(),
+  }),
+  workbenchIdParams: t.Object({ workbenchId: t.String() }),
+  workbenchListQuery: t.Object({
+    type: t.Optional(t.String()),
+  }),
 } as const
 
 export type FleetModels = {
