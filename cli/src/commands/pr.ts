@@ -110,7 +110,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -120,7 +119,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
             const result = await apiCall(flags, () =>
               api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].get(),
             );
@@ -215,7 +214,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -225,7 +223,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
             const result = await apiCall(flags, () =>
               api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].checks.get(),
             );
@@ -256,7 +254,6 @@ export function prCommand(app: DxBase) {
           {
             name: "number",
             type: "number",
-            required: false,
             description: "PR number (auto-detects from current branch if omitted)",
           },
         ])
@@ -280,7 +277,7 @@ export function prCommand(app: DxBase) {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
             const api = await getApi();
-            const prNumber = (args.number as number) || await detectPrNumber(flags, api, ctx, cwd);
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
 
             let method = "squash";
             if (flags.rebase) method = "rebase";

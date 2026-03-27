@@ -20,14 +20,14 @@ describe("dx db CLI", () => {
     expect(stderr).toBe("");
     expect(stdout).toContain("connect");
     expect(stdout).toContain("query");
-    expect(stdout).toContain("tables");
+    expect(stdout).toContain("table");
     expect(stdout).toContain("schema");
-    expect(stdout).toContain("indexes");
-    expect(stdout).toContain("constraints");
-    expect(stdout).toContain("sequences");
-    expect(stdout).toContain("extensions");
+    expect(stdout).toContain("index");
+    expect(stdout).toContain("constraint");
+    expect(stdout).toContain("sequence");
+    expect(stdout).toContain("extension");
     expect(stdout).toContain("activity");
-    expect(stdout).toContain("locks");
+    expect(stdout).toContain("lock");
     expect(stdout).toContain("long-queries");
     expect(stdout).toContain("migrate");
     expect(stdout).toContain("reset");
@@ -53,14 +53,14 @@ describe("dx db CLI", () => {
     const home = isolatedHome();
     // Factory dx.yaml has postgres on port 5433 which is likely not running
     // The command should fail with a connection error (exit 1), not crash
-    const { status } = runDx(["db", "tables"], { home });
+    const { status } = runDx(["db", "table"], { home });
     // Either succeeds (if postgres is running) or fails gracefully
     expect(typeof status).toBe("number");
   });
 
   it("dx db tables --json returns structured output", () => {
     const home = isolatedHome();
-    const { status, stdout } = runDx(["db", "tables", "--json"], { home });
+    const { status, stdout } = runDx(["db", "table", "--json"], { home });
     // Parse the JSON output — should be valid JSON regardless of success/failure
     const body = JSON.parse(stdout) as { success: boolean };
     expect(typeof body.success).toBe("boolean");

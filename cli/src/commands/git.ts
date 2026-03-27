@@ -326,7 +326,6 @@ export function gitCommand(app: DxBase) {
           {
             name: "slug",
             type: "string",
-            required: false,
             description: "Repo slug or ID (interactive picker if omitted)",
           },
         ])
@@ -338,7 +337,7 @@ export function gitCommand(app: DxBase) {
             let gitUrl: string;
             if (!slug) {
               const listRes = await api.api.v1.factory.build.repos.get();
-              const repos = listRes.data?.data;
+              const repos = listRes.data?.data as Array<{ name: string; kind?: string; gitUrl?: string }> | undefined;
               if (!repos || repos.length === 0) {
                 exitWithError(f, "No repos found");
                 return;

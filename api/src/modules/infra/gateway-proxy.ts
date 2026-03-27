@@ -133,7 +133,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
             { body: reqBody, timeoutMs: 30_000 }
           );
 
-          return new Response(tunnelRes.body, {
+          return new Response(new Uint8Array(tunnelRes.body), {
             status: tunnelRes.status,
             headers: tunnelRes.headers,
           });
