@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { DxYaml } from "./config-schemas";
+import type { CatalogSystem } from "./catalog";
 import type {
   NormalizedProfileEntry,
   ResolvedConnectionContext,
@@ -10,7 +10,7 @@ import type {
 } from "./connection-context-schemas";
 
 export interface EnvResolutionInput {
-  dxConfig: DxYaml;
+  catalog: CatalogSystem;
   tierOverlay?: Record<string, string>;
   connectionOverrides?: Record<string, NormalizedProfileEntry>;
   cliEnvFlags?: Record<string, string>;
@@ -37,11 +37,11 @@ export function computeDeterministicPort(
  * Categorize dependencies as local (spin up as containers) or remote (tunneled/direct).
  */
 export function categorizeDeps(
-  dxConfig: DxYaml,
+  catalog: CatalogSystem,
   connectionOverrides: Record<string, NormalizedProfileEntry>
 ): { local: string[]; remote: string[] } {
-  const allDeps = Object.keys(dxConfig.resources);
-  const allConns = Object.keys(dxConfig.connections);
+  const allDeps = Object.keys(catalog.resources);
+  const allConns = catalog.connections.map((c) => c.name);
   const overrideKeys = new Set(Object.keys(connectionOverrides));
 
   const local: string[] = [];
@@ -66,44 +66,55 @@ export function categorizeDeps(
 }
 
 /**
- * Build Layer 1 defaults from dx.yaml dependencies and connections.
+ * Build Layer 1 defaults from catalog resources and connections.
  * Mirrors the logic in compose-gen.ts for DATABASE_URL/REDIS_URL auto-generation.
  */
-function buildLayer1Defaults(dxConfig: DxYaml): Record<string, ResolvedEnvEntry> {
+function buildLayer1Defaults(catalog: CatalogSystem): Record<string, ResolvedEnvEntry> {
   const env: Record<string, ResolvedEnvEntry> = {};
 
   // Connection local_defaults
-  for (const [connKey, conn] of Object.entries(dxConfig.connections)) {
-    if (conn.local_default) {
-      env[conn.env_var] = {
-        value: conn.local_default,
+  for (const conn of catalog.connections) {
+    if (conn.localDefault) {
+      env[conn.envVar] = {
+        value: conn.localDefault,
         source: "default",
-        sourceDetail: `connections.${connKey}.local_default`,
+        sourceDetail: `connections.${conn.name}.localDefault`,
       };
     }
   }
 
-  // Auto-generate DATABASE_URL from postgres dependency
-  if (dxConfig.resources.postgres) {
-    const p = dxConfig.resources.postgres;
-    const db = p.env.POSTGRES_DB ?? "postgres";
-    const user = p.env.POSTGRES_USER ?? "postgres";
-    const pass = p.env.POSTGRES_PASSWORD ?? "postgres";
+  // Auto-generate DATABASE_URL from postgres resource
+  const pgRes = Object.entries(catalog.resources).find(
+    ([name, r]) =>
+      r.spec.type === "database" &&
+      (/^postgres/i.test(name) || /postgres|postgis|timescaledb/i.test(r.spec.image))
+  );
+  if (pgRes) {
+    const [, res] = pgRes;
+    const pgEnv = res.spec.environment ?? {};
+    const db = pgEnv.POSTGRES_DB ?? "postgres";
+    const user = pgEnv.POSTGRES_USER ?? "postgres";
+    const pass = pgEnv.POSTGRES_PASSWORD ?? "postgres";
+    const port = res.spec.ports?.[0]?.port ?? 5432;
     if (!env.DATABASE_URL) {
       env.DATABASE_URL = {
-        value: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${p.port}/${encodeURIComponent(db)}`,
+        value: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${port}/${encodeURIComponent(db)}`,
         source: "default",
         sourceDetail: "resources.postgres (auto-generated)",
       };
     }
   }
 
-  // Auto-generate REDIS_URL from redis dependency
-  if (dxConfig.resources.redis) {
-    const r = dxConfig.resources.redis;
+  // Auto-generate REDIS_URL from redis resource
+  const redisRes = Object.entries(catalog.resources).find(
+    ([, r]) => r.spec.type === "cache" && r.spec.image.startsWith("redis")
+  );
+  if (redisRes) {
+    const [, res] = redisRes;
+    const port = res.spec.ports?.[0]?.port ?? 6379;
     if (!env.REDIS_URL) {
       env.REDIS_URL = {
-        value: `redis://localhost:${r.port}`,
+        value: `redis://localhost:${port}`,
         source: "default",
         sourceDetail: "resources.redis (auto-generated)",
       };
@@ -116,16 +127,16 @@ function buildLayer1Defaults(dxConfig: DxYaml): Record<string, ResolvedEnvEntry>
 /**
  * Resolve the 4-layer environment variable stack.
  *
- * Layer 1: Component defaults (dx.yaml dependencies + connections local_default)
+ * Layer 1: Component defaults (catalog resources + connections localDefault)
  * Layer 2: Tier overlay env vars
  * Layer 3: Connection overrides (remote deps → tunnel specs or direct connection strings)
  * Layer 4: Explicit CLI --env flags
  */
 export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionContext {
-  const { dxConfig, tierOverlay, connectionOverrides = {}, cliEnvFlags } = input;
+  const { catalog, tierOverlay, connectionOverrides = {}, cliEnvFlags } = input;
 
   // Layer 1: defaults
-  const envVars: Record<string, ResolvedEnvEntry> = buildLayer1Defaults(dxConfig);
+  const envVars: Record<string, ResolvedEnvEntry> = buildLayer1Defaults(catalog);
 
   // Layer 2: tier overlay
   if (tierOverlay) {
@@ -140,16 +151,16 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
 
   // Layer 3: connection overrides
   const tunnels: TunnelSpec[] = [];
-  const { local, remote } = categorizeDeps(dxConfig, connectionOverrides);
+  const { local, remote } = categorizeDeps(catalog, connectionOverrides);
 
   for (const [name, override] of Object.entries(connectionOverrides)) {
-    const dep = dxConfig.resources[name];
-    const conn = dxConfig.connections[name];
+    const dep = catalog.resources[name];
+    const conn = catalog.connections.find((c) => c.name === name);
 
     if (dep) {
       // Infrastructure dependency (postgres, redis, etc.)
       const localPort = computeDeterministicPort(override.target, name);
-      const remotePort = dep.container_port ?? dep.port;
+      const remotePort = dep.spec.containerPort ?? dep.spec.ports?.[0]?.port ?? 0;
 
       const tunnel: TunnelSpec = {
         name,
@@ -161,7 +172,7 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
 
       // For direct backend, use tier overlay connection string if available
       if (override.backend === "direct" && tierOverlay) {
-        const envKey = name === "postgres" ? "DATABASE_URL" : name === "redis" ? "REDIS_URL" : undefined;
+        const envKey = dep.spec.type === "database" ? "DATABASE_URL" : dep.spec.type === "cache" ? "REDIS_URL" : undefined;
         if (envKey && tierOverlay[envKey]) {
           tunnel.connectionString = tierOverlay[envKey];
           envVars[envKey] = {
@@ -174,17 +185,17 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
 
       // For non-direct backends, env points at the tunnel's local port
       if (override.backend !== "direct") {
-        if (name === "postgres") {
-          const p = dxConfig.resources.postgres!;
-          const db = p.env.POSTGRES_DB ?? "postgres";
-          const user = p.env.POSTGRES_USER ?? "postgres";
-          const pass = p.env.POSTGRES_PASSWORD ?? "postgres";
+        if (dep.spec.type === "database" && (/^postgres/i.test(name) || /postgres|postgis|timescaledb/i.test(dep.spec.image))) {
+          const pgEnv = dep.spec.environment ?? {};
+          const db = pgEnv.POSTGRES_DB ?? "postgres";
+          const user = pgEnv.POSTGRES_USER ?? "postgres";
+          const pass = pgEnv.POSTGRES_PASSWORD ?? "postgres";
           envVars.DATABASE_URL = {
             value: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${localPort}/${encodeURIComponent(db)}`,
             source: "connection",
             sourceDetail: `${name} → ${override.target} (tunnel :${localPort})`,
           };
-        } else if (name === "redis") {
+        } else if (dep.spec.type === "cache") {
           envVars.REDIS_URL = {
             value: `redis://localhost:${localPort}`,
             source: "connection",
@@ -201,20 +212,20 @@ export function resolveEnvVars(input: EnvResolutionInput): ResolvedConnectionCon
       const tunnel: TunnelSpec = {
         name,
         localPort,
-        remoteHost: `${override.target}-${conn.component}`,
+        remoteHost: `${override.target}-${conn.targetComponent}`,
         remotePort: 8080,
         backend: override.backend as TunnelBackendKind,
       };
 
-      if (override.backend === "direct" && tierOverlay?.[conn.env_var]) {
-        tunnel.connectionString = tierOverlay[conn.env_var];
-        envVars[conn.env_var] = {
-          value: tierOverlay[conn.env_var],
+      if (override.backend === "direct" && tierOverlay?.[conn.envVar]) {
+        tunnel.connectionString = tierOverlay[conn.envVar];
+        envVars[conn.envVar] = {
+          value: tierOverlay[conn.envVar],
           source: "connection",
           sourceDetail: `${name} → ${override.target} (direct)`,
         };
       } else if (override.backend !== "direct") {
-        envVars[conn.env_var] = {
+        envVars[conn.envVar] = {
           value: `http://localhost:${localPort}`,
           source: "connection",
           sourceDetail: `${name} → ${override.target} (tunnel :${localPort})`,

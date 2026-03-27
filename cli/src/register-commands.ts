@@ -16,6 +16,7 @@ import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
+import { downCommand } from "./commands/down.js";
 import { entitlementCommand } from "./commands/entitlement.js";
 import { envCommand } from "./commands/env.js";
 import { factoryCommand } from "./commands/factory.js";
@@ -43,6 +44,7 @@ import { tenantCommand } from "./commands/tenant.js";
 import { testCommand } from "./commands/test.js";
 import { traceCommand } from "./commands/trace.js";
 import { tunnelCommand } from "./commands/tunnel.js";
+import { upCommand } from "./commands/up.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { workCommand } from "./commands/work.js";
 import { worktreeCommand } from "./commands/worktree.js";
@@ -69,6 +71,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(deployCommand(app))
     .command(devCommand(app))
     .command(domainCommand(app))
+    .command(downCommand(app))
     .command(entitlementCommand(app))
     .command(envCommand(app))
     .command(factoryCommand(app))
@@ -96,6 +99,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(testCommand(app))
     .command(traceCommand(app))
     .command(tunnelCommand(app))
+    .command(upCommand(app))
     .command(whoamiCommand(app))
     .command(workCommand(app))
     .command(worktreeCommand(app));

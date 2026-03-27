@@ -25,23 +25,26 @@ import { ProjectContext } from "../lib/project.js";
 import { toDxFlags } from "./dx-flags.js";
 import { setExamples } from "../plugins/examples-plugin.js";
 import { printTable } from "../output.js";
+import { runCatalogDoctor } from "./catalog-doctor.js";
 
 setExamples("catalog", [
   "$ dx catalog              List all catalog entries",
   "$ dx catalog info api     Show details for a component or resource",
   "$ dx catalog status       Show catalog source and detected formats",
+  "$ dx catalog doctor       Diagnose missing catalog labels in docker-compose",
+  "$ dx catalog doctor --fix Interactively add missing labels",
+  "$ dx catalog doctor --fix --yes  Accept all defaults without prompting",
 ]);
 
 /** Map of format → files to probe for detection (in priority order). */
 const FORMAT_FILES: [CatalogFormat, string[]][] = [
-  ["dx-yaml", ["dx.yaml"]],
-  ["docker-compose", ["docker-compose.yaml", "docker-compose.yml", "compose.yaml", "compose.yml"]],
+  ["docker-compose", ["docker-compose.yaml", "docker-compose.yml", "compose.yaml", "compose.yml", "compose/"]],
   ["backstage", ["catalog-info.yaml", "catalog-info.yml"]],
   ["helm", ["Chart.yaml"]],
 ];
 
 /** Priority order for format fallback. */
-const FORMAT_PRIORITY: CatalogFormat[] = ["dx-yaml", "docker-compose", "backstage", "helm"];
+const FORMAT_PRIORITY: CatalogFormat[] = ["docker-compose", "backstage", "helm"];
 
 const GENERATED_DIR = ".dx/generated";
 
@@ -155,32 +158,32 @@ interface CatalogResult {
 }
 
 /**
- * Load the catalog using format fallback: dx-yaml → docker-compose → backstage → helm.
+ * Load the catalog using format fallback: docker-compose → backstage → helm.
  * Generates all other format variants and checks for drift.
  * Returns null if no catalog source is found.
  */
 function loadCatalog(cwd: string): CatalogResult | null {
-  // Try ProjectContext first (dx-yaml, walks up the tree)
+  // Try ProjectContext first (docker-compose, walks up the tree)
   try {
     const ctx = ProjectContext.fromCwd(cwd);
-    const drifts = generateAndDiff(ctx.catalog, "dx-yaml", ctx.rootDir);
+    const drifts = generateAndDiff(ctx.catalog, "docker-compose", ctx.rootDir);
     return {
       catalog: ctx.catalog,
-      format: "dx-yaml",
-      file: ctx.dxYamlPath,
+      format: "docker-compose",
+      file: ctx.composeFiles[0] ?? cwd,
       rootDir: ctx.rootDir,
       warnings: [],
       drifts,
     };
   } catch {
-    // dx.yaml not found, fall through
+    // No compose files found, fall through
   }
 
-  // Fall back through other formats in priority order (skip dx-yaml, already tried)
+  // Fall back through other formats in priority order (skip docker-compose, already tried via ProjectContext)
   for (const format of FORMAT_PRIORITY.slice(1)) {
     const adapter = getCatalogFormat(format);
     if (adapter.detect(cwd)) {
-      const result = adapter.parse(cwd);
+      const result = adapter.parse(cwd) as import("@smp/factory-shared/catalog-registry").CatalogParseResult;
       const drifts = generateAndDiff(result.system, format, cwd);
       const detected = detectFormats(cwd).find((d) => d.format === format);
       return {
@@ -314,7 +317,7 @@ export function catalogCommand(app: DxBase) {
       const result = loadCatalog(process.cwd());
 
       if (!result) {
-        console.error("No catalog source found. Searched for: dx.yaml, docker-compose.yaml, catalog-info.yaml, Chart.yaml");
+        console.error("No catalog source found. Searched for: docker-compose.yaml, catalog-info.yaml, Chart.yaml");
         process.exit(1);
       }
 
@@ -356,7 +359,7 @@ export function catalogCommand(app: DxBase) {
       console.log("");
       console.log(printTable(["NAME", "KIND", "TYPE", "LIFECYCLE"], rows));
 
-      renderDriftWarnings(result.drifts, f.quiet);
+      renderDriftWarnings(result.drifts, !!f.quiet);
     })
     .command("info", (c) =>
       c
@@ -419,7 +422,7 @@ export function catalogCommand(app: DxBase) {
             ]);
           }
 
-          renderDriftWarnings(result.drifts, f.quiet);
+          renderDriftWarnings(result.drifts, !!f.quiet);
         })
     )
     .command("status", (c) =>
@@ -510,7 +513,7 @@ export function catalogCommand(app: DxBase) {
 
           console.log("");
           console.log(
-            styleMuted("Priority: dx-yaml > docker-compose > backstage > helm")
+            styleMuted("Priority: docker-compose > backstage > helm")
           );
 
           // Drift section
@@ -529,6 +532,35 @@ export function catalogCommand(app: DxBase) {
             console.log("");
             console.log(`${styleBold("Drift:")}       ${styleSuccess("none")} — all formats in sync`);
           }
+        })
+    )
+    .command("doctor", (c) =>
+      c
+        .meta({ description: "Diagnose and fix catalog labels in docker-compose" })
+        .flags({
+          fix: {
+            type: "boolean",
+            description: "Interactively add missing labels",
+          },
+          yes: {
+            type: "boolean",
+            short: "y",
+            description: "Accept all defaults without prompting",
+          },
+          file: {
+            type: "string",
+            short: "f",
+            description: "Path to docker-compose file (auto-detected if omitted)",
+          },
+          service: {
+            type: "string",
+            short: "s",
+            description: "Only diagnose/fix a specific service",
+          },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          await runCatalogDoctor(flags, f);
         })
     );
 }

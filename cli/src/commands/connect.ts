@@ -48,7 +48,7 @@ export function connectCommand(app: DxBase) {
 
       try {
         const project = ProjectContext.fromCwd();
-        const connectToOverrides = parseConnectToFlag(target, project.moduleConfig);
+        const connectToOverrides = parseConnectToFlag(target, project.catalog);
 
         // Parse selective --connect flags if present
         const selectiveFlags = flags.connect
@@ -66,7 +66,7 @@ export function connectCommand(app: DxBase) {
         const tierOverlay = loadTierOverlay(project.rootDir, target);
 
         const ctx = resolveEnvVars({
-          dxConfig: project.moduleConfig,
+          catalog: project.catalog,
           tierOverlay: tierOverlay ?? undefined,
           connectionOverrides: overrides,
         });

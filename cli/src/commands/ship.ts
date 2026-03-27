@@ -1,6 +1,4 @@
-import { dirname } from "node:path";
-
-import { findDxYaml } from "@smp/factory-shared/config-loader";
+import { findComposeRoot } from "@smp/factory-shared/config-loader";
 import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
 import { loadConventions, validateCommitMessage } from "@smp/factory-shared/conventions";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
@@ -46,9 +44,9 @@ export function shipCommand(app: DxBase) {
         const cwd = process.cwd();
 
         // 1. Validate commit message
-        const dx = findDxYaml(cwd);
-        const conventions = dx
-          ? loadConventions(dirname(dx))
+        const root = findComposeRoot(cwd);
+        const conventions = root
+          ? loadConventions(root)
           : defaultConventionsConfig();
         const result = validateCommitMessage(args.message, conventions);
         if (!result.valid && !flags.force) {

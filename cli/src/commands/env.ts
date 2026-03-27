@@ -64,7 +64,7 @@ export function envCommand(app: DxBase) {
             const connectToOverrides = flags["connect-to"]
               ? parseConnectToFlag(
                   flags["connect-to"] as string,
-                  project.moduleConfig
+                  project.catalog
                 )
               : undefined;
 
@@ -100,7 +100,7 @@ export function envCommand(app: DxBase) {
               : undefined;
 
             const ctx = resolveEnvVars({
-              dxConfig: project.moduleConfig,
+              catalog: project.catalog,
               tierOverlay,
               connectionOverrides: overrides,
               cliEnvFlags: envFlags,

@@ -22,33 +22,33 @@ export function testCommand(app: DxBase) {
         name: "components",
         type: "string",
         variadic: true,
-        description: "Component names (default: all that define test in dx-component.yaml)",
+        description: "Component names (default: all that define a test command)",
       },
     ])
     .run(({ args, flags }) => {
       const f = toDxFlags(flags);
       try {
         const project = ProjectContext.fromCwd();
-        const allNames = Object.keys(project.moduleConfig.components);
+        const allNames = project.componentNames;
         const names =
           args.components?.length && args.components.length > 0
             ? args.components
             : allNames;
         let ran = 0;
         for (const name of names) {
-          if (!project.moduleConfig.components[name]) {
-            exitWithError(f, `Unknown component "${name}" in dx.yaml`);
+          const comp = project.getComponent(name);
+          if (!comp) {
+            exitWithError(f, `Unknown component "${name}"`);
           }
-          const cfg = project.componentConfigs[name];
-          const cmd = cfg?.test;
+          const cmd = comp!.spec.test;
           if (!cmd?.trim()) {
             if (f.verbose) {
-              console.warn(`Skipping ${name}: no test command in dx-component.yaml`);
+              console.warn(`Skipping ${name}: no test command defined (add dx.test label)`);
             }
             continue;
           }
-          const ref = project.moduleConfig.components[name];
-          const cwd = resolve(project.rootDir, ref.path);
+          const buildContext = comp!.spec.build?.context ?? ".";
+          const cwd = resolve(project.rootDir, buildContext);
           const proc = spawnSync("sh", ["-c", cmd], {
             cwd,
             stdio: "inherit",
@@ -61,7 +61,7 @@ export function testCommand(app: DxBase) {
         if (ran === 0) {
           exitWithError(
             f,
-            "No test commands found. Add `test:` to dx-component.yaml for each component."
+            "No test commands found. Add `dx.test` label to your docker-compose services."
           );
         }
         if (f.json) {
