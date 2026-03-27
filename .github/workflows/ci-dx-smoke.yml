@@ -150,18 +150,11 @@ jobs:
         run: dx install --type ci -y
 
       # ── 4. Clone a repo & work inside it ─────────────────────────────
-      - name: Clone nksaraf/factory
+      - name: dx git clone
         shell: bash
-        run: git clone https://x-access-token:${GH_TOKEN}@github.com/nksaraf/factory.git
+        run: dx git clone https://x-access-token:${GH_TOKEN}@github.com/nksaraf/factory.git
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # A developer would have pnpm + node — install them for the test
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
 
       - name: dx pkg install
         shell: bash

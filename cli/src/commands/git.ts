@@ -313,62 +313,75 @@ export function gitCommand(app: DxBase) {
     // --- dx git clone ---
     .command("clone", (c) =>
       c
-        .meta({ description: "Clone a factory repo locally" })
+        .meta({ description: "Clone a repo (URL, factory slug, or interactive picker)" })
         .args([
           {
-            name: "slug",
+            name: "target",
             type: "string",
-            description: "Repo slug or ID (interactive picker if omitted)",
+            description: "Git URL, factory repo slug, or omit for interactive picker",
           },
         ])
+        .flags({
+          dir: { type: "string", alias: "d", description: "Target directory" },
+        })
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags);
           try {
-            const api = await getApi();
-            let slug = args.slug as string | undefined;
+            const target = args.target as string | undefined;
             let gitUrl: string;
-            if (!slug) {
-              const listRes = await api.api.v1.factory.build.repos.get();
-              const repos = listRes.data?.data as Array<{ name: string; kind?: string; gitUrl?: string }> | undefined;
-              if (!repos || repos.length === 0) {
-                exitWithError(f, "No repos found");
-                return;
-              }
-              const { search } = await import("@inquirer/prompts");
-              const choices = repos.map((r) => ({
-                name: `${r.name} (${r.kind ?? "repo"})`,
-                value: r.gitUrl ?? "",
-                description: r.gitUrl ?? undefined,
-              }));
-              gitUrl = await search({
-                message: "Search for a repo to clone",
-                source: (input) => {
-                  if (!input) return choices;
-                  const term = input.toLowerCase();
-                  return choices.filter(
-                    (c) =>
-                      c.name.toLowerCase().includes(term) ||
-                      (c.description?.toLowerCase().includes(term) ?? false),
-                  );
-                },
-              });
+
+            // Direct URL — skip factory API entirely
+            if (target && /^(https?:\/\/|git@|ssh:\/\/)/.test(target)) {
+              gitUrl = target;
             } else {
-              const res = await api.api.v1.factory.build.repos[
-                slug
-              ].get();
-              if (res.error || !res.data?.data) {
-                exitWithError(f, "Repo not found");
-                return;
+              // Factory lookup
+              const api = await getApi();
+              if (!target) {
+                const listRes = await api.api.v1.factory.build.repos.get();
+                const repos = listRes.data?.data as Array<{ name: string; kind?: string; gitUrl?: string }> | undefined;
+                if (!repos || repos.length === 0) {
+                  exitWithError(f, "No repos found");
+                  return;
+                }
+                const { search } = await import("@inquirer/prompts");
+                const choices = repos.map((r) => ({
+                  name: `${r.name} (${r.kind ?? "repo"})`,
+                  value: r.gitUrl ?? "",
+                  description: r.gitUrl ?? undefined,
+                }));
+                gitUrl = await search({
+                  message: "Search for a repo to clone",
+                  source: (input) => {
+                    if (!input) return choices;
+                    const term = input.toLowerCase();
+                    return choices.filter(
+                      (c) =>
+                        c.name.toLowerCase().includes(term) ||
+                        (c.description?.toLowerCase().includes(term) ?? false),
+                    );
+                  },
+                });
+              } else {
+                const res = await api.api.v1.factory.build.repos[
+                  target
+                ].get();
+                if (res.error || !res.data?.data) {
+                  exitWithError(f, "Repo not found");
+                  return;
+                }
+                gitUrl = res.data.data.gitUrl ?? "";
               }
-              gitUrl = res.data.data.gitUrl ?? "";
             }
+
             if (!gitUrl) {
               exitWithError(f, "Repo has no git URL");
               return;
             }
             const { execFileSync } = await import("node:child_process");
+            const cloneArgs = ["clone", gitUrl];
+            if (flags.dir) cloneArgs.push(flags.dir as string);
             console.log(`Cloning ${gitUrl}...`);
-            execFileSync("git", ["clone", gitUrl], {
+            execFileSync("git", cloneArgs, {
               stdio: "inherit",
             });
           } catch (err) {
