@@ -1,0 +1,20 @@
+{
+  "name": "@smp/factory-api-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vinxi dev --port 4100",
+    "build": "vinxi build",
+    "start": "node .output/server/index.js"
+  },
+  "dependencies": {
+    "@rio.js/vinxi": "^0.0.39",
+    "@smp/factory-api": "workspace:*",
+    "dotenv": "^17.3.1",
+    "vinxi": "0.5.11"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

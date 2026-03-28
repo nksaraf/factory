@@ -5,6 +5,7 @@ import type { ProviderAdapter } from "./provider-adapter";
 import type { ObservabilityAdapter } from "./observability-adapter";
 import type { WorkTrackerAdapter } from "./work-tracker-adapter";
 import type { GitHostAdapter } from "./git-host-adapter";
+import type { MessagingAdapter } from "./messaging-adapter";
 import { ProxmoxAdapter } from "./proxmox.adapter";
 import { NoopGitHostAdapter } from "./git-host-adapter-noop";
 import { GitHubAdapter } from "./git-host-adapter-github";
@@ -12,6 +13,8 @@ import { NoopObservabilityAdapter } from "./observability-adapter-noop";
 import { NoopWorkTrackerAdapter } from "./work-tracker-adapter-noop";
 import { JiraWorkTrackerAdapter } from "./work-tracker-adapter-jira";
 import { LinearWorkTrackerAdapter } from "./work-tracker-adapter-linear";
+import { NoopMessagingAdapter } from "./messaging-adapter-noop";
+import { SlackMessagingAdapter } from "./messaging-adapter-slack";
 
 const adapters: Partial<Record<ProviderType, (db: Database) => ProviderAdapter>> = {
   proxmox: (db) => new ProxmoxAdapter(db),
@@ -82,4 +85,21 @@ export function createGitHostAdapter(
   throw new Error(
     `No git host adapter for type: ${type}. Supported: github, noop`,
   );
+}
+
+const messagingAdapters: Record<string, () => MessagingAdapter> = {
+  noop: () => new NoopMessagingAdapter(),
+  slack: () => new SlackMessagingAdapter(),
+};
+
+export function getMessagingAdapter(
+  type: string = "noop",
+): MessagingAdapter {
+  const factory = messagingAdapters[type];
+  if (!factory) {
+    throw new Error(
+      `No messaging adapter for type: ${type}. Supported: ${Object.keys(messagingAdapters).join(", ")}`,
+    );
+  }
+  return factory();
 }

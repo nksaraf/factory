@@ -85,6 +85,45 @@ export const BuildModel = {
       ]),
     ),
   }),
+  // Pipeline runs
+  pipelineRunIdParams: t.Object({ id: t.String() }),
+  createPipelineRunBody: t.Object({
+    repoId: t.Optional(t.String()),
+    triggerEvent: t.String(),
+    triggerRef: t.String(),
+    commitSha: t.String(),
+    workflowFile: t.Optional(t.String()),
+    sandboxId: t.Optional(t.String()),
+    triggerActor: t.Optional(t.String()),
+  }),
+  listPipelineRunsQuery: t.Object({
+    repoId: t.Optional(t.String()),
+    status: t.Optional(t.String()),
+    triggerEvent: t.Optional(t.String()),
+    triggerRef: t.Optional(t.String()),
+    limit: t.Optional(t.Number()),
+    offset: t.Optional(t.Number()),
+  }),
+  updatePipelineRunBody: t.Object({
+    status: t.Optional(t.String()),
+    sandboxId: t.Optional(t.String()),
+    errorMessage: t.Optional(t.String()),
+    startedAt: t.Optional(t.String()),
+    completedAt: t.Optional(t.String()),
+  }),
+  // Pipeline step runs
+  stepRunIdParams: t.Object({ id: t.String(), stepId: t.String() }),
+  createStepRunBody: t.Object({
+    jobName: t.String(),
+    stepName: t.Optional(t.String()),
+  }),
+  updateStepRunBody: t.Object({
+    status: t.Optional(t.String()),
+    exitCode: t.Optional(t.Number()),
+    logUrl: t.Optional(t.String()),
+    startedAt: t.Optional(t.String()),
+    completedAt: t.Optional(t.String()),
+  }),
 } as const;
 
 export type BuildModels = {

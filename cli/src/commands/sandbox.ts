@@ -1,6 +1,8 @@
+import { userInfo } from "node:os";
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
+import { readConfig, resolveFactoryUrl } from "../config.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
   type ColumnOpt,
@@ -15,6 +17,7 @@ import {
   timeAgo,
 } from "./list-helpers.js";
 import { setExamples } from "../plugins/examples-plugin.js";
+import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js";
 
 setExamples("sandbox", [
   "$ dx sandbox list                  List sandboxes",
@@ -24,11 +27,51 @@ setExamples("sandbox", [
   "$ dx sandbox stop my-sandbox       Stop a running sandbox",
 ]);
 
-// Eden client type doesn't include sandbox routes due to conditional plugin
-// registration in factory.api.ts. Routes work at runtime. Use `any` for path access.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getSandboxApi(): Promise<any> {
+// Returns the full factory client. Callers access Eden paths inline via S().
+// NOTE: Do NOT pre-resolve Eden proxy paths and return/await them —
+// Eden proxies are thenables, so `await` triggers an HTTP call.
+async function getApi() {
   return getFactoryClient();
+}
+// Shorthand to reach the sandboxes sub-path on the Eden proxy.
+const S = (api: any) => api.api.v1.factory.infra.sandboxes;
+
+async function waitForStatus(api: any, sandboxId: string, target: string, maxWaitMs: number): Promise<boolean> {
+  const interval = 2_000;
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise((r) => setTimeout(r, interval));
+    try {
+      const poll = await S(api)({ id: sandboxId }).get();
+      if (poll?.data?.data?.status === target) return true;
+    } catch {
+      // ignore transient errors
+    }
+    process.stdout.write(".");
+  }
+  return false;
+}
+
+async function waitForSnapshotStatus(
+  api: any,
+  snapshotId: string,
+  terminal: string[],
+  maxWaitMs: number = 120_000,
+): Promise<string> {
+  const interval = 3_000;
+  const start = Date.now();
+  let status = "creating";
+  while (Date.now() - start < maxWaitMs && !terminal.includes(status)) {
+    await new Promise((r) => setTimeout(r, interval));
+    try {
+      const poll = await S(api).snapshots({ id: snapshotId }).get();
+      status = poll?.data?.data?.status ?? status;
+    } catch {
+      // ignore transient errors
+    }
+    process.stdout.write(".");
+  }
+  return status;
 }
 
 export function sandboxCommand(app: DxBase) {
@@ -89,9 +132,18 @@ export function sandboxCommand(app: DxBase) {
             type: "string",
             description: "Owner type (user|agent)",
           },
+          cluster: {
+            type: "string",
+            description: "Cluster ID to deploy to (auto-selects if omitted)",
+          },
+          wait: {
+            type: "boolean",
+            alias: "w",
+            description: "Wait for sandbox to become active (default: true)",
+          },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const body: Record<string, unknown> = { name: args.name };
           if (flags.type) body.runtimeType = flags.type;
           if (flags.template) body.templateSlug = flags.template;
@@ -108,12 +160,62 @@ export function sandboxCommand(app: DxBase) {
               branch: flags.branch as string | undefined,
             }));
           }
-          if (flags["owner-id"]) body.ownerId = flags["owner-id"];
-          if (flags["owner-type"]) body.ownerType = flags["owner-type"];
+          body.ownerId = (flags["owner-id"] as string) || `local:${userInfo().username}`;
+          body.ownerType = (flags["owner-type"] as string) || "user";
+          if (flags.cluster) body.clusterId = flags.cluster;
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes.post(body)
+            S(api).post(body)
           );
-          actionResult(flags, result, styleSuccess(`Sandbox "${args.name}" created.`));
+          if (!result?.data?.sandboxId) {
+            actionResult(flags, result, styleSuccess(`Sandbox "${args.name}" created.`));
+            return;
+          }
+
+          const sandboxId = result.data.sandboxId as string;
+          const shouldWait = flags.wait !== false;
+
+          if (shouldWait) {
+            process.stdout.write(styleMuted("Provisioning sandbox..."));
+            const maxWait = 60_000;
+            const interval = 2_000;
+            const start = Date.now();
+            let status = "provisioning";
+
+            while (Date.now() - start < maxWait && status === "provisioning") {
+              await new Promise((r) => setTimeout(r, interval));
+              try {
+                const poll = await S(api)({ id: sandboxId }).get();
+                status = poll?.data?.data?.status ?? status;
+              } catch {
+                // ignore transient errors
+              }
+              process.stdout.write(".");
+            }
+            console.log();
+
+            if (status === "active") {
+              console.log(styleSuccess(`Sandbox "${args.name}" is active.`));
+              const poll = await S(api)({ id: sandboxId }).get();
+              const sbxData = poll?.data?.data;
+              if (sbxData?.webTerminalUrl) {
+                console.log(styleMuted(`  URL: ${sbxData.webTerminalUrl}`));
+              }
+              if (sbxData?.sshHost && sbxData?.sshPort) {
+                console.log(styleMuted(`  SSH: ssh -p ${sbxData.sshPort} ${sbxData.sshHost}`));
+              }
+              // Add /etc/hosts entry for local gateway routing
+              const cfg = await readConfig();
+              const factoryUrl = resolveFactoryUrl(cfg);
+              if (factoryUrl.includes("localhost") || factoryUrl.includes("127.0.0.1")) {
+                const slug = (sbxData?.slug as string) ?? args.name;
+                await addHostEntry(slug, "sandbox");
+              }
+            } else {
+              console.log(styleMuted(`Sandbox status: ${status} (may still be provisioning)`));
+            }
+          } else {
+            actionResult(flags, result, styleSuccess(`Sandbox "${args.name}" created (provisioning in background).`));
+          }
         })
     )
 
@@ -151,10 +253,10 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const status = flags.all ? undefined : (flags.status as string | undefined);
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes.get({
+            S(api).get({
               query: {
                 status,
                 ownerId: flags["owner-id"] as string | undefined,
@@ -205,9 +307,9 @@ export function sandboxCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).get()
+            S(api)({ id: args.id }).get()
           );
           detailView(flags, result, [
             ["ID", (r) => styleMuted(String(r.sandboxId ?? ""))],
@@ -239,11 +341,18 @@ export function sandboxCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).start.post()
+            S(api)({ id: args.id }).start.post()
           );
-          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} started.`));
+          process.stdout.write(styleMuted("Starting sandbox..."));
+          const ok = await waitForStatus(api, args.id, "active", 60_000);
+          console.log();
+          if (ok) {
+            console.log(styleSuccess(`Sandbox ${args.id} started.`));
+          } else {
+            console.log(styleMuted(`Sandbox ${args.id} start initiated (may still be starting).`));
+          }
         })
     )
 
@@ -260,11 +369,18 @@ export function sandboxCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).stop.post()
+            S(api)({ id: args.id }).stop.post()
           );
-          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} stopped.`));
+          process.stdout.write(styleMuted("Stopping sandbox..."));
+          const ok = await waitForStatus(api, args.id, "suspended", 30_000);
+          console.log();
+          if (ok) {
+            console.log(styleSuccess(`Sandbox ${args.id} stopped.`));
+          } else {
+            console.log(styleMuted(`Sandbox ${args.id} stop initiated (may still be in progress).`));
+          }
         })
     )
 
@@ -281,11 +397,24 @@ export function sandboxCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).delete()
+            S(api)({ id: args.id }).delete()
           );
-          actionResult(flags, result, styleSuccess(`Sandbox ${args.id} deleted.`));
+          process.stdout.write(styleMuted("Destroying sandbox..."));
+          const ok = await waitForStatus(api, args.id, "destroyed", 60_000);
+          console.log();
+          if (ok) {
+            console.log(styleSuccess(`Sandbox ${args.id} destroyed.`));
+            // Remove /etc/hosts entry for local gateway routing
+            const cfg = await readConfig();
+            const factoryUrl = resolveFactoryUrl(cfg);
+            if (factoryUrl.includes("localhost") || factoryUrl.includes("127.0.0.1")) {
+              await removeHostEntry(args.id, "sandbox");
+            }
+          } else {
+            console.log(styleMuted(`Sandbox ${args.id} delete initiated (may still be destroying).`));
+          }
         })
     )
 
@@ -316,13 +445,13 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const body: Record<string, unknown> = {};
           if (flags.cpu) body.cpu = flags.cpu;
           if (flags.memory) body.memory = flags.memory;
           if (flags.storage) body.storageGb = flags.storage;
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).resize.post(body)
+            S(api)({ id: args.id }).resize.post(body)
           );
           actionResult(flags, result, styleSuccess(`Sandbox ${args.id} resized.`));
         })
@@ -348,11 +477,10 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1
-              .sandboxes({ id: args.id })
-              .extend.post({ minutes: flags.minutes as number })
+            S(api)({ id: args.id })
+              .extend.post({ additionalMinutes: flags.minutes as number })
           );
           actionResult(flags, result, styleSuccess(`Sandbox ${args.id} TTL extended by ${flags.minutes} minutes.`));
         })
@@ -383,17 +511,34 @@ export function sandboxCommand(app: DxBase) {
                 type: "string",
                 description: "Snapshot description",
               },
+              wait: {
+                type: "boolean",
+                alias: "w",
+                description: "Wait for snapshot to be ready (default: true)",
+              },
             })
             .run(async ({ args, flags }) => {
-              const api = await getSandboxApi();
+              const api = await getApi();
               const body: Record<string, unknown> = {
                 name: flags.name as string,
               };
               if (flags.description) body.description = flags.description;
               const result = await apiCall(flags, () =>
-                api.api.v1.sandboxes({ id: args.id }).snapshots.post(body)
+                S(api)({ id: args.id }).snapshots.post(body)
               );
-              actionResult(flags, result, styleSuccess(`Snapshot "${flags.name}" created for sandbox ${args.id}.`));
+              const snapshotId = result?.data?.sandboxSnapshotId as string | undefined;
+              if (!snapshotId || flags.wait === false) {
+                actionResult(flags, result, styleSuccess(`Snapshot "${flags.name}" created for sandbox ${args.id}.`));
+                return;
+              }
+              process.stdout.write(styleMuted("Creating snapshot..."));
+              const finalStatus = await waitForSnapshotStatus(api, snapshotId, ["ready", "failed"]);
+              console.log();
+              if (finalStatus === "ready") {
+                console.log(styleSuccess(`Snapshot "${flags.name}" is ready (${snapshotId}).`));
+              } else {
+                console.log(`Snapshot "${flags.name}" ${finalStatus} (${snapshotId}).`);
+              }
             })
         )
         .command("list", (sc) =>
@@ -408,18 +553,19 @@ export function sandboxCommand(app: DxBase) {
               },
             ])
             .run(async ({ args, flags }) => {
-              const api = await getSandboxApi();
+              const api = await getApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.sandboxes({ id: args.id }).snapshots.get()
+                S(api)({ id: args.id }).snapshots.get()
               );
               tableOrJson(
                 flags,
                 result,
-                ["ID", "Name", "Status", "Created"],
+                ["ID", "Name", "Status", "Size", "Created"],
                 (r) => [
                   styleMuted(String(r.sandboxSnapshotId ?? "")),
                   styleBold(String(r.name ?? "")),
                   colorStatus(String(r.status ?? "")),
+                  r.sizeBytes ? `${Math.round(Number(r.sizeBytes) / 1024 / 1024)}MB` : "-",
                   timeAgo(r.createdAt as string),
                 ],
                 undefined,
@@ -447,17 +593,32 @@ export function sandboxCommand(app: DxBase) {
             required: true,
             description: "Snapshot ID to restore from",
           },
+          wait: {
+            type: "boolean",
+            alias: "w",
+            description: "Wait for sandbox to become active after restore (default: true)",
+          },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1["sandbox-snapshots"]({
+            S(api).snapshots({
               id: flags.snapshot as string,
             }).restore.post()
           );
           // args.id is the sandbox, but the restore endpoint is on the snapshot
-          void args;
-          actionResult(flags, result, styleSuccess(`Sandbox restored from snapshot ${flags.snapshot}.`));
+          if (flags.wait !== false) {
+            process.stdout.write(styleMuted("Restoring sandbox..."));
+            const ready = await waitForStatus(api, args.id, "active", 120_000);
+            console.log();
+            if (ready) {
+              console.log(styleSuccess(`Sandbox ${args.id} restored from snapshot ${flags.snapshot}.`));
+            } else {
+              console.log(`Sandbox ${args.id} restore may still be in progress. Check with: dx sandbox show ${args.id}`);
+            }
+          } else {
+            actionResult(flags, result, styleSuccess(`Sandbox restore triggered from snapshot ${flags.snapshot}.`));
+          }
         })
     )
 
@@ -478,9 +639,9 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1["sandbox-snapshots"]({
+            S(api).snapshots({
               id: flags.snapshot as string,
             }).clone.post({ name: flags.name as string })
           );
@@ -512,9 +673,9 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).access.post({
+            S(api)({ id: args.id }).access.post({
               principalId: flags.user as string,
               role: (flags.role as string) ?? "viewer",
             })
@@ -543,10 +704,9 @@ export function sandboxCommand(app: DxBase) {
           },
         })
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1
-              .sandboxes({ id: args.id })
+            S(api)({ id: args.id })
               .access({ principalId: flags.user as string })
               .delete()
           );
@@ -567,9 +727,9 @@ export function sandboxCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getSandboxApi();
+          const api = await getApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.sandboxes({ id: args.id }).access.get()
+            S(api)({ id: args.id }).access.get()
           );
           tableOrJson(flags, result, ["Principal", "Role", "Granted"], (r) => [
             styleBold(String(r.principalId ?? "")),

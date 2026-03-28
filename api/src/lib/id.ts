@@ -64,7 +64,15 @@ export type EntityPrefix =
   | "elnk"
   | "idlk"
   | "tcred"
-  | "tusg";
+  | "tusg"
+  | "msgp"
+  | "chm"
+  | "mthr"
+  | "prun"
+  | "pstp"
+  | "rpre"
+  | "job"
+  | "mem";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;

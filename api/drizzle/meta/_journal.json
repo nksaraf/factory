@@ -8,6 +8,27 @@
       "when": 1774549134857,
       "tag": "0000_yielding_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774654368578,
+      "tag": "0001_brave_tyger_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774658812480,
+      "tag": "0002_pipeline_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774937400000,
+      "tag": "0003_drop_provider_constraints",
+      "breakpoints": false
     }
   ]
 }

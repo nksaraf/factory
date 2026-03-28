@@ -64,7 +64,11 @@ export async function runAuthLogin(
     process.env.FACTORY_AUTH_EMAIL?.trim();
 
   if (!email) {
-    email = await input({ message: "Email:" });
+    try {
+      email = await input({ message: "Email:" });
+    } catch {
+      // Non-interactive terminal — no email available
+    }
   }
 
   if (!email) {
@@ -82,7 +86,11 @@ export async function runAuthLogin(
     process.env.FACTORY_AUTH_PASSWORD;
 
   if (!password) {
-    password = await passwordPrompt({ message: "Password:" });
+    try {
+      password = await passwordPrompt({ message: "Password:" });
+    } catch {
+      // Non-interactive terminal — no password available
+    }
   }
 
   if (!password) {

@@ -1,4 +1,4 @@
-# Build from monorepo root (see factory/dx.yaml api.build.context).
+# Build from monorepo root (see docker-compose.yaml api.build.context).
 # Example: docker build -f factory/api/Dockerfile .
 
 FROM node:22-alpine AS builder

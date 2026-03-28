@@ -10,6 +10,7 @@ interface SandboxResourceInput {
   memory: string | null;
   storageGb: number;
   dockerCacheGb: number;
+  storageClassName?: string;
 }
 
 export function generateSandboxResources(
@@ -61,6 +62,7 @@ function makeWorkspacePVC(
     },
     spec: {
       accessModes: ["ReadWriteOnce"],
+      ...(sandbox.storageClassName ? { storageClassName: sandbox.storageClassName } : {}),
       resources: {
         requests: {
           storage: `${sandbox.storageGb}Gi`,
@@ -86,6 +88,7 @@ function makeDockerPVC(
     },
     spec: {
       accessModes: ["ReadWriteOnce"],
+      ...(sandbox.storageClassName ? { storageClassName: sandbox.storageClassName } : {}),
       resources: {
         requests: {
           storage: `${dockerCacheGb}Gi`,
@@ -264,6 +267,105 @@ function makeIngressRoute(
           ],
         },
       ],
+    },
+  };
+}
+
+/** Sanitize an ID for use in k8s resource names (RFC 1123). */
+function k8sName(id: string): string {
+  return id.replace(/_/g, "-").toLowerCase();
+}
+
+/**
+ * Generate VolumeSnapshot resources for both workspace and docker PVCs.
+ */
+export function generateVolumeSnapshots(
+  slug: string,
+  sandboxId: string,
+  snapshotId: string,
+  snapshotClassName: string = "csi-hostpath-snapclass",
+): KubeResource[] {
+  const ns = `sandbox-${slug}`;
+  const safeName = k8sName(snapshotId);
+  const labels: Record<string, string> = {
+    "dx.dev/sandbox": sandboxId,
+    "dx.dev/snapshot": snapshotId,
+    "dx.dev/managed-by": "factory-reconciler",
+  };
+
+  return [
+    {
+      apiVersion: "snapshot.storage.k8s.io/v1",
+      kind: "VolumeSnapshot",
+      metadata: {
+        name: `snap-${safeName}-workspace`,
+        namespace: ns,
+        labels,
+      },
+      spec: {
+        volumeSnapshotClassName: snapshotClassName,
+        source: {
+          persistentVolumeClaimName: `sandbox-${slug}-workspace`,
+        },
+      },
+    },
+    {
+      apiVersion: "snapshot.storage.k8s.io/v1",
+      kind: "VolumeSnapshot",
+      metadata: {
+        name: `snap-${safeName}-docker`,
+        namespace: ns,
+        labels,
+      },
+      spec: {
+        volumeSnapshotClassName: snapshotClassName,
+        source: {
+          persistentVolumeClaimName: `sandbox-${slug}-docker`,
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Generate a PVC that restores data from a VolumeSnapshot.
+ */
+export function generatePVCFromSnapshot(
+  slug: string,
+  snapshotName: string,
+  pvcSuffix: "workspace" | "docker",
+  storageGb: number,
+  sandboxId: string,
+  storageClassName?: string,
+): KubeResource {
+  const ns = `sandbox-${slug}`;
+  const labels: Record<string, string> = {
+    "dx.dev/sandbox": sandboxId,
+    "dx.dev/managed-by": "factory-reconciler",
+    "dx.dev/target-kind": "sandbox",
+  };
+
+  return {
+    apiVersion: "v1",
+    kind: "PersistentVolumeClaim",
+    metadata: {
+      name: `sandbox-${slug}-${pvcSuffix}`,
+      namespace: ns,
+      labels,
+    },
+    spec: {
+      accessModes: ["ReadWriteOnce"],
+      ...(storageClassName ? { storageClassName } : {}),
+      resources: {
+        requests: {
+          storage: `${storageGb}Gi`,
+        },
+      },
+      dataSource: {
+        kind: "VolumeSnapshot",
+        apiGroup: "snapshot.storage.k8s.io",
+        name: snapshotName,
+      },
     },
   };
 }

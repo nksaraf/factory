@@ -26,6 +26,7 @@ import {
 import { runToolchainChecks, getMissingToolInstallCommands, installTool } from "./toolchain.js";
 import { getStoredBearerToken } from "../../session-token.js";
 import { registryAuthStore } from "../pkg/registry-auth-store.js";
+import { dxConfigStore } from "../../config.js";
 import type { WorkbenchType } from "@smp/factory-shared/install-types";
 
 const DX_VERSION = process.env.DX_VERSION ?? "0.0.0-dev";
@@ -156,20 +157,33 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
   }
 
   // --- Phase 3: Factory connection + auth ---
-  // Prompt for factory URL if not already configured
+  // Prompt for factory mode if not already configured
   if (!config.factoryUrl && !opts.yes) {
-    const connectFactory = await select({
-      message: "Connect to a factory?",
+    const factoryMode = await select({
+      message: "How would you like to use dx?",
       choices: [
-        { value: true, name: "Yes" },
-        { value: false, name: "Skip (standalone workbench)" },
+        { value: "local", name: "Local factory (default) — runs a local API on this machine" },
+        { value: "cloud", name: "Cloud factory — connect to factory.rio.software" },
+        { value: "custom", name: "Other factory — enter a custom factory URL" },
       ],
-      default: true,
+      default: "local",
     });
-    if (connectFactory) {
+
+    if (factoryMode === "local") {
+      config.factoryUrl = "http://localhost:4100";
+      config.installMode = "local";
+      // Check Docker availability (required for k3d)
+      const dockerCheck = run("docker", ["info", "--format", "{{.ServerVersion}}"]);
+      if (dockerCheck.status !== 0) {
+        console.log(`  ${styleMuted("Docker is required for local clusters. Install and start Docker, then run: dx cluster create --local")}`);
+      } else {
+        console.log(`  ${styleSuccess("✔")} Docker available — run ${styleMuted("dx cluster create --local")} to create a local k3d cluster`);
+      }
+    } else if (factoryMode === "cloud") {
+      config.factoryUrl = "https://factory.rio.software";
+    } else {
       const url = await input({
         message: "Factory URL:",
-        default: "https://factory.smpx.com",
         validate: (v) => {
           try {
             new URL(v);
@@ -181,40 +195,52 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
       });
       config.factoryUrl = url.replace(/\/$/, "");
     }
+  } else if (!config.factoryUrl && opts.yes) {
+    // Non-interactive: default to local factory
+    config.factoryUrl = "http://localhost:4100";
+    config.installMode = "local";
   }
 
   let authenticated = false;
-  const authSpinner = ora({ text: "Checking authentication...", prefixText: " " }).start();
-  try {
-    const token = await getStoredBearerToken();
-    if (token) {
-      authSpinner.succeed("Authenticated");
-      authenticated = true;
-    } else {
-      authSpinner.warn("Not authenticated");
-      if (!opts.yes) {
-        const doAuth = await select({
-          message: "Set up factory authentication?",
-          choices: [
-            { value: true, name: "Yes, run dx auth login" },
-            { value: false, name: "Skip (can run dx auth login later)" },
-          ],
-          default: true,
-        });
-        if (doAuth) {
-          try {
-            const { runAuthLogin } = await import("../auth-login.js");
-            await runAuthLogin({ json: false, verbose: opts.verbose, debug: false }, {});
-            const postToken = await getStoredBearerToken();
-            authenticated = !!postToken;
-          } catch {
-            console.log(`  ${styleMuted("Auth setup failed — run dx auth login later")}`);
+  const isLocalMode = config.factoryUrl === "http://localhost:4100";
+
+  if (isLocalMode) {
+    // Local mode: no auth required
+    console.log(`  ${styleSuccess("✔")} Local factory mode — no authentication required`);
+    authenticated = true;
+  } else {
+    const authSpinner = ora({ text: "Checking authentication...", prefixText: " " }).start();
+    try {
+      const token = await getStoredBearerToken();
+      if (token) {
+        authSpinner.succeed("Authenticated");
+        authenticated = true;
+      } else {
+        authSpinner.warn("Not authenticated");
+        if (!opts.yes) {
+          const doAuth = await select({
+            message: "Set up factory authentication?",
+            choices: [
+              { value: true, name: "Yes, run dx auth login" },
+              { value: false, name: "Skip (can run dx auth login later)" },
+            ],
+            default: true,
+          });
+          if (doAuth) {
+            try {
+              const { runAuthLogin } = await import("../auth-login.js");
+              await runAuthLogin({ json: false, verbose: opts.verbose, debug: false }, {});
+              const postToken = await getStoredBearerToken();
+              authenticated = !!postToken;
+            } catch {
+              console.log(`  ${styleMuted("Auth setup failed — run dx auth login later")}`);
+            }
           }
         }
       }
+    } catch {
+      authSpinner.warn("Auth check failed — run dx auth login later");
     }
-  } catch {
-    authSpinner.warn("Auth check failed — run dx auth login later");
   }
 
   // --- Phase 4: Pkg auth ---
@@ -331,6 +357,15 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
 
   // --- Phase 7: Save ---
   writeWorkbenchConfig(root, config);
+
+  // Persist factoryUrl to global config so getFactoryClient() picks it up
+  if (config.factoryUrl) {
+    await dxConfigStore.update((prev) => ({
+      ...prev,
+      factoryUrl: config.factoryUrl!,
+      installMode: isLocalMode ? "local" : prev.installMode,
+    }));
+  }
 
   // --- Phase 8: Factory registration ---
   let registered = config.factoryRegistered;

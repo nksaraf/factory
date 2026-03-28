@@ -1,0 +1,28 @@
+services:
+  sub-project-api:
+    build:
+      context: ../services/sub-project-api
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+      infra-auth:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-sub-project}
+      AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.type: service
+      catalog.owner: team
+      catalog.description: "sub-project API"
+      catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      dx.runtime: node

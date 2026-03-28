@@ -15,12 +15,28 @@ export async function getFactoryClient(
 ): Promise<Treaty.Create<FactoryApp>> {
   const cfg = await readConfig()
   const url = (baseUrl ?? resolveFactoryUrl(cfg)).replace(/\/$/, "")
+
+  // Auto-start local factory daemon if targeting localhost
+  if (isLocalFactoryUrl(url)) {
+    const { ensureLocalDaemon } = await import("./local-daemon/lifecycle.js")
+    await ensureLocalDaemon()
+  }
+
   const stored = await getStoredBearerToken()
   const token = init?.token ?? stored
 
   return treaty<FactoryApp>(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   })
+}
+
+function isLocalFactoryUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url)
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
+  } catch {
+    return false
+  }
 }
 
 /**

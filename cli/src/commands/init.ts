@@ -8,17 +8,25 @@ import { setExamples } from "../plugins/examples-plugin.js";
 import { runInit, type InitOptions } from "../handlers/init/init-handler.js";
 import {
   promptProjectName,
-  promptInitMode,
-  promptStandaloneType,
+  promptInitType,
+  promptRuntime,
+  promptFramework,
   promptOwner,
 } from "../handlers/init/init-prompts.js";
-import { STANDALONE_TYPES, type StandaloneType } from "../templates/types.js";
+import {
+  INIT_TYPES,
+  parseLegacyType,
+  getFrameworksForTypeAndRuntime,
+  type InitType,
+  type Runtime,
+  type Framework,
+} from "../templates/types.js";
 
 setExamples("init", [
-  "$ dx init                              Create a new factory project interactively",
-  "$ dx init my-platform                  Create project in ./my-platform/",
-  "$ dx init --standalone --type node-api Create a standalone Node.js API",
-  "$ dx init --standalone --type python-lib --name my-utils",
+  "$ dx init                                                 Create a new project interactively",
+  "$ dx init my-platform                                     Create project in ./my-platform/",
+  "$ dx init my-api --type service --runtime node             Create a Node.js API service",
+  "$ dx init my-lib --type library --runtime python           Create a Python library",
 ]);
 
 const PROJECT_SENTINEL_FILES = [
@@ -28,12 +36,14 @@ const PROJECT_SENTINEL_FILES = [
   "pyproject.toml",
 ];
 
+const VALID_INIT_TYPES = new Set(INIT_TYPES.map((t) => t.value));
+
 export function initCommand(app: DxBase) {
   return app
     .sub("init")
     .meta({
       description:
-        "Scaffold a new project or standalone service/library",
+        "Scaffold a new project, service, website, or library",
     })
     .args([
       {
@@ -43,15 +53,20 @@ export function initCommand(app: DxBase) {
       },
     ])
     .flags({
-      standalone: {
-        type: "boolean",
-        short: "s",
-        description: "Create a standalone service, app, or library",
-      },
       type: {
         type: "string",
         short: "t",
-        description: "Standalone type (e.g. node-api, java-lib, python-api)",
+        description: "Type: project, service, website, library (or legacy: node-api, java-api, etc.)",
+      },
+      runtime: {
+        type: "string",
+        short: "r",
+        description: "Runtime (node, java, python)",
+      },
+      framework: {
+        type: "string",
+        short: "f",
+        description: "Framework (elysia, spring-boot, fastapi, react-vinxi, react-tailwind)",
       },
       name: {
         type: "string",
@@ -65,7 +80,6 @@ export function initCommand(app: DxBase) {
       },
       force: {
         type: "boolean",
-        short: "f",
         description: "Overwrite existing files",
       },
       dir: {
@@ -79,7 +93,7 @@ export function initCommand(app: DxBase) {
       const cwd = process.cwd();
 
       try {
-        // Resolve target directory
+        // ── Resolve target directory ────────────────────────────
         let targetDir: string;
         if (args.directory) {
           targetDir = resolve(cwd, args.directory);
@@ -92,7 +106,7 @@ export function initCommand(app: DxBase) {
           targetDir = cwd;
         }
 
-        // Resolve name
+        // ── Resolve name ────────────────────────────────────────
         const defaultName =
           basename(targetDir).replace(/[^a-z0-9-]/g, "-") || "my-project";
         let name: string;
@@ -106,7 +120,7 @@ export function initCommand(app: DxBase) {
           name = defaultName;
         }
 
-        // Check for existing project files
+        // ── Check for existing project files ────────────────────
         const force = Boolean(flags.force);
         if (!force) {
           const existing = PROJECT_SENTINEL_FILES.filter((file) =>
@@ -122,42 +136,87 @@ export function initCommand(app: DxBase) {
           }
         }
 
-        // Resolve mode (default: project)
-        let mode: InitOptions["mode"];
-        if (flags.standalone || flags.type) {
-          mode = "standalone";
-        } else if (process.stdin.isTTY) {
-          mode = await promptInitMode();
-        } else {
-          mode = "project";
-        }
+        // ── Resolve type + runtime + framework ──────────────────
+        let initType: InitType | undefined;
+        let runtime: Runtime | undefined;
+        let framework: Framework | undefined;
 
-        // Resolve standalone type
-        let standaloneType: StandaloneType | undefined;
-        if (mode === "standalone") {
-          if (flags.type) {
-            const typeVal = flags.type as string;
-            const valid = STANDALONE_TYPES.find((t) => t.value === typeVal);
-            if (!valid) {
-              exitWithError(
-                f,
-                `Invalid standalone type "${typeVal}". Valid types: ${STANDALONE_TYPES.map((t) => t.value).join(", ")}`,
-                ExitCodes.GENERAL_FAILURE,
-              );
-            }
-            standaloneType = typeVal as StandaloneType;
-          } else if (process.stdin.isTTY) {
-            standaloneType = await promptStandaloneType();
+        if (flags.type) {
+          const typeVal = flags.type as string;
+
+          // Check for legacy --type values (e.g. "node-api")
+          const legacy = parseLegacyType(typeVal);
+          if (legacy) {
+            initType = legacy.type as InitType;
+            runtime = legacy.runtime;
+            framework = legacy.framework;
+          } else if (VALID_INIT_TYPES.has(typeVal as InitType)) {
+            initType = typeVal as InitType;
           } else {
             exitWithError(
               f,
-              "Standalone type is required in non-interactive mode. Use --type <type>.",
+              `Invalid type "${typeVal}". Valid types: ${INIT_TYPES.map((t) => t.value).join(", ")}`,
               ExitCodes.GENERAL_FAILURE,
             );
           }
         }
 
-        // Resolve owner
+        // Runtime from flag (may override legacy)
+        if (flags.runtime) {
+          const r = flags.runtime as string;
+          if (!["node", "java", "python"].includes(r)) {
+            exitWithError(f, `Invalid runtime "${r}". Valid: node, java, python`, ExitCodes.GENERAL_FAILURE);
+          }
+          runtime = r as Runtime;
+        }
+
+        // Framework from flag (may override legacy)
+        if (flags.framework) {
+          framework = flags.framework as Framework;
+        }
+
+        // Interactive prompts for missing values
+        if (!initType) {
+          if (process.stdin.isTTY) {
+            initType = await promptInitType();
+          } else {
+            initType = "project";
+          }
+        }
+
+        if (initType !== "project") {
+          if (!runtime) {
+            if (process.stdin.isTTY) {
+              runtime = await promptRuntime(initType);
+            } else {
+              exitWithError(
+                f,
+                "Runtime is required in non-interactive mode. Use --runtime <node|java|python>.",
+                ExitCodes.GENERAL_FAILURE,
+              );
+            }
+          }
+
+          if (!framework) {
+            if (process.stdin.isTTY) {
+              framework = await promptFramework(initType, runtime!);
+            } else {
+              // Auto-select if only one framework for this type+runtime
+              const available = getFrameworksForTypeAndRuntime(initType, runtime!);
+              if (available.length === 1) {
+                framework = available[0]!.value;
+              } else {
+                exitWithError(
+                  f,
+                  `Framework is required. Use --framework <${available.map((a) => a.value).join("|")}>`,
+                  ExitCodes.GENERAL_FAILURE,
+                );
+              }
+            }
+          }
+        }
+
+        // ── Resolve owner ───────────────────────────────────────
         let owner: string;
         if (flags.owner) {
           owner = (flags.owner as string).trim();
@@ -168,8 +227,9 @@ export function initCommand(app: DxBase) {
         }
 
         await runInit({
-          mode,
-          type: standaloneType,
+          type: initType!,
+          runtime,
+          framework,
           name,
           owner,
           targetDir,

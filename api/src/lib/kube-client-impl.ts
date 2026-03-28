@@ -1,25 +1,43 @@
-import * as k8s from "@kubernetes/client-node";
+import { writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { KubeClient, KubeResource } from "./kube-client";
 
-function loadKubeConfig(kubeconfig: string): k8s.KubeConfig {
-  const kc = new k8s.KubeConfig();
-  kc.loadFromString(kubeconfig);
-  return kc;
+/**
+ * Resolve kubeconfig to a file path. If it's already a path, return it.
+ * If it's inline YAML, write it to a temp file and return the path.
+ */
+function resolveKubeconfigPath(kubeconfig: string): { path: string; cleanup: () => void } {
+  if ((kubeconfig.startsWith("/") || kubeconfig.startsWith("~")) && existsSync(kubeconfig)) {
+    return { path: kubeconfig, cleanup: () => {} };
+  }
+  const tmp = join(tmpdir(), `kubeconfig-${Date.now()}-${Math.random().toString(36).slice(2)}.yaml`);
+  writeFileSync(tmp, kubeconfig, { mode: 0o600 });
+  return { path: tmp, cleanup: () => { try { unlinkSync(tmp); } catch {} } };
+}
+
+/**
+ * Run kubectl with the given args and optional stdin, returning stdout.
+ * Uses kubectl subprocess to avoid @kubernetes/client-node CRD discovery bugs.
+ */
+function kubectl(kubeconfigPath: string, args: string[], opts?: { stdin?: string; timeout?: number }): string {
+  return execFileSync("kubectl", ["--kubeconfig", kubeconfigPath, ...args], {
+    input: opts?.stdin,
+    encoding: "utf-8",
+    timeout: opts?.timeout ?? 60_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
 }
 
 export class KubeClientImpl implements KubeClient {
   async apply(kubeconfig: string, resource: KubeResource): Promise<void> {
-    const kc = loadKubeConfig(kubeconfig);
-    const client = k8s.KubernetesObjectApi.makeApiClient(kc);
-    const obj = resource as unknown as k8s.KubernetesObject;
-    await client.patch(
-      obj,
-      undefined,
-      undefined,
-      "factory-reconciler",
-      true,
-      k8s.PatchStrategy.ServerSideApply
-    );
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      kubectl(kcPath, ["apply", "--server-side", "--force-conflicts", "-f", "-"], { stdin: JSON.stringify(resource) });
+    } finally {
+      cleanup();
+    }
   }
 
   async get(
@@ -28,18 +46,15 @@ export class KubeClientImpl implements KubeClient {
     namespace: string,
     name: string
   ): Promise<KubeResource | null> {
-    const kc = loadKubeConfig(kubeconfig);
-    const client = k8s.KubernetesObjectApi.makeApiClient(kc);
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
     try {
-      const res = await client.read({
-        apiVersion: kindToApiVersion(kind),
-        kind,
-        metadata: { name, namespace },
-      } as Required<Pick<k8s.KubernetesObject, "apiVersion" | "kind">> & { metadata: { name: string; namespace?: string } });
-      return res as unknown as KubeResource;
+      const output = kubectl(kcPath, ["get", kind, name, "-n", namespace, "-o", "json"]);
+      return JSON.parse(output) as KubeResource;
     } catch (err: unknown) {
-      if (isNotFound(err)) return null;
+      if (isNotFoundKubectl(err)) return null;
       throw err;
+    } finally {
+      cleanup();
     }
   }
 
@@ -49,18 +64,16 @@ export class KubeClientImpl implements KubeClient {
     namespace: string,
     labelSelector?: string
   ): Promise<KubeResource[]> {
-    const kc = loadKubeConfig(kubeconfig);
-    const api = kc.makeApiClient(k8s.CoreV1Api);
-
-    if (kind === "Pod") {
-      const res = await api.listNamespacedPod({
-        namespace,
-        labelSelector,
-      });
-      return (res.items ?? []) as unknown as KubeResource[];
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      const args = ["get", kind, "-n", namespace, "-o", "json"];
+      if (labelSelector) args.push("-l", labelSelector);
+      const output = kubectl(kcPath, args);
+      const parsed = JSON.parse(output);
+      return (parsed.items ?? []) as KubeResource[];
+    } finally {
+      cleanup();
     }
-
-    return [];
   }
 
   async remove(
@@ -69,13 +82,12 @@ export class KubeClientImpl implements KubeClient {
     namespace: string,
     name: string
   ): Promise<void> {
-    const kc = loadKubeConfig(kubeconfig);
-    const client = k8s.KubernetesObjectApi.makeApiClient(kc);
-    await client.delete({
-      apiVersion: kindToApiVersion(kind),
-      kind,
-      metadata: { name, namespace },
-    } as k8s.KubernetesObject);
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      kubectl(kcPath, ["delete", kind, name, "-n", namespace, "--ignore-not-found", "--wait=false"]);
+    } finally {
+      cleanup();
+    }
   }
 
   async getDeploymentImage(
@@ -83,92 +95,44 @@ export class KubeClientImpl implements KubeClient {
     namespace: string,
     deploymentName: string
   ): Promise<string | null> {
-    const kc = loadKubeConfig(kubeconfig);
-    const api = kc.makeApiClient(k8s.AppsV1Api);
-    try {
-      const res = await api.readNamespacedDeployment({
-        name: deploymentName,
-        namespace,
-      });
-      return res.spec?.template?.spec?.containers?.[0]?.image ?? null;
-    } catch (err: unknown) {
-      if (isNotFound(err)) return null;
-      throw err;
-    }
+    const resource = await this.get(kubeconfig, "Deployment", namespace, deploymentName);
+    if (!resource) return null;
+    const spec = (resource as unknown as Record<string, any>).spec;
+    return spec?.template?.spec?.containers?.[0]?.image ?? null;
   }
 
   async pauseNode(kubeconfig: string, nodeName: string): Promise<void> {
-    const kc = loadKubeConfig(kubeconfig);
-    const api = kc.makeApiClient(k8s.CoreV1Api);
-    await api.patchNode({
-      name: nodeName,
-      body: { spec: { unschedulable: true } },
-    });
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      kubectl(kcPath, ["cordon", nodeName]);
+    } finally {
+      cleanup();
+    }
   }
 
   async resumeNode(kubeconfig: string, nodeName: string): Promise<void> {
-    const kc = loadKubeConfig(kubeconfig);
-    const api = kc.makeApiClient(k8s.CoreV1Api);
-    await api.patchNode({
-      name: nodeName,
-      body: { spec: { unschedulable: false } },
-    });
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      kubectl(kcPath, ["uncordon", nodeName]);
+    } finally {
+      cleanup();
+    }
   }
 
   async evacuateNode(kubeconfig: string, nodeName: string): Promise<void> {
-    await this.pauseNode(kubeconfig, nodeName);
-
-    const kc = loadKubeConfig(kubeconfig);
-    const coreApi = kc.makeApiClient(k8s.CoreV1Api);
-
-    const pods = await coreApi.listNamespacedPod({
-      namespace: "",
-      fieldSelector: `spec.nodeName=${nodeName}`,
-    });
-
-    for (const pod of pods.items ?? []) {
-      // Skip DaemonSet-managed pods
-      const owners = pod.metadata?.ownerReferences ?? [];
-      if (owners.some((o) => o.kind === "DaemonSet")) continue;
-
-      const eviction: k8s.V1Eviction = {
-        apiVersion: "policy/v1",
-        kind: "Eviction",
-        metadata: {
-          name: pod.metadata?.name ?? "",
-          namespace: pod.metadata?.namespace ?? "default",
-        },
-      };
-
-      await coreApi.createNamespacedPodEviction({
-        name: pod.metadata?.name ?? "",
-        namespace: pod.metadata?.namespace ?? "default",
-        body: eviction,
-      });
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      kubectl(kcPath, ["drain", nodeName, "--ignore-daemonsets", "--delete-emptydir-data", "--force"]);
+    } finally {
+      cleanup();
     }
   }
 }
 
-function kindToApiVersion(kind: string): string {
-  switch (kind) {
-    case "Deployment":
-    case "StatefulSet":
-      return "apps/v1";
-    case "Job":
-    case "CronJob":
-      return "batch/v1";
-    case "IngressRoute":
-      return "traefik.io/v1alpha1";
-    default:
-      return "v1";
+function isNotFoundKubectl(err: unknown): boolean {
+  if (typeof err === "object" && err !== null && "stderr" in err) {
+    const stderr = String((err as { stderr: unknown }).stderr);
+    return stderr.includes("NotFound") || stderr.includes("not found");
   }
-}
-
-function isNotFound(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "statusCode" in err &&
-    (err as { statusCode: number }).statusCode === 404
-  );
+  return false;
 }

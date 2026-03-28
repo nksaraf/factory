@@ -5,26 +5,61 @@ import { SandboxModel } from "./sandbox.model"
 import * as sandboxSvc from "../../services/sandbox/sandbox.service"
 import type { CreateSandboxInput } from "../../services/sandbox/sandbox.service"
 import * as templateSvc from "../../services/sandbox/sandbox-template.service"
+import type { Reconciler } from "../../reconciler/reconciler"
+import { logger } from "../../logger"
 
-export function sandboxController(db: Database) {
-  return new Elysia({ prefix: "/sandbox" })
+export function sandboxController(db: Database, getReconciler?: () => Reconciler | null) {
+  function triggerReconcile(sandboxId: string) {
+    const reconciler = getReconciler?.()
+    if (!reconciler) return
+    reconciler.reconcileSandbox(sandboxId).catch((err) => {
+      logger.error({ sandboxId, error: String(err), stack: err?.stack }, "Background sandbox reconciliation failed")
+    })
+  }
 
-    // --- Sandbox lifecycle ---
-    .post("/sandboxes", async ({ body }) => ({
-      success: true,
-      data: await sandboxSvc.createSandbox(db, body as CreateSandboxInput),
-    }), {
+  function triggerSnapshotCreate(snapshotId: string) {
+    const reconciler = getReconciler?.()
+    if (!reconciler) return
+    reconciler.reconcileSnapshotCreate(snapshotId).catch((err) => {
+      logger.error({ snapshotId, error: String(err), stack: err?.stack }, "Background snapshot creation failed")
+    })
+  }
+
+  function triggerSnapshotRestore(sandboxId: string, snapshotId: string) {
+    const reconciler = getReconciler?.()
+    if (!reconciler) return
+    reconciler.reconcileSnapshotRestore(sandboxId, snapshotId).catch((err) => {
+      logger.error({ sandboxId, snapshotId, error: String(err), stack: err?.stack }, "Background snapshot restore failed")
+    })
+  }
+
+  function triggerSnapshotDelete(snapshotId: string) {
+    const reconciler = getReconciler?.()
+    if (!reconciler) return
+    reconciler.reconcileSnapshotDelete(snapshotId).catch((err) => {
+      logger.error({ snapshotId, error: String(err), stack: err?.stack }, "Background snapshot deletion failed")
+    })
+  }
+
+  return new Elysia({ prefix: "/sandboxes" })
+
+    // --- Sandbox CRUD ---
+    .post("/", async ({ body }) => {
+      const sbx = await sandboxSvc.createSandbox(db, body as CreateSandboxInput)
+      triggerReconcile(sbx.sandboxId)
+      return { success: true, data: sbx }
+    }, {
       body: SandboxModel.createSandboxBody,
       detail: { tags: ["Sandbox"], summary: "Create sandbox" },
     })
-    .get("/sandboxes", async ({ query }) => ({
+    .get("/", async ({ query }) => ({
       success: true,
       data: await sandboxSvc.listSandboxes(db, query),
     }), {
       query: SandboxModel.listSandboxesQuery,
       detail: { tags: ["Sandbox"], summary: "List sandboxes" },
     })
-    .get("/sandboxes/:id", async ({ params, set }) => {
+    .get("/:id", async ({ params, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -32,32 +67,39 @@ export function sandboxController(db: Database) {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Get sandbox" },
     })
-    .delete("/sandboxes/:id", async ({ params, set }) => {
+    .delete("/:id", async ({ params, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       await sandboxSvc.deleteSandbox(db, params.id)
+      triggerReconcile(params.id)
       return { success: true, data: { sandboxId: params.id } }
     }, {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Delete sandbox" },
     })
-    .post("/sandboxes/:id/start", async ({ params, set }) => {
+
+    // --- Lifecycle ---
+    .post("/:id/start", async ({ params, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await sandboxSvc.startSandbox(db, params.id) }
+      const result = await sandboxSvc.startSandbox(db, params.id)
+      triggerReconcile(params.id)
+      return { success: true, data: result }
     }, {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Start sandbox" },
     })
-    .post("/sandboxes/:id/stop", async ({ params, set }) => {
+    .post("/:id/stop", async ({ params, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await sandboxSvc.stopSandbox(db, params.id) }
+      const result = await sandboxSvc.stopSandbox(db, params.id)
+      triggerReconcile(params.id)
+      return { success: true, data: result }
     }, {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Stop sandbox" },
     })
-    .post("/sandboxes/:id/resize", async ({ params, body, set }) => {
+    .post("/:id/resize", async ({ params, body, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: await sandboxSvc.resizeSandbox(db, params.id, body) }
@@ -66,7 +108,7 @@ export function sandboxController(db: Database) {
       body: SandboxModel.resizeSandboxBody,
       detail: { tags: ["Sandbox"], summary: "Resize sandbox" },
     })
-    .post("/sandboxes/:id/extend", async ({ params, body, set }) => {
+    .post("/:id/extend", async ({ params, body, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: await sandboxSvc.extendSandbox(db, params.id, body.additionalMinutes) }
@@ -76,8 +118,8 @@ export function sandboxController(db: Database) {
       detail: { tags: ["Sandbox"], summary: "Extend sandbox TTL" },
     })
 
-    // --- Snapshots ---
-    .get("/sandboxes/:id/snapshots", async ({ params, set }) => {
+    // --- Snapshots (nested under sandbox) ---
+    .get("/:id/snapshots", async ({ params, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: await sandboxSvc.listSnapshots(db, params.id) }
@@ -85,16 +127,20 @@ export function sandboxController(db: Database) {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "List snapshots for sandbox" },
     })
-    .post("/sandboxes/:id/snapshots", async ({ params, body, set }) => {
+    .post("/:id/snapshots", async ({ params, body, set }) => {
       const row = await sandboxSvc.getSandbox(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await sandboxSvc.snapshotSandbox(db, params.id, body) }
+      const snap = await sandboxSvc.snapshotSandbox(db, params.id, body)
+      triggerSnapshotCreate(snap.sandboxSnapshotId)
+      return { success: true, data: snap }
     }, {
       params: SandboxModel.idParams,
       body: SandboxModel.createSnapshotBody,
       detail: { tags: ["Sandbox"], summary: "Create snapshot" },
     })
-    .get("/sandbox-snapshots/:id", async ({ params, set }) => {
+
+    // --- Snapshots (by snapshot ID) ---
+    .get("/snapshots/:id", async ({ params, set }) => {
       const row = await sandboxSvc.getSnapshot(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -102,24 +148,27 @@ export function sandboxController(db: Database) {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Get snapshot" },
     })
-    .delete("/sandbox-snapshots/:id", async ({ params, set }) => {
+    .delete("/snapshots/:id", async ({ params, set }) => {
       const row = await sandboxSvc.getSnapshot(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       await sandboxSvc.deleteSnapshot(db, params.id)
+      triggerSnapshotDelete(params.id)
       return { success: true, data: { snapshotId: params.id } }
     }, {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Delete snapshot" },
     })
-    .post("/sandbox-snapshots/:id/restore", async ({ params, set }) => {
+    .post("/snapshots/:id/restore", async ({ params, set }) => {
       const snap = await sandboxSvc.getSnapshot(db, params.id)
       if (!snap) { set.status = 404; return { success: false, error: "not_found" } }
-      return { success: true, data: await sandboxSvc.restoreSandbox(db, snap.sandboxId, params.id) }
+      const result = await sandboxSvc.restoreSandbox(db, snap.sandboxId, params.id)
+      triggerSnapshotRestore(snap.sandboxId, params.id)
+      return { success: true, data: result }
     }, {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Restore sandbox to snapshot" },
     })
-    .post("/sandbox-snapshots/:id/clone", async ({ params, body, set }) => {
+    .post("/snapshots/:id/clone", async ({ params, body, set }) => {
       const snap = await sandboxSvc.getSnapshot(db, params.id)
       if (!snap) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: await sandboxSvc.cloneSandbox(db, params.id, body as { name: string; ownerId: string; ownerType: "user" | "agent" }) }
@@ -130,14 +179,14 @@ export function sandboxController(db: Database) {
     })
 
     // --- Templates ---
-    .get("/sandbox-templates", async ({ query }) => ({
+    .get("/templates", async ({ query }) => ({
       success: true,
       data: await templateSvc.listTemplates(db, query),
     }), {
       query: SandboxModel.listTemplatesQuery,
       detail: { tags: ["Sandbox"], summary: "List sandbox templates" },
     })
-    .get("/sandbox-templates/:id", async ({ params, set }) => {
+    .get("/templates/:id", async ({ params, set }) => {
       const row = await templateSvc.getTemplate(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -145,14 +194,14 @@ export function sandboxController(db: Database) {
       params: SandboxModel.idParams,
       detail: { tags: ["Sandbox"], summary: "Get sandbox template" },
     })
-    .post("/sandbox-templates", async ({ body }) => ({
+    .post("/templates", async ({ body }) => ({
       success: true,
       data: await templateSvc.createTemplate(db, body as Parameters<typeof templateSvc.createTemplate>[1]),
     }), {
       body: SandboxModel.createTemplateBody,
       detail: { tags: ["Sandbox"], summary: "Create sandbox template" },
     })
-    .delete("/sandbox-templates/:id", async ({ params, set }) => {
+    .delete("/templates/:id", async ({ params, set }) => {
       const row = await templateSvc.getTemplate(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       await templateSvc.deleteTemplate(db, params.id)

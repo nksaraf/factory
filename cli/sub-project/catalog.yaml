@@ -1,0 +1,34 @@
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: sub-project
+  description: sub-project platform
+spec:
+  owner: team
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: apps
+  description: Frontend applications
+spec:
+  owner: team
+  domain: sub-project
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: services
+  description: Backend microservices
+spec:
+  owner: team
+  domain: sub-project
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: infra
+  description: Infrastructure services
+spec:
+  owner: team
+  domain: sub-project

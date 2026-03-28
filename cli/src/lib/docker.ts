@@ -7,10 +7,17 @@ export function isDockerRunning(): boolean {
   return proc.status === 0;
 }
 
-/** Build compose args: -f file1 -f file2 --profile p1 --profile p2 */
+/** Shared compose opts for all compose functions */
+interface ComposeOpts {
+  projectName?: string;
+  profiles?: string[];
+  envFile?: string;
+}
+
+/** Build compose args: -f file1 -f file2 --env-file ... --profile p1 */
 function composeFileArgs(
   composeFiles: string | string[],
-  opts?: { projectName?: string; profiles?: string[] }
+  opts?: ComposeOpts,
 ): string[] {
   const args = ["compose"];
   if (opts?.projectName) {
@@ -19,6 +26,9 @@ function composeFileArgs(
   const files = Array.isArray(composeFiles) ? composeFiles : [composeFiles];
   for (const f of files) {
     args.push("-f", f);
+  }
+  if (opts?.envFile) {
+    args.push("--env-file", opts.envFile);
   }
   if (opts?.profiles) {
     for (const p of opts.profiles) {
@@ -30,19 +40,16 @@ function composeFileArgs(
 
 export function composeUp(
   composeFiles: string | string[],
-  opts?: {
+  opts?: ComposeOpts & {
     detach?: boolean;
     build?: boolean;
     noBuild?: boolean;
-    projectName?: string;
-    profiles?: string[];
     services?: string[];
-  }
+  },
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("up");
   if (opts?.detach !== false) args.push("-d");
-  // Default to --build unless --no-build is specified
   if (opts?.noBuild) {
     args.push("--no-build");
   } else if (opts?.build !== false) {
@@ -61,7 +68,7 @@ export function composeUp(
 
 export function composeDown(
   composeFiles: string | string[],
-  opts?: { projectName?: string; profiles?: string[]; volumes?: boolean }
+  opts?: ComposeOpts & { volumes?: boolean },
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("down");
@@ -77,7 +84,7 @@ export function composeDown(
 export function composeStop(
   composeFiles: string | string[],
   services: string[],
-  opts?: { projectName?: string; profiles?: string[] },
+  opts?: ComposeOpts,
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("stop", ...services);
@@ -87,7 +94,7 @@ export function composeStop(
 export function composeIsRunning(
   composeFiles: string | string[],
   service: string,
-  opts?: { projectName?: string; profiles?: string[] },
+  opts?: ComposeOpts,
 ): boolean {
   const args = composeFileArgs(composeFiles, opts);
   args.push("ps", "-q", service);
@@ -98,7 +105,7 @@ export function composeIsRunning(
 export function composeRestart(
   composeFiles: string | string[],
   services: string[],
-  opts?: { projectName?: string; profiles?: string[] },
+  opts?: ComposeOpts,
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("restart", ...services);
@@ -111,7 +118,7 @@ export function composeRestart(
 export function composeBuild(
   composeFiles: string | string[],
   services: string[],
-  opts?: { projectName?: string; profiles?: string[] },
+  opts?: ComposeOpts,
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("build", ...services);
@@ -124,14 +131,14 @@ export function composeBuild(
 export function dockerBuild(
   context: string,
   dockerfile: string,
-  tag: string
+  tag: string,
 ): void {
   const proc = spawnSync(
     "docker",
     ["build", "-f", dockerfile, "-t", tag, context],
     {
       stdio: "inherit",
-    }
+    },
   );
   if (proc.status !== 0) {
     throw new Error(`docker build failed for tag ${tag}`);

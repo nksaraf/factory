@@ -15,22 +15,29 @@ import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
+import { startMessagingSyncLoop } from "./lib/messaging-sync-loop"
 import { logger } from "./logger"
 import { agentController } from "./modules/agent/index"
+import { memoryController } from "./modules/memory/index"
+import { seedPlatformPresets } from "./modules/agent/preset.service"
 import { identityController } from "./modules/identity/index"
 import { buildController } from "./modules/build/index"
 import { webhookController } from "./modules/build/webhook.controller"
+import { messagingController, messagingWebhookController } from "./modules/messaging/index"
 import { commerceController } from "./modules/commerce/index"
 import { fleetController } from "./modules/fleet/index"
 import { healthController } from "./modules/health/index"
 import { gatewayController } from "./modules/infra/gateway.controller"
 import { infraController } from "./modules/infra/index"
+import { previewController } from "./modules/infra/preview.controller"
 import { sandboxController } from "./modules/infra/sandbox.controller"
 import { observabilityController } from "./modules/observability/index"
 import { productController } from "./modules/product/index"
 import { releaseContentController } from "./modules/release-content/index"
 import { siteController } from "./modules/site/index"
 import { SiteReconciler } from "./modules/site/reconciler"
+import { Reconciler } from "./reconciler/reconciler"
+import { KubeClientImpl } from "./lib/kube-client-impl"
 import { authPlugin, principalPlugin } from "./plugins/auth.plugin"
 import {
   type FactorySettings,
@@ -47,11 +54,13 @@ export class FactoryAPI {
   readonly sandboxAdapter = new NoopSandboxAdapter()
   readonly observabilityAdapter = new NoopObservabilityAdapter()
   readonly authClient: FactoryAuthResourceClient | null
+  reconciler: Reconciler | null = null
   private stopTtlCleanup?: () => void
   private stopProxmoxSync?: () => void
   private stopWorkTrackerSync?: () => void
   private stopGitHostSync?: () => void
   private stopIdentitySync?: () => void
+  private stopMessagingSync?: () => void
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -83,19 +92,22 @@ export class FactoryAPI {
     const infraRoutes = new Elysia({ prefix: "/infra" })
       .use(infraController(db))
       .use(gatewayController(db))
-      .use(sandboxController(db))
+      .use(sandboxController(db, () => this.reconciler))
+      .use(previewController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
       .use(productController(db))
       .use(buildController(db))
-      .use(agentController)
+      .use(agentController(db))
+      .use(memoryController(db))
       .use(commerceController(db))
       .use(fleetController(db))
       .use(releaseContentController(db))
       .use(identityController(db))
       .use(infraRoutes)
       .use(observabilityController(this.observabilityAdapter))
+      .use(messagingController(db))
 
     if (jwksUrl) {
       return new Elysia()
@@ -140,6 +152,7 @@ export class FactoryAPI {
       .use(cors({ credentials: true, origin: true }))
       .use(healthController)
       .use(webhookController(db))
+      .use(messagingWebhookController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
       .use(this.mountSiteControllers())
       .use(
@@ -177,11 +190,17 @@ export class FactoryAPI {
       { durationMs: Math.round(performance.now() - start) },
       "factory migrations complete"
     )
+    this.reconciler = new Reconciler(this.db, new KubeClientImpl())
     this.stopTtlCleanup = startTtlCleanupLoop(this.db, this.sandboxAdapter)
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)
     this.stopWorkTrackerSync = startWorkTrackerSyncLoop(this.db)
     this.stopGitHostSync = startGitHostSyncLoop(this.db)
     this.stopIdentitySync = startIdentitySyncLoop(this.db)
+    this.stopMessagingSync = startMessagingSyncLoop(this.db)
+
+    seedPlatformPresets(this.db).catch((err) =>
+      logger.warn({ err }, "role preset seeding failed")
+    )
 
     if (this.authClient) {
       bootstrapResourceTypes(this.authClient).catch((err) =>
@@ -196,6 +215,7 @@ export class FactoryAPI {
     this.stopWorkTrackerSync?.()
     this.stopGitHostSync?.()
     this.stopIdentitySync?.()
+    this.stopMessagingSync?.()
     if (this.db) {
       await this.db.$client.end()
     }

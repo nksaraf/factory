@@ -1,5 +1,13 @@
 import { select, input } from "@crustjs/prompts";
-import { STANDALONE_TYPES, type InitMode, type StandaloneType } from "../../templates/types.js";
+import {
+  INIT_TYPES,
+  FRAMEWORKS,
+  type InitType,
+  type Runtime,
+  type Framework,
+  getRuntimesForType,
+  getFrameworksForTypeAndRuntime,
+} from "../../templates/types.js";
 
 export async function promptProjectName(defaultName: string): Promise<string> {
   const raw = await input({
@@ -13,24 +21,42 @@ export async function promptProjectName(defaultName: string): Promise<string> {
   return raw.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
 }
 
-export async function promptInitMode(): Promise<InitMode> {
-  return select<InitMode>({
+export async function promptInitType(): Promise<InitType> {
+  return select<InitType>({
     message: "What would you like to create?",
-    choices: [
-      { value: "project", label: "Project", hint: "Full monorepo with apps, services, packages, and infrastructure" },
-      { value: "standalone", label: "Standalone", hint: "Single service, app, or library in its own repo" },
-    ],
+    choices: INIT_TYPES.map((t) => ({
+      value: t.value,
+      label: t.label,
+      hint: t.description,
+    })),
     default: "project",
   });
 }
 
-export async function promptStandaloneType(): Promise<StandaloneType> {
-  return select<StandaloneType>({
-    message: "Standalone type",
-    choices: STANDALONE_TYPES.map((t) => ({
-      value: t.value,
-      label: t.label,
-      hint: t.description,
+export async function promptRuntime(type: Exclude<InitType, "project">): Promise<Runtime> {
+  const runtimes = getRuntimesForType(type);
+  if (runtimes.length === 1) return runtimes[0]!;
+  return select<Runtime>({
+    message: "Runtime",
+    choices: runtimes.map((r) => ({
+      value: r,
+      label: r === "node" ? "Node.js" : r === "java" ? "Java" : "Python",
+    })),
+  });
+}
+
+export async function promptFramework(
+  type: Exclude<InitType, "project">,
+  runtime: Runtime,
+): Promise<Framework> {
+  const frameworks = getFrameworksForTypeAndRuntime(type, runtime);
+  if (frameworks.length === 1) return frameworks[0]!.value;
+  return select<Framework>({
+    message: "Framework",
+    choices: frameworks.map((f) => ({
+      value: f.value,
+      label: f.label,
+      hint: f.description,
     })),
   });
 }

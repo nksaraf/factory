@@ -61,7 +61,13 @@ export class RouteCache {
     }
 
     const result = await this.lookup(domain);
-    this.cache.set(domain, result ?? SENTINEL_NULL);
+    // Only cache positive hits. Misses are not cached so that newly
+    // created routes are discoverable immediately — the DB lookup is
+    // fast enough for the miss path, and once the route exists the
+    // positive hit will be cached normally.
+    if (result) {
+      this.cache.set(domain, result);
+    }
     return result;
   }
 

@@ -14,7 +14,18 @@ export function gatewayController(db: Database) {
     })
     .post(
       "/routes",
-      ({ body }) => gw.createRoute(db, { ...body, createdBy: "system", expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined }),
+      ({ body }) => {
+        // Routes for sandbox/preview/tunnel are immediately routable;
+        // custom_domain starts pending until DNS is verified.
+        const autoActiveKinds = ["sandbox", "preview", "tunnel", "ingress"];
+        const status = autoActiveKinds.includes(body.kind) ? "active" : "pending";
+        return gw.createRoute(db, {
+          ...body,
+          status,
+          createdBy: "system",
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+        });
+      },
       {
         body: GatewayModel.createRouteBody,
         detail: { tags: ["Gateway"], summary: "Create route" },

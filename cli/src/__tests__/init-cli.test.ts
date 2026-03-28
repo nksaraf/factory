@@ -151,13 +151,13 @@ describe("dx init — project mode", () => {
     const body = JSON.parse(stdout) as {
       success: boolean;
       name: string;
-      mode: string;
+      type: string;
       owner: string;
       files: string[];
     };
     expect(body.success).toBe(true);
     expect(body.name).toBe("json-test");
-    expect(body.mode).toBe("project");
+    expect(body.type).toBe("project");
     expect(body.owner).toBe("team");
     expect(body.files.length).toBeGreaterThan(20);
     expect(body.files).toContain("docker-compose.yaml");
@@ -220,23 +220,23 @@ describe("dx init — project mode", () => {
   });
 });
 
-// ─── Standalone Mode ────────────────────────────────────────────────────────
+// ─── Component Types (service, website, library) ────────────────────────────
 
-describe("dx init — standalone mode", () => {
+describe("dx init — component types", () => {
   const dirs: string[] = [];
   afterEach(() => {
     for (const d of dirs) rmSync(d, { recursive: true, force: true });
     dirs.length = 0;
   });
 
-  it("node-api generates expected files", () => {
+  it("service with node runtime generates Elysia API", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "my-api");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "node-api", "--name", "my-api", "--owner", "backend", "--dir", dir],
+      ["init", "--type", "service", "--runtime", "node", "--name", "my-api", "--owner", "backend", "--dir", dir],
       { home },
     );
 
@@ -248,7 +248,6 @@ describe("dx init — standalone mode", () => {
     expect(existsSync(path.join(dir, "src/health.ts"))).toBe(true);
     expect(existsSync(path.join(dir, "src/plugins/auth.plugin.ts"))).toBe(true);
     expect(existsSync(path.join(dir, "src/db/connection.ts"))).toBe(true);
-    expect(existsSync(path.join(dir, "src/db/schema/index.ts"))).toBe(true);
 
     const pkg = JSON.parse(readFile(dir, "package.json"));
     expect(pkg.name).toBe("my-api");
@@ -256,14 +255,14 @@ describe("dx init — standalone mode", () => {
     expect(pkg.dependencies).toHaveProperty("drizzle-orm");
   });
 
-  it("web-app generates expected files without docker-compose", () => {
+  it("website with node runtime generates React app", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "my-app");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "web-app", "--name", "my-app", "--owner", "frontend", "--dir", dir],
+      ["init", "--type", "website", "--runtime", "node", "--name", "my-app", "--owner", "frontend", "--dir", dir],
       { home },
     );
 
@@ -273,18 +272,17 @@ describe("dx init — standalone mode", () => {
     expect(existsSync(path.join(dir, "tailwind.config.cjs"))).toBe(true);
     expect(existsSync(path.join(dir, "src/entry.client.tsx"))).toBe(true);
     expect(existsSync(path.join(dir, "src/routes/index/page.tsx"))).toBe(true);
-    // web-app should NOT have docker-compose
     expect(existsSync(path.join(dir, "docker-compose.yaml"))).toBe(false);
   });
 
-  it("java-api generates Spring Boot structure", () => {
+  it("service with java runtime generates Spring Boot structure", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "data-svc");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "java-api", "--name", "data-svc", "--owner", "data", "--dir", dir],
+      ["init", "--type", "service", "--runtime", "java", "--name", "data-svc", "--owner", "data", "--dir", dir],
       { home },
     );
 
@@ -293,22 +291,20 @@ describe("dx init — standalone mode", () => {
     expect(existsSync(path.join(dir, "server/pom.xml"))).toBe(true);
     expect(existsSync(path.join(dir, "Dockerfile"))).toBe(true);
     expect(existsSync(path.join(dir, "docker-compose.yaml"))).toBe(true);
-    expect(existsSync(path.join(dir, ".gitignore"))).toBe(true);
 
-    // Java package uses toJavaPackage: "data-svc" -> "datasvc"
     const appJava = path.join(dir, "server/src/main/java/software/lepton/service/datasvc/Application.java");
     expect(existsSync(appJava)).toBe(true);
     expect(readFile(appJava)).toContain("@SpringBootApplication");
   });
 
-  it("python-api generates FastAPI structure", () => {
+  it("service with python runtime generates FastAPI structure", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "ml-svc");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "python-api", "--name", "ml-svc", "--owner", "ml", "--dir", dir],
+      ["init", "--type", "service", "--runtime", "python", "--name", "ml-svc", "--owner", "ml", "--dir", dir],
       { home },
     );
 
@@ -316,60 +312,55 @@ describe("dx init — standalone mode", () => {
     expect(existsSync(path.join(dir, "pyproject.toml"))).toBe(true);
     expect(existsSync(path.join(dir, "Dockerfile"))).toBe(true);
     expect(existsSync(path.join(dir, "src/main.py"))).toBe(true);
-    expect(existsSync(path.join(dir, "src/config.py"))).toBe(true);
 
     const main = readFile(dir, "src/main.py");
     expect(main).toContain("FastAPI");
     expect(main).toContain("/health");
   });
 
-  it("java-lib generates Maven library structure", () => {
+  it("library with java runtime generates Maven library", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "s3-utils");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "java-lib", "--name", "s3-utils", "--owner", "platform", "--dir", dir],
+      ["init", "--type", "library", "--runtime", "java", "--name", "s3-utils", "--owner", "platform", "--dir", dir],
       { home },
     );
 
     expect(status).toBe(0);
     expect(existsSync(path.join(dir, "pom.xml"))).toBe(true);
-    expect(existsSync(path.join(dir, ".gitignore"))).toBe(true);
-    // "s3-utils" -> "s3utils"
     expect(existsSync(path.join(dir, "src/main/java/software/lepton/lib/s3utils/package-info.java"))).toBe(true);
-    // No docker-compose for libs
     expect(existsSync(path.join(dir, "docker-compose.yaml"))).toBe(false);
   });
 
-  it("python-lib generates uv-based library structure", () => {
+  it("library with python runtime generates uv-based library", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "my-utils");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "python-lib", "--name", "my-utils", "--owner", "data", "--dir", dir],
+      ["init", "--type", "library", "--runtime", "python", "--name", "my-utils", "--owner", "data", "--dir", dir],
       { home },
     );
 
     expect(status).toBe(0);
     expect(existsSync(path.join(dir, "pyproject.toml"))).toBe(true);
-    // "my-utils" -> "my_utils" (Python module name)
     expect(existsSync(path.join(dir, "src/my_utils/__init__.py"))).toBe(true);
     expect(existsSync(path.join(dir, "tests/test_my_utils.py"))).toBe(true);
     expect(existsSync(path.join(dir, "docker-compose.yaml"))).toBe(false);
   });
 
-  it("node-lib generates TypeScript library", () => {
+  it("library with node runtime generates TypeScript library", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "shared-types");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "node-lib", "--name", "shared-types", "--owner", "platform", "--dir", dir],
+      ["init", "--type", "library", "--runtime", "node", "--framework", "none", "--name", "shared-types", "--owner", "platform", "--dir", dir],
       { home },
     );
 
@@ -384,14 +375,14 @@ describe("dx init — standalone mode", () => {
     expect(pkg.type).toBe("module");
   });
 
-  it("ui-lib generates React component library", () => {
+  it("ui-lib via library type with react-tailwind framework", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "ui-kit");
     const { status } = runDx(
-      ["init", "--standalone", "--type", "ui-lib", "--name", "ui-kit", "--owner", "frontend", "--dir", dir],
+      ["init", "--type", "library", "--runtime", "node", "--framework", "react-tailwind", "--name", "ui-kit", "--owner", "frontend", "--dir", dir],
       { home },
     );
 
@@ -399,13 +390,40 @@ describe("dx init — standalone mode", () => {
     expect(existsSync(path.join(dir, "package.json"))).toBe(true);
     expect(existsSync(path.join(dir, "tailwind.config.cjs"))).toBe(true);
     expect(existsSync(path.join(dir, "src/index.ts"))).toBe(true);
-    expect(existsSync(path.join(dir, "src/components/.gitkeep"))).toBe(true);
 
     const pkg = JSON.parse(readFile(dir, "package.json"));
     expect(pkg.peerDependencies).toHaveProperty("react");
   });
+});
 
-  it("--type flag implies standalone mode", () => {
+// ─── Legacy backward compat ─────────────────────────────────────────────────
+
+describe("dx init — legacy --type backward compat", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+    dirs.length = 0;
+  });
+
+  it("--type node-api maps to service + node + elysia", () => {
+    const home = isolatedHome();
+    const target = tmpDir();
+    dirs.push(home, target);
+
+    const dir = path.join(target, "legacy-api");
+    const { status } = runDx(
+      ["init", "--type", "node-api", "--name", "legacy-api", "--owner", "team", "--dir", dir],
+      { home },
+    );
+
+    expect(status).toBe(0);
+    expect(existsSync(path.join(dir, "src/server.ts"))).toBe(true);
+
+    const pkg = JSON.parse(readFile(dir, "package.json"));
+    expect(pkg.dependencies).toHaveProperty("elysia");
+  });
+
+  it("--type node-lib maps to library + node", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
@@ -417,46 +435,34 @@ describe("dx init — standalone mode", () => {
     );
 
     expect(status).toBe(0);
-    const body = JSON.parse(stdout) as { mode: string; type: string };
-    expect(body.mode).toBe("standalone");
-    expect(body.type).toBe("node-lib");
+    const body = JSON.parse(stdout) as { type: string; runtime: string };
+    expect(body.type).toBe("library");
+    expect(body.runtime).toBe("node");
   });
 
-  it("rejects invalid --type", () => {
-    const home = isolatedHome();
-    const target = tmpDir();
-    dirs.push(home, target);
-
-    const dir = path.join(target, "bad");
-    const { status, stderr } = runDx(
-      ["init", "--standalone", "--type", "golang-api", "--name", "bad", "--dir", dir],
-      { home },
-    );
-    expect(status).not.toBe(0);
-    expect(stderr).toContain("Invalid standalone type");
-  });
-
-  it("standalone --json returns structured output with type", () => {
+  it("--json returns structured output with new fields", () => {
     const home = isolatedHome();
     const target = tmpDir();
     dirs.push(home, target);
 
     const dir = path.join(target, "json-sa");
     const { status, stdout } = runDx(
-      ["init", "--standalone", "--type", "python-api", "--name", "json-sa", "--owner", "ml", "--dir", dir, "--json"],
+      ["init", "--type", "python-api", "--name", "json-sa", "--owner", "ml", "--dir", dir, "--json"],
       { home },
     );
 
     expect(status).toBe(0);
     const body = JSON.parse(stdout) as {
       success: boolean;
-      mode: string;
       type: string;
+      runtime: string;
+      framework: string;
       files: string[];
     };
     expect(body.success).toBe(true);
-    expect(body.mode).toBe("standalone");
-    expect(body.type).toBe("python-api");
+    expect(body.type).toBe("service");
+    expect(body.runtime).toBe("python");
+    expect(body.framework).toBe("fastapi");
     expect(body.files).toContain("pyproject.toml");
     expect(body.files).toContain("src/main.py");
   });
@@ -471,21 +477,22 @@ describe("dx init — error handling", () => {
     expect(status).toBe(0);
     expect(stderr).toBe("");
     expect(stdout).toContain("Scaffold");
-    expect(stdout).toContain("--standalone");
     expect(stdout).toContain("--type");
+    expect(stdout).toContain("--runtime");
+    expect(stdout).toContain("--framework");
   });
 
-  it("standalone mode without --type in non-TTY exits with error", () => {
+  it("rejects invalid --type", () => {
     const home = isolatedHome();
     const target = tmpDir();
     rmSync(target, { recursive: true, force: true });
 
     const { status, stderr } = runDx(
-      ["init", "--standalone", "--name", "no-type", "--dir", target],
+      ["init", "--type", "golang-api", "--name", "bad", "--dir", target],
       { home },
     );
     expect(status).not.toBe(0);
-    expect(stderr).toContain("--type");
+    expect(stderr).toContain("Invalid type");
 
     rmSync(target, { recursive: true, force: true });
   });

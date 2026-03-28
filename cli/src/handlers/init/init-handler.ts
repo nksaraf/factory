@@ -1,12 +1,20 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { generateProject, generateStandalone } from "../../templates/index.js";
-import type { InitMode, StandaloneType, TemplateVars, GeneratedFile } from "../../templates/types.js";
+import {
+  resolveTemplateKey,
+  type InitType,
+  type Runtime,
+  type Framework,
+  type TemplateVars,
+  type GeneratedFile,
+} from "../../templates/types.js";
 import { styleSuccess, styleMuted } from "../../cli-style.js";
 
 export interface InitOptions {
-  mode: InitMode;
-  type?: StandaloneType;
+  type: InitType;
+  runtime?: Runtime;
+  framework?: Framework;
   name: string;
   owner: string;
   targetDir: string;
@@ -14,22 +22,30 @@ export interface InitOptions {
   json: boolean;
 }
 
-function installCommand(mode: InitMode, type?: StandaloneType): string {
-  if (mode === "project") return "pnpm install";
-  if (!type) return "pnpm install";
-  if (type.startsWith("java")) return "mvn install";
-  if (type.startsWith("python")) return "uv sync";
+function installCommand(type: InitType, runtime?: Runtime): string {
+  if (type === "project") return "pnpm install";
+  if (!runtime) return "pnpm install";
+  if (runtime === "java") return "mvn install";
+  if (runtime === "python") return "uv sync";
   return "pnpm install";
 }
 
 export async function runInit(opts: InitOptions): Promise<void> {
-  const { mode, type, name, owner, targetDir, force, json } = opts;
+  const { type, runtime, framework, name, owner, targetDir, force, json } = opts;
 
   const vars: TemplateVars = { name, owner, description: "" };
-  const files: GeneratedFile[] =
-    mode === "project"
-      ? generateProject(vars)
-      : generateStandalone(type!, vars);
+  let files: GeneratedFile[];
+
+  if (type === "project") {
+    files = generateProject(vars);
+  } else {
+    const templateKey = resolveTemplateKey({
+      type,
+      runtime: runtime!,
+      framework: framework!,
+    });
+    files = generateStandalone(templateKey, vars);
+  }
 
   for (const file of files) {
     const fullPath = join(targetDir, file.path);
@@ -45,8 +61,9 @@ export async function runInit(opts: InitOptions): Promise<void> {
         success: true,
         path: targetDir,
         name,
-        mode,
-        ...(type ? { type } : {}),
+        type,
+        ...(runtime ? { runtime } : {}),
+        ...(framework ? { framework } : {}),
         owner,
         files: filePaths,
       }),
@@ -55,22 +72,22 @@ export async function runInit(opts: InitOptions): Promise<void> {
   }
 
   console.log(
-    styleSuccess(`\u2714 Created ${mode} "${name}" with ${files.length} files`),
+    styleSuccess(`\u2714 Created ${type} "${name}" with ${files.length} files`),
   );
   console.log();
 
-  if (mode === "project") {
+  if (type === "project") {
     console.log(`  apps/${name}-app/        Vinxi + React frontend`);
     console.log(`  services/${name}-api/    Elysia + Drizzle API`);
     console.log(`  compose/                PostgreSQL, Auth, Gateway`);
   } else {
     const rel = relative(process.cwd(), targetDir) || ".";
-    console.log(`  Created ${type} project in ${rel}`);
+    console.log(`  Created ${type} in ${rel}`);
   }
 
   console.log();
   console.log(styleMuted("Next steps:"));
   console.log(styleMuted(`  cd ${name}`));
-  console.log(styleMuted(`  ${installCommand(mode, type)}`));
+  console.log(styleMuted(`  ${installCommand(type, runtime)}`));
   console.log(styleMuted(`  dx dev`));
 }

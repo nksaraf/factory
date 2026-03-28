@@ -8,6 +8,9 @@
  *   workspace  — delegates to dx pkg doctor if inside a workspace
  */
 
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join, dirname } from "node:path";
+
 import ora from "ora";
 import { styleSuccess, styleError, styleWarn, styleMuted } from "../cli-style.js";
 import { printToolchainResults } from "../lib/cli-ui.js";
@@ -166,11 +169,151 @@ async function checkWorkspace(): Promise<DoctorResult> {
   return { category: "workspace", passed: true, details: { found: true } };
 }
 
+async function checkProject(): Promise<DoctorResult> {
+  console.log("\n  Project");
+
+  // Find compose root by walking up
+  let dir = process.cwd();
+  const root = (await import("node:path")).parse(dir).root;
+  let composeRoot: string | undefined;
+  while (dir !== root) {
+    const composePath = join(dir, "docker-compose.yaml");
+    if (existsSync(composePath)) {
+      const content = readFileSync(composePath, "utf8");
+      if (content.includes("include:")) {
+        composeRoot = dir;
+        break;
+      }
+    }
+    dir = dirname(dir);
+  }
+
+  if (!composeRoot) {
+    console.log(`  ${styleMuted("Not inside a dx project — skipping")}`);
+    return { category: "project", passed: true, details: { found: false } };
+  }
+
+  const issues: string[] = [];
+  const composePath = join(composeRoot, "docker-compose.yaml");
+  const content = readFileSync(composePath, "utf8");
+
+  // Parse include paths
+  const includePaths: string[] = [];
+  for (const line of content.split("\n")) {
+    const match = line.match(/^\s*-\s*path:\s*(.+)$/);
+    if (match) includePaths.push(match[1]!.trim());
+  }
+
+  // Check 1: All referenced compose files exist
+  const missingFiles: string[] = [];
+  for (const inc of includePaths) {
+    if (!existsSync(join(composeRoot, inc))) {
+      missingFiles.push(inc);
+    }
+  }
+  if (missingFiles.length > 0) {
+    issues.push(`Missing compose files: ${missingFiles.join(", ")}`);
+    console.log(`  ${styleError("✖")} ${missingFiles.length} compose file(s) missing from docker-compose.yaml`);
+    for (const f of missingFiles) {
+      console.log(`    ${styleMuted(f)}`);
+    }
+  } else {
+    console.log(`  ${styleSuccess("✔")} All ${includePaths.length} compose files exist`);
+  }
+
+  // Check 2: Dockerfiles exist for services with build context
+  const missingDockerfiles: string[] = [];
+  for (const inc of includePaths) {
+    const filePath = join(composeRoot, inc);
+    if (!existsSync(filePath)) continue;
+    const ymlContent = readFileSync(filePath, "utf8");
+
+    // Simple regex to find build.context and build.dockerfile
+    const contextMatch = ymlContent.match(/context:\s*(.+)/);
+    const dockerfileMatch = ymlContent.match(/dockerfile:\s*(.+)/);
+    if (contextMatch) {
+      const ctx = contextMatch[1]!.trim();
+      const dockerfile = dockerfileMatch ? dockerfileMatch[1]!.trim() : "Dockerfile";
+      // Resolve relative to the compose file's directory
+      const composeDir = dirname(filePath);
+      const fullDockerfile = join(composeDir, ctx, dockerfile);
+      if (!existsSync(fullDockerfile)) {
+        const relPath = `${dirname(inc)}/${ctx}/${dockerfile}`;
+        missingDockerfiles.push(relPath);
+      }
+    }
+  }
+  if (missingDockerfiles.length > 0) {
+    issues.push(`Missing Dockerfiles: ${missingDockerfiles.join(", ")}`);
+    console.log(`  ${styleWarn("⚠")} ${missingDockerfiles.length} Dockerfile(s) missing`);
+    for (const f of missingDockerfiles) {
+      console.log(`    ${styleMuted(f)}`);
+    }
+  } else {
+    const buildCount = includePaths.filter((inc) => {
+      const fp = join(composeRoot, inc);
+      if (!existsSync(fp)) return false;
+      return readFileSync(fp, "utf8").includes("context:");
+    }).length;
+    if (buildCount > 0) {
+      console.log(`  ${styleSuccess("✔")} All ${buildCount} Dockerfile(s) present`);
+    }
+  }
+
+  // Check 3: Port conflicts across compose files
+  const portMap = new Map<number, string[]>(); // hostPort → [service names]
+  for (const inc of includePaths) {
+    const filePath = join(composeRoot, inc);
+    if (!existsSync(filePath)) continue;
+    const ymlContent = readFileSync(filePath, "utf8");
+
+    // Extract default host ports: "${VAR:-HOST}:CONTAINER" or "HOST:CONTAINER"
+    const portRe = /["']?\$\{[^}]*:-(\d+)\}:(\d+)["']?|["']?(\d+):(\d+)["']?/g;
+    let portMatch: RegExpExecArray | null;
+    while ((portMatch = portRe.exec(ymlContent)) !== null) {
+      const hostPort = parseInt(portMatch[1] || portMatch[3]!, 10);
+      const serviceName = inc.replace("compose/", "").replace(".yml", "");
+      if (!portMap.has(hostPort)) portMap.set(hostPort, []);
+      portMap.get(hostPort)!.push(serviceName);
+    }
+  }
+
+  const conflicts: string[] = [];
+  for (const [port, services] of portMap) {
+    if (services.length > 1) {
+      conflicts.push(`Port ${port} used by: ${services.join(", ")}`);
+    }
+  }
+  if (conflicts.length > 0) {
+    issues.push(...conflicts);
+    console.log(`  ${styleWarn("⚠")} ${conflicts.length} port conflict(s)`);
+    for (const c of conflicts) {
+      console.log(`    ${styleMuted(c)}`);
+    }
+  } else {
+    console.log(`  ${styleSuccess("✔")} No port conflicts (${portMap.size} ports configured)`);
+  }
+
+  return {
+    category: "project",
+    passed: issues.length === 0,
+    details: {
+      found: true,
+      root: composeRoot,
+      includeCount: includePaths.length,
+      missingFiles,
+      missingDockerfiles,
+      portConflicts: conflicts,
+    },
+  };
+}
+
 const CATEGORIES: Record<string, () => Promise<DoctorResult>> = {
   toolchain: checkToolchain,
   auth: checkAuth,
   workbench: checkWorkbench,
   workspace: checkWorkspace,
+  project: checkProject,
 };
 
 export async function runDoctor(opts: DoctorOptions): Promise<void> {

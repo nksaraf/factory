@@ -1,7 +1,7 @@
 import { and, eq, notInArray } from "drizzle-orm";
 import type { Database } from "../db/connection";
 import type { KubeClient } from "../lib/kube-client";
-import { generateSandboxResources } from "./sandbox-resource-generator";
+import { generateSandboxResources, generateVolumeSnapshots, generatePVCFromSnapshot } from "./sandbox-resource-generator";
 import { getRuntimeStrategy, registerRuntimeStrategy, type ReconcileContext } from "./runtime-strategy";
 import { KubernetesStrategy } from "./strategies/kubernetes";
 import { ComposeStrategy } from "./strategies/compose";
@@ -12,8 +12,19 @@ import { workload, sandbox, deploymentTarget } from "../db/schema/fleet";
 import { cluster } from "../db/schema/infra";
 import { componentSpec, productModule } from "../db/schema/product";
 import { moduleVersion } from "../db/schema/build";
-import { expireStale } from "../services/sandbox/sandbox.service";
+import { expireStale, getSnapshot, updateSnapshotStatus } from "../services/sandbox/sandbox.service";
+import { sandboxSnapshot } from "../db/schema/fleet";
+import { createRoute, lookupRouteByDomain } from "../modules/infra/gateway.service";
 import { logger } from "../logger";
+
+// Default storage class for CSI snapshot support.
+// Set via SANDBOX_STORAGE_CLASS env var, falls back to "csi-hostpath-sc".
+const SANDBOX_STORAGE_CLASS = process.env.SANDBOX_STORAGE_CLASS || "csi-hostpath-sc";
+
+/** Sanitize an ID for use in k8s resource names (RFC 1123). */
+function k8sName(id: string): string {
+  return id.replace(/_/g, "-").toLowerCase();
+}
 
 export class Reconciler {
   constructor(
@@ -152,6 +163,7 @@ export class Reconciler {
       memory: sbx.memory,
       storageGb: sbx.storageGb,
       dockerCacheGb: sbx.dockerCacheGb,
+      storageClassName: SANDBOX_STORAGE_CLASS,
     });
 
     // 8. Apply each resource via kube.apply()
@@ -175,10 +187,39 @@ export class Reconciler {
       }
     }
 
-    // 10. Compute webTerminalUrl from IngressRoute
-    const webTerminalUrl = `https://${sbx.slug}.sandbox.dx.dev`;
+    // 10. Read web-terminal NodePort for gateway route
+    let webPort: number | null = null;
+    if (svcResource?.spec) {
+      const ports = (svcResource.spec as Record<string, unknown>).ports as
+        | Array<{ name: string; nodePort?: number }>
+        | undefined;
+      const webPortSpec = ports?.find((p) => p.name === "web-terminal");
+      if (webPortSpec?.nodePort) {
+        webPort = webPortSpec.nodePort;
+      }
+    }
 
-    // 11. Update sandbox.podName, setupProgress, sshHost, sshPort, webTerminalUrl
+    // 11. Create gateway route if it doesn't already exist
+    const sandboxDomain = `${sbx.slug}.sandbox.dx.dev`;
+    const existingRoute = await lookupRouteByDomain(this.db, sandboxDomain);
+    if (!existingRoute) {
+      const targetService = (cl as Record<string, unknown>).endpoint as string ?? "localhost";
+      const targetPort = webPort ?? 8080;
+      await createRoute(this.db, {
+        kind: "sandbox",
+        domain: sandboxDomain,
+        targetService,
+        targetPort,
+        deploymentTargetId: dt.deploymentTargetId,
+        status: "active",
+        createdBy: "reconciler",
+      });
+      logger.info({ domain: sandboxDomain, targetPort }, "Created gateway route for sandbox");
+    }
+
+    const webTerminalUrl = `https://${sandboxDomain}`;
+
+    // 12. Update sandbox.podName, setupProgress, sshHost, sshPort, webTerminalUrl
     await this.db
       .update(sandbox)
       .set({
@@ -198,6 +239,223 @@ export class Reconciler {
         .set({ status: "active" })
         .where(eq(deploymentTarget.deploymentTargetId, dt.deploymentTargetId));
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Snapshot operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Load sandbox + cluster context needed by snapshot operations.
+   * Reuses the same pattern as reconcileSandbox.
+   */
+  private async loadSandboxContext(sandboxId: string) {
+    const sbxRows = await this.db
+      .select()
+      .from(sandbox)
+      .where(eq(sandbox.sandboxId, sandboxId));
+    const sbx = sbxRows[0];
+    if (!sbx) throw new Error(`Sandbox not found: ${sandboxId}`);
+
+    const dtRows = await this.db
+      .select()
+      .from(deploymentTarget)
+      .where(eq(deploymentTarget.deploymentTargetId, sbx.deploymentTargetId));
+    const dt = dtRows[0];
+    if (!dt) throw new Error(`Deployment target not found: ${sbx.deploymentTargetId}`);
+
+    const clusterId = dt.clusterId;
+    if (!clusterId) throw new Error(`Deployment target ${dt.deploymentTargetId} has no cluster`);
+
+    const clusterRows = await this.db
+      .select()
+      .from(cluster)
+      .where(eq(cluster.clusterId, clusterId));
+    const cl = clusterRows[0];
+    if (!cl) throw new Error(`Cluster not found: ${clusterId}`);
+    if (!cl.kubeconfigRef) throw new Error(`Cluster ${clusterId} has no kubeconfig`);
+
+    return {
+      sbx,
+      dt,
+      cl,
+      kubeconfig: cl.kubeconfigRef,
+      ns: `sandbox-${sbx.slug}`,
+    };
+  }
+
+  /**
+   * Create VolumeSnapshots for both workspace and docker PVCs.
+   * Polls until both snapshots are ready, then updates the DB record.
+   */
+  async reconcileSnapshotCreate(snapshotId: string): Promise<void> {
+    const snap = await getSnapshot(this.db, snapshotId);
+    if (!snap) throw new Error(`Snapshot not found: ${snapshotId}`);
+
+    const { sbx, kubeconfig, ns } = await this.loadSandboxContext(snap.sandboxId);
+
+    try {
+      // Generate and apply VolumeSnapshot resources
+      const snapResources = generateVolumeSnapshots(
+        sbx.slug,
+        sbx.sandboxId,
+        snapshotId,
+      );
+
+      for (const resource of snapResources) {
+        await this.kube.apply(kubeconfig, resource);
+      }
+
+      // Poll until both VolumeSnapshots are ready
+      const snapshotNames = [
+        `snap-${k8sName(snapshotId)}-workspace`,
+        `snap-${k8sName(snapshotId)}-docker`,
+      ];
+
+      const ready = await this.waitForSnapshotsReady(kubeconfig, ns, snapshotNames);
+
+      if (ready) {
+        await updateSnapshotStatus(this.db, snapshotId, "ready", {
+          volumeSnapshotName: `snap-${k8sName(snapshotId)}-workspace`,
+        });
+        logger.info({ snapshotId, sandboxId: snap.sandboxId }, "Snapshot created successfully");
+      } else {
+        await updateSnapshotStatus(this.db, snapshotId, "failed");
+        logger.error({ snapshotId }, "Snapshot creation timed out or failed");
+      }
+    } catch (err) {
+      await updateSnapshotStatus(this.db, snapshotId, "failed");
+      logger.error({ snapshotId, error: String(err), stack: (err as Error)?.stack }, "Snapshot creation failed");
+      throw err;
+    }
+  }
+
+  /**
+   * Restore a sandbox from a VolumeSnapshot by:
+   * 1. Deleting the pod
+   * 2. Deleting both PVCs
+   * 3. Recreating PVCs from the snapshot
+   * 4. Re-running reconcileSandbox to recreate the pod
+   */
+  async reconcileSnapshotRestore(sandboxId: string, snapshotId: string): Promise<void> {
+    const snap = await getSnapshot(this.db, snapshotId);
+    if (!snap) throw new Error(`Snapshot not found: ${snapshotId}`);
+    if (snap.status !== "ready") throw new Error(`Snapshot ${snapshotId} is not ready (status: ${snap.status})`);
+
+    const { sbx, kubeconfig, ns } = await this.loadSandboxContext(sandboxId);
+
+    const podName = `sandbox-${sbx.slug}`;
+    const workspacePvcName = `sandbox-${sbx.slug}-workspace`;
+    const dockerPvcName = `sandbox-${sbx.slug}-docker`;
+
+    // 1. Delete the pod so PVCs are released
+    await this.kube.remove(kubeconfig, "Pod", ns, podName);
+    await this.waitForResourceGone(kubeconfig, "Pod", ns, podName);
+
+    // 2. Delete both PVCs
+    await this.kube.remove(kubeconfig, "PersistentVolumeClaim", ns, workspacePvcName);
+    await this.kube.remove(kubeconfig, "PersistentVolumeClaim", ns, dockerPvcName);
+    await this.waitForResourceGone(kubeconfig, "PersistentVolumeClaim", ns, workspacePvcName);
+    await this.waitForResourceGone(kubeconfig, "PersistentVolumeClaim", ns, dockerPvcName);
+
+    // 3. Create new PVCs from snapshot data
+    const workspacePvc = generatePVCFromSnapshot(
+      sbx.slug,
+      `snap-${k8sName(snapshotId)}-workspace`,
+      "workspace",
+      sbx.storageGb,
+      sbx.sandboxId,
+      SANDBOX_STORAGE_CLASS,
+    );
+    const dockerPvc = generatePVCFromSnapshot(
+      sbx.slug,
+      `snap-${k8sName(snapshotId)}-docker`,
+      "docker",
+      sbx.dockerCacheGb,
+      sbx.sandboxId,
+      SANDBOX_STORAGE_CLASS,
+    );
+
+    await this.kube.apply(kubeconfig, workspacePvc);
+    await this.kube.apply(kubeconfig, dockerPvc);
+
+    // 4. Re-reconcile to create pod + service (PVCs already exist with snapshot data)
+    await this.reconcileSandbox(sandboxId);
+
+    logger.info({ sandboxId, snapshotId }, "Sandbox restored from snapshot");
+  }
+
+  /**
+   * Delete VolumeSnapshot resources from k8s for a deleted snapshot.
+   */
+  async reconcileSnapshotDelete(snapshotId: string): Promise<void> {
+    const snap = await getSnapshot(this.db, snapshotId);
+    if (!snap) return; // Already gone
+
+    try {
+      const { sbx, kubeconfig, ns } = await this.loadSandboxContext(snap.sandboxId);
+
+      // Remove both VolumeSnapshot resources
+      await this.kube.remove(kubeconfig, "VolumeSnapshot", ns, `snap-${k8sName(snapshotId)}-workspace`);
+      await this.kube.remove(kubeconfig, "VolumeSnapshot", ns, `snap-${k8sName(snapshotId)}-docker`);
+
+      logger.info({ snapshotId }, "VolumeSnapshots deleted from k8s");
+    } catch (err) {
+      // Log but don't throw — the DB is already marked deleted
+      logger.error({ snapshotId, error: String(err) }, "Failed to delete VolumeSnapshots from k8s");
+    }
+  }
+
+  /**
+   * Poll VolumeSnapshots until all are readyToUse.
+   */
+  private async waitForSnapshotsReady(
+    kubeconfig: string,
+    ns: string,
+    names: string[],
+    timeoutMs: number = 120_000,
+    intervalMs: number = 3_000,
+  ): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      let allReady = true;
+      for (const name of names) {
+        const resource = await this.kube.get(kubeconfig, "VolumeSnapshot", ns, name);
+        if (!resource) {
+          allReady = false;
+          break;
+        }
+        const status = (resource as unknown as Record<string, unknown>).status as Record<string, unknown> | undefined;
+        if (status?.error) return false;
+        if (status?.readyToUse !== true) {
+          allReady = false;
+          break;
+        }
+      }
+      if (allReady) return true;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    return false;
+  }
+
+  /**
+   * Poll until a k8s resource no longer exists.
+   */
+  private async waitForResourceGone(
+    kubeconfig: string,
+    kind: string,
+    ns: string,
+    name: string,
+    timeoutMs: number = 60_000,
+    intervalMs: number = 2_000,
+  ): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const resource = await this.kube.get(kubeconfig, kind, ns, name);
+      if (!resource) return;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    logger.warn({ kind, ns, name }, "Timed out waiting for resource deletion");
   }
 
   async reconcileWorkload(workloadId: string): Promise<void> {

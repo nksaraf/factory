@@ -1,16 +1,19 @@
 import type { DxBase } from "./dx-root.js";
 
+import { addCommand } from "./commands/add.js";
 import { agentCommand } from "./commands/agent.js";
 import { alertCommand } from "./commands/alert.js";
 import { artifactCommand } from "./commands/artifact.js";
 import { authCommand } from "./commands/auth.js";
 import { branchCommand } from "./commands/branch.js";
 import { buildCommand } from "./commands/build.js";
+import { ciCommand } from "./commands/ci.js";
 import { commitCommand } from "./commands/commit.js";
 import { configCommand } from "./commands/config.js";
 import { connectCommand } from "./commands/connect.js";
 import { contextCommand } from "./commands/context.js";
 import { catalogCommand } from "./commands/catalog.js";
+import { clusterCommand } from "./commands/cluster.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -32,11 +35,13 @@ import { moduleCommand } from "./commands/module.js";
 import { opsCommand } from "./commands/ops.js";
 import { pkgCommand } from "./commands/pkg.js";
 import { planCommand } from "./commands/plan.js";
+import { previewCommand } from "./commands/preview.js";
 import { prCommand } from "./commands/pr.js";
 import { pushCommand } from "./commands/push.js";
 import { releaseCommand } from "./commands/release.js";
 import { routeCommand } from "./commands/route.js";
 import { sandboxCommand } from "./commands/sandbox.js";
+import { scriptCommand } from "./commands/script.js";
 import { secretCommand } from "./commands/secret.js";
 import { shipCommand } from "./commands/ship.js";
 import { siteCommand } from "./commands/site.js";
@@ -56,6 +61,7 @@ import { worktreeCommand } from "./commands/worktree.js";
  */
 export function registerCommands(app: DxBase): DxBase {
   return app
+    .command(addCommand(app))
     .command(agentCommand(app))
     .command(alertCommand(app))
     .command(artifactCommand(app))
@@ -63,6 +69,8 @@ export function registerCommands(app: DxBase): DxBase {
     .command(branchCommand(app))
     .command(buildCommand(app))
     .command(catalogCommand(app))
+    .command(clusterCommand(app))
+    .command(ciCommand(app))
     .command(commitCommand(app))
     .command(configCommand(app))
     .command(connectCommand(app))
@@ -88,11 +96,13 @@ export function registerCommands(app: DxBase): DxBase {
     .command(opsCommand(app))
     .command(pkgCommand(app))
     .command(planCommand(app))
+    .command(previewCommand(app))
     .command(prCommand(app))
     .command(pushCommand(app))
     .command(releaseCommand(app))
     .command(routeCommand(app))
     .command(sandboxCommand(app))
+    .command(scriptCommand(app))
     .command(secretCommand(app))
     .command(shipCommand(app))
     .command(siteCommand(app))

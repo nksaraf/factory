@@ -24,18 +24,6 @@ export const provider = factoryInfra.table(
   },
   (t) => [
     uniqueIndex("provider_slug_unique").on(t.slug),
-    check(
-      "provider_type_valid",
-      sql`${t.providerType} IN ('proxmox', 'hetzner', 'aws', 'gcp')`
-    ),
-    check(
-      "provider_status_valid",
-      sql`${t.status} IN ('active', 'inactive')`
-    ),
-    check(
-      "provider_kind_valid",
-      sql`${t.providerKind} IN ('internal', 'cloud', 'partner')`
-    ),
   ]
 );
 
