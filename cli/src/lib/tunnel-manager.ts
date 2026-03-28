@@ -7,6 +7,7 @@ import type { TunnelBackendKind, TunnelSpec } from "@smp/factory-shared/connecti
 
 import type { TunnelBackend, TunnelHandle, TunnelStatus } from "./tunnel-backend.js";
 import { DirectBackend } from "./backends/direct-backend.js";
+import { SshBackend } from "./backends/ssh-backend.js";
 
 interface TunnelStateEntry {
   name: string;
@@ -33,6 +34,7 @@ export class TunnelManager {
     this.rootDir = rootDir;
     this.backends = {
       direct: new DirectBackend(),
+      ssh: new SshBackend(),
       ...backends,
     };
   }
