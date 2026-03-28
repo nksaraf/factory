@@ -28,6 +28,7 @@ import { commerceController } from "./modules/commerce/index"
 import { fleetController } from "./modules/fleet/index"
 import { healthController } from "./modules/health/index"
 import { gatewayController } from "./modules/infra/gateway.controller"
+import { accessController } from "./modules/infra/access.controller"
 import { infraController } from "./modules/infra/index"
 import { previewController } from "./modules/infra/preview.controller"
 import { sandboxController } from "./modules/infra/sandbox.controller"
@@ -91,6 +92,7 @@ export class FactoryAPI {
   private mountFactoryControllers(db: Database, jwksUrl: string | undefined) {
     const infraRoutes = new Elysia({ prefix: "/infra" })
       .use(infraController(db))
+      .use(accessController(db))
       .use(gatewayController(db))
       .use(sandboxController(db, () => this.reconciler))
       .use(previewController(db))

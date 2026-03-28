@@ -44,6 +44,7 @@ import { routeCommand } from "./commands/route.js";
 import { sandboxCommand } from "./commands/sandbox.js";
 import { scriptCommand } from "./commands/script.js";
 import { secretCommand } from "./commands/secret.js";
+import { sshCommand } from "./commands/ssh.js";
 import { shipCommand } from "./commands/ship.js";
 import { siteCommand } from "./commands/site.js";
 import { statusCommand } from "./commands/status.js";
@@ -106,6 +107,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(sandboxCommand(app))
     .command(scriptCommand(app))
     .command(secretCommand(app))
+    .command(sshCommand(app))
     .command(shipCommand(app))
     .command(siteCommand(app))
     .command(statusCommand(app))

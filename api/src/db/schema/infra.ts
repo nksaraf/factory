@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { newId } from "../../lib/id";
 
@@ -319,6 +319,42 @@ export const ipAddress = factoryInfra.table(
     check(
       "ip_assigned_to_type_valid",
       sql`${t.assignedToType} IS NULL OR ${t.assignedToType} IN ('vm', 'host', 'kube_node', 'cluster', 'service')`
+    ),
+  ]
+);
+
+// ─── SSH Keys ───────────────────────────────────────────────
+// Developer SSH public keys registered with Factory.
+// Used for provisioning authorized_keys on VMs, sandboxes, and hosts.
+
+export const sshKey = factoryInfra.table(
+  "ssh_key",
+  {
+    sshKeyId: text("ssh_key_id")
+      .primaryKey()
+      .$defaultFn(() => newId("sshk")),
+    principalId: text("principal_id").notNull(),
+    name: text("name").notNull(),
+    publicKey: text("public_key").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    keyType: text("key_type").notNull().default("ed25519"),
+    status: text("status").notNull().default("active"),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("ssh_key_fingerprint_unique").on(t.fingerprint),
+    uniqueIndex("ssh_key_principal_name_unique").on(t.principalId, t.name),
+    index("ssh_key_principal_idx").on(t.principalId),
+    check(
+      "ssh_key_type_valid",
+      sql`${t.keyType} IN ('ed25519', 'rsa', 'ecdsa')`
+    ),
+    check(
+      "ssh_key_status_valid",
+      sql`${t.status} IN ('active', 'revoked')`
     ),
   ]
 );
