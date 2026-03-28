@@ -11,6 +11,12 @@ interface SandboxResourceInput {
   storageGb: number;
   dockerCacheGb: number;
   storageClassName?: string;
+  /** OCI registry for envbuilder image cache (e.g. "registry.local:5000/envbuilder-cache"). */
+  envbuilderCacheRepo?: string;
+  /** Envbuilder image to use. Defaults to ghcr.io/coder/envbuilder:latest. */
+  envbuilderImage?: string;
+  /** Devcontainer dir relative to repo root (e.g. ".devcontainer"). Auto-detected if omitted. */
+  devcontainerDir?: string;
 }
 
 export function generateSandboxResources(
@@ -104,15 +110,18 @@ function buildCloneScript(
   const steps = repos.map((repo) => {
     const path = repo.clonePath ?? repo.url.split("/").pop()?.replace(/\.git$/, "") ?? "repo";
     return (
-      `if [ -d /workspace/${path}/.git ]; then\n` +
-      `  cd /workspace/${path} && git fetch origin ${repo.branch} && git reset --hard origin/${repo.branch}\n` +
+      `if [ -d /workspaces/${path}/.git ]; then\n` +
+      `  cd /workspaces/${path} && git fetch origin ${repo.branch} && git reset --hard origin/${repo.branch}\n` +
       `else\n` +
-      `  git clone -b ${repo.branch} ${repo.url} /workspace/${path}\n` +
+      `  git clone -b ${repo.branch} ${repo.url} /workspaces/${path}\n` +
       `fi`
     );
   });
   return steps.join("\n");
 }
+
+const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest";
+const DEFAULT_FALLBACK_IMAGE = "mcr.microsoft.com/devcontainers/base:ubuntu";
 
 function makePod(
   sandbox: SandboxResourceInput,
@@ -121,20 +130,118 @@ function makePod(
 ): KubeResource {
   const workspacePvcName = `sandbox-${sandbox.slug}-workspace`;
   const dockerPvcName = `sandbox-${sandbox.slug}-docker`;
-  const image =
-    sandbox.devcontainerImage ??
-    "mcr.microsoft.com/devcontainers/base:ubuntu";
 
   const containerEnv = (sandbox.devcontainerConfig.containerEnv ?? {}) as Record<string, string>;
   const remoteEnv = (sandbox.devcontainerConfig.remoteEnv ?? {}) as Record<string, string>;
   const mergedEnv = { ...containerEnv, ...remoteEnv, DOCKER_HOST: "tcp://localhost:2375" };
-  const envVars = Object.entries(mergedEnv).map(([name, value]) => ({ name, value }));
 
   const resourceLimits: Record<string, string> = {};
   if (sandbox.cpu) resourceLimits.cpu = sandbox.cpu;
   if (sandbox.memory) resourceLimits.memory = sandbox.memory;
 
-  const cloneScript = buildCloneScript(sandbox.repos);
+  const hasRepos = sandbox.repos.length > 0;
+  const useEnvbuilder = hasRepos;
+  const primaryRepo = hasRepos ? sandbox.repos[0]! : null;
+  const additionalRepos = hasRepos ? sandbox.repos.slice(1) : [];
+
+  // --- Init containers: only needed for additional repos beyond the primary ---
+  const initContainers: Record<string, unknown>[] = [];
+  if (additionalRepos.length > 0) {
+    const cloneScript = buildCloneScript(additionalRepos);
+    initContainers.push({
+      name: "clone-extra-repos",
+      image: "alpine/git",
+      command: ["sh", "-c", cloneScript],
+      volumeMounts: [{ name: "workspace", mountPath: "/workspaces" }],
+    });
+  }
+  if (!useEnvbuilder && hasRepos) {
+    // Fallback: clone all repos via init container when envbuilder is off
+    const cloneScript = buildCloneScript(sandbox.repos);
+    initContainers.push({
+      name: "clone-repos",
+      image: "alpine/git",
+      command: ["sh", "-c", cloneScript],
+      volumeMounts: [{ name: "workspace", mountPath: "/workspaces" }],
+    });
+  }
+
+  // --- Workspace container ---
+  let workspaceContainer: Record<string, unknown>;
+
+  if (useEnvbuilder) {
+    // Envbuilder mode: envbuilder clones the primary repo, detects devcontainer.json,
+    // builds the image (or hits cache), and execs into the result.
+    const envbuilderImage = sandbox.envbuilderImage ?? DEFAULT_ENVBUILDER_IMAGE;
+    const fallbackImage = sandbox.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE;
+
+    const envbuilderEnv: Array<{ name: string; value: string }> = [
+      { name: "ENVBUILDER_GIT_URL", value: primaryRepo!.url },
+      { name: "ENVBUILDER_GIT_CLONE_DEPTH", value: "1" },
+      { name: "ENVBUILDER_FALLBACK_IMAGE", value: fallbackImage },
+      // After building, keep the container alive so we can exec into it
+      { name: "ENVBUILDER_INIT_SCRIPT", value: "sleep infinity" },
+      // Persist workspace on the PVC
+      { name: "ENVBUILDER_WORKSPACE_FOLDER", value: "/workspaces" },
+    ];
+
+    if (primaryRepo!.branch) {
+      envbuilderEnv.push({ name: "ENVBUILDER_GIT_CLONE_SINGLE_BRANCH", value: "true" });
+      envbuilderEnv.push({ name: "ENVBUILDER_GIT_HTTP_PROXY_URL", value: "" }); // placeholder
+    }
+
+    if (sandbox.devcontainerDir) {
+      envbuilderEnv.push({ name: "ENVBUILDER_DEVCONTAINER_DIR", value: sandbox.devcontainerDir });
+    }
+
+    if (sandbox.envbuilderCacheRepo) {
+      envbuilderEnv.push({ name: "ENVBUILDER_CACHE_REPO", value: sandbox.envbuilderCacheRepo });
+      // Push the built image to cache on first build
+      envbuilderEnv.push({ name: "ENVBUILDER_PUSH_IMAGE", value: "true" });
+    }
+
+    // Merge user-specified env vars
+    for (const [name, value] of Object.entries(mergedEnv)) {
+      envbuilderEnv.push({ name, value });
+    }
+
+    workspaceContainer = {
+      name: "workspace",
+      image: envbuilderImage,
+      env: envbuilderEnv,
+      ports: [
+        { containerPort: 22, name: "ssh" },
+        { containerPort: 8080, name: "web-terminal" },
+      ],
+      ...(Object.keys(resourceLimits).length > 0
+        ? { resources: { limits: resourceLimits, requests: resourceLimits } }
+        : {}),
+      volumeMounts: [
+        { name: "workspace", mountPath: "/workspaces" },
+      ],
+    };
+  } else {
+    // Direct image mode: no repos or explicit image only
+    const image = sandbox.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE;
+    const envVars = Object.entries(mergedEnv).map(([name, value]) => ({ name, value }));
+
+    workspaceContainer = {
+      name: "workspace",
+      image,
+      command: ["sleep", "infinity"],
+      env: envVars,
+      ports: [
+        { containerPort: 22, name: "ssh" },
+        { containerPort: 8080, name: "web-terminal" },
+      ],
+      ...(Object.keys(resourceLimits).length > 0
+        ? { resources: { limits: resourceLimits, requests: resourceLimits } }
+        : {}),
+      volumeMounts: [
+        { name: "workspace", mountPath: "/workspaces" },
+      ],
+    };
+  }
 
   return {
     apiVersion: "v1",
@@ -146,44 +253,9 @@ function makePod(
     },
     spec: {
       restartPolicy: "Never",
-      initContainers: [
-        {
-          name: "clone-repos",
-          image: "alpine/git",
-          command: ["sh", "-c", cloneScript],
-          volumeMounts: [
-            {
-              name: "workspace",
-              mountPath: "/workspace",
-            },
-          ],
-        },
-      ],
+      ...(initContainers.length > 0 ? { initContainers } : {}),
       containers: [
-        {
-          name: "workspace",
-          image,
-          command: ["sleep", "infinity"],
-          env: envVars,
-          ports: [
-            { containerPort: 22, name: "ssh" },
-            { containerPort: 8080, name: "web-terminal" },
-          ],
-          ...(Object.keys(resourceLimits).length > 0
-            ? {
-                resources: {
-                  limits: resourceLimits,
-                  requests: resourceLimits,
-                },
-              }
-            : {}),
-          volumeMounts: [
-            {
-              name: "workspace",
-              mountPath: "/workspace",
-            },
-          ],
-        },
+        workspaceContainer,
         {
           name: "dind",
           image: "docker:dind",

@@ -21,6 +21,10 @@ import { logger } from "../logger";
 // Set via SANDBOX_STORAGE_CLASS env var, falls back to "csi-hostpath-sc".
 const SANDBOX_STORAGE_CLASS = process.env.SANDBOX_STORAGE_CLASS || "csi-hostpath-sc";
 
+// Envbuilder image cache registry (optional — disables caching if not set).
+const ENVBUILDER_CACHE_REPO = process.env.ENVBUILDER_CACHE_REPO || undefined;
+const ENVBUILDER_IMAGE = process.env.ENVBUILDER_IMAGE || undefined;
+
 /** Sanitize an ID for use in k8s resource names (RFC 1123). */
 function k8sName(id: string): string {
   return id.replace(/_/g, "-").toLowerCase();
@@ -164,6 +168,8 @@ export class Reconciler {
       storageGb: sbx.storageGb,
       dockerCacheGb: sbx.dockerCacheGb,
       storageClassName: SANDBOX_STORAGE_CLASS,
+      envbuilderCacheRepo: ENVBUILDER_CACHE_REPO,
+      envbuilderImage: ENVBUILDER_IMAGE,
     });
 
     // 8. Apply each resource via kube.apply()

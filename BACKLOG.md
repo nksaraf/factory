@@ -214,6 +214,18 @@ These commands are registered but return "Not yet implemented":
 - [ ] Clone with overrides (different env vars, different branch, different resource limits)
 - [ ] Bulk clone for load testing / parallel CI (clone N sandboxes from a template snapshot)
 
+### Devcontainer & Envbuilder
+- [x] Envbuilder integration: sandbox pods use envbuilder to auto-detect/build devcontainer.json
+- [ ] Prebuild pipeline (Track 2): external CI-driven image builds for instant spawn on cache hit
+- [ ] Registry setup for envbuilder cache (k3d built-in registry or cluster-local registry)
+- [ ] Multi-repo devcontainer support (primary repo has devcontainer, additional repos mounted alongside)
+- [ ] Devcontainer features support validation (verify envbuilder handles features correctly)
+- [ ] Custom Dockerfile builds via envbuilder (beyond just image references)
+- [ ] `dx sandbox create --devcontainer-path` flag to specify non-standard devcontainer location
+- [ ] Devcontainer lifecycle hooks (`postCreateCommand`, `postStartCommand`, `postAttachCommand`)
+- [ ] Prebaked base images: maintain a set of optimized base images with common toolchains pre-installed
+- [ ] Image layer caching metrics: track cache hit rates, build times, image sizes
+
 ### Sandbox Templates & Presets
 - [ ] `sandbox_template` table already has `runtimeType` column — wire up VM template support
 - [ ] Template snapshots: create a "golden" snapshot that new sandboxes bootstrap from

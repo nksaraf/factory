@@ -7,6 +7,7 @@ import { artifactCommand } from "./commands/artifact.js";
 import { authCommand } from "./commands/auth.js";
 import { branchCommand } from "./commands/branch.js";
 import { buildCommand } from "./commands/build.js";
+import { checkCommand } from "./commands/check.js";
 import { ciCommand } from "./commands/ci.js";
 import { commitCommand } from "./commands/commit.js";
 import { configCommand } from "./commands/config.js";
@@ -69,6 +70,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(branchCommand(app))
     .command(buildCommand(app))
     .command(catalogCommand(app))
+    .command(checkCommand(app))
     .command(clusterCommand(app))
     .command(ciCommand(app))
     .command(commitCommand(app))
