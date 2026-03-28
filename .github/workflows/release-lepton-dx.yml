@@ -1,12 +1,14 @@
 name: Release lepton-dx
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "cli/**"
       - "shared/**"
       - "pnpm-lock.yaml"
+      - ".github/workflows/release-lepton-dx.yml"
 
 permissions:
   contents: write
