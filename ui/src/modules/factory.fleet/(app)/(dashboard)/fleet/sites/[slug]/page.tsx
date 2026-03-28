@@ -2,11 +2,13 @@ import { Link, useParams } from "react-router"
 
 import { PlaneHeader, StatusBadge, MetricCard, EmptyState } from "@/components/factory"
 import { useFleetSite, useDeploymentTargets } from "@/lib/fleet"
+import { useCluster } from "@/lib/infra"
 
 export default function SiteDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const { data: site, isLoading } = useFleetSite(slug)
   const { data: targets } = useDeploymentTargets(site ? { siteId: site.id } as any : undefined)
+  const { data: cluster } = useCluster(site?.clusterId)
 
   if (isLoading) return <p className="p-6 text-sm text-muted-foreground">Loading...</p>
   if (!site) return <EmptyState title="Site not found" description={`No site with slug "${slug}"`} />
@@ -25,7 +27,7 @@ export default function SiteDetailPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Deployment Targets" value={siteTargets.length} plane="fleet" />
         <MetricCard label="Manifest Version" value={site.currentManifestVersion ?? "—"} plane="fleet" />
-        <MetricCard label="Cluster" value={site.clusterId} plane="fleet" />
+        <MetricCard label="Cluster" value={cluster?.name ?? site.clusterId} plane="fleet" />
       </div>
 
       <div>

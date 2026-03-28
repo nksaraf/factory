@@ -6,7 +6,7 @@ import { Input } from "@rio.js/ui/input"
 import { PlaneHeader, StatusBadge, EmptyState } from "@/components/factory"
 import { useProviders } from "@/lib/infra"
 
-import { ProviderTypeIcon } from "../../../components/provider-type-icon"
+import { ProviderTypeIcon } from "../../../../components/provider-type-icon"
 
 export default function ProvidersPage() {
   const { data: providers, isLoading } = useProviders()

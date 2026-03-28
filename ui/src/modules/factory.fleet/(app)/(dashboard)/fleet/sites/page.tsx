@@ -5,10 +5,14 @@ import { Input } from "@rio.js/ui/input"
 
 import { PlaneHeader, StatusBadge, EmptyState } from "@/components/factory"
 import { useFleetSites } from "@/lib/fleet"
+import { useClusters } from "@/lib/infra"
 
 export default function FleetSitesPage() {
   const { data: sites, isLoading } = useFleetSites()
+  const { data: clusters } = useClusters()
   const [search, setSearch] = useState("")
+
+  const clusterMap = new Map((clusters ?? []).map((c) => [c.id, c.name]))
 
   const filtered = (sites ?? []).filter(
     (s) =>
@@ -50,7 +54,7 @@ export default function FleetSitesPage() {
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{site.product}</p>
             <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-              <span>Cluster: {site.clusterId}</span>
+              <span>Cluster: {clusterMap.get(site.clusterId) ?? site.clusterId}</span>
               {site.currentManifestVersion && (
                 <span>Manifest v{site.currentManifestVersion}</span>
               )}

@@ -50,29 +50,9 @@
         "path": "/(root)/(app)/infra/hosts/"
       },
       {
-        "id": "factory.infra.route.host-detail",
-        "displayName": "Host Detail",
-        "path": "/(root)/(app)/infra/hosts/:slug/"
-      },
-      {
-        "id": "factory.infra.route.vms",
-        "displayName": "VMs",
-        "path": "/(root)/(app)/infra/vms/"
-      },
-      {
-        "id": "factory.infra.route.vm-detail",
-        "displayName": "VM Detail",
-        "path": "/(root)/(app)/infra/vms/:slug/"
-      },
-      {
         "id": "factory.infra.route.network",
         "displayName": "Network Topology",
         "path": "/(root)/(app)/infra/network/"
-      },
-      {
-        "id": "factory.infra.route.nodes",
-        "displayName": "Node Detail",
-        "path": "/(root)/(app)/infra/clusters/:clusterId/nodes/:slug/"
       },
       {
         "id": "factory.infra.route.proxmox",
