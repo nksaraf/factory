@@ -21,6 +21,7 @@ import { CommandController } from "@rio.js/uikit/components/command-provider"
 import { fsRoutes } from "@rio.js/vinxi/fs-routes"
 import { createClient as createWorkflowsClient } from "@rio.js/workflows/lib/client"
 
+import { FactorySidebar } from "./components/factory/factory-sidebar"
 import { FactoryPowerSyncProvider } from "./lib/powersync/provider"
 import { rio } from "./lib/rio"
 
@@ -57,8 +58,8 @@ async function boot() {
     // "auth.core": () => import("@rio.js/auth.core"),
     // "settings.user": () => import("@rio.js/settings.user"),
     // "settings.organization": () => import("@rio.js/settings.organization"),
-    // "factory.fleet": () => import("./modules/factory.fleet"),
-    // "factory.infra": () => import("./modules/factory.infra"),
+    "factory.fleet": () => import("./modules/factory.fleet"),
+    "factory.infra": () => import("./modules/factory.infra"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
 
@@ -78,8 +79,8 @@ async function boot() {
     // "auth.core",
     // "settings.user",
     // "settings.organization",
-    // "factory.fleet",
-    // "factory.infra",
+    "factory.fleet",
+    "factory.infra",
     "factory.game-viz"
   )
 
@@ -162,6 +163,7 @@ async function boot() {
                 <TooltipProvider>
                   <Toaster />
                   <RouterProvider router={router} />
+                  <FactorySidebar />
                   <CommandController />
                   {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
                 </TooltipProvider>

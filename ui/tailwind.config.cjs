@@ -40,7 +40,7 @@ module.exports = {
       ...source("@rio.js/settings.user", ["tsx", "json"]),
       ...source("@rio.js/settings.organization", ["tsx", "json"]),
       // ...source("@rio.js/enterprise.core", ["tsx", "json"]),
-      ...source("streamdown", ["js", "tsx"]),
+      // ...source("streamdown", ["js", "tsx"]),
       "./src/**/*.{ts,tsx,json}",
     ],
     transform: {
