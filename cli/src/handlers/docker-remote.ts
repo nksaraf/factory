@@ -453,9 +453,11 @@ export function syncAndRunCompose(
     process.exit(1);
   }
 
-  // Run docker compose on the remote
+  // Run docker compose on the remote — shell-escape each arg to prevent injection
   const composeName = basename(composeFile);
-  const remoteCmd = `cd ${remoteDir} && docker compose -f ${composeName} ${composeArgs.join(" ")}`;
+  const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const escapedArgs = composeArgs.map(shellEscape).join(" ");
+  const remoteCmd = `cd ${shellEscape(remoteDir)} && docker compose -f ${shellEscape(composeName)} ${escapedArgs}`;
   try {
     execFileSync("ssh", [...sshArgs, remoteCmd], { stdio: "inherit" });
   } catch (err: any) {
@@ -464,71 +466,3 @@ export function syncAndRunCompose(
   }
 }
 
-// ─── Bootstrap script ─────────────────────────────────────────
-
-export const DOCKER_BOOTSTRAP_SCRIPT = `#!/bin/bash
-set -euo pipefail
-
-echo "==> Checking for Docker..."
-if command -v docker &>/dev/null; then
-  echo "Docker is already installed:"
-  docker --version
-  docker compose version 2>/dev/null || echo "(Docker Compose plugin not found)"
-  echo ""
-  echo "==> Verifying Docker daemon..."
-  docker info >/dev/null 2>&1 && echo "Docker daemon is running." || echo "Warning: Docker daemon may not be running."
-  exit 0
-fi
-
-echo "==> Detecting OS..."
-IS_ALPINE=false
-if [ -f /etc/os-release ]; then
-  . /etc/os-release
-  echo "    OS: \$NAME \${VERSION_ID:-unknown}"
-  if [ "\${ID:-}" = "alpine" ]; then
-    IS_ALPINE=true
-  fi
-else
-  echo "    Could not detect OS. Attempting install anyway."
-fi
-
-if [ "\$IS_ALPINE" = true ]; then
-  echo "==> Installing Docker on Alpine via apk..."
-  apk update
-  apk add docker docker-compose docker-cli-compose
-  rc-update add docker default 2>/dev/null || true
-  service docker start 2>/dev/null || openrc 2>/dev/null && service docker start || true
-else
-  echo "==> Installing Docker via official convenience script..."
-  curl -fsSL https://get.docker.com | sh
-fi
-
-echo "==> Adding current user to docker group..."
-CURRENT_USER=\$(whoami)
-if [ "\$CURRENT_USER" != "root" ]; then
-  if command -v sudo &>/dev/null; then
-    sudo usermod -aG docker "\$CURRENT_USER" 2>/dev/null || adduser "\$CURRENT_USER" docker 2>/dev/null || true
-  else
-    adduser "\$CURRENT_USER" docker 2>/dev/null || true
-  fi
-  echo "    Added \$CURRENT_USER to docker group."
-  echo "    Note: You may need to log out and back in for group changes to take effect."
-fi
-
-echo "==> Enabling and starting Docker service..."
-if command -v systemctl &>/dev/null; then
-  sudo systemctl enable docker --now 2>/dev/null || true
-elif command -v rc-update &>/dev/null; then
-  rc-update add docker default 2>/dev/null || true
-  service docker start 2>/dev/null || true
-else
-  sudo service docker start 2>/dev/null || true
-fi
-
-echo "==> Verifying installation..."
-docker --version
-docker compose version 2>/dev/null || echo "Docker Compose plugin not found."
-
-echo ""
-echo "==> Docker setup complete!"
-`;

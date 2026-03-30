@@ -5,12 +5,9 @@ import { resolve, extname } from "node:path";
 
 import {
   resolveRecipe,
-  resolveParams,
   type ResolvedRecipe,
 } from "../lib/recipe.js";
 import {
-  expandTargets,
-  resolveMachine,
   type MachineTarget,
 } from "../lib/machine-target.js";
 import { buildSshArgs } from "../handlers/docker-remote.js";
@@ -82,7 +79,7 @@ export async function runShellScriptRemote(
 
   // Build env export preamble
   const envExports = Object.entries(extraEnv)
-    .map(([k, v]) => `export ${k}="${v.replace(/"/g, '\\"')}"`)
+    .map(([k, v]) => `export ${k}='${v.replace(/'/g, "'\\''")}'`)
     .join("\n");
 
   const fullScript = envExports ? `${envExports}\n${script}` : script;
@@ -173,7 +170,7 @@ async function runRecipeOnMachine(
 
   // Build env export preamble
   const envExports = Object.entries(machineEnv)
-    .map(([k, v]) => `export ${k}="${v.replace(/"/g, '\\"')}"`)
+    .map(([k, v]) => `export ${k}='${v.replace(/'/g, "'\\''")}'`)
     .join("\n");
 
   // Verify step
