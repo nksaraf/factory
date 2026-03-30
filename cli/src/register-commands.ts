@@ -42,6 +42,7 @@ import { prCommand } from "./commands/pr.js";
 import { pushCommand } from "./commands/push.js";
 import { releaseCommand } from "./commands/release.js";
 import { routeCommand } from "./commands/route.js";
+import { runCommand } from "./commands/run.js";
 import { sandboxCommand } from "./commands/sandbox.js";
 import { scriptCommand } from "./commands/script.js";
 import { secretCommand } from "./commands/secret.js";
@@ -107,6 +108,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(pushCommand(app))
     .command(releaseCommand(app))
     .command(routeCommand(app))
+    .command(runCommand(app))
     .command(sandboxCommand(app))
     .command(scriptCommand(app))
     .command(secretCommand(app))
