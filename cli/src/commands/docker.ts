@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import type { DxBase } from "../dx-root.js";
 import {
   resolveMachine,
-  buildSshArgs,
   buildDockerEnv,
   checkLocalDocker,
   needsSync,
@@ -12,8 +11,8 @@ import {
   syncAndRunCompose,
   saveLocalMachine,
   removeLocalMachine,
-  DOCKER_BOOTSTRAP_SCRIPT,
 } from "../handlers/docker-remote.js";
+import { runRecipe } from "../handlers/run.js";
 import {
   styleBold,
   styleMuted,
@@ -300,20 +299,12 @@ export function dockerCommand(app: DxBase) {
             `Setting up Docker on ${styleBold(target.name)} (${target.kind}) at ${target.user}@${target.host}...`
           );
 
-          const sshArgs = buildSshArgs(target);
-
           try {
-            execFileSync("ssh", [...sshArgs, "bash -s"], {
-              stdio: ["pipe", "inherit", "inherit"],
-              input: DOCKER_BOOTSTRAP_SCRIPT,
-            });
+            await runRecipe({ recipeName: "@dx/docker", targets: [target], paramEnv: {}, force: false });
           } catch (err: any) {
-            if (err.status != null) {
-              console.error(styleError("\nDocker setup failed."));
-              console.log(styleMuted(`  Try connecting manually: dx ssh ${slug}`));
-              process.exit(err.status);
-            }
-            throw err;
+            console.error(styleError("\nDocker setup failed."));
+            console.log(styleMuted(`  Try connecting manually: dx ssh ${slug}`));
+            process.exit(err.status ?? 1);
           }
 
           console.log(styleSuccess(`\nDocker is ready on ${target.name}!`));
