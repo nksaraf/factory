@@ -125,6 +125,50 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 
 ---
 
+## Phase 8: `dx docker` — Remote Docker Proxy & Machine Management
+
+### Implemented (2026-03-29)
+- [x] `dx docker <args> --on <slug>` — proxy any docker command to a remote machine via SSH-based DOCKER_HOST
+- [x] `dx docker compose <args> --on <slug>` — remote compose with auto-sync detection (build contexts, volume mounts)
+- [x] `dx docker connect <slug>` — spawn subshell with DOCKER_HOST pre-set
+- [x] `dx docker env <slug>` — print `export DOCKER_HOST=...` for `eval $()`
+- [x] `dx docker setup <slug>` — bootstrap Docker + Compose on fresh machine via SSH
+- [x] Machine resolution from Factory infra tables (Host/VM/Sandbox) via `infra.access.resolve()`
+- [x] `lib/docker.ts` extended with `dockerHost` option for all compose helpers
+
+### Implemented (2026-03-30)
+- [x] Machine resolution from `~/.ssh/config` entries (cascading: Factory API → SSH config → local machines.json)
+- [x] Machine resolution from local `~/.config/dx/machines.json` for ad-hoc additions
+- [x] `dx docker add <name> --host <ip>` / `dx docker remove <name>` — local machine registration
+- [x] Compose auto-sync: rsync build context directories, volume mounts, configs/secrets file references
+- [x] `dx docker setup` — Alpine/apk support alongside Debian/RHEL via `get.docker.com`
+- [x] `dx ssh` now uses same cascading machine resolver as `dx docker` (Factory → SSH config → local machines.json)
+
+### Deferred
+- [ ] Tunnel-based DOCKER_HOST (`tcp://localhost:PORT` via SSH port forward) for environments where direct SSH to Docker socket is blocked
+- [ ] Machine provisioning flow: `dx docker compose up --on new-vm` spins up a VM then deploys (persona B)
+- [ ] `dx machine` as a unified DB-level view over Host+VM+Sandbox tables (decided against for v1, revisit if needed)
+- [ ] `dx deploy` integration — `dx deploy` uses `dx docker` under the hood for compose-runtime deployment targets
+- [ ] `dx docker logs --on <slug>` shortcut for streaming container logs from remote machines
+- [ ] `dx docker list` — show all resolvable machines across all sources (Factory, SSH config, local machines.json)
+
+---
+
+## Phase 9: `dx run` — Ansible-like Remote Playbooks
+
+Built-in playbook runner for installing tools and configuring machines on demand. `dx docker setup` is the first playbook; generalize to a plugin/playbook system.
+
+- [ ] `dx run <playbook> --on <machine>` — run a named playbook on a remote machine via SSH
+- [ ] Built-in playbooks: `docker`, `node`, `postgres`, `nginx`, `caddy`, `tailscale`, etc.
+- [ ] Custom playbooks: `.dx/playbooks/<name>.sh` or `.dx/playbooks/<name>.ts` in project
+- [ ] Playbook composition: `dx run docker,caddy,postgres --on staging-1` (install multiple tools in one pass)
+- [ ] Idempotent execution: playbooks detect if tool is already installed/configured and skip
+- [ ] `dx run` with inventory: `--on tag:webservers` to target multiple machines by tag/label
+- [ ] Playbook output capture and status reporting (success/failure per machine)
+- [ ] Community playbook registry: `dx run @community/ghost-cms --on prod-1` (pull playbook from registry)
+
+---
+
 ## Ideas / Future
 
 - [ ] Pipeline cache management (`pipeline_cache_entry` table, `dx ci cache` commands)

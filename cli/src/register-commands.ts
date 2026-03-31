@@ -18,6 +18,7 @@ import { clusterCommand } from "./commands/cluster.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
+import { dockerCommand } from "./commands/docker.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
@@ -41,9 +42,11 @@ import { prCommand } from "./commands/pr.js";
 import { pushCommand } from "./commands/push.js";
 import { releaseCommand } from "./commands/release.js";
 import { routeCommand } from "./commands/route.js";
+import { runCommand } from "./commands/run.js";
 import { sandboxCommand } from "./commands/sandbox.js";
 import { scriptCommand } from "./commands/script.js";
 import { secretCommand } from "./commands/secret.js";
+import { setupCommand } from "./commands/setup.js";
 import { sshCommand } from "./commands/ssh.js";
 import { shipCommand } from "./commands/ship.js";
 import { siteCommand } from "./commands/site.js";
@@ -81,6 +84,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(customerCommand(app))
     .command(dbCommand(app))
     .command(deployCommand(app))
+    .command(dockerCommand(app))
     .command(devCommand(app))
     .command(doctorCommand(app))
     .command(domainCommand(app))
@@ -104,9 +108,11 @@ export function registerCommands(app: DxBase): DxBase {
     .command(pushCommand(app))
     .command(releaseCommand(app))
     .command(routeCommand(app))
+    .command(runCommand(app))
     .command(sandboxCommand(app))
     .command(scriptCommand(app))
     .command(secretCommand(app))
+    .command(setupCommand(app))
     .command(sshCommand(app))
     .command(shipCommand(app))
     .command(siteCommand(app))

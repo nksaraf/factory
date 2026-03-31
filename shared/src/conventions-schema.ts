@@ -142,7 +142,7 @@ export const qualityTestSchema = qualityCheckSchema.extend({
 const qualityOverrideSchema = z.object({
   lint: qualityCheckSchema.partial().optional(),
   typecheck: qualityCheckSchema.partial().optional(),
-  test: qualityTestSchema.deepPartial().optional(),
+  test: qualityCheckSchema.partial().extend({ coverage: qualityCoverageSchema.partial().optional() }).optional(),
   format: qualityCheckSchema.partial().optional(),
 });
 

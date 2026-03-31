@@ -1,11 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { shellSync } from "../lib/shell.js";
 
 export interface RunScriptOptions {
   file: string;
   watch?: boolean;
   passthrough: string[];
+  /** Secret environment scope (production, development, preview). */
+  environment?: string;
+  /** Skip secret injection. */
+  noSecrets?: boolean;
 }
 
 /**
@@ -59,21 +63,13 @@ export async function runScript(opts: RunScriptOptions): Promise<void> {
 
   args.push(scriptPath, ...opts.passthrough);
 
-  const result = spawnSync(bunPath, args, {
-    stdio: "inherit",
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      // Make the dx binary path available to scripts
-      DX_BIN: process.argv[1] ?? process.execPath,
-    },
+  const result = shellSync(bunPath, args, {
+    noSecrets: opts.noSecrets,
+    environment: opts.environment,
+    inherit: true,
   });
 
-  if (result.error) {
-    throw new Error(`Failed to run script: ${result.error.message}`);
-  }
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+  if (result.exitCode !== 0) {
+    process.exit(result.exitCode);
   }
 }
