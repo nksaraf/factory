@@ -413,6 +413,53 @@ export const messageThread = factoryOrg.table(
   ]
 );
 
+// ─── Secret ──────────────────────────────────────────────────
+// Encrypted env-var secrets scoped to org / team / project / environment.
+// Vercel-style hierarchy: org < team < project, with optional environment overlay.
+
+export const orgSecret = factoryOrg.table(
+  "secret",
+  {
+    secretId: text("secret_id")
+      .primaryKey()
+      .$defaultFn(() => newId("sec")),
+    key: text("key").notNull(),
+    encryptedValue: text("encrypted_value").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id"),
+    environment: text("environment"),
+    createdBy: text("created_by").references(() => orgPrincipal.principalId, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("org_secret_key_scope_env_unique").on(
+      t.key,
+      t.scopeType,
+      t.scopeId,
+      t.environment,
+    ),
+    index("org_secret_scope_idx").on(t.scopeType, t.scopeId),
+    index("org_secret_environment_idx").on(t.environment),
+    check(
+      "org_secret_scope_type_valid",
+      sql`${t.scopeType} IN ('org', 'team', 'project', 'environment')`,
+    ),
+    check(
+      "org_secret_environment_valid",
+      sql`${t.environment} IS NULL OR ${t.environment} IN ('production', 'development', 'preview')`,
+    ),
+  ],
+);
+
 // ─── Memory ────────────────────────────────────────────────
 // Layered knowledge system for agents. v1: CRUD management only.
 // Layers: session (per-job), team (shared), org (company-wide).

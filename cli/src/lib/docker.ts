@@ -12,6 +12,16 @@ interface ComposeOpts {
   projectName?: string;
   profiles?: string[];
   envFile?: string;
+  /** SSH-based Docker host for remote targeting (e.g. ssh://user@host) */
+  dockerHost?: string;
+}
+
+/** Build spawn options with optional remote DOCKER_HOST */
+function spawnOpts(opts?: ComposeOpts): { stdio: "inherit"; env?: NodeJS.ProcessEnv } {
+  if (opts?.dockerHost) {
+    return { stdio: "inherit", env: { ...process.env, DOCKER_HOST: opts.dockerHost } };
+  }
+  return { stdio: "inherit" };
 }
 
 /** Build compose args: -f file1 -f file2 --env-file ... --profile p1 */
@@ -58,9 +68,7 @@ export function composeUp(
   if (opts?.services?.length) {
     args.push(...opts.services);
   }
-  const proc = spawnSync("docker", args, {
-    stdio: "inherit",
-  });
+  const proc = spawnSync("docker", args, spawnOpts(opts));
   if (proc.status !== 0) {
     throw new Error("docker compose up failed");
   }
@@ -73,9 +81,7 @@ export function composeDown(
   const args = composeFileArgs(composeFiles, opts);
   args.push("down");
   if (opts?.volumes) args.push("--volumes");
-  const proc = spawnSync("docker", args, {
-    stdio: "inherit",
-  });
+  const proc = spawnSync("docker", args, spawnOpts(opts));
   if (proc.status !== 0) {
     throw new Error("docker compose down failed");
   }
@@ -88,7 +94,7 @@ export function composeStop(
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("stop", ...services);
-  spawnSync("docker", args, { stdio: "inherit" });
+  spawnSync("docker", args, spawnOpts(opts));
 }
 
 export function composeIsRunning(
@@ -98,7 +104,10 @@ export function composeIsRunning(
 ): boolean {
   const args = composeFileArgs(composeFiles, opts);
   args.push("ps", "-q", service);
-  const result = spawnSync("docker", args, { encoding: "utf8" });
+  const spawnOptions = opts?.dockerHost
+    ? { encoding: "utf8" as const, env: { ...process.env, DOCKER_HOST: opts.dockerHost } }
+    : { encoding: "utf8" as const };
+  const result = spawnSync("docker", args, spawnOptions);
   return result.status === 0 && result.stdout.trim().length > 0;
 }
 
@@ -109,7 +118,7 @@ export function composeRestart(
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("restart", ...services);
-  const proc = spawnSync("docker", args, { stdio: "inherit" });
+  const proc = spawnSync("docker", args, spawnOpts(opts));
   if (proc.status !== 0) {
     throw new Error("docker compose restart failed");
   }
@@ -122,7 +131,7 @@ export function composeBuild(
 ): void {
   const args = composeFileArgs(composeFiles, opts);
   args.push("build", ...services);
-  const proc = spawnSync("docker", args, { stdio: "inherit" });
+  const proc = spawnSync("docker", args, spawnOpts(opts));
   if (proc.status !== 0) {
     throw new Error("docker compose build failed");
   }

@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
 import { getFactoryClient } from "../client.js";
+import { resolveMachine } from "../handlers/docker-remote.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
   type ColumnOpt,
@@ -67,28 +68,14 @@ export function sshCommand(app: DxBase) {
       if (!target) {
         console.error("Usage: dx ssh <name>");
         console.log(styleMuted("\nResolves a machine by name and opens an SSH session."));
-        console.log(styleMuted("Searches sandboxes, VMs, and hosts by slug.\n"));
+        console.log(styleMuted("Searches Factory API, ~/.ssh/config, and ~/.config/dx/machines.json.\n"));
         console.log("  dx ssh my-sandbox");
         console.log("  dx ssh build-host-3");
         console.log("  dx ssh dev-vm --user ubuntu");
         process.exit(1);
       }
 
-      const api = await getApi();
-      let data: any;
-      try {
-        const result = await A(api).resolve({ slug: target }).get();
-        data = result?.data?.data;
-      } catch {
-        // fall through
-      }
-
-      if (!data) {
-        console.error(styleError(`No SSH target found for "${target}".`));
-        console.log(styleMuted("\nSearched sandboxes, VMs, and hosts. Try:"));
-        console.log(styleMuted("  dx ssh config sync   — see all available targets"));
-        process.exit(1);
-      }
+      const data = await resolveMachine(target);
 
       const user = (flags.user as string) ?? data.user;
       const port = (flags.port as number) ?? data.port;

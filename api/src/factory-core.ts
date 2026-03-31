@@ -25,6 +25,7 @@ import { infraController } from "./modules/infra/index"
 import { previewController } from "./modules/infra/preview.controller"
 import { sandboxController } from "./modules/infra/sandbox.controller"
 import { startGateway } from "./modules/infra/gateway-proxy"
+import { secretController } from "./modules/identity/secret.controller"
 import { Reconciler } from "./reconciler/reconciler"
 
 /**
@@ -178,6 +179,7 @@ export function createLocalApp(db: Database, reconciler: Reconciler | null) {
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", db)
     .use(infraRoutes)
+    .use(secretController(db))
 
   return new Elysia()
     .use(cors({ credentials: true, origin: true }))

@@ -29,6 +29,13 @@
       "when": 1774937400000,
       "tag": "0003_drop_provider_constraints",
       "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774796010705,
+      "tag": "0004_ambitious_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

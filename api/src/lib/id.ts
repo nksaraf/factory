@@ -73,7 +73,8 @@ export type EntityPrefix =
   | "rpre"
   | "job"
   | "mem"
-  | "sshk";
+  | "sshk"
+  | "sec";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;
