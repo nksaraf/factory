@@ -1,6 +1,7 @@
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
+import { readConfig } from "../config.js";
 import {
   type ColumnOpt,
   apiCall,
@@ -11,6 +12,7 @@ import {
   styleBold,
   styleMuted,
   styleSuccess,
+  styleError,
   timeAgo,
 } from "./list-helpers.js";
 import { setExamples } from "../plugins/examples-plugin.js";
@@ -19,6 +21,9 @@ setExamples("preview", [
   "$ dx preview deploy                Deploy preview from current branch",
   "$ dx preview list                  List active previews",
   "$ dx preview show my-preview       Show preview details",
+  "$ dx preview status                Show preview for current branch",
+  "$ dx preview extend my-preview     Extend preview TTL",
+  "$ dx preview wait my-preview       Wait for preview to become active",
   "$ dx preview destroy my-preview    Tear down a preview",
   "$ dx preview open my-preview       Open preview URL in browser",
 ]);
@@ -27,6 +32,24 @@ async function getPreviewApi() {
   const api = await getFactoryClient();
   // Routes: /api/v1/factory/infra/previews/...
   return (api as any).api.v1.factory.infra.previews;
+}
+
+async function getPreviewDomain(): Promise<string> {
+  const cfg = await readConfig();
+  if (cfg.domain) return cfg.domain;
+  // Derive from factoryUrl: https://factory.lepton.software → lepton.software
+  try {
+    const host = new URL(cfg.factoryUrl).hostname;
+    const parts = host.split(".");
+    if (parts.length > 2) return parts.slice(1).join(".");
+    return host;
+  } catch {
+    return "dx.dev";
+  }
+}
+
+function previewUrl(slug: string, domain: string): string {
+  return `https://${slug}.preview.${domain}`;
 }
 
 export function previewCommand(app: DxBase) {
@@ -67,6 +90,11 @@ export function previewCommand(app: DxBase) {
           "owner-id": {
             type: "string",
             description: "Owner ID",
+          },
+          image: {
+            type: "string",
+            alias: "i",
+            description: "Container image to deploy (skips build step)",
           },
           auth: {
             type: "string",
@@ -133,6 +161,7 @@ export function previewCommand(app: DxBase) {
           if (flags["site-id"]) body.siteId = flags["site-id"];
           if (flags["cluster-id"]) body.clusterId = flags["cluster-id"];
           if (flags.auth) body.authMode = flags.auth;
+          if (flags.image) body.imageRef = flags.image;
 
           const api = await getPreviewApi();
           const result = await apiCall(flags, () => api.post(body));
@@ -151,7 +180,7 @@ export function previewCommand(app: DxBase) {
             const maxWait = 120_000;
             const interval = 3_000;
             const start = Date.now();
-            let status = "building";
+            let status = "pending_image";
 
             while (Date.now() - start < maxWait && !["active", "failed", "expired"].includes(status)) {
               await new Promise((r) => setTimeout(r, interval));
@@ -254,6 +283,7 @@ export function previewCommand(app: DxBase) {
         ])
         .run(async ({ args, flags }) => {
           const api = await getPreviewApi();
+          const domain = await getPreviewDomain();
           const result = await apiCall(flags, () =>
             api({ slug: args.slug }).get()
           );
@@ -268,7 +298,7 @@ export function previewCommand(app: DxBase) {
             ["Runtime", (r) => String(r.runtimeClass ?? "")],
             ["Auth", (r) => String(r.authMode ?? "")],
             ["Owner", (r) => String(r.ownerId ?? "")],
-            ["URL", (r) => `https://${r.slug}.preview.dx.dev`],
+            ["URL", (r) => previewUrl(String(r.slug), domain)],
             ["Expires", (r) => r.expiresAt ? timeAgo(r.expiresAt as string) : "-"],
             ["Created", (r) => timeAgo(r.createdAt as string)],
           ]);
@@ -309,13 +339,193 @@ export function previewCommand(app: DxBase) {
           },
         ])
         .run(async ({ args }) => {
-          const url = `https://${args.slug}.preview.dx.dev`;
+          const domain = await getPreviewDomain();
+          const url = previewUrl(args.slug, domain);
           const { exec: execCmd } = await import("../lib/subprocess.js");
           const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
           try {
             await execCmd([openCmd, url]);
           } catch {
             console.log(`Open in browser: ${url}`);
+          }
+        })
+    )
+
+    // --- status (auto-detect from current branch) ---
+    .command("status", (c) =>
+      c
+        .meta({ description: "Show preview status for current branch" })
+        .flags({
+          repo: {
+            type: "string",
+            description: "Filter by repo",
+          },
+        })
+        .run(async ({ flags }) => {
+          // Detect current branch
+          let branch: string;
+          try {
+            const { captureOrThrow } = await import("../lib/subprocess.js");
+            const result = await captureOrThrow(["git", "rev-parse", "--abbrev-ref", "HEAD"]);
+            branch = result.stdout.trim();
+          } catch {
+            console.error("Could not detect current branch.");
+            process.exit(1);
+          }
+
+          const api = await getPreviewApi();
+          const domain = await getPreviewDomain();
+          const query: Record<string, string | undefined> = {
+            sourceBranch: branch,
+          };
+          if (flags.repo) query.repo = flags.repo as string;
+
+          const result = await apiCall(flags, () => api.get({ query }));
+          const previews = Array.isArray(result) ? result : (result?.data ?? result ?? []);
+
+          if (!Array.isArray(previews) || previews.length === 0) {
+            console.log(styleMuted(`No previews found for branch "${branch}".`));
+            return;
+          }
+
+          for (const p of previews) {
+            const status = colorStatus(String(p.status ?? ""));
+            const url = previewUrl(String(p.slug), domain);
+            console.log(`${styleBold(String(p.slug))}  ${status}`);
+            console.log(`  Branch: ${p.sourceBranch}  Commit: ${styleMuted(String(p.commitSha ?? "").slice(0, 7))}`);
+            if (p.status === "active") {
+              console.log(`  URL:    ${url}`);
+            }
+            if (p.imageRef) {
+              console.log(`  Image:  ${styleMuted(String(p.imageRef))}`);
+            }
+            if (p.expiresAt) {
+              console.log(`  Expires: ${timeAgo(p.expiresAt as string)}`);
+            }
+          }
+        })
+    )
+
+    // --- extend ---
+    .command("extend", (c) =>
+      c
+        .meta({ description: "Extend preview TTL" })
+        .args([
+          {
+            name: "slug",
+            type: "string",
+            required: true,
+            description: "Preview slug",
+          },
+        ])
+        .flags({
+          days: {
+            type: "number",
+            alias: "d",
+            description: "Number of days to extend (default: 7)",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const days = (flags.days as number | undefined) ?? 7;
+          const api = await getPreviewApi();
+          const result = await apiCall(flags, () =>
+            api({ slug: args.slug }).extend.post({ days })
+          );
+          actionResult(flags, result, styleSuccess(`Preview "${args.slug}" extended by ${days} days.`));
+        })
+    )
+
+    // --- wait ---
+    .command("wait", (c) =>
+      c
+        .meta({ description: "Wait for preview to become active" })
+        .args([
+          {
+            name: "slug",
+            type: "string",
+            required: true,
+            description: "Preview slug",
+          },
+        ])
+        .flags({
+          timeout: {
+            type: "number",
+            alias: "t",
+            description: "Timeout in seconds (default: 300)",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const timeoutMs = ((flags.timeout as number | undefined) ?? 300) * 1000;
+          const interval = 3_000;
+          const start = Date.now();
+          const api = await getPreviewApi();
+          const domain = await getPreviewDomain();
+
+          process.stdout.write(styleMuted(`Waiting for preview "${args.slug}"...`));
+
+          let status = "unknown";
+          while (Date.now() - start < timeoutMs) {
+            try {
+              const poll = await api({ slug: args.slug }).get();
+              status = poll?.data?.status ?? status;
+            } catch {
+              // transient error
+            }
+
+            if (status === "active") {
+              console.log();
+              console.log(styleSuccess(`Preview "${args.slug}" is active.`));
+              console.log(styleMuted(`  URL: ${previewUrl(args.slug, domain)}`));
+              process.exit(0);
+            }
+            if (status === "failed" || status === "expired") {
+              console.log();
+              console.log(styleError(`Preview "${args.slug}" ${status}.`));
+              process.exit(1);
+            }
+
+            process.stdout.write(".");
+            await new Promise((r) => setTimeout(r, interval));
+          }
+
+          console.log();
+          console.log(styleError(`Timeout waiting for preview. Current status: ${status}`));
+          process.exit(1);
+        })
+    )
+
+    // --- logs ---
+    .command("logs", (c) =>
+      c
+        .meta({ description: "Show preview deployment logs" })
+        .args([
+          {
+            name: "slug",
+            type: "string",
+            required: true,
+            description: "Preview slug",
+          },
+        ])
+        .run(async ({ args, flags }) => {
+          const api = await getPreviewApi();
+          const result = await apiCall(flags, () =>
+            api({ slug: args.slug }).get()
+          );
+          const p = result?.data ?? result;
+
+          if (!p) {
+            console.error(`Preview "${args.slug}" not found.`);
+            process.exit(1);
+          }
+
+          console.log(styleBold(`Preview: ${p.slug}`));
+          console.log(`Status:  ${colorStatus(String(p.status ?? ""))}`);
+          console.log(`Branch:  ${p.sourceBranch}  Commit: ${String(p.commitSha ?? "").slice(0, 7)}`);
+          if (p.imageRef) console.log(`Image:   ${p.imageRef}`);
+          if (p.statusMessage) {
+            console.log();
+            console.log(styleBold("Status Message:"));
+            console.log(p.statusMessage);
           }
         })
     );

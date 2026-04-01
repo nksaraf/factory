@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
     ports:
       - "${INFRA_FACTORY_PORT:-8181}:3000"
+      - "${INFRA_GATEWAY_PROXY_PORT:-9090}:9090"
     depends_on:
       infra-postgres:
         condition: service_healthy
@@ -74,6 +75,34 @@ services:
       catalog.port.5432.name: postgres
       catalog.port.5432.protocol: tcp
 
+  infra-spicedb:
+    image: authzed/spicedb:latest
+    command: serve
+    restart: unless-stopped
+    ports:
+      - "${INFRA_SPICEDB_PORT:-50051}:50051"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/spicedb?sslmode=disable
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.kind: Resource
+      catalog.description: "SpiceDB — Zanzibar-style authorization (ReBAC)"
+      catalog.owner: platform
+      catalog.type: auth-provider
+      catalog.tags: "authz,spicedb,rebac"
+      catalog.port.50051.name: grpc
+      catalog.port.50051.protocol: grpc
+
   infra-auth:
     image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
     platform: linux/amd64
@@ -88,6 +117,10 @@ services:
     environment:
       AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
+      AUTH_SPICEDB_ENABLED: "true"
+      AUTH_SPICEDB_ENDPOINT: infra-spicedb:50051
+      AUTH_SPICEDB_TOKEN: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      AUTH_SPICEDB_INSECURE: "true"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/auth/reference').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
