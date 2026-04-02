@@ -1,6 +1,6 @@
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
-import { shutdownTelemetry } from "./telemetry.js";
+import { shutdownTelemetry, startSpan } from "./telemetry.js";
 import { createDxApp } from "./build-app.js";
 import { fireWorkbenchPing } from "./handlers/install/workbench-ping.js";
 
@@ -18,6 +18,8 @@ if (args[0] === "help") {
 }
 
 const app = createDxApp();
+const commandName = args.filter((a) => !a.startsWith("-")).join(" ") || "dx";
+const rootSpan = startSpan(`dx ${commandName}`);
 let exitCode = ExitCodes.SUCCESS;
 try {
   await app.execute();
@@ -38,7 +40,9 @@ try {
     console.error(message);
   }
   exitCode = ExitCodes.GENERAL_FAILURE;
+  rootSpan.recordException(err instanceof Error ? err : new Error(String(err)));
 } finally {
+  rootSpan.end();
   await shutdownTelemetry();
 }
 
