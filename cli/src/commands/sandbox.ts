@@ -1,5 +1,6 @@
-import { userInfo } from "node:os";
+import { userInfo, homedir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
@@ -19,6 +20,7 @@ import {
 } from "./list-helpers.js";
 import { setExamples } from "../plugins/examples-plugin.js";
 import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js";
+import { generateSshConfigBlocks, mergeSshConfig } from "../lib/ssh-utils.js";
 import ora from "ora";
 
 setExamples("sandbox", [
@@ -345,6 +347,8 @@ export function sandboxCommand(app: DxBase) {
                 const slug = (sbxData?.slug as string) ?? args.name;
                 await addHostEntry(slug, "sandbox");
               }
+              // Auto-sync SSH config so VS Code Remote SSH works immediately
+              await syncSshConfig(api);
             } else {
               spinner.warn(`Sandbox status: ${status} (may still be provisioning)`);
             }
@@ -555,6 +559,8 @@ export function sandboxCommand(app: DxBase) {
             if (factoryUrl.includes("localhost") || factoryUrl.includes("127.0.0.1")) {
               await removeHostEntry(args.id, "sandbox");
             }
+            // Re-sync SSH config to remove stale entry
+            await syncSshConfig(api);
           } else {
             console.log(styleMuted(`Sandbox ${args.id} delete initiated (may still be destroying).`));
           }
@@ -1296,4 +1302,21 @@ export function sandboxCommand(app: DxBase) {
           }
         })
     );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+
+async function syncSshConfig(api: any) {
+  try {
+    const result = await api.api.v1.factory.infra.access.targets.get();
+    const targets: any[] = result?.data?.data ?? [];
+    if (targets.length > 0) {
+      const blocks = generateSshConfigBlocks(targets);
+      const configPath = join(homedir(), ".ssh", "config");
+      mergeSshConfig(configPath, blocks.join("\n"));
+      console.log(styleMuted(`  SSH config synced (${targets.length} targets in ~/.ssh/config)`));
+    }
+  } catch {
+    // Non-fatal — SSH config sync is a convenience
+  }
 }

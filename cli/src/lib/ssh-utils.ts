@@ -1,4 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 /**
  * Clear a stale SSH host key if the remote host identity has changed.
@@ -173,4 +176,54 @@ export function wrapRemoteCommand(cmd: string[], opts: { dir?: string; sudo?: bo
 
 function escapeShellArg(arg: string): string {
   return "'" + arg.replace(/'/g, "'\\''") + "'";
+}
+
+// ─── SSH Config Sync Helpers ─────────────────────────────────
+
+const DX_CONFIG_BEGIN = "# --- BEGIN dx-managed ---";
+const DX_CONFIG_END = "# --- END dx-managed ---";
+
+export function generateSshConfigBlocks(targets: any[]): string[] {
+  const lines: string[] = [DX_CONFIG_BEGIN, ""];
+
+  for (const t of targets) {
+    lines.push(`Host ${t.slug}`);
+    lines.push(`  HostName ${t.host}`);
+    lines.push(`  User ${t.user}`);
+    if (t.port !== 22) {
+      lines.push(`  Port ${t.port}`);
+    }
+    lines.push(`  StrictHostKeyChecking accept-new`);
+    lines.push(`  # dx:kind=${t.kind} dx:id=${t.id}`);
+    lines.push("");
+  }
+
+  lines.push(DX_CONFIG_END);
+  return [lines.join("\n")];
+}
+
+export function mergeSshConfig(configPath: string, dxBlock: string): void {
+  mkdirSync(join(configPath, ".."), { recursive: true, mode: 0o700 });
+
+  let existing = "";
+  if (existsSync(configPath)) {
+    existing = readFileSync(configPath, "utf-8");
+  }
+
+  // Remove old dx-managed block
+  const beginIdx = existing.indexOf(DX_CONFIG_BEGIN);
+  const endIdx = existing.indexOf(DX_CONFIG_END);
+  if (beginIdx !== -1 && endIdx !== -1) {
+    existing =
+      existing.slice(0, beginIdx) +
+      existing.slice(endIdx + DX_CONFIG_END.length);
+  }
+
+  // Trim trailing whitespace, add dx block at end
+  existing = existing.trimEnd();
+  const newContent = existing
+    ? `${existing}\n\n${dxBlock}\n`
+    : `${dxBlock}\n`;
+
+  writeFileSync(configPath, newContent, { mode: 0o600 });
 }

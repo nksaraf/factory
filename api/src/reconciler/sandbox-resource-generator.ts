@@ -129,7 +129,7 @@ function buildCloneScript(
 }
 
 const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest";
-const DEFAULT_FALLBACK_IMAGE = "ubuntu:22.04";
+const DEFAULT_FALLBACK_IMAGE = process.env.SANDBOX_DEFAULT_IMAGE || "ghcr.io/nksaraf/dx-sandbox:latest";
 
 function makePod(
   sandbox: SandboxResourceInput,

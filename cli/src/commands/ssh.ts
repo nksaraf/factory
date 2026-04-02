@@ -7,7 +7,7 @@ import type { DxBase } from "../dx-root.js";
 import { getFactoryClient } from "../client.js";
 import { EntityFinder } from "../lib/entity-finder.js";
 import type { ResolvedEntity } from "../lib/entity-finder.js";
-import { buildSshArgs, buildKubectlExecArgs, clearStaleHostKey } from "../lib/ssh-utils.js";
+import { buildSshArgs, buildKubectlExecArgs, clearStaleHostKey, generateSshConfigBlocks, mergeSshConfig } from "../lib/ssh-utils.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
   type ColumnOpt,
@@ -441,54 +441,6 @@ async function connectToEntity(entity: ResolvedEntity, flags: Record<string, unk
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
-
-const DX_CONFIG_BEGIN = "# --- BEGIN dx-managed ---";
-const DX_CONFIG_END = "# --- END dx-managed ---";
-
-function generateSshConfigBlocks(targets: any[]): string[] {
-  const lines: string[] = [DX_CONFIG_BEGIN, ""];
-
-  for (const t of targets) {
-    lines.push(`Host ${t.slug}`);
-    lines.push(`  HostName ${t.host}`);
-    lines.push(`  User ${t.user}`);
-    if (t.port !== 22) {
-      lines.push(`  Port ${t.port}`);
-    }
-    lines.push(`  StrictHostKeyChecking accept-new`);
-    lines.push(`  # dx:kind=${t.kind} dx:id=${t.id}`);
-    lines.push("");
-  }
-
-  lines.push(DX_CONFIG_END);
-  return [lines.join("\n")];
-}
-
-function mergeSshConfig(configPath: string, dxBlock: string): void {
-  mkdirSync(join(configPath, ".."), { recursive: true, mode: 0o700 });
-
-  let existing = "";
-  if (existsSync(configPath)) {
-    existing = readFileSync(configPath, "utf-8");
-  }
-
-  // Remove old dx-managed block
-  const beginIdx = existing.indexOf(DX_CONFIG_BEGIN);
-  const endIdx = existing.indexOf(DX_CONFIG_END);
-  if (beginIdx !== -1 && endIdx !== -1) {
-    existing =
-      existing.slice(0, beginIdx) +
-      existing.slice(endIdx + DX_CONFIG_END.length);
-  }
-
-  // Trim trailing whitespace, add dx block at end
-  existing = existing.trimEnd();
-  const newContent = existing
-    ? `${existing}\n\n${dxBlock}\n`
-    : `${dxBlock}\n`;
-
-  writeFileSync(configPath, newContent, { mode: 0o600 });
-}
 
 function findDefaultPubKey(): string | null {
   const sshDir = join(homedir(), ".ssh");

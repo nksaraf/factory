@@ -10,6 +10,14 @@ if [ -n "$ANTHROPIC_API_KEY" ]; then
   echo "[dx-entrypoint] ANTHROPIC_API_KEY detected — Claude Code auth enabled."
 fi
 
+# --- Start SSH server on port 22 ---
+mkdir -p /run/sshd
+sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+sed -i 's/#PermitEmptyPasswords.*/PermitEmptyPasswords yes/' /etc/ssh/sshd_config
+passwd -d root 2>/dev/null || true
+/usr/sbin/sshd
+echo "[dx-entrypoint] sshd started on :22"
+
 # --- Start ttyd (web terminal) on port 8080 ---
 ttyd \
   --port 8080 \
