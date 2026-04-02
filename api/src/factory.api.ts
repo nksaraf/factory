@@ -35,6 +35,7 @@ import { gatewayController } from "./modules/infra/gateway.controller"
 import { accessController } from "./modules/infra/access.controller"
 import { infraController } from "./modules/infra/index"
 import { previewController } from "./modules/infra/preview.controller"
+import { previewCiController } from "./modules/infra/preview-ci.controller"
 import { sandboxController } from "./modules/infra/sandbox.controller"
 import { observabilityController } from "./modules/observability/index"
 import { productController } from "./modules/product/index"
@@ -173,6 +174,7 @@ export class FactoryAPI {
       .use(presenceController(() => this.redis))
       .use(webhookController(db))
       .use(messagingWebhookController(db))
+      .use(previewCiController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
       .use(this.mountSiteControllers())
       .use(
