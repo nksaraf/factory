@@ -232,25 +232,40 @@ export class WebhookService {
           // No preview exists — bootstrap one (handles missed "opened" events)
           const site = await this.findPreviewSite(repoFullName);
           if (site) {
-            const ttlDays = site.previewConfig.ttlDays ?? 7;
-            logger.info(
-              { repo: repoFullName, pr: prNumber, branch: headBranch },
-              "Creating preview on synchronize (no existing preview found)",
-            );
-            await previewSvc.createPreview(this.db, {
-              name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
-              sourceBranch: headBranch,
-              commitSha: headSha,
-              repo: repoFullName,
-              prNumber,
-              siteName: "default",
-              siteId: site.siteId,
-              clusterId: site.clusterId,
-              ownerId: senderLogin,
-              createdBy: senderLogin,
-              authMode: site.previewConfig.defaultAuthMode ?? "team",
-              expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
-            });
+            // Check for existing slug to avoid duplicate constraint violation on race
+            const slug = previewSvc.buildPreviewSlug({ prNumber, sourceBranch: headBranch, siteName: "default" });
+            const existing = await previewSvc.getPreviewBySlug(this.db, slug);
+            if (existing) {
+              logger.info(
+                { repo: repoFullName, pr: prNumber, slug, prevStatus: existing.status },
+                "Resetting existing preview on synchronize bootstrap",
+              );
+              await previewSvc.updatePreviewStatus(this.db, existing.previewId, {
+                status: "pending_image",
+                commitSha: headSha,
+                imageRef: null,
+              });
+            } else {
+              const ttlDays = site.previewConfig.ttlDays ?? 7;
+              logger.info(
+                { repo: repoFullName, pr: prNumber, branch: headBranch },
+                "Creating preview on synchronize (no existing preview found)",
+              );
+              await previewSvc.createPreview(this.db, {
+                name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
+                sourceBranch: headBranch,
+                commitSha: headSha,
+                repo: repoFullName,
+                prNumber,
+                siteName: "default",
+                siteId: site.siteId,
+                clusterId: site.clusterId,
+                ownerId: senderLogin,
+                createdBy: senderLogin,
+                authMode: site.previewConfig.defaultAuthMode ?? "team",
+                expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+              });
+            }
           }
         }
         break;

@@ -152,6 +152,24 @@ describe("Sandbox Resource Generator", () => {
     }
   });
 
+  it("SANDBOX_PRIMARY_ENDPOINT=terminal puts terminal on primary route", () => {
+    const origIngress = process.env.SANDBOX_INGRESS_ENABLED;
+    const origEndpoint = process.env.SANDBOX_PRIMARY_ENDPOINT;
+    process.env.SANDBOX_INGRESS_ENABLED = "true";
+    process.env.SANDBOX_PRIMARY_ENDPOINT = "terminal";
+    try {
+      const resources = generateSandboxResources(baseSandbox);
+      const ingress = resources.find((r) => r.kind === "IngressRoute")!;
+      const primaryRoute = (ingress.spec as any).routes[0];
+      expect(primaryRoute.services[0].port).toBe(8080);
+    } finally {
+      if (origIngress === undefined) delete process.env.SANDBOX_INGRESS_ENABLED;
+      else process.env.SANDBOX_INGRESS_ENABLED = origIngress;
+      if (origEndpoint === undefined) delete process.env.SANDBOX_PRIMARY_ENDPOINT;
+      else process.env.SANDBOX_PRIMARY_ENDPOINT = origEndpoint;
+    }
+  });
+
   it("uses default image when devcontainerImage is null", () => {
     const resources = generateSandboxResources({
       ...baseSandbox,

@@ -356,7 +356,7 @@ function makeIngressRoute(
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const primaryEndpoint = process.env.SANDBOX_PRIMARY_ENDPOINT || "ide";
+  const primaryEndpoint = (process.env.SANDBOX_PRIMARY_ENDPOINT || "ide").toLowerCase();
   const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
   const host = `${sandbox.slug}.sandbox.${gatewayDomain}`;
   const primaryPort = primaryEndpoint === "terminal" ? 8080 : 8081;
