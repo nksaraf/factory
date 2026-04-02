@@ -399,6 +399,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] CI workflow to build+push `ghcr.io/nksaraf/dx-sandbox:latest` on changes to `images/dx-sandbox/`
 - [ ] WebSocket proxy verification: confirm ttyd and openvscode-server WS upgrades work through Traefik + tunnel relay
 - [x] Configurable primary sandbox endpoint: `SANDBOX_PRIMARY_ENDPOINT` env var (`ide`|`terminal`, default `ide`) controls which service the base `*.sandbox.*` domain serves
+- [x] Reconciler route update on config change: upsert logic updates `targetPort`/`targetService` on existing routes when they drift from expected values
 - [x] CI build for `ghcr.io/nksaraf/dx-sandbox` image: `.github/workflows/build-sandbox-image.yml` — push on main, build-only on PR, GHA cache
 
 ### Devcontainer & Envbuilder
@@ -448,6 +449,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] `dx sandbox open` command (open web terminal URL in browser)
 - [ ] Sandbox status reconciliation: poll k8s pod status back into DB (currently fire-and-forget)
 - [ ] Sandbox health checks: readiness probe integration for envbuilder completion detection
+- [x] Fix sandbox-resource-generator tests: split into envbuilder mode and direct-image mode test groups, 15/15 passing (was 6 pass + 4 fail)
 
 ---
 

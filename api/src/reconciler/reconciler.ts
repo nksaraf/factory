@@ -16,7 +16,7 @@ import { componentSpec, productModule } from "../db/schema/product";
 import { moduleVersion } from "../db/schema/build";
 import { expireStale, getSnapshot, updateSnapshotStatus, updateSandboxHealth } from "../services/sandbox/sandbox.service";
 import { sandboxSnapshot } from "../db/schema/fleet";
-import { createRoute, lookupRouteByDomain } from "../modules/infra/gateway.service";
+import { createRoute, lookupRouteByDomain, updateRoute } from "../modules/infra/gateway.service";
 import { logger } from "../logger";
 
 // Default storage class for CSI snapshot support.
@@ -309,6 +309,12 @@ export class Reconciler {
         createdBy: "reconciler",
       });
       logger.info({ domain: sandboxDomain, endpoint: primaryEndpoint }, "Created bare domain route for sandbox");
+    } else if (existingRoute.targetPort !== primaryPort || existingRoute.targetService !== clusterEndpoint) {
+      await updateRoute(this.db, existingRoute.routeId, {
+        targetPort: primaryPort,
+        targetService: clusterEndpoint,
+      });
+      logger.info({ domain: sandboxDomain, oldPort: existingRoute.targetPort, newPort: primaryPort }, "Updated bare domain route for sandbox");
     }
 
     // 13. Create named endpoint routes from devcontainer config
@@ -323,18 +329,25 @@ export class Reconciler {
 
     for (const [name, config] of Object.entries(endpoints)) {
       const endpointDomain = `${sbx.slug}--${name}.sandbox.${gatewayDomain}`;
+      const expectedPort = name === "terminal" ? (webPort ?? 8080) : name === "ide" ? (webIdePort ?? 8081) : config.port;
       const existingEndpointRoute = await lookupRouteByDomain(this.db, endpointDomain);
       if (!existingEndpointRoute) {
         await createRoute(this.db, {
           kind: "sandbox",
           domain: endpointDomain,
           targetService: clusterEndpoint,
-          targetPort: name === "terminal" ? (webPort ?? 8080) : name === "ide" ? (webIdePort ?? 8081) : config.port,
+          targetPort: expectedPort,
           deploymentTargetId: dt.deploymentTargetId,
           status: "active",
           createdBy: "reconciler",
         });
-        logger.info({ domain: endpointDomain, port: config.port }, "Created named endpoint route");
+        logger.info({ domain: endpointDomain, port: expectedPort }, "Created named endpoint route");
+      } else if (existingEndpointRoute.targetPort !== expectedPort || existingEndpointRoute.targetService !== clusterEndpoint) {
+        await updateRoute(this.db, existingEndpointRoute.routeId, {
+          targetPort: expectedPort,
+          targetService: clusterEndpoint,
+        });
+        logger.info({ domain: endpointDomain, oldPort: existingEndpointRoute.targetPort, newPort: expectedPort }, "Updated named endpoint route");
       }
     }
 
