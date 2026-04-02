@@ -1,0 +1,56 @@
+{
+  "id": "factory.game-viz",
+  "displayName": "Factory Game",
+  "description": "3D factory simulation — visualize platform state as a living factory floor",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["game", "visualization", "3d", "simulation"],
+  "categories": ["visualization"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--factory-duotone]",
+      "label": "Factory",
+      "order": 13
+    },
+    "routePrefix": "/game"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.game-viz.route.home",
+        "displayName": "Factory Game",
+        "path": "/(root)/(app)/game/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.game-viz.sidebar.group",
+        "displayName": "Factory",
+        "icon": "icon-[ph--factory-duotone]",
+        "group": "Factory",
+        "order": 13
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.game-viz.sidebar.home",
+        "displayName": "Build Hall",
+        "icon": "icon-[ph--conveyor-belt-duotone]",
+        "href": "/game",
+        "group": "factory.game-viz.sidebar.group",
+        "order": 1
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

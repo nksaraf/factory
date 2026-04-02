@@ -1,0 +1,149 @@
+{
+  "id": "factory.infra",
+  "displayName": "Factory Infrastructure",
+  "description": "Infrastructure management — providers, clusters, hosts, VMs, networking",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["infra", "clusters", "hosts", "networking"],
+  "categories": ["infrastructure"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--hard-drives-duotone]",
+      "label": "Infrastructure",
+      "order": 11
+    },
+    "routePrefix": "/infra"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.infra.route.home",
+        "displayName": "Infrastructure",
+        "path": "/(root)/(app)/infra/"
+      },
+      {
+        "id": "factory.infra.route.providers",
+        "displayName": "Providers",
+        "path": "/(root)/(app)/infra/providers/"
+      },
+      {
+        "id": "factory.infra.route.provider-detail",
+        "displayName": "Provider Detail",
+        "path": "/(root)/(app)/infra/providers/:slug/"
+      },
+      {
+        "id": "factory.infra.route.clusters",
+        "displayName": "Clusters",
+        "path": "/(root)/(app)/infra/clusters/"
+      },
+      {
+        "id": "factory.infra.route.cluster-detail",
+        "displayName": "Cluster Detail",
+        "path": "/(root)/(app)/infra/clusters/:slug/"
+      },
+      {
+        "id": "factory.infra.route.hosts",
+        "displayName": "Hosts & VMs",
+        "path": "/(root)/(app)/infra/hosts/"
+      },
+      {
+        "id": "factory.infra.route.network",
+        "displayName": "Network Topology",
+        "path": "/(root)/(app)/infra/network/"
+      },
+      {
+        "id": "factory.infra.route.proxmox",
+        "displayName": "Proxmox Clusters",
+        "path": "/(root)/(app)/infra/proxmox/"
+      },
+      {
+        "id": "factory.infra.route.utilization",
+        "displayName": "Resource Utilization",
+        "path": "/(root)/(app)/infra/utilization/"
+      },
+      {
+        "id": "factory.infra.route.certs",
+        "displayName": "Certificates & Secrets",
+        "path": "/(root)/(app)/infra/certs/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.infra.sidebar.group",
+        "displayName": "Infrastructure",
+        "icon": "icon-[ph--hard-drives-duotone]",
+        "group": "Infrastructure",
+        "order": 11
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.infra.sidebar.providers",
+        "displayName": "Providers",
+        "icon": "icon-[ph--cloud-duotone]",
+        "href": "/infra/providers",
+        "group": "factory.infra.sidebar.group",
+        "order": 1
+      },
+      {
+        "id": "factory.infra.sidebar.clusters",
+        "displayName": "Clusters",
+        "icon": "icon-[ph--circles-three-plus-duotone]",
+        "href": "/infra/clusters",
+        "group": "factory.infra.sidebar.group",
+        "order": 2
+      },
+      {
+        "id": "factory.infra.sidebar.hosts",
+        "displayName": "Hosts & VMs",
+        "icon": "icon-[ph--desktop-tower-duotone]",
+        "href": "/infra/hosts",
+        "group": "factory.infra.sidebar.group",
+        "order": 3
+      },
+      {
+        "id": "factory.infra.sidebar.network",
+        "displayName": "Network",
+        "icon": "icon-[ph--graph-duotone]",
+        "href": "/infra/network",
+        "group": "factory.infra.sidebar.group",
+        "order": 4
+      },
+      {
+        "id": "factory.infra.sidebar.proxmox",
+        "displayName": "Proxmox",
+        "icon": "icon-[ph--cube-duotone]",
+        "href": "/infra/proxmox",
+        "group": "factory.infra.sidebar.group",
+        "order": 5
+      },
+      {
+        "id": "factory.infra.sidebar.utilization",
+        "displayName": "Utilization",
+        "icon": "icon-[ph--chart-bar-duotone]",
+        "href": "/infra/utilization",
+        "group": "factory.infra.sidebar.group",
+        "order": 6
+      },
+      {
+        "id": "factory.infra.sidebar.certs",
+        "displayName": "Certificates",
+        "icon": "icon-[ph--shield-check-duotone]",
+        "href": "/infra/certs",
+        "group": "factory.infra.sidebar.group",
+        "order": 7
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

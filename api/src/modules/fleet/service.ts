@@ -274,7 +274,7 @@ export async function getSite(db: Database, name: string) {
   const [row] = await db
     .select()
     .from(fleetSite)
-    .where(eq(fleetSite.name, name))
+    .where(eq(fleetSite.slug, name))
     .limit(1);
 
   if (!row) return null;

@@ -17,6 +17,7 @@ import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
 import { startMessagingSyncLoop } from "./lib/messaging-sync-loop"
 import { logger } from "./logger"
+import { presenceController } from "./modules/presence/index"
 import { agentController } from "./modules/agent/index"
 import { memoryController } from "./modules/memory/index"
 import { seedPlatformPresets } from "./modules/agent/preset.service"
@@ -46,6 +47,7 @@ import {
   getDatabaseUrl,
   getJwksUrl,
   getMode,
+  getRedisUrl,
   getSiteConfig,
 } from "./settings"
 
@@ -56,6 +58,7 @@ export class FactoryAPI {
   readonly observabilityAdapter = new NoopObservabilityAdapter()
   readonly authClient: FactoryAuthResourceClient | null
   reconciler: Reconciler | null = null
+  private redis?: { publisher: import("ioredis").Redis; subscriber: import("ioredis").Redis }
   private stopTtlCleanup?: () => void
   private stopProxmoxSync?: () => void
   private stopWorkTrackerSync?: () => void
@@ -153,6 +156,7 @@ export class FactoryAPI {
     return new Elysia()
       .use(cors({ credentials: true, origin: true }))
       .use(healthController)
+      .use(presenceController(() => this.redis))
       .use(webhookController(db))
       .use(messagingWebhookController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
@@ -204,6 +208,21 @@ export class FactoryAPI {
       logger.warn({ err }, "role preset seeding failed")
     )
 
+    // Set up Redis for presence fan-out (optional — degrades gracefully)
+    const redisUrl = getRedisUrl(this.settings)
+    if (redisUrl) {
+      try {
+        const { default: IORedis } = await import("ioredis")
+        this.redis = {
+          publisher: new IORedis(redisUrl),
+          subscriber: new IORedis(redisUrl),
+        }
+        logger.info("Redis connected for presence fan-out")
+      } catch (err) {
+        logger.warn({ err }, "Redis unavailable — presence limited to single instance")
+      }
+    }
+
     if (this.authClient) {
       bootstrapResourceTypes(this.authClient).catch((err) =>
         logger.warn({ err }, "resource type bootstrap failed")
@@ -218,6 +237,10 @@ export class FactoryAPI {
     this.stopGitHostSync?.()
     this.stopIdentitySync?.()
     this.stopMessagingSync?.()
+    if (this.redis) {
+      this.redis.publisher.disconnect()
+      this.redis.subscriber.disconnect()
+    }
     if (this.db) {
       await this.db.$client.end()
     }
