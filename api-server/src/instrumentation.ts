@@ -1,5 +1,3 @@
-import { propagation } from "@opentelemetry/api"
-
 const enabled = process.env.TELEMETRY_ENABLED === "true"
 
 if (enabled) {
@@ -10,7 +8,6 @@ if (enabled) {
     "@opentelemetry/exporter-trace-otlp-http"
   )
   const { resourceFromAttributes } = await import("@opentelemetry/resources")
-  const { W3CTraceContextPropagator } = await import("@opentelemetry/core")
 
   const endpoint =
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318"
@@ -27,7 +24,7 @@ if (enabled) {
     ],
   })
 
-  propagation.setGlobalTextMapPropagator(new W3CTraceContextPropagator())
+  // register() sets up the global tracer provider and default W3C propagator
   provider.register()
 
   process.on("SIGTERM", async () => {
