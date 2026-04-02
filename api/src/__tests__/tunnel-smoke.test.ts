@@ -27,22 +27,9 @@ import {
 import { getTunnelStreamManager } from "../modules/infra/tunnel-broker"
 import { lookupRouteByDomain } from "../modules/infra/gateway.service"
 import {
-  decodeFrame,
-  encodeFrame,
-  buildHttpResFrame,
-  buildDataFrame,
-  buildDataFrames,
-  buildRstStreamFrame,
-  buildWsDataFrame,
-  buildWsCloseFrame,
-  parseJsonPayload,
-  FrameType,
-  Flags,
-  ENCODED_PONG,
-  MAX_PAYLOAD_SIZE,
-  type HttpRequestPayload,
-  type WsUpgradePayload,
-} from "@smp/factory-shared/tunnel-protocol"
+  handleBinaryFrame,
+  type PendingBodies,
+} from "../../../cli/src/lib/tunnel-client"
 
 // Prevent the onStart hook from auto-starting gateway on port 9090
 process.env.__DX_SKIP_GATEWAY_ONSTART = "1"
@@ -456,6 +443,10 @@ interface RegisterOpts {
 }
 
 async function registerTunnel(opts: RegisterOpts) {
+  // State maps for the real handleBinaryFrame
+  const activeLocalWs = new Map<number, WebSocket>()
+  const pendingBodies: PendingBodies = new Map()
+
   return new Promise<{ tunnelId: string; subdomain: string; url: string }>(
     (resolve, reject) => {
       const ws = new WebSocket(
@@ -482,7 +473,7 @@ async function registerTunnel(opts: RegisterOpts) {
 
       ws.addEventListener("message", (event) => {
         if (event.data instanceof ArrayBuffer) {
-          handleTunnelFrame(new Uint8Array(event.data), ws, opts.localPort)
+          handleBinaryFrame(new Uint8Array(event.data), ws, opts.localPort, activeLocalWs, pendingBodies)
           return
         }
         if (typeof event.data !== "string") return
@@ -509,204 +500,3 @@ async function registerTunnel(opts: RegisterOpts) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Mini tunnel client: handles binary frames from the broker
-// ---------------------------------------------------------------------------
-
-// Track pending request bodies (DATA frames following HTTP_REQ)
-const pendingBodies = new Map<number, ReadableStreamDefaultController<Uint8Array>>()
-// Track local WebSocket connections for WS passthrough
-const testLocalWs = new Map<number, WebSocket>()
-
-async function handleTunnelFrame(
-  data: Uint8Array,
-  ws: WebSocket,
-  localPort: number,
-) {
-  let frame
-  try {
-    frame = decodeFrame(data)
-  } catch {
-    return
-  }
-
-  switch (frame.type) {
-    case FrameType.PING: {
-      ws.send(ENCODED_PONG)
-      break
-    }
-
-    case FrameType.DATA: {
-      // Request body DATA frame — push to pending body stream
-      const controller = pendingBodies.get(frame.streamId)
-      if (controller) {
-        try {
-          if (frame.payload.byteLength > 0) {
-            controller.enqueue(frame.payload)
-          }
-          if (frame.flags & Flags.FIN) {
-            controller.close()
-            pendingBodies.delete(frame.streamId)
-          }
-        } catch {
-          pendingBodies.delete(frame.streamId)
-        }
-      }
-      break
-    }
-
-    case FrameType.HTTP_REQ: {
-      let req: HttpRequestPayload
-      try {
-        req = parseJsonPayload<HttpRequestPayload>(frame)
-      } catch {
-        ws.send(encodeFrame(buildRstStreamFrame(frame.streamId)))
-        return
-      }
-
-      try {
-        // Build request body stream for POST/PUT/PATCH
-        let body: ReadableStream<Uint8Array> | undefined
-        const method = req.method.toUpperCase()
-        if (method !== "GET" && method !== "HEAD") {
-          body = new ReadableStream<Uint8Array>({
-            start(controller) {
-              pendingBodies.set(frame.streamId, controller)
-            },
-            cancel() {
-              pendingBodies.delete(frame.streamId)
-            },
-          })
-        }
-
-        const localRes = await fetch(
-          `http://localhost:${localPort}${req.url}`,
-          {
-            method: req.method,
-            headers: req.headers,
-            body,
-            redirect: "manual",
-            // @ts-expect-error Bun supports duplex streaming
-            duplex: body ? "half" : undefined,
-          },
-        )
-
-        const resHeaders: Record<string, string> = {}
-        localRes.headers.forEach((val, key) => {
-          resHeaders[key] = val
-        })
-        ws.send(
-          encodeFrame(
-            buildHttpResFrame(frame.streamId, {
-              status: localRes.status,
-              headers: resHeaders,
-            }),
-          ),
-        )
-
-        const resBody = new Uint8Array(await localRes.arrayBuffer())
-        // Chunk large bodies to respect MAX_PAYLOAD_SIZE
-        if (resBody.byteLength > MAX_PAYLOAD_SIZE) {
-          const frames = buildDataFrames(frame.streamId, resBody)
-          for (const df of frames) {
-            ws.send(encodeFrame(df))
-          }
-        } else {
-          ws.send(encodeFrame(buildDataFrame(frame.streamId, resBody, true)))
-        }
-      } catch {
-        ws.send(encodeFrame(buildRstStreamFrame(frame.streamId)))
-      }
-      break
-    }
-
-    case FrameType.WS_UPGRADE: {
-      let upgrade: WsUpgradePayload
-      try {
-        upgrade = parseJsonPayload<WsUpgradePayload>(frame as any)
-      } catch {
-        ws.send(encodeFrame(buildRstStreamFrame(frame.streamId)))
-        return
-      }
-
-      try {
-        const localWs = new WebSocket(`ws://localhost:${localPort}${upgrade.url}`)
-        localWs.binaryType = "arraybuffer"
-        // Queue for messages received before the local WS is open
-        const queue: { data: Uint8Array; isBinary: boolean }[] = []
-        testLocalWs.set(frame.streamId, localWs)
-
-        localWs.addEventListener("open", () => {
-          // Drain any queued messages
-          for (const msg of queue) {
-            if (msg.isBinary) {
-              localWs.send(msg.data)
-            } else {
-              localWs.send(new TextDecoder().decode(msg.data))
-            }
-          }
-          queue.length = 0
-        })
-
-        localWs.addEventListener("message", (event) => {
-          try {
-            if (event.data instanceof ArrayBuffer) {
-              ws.send(encodeFrame(buildWsDataFrame(frame.streamId, new Uint8Array(event.data), true)))
-            } else {
-              ws.send(encodeFrame(buildWsDataFrame(frame.streamId, new TextEncoder().encode(event.data as string), false)))
-            }
-          } catch {
-            // tunnel WS may be closing
-          }
-        })
-
-        localWs.addEventListener("close", () => {
-          testLocalWs.delete(frame.streamId)
-          try {
-            ws.send(encodeFrame(buildWsCloseFrame(frame.streamId)))
-          } catch {}
-        })
-
-        localWs.addEventListener("error", () => {
-          testLocalWs.delete(frame.streamId)
-          try {
-            ws.send(encodeFrame(buildRstStreamFrame(frame.streamId)))
-          } catch {}
-        })
-
-        // Store the queue reference for WS_DATA handler to use
-        ;(localWs as any).__pendingQueue = queue
-      } catch {
-        ws.send(encodeFrame(buildRstStreamFrame(frame.streamId)))
-      }
-      break
-    }
-
-    case FrameType.WS_DATA: {
-      const localWs = testLocalWs.get(frame.streamId)
-      if (!localWs) break
-      const isBinary = !!(frame.flags & Flags.BINARY)
-      if (localWs.readyState === WebSocket.OPEN) {
-        if (isBinary) {
-          localWs.send(frame.payload)
-        } else {
-          localWs.send(new TextDecoder().decode(frame.payload))
-        }
-      } else if (localWs.readyState === WebSocket.CONNECTING) {
-        // Queue until the local WS opens
-        const queue = (localWs as any).__pendingQueue as { data: Uint8Array; isBinary: boolean }[]
-        queue?.push({ data: frame.payload, isBinary })
-      }
-      break
-    }
-
-    case FrameType.WS_CLOSE: {
-      const localWs = testLocalWs.get(frame.streamId)
-      if (localWs) {
-        localWs.close()
-        testLocalWs.delete(frame.streamId)
-      }
-      break
-    }
-  }
-}
