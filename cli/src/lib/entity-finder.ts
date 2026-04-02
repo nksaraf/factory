@@ -28,6 +28,7 @@ export interface ResolvedEntity {
 
   // Internal — used to resolve kubeconfig lazily
   deploymentTargetId?: string;
+  clusterEndpoint?: string;  // IP/hostname of the cluster host (for SSH jump)
 
   // Display
   context?: string;
@@ -67,7 +68,9 @@ export class EntityFinder {
       if (match) {
         const entity = sandboxToEntity(match);
         if (entity?.transport === 'kubectl' && entity.deploymentTargetId) {
-          entity.kubeconfig = await this.resolveKubeconfig(api, entity.deploymentTargetId);
+          const access = await this.resolveClusterAccess(api, entity.deploymentTargetId);
+          entity.kubeconfig = access.kubeconfig;
+          entity.clusterEndpoint = access.endpoint;
         }
         return entity;
       }
@@ -137,27 +140,30 @@ export class EntityFinder {
    * Resolve kubeconfig for a deployment target by following:
    * deploymentTargetId → clusterId → cluster.kubeconfigRef
    */
-  private async resolveKubeconfig(api: any, deploymentTargetId: string): Promise<string | undefined> {
+  private async resolveClusterAccess(api: any, deploymentTargetId: string): Promise<{ kubeconfig?: string; endpoint?: string }> {
     try {
       // 1. Get deployment target → clusterId
       const dtResult = await (api as any).api.v1.factory.fleet["deployment-targets"]({ id: deploymentTargetId }).get();
       const dt = dtResult?.data ?? dtResult;
       const clusterId = dt?.clusterId;
-      if (!clusterId) return undefined;
+      if (!clusterId) return {};
 
-      // 2. Get cluster → kubeconfigRef
-      const clResult = await (api as any).api.v1.factory.infra.clusters({ id: clusterId }).get();
-      const cl = clResult?.data?.data ?? clResult?.data ?? clResult;
-      const kubeconfigRef = cl?.kubeconfigRef;
-      if (!kubeconfigRef) return undefined;
+      // 2. Get cluster info (endpoint) and kubeconfig content
+      const [clResult, kcResult] = await Promise.allSettled([
+        (api as any).api.v1.factory.infra.clusters({ id: clusterId }).get(),
+        (api as any).api.v1.factory.infra.clusters({ id: clusterId }).kubeconfig.get(),
+      ]);
 
-      // Only inline YAML kubeconfigs are usable from the CLI.
-      // Vault references and server-side file paths can't be resolved client-side.
-      if (kubeconfigRef.startsWith('vault:')) return undefined;
+      const endpoint = clResult.status === 'fulfilled'
+        ? (clResult.value?.data?.data?.endpoint ?? clResult.value?.data?.endpoint)
+        : undefined;
+      const kubeconfig = kcResult.status === 'fulfilled'
+        ? kcResult.value?.data?.data?.kubeconfig
+        : undefined;
 
-      return kubeconfigRef;
+      return { kubeconfig, endpoint };
     } catch {
-      return undefined;
+      return {};
     }
   }
 

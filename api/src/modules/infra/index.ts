@@ -1,4 +1,5 @@
 import { Elysia } from "elysia"
+import { readFileSync, existsSync } from "node:fs"
 
 import type { Database } from "../../db/connection"
 import { InfraModel } from "./model"
@@ -141,6 +142,20 @@ export function infraController(db: Database) {
     }), {
       body: InfraModel.createClusterBody,
       detail: { tags: ["Infra"], summary: "Create cluster" },
+    })
+    .get("/clusters/:id/kubeconfig", async ({ params, set }) => {
+      const ref = await clusterSvc.getKubeconfig(db, params.id)
+      if (!ref) { set.status = 404; return { success: false, error: "not_found" } }
+      if (ref.startsWith("vault:")) { set.status = 400; return { success: false, error: "vault refs not supported" } }
+      // If it's a file path, read it server-side
+      let content = ref
+      if (ref.startsWith("/") && existsSync(ref)) {
+        content = readFileSync(ref, "utf-8")
+      }
+      return { success: true, data: { kubeconfig: content } }
+    }, {
+      params: InfraModel.idParams,
+      detail: { tags: ["Infra"], summary: "Get cluster kubeconfig content" },
     })
     .post("/clusters/:id/upgrade", async ({ params }) => ({
       success: true,

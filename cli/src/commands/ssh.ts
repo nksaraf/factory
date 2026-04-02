@@ -390,7 +390,7 @@ async function connectToEntity(entity: ResolvedEntity, flags: Record<string, unk
       kubeContext: flags.context as string,
       interactive: true,
     });
-    kubectlArgs.push("--", "/bin/bash");
+    kubectlArgs.push("--", "/bin/bash", "-l");
 
     // If we have an inline kubeconfig from the factory, write it to a temp file
     let kubeconfigTmp: string | undefined;
