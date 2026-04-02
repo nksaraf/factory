@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Box, Text, useInput } from "ink"
-import { DataTable, type Column, timeAgo } from "../components/data-table.js"
+import { DataTable, type Column, type DetailField, timeAgo } from "../components/data-table.js"
 import { useSites, useReleases } from "../hooks/use-fleet-data.js"
 
 interface FleetTabProps {
@@ -69,6 +69,16 @@ export function FleetTab({ focused }: FleetTabProps) {
           rows={sites}
           focused={focused}
           emptyMessage="No sites deployed."
+          detailFields={[
+            { label: "Name", key: "name" },
+            { label: "Slug", key: "slug" },
+            { label: "Product", key: "product" },
+            { label: "Status", key: "status" },
+            { label: "Cluster", key: "clusterId" },
+            { label: "Manifest", key: "currentManifestVersion", format: (v: any) => v ? `v${v}` : "-" },
+            { label: "Last Check-in", key: "lastCheckinAt", format: (v: any) => timeAgo(v) },
+            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+          ]}
         />
       )}
 

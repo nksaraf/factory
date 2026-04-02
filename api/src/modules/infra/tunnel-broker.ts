@@ -1,4 +1,5 @@
 import type { Database } from "../../db/connection";
+import { logger as rootLogger } from "../../logger";
 import * as gw from "./gateway.service";
 import { StreamManager } from "./tunnel-streams";
 import {
@@ -8,6 +9,8 @@ import {
   FrameType,
   buildGoawayFrame,
 } from "@smp/factory-shared/tunnel-protocol";
+
+const logger = rootLogger.child({ module: "tunnel-broker" });
 
 /**
  * In-memory map of active tunnel connections.
@@ -73,6 +76,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
 
   return {
     open(ws: WebSocket) {
+      logger.info("tunnel ws connected");
       getOrCreateState(ws);
     },
 
@@ -106,6 +110,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain();
           const routeFamily = msg.routeFamily === "sandbox" ? "sandbox" as const : "tunnel" as const;
+          logger.info({ subdomain, principalId: msg.principalId, localAddr: msg.localAddr, routeFamily }, "registering tunnel");
           const { tunnel, route } = await gw.registerTunnel(db, {
             subdomain,
             principalId: msg.principalId ?? "anonymous",
@@ -126,6 +131,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
           });
           tunnelStreams.set(state.tunnelId, state.streamManager);
 
+          logger.info({ tunnelId: tunnel.tunnelId, subdomain: tunnel.subdomain, domain: route.domain }, "tunnel registered");
           ws.send(
             JSON.stringify({
               type: "registered",
@@ -147,7 +153,8 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             }
           }, heartbeatIntervalMs);
         }
-      } catch {
+      } catch (err) {
+        logger.error({ err }, "tunnel registration failed");
         ws.send(JSON.stringify({ type: "error", message: "Invalid message" }));
       }
     },
@@ -156,6 +163,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
       const state = connectionState.get(ws);
       if (!state || state.cleaning || !state.tunnelId) return;
       state.cleaning = true;
+      logger.info({ tunnelId: state.tunnelId }, "tunnel disconnected");
 
       if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
       state.streamManager?.cleanup();

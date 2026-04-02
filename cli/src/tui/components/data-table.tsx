@@ -11,12 +11,21 @@ export interface Column {
   slugKey?: string
 }
 
+/** Fields to show in the expanded detail row. If omitted, all row keys are shown. */
+export interface DetailField {
+  label: string
+  key: string
+  format?: (value: any, row: any) => string
+}
+
 interface DataTableProps {
   columns: Column[]
   rows: any[]
   focused: boolean
   onSelect?: (row: any) => void
   emptyMessage?: string
+  /** Detail fields shown when Enter is pressed on a row. Pass [] to disable. */
+  detailFields?: DetailField[]
 }
 
 function statusColor(val: string): string | undefined {
@@ -30,6 +39,7 @@ function statusColor(val: string): string | undefined {
     case "completed":
     case "verified":
     case "production":
+    case "success":
       return "green"
     case "provisioning":
     case "pending":
@@ -41,6 +51,8 @@ function statusColor(val: string): string | undefined {
     case "deploying":
     case "draft":
     case "suspended":
+    case "warning":
+    case "acknowledged":
       return "yellow"
     case "stopped":
     case "error":
@@ -49,6 +61,7 @@ function statusColor(val: string): string | undefined {
     case "firing":
     case "critical":
     case "cancelled":
+    case "timed_out":
       return "red"
     default:
       return undefined
@@ -79,14 +92,36 @@ function getValue(row: any, col: Column): string {
   return String(raw)
 }
 
+/** Auto-generate detail fields from a row's keys, skipping internal/id fields */
+function autoDetailFields(row: any): DetailField[] {
+  const skip = new Set(["id"])
+  return Object.keys(row)
+    .filter((k) => !skip.has(k))
+    .map((k) => ({
+      label: k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
+      key: k,
+    }))
+}
+
+function formatDetailValue(val: unknown): string {
+  if (val === null || val === undefined) return "-"
+  if (typeof val === "object") return JSON.stringify(val)
+  const s = String(val)
+  // Auto-detect timestamps
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return `${s.slice(0, 19).replace("T", " ")} (${timeAgo(s)})`
+  return s
+}
+
 export function DataTable({
   columns,
   rows,
   focused,
   onSelect,
   emptyMessage = "No data.",
+  detailFields,
 }: DataTableProps) {
   const [cursor, setCursor] = useState(0)
+  const [expandedRow, setExpandedRow] = useState<number | null>(null)
 
   useEffect(() => {
     if (cursor >= rows.length && rows.length > 0) {
@@ -94,13 +129,24 @@ export function DataTable({
     }
   }, [rows.length, cursor])
 
+  // Close detail when cursor moves away
+  useEffect(() => {
+    if (expandedRow !== null && expandedRow !== cursor) {
+      setExpandedRow(null)
+    }
+  }, [cursor])
+
   useInput(
     (input, key) => {
       if (!focused) return
       if (key.upArrow) setCursor((c) => Math.max(0, c - 1))
       else if (key.downArrow) setCursor((c) => Math.min(rows.length - 1, c + 1))
-      else if (key.return && onSelect && rows[cursor]) {
-        onSelect(rows[cursor])
+      else if (key.return && rows[cursor]) {
+        if (onSelect) onSelect(rows[cursor])
+        // Toggle detail expansion
+        setExpandedRow((prev) => (prev === cursor ? null : cursor))
+      } else if (key.escape) {
+        setExpandedRow(null)
       }
     },
     { isActive: focused }
@@ -139,36 +185,38 @@ export function DataTable({
       {/* Rows */}
       {rows.map((row, rowIdx) => {
         const isCursor = rowIdx === cursor && focused
-        const rowKey = row.id ?? row[columns[0]?.key] ?? rowIdx
+        const isExpanded = rowIdx === expandedRow
         return (
-          <Box
-            key={rowKey}
-            paddingX={1}
-          >
-            {columns.map((col, colIdx) => {
-              const val = getValue(row, col)
-              const color = col.color
-                ? col.color(val, row)
-                : col.key === "status" || col.key === "severity"
-                  ? statusColor(val)
-                  : undefined
-              const slug = col.slugKey ? row[col.slugKey] : undefined
-              return (
-                <Box key={col.key} width={colWidths[colIdx]}>
-                  <Text
-                    backgroundColor={isCursor ? "blue" : undefined}
-                    color={isCursor ? "white" : color ?? undefined}
-                    bold={colIdx === 0 && !isCursor}
-                  >
-                    {color && !isCursor ? `● ${val}` : val}
-                  </Text>
-                  {slug && slug !== val && (
-                    <Text dimColor={!isCursor} color={isCursor ? "white" : undefined} backgroundColor={isCursor ? "blue" : undefined}> {slug}</Text>
-                  )}
-                </Box>
-              )
-            })}
-          </Box>
+          <React.Fragment key={rowIdx}>
+            <Box paddingX={1}>
+              {columns.map((col, colIdx) => {
+                const val = getValue(row, col)
+                const color = col.color
+                  ? col.color(val, row)
+                  : col.key === "status" || col.key === "severity"
+                    ? statusColor(val)
+                    : undefined
+                const slug = col.slugKey ? row[col.slugKey] : undefined
+                return (
+                  <Box key={col.key} width={colWidths[colIdx]}>
+                    <Text
+                      backgroundColor={isCursor ? "blue" : undefined}
+                      color={isCursor ? "white" : color ?? undefined}
+                      bold={colIdx === 0 && !isCursor}
+                    >
+                      {color && !isCursor ? `● ${val}` : val}
+                    </Text>
+                    {slug && slug !== val && (
+                      <Text dimColor={!isCursor} color={isCursor ? "white" : undefined} backgroundColor={isCursor ? "blue" : undefined}> {slug}</Text>
+                    )}
+                  </Box>
+                )
+              })}
+            </Box>
+            {isExpanded && (
+              <DetailRow row={row} fields={detailFields} />
+            )}
+          </React.Fragment>
         )
       })}
 
@@ -176,8 +224,44 @@ export function DataTable({
         <Text dimColor>
           {rows.length} row{rows.length !== 1 ? "s" : ""}{" "}
           {focused && `· ${cursor + 1}/${rows.length}`}
+          {focused && "  ↵ detail  esc close"}
         </Text>
       </Box>
+    </Box>
+  )
+}
+
+function DetailRow({ row, fields }: { row: any; fields?: DetailField[] }) {
+  const resolvedFields = fields ?? autoDetailFields(row)
+  const maxLabel = Math.max(...resolvedFields.map((f) => f.label.length))
+
+  return (
+    <Box
+      flexDirection="column"
+      paddingX={3}
+      paddingY={0}
+      borderStyle="single"
+      borderLeft
+      borderRight={false}
+      borderTop={false}
+      borderBottom={false}
+      marginLeft={2}
+    >
+      {resolvedFields.map((field) => {
+        const raw = row[field.key]
+        const val = field.format ? field.format(raw, row) : formatDetailValue(raw)
+        const sc = typeof raw === "string" ? statusColor(raw) : undefined
+        return (
+          <Box key={field.key}>
+            <Text dimColor>{field.label.padEnd(maxLabel)}  </Text>
+            {sc ? (
+              <Text color={sc as any}>● {val}</Text>
+            ) : (
+              <Text>{val}</Text>
+            )}
+          </Box>
+        )
+      })}
     </Box>
   )
 }

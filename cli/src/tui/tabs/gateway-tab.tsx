@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Box, Text, useInput } from "ink"
-import { DataTable, type Column, timeAgo } from "../components/data-table.js"
+import { DataTable, type Column, type DetailField, timeAgo } from "../components/data-table.js"
 import { useRoutes, useDomains } from "../hooks/use-infra-data.js"
 
 interface GatewayTabProps {
@@ -61,6 +61,19 @@ export function GatewayTab({ focused }: GatewayTabProps) {
           rows={routes}
           focused={focused}
           emptyMessage="No gateway routes configured."
+          detailFields={[
+            { label: "Domain", key: "domain" },
+            { label: "Path", key: "pathPrefix", format: (v: any) => v ?? "/" },
+            { label: "Target", key: "targetService" },
+            { label: "Port", key: "targetPort", format: (v: any) => String(v ?? "-") },
+            { label: "Kind", key: "kind" },
+            { label: "Protocol", key: "protocol" },
+            { label: "TLS", key: "tlsMode" },
+            { label: "Status", key: "status" },
+            { label: "Priority", key: "priority", format: (v: any) => String(v ?? 100) },
+            { label: "Created By", key: "createdBy" },
+            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+          ]}
         />
       )}
 
@@ -70,6 +83,15 @@ export function GatewayTab({ focused }: GatewayTabProps) {
           rows={domains}
           focused={focused}
           emptyMessage="No domains registered."
+          detailFields={[
+            { label: "FQDN", key: "fqdn" },
+            { label: "Kind", key: "kind" },
+            { label: "Status", key: "status" },
+            { label: "DNS Verified", key: "dnsVerified", format: (v: any) => v ? "yes" : "no" },
+            { label: "TLS Cert", key: "tlsCertRef" },
+            { label: "Created By", key: "createdBy" },
+            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+          ]}
         />
       )}
     </Box>

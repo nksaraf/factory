@@ -1,6 +1,7 @@
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
+import { logger } from "../../logger"
 import { GatewayModel } from "./gateway.model"
 import * as gw from "./gateway.service"
 import { createTunnelHandlers } from "./tunnel-broker"
@@ -123,6 +124,7 @@ export function gatewayController(db: Database) {
       // The local daemon starts the gateway explicitly with the same db
       // instance to avoid PGlite query isolation issues. Skip here if so.
       if (process.env.__DX_SKIP_GATEWAY_ONSTART) return;
+      logger.info("starting gateway proxy");
       const { startGateway } = await import("./gateway-proxy");
       const { getTunnelStreamManager } = await import("./tunnel-broker");
       startGateway({ db, port: 9090, getTunnelStreamManager });

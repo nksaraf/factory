@@ -177,6 +177,8 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 - [x] `dx ssh` now uses same cascading machine resolver as `dx docker` (Factory → SSH config → local machines.json)
 
 ### Deferred
+- [ ] `dx ssh` remote command quoting: ensure `cloud ssh <target> -- <cmd>` and `dx ssh <target> -- <cmd>` properly escape/quote commands with special chars (spaces, quotes, parens, pipes) — current `cloud ssh` mangles multi-word args and SQL commands
+- [ ] `dx ssh` arbitrary command execution: support `dx ssh <target> -- docker exec ... psql -c "SELECT 1"` with proper stdin piping (match how `ssh user@host 'cmd'` works natively)
 - [ ] Tunnel-based DOCKER_HOST (`tcp://localhost:PORT` via SSH port forward) for environments where direct SSH to Docker socket is blocked
 - [ ] Machine provisioning flow: `dx docker compose up --on new-vm` spins up a VM then deploys (persona B)
 - [ ] `dx machine` as a unified DB-level view over Host+VM+Sandbox tables (decided against for v1, revisit if needed)
@@ -249,6 +251,7 @@ Built-in playbook runner for installing tools and configuring machines on demand
 These commands are registered but return "Not yet implemented":
 
 - [ ] `dx auth config`
+- [ ] `dx auth login` should not print session file path (security concern — just say "Signed in as ...")
 - [ ] `dx ops restart`, `dx ops scale`
 - [ ] `dx context list`, `dx context show`, `dx context select`
 - [ ] `dx secret` — centralized secret management (see Phase 10 below)

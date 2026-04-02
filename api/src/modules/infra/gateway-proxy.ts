@@ -1,7 +1,10 @@
 import { LRUCache } from "lru-cache";
 import type { Database } from "../../db/connection";
+import { logger as rootLogger } from "../../logger";
 import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service";
 import type { StreamManager } from "./tunnel-streams";
+
+const logger = rootLogger.child({ module: "gateway-proxy" });
 
 export type RouteFamily = "tunnel" | "preview" | "sandbox";
 
@@ -137,9 +140,13 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     port,
     async fetch(req) {
       const host = req.headers.get("host") ?? "";
+      const url = new URL(req.url);
       const parsed = parseHostname(host);
 
+      logger.info({ method: req.method, host, path: url.pathname, family: parsed?.family, slug: parsed?.slug }, "gateway request");
+
       if (!parsed) {
+        logger.warn({ host }, "gateway no route match");
         return new Response("Not Found", { status: 404 });
       }
 
@@ -153,8 +160,10 @@ export function createGatewayServer(opts: GatewayServerOptions) {
 
       const route = await cache.get(domain);
       if (!route) {
+        logger.warn({ domain }, "gateway route not found in db");
         return new Response("Not Found", { status: 404 });
       }
+      logger.debug({ domain, kind: route.kind, targetService: route.targetService }, "gateway route matched");
 
       // Auth enforcement for sandbox/preview routes
       if (opts.checkAuth && (route.kind === "sandbox" || route.kind === "preview")) {
@@ -182,6 +191,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         const tunnelSubdomain = isTunnelBacked ? parsed.fullSubdomain : parsed.slug;
         const sm = opts.getTunnelStreamManager?.(tunnelSubdomain);
         if (!sm) {
+          logger.warn({ tunnelSubdomain, domain }, "tunnel not connected");
           return new Response("Tunnel Not Connected", { status: 502 });
         }
 
@@ -205,7 +215,8 @@ export function createGatewayServer(opts: GatewayServerOptions) {
             status: tunnelRes.status,
             headers: tunnelRes.headers,
           });
-        } catch {
+        } catch (err) {
+          logger.error({ err, domain }, "tunnel proxy error");
           return new Response("Gateway Timeout", { status: 504 });
         }
       }
@@ -229,7 +240,8 @@ export function createGatewayServer(opts: GatewayServerOptions) {
           statusText: proxyRes.statusText,
           headers: proxyRes.headers,
         });
-      } catch {
+      } catch (err) {
+        logger.error({ err, targetService: route.targetService, targetPort }, "reverse proxy error");
         return new Response("Bad Gateway", { status: 502 });
       }
     },
@@ -320,12 +332,14 @@ export function startGateway(opts: {
   // Wire up cache invalidation
   setRouteChangeListener((domain) => cache.invalidate(domain));
 
+  const gwPort = opts.port ?? 9090;
   const gw = createGatewayServer({
     cache,
-    port: opts.port ?? 9090,
+    port: gwPort,
     getTunnelStreamManager: opts.getTunnelStreamManager,
     checkAuth: opts.checkAuth,
   });
 
+  logger.info({ port: gwPort, domain: GATEWAY_DOMAIN }, "gateway proxy started");
   return { ...gw, cache };
 }

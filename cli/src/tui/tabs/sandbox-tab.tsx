@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Box, Text, useInput } from "ink"
-import { DataTable, type Column, timeAgo } from "../components/data-table.js"
+import { DataTable, type Column, type DetailField, timeAgo } from "../components/data-table.js"
 import { useSandboxes, usePreviews } from "../hooks/use-infra-data.js"
 import { useSelection } from "../hooks/use-selection.js"
 
@@ -71,6 +71,21 @@ export function SandboxTab({ focused }: SandboxTabProps) {
             })
           }}
           emptyMessage="No sandboxes. Create one with: dx sandbox create <name>"
+          detailFields={[
+            { label: "Name", key: "name" },
+            { label: "Slug", key: "slug" },
+            { label: "Status", key: "status" },
+            { label: "Runtime", key: "runtimeType" },
+            { label: "Health", key: "healthStatus" },
+            { label: "CPU", key: "cpu" },
+            { label: "Memory", key: "memory" },
+            { label: "Storage", key: "storageGb", format: (v: any) => v ? `${v} GB` : "-" },
+            { label: "Owner", key: "ownerId" },
+            { label: "IP", key: "ipAddress" },
+            { label: "SSH", key: "sshHost", format: (v: any, r: any) => v ? `${v}:${r.sshPort ?? 22}` : "-" },
+            { label: "Web IDE", key: "webIdeUrl" },
+            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+          ]}
         />
       )}
 
@@ -80,6 +95,18 @@ export function SandboxTab({ focused }: SandboxTabProps) {
           rows={previews}
           focused={focused}
           emptyMessage="No preview deployments."
+          detailFields={[
+            { label: "Name", key: "name" },
+            { label: "Slug", key: "slug" },
+            { label: "Branch", key: "sourceBranch" },
+            { label: "Commit", key: "commitSha" },
+            { label: "Repo", key: "repo" },
+            { label: "PR", key: "prNumber", format: (v: any) => v ? `#${v}` : "-" },
+            { label: "Status", key: "status" },
+            { label: "Owner", key: "ownerId" },
+            { label: "Image", key: "imageRef" },
+            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+          ]}
         />
       )}
     </Box>

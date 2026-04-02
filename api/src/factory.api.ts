@@ -154,6 +154,16 @@ export class FactoryAPI {
 
     return new Elysia()
       .use(cors({ credentials: true, origin: true }))
+      .onRequest(({ request }) => {
+        const url = new URL(request.url)
+        // Skip health checks to reduce noise
+        if (url.pathname === "/health") return
+        logger.info({ method: request.method, path: url.pathname, host: request.headers.get("host") }, "request")
+      })
+      .onError(({ request, error, code }) => {
+        const url = new URL(request.url)
+        logger.error({ method: request.method, path: url.pathname, code, err: error }, "request error")
+      })
       .use(healthController)
       .use(presenceController(() => this.redis))
       .use(webhookController(db))
