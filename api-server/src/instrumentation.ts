@@ -14,19 +14,15 @@ if (enabled) {
   const { PeriodicExportingMetricReader } = await import(
     "@opentelemetry/sdk-metrics"
   )
-  const { Resource } = await import("@opentelemetry/resources")
-  const {
-    SEMRESATTRS_SERVICE_NAME,
-    SEMRESATTRS_SERVICE_VERSION,
-  } = await import("@opentelemetry/semantic-conventions")
+  const { resourceFromAttributes } = await import("@opentelemetry/resources")
 
   const endpoint =
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318"
 
   const sdk = new NodeSDK({
-    resource: new Resource({
-      [SEMRESATTRS_SERVICE_NAME]: "factory-api",
-      [SEMRESATTRS_SERVICE_VERSION]: "0.0.1",
+    resource: resourceFromAttributes({
+      "service.name": "factory-api",
+      "service.version": "0.0.1",
       "deployment.environment": process.env.NODE_ENV || "development",
       "telemetry.sdk.runtime": "bun",
     }),
