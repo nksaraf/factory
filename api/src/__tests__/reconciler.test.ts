@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestContext, truncateAllTables } from "../test-helpers";
 import { Reconciler } from "../reconciler/reconciler";
+import { generateSandboxResources } from "../reconciler/sandbox-resource-generator";
 import type { KubeClient, KubeResource } from "../lib/kube-client";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
@@ -34,6 +35,9 @@ class MockKubeClient implements KubeClient {
     return [];
   }
   async remove() {}
+  async execInPod() {
+    return { exitCode: 0, stdout: "", stderr: "" };
+  }
 }
 
 describe("Reconciler", () => {
@@ -264,5 +268,86 @@ describe("Reconciler", () => {
       .from(workload)
       .where(eq(workload.workloadId, wl.workloadId));
     expect(updated[0].status).toBe("running");
+  });
+});
+
+describe("generateSandboxResources", () => {
+  const baseSandbox = {
+    sandboxId: "sbx_test123",
+    slug: "my-sandbox",
+    devcontainerImage: null,
+    devcontainerConfig: {},
+    repos: [],
+    cpu: "2000m",
+    memory: "4Gi",
+    storageGb: 10,
+    dockerCacheGb: 20,
+  };
+
+  it("generates resources with 3 container ports (ssh, web-terminal, web-ide)", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod");
+    expect(pod).toBeTruthy();
+
+    const containers = (pod!.spec as any).containers;
+    const workspace = containers.find((c: any) => c.name === "workspace");
+    expect(workspace.ports).toHaveLength(3);
+    expect(workspace.ports.map((p: any) => p.name)).toEqual(["ssh", "web-terminal", "web-ide"]);
+    expect(workspace.ports.map((p: any) => p.containerPort)).toEqual([22, 8080, 8081]);
+  });
+
+  it("generates Service with 3 port mappings", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const svc = resources.find((r) => r.kind === "Service");
+    expect(svc).toBeTruthy();
+
+    const ports = (svc!.spec as any).ports;
+    expect(ports).toHaveLength(3);
+    expect(ports.map((p: any) => p.name)).toEqual(["ssh", "web-terminal", "web-ide"]);
+    expect(ports.map((p: any) => p.targetPort)).toEqual([22, 8080, 8081]);
+  });
+
+  it("generates IngressRoute with 2 route rules (terminal + IDE)", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const ingress = resources.find((r) => r.kind === "IngressRoute");
+    expect(ingress).toBeTruthy();
+
+    const routes = (ingress!.spec as any).routes;
+    expect(routes).toHaveLength(2);
+    expect(routes[0].match).toContain("my-sandbox.sandbox.dx.dev");
+    expect(routes[0].services[0].port).toBe(8080);
+    expect(routes[1].match).toContain("my-sandbox--ide.sandbox.dx.dev");
+    expect(routes[1].services[0].port).toBe(8081);
+  });
+
+  it("uses dx-entrypoint.sh instead of sleep infinity in direct-image mode", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod");
+    const workspace = (pod!.spec as any).containers.find((c: any) => c.name === "workspace");
+    expect(workspace.command).toBeTruthy();
+    const cmd = Array.isArray(workspace.command) ? workspace.command.join(" ") : workspace.command;
+    expect(cmd).toContain("dx-entrypoint.sh");
+    expect(cmd).toContain("sleep infinity"); // fallback for custom images
+  });
+
+  it("uses dx-entrypoint.sh in envbuilder init script", () => {
+    const sandboxWithRepo = {
+      ...baseSandbox,
+      repos: [{ url: "https://github.com/user/repo", branch: "main" }],
+    };
+    const resources = generateSandboxResources(sandboxWithRepo);
+    const pod = resources.find((r) => r.kind === "Pod");
+    const workspace = (pod!.spec as any).containers.find((c: any) => c.name === "workspace");
+    const initScriptEnv = workspace.env.find((e: any) => e.name === "ENVBUILDER_INIT_SCRIPT");
+    expect(initScriptEnv).toBeTruthy();
+    expect(initScriptEnv.value).toContain("dx-entrypoint.sh");
+    expect(initScriptEnv.value).toContain("sleep infinity"); // fallback
+  });
+
+  it("uses dx-sandbox as default fallback image", () => {
+    const resources = generateSandboxResources(baseSandbox);
+    const pod = resources.find((r) => r.kind === "Pod");
+    const workspace = (pod!.spec as any).containers.find((c: any) => c.name === "workspace");
+    expect(workspace.image).toContain("dx-sandbox");
   });
 });

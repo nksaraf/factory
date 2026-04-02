@@ -1,4 +1,5 @@
 import { userInfo } from "node:os";
+import { execFileSync } from "node:child_process";
 import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
@@ -18,6 +19,7 @@ import {
 } from "./list-helpers.js";
 import { setExamples } from "../plugins/examples-plugin.js";
 import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js";
+import ora from "ora";
 
 setExamples("sandbox", [
   "$ dx sandbox list                  List sandboxes",
@@ -25,6 +27,8 @@ setExamples("sandbox", [
   "$ dx sandbox show my-sandbox       Show sandbox details",
   "$ dx sandbox start my-sandbox      Start a stopped sandbox",
   "$ dx sandbox stop my-sandbox       Stop a running sandbox",
+  "$ dx sandbox logs my-sandbox       Stream sandbox logs",
+  "$ dx sandbox open my-sandbox       Open web terminal in browser",
 ]);
 
 // Returns the full factory client. Callers access Eden paths inline via S().
@@ -37,18 +41,24 @@ async function getApi() {
 const S = (api: any) => api.api.v1.factory.infra.sandboxes;
 
 async function waitForStatus(api: any, sandboxId: string, target: string, maxWaitMs: number): Promise<boolean> {
+  const spinner = ora({ text: `Waiting for sandbox to be ${target}...`, spinner: 'dots' }).start();
   const interval = 2_000;
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, interval));
     try {
       const poll = await S(api)({ id: sandboxId }).get();
-      if (poll?.data?.data?.status === target) return true;
+      const status = poll?.data?.data?.status ?? poll?.data?.status;
+      spinner.text = `Sandbox status: ${status}...`;
+      if (status === target) {
+        spinner.succeed(`Sandbox is ${target}.`);
+        return true;
+      }
     } catch {
       // ignore transient errors
     }
-    process.stdout.write(".");
   }
+  spinner.warn(`Timed out waiting for sandbox to be ${target}.`);
   return false;
 }
 
@@ -58,6 +68,7 @@ async function waitForSnapshotStatus(
   terminal: string[],
   maxWaitMs: number = 120_000,
 ): Promise<string> {
+  const spinner = ora({ text: `Waiting for snapshot...`, spinner: 'dots' }).start();
   const interval = 3_000;
   const start = Date.now();
   let status = "creating";
@@ -66,12 +77,134 @@ async function waitForSnapshotStatus(
     try {
       const poll = await S(api).snapshots({ id: snapshotId }).get();
       status = poll?.data?.data?.status ?? status;
+      spinner.text = `Snapshot status: ${status}...`;
     } catch {
       // ignore transient errors
     }
-    process.stdout.write(".");
+  }
+  if (terminal.includes(status)) {
+    spinner.succeed(`Snapshot is ${status}.`);
+  } else {
+    spinner.warn(`Timed out waiting for snapshot (status: ${status}).`);
   }
   return status;
+}
+
+/** Run a command inside the sandbox workspace container via kubectl exec */
+function kubectlExecInSandbox(
+  podName: string,
+  ns: string,
+  cmd: string[],
+  kubeContext?: string
+): string {
+  const args = [
+    "exec", podName, "-n", ns, "-c", "workspace",
+    ...(kubeContext ? ["--context", kubeContext] : []),
+    "--", ...cmd,
+  ];
+  try {
+    return execFileSync("kubectl", args, {
+      encoding: "utf-8",
+      timeout: 10_000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+interface LogSource {
+  name: string;
+  type: "container" | "docker" | "process" | "system";
+  description: string;
+}
+
+/** Discover all available log sources in a sandbox */
+function discoverLogSources(
+  podName: string,
+  ns: string,
+  kubeContext?: string
+): LogSource[] {
+  const sources: LogSource[] = [
+    { name: "workspace", type: "container", description: "Workspace container (k8s)" },
+    { name: "dind", type: "container", description: "Docker-in-Docker sidecar (k8s)" },
+    { name: "clone-repos", type: "container", description: "Repo clone init container (k8s)" },
+    { name: "build", type: "container", description: "Envbuilder build phase only" },
+  ];
+
+  // Discover Docker containers inside DinD
+  const dockerPs = kubectlExecInSandbox(
+    podName, ns,
+    ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}\t{{.Ports}}"],
+    kubeContext
+  );
+  if (dockerPs) {
+    for (const line of dockerPs.split("\n").filter(Boolean)) {
+      const [name, status, ports] = line.split("\t");
+      sources.push({
+        name,
+        type: "docker",
+        description: `Docker: ${status}${ports ? ` (${ports})` : ""}`,
+      });
+    }
+  }
+
+  // Discover running processes
+  const psOutput = kubectlExecInSandbox(
+    podName, ns,
+    ["ps", "axo", "pid,comm,args", "--no-headers"],
+    kubeContext
+  );
+  if (psOutput) {
+    const seen = new Set<string>();
+    for (const line of psOutput.split("\n").filter(Boolean)) {
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[0];
+      const comm = parts[1];
+      const cmdline = parts.slice(2).join(" ");
+      if (!comm || ["sleep", "sh", "bash", "ps", "tee", "cat", "grep", "tail"].includes(comm)) continue;
+      if (seen.has(comm)) continue;
+      seen.add(comm);
+      sources.push({
+        name: comm,
+        type: "process",
+        description: `PID ${pid}: ${cmdline.slice(0, 60)}`,
+      });
+    }
+  }
+
+  // Discover system log files
+  const logFiles = kubectlExecInSandbox(
+    podName, ns,
+    ["sh", "-c", "ls /var/log/syslog /var/log/messages /var/log/auth.log 2>/dev/null || true"],
+    kubeContext
+  );
+  if (logFiles) {
+    for (const f of logFiles.split("\n").filter(Boolean)) {
+      const basename = f.split("/").pop()!;
+      sources.push({
+        name: basename,
+        type: "system",
+        description: `System log: ${f}`,
+      });
+    }
+  }
+
+  // Check for journald
+  const hasJournald = kubectlExecInSandbox(
+    podName, ns,
+    ["sh", "-c", "command -v journalctl >/dev/null 2>&1 && echo yes || echo no"],
+    kubeContext
+  );
+  if (hasJournald === "yes") {
+    sources.push({
+      name: "journal",
+      type: "system",
+      description: "System journal (journalctl)",
+    });
+  }
+
+  return sources;
 }
 
 export function sandboxCommand(app: DxBase) {
@@ -175,7 +308,7 @@ export function sandboxCommand(app: DxBase) {
           const shouldWait = flags.wait !== false;
 
           if (shouldWait) {
-            process.stdout.write(styleMuted("Provisioning sandbox..."));
+            const spinner = ora({ text: "Provisioning sandbox...", spinner: "dots" }).start();
             const maxWait = 60_000;
             const interval = 2_000;
             const start = Date.now();
@@ -186,22 +319,24 @@ export function sandboxCommand(app: DxBase) {
               try {
                 const poll = await S(api)({ id: sandboxId }).get();
                 status = poll?.data?.data?.status ?? status;
+                spinner.text = `Sandbox status: ${status}...`;
               } catch {
                 // ignore transient errors
               }
-              process.stdout.write(".");
             }
-            console.log();
 
             if (status === "active") {
-              console.log(styleSuccess(`Sandbox "${args.name}" is active.`));
+              spinner.succeed(`Sandbox "${args.name}" is active.`);
               const poll = await S(api)({ id: sandboxId }).get();
               const sbxData = poll?.data?.data;
               if (sbxData?.webTerminalUrl) {
-                console.log(styleMuted(`  URL: ${sbxData.webTerminalUrl}`));
+                console.log(styleMuted(`  Terminal: ${sbxData.webTerminalUrl}`));
+              }
+              if (sbxData?.webIdeUrl) {
+                console.log(styleMuted(`  IDE:      ${sbxData.webIdeUrl}`));
               }
               if (sbxData?.sshHost && sbxData?.sshPort) {
-                console.log(styleMuted(`  SSH: ssh -p ${sbxData.sshPort} ${sbxData.sshHost}`));
+                console.log(styleMuted(`  SSH:      ssh -p ${sbxData.sshPort} ${sbxData.sshHost}`));
               }
               // Add /etc/hosts entry for local gateway routing
               const cfg = await readConfig();
@@ -211,7 +346,7 @@ export function sandboxCommand(app: DxBase) {
                 await addHostEntry(slug, "sandbox");
               }
             } else {
-              console.log(styleMuted(`Sandbox status: ${status} (may still be provisioning)`));
+              spinner.warn(`Sandbox status: ${status} (may still be provisioning)`);
             }
           } else {
             actionResult(flags, result, styleSuccess(`Sandbox "${args.name}" created (provisioning in background).`));
@@ -272,12 +407,13 @@ export function sandboxCommand(app: DxBase) {
             {},                    // Memory
             {},                    // Owner
             {},                    // Status
+            {},                    // Health
             {},                    // Created
           ];
           tableOrJson(
             flags,
             result,
-            ["ID", "Name", "Runtime", "CPU", "Memory", "Owner", "Status", "Created"],
+            ["ID", "Name", "Runtime", "CPU", "Memory", "Owner", "Status", "Health", "Created"],
             (r) => [
               styleMuted(String(r.sandboxId ?? "")),
               styleBold(String(r.name ?? "")),
@@ -286,6 +422,7 @@ export function sandboxCommand(app: DxBase) {
               String(r.memory ?? "-"),
               String(r.ownerId ?? ""),
               colorStatus(String(r.status ?? "")),
+              colorStatus(String(r.healthStatus ?? "unknown")),
               timeAgo(r.createdAt as string),
             ],
             colOpts,
@@ -316,13 +453,19 @@ export function sandboxCommand(app: DxBase) {
             ["Name", (r) => styleBold(String(r.name ?? ""))],
             ["Runtime", (r) => String(r.runtimeType ?? "")],
             ["Status", (r) => colorStatus(String(r.status ?? ""))],
+            ["Health", (r) => {
+              const h = String(r.healthStatus ?? "unknown");
+              const checkedAt = r.healthCheckedAt ? ` (checked ${timeAgo(r.healthCheckedAt as string)})` : "";
+              return colorStatus(h) + styleMuted(checkedAt);
+            }],
             ["CPU", (r) => String(r.cpu ?? "")],
             ["Memory", (r) => String(r.memory ?? "")],
             ["Storage", (r) => r.storageGb ? `${r.storageGb}GB` : ""],
             ["Template", (r) => String(r.templateSlug ?? "")],
             ["Owner", (r) => String(r.ownerId ?? "")],
             ["Owner Type", (r) => String(r.ownerType ?? "")],
-            ["URL", (r) => String(r.url ?? "")],
+            ["Terminal", (r) => String(r.webTerminalUrl ?? "")],
+            ["IDE", (r) => String(r.webIdeUrl ?? "")],
             ["Created", (r) => timeAgo(r.createdAt as string)],
           ]);
         })
@@ -736,6 +879,421 @@ export function sandboxCommand(app: DxBase) {
             String(r.role ?? ""),
             timeAgo(r.createdAt as string),
           ], undefined, { emptyMessage: "No access entries." });
+        })
+    )
+
+    // --- exec ---
+    .command("exec", (c) =>
+      c
+        .meta({ description: "Execute a command in a sandbox" })
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Sandbox ID or slug",
+          },
+        ])
+        .flags({
+          container: {
+            type: "string",
+            alias: "c",
+            description: 'Container name (default: "workspace")',
+          },
+          context: {
+            type: "string",
+            description: "kubectl context override",
+          },
+          command: {
+            type: "string",
+            description: 'Command to run (default: "/bin/bash")',
+          },
+        })
+        .run(async ({ args, flags, rawArgs }) => {
+          const api = await getApi();
+          const result = await apiCall(flags, () =>
+            S(api)({ id: args.id }).get()
+          );
+          const sbx = result?.data;
+          if (!sbx) {
+            console.error("Sandbox not found.");
+            process.exit(1);
+          }
+
+          const slug = sbx.slug as string;
+          const podName = (sbx.podName as string) || `sandbox-${slug}`;
+          const ns = `sandbox-${slug}`;
+          const container = (flags.container as string) || "workspace";
+
+          // Determine kubectl context: flag > env > auto-detect from cluster
+          const kubeContext = (flags.context as string)
+            || process.env.KUBE_CONTEXT
+            || undefined;
+
+          // Parse -- separated command args
+          const dashDashIdx = process.argv.indexOf("--");
+          let execCmd: string[];
+          if (dashDashIdx >= 0) {
+            execCmd = process.argv.slice(dashDashIdx + 1);
+          } else if (flags.command) {
+            execCmd = (flags.command as string).split(/\s+/);
+          } else {
+            execCmd = ["/bin/bash"];
+          }
+
+          const isTTY = process.stdin.isTTY && process.stdout.isTTY;
+          const kubectlArgs = [
+            "exec",
+            ...(isTTY ? ["-it"] : ["-i"]),
+            podName,
+            "-n", ns,
+            "-c", container,
+            ...(kubeContext ? ["--context", kubeContext] : []),
+            "--",
+            ...execCmd,
+          ];
+
+          try {
+            execFileSync("kubectl", kubectlArgs, {
+              stdio: "inherit",
+            });
+          } catch (err: any) {
+            // kubectl exec returns the exit code of the remote command
+            process.exit(err.status ?? 1);
+          }
+        })
+    )
+    .command("logs", (c) =>
+      c
+        .meta({ description: "Stream logs from sandbox containers, services, or processes" })
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Sandbox ID or slug",
+          },
+          {
+            name: "source",
+            type: "string",
+            required: false,
+            description: 'Log source: container name, docker service, process name, or "build"',
+          },
+        ])
+        .flags({
+          follow: {
+            type: "boolean",
+            alias: "f",
+            description: "Stream logs in real-time (default: true)",
+          },
+          tail: {
+            type: "number",
+            alias: "n",
+            description: "Lines from end (default: 100)",
+          },
+          list: {
+            type: "boolean",
+            description: "List all available log sources",
+          },
+          service: {
+            type: "string",
+            description: "Tail logs for a process by name inside the workspace",
+          },
+          file: {
+            type: "string",
+            description: "Tail a specific log file path inside the workspace",
+          },
+          context: {
+            type: "string",
+            description: "kubectl context override",
+          },
+          timestamps: {
+            type: "boolean",
+            description: "Show timestamps on each line",
+          },
+          previous: {
+            type: "boolean",
+            description: "Show logs from previous container instance",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const api = await getApi();
+          const result = await apiCall(flags, () =>
+            S(api)({ id: args.id }).get()
+          );
+          const sbx = result?.data;
+          if (!sbx) {
+            console.error("Sandbox not found.");
+            process.exit(1);
+          }
+
+          const slug = sbx.slug as string;
+          const podName = (sbx.podName as string) || `sandbox-${slug}`;
+          const ns = `sandbox-${slug}`;
+          const kubeContext =
+            (flags.context as string) || process.env.KUBE_CONTEXT || undefined;
+          const follow = flags.follow !== false;
+          const tail = (flags.tail as number) || 100;
+
+          // --list: discover and display all log sources
+          if (flags.list) {
+            const sources = discoverLogSources(podName, ns, kubeContext);
+            const grouped = {
+              container: sources.filter((s) => s.type === "container"),
+              docker: sources.filter((s) => s.type === "docker"),
+              process: sources.filter((s) => s.type === "process"),
+              system: sources.filter((s) => s.type === "system"),
+            };
+
+            if (grouped.container.length) {
+              console.log(styleBold("CONTAINERS (k8s):"));
+              for (const s of grouped.container) {
+                console.log(`  ${styleBold(s.name.padEnd(20))} ${styleMuted(s.description)}`);
+              }
+            }
+            if (grouped.docker.length) {
+              console.log(styleBold("\nDOCKER SERVICES (inside sandbox):"));
+              for (const s of grouped.docker) {
+                console.log(`  ${styleBold(s.name.padEnd(20))} ${styleMuted(s.description)}`);
+              }
+            }
+            if (grouped.process.length) {
+              console.log(styleBold("\nPROCESSES (workspace):"));
+              for (const s of grouped.process) {
+                console.log(`  ${styleBold(s.name.padEnd(20))} ${styleMuted(s.description)}`);
+              }
+            }
+            if (grouped.system.length) {
+              console.log(styleBold("\nSYSTEM LOGS:"));
+              for (const s of grouped.system) {
+                console.log(`  ${styleBold(s.name.padEnd(20))} ${styleMuted(s.description)}`);
+              }
+            }
+            return;
+          }
+
+          // --file: tail arbitrary file inside workspace
+          if (flags.file) {
+            const tailCmd = follow
+              ? ["tail", `-${tail}f`, flags.file as string]
+              : ["tail", `-${tail}`, flags.file as string];
+            try {
+              execFileSync("kubectl", [
+                "exec", podName, "-n", ns, "-c", "workspace",
+                ...(kubeContext ? ["--context", kubeContext] : []),
+                "--", ...tailCmd,
+              ], { stdio: "inherit" });
+            } catch (err: any) {
+              process.exit(err.status ?? 1);
+            }
+            return;
+          }
+
+          // --service: find process by name and tail its stdout
+          if (flags.service) {
+            const svcName = flags.service as string;
+            const pidOutput = kubectlExecInSandbox(
+              podName, ns,
+              ["sh", "-c", `pgrep -f '${svcName}' | head -1`],
+              kubeContext
+            );
+            if (!pidOutput) {
+              console.error(`No process found matching "${svcName}".`);
+              console.error("Use --list to see available log sources.");
+              process.exit(1);
+            }
+            const pid = pidOutput.trim();
+            const tailCmd = follow
+              ? ["tail", `-${tail}f`, `/proc/${pid}/fd/1`]
+              : ["tail", `-${tail}`, `/proc/${pid}/fd/1`];
+            try {
+              execFileSync("kubectl", [
+                "exec", podName, "-n", ns, "-c", "workspace",
+                ...(kubeContext ? ["--context", kubeContext] : []),
+                "--", ...tailCmd,
+              ], { stdio: "inherit" });
+            } catch (err: any) {
+              console.error(`Could not read stdout for PID ${pid}. Trying stderr...`);
+              try {
+                execFileSync("kubectl", [
+                  "exec", podName, "-n", ns, "-c", "workspace",
+                  ...(kubeContext ? ["--context", kubeContext] : []),
+                  "--", "tail", `-${tail}${follow ? "f" : ""}`, `/proc/${pid}/fd/2`,
+                ], { stdio: "inherit" });
+              } catch (err2: any) {
+                console.error(`Could not access logs for process "${svcName}" (PID ${pid}).`);
+                process.exit(1);
+              }
+            }
+            return;
+          }
+
+          // Resolve named source
+          const source = (args as any).source as string | undefined || "workspace";
+          const k8sContainers = ["workspace", "dind", "clone-repos"];
+
+          // Special: "build" source = workspace container with build filter
+          if (source === "build") {
+            const { execFile } = await import("node:child_process");
+            const kubectlArgs = [
+              "logs", podName, "-n", ns, "-c", "workspace",
+              "--follow", `--tail=${tail}`,
+              ...(flags.timestamps ? ["--timestamps"] : []),
+              ...(kubeContext ? ["--context", kubeContext] : []),
+            ];
+            const proc = execFile("kubectl", kubectlArgs, { maxBuffer: 50 * 1024 * 1024 });
+            proc.stdout?.on("data", (chunk: Buffer) => {
+              const lines = chunk.toString().split("\n");
+              for (const line of lines) {
+                if (line.includes("Running init command")) {
+                  process.stdout.write(line + "\n");
+                  proc.kill();
+                  return;
+                }
+                process.stdout.write(line + "\n");
+              }
+            });
+            proc.stderr?.pipe(process.stderr);
+            proc.on("exit", (code) => process.exit(code ?? 0));
+            return;
+          }
+
+          // k8s container logs
+          if (k8sContainers.includes(source)) {
+            const kubectlArgs = [
+              "logs", podName, "-n", ns, "-c", source,
+              ...(follow ? ["--follow"] : []),
+              `--tail=${tail}`,
+              ...(flags.timestamps ? ["--timestamps"] : []),
+              ...(flags.previous ? ["--previous"] : []),
+              ...(kubeContext ? ["--context", kubeContext] : []),
+            ];
+            try {
+              execFileSync("kubectl", kubectlArgs, { stdio: "inherit" });
+            } catch (err: any) {
+              process.exit(err.status ?? 1);
+            }
+            return;
+          }
+
+          // System log sources
+          const systemLogMap: Record<string, string[]> = {
+            syslog: ["cat", "/var/log/syslog"],
+            messages: ["cat", "/var/log/messages"],
+            "auth.log": ["cat", "/var/log/auth.log"],
+            journal: ["journalctl", "--no-pager", `-n${tail}`, ...(follow ? ["-f"] : [])],
+          };
+          if (systemLogMap[source]) {
+            try {
+              execFileSync("kubectl", [
+                "exec", podName, "-n", ns, "-c", "workspace",
+                ...(kubeContext ? ["--context", kubeContext] : []),
+                "--", ...systemLogMap[source],
+              ], { stdio: "inherit" });
+            } catch (err: any) {
+              process.exit(err.status ?? 1);
+            }
+            return;
+          }
+
+          // Try as Docker container name inside DinD
+          const dockerArgs = follow
+            ? ["docker", "logs", "--follow", "--tail", String(tail), source]
+            : ["docker", "logs", "--tail", String(tail), source];
+          try {
+            execFileSync("kubectl", [
+              "exec", podName, "-n", ns, "-c", "workspace",
+              ...(kubeContext ? ["--context", kubeContext] : []),
+              "--", ...dockerArgs,
+            ], { stdio: "inherit" });
+          } catch (err: any) {
+            console.error(`Log source "${source}" not found as a k8s container or Docker service.`);
+            console.error("Use --list to see available log sources.");
+            process.exit(1);
+          }
+        })
+    )
+    .command("open", (c) =>
+      c
+        .meta({ description: "Open sandbox in browser (IDE by default)" })
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Sandbox ID or slug",
+          },
+        ])
+        .flags({
+          terminal: {
+            type: "boolean",
+            alias: "t",
+            description: "Open web terminal instead of IDE",
+          },
+          port: {
+            type: "number",
+            alias: "p",
+            description: "Open a specific port (e.g. 3000 for dev server)",
+          },
+          url: {
+            type: "boolean",
+            description: "Print the URL instead of opening browser",
+          },
+        })
+        .run(async ({ args, flags }) => {
+          const api = await getApi();
+          const result = await apiCall(flags, () =>
+            S(api)({ id: args.id }).get()
+          );
+          const sbx = result?.data;
+          if (!sbx) {
+            console.error("Sandbox not found.");
+            process.exit(1);
+          }
+
+          const slug = sbx.slug as string;
+          const config = await readConfig();
+          const factoryUrl = resolveFactoryUrl(config);
+          const isLocal =
+            factoryUrl.includes("localhost") || factoryUrl.includes("127.0.0.1");
+
+          let url: string;
+          if (flags.port) {
+            if (isLocal) {
+              console.error(
+                `Port forwarding: kubectl port-forward -n sandbox-${slug} sandbox-${slug} ${flags.port}:${flags.port}`
+              );
+              console.error(`Then open: http://localhost:${flags.port}`);
+              process.exit(0);
+            }
+            url = `https://${slug}-${flags.port}.sandbox.dx.dev`;
+          } else if (flags.terminal) {
+            url = (sbx.webTerminalUrl as string) || `https://${slug}.sandbox.dx.dev`;
+            if (isLocal && sbx.sshPort) {
+              url = `http://localhost:${(sbx.sshPort as number) + 1}`;
+            }
+          } else {
+            // Default to IDE, fall back to terminal
+            url = (sbx.webIdeUrl as string) || (sbx.webTerminalUrl as string) || `https://${slug}--ide.sandbox.dx.dev`;
+          }
+
+          if (flags.url) {
+            console.log(url);
+          } else {
+            const { platform } = await import("node:os");
+            const openCmd =
+              platform() === "darwin"
+                ? "open"
+                : platform() === "win32"
+                  ? "start"
+                  : "xdg-open";
+            try {
+              execFileSync(openCmd, [url], { stdio: "ignore" });
+              console.error(`Opened ${url}`);
+            } catch {
+              console.log(url);
+            }
+          }
         })
     );
 }

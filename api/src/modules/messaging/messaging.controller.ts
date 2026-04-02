@@ -90,7 +90,7 @@ export function messagingController(db: Database) {
       params: MessagingModel.providerIdParams,
       detail: { tags: ["Messaging"], summary: "List channel mappings" },
     })
-    .delete("/providers/:id/channels/:mapId", async ({ params }) => {
+    .post("/providers/:id/channels/:mapId/delete", async ({ params }) => {
       await svc.unmapChannel(db, params.mapId);
       return { success: true };
     }, {
@@ -134,7 +134,7 @@ export function messagingController(db: Database) {
       body: MessagingModel.linkUserBody,
       detail: { tags: ["Messaging"], summary: "Link messaging user to principal" },
     })
-    .delete("/providers/:id/users/link/:linkId", async ({ params }) => {
+    .post("/providers/:id/users/link/:linkId/delete", async ({ params }) => {
       const provider = await svc.getMessagingProvider(db, params.id);
       if (!provider) return { success: false, error: "provider_not_found" };
       await svc.unlinkMessagingUser(db, provider.kind, params.linkId);

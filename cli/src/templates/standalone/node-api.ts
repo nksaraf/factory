@@ -1,5 +1,6 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
 import { componentLabels, resourceLabels, labelsToYaml } from "../compose-labels.js";
+import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name, owner, description } = vars;
@@ -22,6 +23,7 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
           "db:generate": "drizzle-kit generate",
           "db:migrate": "drizzle-kit migrate",
           "db:push": "drizzle-kit push",
+          ...nodeQualityPackageJson().scripts,
         },
         dependencies: {
           "@elysiajs/cors": "^1.4.1",
@@ -36,7 +38,10 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         devDependencies: {
           "drizzle-kit": "^0.31.9",
           typescript: "^5.9.3",
+          ...nodeQualityPackageJson().devDependencies,
         },
+        "simple-git-hooks": nodeQualityPackageJson()["simple-git-hooks"],
+        "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
       2,
@@ -292,6 +297,10 @@ export type Database = typeof db;
     content: `// Add your Drizzle schema definitions here and export them.
 `,
   });
+
+  // Quality tooling configs
+  files.push(nodePrettierConfig());
+  files.push(...nodeQualityFiles());
 
   return files;
 }

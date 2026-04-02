@@ -4,6 +4,14 @@ import { generate as generateWebApp } from "./standalone/web-app.js";
 import { generate as generatePostgresResource } from "./resource/postgres.js";
 import { generate as generateAuthResource } from "./resource/auth.js";
 import { generate as generateGatewayResource } from "./resource/gateway.js";
+import {
+  nodeOxlintConfig,
+  nodeQualityPackageJson,
+  vscodeExtensionsNode,
+  vscodeSettingsNode,
+  editorConfig,
+  dxConventionsYaml,
+} from "./quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name, owner, description } = vars;
@@ -22,10 +30,23 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         private: true,
         type: "module",
         packageManager: "pnpm@9.15.4",
+        scripts: {
+          lint: "oxlint .",
+          "lint:fix": "oxlint --fix .",
+          typecheck: "pnpm -r typecheck",
+          test: "pnpm -r test",
+          "format:check": "prettier --check .",
+          format: "prettier --write .",
+        },
         devDependencies: {
           typescript: "^5.9.3",
           prettier: "^3.5.3",
+          ...nodeQualityPackageJson().devDependencies,
         },
+        "simple-git-hooks": {
+          "pre-commit": "npx lint-staged",
+        },
+        "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
       2,
@@ -241,6 +262,14 @@ Thumbs.db
       content: file.content,
     });
   }
+
+  // ── Quality tooling + conventions ──────────────────────────────────
+
+  files.push(nodeOxlintConfig());
+  files.push(editorConfig());
+  files.push(vscodeExtensionsNode());
+  files.push(vscodeSettingsNode());
+  files.push(dxConventionsYaml(owner));
 
   // ── Placeholder directories ─────────────────────────────────────────
 

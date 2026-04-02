@@ -156,7 +156,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /regions/:id removes region", async () => {
+    it("POST /regions/:id/delete removes region", async () => {
       const create = await app.handle(
         post(`${BASE}/regions`, {
           name: "To Delete",
@@ -167,8 +167,8 @@ describe("Infra Controller", () => {
       const { data: created } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/regions/${created.regionId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/regions/${created.regionId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -256,7 +256,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /clusters/:id sets status to destroying", async () => {
+    it("POST /clusters/:id/delete sets status to destroying", async () => {
       const prov = await createProvider();
       const create = await app.handle(
         post(`${BASE}/clusters`, {
@@ -267,8 +267,8 @@ describe("Infra Controller", () => {
       const { data: created } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/clusters/${created.clusterId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/clusters/${created.clusterId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -391,7 +391,7 @@ describe("Infra Controller", () => {
 
       // Destroy
       const destroy = await app.handle(
-        new Request(`${BASE}/vms/${vm.vmId}`, { method: "DELETE" })
+        new Request(`${BASE}/vms/${vm.vmId}/delete`, { method: "POST" })
       );
       const { data: destroyed } = (await destroy.json()) as any;
       expect(destroyed.status).toBe("destroying");
@@ -549,7 +549,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /hosts/:id removes host", async () => {
+    it("POST /hosts/:id/delete removes host", async () => {
       const prov = await createProvider();
       const hostRes = await app.handle(
         post(`${BASE}/hosts`, {
@@ -563,7 +563,7 @@ describe("Infra Controller", () => {
       const host = ((await hostRes.json()) as any).data;
 
       const del = await app.handle(
-        new Request(`${BASE}/hosts/${host.hostId}`, { method: "DELETE" })
+        new Request(`${BASE}/hosts/${host.hostId}/delete`, { method: "POST" })
       );
       expect(del.status).toBe(200);
 
@@ -712,7 +712,7 @@ describe("Infra Controller", () => {
       expect(data.status).toBe("evacuating");
     });
 
-    it("DELETE /kube-nodes/:id removes node", async () => {
+    it("POST /kube-nodes/:id/delete removes node", async () => {
       const cls = await createCluster();
       const addRes = await app.handle(
         post(`${BASE}/kube-nodes`, {
@@ -725,8 +725,8 @@ describe("Infra Controller", () => {
       const { data: node } = (await addRes.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/kube-nodes/${node.kubeNodeId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/kube-nodes/${node.kubeNodeId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -786,14 +786,14 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /subnets/:id removes subnet", async () => {
+    it("POST /subnets/:id/delete removes subnet", async () => {
       const create = await app.handle(
         post(`${BASE}/subnets`, { cidr: "10.0.3.0/24" })
       );
       const { data: sub } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/subnets/${sub.subnetId}`, { method: "DELETE" })
+        new Request(`${BASE}/subnets/${sub.subnetId}/delete`, { method: "POST" })
       );
       expect(del.status).toBe(200);
 

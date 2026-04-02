@@ -1,18 +1,18 @@
-CREATE SCHEMA "factory_agent";
+CREATE SCHEMA IF NOT EXISTS "factory_agent";
 --> statement-breakpoint
-CREATE SCHEMA "factory_build";
+CREATE SCHEMA IF NOT EXISTS "factory_build";
 --> statement-breakpoint
-CREATE SCHEMA "factory_catalog";
+CREATE SCHEMA IF NOT EXISTS "factory_catalog";
 --> statement-breakpoint
-CREATE SCHEMA "factory_commerce";
+CREATE SCHEMA IF NOT EXISTS "factory_commerce";
 --> statement-breakpoint
-CREATE SCHEMA "factory_fleet";
+CREATE SCHEMA IF NOT EXISTS "factory_fleet";
 --> statement-breakpoint
-CREATE SCHEMA "factory_infra";
+CREATE SCHEMA IF NOT EXISTS "factory_infra";
 --> statement-breakpoint
-CREATE SCHEMA "factory_org";
+CREATE SCHEMA IF NOT EXISTS "factory_org";
 --> statement-breakpoint
-CREATE SCHEMA "factory_product";
+CREATE SCHEMA IF NOT EXISTS "factory_product";
 --> statement-breakpoint
 CREATE TABLE "factory_agent"."agent" (
 	"agent_id" text PRIMARY KEY NOT NULL,

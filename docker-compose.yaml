@@ -20,7 +20,7 @@ services:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     restart: unless-stopped
     ports:
-      - "${INFRA_FACTORY_PORT:-8181}:3000"
+      - "${INFRA_FACTORY_PORT:-4100}:4100"
       - "${INFRA_GATEWAY_PROXY_PORT:-9090}:9090"
     depends_on:
       infra-postgres:
@@ -33,7 +33,7 @@ services:
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/factory/openapi').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4100/api/v1/factory/openapi').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,8 +43,8 @@ services:
       catalog.owner: platform
       catalog.tags: "api,rest,elysia"
       catalog.lifecycle: production
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      catalog.port.4100.name: http
+      catalog.port.4100.protocol: http
       catalog.api.provides: "factory-api"
       catalog.api.type: openapi
       catalog.api.consumes: "auth-api"
@@ -145,7 +145,7 @@ services:
   infra-gateway:
     image: apache/apisix:3.11.0-debian
     ports:
-      - "${INFRA_GATEWAY_PORT:-8005}:8005"
+      - "${INFRA_GATEWAY_PORT:-9000}:9000"
     environment:
       CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY}
     volumes:
@@ -153,7 +153,7 @@ services:
       - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -163,8 +163,8 @@ services:
       catalog.owner: platform
       catalog.type: gateway
       catalog.tags: "gateway,apisix,routing"
-      catalog.port.8005.name: http
-      catalog.port.8005.protocol: http
+      catalog.port.9000.name: http
+      catalog.port.9000.protocol: http
 
   infra-reverse-proxy:
     image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}

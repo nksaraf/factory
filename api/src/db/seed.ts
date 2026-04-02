@@ -253,10 +253,10 @@ async function seedInfra() {
     }))
   );
 
-  // --- Proxmox Clusters ---
-  await db.insert(s.proxmoxCluster).values([
-    { proxmoxClusterId: id("pxc", "pve-use1", "pxc"), name: "pve-us-east", slug: "pve-us-east", providerId: id("prv", "proxmox", "prv"), apiHost: "10.10.1.10" },
-    { proxmoxClusterId: id("pxc", "pve-eufra", "pxc"), name: "pve-eu-fra", slug: "pve-eu-fra", providerId: id("prv", "proxmox", "prv"), apiHost: "10.30.1.10" },
+  // --- VM Clusters ---
+  await db.insert(s.vmCluster).values([
+    { vmClusterId: id("vmc", "pve-use1", "vmc"), name: "pve-us-east", slug: "pve-us-east", providerId: id("prv", "proxmox", "prv"), apiHost: "10.10.1.10" },
+    { vmClusterId: id("vmc", "pve-eufra", "vmc"), name: "pve-eu-fra", slug: "pve-eu-fra", providerId: id("prv", "proxmox", "prv"), apiHost: "10.30.1.10" },
   ]);
 
   // --- Clusters ---
@@ -302,8 +302,8 @@ async function seedInfra() {
       providerId: id("prv", v.prv, "prv"),
       datacenterId: id("dc", v.dc, "dc"),
       hostId: id("host", v.host, "host"),
-      proxmoxClusterId: v.pxc ? id("pxc", v.pxc, "pxc") : null,
-      proxmoxVmid: v.vmid ?? null,
+      vmClusterId: v.pxc ? id("vmc", v.pxc, "vmc") : null,
+      externalVmid: v.vmid ?? null,
       cpu: v.cpu,
       memoryMb: v.mem,
       diskGb: v.disk,
@@ -1438,7 +1438,7 @@ async function main() {
       factory_infra.subnet,
       factory_infra.kube_node,
       factory_infra.vm,
-      factory_infra.proxmox_cluster,
+      factory_infra.vm_cluster,
       factory_infra.cluster,
       factory_infra.host,
       factory_infra.datacenter,

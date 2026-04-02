@@ -25,6 +25,7 @@ import { devCommand } from "./commands/dev.js";
 import { downCommand } from "./commands/down.js";
 import { entitlementCommand } from "./commands/entitlement.js";
 import { envCommand } from "./commands/env.js";
+import { execCommand } from "./commands/exec.js";
 import { factoryCommand } from "./commands/factory.js";
 import { gitCommand } from "./commands/git.js";
 import { infraCommand } from "./commands/infra.js";
@@ -54,6 +55,7 @@ import { statusCommand } from "./commands/status.js";
 import { tenantCommand } from "./commands/tenant.js";
 import { testCommand } from "./commands/test.js";
 import { traceCommand } from "./commands/trace.js";
+import { tuiCommand } from "./commands/tui.js";
 import { tunnelCommand } from "./commands/tunnel.js";
 import { upCommand } from "./commands/up.js";
 import { whoamiCommand } from "./commands/whoami.js";
@@ -91,6 +93,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(downCommand(app))
     .command(entitlementCommand(app))
     .command(envCommand(app))
+    .command(execCommand(app))
     .command(factoryCommand(app))
     .command(gitCommand(app))
     .command(infraCommand(app))
@@ -120,6 +123,7 @@ export function registerCommands(app: DxBase): DxBase {
     .command(tenantCommand(app))
     .command(testCommand(app))
     .command(traceCommand(app))
+    .command(tuiCommand(app))
     .command(tunnelCommand(app))
     .command(upCommand(app))
     .command(whoamiCommand(app))

@@ -117,7 +117,7 @@ export function colorStatus(status: string): string {
     case "completed":
     case "success":
     case "idle":
-      return styleSuccess(status)
+      return styleSuccess("● " + status)
     case "stopped":
     case "disabled":
     case "destroying":
@@ -127,7 +127,7 @@ export function colorStatus(status: string): string {
     case "cancelled":
     case "timed_out":
     case "error":
-      return styleError(status)
+      return styleError("● " + status)
     case "provisioning":
     case "pending":
     case "draining":
@@ -138,9 +138,11 @@ export function colorStatus(status: string): string {
     case "connecting":
     case "queued":
     case "syncing":
-      return styleWarn(status)
+    case "deploying":
+    case "suspended":
+      return styleWarn("● " + status)
     default:
-      return status
+      return styleMuted("● " + status)
   }
 }
 

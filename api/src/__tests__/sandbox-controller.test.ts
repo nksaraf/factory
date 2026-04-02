@@ -17,7 +17,7 @@ function post(url: string, body: Record<string, unknown>) {
 }
 
 function del(url: string) {
-  return new Request(url, { method: "DELETE" });
+  return new Request(`${url}/delete`, { method: "POST" });
 }
 
 describe("Sandbox Controller", () => {
@@ -57,7 +57,7 @@ describe("Sandbox Controller", () => {
   describe("Sandbox CRUD", () => {
     it("POST /sandboxes creates sandbox and returns sandboxId", async () => {
       const res = await createSandbox();
-      expect(res.status).toBe(200);
+expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
       expect(data.sandboxId).toBeTruthy();
       expect(data.name).toBe("test-sandbox");
@@ -105,7 +105,7 @@ describe("Sandbox Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /sandboxes/:id sets status to destroying", async () => {
+    it("POST /sandboxes/:id/delete sets status to destroying", async () => {
       const createRes = await createSandbox();
       const { data: created } = (await createRes.json()) as any;
 
@@ -122,7 +122,7 @@ describe("Sandbox Controller", () => {
       expect(data.status).toBe("destroying");
     });
 
-    it("DELETE /sandboxes/:id returns 404 for nonexistent", async () => {
+    it("POST /sandboxes/:id/delete returns 404 for nonexistent", async () => {
       const res = await app.handle(
         del(`${BASE}/sbx_nonexistent`)
       );
@@ -349,7 +349,7 @@ describe("Sandbox Controller", () => {
       expect(data[0].name).toBe("Container");
     });
 
-    it("DELETE /templates/:id deletes template", async () => {
+    it("POST /templates/:id/delete deletes template", async () => {
       const createRes = await app.handle(
         post(`${BASE}/templates`, {
           name: "Delete Me",

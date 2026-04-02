@@ -39,7 +39,7 @@ export function previewController(db: Database) {
     })
 
     // --- Update status ---
-    .patch("/:slug/status", async ({ params, body, set }) => {
+    .post("/:slug/status/update", async ({ params, body, set }) => {
       const row = await previewSvc.getPreviewBySlug(db, params.slug)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       const updated = await previewSvc.updatePreviewStatus(db, row.previewId, {
@@ -64,8 +64,47 @@ export function previewController(db: Database) {
       detail: { tags: ["Preview"], summary: "Expire preview" },
     })
 
+    // --- Deliver image (CI integration point) ---
+    .post("/:slug/image", async ({ params, body, set }) => {
+      const row = await previewSvc.getPreviewBySlug(db, params.slug)
+      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
+      if (row.status !== "pending_image" && row.status !== "building") {
+        set.status = 409
+        return {
+          success: false,
+          error: "invalid_status",
+          message: `Preview is in '${row.status}' status, expected 'pending_image'`,
+        }
+      }
+      const updated = await previewSvc.updatePreviewStatus(db, row.previewId, {
+        imageRef: body.imageRef,
+        status: "deploying",
+      })
+      return { success: true, data: updated }
+    }, {
+      params: PreviewModel.slugParams,
+      body: PreviewModel.deliverImageBody,
+      detail: { tags: ["Preview"], summary: "Deliver built image for preview deployment" },
+    })
+
+    // --- Extend TTL ---
+    .post("/:slug/extend", async ({ params, body, set }) => {
+      const row = await previewSvc.getPreviewBySlug(db, params.slug)
+      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
+      if (row.status === "expired" || row.status === "failed") {
+        set.status = 409
+        return { success: false, error: "invalid_status", message: `Cannot extend ${row.status} preview` }
+      }
+      const updated = await previewSvc.extendPreview(db, row.previewId, body.days)
+      return { success: true, data: updated }
+    }, {
+      params: PreviewModel.slugParams,
+      body: PreviewModel.extendBody,
+      detail: { tags: ["Preview"], summary: "Extend preview TTL" },
+    })
+
     // --- Delete (expire + cleanup) ---
-    .delete("/:slug", async ({ params, set }) => {
+    .post("/:slug/delete", async ({ params, set }) => {
       const row = await previewSvc.getPreviewBySlug(db, params.slug)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       await previewSvc.expirePreview(db, row.previewId)

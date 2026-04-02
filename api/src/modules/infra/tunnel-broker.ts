@@ -4,8 +4,9 @@ import { StreamManager } from "./tunnel-streams";
 import {
   decodeFrame,
   encodeFrame,
-  buildPingFrame,
+  ENCODED_PING,
   FrameType,
+  buildGoawayFrame,
 } from "@smp/factory-shared/tunnel-protocol";
 
 /**
@@ -104,11 +105,14 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
 
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain();
+          const routeFamily = msg.routeFamily === "sandbox" ? "sandbox" as const : "tunnel" as const;
           const { tunnel, route } = await gw.registerTunnel(db, {
             subdomain,
             principalId: msg.principalId ?? "anonymous",
             localAddr: msg.localAddr ?? "localhost:3000",
             createdBy: msg.principalId ?? "anonymous",
+            routeFamily,
+            deploymentTargetId: msg.deploymentTargetId,
           });
 
           state.tunnelId = tunnel.tunnelId;
@@ -136,7 +140,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             if (state.tunnelId) {
               await gw.heartbeatTunnel(db, state.tunnelId).catch(() => {});
               try {
-                ws.send(encodeFrame(buildPingFrame()));
+                ws.send(ENCODED_PING);
               } catch {
                 // WS may be closing
               }
@@ -216,4 +220,19 @@ export function getTunnelStreamManager(
  */
 export function getActiveTunnelCount(): number {
   return activeTunnels.size;
+}
+
+/**
+ * Graceful drain: send GOAWAY to all connected tunnels.
+ * Tunnels should finish in-flight requests then reconnect to another broker.
+ */
+export function drainAllTunnels(): void {
+  const goaway = encodeFrame(buildGoawayFrame());
+  for (const [, ws] of activeTunnels) {
+    try {
+      ws.send(goaway);
+    } catch {
+      // WS may already be closing
+    }
+  }
 }

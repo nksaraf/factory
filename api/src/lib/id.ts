@@ -32,7 +32,7 @@ export type EntityPrefix =
   | "kn"
   | "sub"
   | "ipa"
-  | "pxc"
+  | "vmc"
   | "mfst"
   | "sns"
   | "bndl"
@@ -74,7 +74,8 @@ export type EntityPrefix =
   | "job"
   | "mem"
   | "sshk"
-  | "sec";
+  | "sec"
+  | "fp";
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`;

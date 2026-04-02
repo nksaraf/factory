@@ -16,6 +16,15 @@ export const PreviewModel = {
     createdBy: t.String(),
     authMode: t.Optional(t.String()),
     expiresAt: t.Optional(t.String()),
+    imageRef: t.Optional(t.String()),
+  }),
+
+  deliverImageBody: t.Object({
+    imageRef: t.String(),
+  }),
+
+  extendBody: t.Object({
+    days: t.Number({ minimum: 1, maximum: 90 }),
   }),
 
   listPreviewsQuery: t.Object({

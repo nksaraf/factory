@@ -2,7 +2,10 @@ import type {
   GitHostAdapter,
   GitHostCheckRun,
   GitHostCollaborator,
+  GitHostComment,
   GitHostCommitStatus,
+  GitHostDeployment,
+  GitHostDeploymentStatus,
   GitHostPullRequest,
   GitHostPullRequestCreate,
   GitHostRepoInfo,
@@ -125,4 +128,38 @@ export class NoopGitHostAdapter implements GitHostAdapter {
   ): Promise<Array<{ name: string; status: string; conclusion: string | null; url?: string }>> {
     return [];
   }
+
+  async postPRComment(
+    _repoFullName: string,
+    _prNumber: number,
+    _body: string,
+  ): Promise<{ commentId: string }> {
+    return { commentId: "noop-comment" };
+  }
+
+  async listPRComments(
+    _repoFullName: string,
+    _prNumber: number,
+  ): Promise<GitHostComment[]> {
+    return [];
+  }
+
+  async updatePRComment(
+    _repoFullName: string,
+    _commentId: number,
+    _body: string,
+  ): Promise<void> {}
+
+  async createDeployment(
+    _repoFullName: string,
+    _deployment: GitHostDeployment,
+  ): Promise<{ deploymentId: number }> {
+    return { deploymentId: 0 };
+  }
+
+  async createDeploymentStatus(
+    _repoFullName: string,
+    _deploymentId: number,
+    _status: GitHostDeploymentStatus,
+  ): Promise<void> {}
 }

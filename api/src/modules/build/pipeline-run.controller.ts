@@ -36,7 +36,7 @@ export function pipelineRunController(db: Database) {
     })
 
     // --- Update pipeline run ---
-    .patch("/:id", async ({ params, body, set }) => {
+    .post("/:id/update", async ({ params, body, set }) => {
       const updated = await pipelineRunSvc.updatePipelineRun(db, params.id, {
         ...body,
         startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
@@ -76,7 +76,7 @@ export function pipelineRunController(db: Database) {
     })
 
     // --- Update step run ---
-    .patch("/:id/steps/:stepId", async ({ params, body, set }) => {
+    .post("/:id/steps/:stepId/update", async ({ params, body, set }) => {
       const updated = await pipelineRunSvc.updateStepRun(db, params.stepId, {
         ...body,
         startedAt: body.startedAt ? new Date(body.startedAt) : undefined,

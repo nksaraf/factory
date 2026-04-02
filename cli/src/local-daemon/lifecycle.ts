@@ -62,10 +62,13 @@ export async function startLocalDaemon(): Promise<void> {
   const { spawn } = await import("node:child_process")
   const { openSync } = await import("node:fs")
   const logFd = openSync(LOG_FILE, "a")
-  const proc = spawn("bun", ["--bun", serverEntry], {
+  const proc = spawn("bun", ["--bun", serverEntry, "--full", "--seed-demo"], {
     stdio: ["ignore", logFd, logFd],
     detached: true,
-    env: { ...process.env },
+    env: {
+      ...process.env,
+      DX_GATEWAY_DOMAIN: process.env.DX_GATEWAY_DOMAIN ?? "localhost",
+    },
   })
   proc.unref()
 }

@@ -1,6 +1,7 @@
 import { and, eq, notInArray } from "drizzle-orm";
 import type { Database } from "../db/connection";
 import type { KubeClient } from "../lib/kube-client";
+import type { GitHostAdapter } from "../adapters/git-host-adapter";
 import { generateSandboxResources, generateVolumeSnapshots, generatePVCFromSnapshot } from "./sandbox-resource-generator";
 import { getRuntimeStrategy, registerRuntimeStrategy, type ReconcileContext } from "./runtime-strategy";
 import { KubernetesStrategy } from "./strategies/kubernetes";
@@ -8,11 +9,12 @@ import { ComposeStrategy } from "./strategies/compose";
 import { SystemdStrategy } from "./strategies/systemd";
 import { WindowsServiceStrategy, IisStrategy } from "./strategies/windows";
 import { NoopStrategy } from "./strategies/noop";
-import { workload, sandbox, deploymentTarget } from "../db/schema/fleet";
+import { workload, sandbox, deploymentTarget, preview } from "../db/schema/fleet";
 import { cluster } from "../db/schema/infra";
+import { PreviewReconciler } from "./preview-reconciler";
 import { componentSpec, productModule } from "../db/schema/product";
 import { moduleVersion } from "../db/schema/build";
-import { expireStale, getSnapshot, updateSnapshotStatus } from "../services/sandbox/sandbox.service";
+import { expireStale, getSnapshot, updateSnapshotStatus, updateSandboxHealth } from "../services/sandbox/sandbox.service";
 import { sandboxSnapshot } from "../db/schema/fleet";
 import { createRoute, lookupRouteByDomain } from "../modules/infra/gateway.service";
 import { logger } from "../logger";
@@ -31,10 +33,14 @@ function k8sName(id: string): string {
 }
 
 export class Reconciler {
+  private previewReconciler: PreviewReconciler;
+
   constructor(
     private db: Database,
     private kube: KubeClient,
+    gitHost?: GitHostAdapter,
   ) {
+    this.previewReconciler = new PreviewReconciler(db, kube, gitHost);
     registerRuntimeStrategy("kubernetes", () => new KubernetesStrategy(kube));
     registerRuntimeStrategy("compose", () => new ComposeStrategy());
     registerRuntimeStrategy("systemd", () => new SystemdStrategy());
@@ -93,6 +99,27 @@ export class Reconciler {
         logger.error(
           { sandboxId: sbx.sandboxId, error: err },
           "Failed to reconcile sandbox"
+        );
+      }
+    }
+
+    // --- Preview reconciliation ---
+    const activePreviews = await this.db
+      .select({ previewId: preview.previewId })
+      .from(preview)
+      .where(
+        notInArray(preview.status, ["active", "inactive", "expired", "failed"])
+      );
+
+    for (const prev of activePreviews) {
+      try {
+        await this.previewReconciler.reconcilePreview(prev.previewId);
+        reconciled++;
+      } catch (err) {
+        errors++;
+        logger.error(
+          { previewId: prev.previewId, error: err },
+          "Failed to reconcile preview"
         );
       }
     }
@@ -177,10 +204,20 @@ export class Reconciler {
       await this.kube.apply(kubeconfig, resource);
     }
 
-    // 9. Read back Service NodePort → update sandbox.sshHost, sshPort
+    // 9. Read pod IP for direct access
+    let ipAddress: string | null = null;
+    const podResource = await this.kube.get(kubeconfig, "Pod", ns, podName);
+    if (podResource) {
+      const podFull = podResource as unknown as Record<string, unknown>;
+      const podStatus = podFull.status as Record<string, unknown> | undefined;
+      ipAddress = (podStatus?.podIP as string) ?? null;
+    }
+
+    // 10. Read back Service NodePort → update sandbox.sshHost, sshPort
     const svcResource = await this.kube.get(kubeconfig, "Service", ns, serviceName);
     let sshPort: number | null = null;
     let sshHost: string | null = null;
+    const clusterEndpoint = cl.endpoint ?? "localhost";
     if (svcResource?.spec) {
       const ports = (svcResource.spec as Record<string, unknown>).ports as
         | Array<{ name: string; nodePort?: number }>
@@ -188,13 +225,13 @@ export class Reconciler {
       const sshPortSpec = ports?.find((p) => p.name === "ssh");
       if (sshPortSpec?.nodePort) {
         sshPort = sshPortSpec.nodePort;
-        // Use cluster endpoint as ssh host
-        sshHost = (cl as Record<string, unknown>).endpoint as string ?? null;
+        sshHost = clusterEndpoint;
       }
     }
 
-    // 10. Read web-terminal NodePort for gateway route
+    // 11. Read web-terminal and web-ide NodePorts for gateway routes
     let webPort: number | null = null;
+    let webIdePort: number | null = null;
     if (svcResource?.spec) {
       const ports = (svcResource.spec as Record<string, unknown>).ports as
         | Array<{ name: string; nodePort?: number }>
@@ -203,36 +240,70 @@ export class Reconciler {
       if (webPortSpec?.nodePort) {
         webPort = webPortSpec.nodePort;
       }
+      const idePortSpec = ports?.find((p) => p.name === "web-ide");
+      if (idePortSpec?.nodePort) {
+        webIdePort = idePortSpec.nodePort;
+      }
     }
 
-    // 11. Create gateway route if it doesn't already exist
-    const sandboxDomain = `${sbx.slug}.sandbox.dx.dev`;
+    // 12. Create bare domain route (landing page / primary service)
+    const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+    const sandboxDomain = `${sbx.slug}.sandbox.${gatewayDomain}`;
     const existingRoute = await lookupRouteByDomain(this.db, sandboxDomain);
     if (!existingRoute) {
-      const targetService = (cl as Record<string, unknown>).endpoint as string ?? "localhost";
-      const targetPort = webPort ?? 8080;
       await createRoute(this.db, {
         kind: "sandbox",
         domain: sandboxDomain,
-        targetService,
-        targetPort,
+        targetService: clusterEndpoint,
+        targetPort: webPort ?? 8080,
         deploymentTargetId: dt.deploymentTargetId,
         status: "active",
         createdBy: "reconciler",
       });
-      logger.info({ domain: sandboxDomain, targetPort }, "Created gateway route for sandbox");
+      logger.info({ domain: sandboxDomain }, "Created bare domain route for sandbox");
     }
 
-    const webTerminalUrl = `https://${sandboxDomain}`;
+    // 13. Create named endpoint routes from devcontainer config
+    const dxConfig = (sbx.devcontainerConfig as Record<string, unknown>)?.customizations as Record<string, unknown> | undefined;
+    const dxEndpoints = (dxConfig?.dx as Record<string, unknown>)?.endpoints as Record<string, { port: number }> | undefined;
+    // Always ensure terminal and IDE endpoints exist
+    const endpoints: Record<string, { port: number }> = {
+      terminal: { port: 8080 },
+      ide: { port: 8081 },
+      ...dxEndpoints,
+    };
 
-    // 12. Update sandbox.podName, setupProgress, sshHost, sshPort, webTerminalUrl
+    for (const [name, config] of Object.entries(endpoints)) {
+      const endpointDomain = `${sbx.slug}--${name}.sandbox.${gatewayDomain}`;
+      const existingEndpointRoute = await lookupRouteByDomain(this.db, endpointDomain);
+      if (!existingEndpointRoute) {
+        await createRoute(this.db, {
+          kind: "sandbox",
+          domain: endpointDomain,
+          targetService: clusterEndpoint,
+          targetPort: name === "terminal" ? (webPort ?? 8080) : name === "ide" ? (webIdePort ?? 8081) : config.port,
+          deploymentTargetId: dt.deploymentTargetId,
+          status: "active",
+          createdBy: "reconciler",
+        });
+        logger.info({ domain: endpointDomain, port: config.port }, "Created named endpoint route");
+      }
+    }
+
+    const protocol = gatewayDomain === "localhost" ? "http" : "https";
+    const webTerminalUrl = `${protocol}://${sandboxDomain}`;
+    const webIdeUrl = `${protocol}://${sbx.slug}--ide.sandbox.${gatewayDomain}`;
+
+    // 14. Update sandbox record
     await this.db
       .update(sandbox)
       .set({
         podName,
+        ipAddress,
         sshHost,
         sshPort,
         webTerminalUrl,
+        webIdeUrl,
         setupProgress: { applied: true, resourceCount: resources.length },
         updatedAt: new Date(),
       })
@@ -245,6 +316,67 @@ export class Reconciler {
         .set({ status: "active" })
         .where(eq(deploymentTarget.deploymentTargetId, dt.deploymentTargetId));
     }
+  }
+
+  /**
+   * On-demand health check for a single sandbox.
+   * Fetches pod status from k8s and maps to health_status.
+   */
+  async reconcileSandboxHealth(sandboxId: string): Promise<{
+    status: string;
+    checkedAt: Date;
+    containerStatus?: string;
+  }> {
+    const { sbx, kubeconfig, ns } = await this.loadSandboxContext(sandboxId);
+    const podName = `sandbox-${sbx.slug}`;
+    const checkedAt = new Date();
+
+    const pod = await this.kube.get(kubeconfig, "Pod", ns, podName);
+
+    let healthStatus: string;
+    let statusMessage: string | undefined;
+
+    if (!pod) {
+      healthStatus = "terminated";
+    } else {
+      const podStatus = (pod as any).status;
+      const phase = podStatus?.phase as string | undefined;
+      const containerStatuses = (podStatus?.containerStatuses ?? []) as Array<{
+        name: string;
+        ready: boolean;
+        state?: Record<string, unknown>;
+        lastState?: Record<string, unknown>;
+      }>;
+
+      const workspace = containerStatuses.find((c) => c.name === "workspace");
+      const allReady = containerStatuses.every((c) => c.ready);
+
+      if (phase === "Running" && allReady) {
+        healthStatus = "ready";
+      } else if (phase === "Running" && workspace && !workspace.ready) {
+        healthStatus = "building";
+      } else if (phase === "Failed" || phase === "Unknown") {
+        healthStatus = "unhealthy";
+        const waiting = workspace?.state?.waiting as
+          | { reason?: string; message?: string }
+          | undefined;
+        if (waiting) {
+          statusMessage = `${waiting.reason}: ${waiting.message ?? ""}`.trim();
+        }
+        const terminated = workspace?.state?.terminated as
+          | { reason?: string; message?: string }
+          | undefined;
+        if (terminated) {
+          statusMessage = `${terminated.reason}: ${terminated.message ?? ""}`.trim();
+        }
+      } else {
+        healthStatus = "building";
+      }
+    }
+
+    await updateSandboxHealth(this.db, sandboxId, healthStatus, statusMessage);
+
+    return { status: healthStatus, checkedAt, containerStatus: statusMessage };
   }
 
   // ---------------------------------------------------------------------------

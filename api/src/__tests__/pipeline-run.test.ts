@@ -17,8 +17,8 @@ function post(url: string, body: Record<string, unknown>) {
 }
 
 function patch(url: string, body: Record<string, unknown>) {
-  return new Request(url, {
-    method: "PATCH",
+  return new Request(`${url}/update`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -125,7 +125,7 @@ describe("Pipeline Run Controller", () => {
   // Status Updates
   // =========================================================================
   describe("Status Updates", () => {
-    it("PATCH /runs/:id updates pipeline run status", async () => {
+    it("POST /runs/:id/update updates pipeline run status", async () => {
       const createRes = await createRun();
       const { data: created } = (await createRes.json()) as any;
 
@@ -141,7 +141,7 @@ describe("Pipeline Run Controller", () => {
       expect(data.startedAt).toBeTruthy();
     });
 
-    it("PATCH /runs/:id returns 404 for nonexistent", async () => {
+    it("POST /runs/:id/update returns 404 for nonexistent", async () => {
       const res = await app.handle(
         patch(`${BASE}/nonexistent`, { status: "running" })
       );
@@ -208,7 +208,7 @@ describe("Pipeline Run Controller", () => {
       expect(data.status).toBe("pending");
     });
 
-    it("PATCH /runs/:id/steps/:stepId updates a step run", async () => {
+    it("POST /runs/:id/steps/:stepId/update updates a step run", async () => {
       const createRes = await createRun();
       const { data: created } = (await createRes.json()) as any;
 

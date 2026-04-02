@@ -8,6 +8,7 @@ import {
   getOrCreateThread,
   appendMessage,
 } from "./messaging.service";
+import { dispatchAgentJob } from "../agent/dispatch";
 
 export function messagingWebhookController(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
@@ -80,9 +81,20 @@ export function messagingWebhookController(db: Database) {
           principalId: principalId ?? undefined,
           timestamp: new Date().toISOString(),
         });
-      }
 
-      // Future: dispatch to agent for processing based on entityContext
+        // Dispatch to agent for processing
+        if (verification.text) {
+          await dispatchAgentJob(db, {
+            providerId: params.providerId,
+            channelId: verification.channelId!,
+            threadId: verification.threadId!,
+            messageThreadId: thread.messageThreadId,
+            text: verification.text,
+            principalId,
+            entityContext,
+          });
+        }
+      }
 
       return { success: true };
     },

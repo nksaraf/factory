@@ -1,6 +1,7 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
 import { toJavaPackage } from "../types.js";
 import { componentLabels, resourceLabels, labelsToYaml } from "../compose-labels.js";
+import { javaMavenPlugins, javaQualityFiles } from "../quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name, owner, description } = vars;
@@ -108,6 +109,7 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
           </excludes>
         </configuration>
       </plugin>
+${javaMavenPlugins()}
     </plugins>
   </build>
 </project>
@@ -292,6 +294,9 @@ Thumbs.db
 *.log
 `,
   });
+
+  // Quality tooling configs
+  files.push(...javaQualityFiles());
 
   return files;
 }

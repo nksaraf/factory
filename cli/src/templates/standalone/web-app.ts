@@ -1,4 +1,5 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
+import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name } = vars;
@@ -18,6 +19,7 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
           dev: "vinxi dev --host",
           build: "vinxi build",
           start: "node .output/server/index.mjs",
+          ...nodeQualityPackageJson().scripts,
         },
         dependencies: {
           react: "^19.0.0",
@@ -31,7 +33,10 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         devDependencies: {
           typescript: "^5.9.3",
           "@types/react": "^19.0.0",
+          ...nodeQualityPackageJson().devDependencies,
         },
+        "simple-git-hooks": nodeQualityPackageJson()["simple-git-hooks"],
+        "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
       2,
@@ -236,6 +241,10 @@ export default defineEventHandler(async (event) => {
 }
 `,
   });
+
+  // Quality tooling configs
+  files.push(nodePrettierConfig());
+  files.push(...nodeQualityFiles());
 
   return files;
 }

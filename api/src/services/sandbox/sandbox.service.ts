@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import {
@@ -179,7 +179,11 @@ export async function getSandbox(db: Database, sandboxId: string) {
       deploymentTarget,
       eq(sandbox.deploymentTargetId, deploymentTarget.deploymentTargetId)
     )
-    .where(eq(sandbox.sandboxId, sandboxId));
+    .where(
+      sandboxId.startsWith("sbx_")
+        ? eq(sandbox.sandboxId, sandboxId)
+        : or(eq(sandbox.sandboxId, sandboxId), eq(sandbox.slug, sandboxId))
+    );
 
   const row = rows[0];
   if (!row) return null;
@@ -447,6 +451,27 @@ export async function cloneSandbox(
     .returning();
 
   return updated!;
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+export async function updateSandboxHealth(
+  db: Database,
+  sandboxId: string,
+  healthStatus: string,
+  statusMessage?: string
+) {
+  await db
+    .update(sandbox)
+    .set({
+      healthStatus,
+      healthCheckedAt: new Date(),
+      ...(statusMessage !== undefined ? { statusMessage } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(sandbox.sandboxId, sandboxId));
 }
 
 // ---------------------------------------------------------------------------

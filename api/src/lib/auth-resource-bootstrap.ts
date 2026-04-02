@@ -1,6 +1,11 @@
 import type { FactoryAuthResourceClient } from "./auth-resource-client";
 import { logger } from "../logger";
 
+/**
+ * @deprecated IAM registry bootstrap is now owned by auth-service's
+ * `bootstrapIamRegistry()`. This file is no longer called from factory.api.ts.
+ */
+
 const FACTORY_RESOURCE_TYPES = [
   { name: "team", displayName: "Team", allowedPermissions: ["manage", "read"] },
   { name: "provider", displayName: "Provider", allowedPermissions: ["create", "read", "update", "delete"] },

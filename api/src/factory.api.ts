@@ -8,8 +8,7 @@ import { NoopSandboxAdapter } from "./adapters/sandbox-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
-import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
-import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
+import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
@@ -56,7 +55,7 @@ export class FactoryAPI {
   readonly settings: FactorySettings
   readonly sandboxAdapter = new NoopSandboxAdapter()
   readonly observabilityAdapter = new NoopObservabilityAdapter()
-  readonly authClient: FactoryAuthResourceClient | null
+  readonly authzClient: FactoryAuthzClient | null
   reconciler: Reconciler | null = null
   private redis?: { publisher: import("ioredis").Redis; subscriber: import("ioredis").Redis }
   private stopTtlCleanup?: () => void
@@ -72,7 +71,7 @@ export class FactoryAPI {
     const url = getDatabaseUrl(settings)
     const authUrl = getAuthServiceUrl(settings)
 
-    this.authClient = authUrl ? new FactoryAuthResourceClient(authUrl) : null
+    this.authzClient = authUrl ? new FactoryAuthzClient(authUrl) : null
 
     if (mode === "site") {
       // Site mode does not require a database
@@ -97,7 +96,7 @@ export class FactoryAPI {
       .use(infraController(db))
       .use(accessController(db))
       .use(gatewayController(db))
-      .use(sandboxController(db, () => this.reconciler))
+      .use(sandboxController(db, this.authzClient, () => this.reconciler))
       .use(previewController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
@@ -223,11 +222,8 @@ export class FactoryAPI {
       }
     }
 
-    if (this.authClient) {
-      bootstrapResourceTypes(this.authClient).catch((err) =>
-        logger.warn({ err }, "resource type bootstrap failed")
-      )
-    }
+    // IAM registry bootstrap (resource types, scope types, slot mappings) is
+    // owned by auth-service's bootstrapIamRegistry() — no client-side bootstrap needed.
   }
 
   async close() {

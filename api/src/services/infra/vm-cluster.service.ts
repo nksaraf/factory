@@ -1,30 +1,30 @@
 import { eq } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
-import { proxmoxCluster } from "../../db/schema/infra";
+import { vmCluster } from "../../db/schema/infra";
 
-export async function listProxmoxClusters(
+export async function listVmClusters(
   db: Database,
   filters?: { providerId?: string }
 ) {
-  let query = db.select().from(proxmoxCluster);
+  let query = db.select().from(vmCluster);
   if (filters?.providerId) {
     query = query.where(
-      eq(proxmoxCluster.providerId, filters.providerId)
+      eq(vmCluster.providerId, filters.providerId)
     ) as typeof query;
   }
   return query;
 }
 
-export async function getProxmoxCluster(db: Database, id: string) {
+export async function getVmCluster(db: Database, id: string) {
   const rows = await db
     .select()
-    .from(proxmoxCluster)
-    .where(eq(proxmoxCluster.proxmoxClusterId, id));
+    .from(vmCluster)
+    .where(eq(vmCluster.vmClusterId, id));
   return rows[0] ?? null;
 }
 
-export async function createProxmoxCluster(
+export async function createVmCluster(
   db: Database,
   data: {
     name: string;
@@ -44,20 +44,20 @@ export async function createProxmoxCluster(
     isTaken: async (s) => {
       const [r] = await db
         .select()
-        .from(proxmoxCluster)
-        .where(eq(proxmoxCluster.slug, s))
+        .from(vmCluster)
+        .where(eq(vmCluster.slug, s))
         .limit(1);
       return r != null;
     },
   });
   const rows = await db
-    .insert(proxmoxCluster)
+    .insert(vmCluster)
     .values({ ...rest, slug })
     .returning();
   return rows[0];
 }
 
-export async function updateProxmoxCluster(
+export async function updateVmCluster(
   db: Database,
   id: string,
   patch: {
@@ -70,17 +70,17 @@ export async function updateProxmoxCluster(
   }
 ) {
   const rows = await db
-    .update(proxmoxCluster)
+    .update(vmCluster)
     .set(patch)
-    .where(eq(proxmoxCluster.proxmoxClusterId, id))
+    .where(eq(vmCluster.vmClusterId, id))
     .returning();
   return rows[0] ?? null;
 }
 
-export async function deleteProxmoxCluster(db: Database, id: string) {
+export async function deleteVmCluster(db: Database, id: string) {
   const rows = await db
-    .delete(proxmoxCluster)
-    .where(eq(proxmoxCluster.proxmoxClusterId, id))
+    .delete(vmCluster)
+    .where(eq(vmCluster.vmClusterId, id))
     .returning();
   return rows[0] ?? null;
 }

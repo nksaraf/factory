@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-import type { FactoryAuthResourceClient } from "../lib/auth-resource-client";
+import type { FactoryAuthzClient } from "../lib/authz-client";
 import type { Database } from "../db/connection";
 import { IdentityService } from "../modules/identity/identity.service";
 import { logger } from "../logger";
@@ -79,27 +79,29 @@ export function principalPlugin(db: Database) {
  * Permission enforcement middleware.
  *
  * Checks if the authenticated user has a specific permission on a resource
- * by calling the auth-service's resource-permissions check endpoint.
+ * by calling the auth-service's universal authz check endpoint.
  *
- * Expects `resourceId` in path params and `principal` in context.
+ * Expects `resourceId` (or `id`) in path params and `principal` in context.
  */
 export function requirePermission(
-  authClient: FactoryAuthResourceClient | null,
-  permission: string,
+  authzClient: FactoryAuthzClient | null,
+  resourceType: string,
+  action: string,
 ) {
-  return new Elysia({ name: `require-${permission}` }).derive(
+  return new Elysia({ name: `require-${resourceType}-${action}` }).derive(
     async (context) => {
-      if (!authClient) return {};
+      if (!authzClient) return {};
 
       const params = context.params as Record<string, string | undefined>;
       const principal = (context as unknown as { principal: string }).principal;
-      const resourceId = params.resourceId;
-      if (!resourceId) return {};
+      const resourceId = params.resourceId ?? params.id;
+      if (!resourceId || !principal) return {};
 
-      const allowed = await authClient.checkPermission({
+      const allowed = await authzClient.checkPermission({
+        principal,
+        action,
+        resourceType,
         resourceId,
-        permission,
-        userId: principal,
       });
 
       if (!allowed) {

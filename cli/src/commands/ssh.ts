@@ -5,7 +5,9 @@ import { join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
 import { getFactoryClient } from "../client.js";
-import { resolveMachine } from "../handlers/docker-remote.js";
+import { EntityFinder } from "../lib/entity-finder.js";
+import type { ResolvedEntity } from "../lib/entity-finder.js";
+import { buildSshArgs, buildKubectlExecArgs, clearStaleHostKey } from "../lib/ssh-utils.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
   type ColumnOpt,
@@ -66,45 +68,58 @@ export function sshCommand(app: DxBase) {
     .run(async ({ args, flags }) => {
       const target = args.target;
       if (!target) {
-        console.error("Usage: dx ssh <name>");
-        console.log(styleMuted("\nResolves a machine by name and opens an SSH session."));
-        console.log(styleMuted("Searches Factory API, ~/.ssh/config, and ~/.config/dx/machines.json.\n"));
-        console.log("  dx ssh my-sandbox");
-        console.log("  dx ssh build-host-3");
-        console.log("  dx ssh dev-vm --user ubuntu");
+        // Try interactive picker
+        try {
+          const { search } = await import("@inquirer/prompts");
+          const finder = new EntityFinder();
+          const entities = await finder.list();
+
+          if (entities.length === 0) {
+            console.log(styleMuted("No SSH targets found."));
+            process.exit(1);
+          }
+
+          const chosen = await search({
+            message: "Select a machine to SSH into",
+            source: async (term) => {
+              const filtered = term
+                ? entities.filter((e) =>
+                    e.slug.includes(term) ||
+                    e.displayName.toLowerCase().includes(term.toLowerCase()) ||
+                    (e.sshHost && e.sshHost.includes(term))
+                  )
+                : entities;
+              return filtered.map((e) => ({
+                name: `${e.slug.padEnd(24)} ${styleMuted(e.type.padEnd(10))} ${styleMuted(e.status)}`,
+                value: e,
+              }));
+            },
+          });
+
+          return connectToEntity(chosen, flags);
+        } catch (err: any) {
+          // If inquirer not available or user cancelled
+          console.error("Usage: dx ssh <name>");
+          console.log(styleMuted("\nResolves a machine by name and opens an SSH session."));
+          console.log(styleMuted("Searches sandboxes, VMs, and hosts by slug.\n"));
+          console.log("  dx ssh my-sandbox");
+          console.log("  dx ssh build-host-3");
+          console.log("  dx ssh dev-vm --user ubuntu");
+          process.exit(1);
+        }
+      }
+
+      const finder = new EntityFinder();
+      const entity = await finder.resolve(target);
+
+      if (!entity) {
+        console.error(styleError(`No SSH target found for "${target}".`));
+        console.log(styleMuted("\nSearched sandboxes, VMs, and hosts. Try:"));
+        console.log(styleMuted("  dx ssh config sync   — see all available targets"));
         process.exit(1);
       }
 
-      const data = await resolveMachine(target);
-
-      const user = (flags.user as string) ?? data.user;
-      const port = (flags.port as number) ?? data.port;
-      const host = data.host;
-
-      console.log(
-        styleMuted(`Connecting to ${styleBold(data.name)} (${data.kind}) → ${user}@${host}:${port}`)
-      );
-
-      const sshArgs = ["-o", "StrictHostKeyChecking=accept-new"];
-
-      if (flags.identity) {
-        sshArgs.push("-i", flags.identity as string);
-      }
-
-      if (port !== 22) {
-        sshArgs.push("-p", String(port));
-      }
-
-      sshArgs.push(`${user}@${host}`);
-
-      try {
-        execFileSync("ssh", sshArgs, { stdio: "inherit" });
-      } catch (err: any) {
-        if (err.status != null) {
-          process.exit(err.status);
-        }
-        throw err;
-      }
+      return connectToEntity(entity, flags);
     })
 
     // --- dx ssh config sync ---
@@ -358,6 +373,61 @@ export function sshCommand(app: DxBase) {
             })
         )
     );
+}
+
+// ─── Connect Helper ──────────────────────────────────────────
+
+async function connectToEntity(entity: ResolvedEntity, flags: Record<string, unknown>) {
+  if (entity.transport === 'kubectl') {
+    console.log(
+      styleMuted(`Connecting to ${styleBold(entity.displayName)} (${entity.type}) via kubectl exec`)
+    );
+
+    const kubectlArgs = buildKubectlExecArgs({
+      podName: entity.podName!,
+      namespace: entity.namespace!,
+      container: entity.container,
+      kubeContext: flags.context as string,
+      interactive: true,
+    });
+    kubectlArgs.push("--", "/bin/bash");
+
+    try {
+      execFileSync("kubectl", kubectlArgs, { stdio: "inherit" });
+    } catch (err: any) {
+      if (err.status != null) process.exit(err.status);
+      throw err;
+    }
+    return;
+  }
+
+  // SSH transport
+  const host = entity.sshHost!;
+  const port = (flags.port as number) ?? entity.sshPort ?? 22;
+  const user = (flags.user as string) ?? entity.sshUser ?? 'root';
+
+  // Clear stale host keys for interactive sessions
+  clearStaleHostKey(host, port);
+
+  console.log(
+    styleMuted(`Connecting to ${styleBold(entity.displayName)} (${entity.type}) → ${user}@${host}:${port}`)
+  );
+
+  const sshArgs = buildSshArgs({
+    host,
+    port,
+    user,
+    identity: flags.identity as string,
+    tty: 'force',
+    hostKeyCheck: 'accept-new',
+  });
+
+  try {
+    execFileSync("ssh", sshArgs, { stdio: "inherit" });
+  } catch (err: any) {
+    if (err.status != null) process.exit(err.status);
+    throw err;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────

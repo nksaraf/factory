@@ -49,8 +49,8 @@ export function gitHostController(db: Database) {
         detail: { tags: ["Build"], summary: "Get git host provider" },
       },
     )
-    .put(
-      "/:id",
+    .post(
+      "/:id/update",
       async ({ params, body, set }) => {
         const row = await svc.updateProvider(params.id, body);
         if (!row) {
@@ -65,8 +65,8 @@ export function gitHostController(db: Database) {
         detail: { tags: ["Build"], summary: "Update git host provider" },
       },
     )
-    .delete(
-      "/:id",
+    .post(
+      "/:id/delete",
       async ({ params }) => {
         await svc.deleteProvider(params.id);
         return { success: true };

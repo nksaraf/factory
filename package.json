@@ -3,7 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "preinstall": "npx get-artifactregistry-token@3.4.2"
+    "preinstall": "npx get-artifactregistry-token@3.4.2",
+    "lint": "oxlint .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format:check": "prettier --check .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",
@@ -21,7 +26,17 @@
     "xml2js": "^0.6.2",
     "yaml": "^2.8.2",
     "prettier": "3.8.1",
-    "@trivago/prettier-plugin-sort-imports": "6.0.2"
+    "@trivago/prettier-plugin-sort-imports": "6.0.2",
+    "oxlint": "latest",
+    "simple-git-hooks": "latest",
+    "lint-staged": "latest"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["oxlint --fix", "prettier --write"],
+    "*.{json,md,css,yaml,yml}": ["prettier --write"]
   },
   "pnpm": {
     "overrides": {

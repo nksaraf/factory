@@ -2,7 +2,7 @@
 # APISIX Configuration — Standalone mode (no etcd)
 #
 apisix:
-  node_listen: 8005
+  node_listen: 9000
   enable_ipv6: false
   enable_admin: false
 

@@ -10,7 +10,7 @@ import * as hostSvc from "../../services/infra/host.service"
 import * as kubeNodeSvc from "../../services/infra/kube-node.service"
 import * as ipamSvc from "../../services/infra/ipam.service"
 import * as assetsSvc from "../../services/infra/assets.service"
-import * as pxcSvc from "../../services/infra/proxmox-cluster.service"
+import * as vmcSvc from "../../services/infra/vm-cluster.service"
 
 export function infraController(db: Database) {
   return new Elysia()
@@ -46,45 +46,45 @@ export function infraController(db: Database) {
       detail: { tags: ["Infra"], summary: "Sync provider inventory" },
     })
 
-    // --- Proxmox Clusters ---
-    .get("/proxmox-clusters", async ({ query }) => ({
+    // --- VM Clusters ---
+    .get("/vm-clusters", async ({ query }) => ({
       success: true,
-      data: await pxcSvc.listProxmoxClusters(db, query),
+      data: await vmcSvc.listVmClusters(db, query),
     }), {
-      query: InfraModel.listProxmoxClustersQuery,
-      detail: { tags: ["Infra"], summary: "List Proxmox clusters" },
+      query: InfraModel.listVmClustersQuery,
+      detail: { tags: ["Infra"], summary: "List VM clusters" },
     })
-    .get("/proxmox-clusters/:id", async ({ params, set }) => {
-      const row = await pxcSvc.getProxmoxCluster(db, params.id)
+    .get("/vm-clusters/:id", async ({ params, set }) => {
+      const row = await vmcSvc.getVmCluster(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
     }, {
       params: InfraModel.idParams,
-      detail: { tags: ["Infra"], summary: "Get Proxmox cluster" },
+      detail: { tags: ["Infra"], summary: "Get VM cluster" },
     })
-    .post("/proxmox-clusters", async ({ body }) => ({
+    .post("/vm-clusters", async ({ body }) => ({
       success: true,
-      data: await pxcSvc.createProxmoxCluster(db, body),
+      data: await vmcSvc.createVmCluster(db, body),
     }), {
-      body: InfraModel.createProxmoxClusterBody,
-      detail: { tags: ["Infra"], summary: "Register Proxmox cluster" },
+      body: InfraModel.createVmClusterBody,
+      detail: { tags: ["Infra"], summary: "Register VM cluster" },
     })
-    .patch("/proxmox-clusters/:id", async ({ params, body, set }) => {
-      const row = await pxcSvc.updateProxmoxCluster(db, params.id, body)
+    .post("/vm-clusters/:id/update", async ({ params, body, set }) => {
+      const row = await vmcSvc.updateVmCluster(db, params.id, body)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
     }, {
       params: InfraModel.idParams,
-      body: InfraModel.updateProxmoxClusterBody,
-      detail: { tags: ["Infra"], summary: "Update Proxmox cluster" },
+      body: InfraModel.updateVmClusterBody,
+      detail: { tags: ["Infra"], summary: "Update VM cluster" },
     })
-    .delete("/proxmox-clusters/:id", async ({ params, set }) => {
-      const row = await pxcSvc.deleteProxmoxCluster(db, params.id)
+    .post("/vm-clusters/:id/delete", async ({ params, set }) => {
+      const row = await vmcSvc.deleteVmCluster(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
     }, {
       params: InfraModel.idParams,
-      detail: { tags: ["Infra"], summary: "Delete Proxmox cluster" },
+      detail: { tags: ["Infra"], summary: "Delete VM cluster" },
     })
 
     // --- Regions ---
@@ -110,7 +110,7 @@ export function infraController(db: Database) {
       body: InfraModel.createRegionBody,
       detail: { tags: ["Infra"], summary: "Create region" },
     })
-    .delete("/regions/:id", async ({ params, set }) => {
+    .post("/regions/:id/delete", async ({ params, set }) => {
       const row = await regionSvc.deleteRegion(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -149,7 +149,7 @@ export function infraController(db: Database) {
       params: InfraModel.idParams,
       detail: { tags: ["Infra"], summary: "Upgrade cluster" },
     })
-    .delete("/clusters/:id", async ({ params, set }) => {
+    .post("/clusters/:id/delete", async ({ params, set }) => {
       const row = await clusterSvc.destroyCluster(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -218,14 +218,43 @@ export function infraController(db: Database) {
       body: InfraModel.migrateVmBody,
       detail: { tags: ["Infra"], summary: "Migrate VM" },
     })
-    .post("/vms/:id/snapshot", async ({ params }) => ({
+    .post("/vms/clone", async ({ body }) => ({
       success: true,
-      data: await vmSvc.snapshotVm(db, params.id),
+      data: await vmSvc.cloneVm(db, body),
+    }), {
+      body: InfraModel.cloneVmBody,
+      detail: { tags: ["Infra"], summary: "Clone VM" },
+    })
+    .get("/vms/:id/snapshots", async ({ params }) => ({
+      success: true,
+      data: await vmSvc.listSnapshots(db, params.id),
     }), {
       params: InfraModel.idParams,
-      detail: { tags: ["Infra"], summary: "Snapshot VM" },
+      detail: { tags: ["Infra"], summary: "List VM snapshots" },
     })
-    .delete("/vms/:id", async ({ params }) => ({
+    .post("/vms/:id/snapshots", async ({ params, body }) => ({
+      success: true,
+      data: await vmSvc.snapshotVm(db, params.id, body.name, body.description),
+    }), {
+      params: InfraModel.idParams,
+      body: InfraModel.createSnapshotBody,
+      detail: { tags: ["Infra"], summary: "Create VM snapshot" },
+    })
+    .post("/vms/:id/snapshots/:name/restore", async ({ params }) => {
+      await vmSvc.restoreSnapshot(db, params.id, params.name);
+      return { success: true }
+    }, {
+      params: InfraModel.snapshotNameParams,
+      detail: { tags: ["Infra"], summary: "Restore VM snapshot" },
+    })
+    .post("/vms/:id/snapshots/:name/delete", async ({ params }) => {
+      await vmSvc.deleteSnapshot(db, params.id, params.name);
+      return { success: true }
+    }, {
+      params: InfraModel.snapshotNameParams,
+      detail: { tags: ["Infra"], summary: "Delete VM snapshot" },
+    })
+    .post("/vms/:id/delete", async ({ params }) => ({
       success: true,
       data: await vmSvc.destroyVm(db, params.id),
     }), {
@@ -256,7 +285,7 @@ export function infraController(db: Database) {
       body: InfraModel.createHostBody,
       detail: { tags: ["Infra"], summary: "Add host" },
     })
-    .delete("/hosts/:id", async ({ params, set }) => {
+    .post("/hosts/:id/delete", async ({ params, set }) => {
       const row = await hostSvc.removeHost(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -288,7 +317,7 @@ export function infraController(db: Database) {
       body: InfraModel.createKubeNodeBody,
       detail: { tags: ["Infra"], summary: "Add kube node" },
     })
-    .delete("/kube-nodes/:id", async ({ params, set }) => {
+    .post("/kube-nodes/:id/delete", async ({ params, set }) => {
       const row = await kubeNodeSvc.removeNode(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }
@@ -341,7 +370,7 @@ export function infraController(db: Database) {
       body: InfraModel.createSubnetBody,
       detail: { tags: ["Infra"], summary: "Create subnet" },
     })
-    .delete("/subnets/:id", async ({ params, set }) => {
+    .post("/subnets/:id/delete", async ({ params, set }) => {
       const row = await ipamSvc.deleteSubnet(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }

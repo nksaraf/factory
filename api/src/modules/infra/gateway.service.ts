@@ -348,9 +348,10 @@ export async function createSandboxRoutes(
     createdBy: string;
   }
 ) {
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
   const baseDomain = input.siteId
-    ? `${input.sandboxSlug}.${input.siteId}.dx.dev`
-    : `${input.sandboxSlug}.sandbox.dx.dev`;
+    ? `${input.sandboxSlug}.${input.siteId}.${gatewayDomain}`
+    : `${input.sandboxSlug}.sandbox.${gatewayDomain}`;
 
   const routes: any[] = [];
 
@@ -370,8 +371,8 @@ export async function createSandboxRoutes(
   if (input.publishPorts) {
     for (const port of input.publishPorts) {
       const portDomain = input.siteId
-        ? `${input.sandboxSlug}-${port}.${input.siteId}.dx.dev`
-        : `${input.sandboxSlug}-${port}.sandbox.dx.dev`;
+        ? `${input.sandboxSlug}-${port}.${input.siteId}.${gatewayDomain}`
+        : `${input.sandboxSlug}-${port}.sandbox.${gatewayDomain}`;
 
       const portRoute = await createRoute(db, {
         deploymentTargetId: input.deploymentTargetId,
@@ -417,12 +418,21 @@ export async function registerTunnel(
     brokerNodeId?: string;
     expiresAt?: Date;
     createdBy: string;
+    /** When "sandbox", creates a *.sandbox.dx.dev route instead of *.tunnel.dx.dev */
+    routeFamily?: "sandbox" | "tunnel";
+    deploymentTargetId?: string;
   }
 ): Promise<{ tunnel: any; route: any }> {
+  const family = input.routeFamily ?? "tunnel";
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+  const domainSuffix = family === "sandbox" ? `.sandbox.${gatewayDomain}` : `.tunnel.${gatewayDomain}`;
+  const routeKind = family === "sandbox" ? "sandbox" : "tunnel";
+
   const tunnelRoute = await createRoute(db, {
-    kind: "tunnel",
-    domain: `${input.subdomain}.tunnel.dx.dev`,
+    kind: routeKind,
+    domain: `${input.subdomain}${domainSuffix}`,
     targetService: "tunnel-broker",
+    deploymentTargetId: input.deploymentTargetId,
     status: "active",
     createdBy: input.createdBy,
   });

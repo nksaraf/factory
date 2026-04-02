@@ -48,7 +48,7 @@ export function productController(db: Database) {
       body: ProductModel.createWorkItemBody,
       detail: { tags: ["Product"], summary: "Create work item" },
     })
-    .put("/work-item/:id", async ({ params, body }) => ({
+    .post("/work-item/:id/update", async ({ params, body }) => ({
       success: true,
       ...(await productSvc.updateWorkItem(db, params.id, body)),
     }), {
@@ -104,7 +104,7 @@ export function productController(db: Database) {
       body: ProductModel.createWorkTrackerProviderBody,
       detail: { tags: ["Product"], summary: "Create work tracker provider" },
     })
-    .patch("/work-tracker/provider/:id", async ({ params, body }) => ({
+    .post("/work-tracker/provider/:id/update", async ({ params, body }) => ({
       success: true,
       data: await wtSvc.updateWorkTrackerProvider(db, params.id, body),
     }), {
@@ -112,7 +112,7 @@ export function productController(db: Database) {
       body: ProductModel.updateWorkTrackerProviderBody,
       detail: { tags: ["Product"], summary: "Update work tracker provider" },
     })
-    .delete("/work-tracker/provider/:id", async ({ params }) => ({
+    .post("/work-tracker/provider/:id/delete", async ({ params }) => ({
       success: true,
       data: await wtSvc.deleteWorkTrackerProvider(db, params.id),
     }), {
@@ -156,7 +156,7 @@ export function productController(db: Database) {
       body: ProductModel.createProjectMappingBody,
       detail: { tags: ["Product"], summary: "Create project mapping" },
     })
-    .delete("/work-tracker/project-mapping/:id", async ({ params }) => ({
+    .post("/work-tracker/project-mapping/:id/delete", async ({ params }) => ({
       success: true,
       data: await wtSvc.deleteProjectMapping(db, params.id),
     }), {

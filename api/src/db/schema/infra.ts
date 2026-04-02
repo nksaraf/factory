@@ -40,6 +40,7 @@ export const cluster = factoryInfra.table(
       .references(() => provider.providerId, { onDelete: "restrict" }),
     status: text("status").notNull().default("provisioning"),
     kubeconfigRef: text("kubeconfig_ref"),
+    endpoint: text("endpoint"), // where NodePorts are reachable (e.g. cluster IP/hostname)
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -144,12 +145,12 @@ export const host = factoryInfra.table(
   ]
 );
 
-export const proxmoxCluster = factoryInfra.table(
-  "proxmox_cluster",
+export const vmCluster = factoryInfra.table(
+  "vm_cluster",
   {
-    proxmoxClusterId: text("proxmox_cluster_id")
+    vmClusterId: text("vm_cluster_id")
       .primaryKey()
-      .$defaultFn(() => newId("pxc")),
+      .$defaultFn(() => newId("vmc")),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     providerId: text("provider_id")
@@ -168,8 +169,8 @@ export const proxmoxCluster = factoryInfra.table(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("proxmox_cluster_name_unique").on(t.name),
-    uniqueIndex("proxmox_cluster_slug_unique").on(t.slug),
+    uniqueIndex("vm_cluster_name_unique").on(t.name),
+    uniqueIndex("vm_cluster_slug_unique").on(t.slug),
     check(
       "sync_status_valid",
       sql`${t.syncStatus} IN ('idle', 'syncing', 'error')`
@@ -194,9 +195,9 @@ export const vm = factoryInfra.table(
       .references(() => host.hostId, { onDelete: "set null" }),
     clusterId: text("cluster_id")
       .references(() => cluster.clusterId, { onDelete: "set null" }),
-    proxmoxClusterId: text("proxmox_cluster_id")
-      .references(() => proxmoxCluster.proxmoxClusterId, { onDelete: "set null" }),
-    proxmoxVmid: integer("proxmox_vmid"),
+    vmClusterId: text("vm_cluster_id")
+      .references(() => vmCluster.vmClusterId, { onDelete: "set null" }),
+    externalVmid: integer("external_vmid"),
     vmType: text("vm_type").notNull().default("qemu"),
     status: text("status").notNull().default("provisioning"),
     osType: text("os_type").notNull().default("linux"),

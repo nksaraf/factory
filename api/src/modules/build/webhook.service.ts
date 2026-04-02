@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { webhookEvent } from "../../db/schema/build";
+import { fleetSite } from "../../db/schema/fleet";
 import type { GitHostAdapter } from "../../adapters/git-host-adapter";
 import type { GitHostService } from "./git-host.service";
 import * as previewSvc from "../../services/preview/preview.service";
@@ -99,10 +100,37 @@ export class WebhookService {
   }
 
   /**
+   * Find a site with preview deployments enabled.
+   * Returns the site and its preview config, or null if not found or not enabled.
+   */
+  private async findPreviewSite(repoFullName: string): Promise<{
+    siteId: string;
+    clusterId: string;
+    previewConfig: { enabled: boolean; defaultAuthMode?: string; ttlDays?: number; maxConcurrent?: number };
+  } | null> {
+    // Look for sites with previews enabled — match by product name containing the repo name
+    // or find any site with previews enabled (for MVP, any enabled site can host previews)
+    const sites = await this.db
+      .select()
+      .from(fleetSite)
+      .where(sql`(${fleetSite.previewConfig}->>'enabled')::boolean = true`);
+
+    if (sites.length === 0) return null;
+
+    // Return the first enabled site (in future: match by repo → module → site linkage)
+    const site = sites[0];
+    return {
+      siteId: site.siteId,
+      clusterId: site.clusterId,
+      previewConfig: site.previewConfig as any,
+    };
+  }
+
+  /**
    * Handle pull_request webhook events for preview deployments.
    *
-   * - opened/reopened → create preview
-   * - synchronize → update preview commit SHA
+   * - opened/reopened → create preview (if site has previews enabled)
+   * - synchronize → update preview commit SHA, reset to pending_image
    * - closed → expire preview
    */
   private async handlePullRequestEvent(
@@ -122,8 +150,27 @@ export class WebhookService {
     switch (action) {
       case "opened":
       case "reopened": {
+        // Always create pipeline run for CI tracking
+        await pipelineRunSvc.createPipelineRun(this.db, {
+          triggerEvent: "pull_request",
+          triggerRef: `refs/pull/${prNumber}/head`,
+          commitSha: headSha,
+          triggerActor: senderLogin,
+        });
+
+        // Gate preview creation on site previewConfig
+        const site = await this.findPreviewSite(repoFullName);
+        if (!site) {
+          logger.info(
+            { repo: repoFullName, pr: prNumber },
+            "No site with previews enabled, skipping preview creation",
+          );
+          break;
+        }
+
+        const ttlDays = site.previewConfig.ttlDays ?? 7;
         logger.info(
-          { repo: repoFullName, pr: prNumber, branch: headBranch },
+          { repo: repoFullName, pr: prNumber, branch: headBranch, siteId: site.siteId },
           "Creating preview for PR",
         );
         await previewSvc.createPreview(this.db, {
@@ -133,23 +180,18 @@ export class WebhookService {
           repo: repoFullName,
           prNumber,
           siteName: "default",
+          siteId: site.siteId,
+          clusterId: site.clusterId,
           ownerId: senderLogin,
           createdBy: senderLogin,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 day TTL
-        });
-
-        // Also create a pipeline run for CI tracking
-        await pipelineRunSvc.createPipelineRun(this.db, {
-          triggerEvent: "pull_request",
-          triggerRef: `refs/pull/${prNumber}/head`,
-          commitSha: headSha,
-          triggerActor: senderLogin,
+          authMode: site.previewConfig.defaultAuthMode ?? "team",
+          expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
         });
         break;
       }
 
       case "synchronize": {
-        // PR was pushed to — update commit SHA and trigger rebuild
+        // PR was pushed to — update commit SHA and reset to pending_image
         const previews = await previewSvc.listPreviews(this.db, {
           repo: repoFullName,
           sourceBranch: headBranch,
@@ -160,11 +202,12 @@ export class WebhookService {
         for (const p of activePreviews) {
           logger.info(
             { previewId: p.previewId, newSha: headSha },
-            "Updating preview commit SHA",
+            "Resetting preview for new commit",
           );
           await previewSvc.updatePreviewStatus(this.db, p.previewId, {
             commitSha: headSha,
-            status: "building",
+            status: "pending_image",
+            imageRef: null,
           });
         }
         break;
