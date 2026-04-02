@@ -80,7 +80,7 @@ jobs:
 
           echo "Preview slug: ${SLUG}"
           curl -sf -X POST \
-            "${FACTORY_API_URL}/api/v1/ci/previews/${SLUG}/image" \
+            "${FACTORY_API_URL}/api/v1/factory/build/ci/previews/${SLUG}/image" \
             -H "Content-Type: application/json" \
             -d "{\"imageRef\": \"${IMAGE_REF}\"}"
 
