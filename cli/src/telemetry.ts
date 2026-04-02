@@ -1,4 +1,4 @@
-import { trace, context, propagation, SpanStatusCode } from "@opentelemetry/api"
+import { trace } from "@opentelemetry/api"
 
 const enabled = process.env.TELEMETRY_ENABLED === "true"
 
@@ -12,8 +12,6 @@ if (enabled) {
     "@opentelemetry/exporter-trace-otlp-http"
   )
   const { resourceFromAttributes } = await import("@opentelemetry/resources")
-  const { W3CTraceContextPropagator } = await import("@opentelemetry/core")
-
   const endpoint =
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318"
 
@@ -29,8 +27,7 @@ if (enabled) {
     ],
   })
 
-  propagation.setGlobalTextMapPropagator(new W3CTraceContextPropagator())
-  provider.register()
+  trace.setGlobalTracerProvider(provider)
 
   _shutdownFn = async () => {
     await provider.forceFlush()
@@ -43,9 +40,13 @@ export const tracer = trace.getTracer("dx-cli")
 /** Inject W3C trace context headers for outgoing requests. */
 export function getTraceHeaders(): Record<string, string> {
   if (!enabled) return {}
-  const headers: Record<string, string> = {}
-  propagation.inject(context.active(), headers)
-  return headers
+  const span = trace.getActiveSpan()
+  if (!span) return {}
+  const ctx = span.spanContext()
+  const traceFlags = ctx.traceFlags.toString(16).padStart(2, "0")
+  return {
+    traceparent: `00-${ctx.traceId}-${ctx.spanId}-${traceFlags}`,
+  }
 }
 
 /** Flush pending spans — call before process.exit. */

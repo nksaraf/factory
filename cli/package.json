@@ -33,11 +33,9 @@
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/core": "^2.0.0",
     "@opentelemetry/sdk-trace-base": "^2.0.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
     "@opentelemetry/resources": "^2.0.0",
-    "@opentelemetry/semantic-conventions": "^1.37.0",
     "@crustjs/core": "^0.0.15",
     "@crustjs/plugins": "^0.0.20",
     "@crustjs/store": "^0.0.1",
