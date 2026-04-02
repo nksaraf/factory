@@ -16,12 +16,18 @@ function buildTree(
   sandboxes: any[]
 ): TreeNode[] {
   return providers.map((p) => {
-    const providerClusters = clusters.filter(
-      (c: any) =>
+    const seenClusters = new Set<string>()
+    const providerClusters = clusters.filter((c: any) => {
+      const matches =
         c.providerId === p.providerId ||
         c.providerId === p.id ||
         c.providerSlug === p.slug
-    )
+      if (!matches) return false
+      const cid = c.clusterId ?? c.id ?? c.name
+      if (seenClusters.has(cid)) return false
+      seenClusters.add(cid)
+      return true
+    })
 
     return {
       id: p.providerId ?? p.id ?? p.name,
@@ -30,12 +36,19 @@ function buildTree(
       type: "provider" as const,
       status: p.status,
       children: providerClusters.map((c: any) => {
-        const clusterSandboxes = sandboxes.filter(
-          (s: any) =>
+        const cid = c.clusterId ?? c.id
+        const seen = new Set<string>()
+        const clusterSandboxes = sandboxes.filter((s: any) => {
+          const matches =
             s.clusterId === c.clusterId ||
             s.clusterId === c.id ||
             s.clusterSlug === c.slug
-        )
+          if (!matches) return false
+          const sid = s.sandboxId ?? s.id ?? s.name
+          if (seen.has(sid)) return false
+          seen.add(sid)
+          return true
+        })
 
         return {
           id: c.clusterId ?? c.id ?? c.name,

@@ -11,6 +11,8 @@ export interface TreeNode {
   children?: TreeNode[]
   providerId?: string
   clusterId?: string
+  /** Unique key for this node in the tree — set by the parent to disambiguate duplicates */
+  treeKey?: string
 }
 
 interface ResourceTreeProps {
@@ -47,20 +49,24 @@ interface FlatItem {
   depth: number
   expanded: boolean
   hasChildren: boolean
+  /** Unique path-based key for React rendering */
+  treeKey: string
 }
 
 function flattenTree(
   nodes: TreeNode[],
   expandedSet: Set<string>,
-  depth = 0
+  depth = 0,
+  parentPath = ""
 ): FlatItem[] {
   const result: FlatItem[] = []
   for (const node of nodes) {
     const hasChildren = (node.children?.length ?? 0) > 0
     const expanded = expandedSet.has(node.id)
-    result.push({ node, depth, expanded, hasChildren })
+    const treeKey = parentPath ? `${parentPath}/${node.type}-${node.id}` : `${node.type}-${node.id}`
+    result.push({ node, depth, expanded, hasChildren, treeKey })
     if (expanded && node.children) {
-      result.push(...flattenTree(node.children, expandedSet, depth + 1))
+      result.push(...flattenTree(node.children, expandedSet, depth + 1, treeKey))
     }
   }
   return result
@@ -172,7 +178,7 @@ export function ResourceTree({ nodes, focused }: ResourceTreeProps) {
           : "  "
 
         return (
-          <Box key={`${item.node.type}-${item.node.id}`} paddingX={1}>
+          <Box key={item.treeKey} paddingX={1}>
             <Text
               backgroundColor={isCursor ? "blue" : undefined}
               color={isCursor ? "white" : undefined}

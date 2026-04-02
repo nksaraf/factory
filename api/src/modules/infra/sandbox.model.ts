@@ -28,6 +28,7 @@ export const SandboxModel = {
     clusterId: t.Optional(t.String()),
   }),
   listSandboxesQuery: t.Object({
+    slug: t.Optional(t.String()),
     ownerId: t.Optional(t.String()),
     ownerType: t.Optional(t.String()),
     runtimeType: t.Optional(t.String()),

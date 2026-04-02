@@ -179,6 +179,7 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 ### Deferred
 - [ ] `dx ssh` remote command quoting: ensure `cloud ssh <target> -- <cmd>` and `dx ssh <target> -- <cmd>` properly escape/quote commands with special chars (spaces, quotes, parens, pipes) — current `cloud ssh` mangles multi-word args and SQL commands
 - [ ] `dx ssh` arbitrary command execution: support `dx ssh <target> -- docker exec ... psql -c "SELECT 1"` with proper stdin piping (match how `ssh user@host 'cmd'` works natively)
+- [ ] Host `defaultSshConfig` JSONB column — per-host SSH defaults (user, port, jump host/user/port, identity file) in DB, flowing through access service → entity-finder → CLI. Includes: schema + migration, API update endpoint (`POST /hosts/:id/update`), `dx infra host add/update` CLI flags (`--ssh-user`, `--ssh-port`, `--jump-host`, etc.), VM inheritance from parent host's config. Plan: `.claude/plans/serene-spinning-fern.md`
 - [ ] Tunnel-based DOCKER_HOST (`tcp://localhost:PORT` via SSH port forward) for environments where direct SSH to Docker socket is blocked
 - [ ] Machine provisioning flow: `dx docker compose up --on new-vm` spins up a VM then deploys (persona B)
 - [ ] `dx machine` as a unified DB-level view over Host+VM+Sandbox tables (decided against for v1, revisit if needed)
@@ -200,6 +201,62 @@ Built-in playbook runner for installing tools and configuring machines on demand
 - [ ] `dx run` with inventory: `--on tag:webservers` to target multiple machines by tag/label
 - [ ] Playbook output capture and status reporting (success/failure per machine)
 - [ ] Community playbook registry: `dx run @community/ghost-cms --on prod-1` (pull playbook from registry)
+
+---
+
+## Database Lifecycle Management
+
+Full design spec: `docs/superpowers/specs/2026-04-02-database-lifecycle-management-design.md`
+
+Goal: Remove friction from creating dev/preview environments by making database backup, restore, seeding (with anonymized production data), and provisioning a first-class concern in Factory.
+
+### Phase 1: Schema + Adapter + Reconciler
+- [ ] Add `database`, `database_operation`, `anonymization_profile` tables to `factory_fleet` schema
+- [ ] Drop unused `dependency_workload` table
+- [ ] Create `DatabaseAdapter` interface + `PostgresAdapter` (pgBackRest + pg_dump)
+- [ ] Create `DatabaseReconciler` class (provision sidecar DBs, run backup/restore/seed Jobs, monitor operations)
+- [ ] Wire `DatabaseReconciler` into main `Reconciler.reconcileAll()` loop
+- [ ] Database resource generator (K8s StatefulSet, Service, PVC, Job manifests)
+
+### Phase 2: API Endpoints
+- [ ] Database CRUD endpoints (`GET/POST/DELETE /databases`)
+- [ ] Backup/restore/seed operation endpoints
+- [ ] Anonymization profile CRUD
+- [ ] Backup policy management endpoints
+- [ ] Operations tracking endpoint
+
+### Phase 3: CLI Commands
+- [ ] `dx db list` — list databases across all deployment targets
+- [ ] `dx db register` — register existing external database
+- [ ] `dx db create` — create new sidecar database
+- [ ] `dx db backup/restore/seed` — trigger operations
+- [ ] `dx db operations --watch` — track operation progress
+- [ ] `dx db anonymize-profile create/list` — manage anonymization rules
+- [ ] `dx db backup-policy set/remove` — manage backup schedules
+
+### Phase 4: Sandbox/Preview Integration
+- [ ] Auto-provision databases on sandbox creation (from dx.yaml config)
+- [ ] Auto-seed sandbox databases from production backups (anonymized)
+- [ ] Auto-provision databases on preview deployment
+- [ ] Inject `DATABASE_URL` env vars into preview/sandbox containers
+- [ ] Database config in `dx init` project templates
+
+---
+
+## Observability / OpenTelemetry
+
+### Completed (2026-04-02)
+- [x] OTel Collector service in docker compose (`--profile otel`, debug exporter + zpages)
+- [x] API backend instrumentation (`NodeSDK` + `auto-instrumentations-node`, Bun-compatible)
+- [x] CLI instrumentation (`BasicTracerProvider` + manual W3C `traceparent` header propagation)
+- [x] UI tracing gated behind `TELEMETRY_ENABLED`
+- [x] Single `TELEMETRY_ENABLED` env flag across the stack
+
+### Deferred
+- [ ] Connect to production tracing backend (Jaeger, Grafana Tempo, or SigNoz) instead of debug exporter
+- [ ] Custom business-logic spans (e.g., sandbox lifecycle, preview deploy, pipeline run durations)
+- [x] Bun context propagation: was missing `AsyncLocalStorageContextManager` registration (not a Bun bug) — now using standard OTel APIs
+- [ ] Metrics collection: API request latency, error rates, sandbox provision times (OTel metrics pipeline already wired but no custom metrics emitted yet)
 
 ---
 
@@ -234,6 +291,17 @@ Built-in playbook runner for installing tools and configuring machines on demand
 - [ ] Gateway tunnel backend (`cli/src/lib/backends/gateway-backend.ts`) — requires gateway infrastructure
 - [ ] SSH tunnel backend (`cli/src/lib/backends/ssh-backend.ts`)
 - [ ] kubectl tunnel backend (`cli/src/lib/backends/kubectl-backend.ts`)
+
+### Tunnel System — Production Hardening
+- [x] POST/PUT/PATCH request body forwarding through tunnel (DATA frame handling in tunnel-client.ts)
+- [x] WebSocket passthrough: browser WS ↔ gateway proxy ↔ tunnel WS_DATA ↔ local WS
+- [x] WS connect-phase message buffering (queue WS_DATA while local WS is CONNECTING)
+- [x] Smoke test suite using real `handleBinaryFrame` (not inline fakes), dual-mode local/prod via `FACTORY_URL`
+- [ ] Multiple concurrent WebSocket connections per tunnel — `sm.onWsMessage` is a single callback, overwrites per-connection; needs a `Map<streamId, ServerWebSocket>` dispatch
+- [ ] Binary WebSocket data round-trip test (current test only covers text messages)
+- [ ] Tunnel client backpressure on incoming DATA frames (flow control when local server is slow to consume request body)
+- [ ] Tunnel reconnect with stream resumption (currently all in-flight streams are lost on reconnect)
+- [ ] Gateway proxy connection pooling / keep-alive for tunnel WebSocket connections
 
 ---
 
@@ -332,6 +400,15 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] `sandbox_template` table already has `runtimeType` column — wire up VM template support
 - [ ] Template snapshots: create a "golden" snapshot that new sandboxes bootstrap from
 - [ ] Template marketplace: share templates across orgs (read-only catalog entries)
+
+---
+
+## Production Infrastructure
+
+- [ ] SpiceDB database auto-creation in docker compose init (currently requires manual `CREATE DATABASE spicedb`)
+- [ ] SpiceDB migration step in docker compose startup (run `datastore migrate head` before serve)
+- [ ] Traefik v3 config validation: add CI check that HostRegexp rules use v3 syntax (not v2 `{name:.+}` which silently fails)
+- [ ] Edge Traefik health monitoring: alert when `*.tunnel.lepton.software` or `*.preview.lepton.software` routes stop resolving
 
 ---
 

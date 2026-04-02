@@ -196,79 +196,55 @@ async function seedOrg() {
 }
 
 // ── Phase 2: Infra ───────────────────────────────────────────────
+// Real infrastructure data from Proxmox production cluster (192.168.2.89)
 
 async function seedInfra() {
-  // --- Providers ---
+  // --- Providers (from infra.provider @ 192.168.2.89) ---
   await db.insert(s.provider).values([
-    { providerId: id("prv", "proxmox", "prv"), name: "Proxmox On-Prem", slug: "proxmox-onprem", providerType: "proxmox", providerKind: "internal", url: "https://pve.lepton.internal:8006" },
-    { providerId: id("prv", "hetzner", "prv"), name: "Hetzner Cloud", slug: "hetzner-cloud", providerType: "hetzner", providerKind: "cloud", url: "https://api.hetzner.cloud/v1" },
-    { providerId: id("prv", "aws", "prv"), name: "AWS Cloud", slug: "aws-cloud", providerType: "aws", providerKind: "cloud", url: "https://ec2.amazonaws.com" },
+    { providerId: id("prv", "lepton", "prv"), name: "Lepton", slug: "lepton", providerType: "proxmox", providerKind: "internal" },
+    { providerId: id("prv", "google", "prv"), name: "Google", slug: "google", providerType: "gcp", providerKind: "cloud" },
+    { providerId: id("prv", "cyfuture", "prv"), name: "Cyfuture", slug: "cyfuture", providerType: "partner", providerKind: "partner" },
+    { providerId: id("prv", "hetzner", "prv"), name: "Hetzner", slug: "hetzner", providerType: "hetzner", providerKind: "partner" },
+    { providerId: id("prv", "samsung", "prv"), name: "Samsung", slug: "samsung", providerType: "partner", providerKind: "partner" },
   ]);
 
   // --- Regions ---
   await db.insert(s.region).values([
-    { regionId: id("rgn", "us-east", "rgn"), name: "us-east-1", displayName: "US East (Virginia)", slug: "us-east-1", country: "US", city: "Ashburn", timezone: "America/New_York", providerId: id("prv", "aws", "prv") },
-    { regionId: id("rgn", "us-west", "rgn"), name: "us-west-1", displayName: "US West (Oregon)", slug: "us-west-1", country: "US", city: "Portland", timezone: "America/Los_Angeles", providerId: id("prv", "aws", "prv") },
-    { regionId: id("rgn", "eu-fra", "rgn"), name: "eu-frankfurt-1", displayName: "EU Frankfurt", slug: "eu-frankfurt-1", country: "DE", city: "Frankfurt", timezone: "Europe/Berlin", providerId: id("prv", "hetzner", "prv") },
-    { regionId: id("rgn", "apac-sg", "rgn"), name: "apac-singapore-1", displayName: "APAC Singapore", slug: "apac-singapore-1", country: "SG", city: "Singapore", timezone: "Asia/Singapore", providerId: id("prv", "hetzner", "prv") },
+    { regionId: id("rgn", "gurgaon", "rgn"), name: "gurgaon", displayName: "Gurgaon", slug: "gurgaon", country: "IN", providerId: id("prv", "lepton", "prv") },
+    { regionId: id("rgn", "asia-south2", "rgn"), name: "Asia South (Delhi)", displayName: "Asia South (Delhi)", slug: "asia-south2", country: "IN", providerId: id("prv", "google", "prv") },
+    { regionId: id("rgn", "asia-south1", "rgn"), name: "Asia South (Mumbai)", displayName: "Asia South (Mumbai)", slug: "asia-south1", country: "IN", providerId: id("prv", "google", "prv") },
+    { regionId: id("rgn", "samsung-01", "rgn"), name: "Samsung 01", displayName: "Samsung 01", slug: "samsung-01", country: "IN", providerId: id("prv", "samsung", "prv") },
   ]);
 
   // --- Datacenters ---
   await db.insert(s.datacenter).values([
-    { datacenterId: id("dc", "us-east-dc1", "dc"), name: "us-east-dc1", displayName: "US East DC1", slug: "dc1", regionId: id("rgn", "us-east", "rgn"), availabilityZone: "us-east-1a" },
-    { datacenterId: id("dc", "us-east-dc2", "dc"), name: "us-east-dc2", displayName: "US East DC2", slug: "dc2", regionId: id("rgn", "us-east", "rgn"), availabilityZone: "us-east-1b" },
-    { datacenterId: id("dc", "us-west-dc1", "dc"), name: "us-west-dc1", displayName: "US West DC1", slug: "dc1", regionId: id("rgn", "us-west", "rgn"), availabilityZone: "us-west-1a" },
-    { datacenterId: id("dc", "eu-fra-dc1", "dc"), name: "eu-fra-dc1", displayName: "EU Frankfurt DC1", slug: "dc1", regionId: id("rgn", "eu-fra", "rgn"), availabilityZone: "eu-fra-1a" },
-    { datacenterId: id("dc", "eu-fra-dc2", "dc"), name: "eu-fra-dc2", displayName: "EU Frankfurt DC2", slug: "dc2", regionId: id("rgn", "eu-fra", "rgn"), availabilityZone: "eu-fra-1b" },
-    { datacenterId: id("dc", "apac-sg-dc1", "dc"), name: "apac-sg-dc1", displayName: "APAC Singapore DC1", slug: "dc1", regionId: id("rgn", "apac-sg", "rgn"), availabilityZone: "apac-sg-1a" },
+    { datacenterId: id("dc", "lepton-dc", "dc"), name: "lepton-datacenter", displayName: "Lepton Datacenter", slug: "lepton-datacenter", regionId: id("rgn", "gurgaon", "rgn") },
   ]);
 
-  // --- Hosts ---
-  const hosts = [
-    { key: "bm-use1-01", name: "bm-use1-01", dc: "us-east-dc1", prv: "proxmox", ip: "10.10.1.10", ipmi: "10.10.0.10", cores: 64, mem: 262144, disk: 4000, rack: "R01-U10" },
-    { key: "bm-use1-02", name: "bm-use1-02", dc: "us-east-dc1", prv: "proxmox", ip: "10.10.1.11", ipmi: "10.10.0.11", cores: 64, mem: 262144, disk: 4000, rack: "R01-U12" },
-    { key: "bm-use1-03", name: "bm-use1-03", dc: "us-east-dc2", prv: "proxmox", ip: "10.10.2.10", ipmi: "10.10.0.20", cores: 128, mem: 524288, disk: 8000, rack: "R02-U05" },
-    { key: "bm-usw1-01", name: "bm-usw1-01", dc: "us-west-dc1", prv: "hetzner", ip: "10.20.1.10", cores: 32, mem: 131072, disk: 2000, rack: "H-AX41" },
-    { key: "bm-eufra-01", name: "bm-eufra-01", dc: "eu-fra-dc1", prv: "hetzner", ip: "10.30.1.10", cores: 48, mem: 196608, disk: 4000, rack: "H-AX61" },
-    { key: "bm-eufra-02", name: "bm-eufra-02", dc: "eu-fra-dc2", prv: "hetzner", ip: "10.30.2.10", cores: 48, mem: 196608, disk: 4000, rack: "H-AX62" },
-    { key: "bm-apac-01", name: "bm-apac-01", dc: "apac-sg-dc1", prv: "hetzner", ip: "10.40.1.10", cores: 32, mem: 131072, disk: 2000, rack: "H-SG01" },
-    { key: "bm-apac-02", name: "bm-apac-02", dc: "apac-sg-dc1", prv: "hetzner", ip: "10.40.1.11", cores: 32, mem: 131072, disk: 2000, rack: "H-SG02" },
-  ];
+  // --- Hosts (from infra.host — real Proxmox nodes + bare metal) ---
+  await db.insert(s.host).values([
+    { hostId: id("host", "lepton-squirtle", "host"), name: "lepton-squirtle", slug: "lepton-squirtle", hostname: "lepton-squirtle", providerId: id("prv", "lepton", "prv"), datacenterId: id("dc", "lepton-dc", "dc"), ipAddress: "192.168.1.1", cpuCores: 40, memoryMb: 257568, diskGb: 94, status: "active", osType: "linux" },
+    { hostId: id("host", "lepton-pikachu", "host"), name: "lepton-pikachu", slug: "lepton-pikachu", hostname: "lepton-pikachu", providerId: id("prv", "lepton", "prv"), datacenterId: id("dc", "lepton-dc", "dc"), ipAddress: "192.168.1.132", cpuCores: 52, memoryMb: 257592, diskGb: 94, status: "active", osType: "linux" },
+    { hostId: id("host", "lepton-charmander", "host"), name: "lepton-charmander", slug: "lepton-charmander", hostname: "lepton-charmander", providerId: id("prv", "lepton", "prv"), datacenterId: id("dc", "lepton-dc", "dc"), ipAddress: "192.168.1.70", cpuCores: 8, memoryMb: 15769, diskGb: 98, status: "active", osType: "linux" },
+    { hostId: id("host", "lepton-59", "host"), name: "lepton-59", slug: "lepton-59", hostname: "lepton-59", providerId: id("prv", "lepton", "prv"), datacenterId: id("dc", "lepton-dc", "dc"), ipAddress: "192.168.1.59", cpuCores: 52, memoryMb: 262144, diskGb: 9216, status: "active", osType: "linux" },
+    { hostId: id("host", "samsung-smart-market-prod", "host"), name: "samsung-smart-market-prod", slug: "samsung-smart-market-prod", hostname: "samsung-smart-market-prod", providerId: id("prv", "samsung", "prv"), ipAddress: "0.0.0.0", cpuCores: 2, memoryMb: 2048, diskGb: 50, status: "active", osType: "linux" },
+  ]);
 
-  await db.insert(s.host).values(
-    hosts.map((h) => ({
-      hostId: id("host", h.key, "host"),
-      name: h.name,
-      slug: h.key,
-      hostname: `${h.name}.lepton.internal`,
-      providerId: id("prv", h.prv, "prv"),
-      datacenterId: id("dc", h.dc, "dc"),
-      ipAddress: h.ip,
-      ipmiAddress: h.ipmi ?? null,
-      cpuCores: h.cores,
-      memoryMb: h.mem,
-      diskGb: h.disk,
-      rackLocation: h.rack,
-      status: "active",
-    }))
-  );
-
-  // --- VM Clusters ---
+  // --- VM Cluster (Proxmox cluster: lepton-datacenter) ---
   await db.insert(s.vmCluster).values([
-    { vmClusterId: id("vmc", "pve-use1", "vmc"), name: "pve-us-east", slug: "pve-us-east", providerId: id("prv", "proxmox", "prv"), apiHost: "10.10.1.10" },
-    { vmClusterId: id("vmc", "pve-eufra", "vmc"), name: "pve-eu-fra", slug: "pve-eu-fra", providerId: id("prv", "proxmox", "prv"), apiHost: "10.30.1.10" },
+    { vmClusterId: id("vmc", "lepton-dc", "vmc"), name: "lepton-datacenter", slug: "lepton-datacenter", providerId: id("prv", "lepton", "prv"), apiHost: "192.168.1.1", apiPort: 8006, tokenId: "root@pam!nirvana", tokenSecret: "ec0de73f-afaa-41c3-a75d-1c6635d92cd2", syncStatus: "idle" },
   ]);
 
-  // --- Clusters ---
+  // --- Kubernetes Clusters (logical clusters, referenced by fleet) ---
   const clusters = [
-    { key: "factory-core", name: "factory-core", prv: "proxmox", status: "ready" },
-    { key: "site-us-east-prod", name: "site-us-east-prod", prv: "aws", status: "ready" },
-    { key: "site-us-east-staging", name: "site-us-east-staging", prv: "aws", status: "ready" },
-    { key: "site-us-west-prod", name: "site-us-west-prod", prv: "hetzner", status: "ready" },
-    { key: "site-eu-fra-prod", name: "site-eu-fra-prod", prv: "hetzner", status: "ready" },
-    { key: "site-eu-fra-staging", name: "site-eu-fra-staging", prv: "hetzner", status: "ready" },
-    { key: "site-apac-sg-prod", name: "site-apac-sg-prod", prv: "hetzner", status: "ready" },
-    { key: "dev-sandbox", name: "dev-sandbox", prv: "proxmox", status: "ready" },
+    { key: "factory-core", name: "factory-core", prv: "lepton", status: "ready" },
+    { key: "site-us-east-prod", name: "site-us-east-prod", prv: "lepton", status: "ready" },
+    { key: "site-us-east-staging", name: "site-us-east-staging", prv: "lepton", status: "ready" },
+    { key: "site-us-west-prod", name: "site-us-west-prod", prv: "lepton", status: "ready" },
+    { key: "site-eu-fra-prod", name: "site-eu-fra-prod", prv: "lepton", status: "ready" },
+    { key: "site-eu-fra-staging", name: "site-eu-fra-staging", prv: "lepton", status: "ready" },
+    { key: "site-apac-sg-prod", name: "site-apac-sg-prod", prv: "lepton", status: "ready" },
+    { key: "dev-sandbox", name: "dev-sandbox", prv: "lepton", status: "ready" },
   ];
 
   await db.insert(s.cluster).values(
@@ -282,81 +258,126 @@ async function seedInfra() {
     }))
   );
 
-  // --- VMs ---
+  // --- VMs (48 real VMs from Proxmox) ---
+  // Helper: convert bytes to MB (rounded)
+  const bToMb = (b: number) => Math.round(b / 1024 / 1024);
+  const bToGb = (b: number) => Math.round(b / 1024 / 1024 / 1024);
+
+  // Map proxmox_node_id → host key for hostId FK
+  const nodeToHost: Record<string, string> = {
+    "squirtle": "lepton-squirtle",
+    "pikachu": "lepton-pikachu",
+    "charmander": "lepton-charmander",
+  };
+
   const vms = [
-    { key: "vm-k3s-use1-s1", name: "k3s-use1-server-1", prv: "proxmox", dc: "us-east-dc1", host: "bm-use1-01", pxc: "pve-use1", cpu: 8, mem: 16384, disk: 200, ip: "10.10.1.100", vmid: 100 },
-    { key: "vm-k3s-use1-a1", name: "k3s-use1-agent-1", prv: "proxmox", dc: "us-east-dc1", host: "bm-use1-01", pxc: "pve-use1", cpu: 16, mem: 32768, disk: 500, ip: "10.10.1.101", vmid: 101 },
-    { key: "vm-k3s-use1-a2", name: "k3s-use1-agent-2", prv: "proxmox", dc: "us-east-dc2", host: "bm-use1-03", pxc: "pve-use1", cpu: 16, mem: 32768, disk: 500, ip: "10.10.2.101", vmid: 102 },
-    { key: "vm-k3s-eufra-s1", name: "k3s-eufra-server-1", prv: "hetzner", dc: "eu-fra-dc1", host: "bm-eufra-01", cpu: 8, mem: 16384, disk: 200, ip: "10.30.1.100" },
-    { key: "vm-k3s-eufra-a1", name: "k3s-eufra-agent-1", prv: "hetzner", dc: "eu-fra-dc1", host: "bm-eufra-01", cpu: 16, mem: 32768, disk: 500, ip: "10.30.1.101" },
-    { key: "vm-k3s-apac-s1", name: "k3s-apac-server-1", prv: "hetzner", dc: "apac-sg-dc1", host: "bm-apac-01", cpu: 8, mem: 16384, disk: 200, ip: "10.40.1.100" },
-    { key: "vm-k3s-apac-a1", name: "k3s-apac-agent-1", prv: "hetzner", dc: "apac-sg-dc1", host: "bm-apac-02", cpu: 16, mem: 32768, disk: 500, ip: "10.40.1.101" },
-    { key: "vm-sandbox-01", name: "sandbox-dev-01", prv: "proxmox", dc: "us-east-dc1", host: "bm-use1-02", pxc: "pve-use1", cpu: 4, mem: 8192, disk: 100, ip: "10.10.1.200", vmid: 200 },
+    { key: "app-smart-signal-fwa-stg", name: "app-smart-signal-fwa-stg", slug: "app-smart-signal-fwa-stg", vmid: 100, node: "squirtle", ip: "192.168.2.79", status: "running", cpu: 4, mem: 2976653312, disk: 0 },
+    { key: "k3s-master-2", name: "k3s-master-2", slug: "k3s-master-2", vmid: 101, node: "charmander", ip: null, status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "docker-offline-install", name: "docker-offline-install", slug: "docker-offline-install", vmid: 102, node: "pikachu", ip: null, status: "stopped", cpu: 8, mem: 0, disk: 0 },
+    { key: "ubuntugui", name: "UBUNTUGUI", slug: "ubuntugui", vmid: 103, node: "pikachu", ip: null, status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "windows-samsung-sds", name: "windows-samsung-sds", slug: "windows-samsung-sds", vmid: 104, node: "pikachu", ip: "192.168.2.90", status: "running", cpu: 4, mem: 3522396160, disk: 0, os: "windows" as const },
+    { key: "dev-lepton-admin", name: "dev-vikrant-trafficure", slug: "dev-lepton-admin", vmid: 105, node: "squirtle", ip: "192.168.2.26", status: "running", cpu: 8, mem: 6194130944, disk: 0 },
+    { key: "app-trafficure-staging", name: "app-trafficure-staging", slug: "app-trafficure-staging", vmid: 106, node: "squirtle", ip: "192.168.2.97", status: "running", cpu: 16, mem: 32367026176, disk: 0 },
+    { key: "dev-imran", name: "dev-imran", slug: "dev-imran", vmid: 107, node: "squirtle", ip: "192.168.2.73", status: "running", cpu: 4, mem: 12723826688, disk: 0 },
+    { key: "smart-market", name: "smart-market", slug: "smart-market", vmid: 108, node: "pikachu", ip: "192.168.2.77", status: "running", cpu: 16, mem: 17132052480, disk: 0 },
+    { key: "dev-lepton-sm", name: "dev-lepton-sm", slug: "dev-lepton-sm", vmid: 109, node: "squirtle", ip: "192.168.2.75", status: "running", cpu: 4, mem: 21729181696, disk: 0 },
+    { key: "bharatnet-mohali-vpn-jumpserver", name: "Bharatnet-Mohali-vpn-jumpserver", slug: "bharatnet-mohali-vpn-jumpserver", vmid: 111, node: "charmander", ip: "192.168.2.47", status: "stopped", cpu: 3, mem: 0, disk: 0 },
+    { key: "sonu-postgres-offline", name: "sonu-postgres-offline", slug: "sonu-postgres-offline", vmid: 112, node: "pikachu", ip: null, status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "postgres-offline", name: "postgres-offline", slug: "postgres-offline", vmid: 113, node: "pikachu", ip: null, status: "stopped", cpu: 8, mem: 0, disk: 0 },
+    { key: "service-graphhopper-australia-prod", name: "service-graphhopper-australia-prod", slug: "service-graphhopper-australia-prod", vmid: 114, node: "pikachu", ip: "192.168.2.81", status: "running", cpu: 16, mem: 7013134336, disk: 0 },
+    { key: "factory-prod", name: "factory-prod", slug: "factory-prod", vmid: 115, node: "squirtle", ip: "192.168.2.88", status: "running", cpu: 2, mem: 4294967296, disk: 0 },
+    { key: "dev-lepton-smartmarket", name: "Road-Selectio-Tool-Prod", slug: "dev-lepton-smartmarket", vmid: 116, node: "pikachu", ip: "192.168.2.74", status: "running", cpu: 8, mem: 12076003328, disk: 0 },
+    { key: "dev-ritvik-trafficure", name: "dev-ritvik-trafficure", slug: "dev-ritvik-trafficure", vmid: 117, node: "squirtle", ip: "192.168.2.85", status: "running", cpu: 8, mem: 13221793792, disk: 0 },
+    { key: "uat-lepton-smartmarket", name: "uat-lepton-smartmarket", slug: "uat-lepton-smartmarket", vmid: 118, node: "pikachu", ip: null, status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "docker-27", name: "docker-27", slug: "docker-27", vmid: 119, node: "pikachu", ip: null, status: "stopped", cpu: 8, mem: 0, disk: 0 },
+    { key: "dockerhub", name: "dockerhub", slug: "dockerhub", vmid: 120, node: "squirtle", ip: "192.168.2.92", status: "running", cpu: 4, mem: 3320680448, disk: 0 },
+    { key: "vpn-ather-sm-windows", name: "vpn-ather-sm-windows", slug: "vpn-ather-sm-windows", vmid: 121, node: "pikachu", ip: "192.168.2.78", status: "running", cpu: 16, mem: 5742129152, disk: 0 },
+    { key: "service-planet-windows-trial", name: "service-planet-windows-trial", slug: "service-planet-windows-trial", vmid: 122, node: "pikachu", ip: "192.168.2.70", status: "running", cpu: 12, mem: 4081917952, disk: 0 },
+    { key: "service-smart-tender-prod", name: "service-smart-tender-prod", slug: "service-smart-tender-prod", vmid: 123, node: "pikachu", ip: "192.168.2.71", status: "running", cpu: 8, mem: 9633501184, disk: 0 },
+    { key: "app-trafficure-prod", name: "app-trafficure-prod", slug: "app-trafficure-prod", vmid: 124, node: "pikachu", ip: "192.168.2.86", status: "running", cpu: 8, mem: 15815987200, disk: 0 },
+    { key: "jenkins-dev", name: "jenkins-dev", slug: "jenkins-dev", vmid: 125, node: "pikachu", ip: "192.168.2.25", status: "running", cpu: 4, mem: 4186517504, disk: 0 },
+    { key: "vm-criticalreplicadbserver", name: "VM-CriticalReplicadbserverSmartopsSmartMarket", slug: "vm-criticalreplicadbserversmartopssmartmarket", vmid: 126, node: "squirtle", ip: null, status: "running", cpu: 20, mem: 15228141568, disk: 0 },
+    { key: "cloud-controller", name: "cloud-controller", slug: "cloud-controller", vmid: 127, node: "squirtle", ip: "192.168.2.89", status: "running", cpu: 4, mem: 13848596480, disk: 0 },
+    { key: "dev-sonu", name: "dev-sonu", slug: "dev-sonu", vmid: 128, node: "squirtle", ip: "192.168.2.99", status: "running", cpu: 32, mem: 13772083200, disk: 0 },
+    { key: "trafficure-stress-test", name: "trafficure-stress-test", slug: "trafficure-stress-test", vmid: 129, node: "squirtle", ip: "192.168.2.95", status: "running", cpu: 8, mem: 24653668352, disk: 0 },
+    { key: "service-zero-sync", name: "service-zero-sync", slug: "service-zero-sync", vmid: 130, node: "pikachu", ip: "192.168.2.87", status: "running", cpu: 4, mem: 11167010816, disk: 0 },
+    { key: "service-zero-smart-tender", name: "service-zero-smart-tender", slug: "service-zero-smart-tender", vmid: 131, node: "pikachu", ip: null, status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "backstage", name: "backstage", slug: "backstage", vmid: 132, node: "squirtle", ip: "192.168.2.96", status: "running", cpu: 4, mem: 5780951040, disk: 0 },
+    { key: "app-smart-signal-sc2-stg", name: "app-smart-signal-sc2-stg", slug: "app-smart-signal-sc2-stg", vmid: 133, node: "squirtle", ip: "192.168.2.83", status: "running", cpu: 4, mem: 10732871680, disk: 0 },
+    { key: "backend-dev", name: "backend-dev", slug: "backend-dev", vmid: 134, node: "pikachu", ip: "192.168.2.80", status: "running", cpu: 40, mem: 56439701504, disk: 0 },
+    { key: "app-smart-market-2-stg", name: "app-smart-market-2-stg", slug: "app-smart-market-2-stg", vmid: 135, node: "squirtle", ip: "192.168.2.76", status: "running", cpu: 4, mem: 16027955200, disk: 0 },
+    { key: "gcp-bill-alert", name: "gcp-bill-alert", slug: "gcp-bill-alert", vmid: 136, node: "squirtle", ip: "192.168.2.94", status: "running", cpu: 12, mem: 15424360448, disk: 0 },
+    { key: "dev-ritvik-2", name: "dev-ritvik-2", slug: "dev-ritvik-2", vmid: 137, node: "squirtle", ip: "192.168.2.72", status: "running", cpu: 8, mem: 1737650176, disk: 0 },
+    { key: "bff-service", name: "bff-service", slug: "bff-service", vmid: 138, node: "squirtle", ip: "192.168.2.153", status: "running", cpu: 2, mem: 4294967296, disk: 0 },
+    { key: "workflow-engine", name: "workflow-engine", slug: "workflow-engine", vmid: 139, node: "squirtle", ip: "192.168.2.91", status: "running", cpu: 4, mem: 3447783424, disk: 0 },
+    { key: "traffic-chennai", name: "platform", slug: "traffic-chennai", vmid: 141, node: "squirtle", ip: "192.168.2.88", status: "stopped", cpu: 4, mem: 0, disk: 0 },
+    { key: "dev-vishwa-trafficure", name: "dev-vishwa-trafficure", slug: "dev-vishwa-trafficure", vmid: 144, node: "squirtle", ip: "192.168.2.98", status: "running", cpu: 8, mem: 14081396736, disk: 0 },
+    { key: "puru-vm", name: "puru-vm", slug: "puru-vm", vmid: 146, node: "squirtle", ip: "192.168.2.100", status: "running", cpu: 8, mem: 15834746880, disk: 0 },
+    { key: "utc-app-trafficure", name: "app-trafficure-dev-server", slug: "utc-app-trafficure", vmid: 147, node: "squirtle", ip: "192.168.2.51", status: "running", cpu: 16, mem: 29863038976, disk: 0 },
+    { key: "parth-vm", name: "parth-vm", slug: "parth-vm", vmid: 148, node: "squirtle", ip: "192.168.2.93", status: "running", cpu: 8, mem: 16181796864, disk: 0 },
+    { key: "clickstack-lepton-api-stopped", name: "clickstack-lepton-api", slug: "clickstack-lepton-api-149", vmid: 149, node: "pikachu", ip: null, status: "stopped", cpu: 12, mem: 0, disk: 0 },
+    { key: "clickstack-lepton-api", name: "clickstack-lepton-api", slug: "clickstack-lepton-api", vmid: 150, node: "pikachu", ip: null, status: "running", cpu: 4, mem: 7909044224, disk: 0 },
+    // Non-Proxmox VMs (bare metal / external)
+    { key: "lepton-59", name: "lepton-59", slug: "lepton-59", vmid: null, node: null, ip: "192.168.1.59", status: "running", cpu: 52, mem: 274877906944, disk: 9895604649984 },
+    { key: "samsung-smart-market-prod", name: "samsung-smart-market-prod", slug: "samsung-smart-market-prod", vmid: null, node: null, ip: null, status: "running", cpu: 2, mem: 2147483648, disk: 0, hostKey: "samsung-smart-market-prod" },
   ];
 
   await db.insert(s.vm).values(
     vms.map((v) => ({
       vmId: id("vm", v.key, "vm"),
       name: v.name,
-      slug: v.key,
-      providerId: id("prv", v.prv, "prv"),
-      datacenterId: id("dc", v.dc, "dc"),
-      hostId: id("host", v.host, "host"),
-      vmClusterId: v.pxc ? id("vmc", v.pxc, "vmc") : null,
+      slug: v.slug,
+      providerId: id("prv", v.node ? "lepton" : (v as any).hostKey === "samsung-smart-market-prod" ? "samsung" : "lepton", "prv"),
+      datacenterId: v.node ? id("dc", "lepton-dc", "dc") : null,
+      hostId: v.node ? id("host", nodeToHost[v.node], "host") : (v as any).hostKey ? id("host", (v as any).hostKey, "host") : null,
+      vmClusterId: v.node ? id("vmc", "lepton-dc", "vmc") : null,
       externalVmid: v.vmid ?? null,
       cpu: v.cpu,
-      memoryMb: v.mem,
-      diskGb: v.disk,
+      memoryMb: v.mem > 0 ? bToMb(v.mem) : 0,
+      diskGb: v.disk > 0 ? bToGb(v.disk) : 0,
       ipAddress: v.ip,
-      status: "running",
-    }))
-  );
-
-  // --- Kube Nodes ---
-  const kubeNodes = [
-    { key: "fcore-s1", name: "factory-core-s1", cls: "factory-core", vm: "vm-k3s-use1-s1", role: "server", ip: "10.10.1.100" },
-    { key: "fcore-a1", name: "factory-core-a1", cls: "factory-core", vm: "vm-k3s-use1-a1", role: "agent", ip: "10.10.1.101" },
-    { key: "fcore-a2", name: "factory-core-a2", cls: "factory-core", vm: "vm-k3s-use1-a2", role: "agent", ip: "10.10.2.101" },
-    { key: "eu-s1", name: "eu-fra-prod-s1", cls: "site-eu-fra-prod", vm: "vm-k3s-eufra-s1", role: "server", ip: "10.30.1.100" },
-    { key: "eu-a1", name: "eu-fra-prod-a1", cls: "site-eu-fra-prod", vm: "vm-k3s-eufra-a1", role: "agent", ip: "10.30.1.101" },
-    { key: "apac-s1", name: "apac-sg-prod-s1", cls: "site-apac-sg-prod", vm: "vm-k3s-apac-s1", role: "server", ip: "10.40.1.100" },
-    { key: "apac-a1", name: "apac-sg-prod-a1", cls: "site-apac-sg-prod", vm: "vm-k3s-apac-a1", role: "agent", ip: "10.40.1.101" },
-  ];
-
-  await db.insert(s.kubeNode).values(
-    kubeNodes.map((kn) => ({
-      kubeNodeId: id("kn", kn.key, "kn"),
-      name: kn.name,
-      slug: kn.key,
-      clusterId: id("cls", kn.cls, "cls"),
-      vmId: id("vm", kn.vm, "vm"),
-      role: kn.role,
-      ipAddress: kn.ip,
+      status: v.status,
+      osType: (v as any).os ?? "linux",
+      accessMethod: (v as any).os === "windows" ? "rdp" : "ssh",
     }))
   );
 
   // --- Subnets ---
   await db.insert(s.subnet).values([
-    { subnetId: id("sub", "mgmt-use1", "sub"), cidr: "10.10.0.0/24", gateway: "10.10.0.1", netmask: "255.255.255.0", vlanId: 10, vlanName: "MGMT", datacenterId: id("dc", "us-east-dc1", "dc"), subnetType: "management", dnsServers: "10.10.0.2", dnsDomain: "lepton.internal" },
-    { subnetId: id("sub", "vm-use1", "sub"), cidr: "10.10.1.0/24", gateway: "10.10.1.1", netmask: "255.255.255.0", vlanId: 20, vlanName: "VM", datacenterId: id("dc", "us-east-dc1", "dc"), subnetType: "vm" },
-    { subnetId: id("sub", "pub-use1", "sub"), cidr: "203.0.113.0/24", gateway: "203.0.113.1", netmask: "255.255.255.0", vlanId: 100, vlanName: "PUBLIC", datacenterId: id("dc", "us-east-dc1", "dc"), subnetType: "public" },
-    { subnetId: id("sub", "vm-eufra", "sub"), cidr: "10.30.1.0/24", gateway: "10.30.1.1", netmask: "255.255.255.0", vlanId: 20, vlanName: "VM-EU", datacenterId: id("dc", "eu-fra-dc1", "dc"), subnetType: "vm" },
-    { subnetId: id("sub", "vm-apac", "sub"), cidr: "10.40.1.0/24", gateway: "10.40.1.1", netmask: "255.255.255.0", vlanId: 20, vlanName: "VM-APAC", datacenterId: id("dc", "apac-sg-dc1", "dc"), subnetType: "vm" },
-    { subnetId: id("sub", "storage-use1", "sub"), cidr: "10.10.3.0/24", gateway: "10.10.3.1", netmask: "255.255.255.0", vlanId: 30, vlanName: "STORAGE", datacenterId: id("dc", "us-east-dc1", "dc"), subnetType: "storage" },
+    { subnetId: id("sub", "mgmt", "sub"), cidr: "192.168.1.0/24", gateway: "192.168.1.1", netmask: "255.255.255.0", datacenterId: id("dc", "lepton-dc", "dc"), subnetType: "management", description: "Management / Proxmox node network" },
+    { subnetId: id("sub", "vm", "sub"), cidr: "192.168.2.0/24", gateway: "192.168.2.1", netmask: "255.255.255.0", datacenterId: id("dc", "lepton-dc", "dc"), subnetType: "vm", description: "VM network" },
   ]);
 
-  // --- IP Addresses ---
-  await db.insert(s.ipAddress).values([
-    { address: "10.10.1.10", subnetId: id("sub", "vm-use1", "sub"), assignedToType: "host", assignedToId: id("host", "bm-use1-01", "host"), status: "assigned", hostname: "bm-use1-01", fqdn: "bm-use1-01.lepton.internal" },
-    { address: "10.10.1.100", subnetId: id("sub", "vm-use1", "sub"), assignedToType: "vm", assignedToId: id("vm", "vm-k3s-use1-s1", "vm"), status: "assigned", hostname: "k3s-use1-server-1" },
-    { address: "10.10.1.101", subnetId: id("sub", "vm-use1", "sub"), assignedToType: "vm", assignedToId: id("vm", "vm-k3s-use1-a1", "vm"), status: "assigned", hostname: "k3s-use1-agent-1" },
-    { address: "10.30.1.100", subnetId: id("sub", "vm-eufra", "sub"), assignedToType: "vm", assignedToId: id("vm", "vm-k3s-eufra-s1", "vm"), status: "assigned", hostname: "k3s-eufra-server-1" },
-    { address: "10.40.1.100", subnetId: id("sub", "vm-apac", "sub"), assignedToType: "vm", assignedToId: id("vm", "vm-k3s-apac-s1", "vm"), status: "assigned", hostname: "k3s-apac-server-1" },
-    { address: "203.0.113.10", subnetId: id("sub", "pub-use1", "sub"), assignedToType: "cluster", assignedToId: id("cls", "factory-core", "cls"), status: "assigned", purpose: "Factory API ingress" },
-    { address: "10.10.1.200", subnetId: id("sub", "vm-use1", "sub"), assignedToType: "vm", assignedToId: id("vm", "vm-sandbox-01", "vm"), status: "assigned", hostname: "sandbox-dev-01" },
-    { address: "10.10.1.50", subnetId: id("sub", "vm-use1", "sub"), status: "reserved", purpose: "VIP - future LB" },
-    { address: "10.30.1.50", subnetId: id("sub", "vm-eufra", "sub"), status: "available" },
-  ]);
+  // --- IP Addresses (hosts + running VMs with IPs) ---
+  const ipEntries: { address: string; assignedToType: string; assignedToId: string; hostname: string; subnet: string }[] = [
+    // Hosts
+    { address: "192.168.1.1", assignedToType: "host", assignedToId: id("host", "lepton-squirtle", "host"), hostname: "lepton-squirtle", subnet: "mgmt" },
+    { address: "192.168.1.132", assignedToType: "host", assignedToId: id("host", "lepton-pikachu", "host"), hostname: "lepton-pikachu", subnet: "mgmt" },
+    { address: "192.168.1.70", assignedToType: "host", assignedToId: id("host", "lepton-charmander", "host"), hostname: "lepton-charmander", subnet: "mgmt" },
+    { address: "192.168.1.59", assignedToType: "host", assignedToId: id("host", "lepton-59", "host"), hostname: "lepton-59", subnet: "mgmt" },
+  ];
+
+  // Add VM IPs (deduplicate — prefer running VMs over stopped ones)
+  const seenIps = new Set(ipEntries.map((e) => e.address));
+  // Sort: running first so they win dedup
+  const sortedVms = [...vms].sort((a, b) => (a.status === "running" ? -1 : 1) - (b.status === "running" ? -1 : 1));
+  for (const v of sortedVms) {
+    if (v.ip && v.ip.startsWith("192.168.") && !seenIps.has(v.ip)) {
+      seenIps.add(v.ip);
+      ipEntries.push({ address: v.ip, assignedToType: "vm", assignedToId: id("vm", v.key, "vm"), hostname: v.slug, subnet: v.ip.startsWith("192.168.1.") ? "mgmt" : "vm" });
+    }
+  }
+
+  await db.insert(s.ipAddress).values(
+    ipEntries.map((e) => ({
+      address: e.address,
+      subnetId: id("sub", e.subnet, "sub"),
+      assignedToType: e.assignedToType as any,
+      assignedToId: e.assignedToId,
+      status: "assigned" as const,
+      hostname: e.hostname,
+    }))
+  );
 }
 
 // ── Phase 3: Product ─────────────────────────────────────────────

@@ -9,6 +9,7 @@ import type { Provider, ProviderType } from "@smp/factory-shared/types";
 export async function listVms(
   db: Database,
   filters?: {
+    slug?: string;
     providerId?: string;
     status?: string;
     hostId?: string;
@@ -18,6 +19,9 @@ export async function listVms(
   }
 ) {
   let query = db.select().from(vm);
+  if (filters?.slug) {
+    query = query.where(eq(vm.slug, filters.slug)) as typeof query;
+  }
   if (filters?.providerId) {
     query = query.where(eq(vm.providerId, filters.providerId)) as typeof query;
   }

@@ -85,6 +85,28 @@ expect(res.status).toBe(200);
       expect(data[0].ownerId).toBe("user_1");
     });
 
+    it("GET /sandboxes filters by slug", async () => {
+      await createSandbox({ name: "my-workspace", ownerId: "user_1" });
+      await createSandbox({ name: "other-sandbox", ownerId: "user_2" });
+
+      const res = await app.handle(
+        new Request(`${BASE}?slug=my-workspace`)
+      );
+      const { data } = (await res.json()) as any;
+      expect(data).toHaveLength(1);
+      expect(data[0].slug).toBe("my-workspace");
+    });
+
+    it("GET /sandboxes slug filter returns empty for non-matching slug", async () => {
+      await createSandbox({ name: "maria-workspace", ownerId: "user_1" });
+
+      const res = await app.handle(
+        new Request(`${BASE}?slug=lepton-59`)
+      );
+      const { data } = (await res.json()) as any;
+      expect(data).toHaveLength(0);
+    });
+
     it("GET /sandboxes/:id returns detail", async () => {
       const createRes = await createSandbox();
       const { data: created } = (await createRes.json()) as any;

@@ -84,6 +84,7 @@ export const InfraModel = {
     accessUser: t.Optional(t.String()),
   }),
   listVmsQuery: t.Object({
+    slug: t.Optional(t.String()),
     providerId: t.Optional(t.String()),
     status: t.Optional(t.String()),
     hostId: t.Optional(t.String()),
@@ -133,6 +134,7 @@ export const InfraModel = {
     accessMethod: t.Optional(t.String()),
   }),
   listHostsQuery: t.Object({
+    slug: t.Optional(t.String()),
     providerId: t.Optional(t.String()),
     datacenterId: t.Optional(t.String()),
     status: t.Optional(t.String()),
