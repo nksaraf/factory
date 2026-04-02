@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -403,8 +404,8 @@ export const preview = factoryFleet.table(
       onDelete: "set null",
     }),
     imageRef: text("image_ref"),
-    githubDeploymentId: integer("github_deployment_id"),
-    githubCommentId: integer("github_comment_id"),
+    githubDeploymentId: bigint("github_deployment_id", { mode: "number" }),
+    githubCommentId: bigint("github_comment_id", { mode: "number" }),
     statusMessage: text("status_message"),
     lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),

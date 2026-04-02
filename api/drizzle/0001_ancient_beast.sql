@@ -1,0 +1,2 @@
+ALTER TABLE "factory_fleet"."preview" ALTER COLUMN "github_deployment_id" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "factory_fleet"."preview" ALTER COLUMN "github_comment_id" SET DATA TYPE bigint;
