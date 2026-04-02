@@ -307,7 +307,11 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         logger.debug({ target: wsTarget.toString(), targetPort }, "sandbox ws upgrade");
 
         try {
-          const backend = new WebSocket(wsTarget.toString());
+          // Forward subprotocols (e.g. ttyd requires "tty", VS Code uses its own)
+          const subprotocols = req.headers.get("sec-websocket-protocol")?.split(",").map(s => s.trim()) ?? [];
+          const backend = subprotocols.length > 0
+            ? new WebSocket(wsTarget.toString(), subprotocols)
+            : new WebSocket(wsTarget.toString());
           backend.binaryType = "arraybuffer";
 
           await new Promise<void>((resolve, reject) => {
