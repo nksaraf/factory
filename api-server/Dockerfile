@@ -3,14 +3,19 @@
 #
 # Uses Bun directly (not Nitro) so Elysia WebSocket handlers work natively.
 
-FROM oven/bun:1-alpine AS builder
+# Build from monorepo root (see docker-compose.yaml api.build.context).
+# Example: docker build -f factory/api/Dockerfile .
+
+FROM node:22-alpine AS builder
 
 ARG GOOGLE_APPLICATION_CREDENTIALS_BASE64
 ENV GOOGLE_APPLICATION_CREDENTIALS_BASE64=${GOOGLE_APPLICATION_CREDENTIALS_BASE64}
 
-RUN apk add --no-cache python3 build-base nodejs npm
+RUN apk add --no-cache python3 build-base
 
-RUN npm i -g corepack && corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+
 
 WORKDIR /repo
 
@@ -28,6 +33,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY ./api ./api
 COPY ./api-server ./api-server
 COPY ./shared ./shared
+# Migrations: generate in api (`pnpm --filter @smp/factory-api run db:generate`).
+COPY ./api/drizzle ./drizzle
+
 
 FROM oven/bun:1-alpine AS runner
 

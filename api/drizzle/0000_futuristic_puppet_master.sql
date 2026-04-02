@@ -1,18 +1,18 @@
-CREATE SCHEMA IF NOT EXISTS "factory_agent";
+CREATE SCHEMA "factory_agent";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_build";
+CREATE SCHEMA "factory_build";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_catalog";
+CREATE SCHEMA "factory_catalog";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_commerce";
+CREATE SCHEMA "factory_commerce";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_fleet";
+CREATE SCHEMA "factory_fleet";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_infra";
+CREATE SCHEMA "factory_infra";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_org";
+CREATE SCHEMA "factory_org";
 --> statement-breakpoint
-CREATE SCHEMA IF NOT EXISTS "factory_product";
+CREATE SCHEMA "factory_product";
 --> statement-breakpoint
 CREATE TABLE "factory_agent"."agent" (
 	"agent_id" text PRIMARY KEY NOT NULL,
@@ -22,9 +22,21 @@ CREATE TABLE "factory_agent"."agent" (
 	"principal_id" text,
 	"status" text DEFAULT 'active' NOT NULL,
 	"capabilities" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"role_preset_slug" text,
+	"autonomy_level" text DEFAULT 'executor' NOT NULL,
+	"relationship" text DEFAULT 'team' NOT NULL,
+	"relationship_entity_id" text,
+	"collaboration_mode" text DEFAULT 'solo' NOT NULL,
+	"reports_to_agent_id" text,
+	"config" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"trust_score" real DEFAULT 0.5 NOT NULL,
+	"guardrails" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "agent_type_valid" CHECK ("factory_agent"."agent"."agent_type" IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')),
-	CONSTRAINT "agent_status_valid" CHECK ("factory_agent"."agent"."status" IN ('active', 'disabled'))
+	CONSTRAINT "agent_status_valid" CHECK ("factory_agent"."agent"."status" IN ('active', 'disabled')),
+	CONSTRAINT "agent_autonomy_level_valid" CHECK ("factory_agent"."agent"."autonomy_level" IN ('observer', 'advisor', 'executor', 'operator', 'supervisor')),
+	CONSTRAINT "agent_relationship_valid" CHECK ("factory_agent"."agent"."relationship" IN ('personal', 'team', 'org')),
+	CONSTRAINT "agent_collaboration_mode_valid" CHECK ("factory_agent"."agent"."collaboration_mode" IN ('solo', 'pair', 'crew', 'hierarchy'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_agent"."agent_execution" (
@@ -36,6 +48,43 @@ CREATE TABLE "factory_agent"."agent_execution" (
 	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone,
 	CONSTRAINT "agent_execution_status_valid" CHECK ("factory_agent"."agent_execution"."status" IN ('pending', 'running', 'succeeded', 'failed'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_agent"."job" (
+	"job_id" text PRIMARY KEY NOT NULL,
+	"agent_id" text NOT NULL,
+	"mode" text NOT NULL,
+	"trigger" text NOT NULL,
+	"entity_kind" text,
+	"entity_id" text,
+	"channel_kind" text,
+	"channel_id" text,
+	"message_thread_id" text,
+	"parent_job_id" text,
+	"delegated_by_agent_id" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"task" text NOT NULL,
+	"outcome" jsonb,
+	"cost_cents" integer,
+	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"completed_at" timestamp with time zone,
+	"human_override" boolean DEFAULT false NOT NULL,
+	"override_note" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	CONSTRAINT "job_mode_valid" CHECK ("factory_agent"."job"."mode" IN ('conversational', 'autonomous', 'observation')),
+	CONSTRAINT "job_trigger_valid" CHECK ("factory_agent"."job"."trigger" IN ('mention', 'event', 'schedule', 'delegation', 'manual')),
+	CONSTRAINT "job_status_valid" CHECK ("factory_agent"."job"."status" IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')),
+	CONSTRAINT "job_channel_kind_valid" CHECK ("factory_agent"."job"."channel_kind" IS NULL OR "factory_agent"."job"."channel_kind" IN ('slack', 'cli', 'web', 'internal'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_agent"."role_preset" (
+	"role_preset_id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"org_id" text,
+	"description" text,
+	"defaults" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "factory_build"."artifact" (
@@ -121,6 +170,39 @@ CREATE TABLE "factory_build"."module_version" (
 	"compatibility_range" text,
 	"schema_version" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "factory_build"."pipeline_run" (
+	"pipeline_run_id" text PRIMARY KEY NOT NULL,
+	"repo_id" text,
+	"trigger_event" text NOT NULL,
+	"trigger_ref" text NOT NULL,
+	"commit_sha" text NOT NULL,
+	"workflow_file" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"sandbox_id" text,
+	"webhook_event_id" text,
+	"trigger_actor" text,
+	"error_message" text,
+	"started_at" timestamp with time zone,
+	"completed_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "pipeline_run_trigger_event_valid" CHECK ("factory_build"."pipeline_run"."trigger_event" IN ('push', 'pull_request', 'manual', 'schedule')),
+	CONSTRAINT "pipeline_run_status_valid" CHECK ("factory_build"."pipeline_run"."status" IN ('pending', 'queued', 'running', 'success', 'failure', 'cancelled', 'timed_out'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_build"."pipeline_step_run" (
+	"pipeline_step_run_id" text PRIMARY KEY NOT NULL,
+	"pipeline_run_id" text NOT NULL,
+	"job_name" text NOT NULL,
+	"step_name" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"exit_code" bigint,
+	"log_url" text,
+	"started_at" timestamp with time zone,
+	"completed_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "pipeline_step_run_status_valid" CHECK ("factory_build"."pipeline_step_run"."status" IN ('pending', 'running', 'success', 'failure', 'skipped', 'cancelled'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_build"."repo" (
@@ -372,7 +454,40 @@ CREATE TABLE "factory_fleet"."site" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"last_checkin_at" timestamp with time zone,
 	"current_manifest_version" integer,
+	"preview_config" jsonb DEFAULT '{"enabled":false}'::jsonb NOT NULL,
 	CONSTRAINT "fleet_site_status_valid" CHECK ("factory_fleet"."site"."status" IN ('provisioning', 'active', 'suspended', 'decommissioned'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_fleet"."workbench" (
+	"workbench_id" text PRIMARY KEY NOT NULL,
+	"type" text DEFAULT 'developer' NOT NULL,
+	"hostname" text NOT NULL,
+	"ips" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"os" text NOT NULL,
+	"arch" text NOT NULL,
+	"dx_version" text NOT NULL,
+	"principal_id" text,
+	"last_ping_at" timestamp with time zone,
+	"last_command" text,
+	"registered_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "fleet_workbench_type_valid" CHECK ("factory_fleet"."workbench"."type" IN ('developer', 'ci', 'agent', 'sandbox', 'build', 'testbed'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_fleet"."forwarded_port" (
+	"forwarded_port_id" text PRIMARY KEY NOT NULL,
+	"sandbox_id" text NOT NULL,
+	"tunnel_id" text,
+	"port" integer NOT NULL,
+	"label" text,
+	"protocol" text DEFAULT 'http' NOT NULL,
+	"is_primary" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"detected_by" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "forwarded_port_protocol_valid" CHECK ("factory_fleet"."forwarded_port"."protocol" IN ('http', 'tcp')),
+	CONSTRAINT "forwarded_port_status_valid" CHECK ("factory_fleet"."forwarded_port"."status" IN ('active', 'inactive'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_fleet"."install_manifest" (
@@ -422,6 +537,10 @@ CREATE TABLE "factory_fleet"."preview" (
 	"auth_mode" text DEFAULT 'team' NOT NULL,
 	"runtime_class" text DEFAULT 'hot' NOT NULL,
 	"status" text DEFAULT 'building' NOT NULL,
+	"sandbox_id" text,
+	"image_ref" text,
+	"github_deployment_id" integer,
+	"github_comment_id" integer,
 	"status_message" text,
 	"last_accessed_at" timestamp with time zone,
 	"expires_at" timestamp with time zone,
@@ -429,7 +548,7 @@ CREATE TABLE "factory_fleet"."preview" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "preview_auth_mode_valid" CHECK ("factory_fleet"."preview"."auth_mode" IN ('public', 'team', 'private')),
 	CONSTRAINT "preview_runtime_class_valid" CHECK ("factory_fleet"."preview"."runtime_class" IN ('hot', 'warm', 'cold')),
-	CONSTRAINT "preview_status_valid" CHECK ("factory_fleet"."preview"."status" IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed'))
+	CONSTRAINT "preview_status_valid" CHECK ("factory_fleet"."preview"."status" IN ('pending_image', 'building', 'deploying', 'active', 'inactive', 'expired', 'failed'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_fleet"."release" (
@@ -497,14 +616,20 @@ CREATE TABLE "factory_fleet"."sandbox" (
 	"cpu" text,
 	"memory" text,
 	"storage_gb" integer DEFAULT 10 NOT NULL,
+	"ip_address" text,
+	"auth_mode" text DEFAULT 'private' NOT NULL,
 	"ssh_host" text,
 	"ssh_port" integer,
 	"web_terminal_url" text,
+	"web_ide_url" text,
+	"health_status" text DEFAULT 'unknown',
+	"health_checked_at" timestamp with time zone,
 	"cloned_from_snapshot_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "sandbox_runtime_type_valid" CHECK ("factory_fleet"."sandbox"."runtime_type" IN ('container', 'vm')),
-	CONSTRAINT "sandbox_owner_type_valid" CHECK ("factory_fleet"."sandbox"."owner_type" IN ('user', 'agent'))
+	CONSTRAINT "sandbox_owner_type_valid" CHECK ("factory_fleet"."sandbox"."owner_type" IN ('user', 'agent')),
+	CONSTRAINT "sandbox_auth_mode_valid" CHECK ("factory_fleet"."sandbox"."auth_mode" IN ('public', 'team', 'private'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_fleet"."sandbox_snapshot" (
@@ -515,7 +640,7 @@ CREATE TABLE "factory_fleet"."sandbox_snapshot" (
 	"runtime_type" text NOT NULL,
 	"volume_snapshot_name" text,
 	"image_ref" text,
-	"proxmox_snapshot_name" text,
+	"external_snapshot_name" text,
 	"vm_id" text,
 	"snapshot_metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"size_bytes" text,
@@ -654,6 +779,7 @@ CREATE TABLE "factory_infra"."cluster" (
 	"provider_id" text NOT NULL,
 	"status" text DEFAULT 'provisioning' NOT NULL,
 	"kubeconfig_ref" text,
+	"endpoint" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "cluster_status_valid" CHECK ("factory_infra"."cluster"."status" IN ('provisioning', 'ready', 'degraded', 'destroying'))
 );
@@ -729,27 +855,7 @@ CREATE TABLE "factory_infra"."provider" (
 	"status" text DEFAULT 'active' NOT NULL,
 	"credentials_ref" text,
 	"provider_kind" text DEFAULT 'internal' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "provider_type_valid" CHECK ("factory_infra"."provider"."provider_type" IN ('proxmox', 'hetzner', 'aws', 'gcp')),
-	CONSTRAINT "provider_status_valid" CHECK ("factory_infra"."provider"."status" IN ('active', 'inactive')),
-	CONSTRAINT "provider_kind_valid" CHECK ("factory_infra"."provider"."provider_kind" IN ('internal', 'cloud', 'partner'))
-);
---> statement-breakpoint
-CREATE TABLE "factory_infra"."proxmox_cluster" (
-	"proxmox_cluster_id" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"slug" text NOT NULL,
-	"provider_id" text NOT NULL,
-	"api_host" text NOT NULL,
-	"api_port" integer DEFAULT 8006 NOT NULL,
-	"token_id" text,
-	"token_secret" text,
-	"ssl_fingerprint" text,
-	"sync_status" text DEFAULT 'idle' NOT NULL,
-	"last_sync_at" timestamp with time zone,
-	"sync_error" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "sync_status_valid" CHECK ("factory_infra"."proxmox_cluster"."sync_status" IN ('idle', 'syncing', 'error'))
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "factory_infra"."region" (
@@ -762,6 +868,20 @@ CREATE TABLE "factory_infra"."region" (
 	"timezone" text,
 	"provider_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "factory_infra"."ssh_key" (
+	"ssh_key_id" text PRIMARY KEY NOT NULL,
+	"principal_id" text NOT NULL,
+	"name" text NOT NULL,
+	"public_key" text NOT NULL,
+	"fingerprint" text NOT NULL,
+	"key_type" text DEFAULT 'ed25519' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"last_used_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "ssh_key_type_valid" CHECK ("factory_infra"."ssh_key"."key_type" IN ('ed25519', 'rsa', 'ecdsa')),
+	CONSTRAINT "ssh_key_status_valid" CHECK ("factory_infra"."ssh_key"."status" IN ('active', 'revoked'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_infra"."subnet" (
@@ -788,8 +908,8 @@ CREATE TABLE "factory_infra"."vm" (
 	"datacenter_id" text,
 	"host_id" text,
 	"cluster_id" text,
-	"proxmox_cluster_id" text,
-	"proxmox_vmid" integer,
+	"vm_cluster_id" text,
+	"external_vmid" integer,
 	"vm_type" text DEFAULT 'qemu' NOT NULL,
 	"status" text DEFAULT 'provisioning' NOT NULL,
 	"os_type" text DEFAULT 'linux' NOT NULL,
@@ -803,6 +923,35 @@ CREATE TABLE "factory_infra"."vm" (
 	CONSTRAINT "vm_status_valid" CHECK ("factory_infra"."vm"."status" IN ('provisioning', 'running', 'stopped', 'destroying')),
 	CONSTRAINT "vm_os_type_valid" CHECK ("factory_infra"."vm"."os_type" IN ('linux', 'windows')),
 	CONSTRAINT "vm_access_method_valid" CHECK ("factory_infra"."vm"."access_method" IN ('ssh', 'winrm', 'rdp'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_infra"."vm_cluster" (
+	"vm_cluster_id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"api_host" text NOT NULL,
+	"api_port" integer DEFAULT 8006 NOT NULL,
+	"token_id" text,
+	"token_secret" text,
+	"ssl_fingerprint" text,
+	"sync_status" text DEFAULT 'idle' NOT NULL,
+	"last_sync_at" timestamp with time zone,
+	"sync_error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "sync_status_valid" CHECK ("factory_infra"."vm_cluster"."sync_status" IN ('idle', 'syncing', 'error'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_org"."channel_mapping" (
+	"channel_mapping_id" text PRIMARY KEY NOT NULL,
+	"messaging_provider_id" text NOT NULL,
+	"external_channel_id" text NOT NULL,
+	"external_channel_name" text,
+	"entity_kind" text NOT NULL,
+	"entity_id" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "org_channel_mapping_entity_kind_valid" CHECK ("factory_org"."channel_mapping"."entity_kind" IN ('module', 'team', 'domain'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_org"."identity_link" (
@@ -824,6 +973,65 @@ CREATE TABLE "factory_org"."identity_link" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "org_identity_link_provider_valid" CHECK ("factory_org"."identity_link"."provider" IN ('github', 'google', 'slack', 'jira', 'claude', 'cursor')),
 	CONSTRAINT "org_identity_link_sync_status_valid" CHECK ("factory_org"."identity_link"."sync_status" IN ('idle', 'syncing', 'error'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_org"."memory" (
+	"memory_id" text PRIMARY KEY NOT NULL,
+	"org_id" text NOT NULL,
+	"layer" text NOT NULL,
+	"layer_entity_id" text NOT NULL,
+	"type" text NOT NULL,
+	"content" text NOT NULL,
+	"embedding" text,
+	"tags" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"source_job_id" text,
+	"source_agent_id" text,
+	"promoted_from_id" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"confidence" real DEFAULT 1 NOT NULL,
+	"approved_by_principal_id" text,
+	"last_accessed_at" timestamp with time zone,
+	"access_count" integer DEFAULT 0 NOT NULL,
+	"superseded_by_id" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "memory_layer_valid" CHECK ("factory_org"."memory"."layer" IN ('session', 'team', 'org')),
+	CONSTRAINT "memory_type_valid" CHECK ("factory_org"."memory"."type" IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')),
+	CONSTRAINT "memory_status_valid" CHECK ("factory_org"."memory"."status" IN ('proposed', 'active', 'archived', 'superseded'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_org"."message_thread" (
+	"message_thread_id" text PRIMARY KEY NOT NULL,
+	"messaging_provider_id" text NOT NULL,
+	"external_channel_id" text NOT NULL,
+	"external_thread_id" text NOT NULL,
+	"initiator_principal_id" text,
+	"subject" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"messages" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "org_message_thread_status_valid" CHECK ("factory_org"."message_thread"."status" IN ('active', 'resolved', 'archived'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_org"."messaging_provider" (
+	"messaging_provider_id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"kind" text NOT NULL,
+	"team_id" text NOT NULL,
+	"workspace_external_id" text,
+	"bot_token_enc" text,
+	"signing_secret" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"sync_status" text DEFAULT 'idle' NOT NULL,
+	"last_sync_at" timestamp with time zone,
+	"sync_error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "org_messaging_provider_kind_valid" CHECK ("factory_org"."messaging_provider"."kind" IN ('slack', 'teams', 'google-chat')),
+	CONSTRAINT "org_messaging_provider_status_valid" CHECK ("factory_org"."messaging_provider"."status" IN ('active', 'inactive', 'error')),
+	CONSTRAINT "org_messaging_provider_sync_status_valid" CHECK ("factory_org"."messaging_provider"."sync_status" IN ('idle', 'syncing', 'error'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_org"."principal" (
@@ -865,6 +1073,22 @@ CREATE TABLE "factory_org"."scope" (
 	"description" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "org_scope_type_valid" CHECK ("factory_org"."scope"."type" IN ('team', 'resource', 'custom'))
+);
+--> statement-breakpoint
+CREATE TABLE "factory_org"."secret" (
+	"secret_id" text PRIMARY KEY NOT NULL,
+	"key" text NOT NULL,
+	"encrypted_value" text NOT NULL,
+	"iv" text NOT NULL,
+	"auth_tag" text NOT NULL,
+	"scope_type" text NOT NULL,
+	"scope_id" text,
+	"environment" text,
+	"created_by" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "org_secret_scope_type_valid" CHECK ("factory_org"."secret"."scope_type" IN ('org', 'team', 'project', 'environment')),
+	CONSTRAINT "org_secret_environment_valid" CHECK ("factory_org"."secret"."environment" IS NULL OR "factory_org"."secret"."environment" IN ('production', 'development', 'preview'))
 );
 --> statement-breakpoint
 CREATE TABLE "factory_org"."team" (
@@ -1000,6 +1224,9 @@ CREATE TABLE "factory_product"."work_tracker_provider" (
 --> statement-breakpoint
 ALTER TABLE "factory_agent"."agent" ADD CONSTRAINT "agent_principal_id_principal_principal_id_fk" FOREIGN KEY ("principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_agent"."agent_execution" ADD CONSTRAINT "agent_execution_agent_id_agent_agent_id_fk" FOREIGN KEY ("agent_id") REFERENCES "factory_agent"."agent"("agent_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_agent"."job" ADD CONSTRAINT "job_agent_id_agent_agent_id_fk" FOREIGN KEY ("agent_id") REFERENCES "factory_agent"."agent"("agent_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_agent"."job" ADD CONSTRAINT "job_message_thread_id_message_thread_message_thread_id_fk" FOREIGN KEY ("message_thread_id") REFERENCES "factory_org"."message_thread"("message_thread_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_agent"."job" ADD CONSTRAINT "job_delegated_by_agent_id_agent_agent_id_fk" FOREIGN KEY ("delegated_by_agent_id") REFERENCES "factory_agent"."agent"("agent_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."component_artifact" ADD CONSTRAINT "component_artifact_module_version_id_module_version_module_version_id_fk" FOREIGN KEY ("module_version_id") REFERENCES "factory_build"."module_version"("module_version_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."component_artifact" ADD CONSTRAINT "component_artifact_component_id_component_spec_component_id_fk" FOREIGN KEY ("component_id") REFERENCES "factory_product"."component_spec"("component_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."component_artifact" ADD CONSTRAINT "component_artifact_artifact_id_artifact_artifact_id_fk" FOREIGN KEY ("artifact_id") REFERENCES "factory_build"."artifact"("artifact_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1009,6 +1236,9 @@ ALTER TABLE "factory_build"."git_repo_sync" ADD CONSTRAINT "git_repo_sync_git_ho
 ALTER TABLE "factory_build"."git_user_sync" ADD CONSTRAINT "git_user_sync_git_host_provider_id_git_host_provider_git_host_provider_id_fk" FOREIGN KEY ("git_host_provider_id") REFERENCES "factory_build"."git_host_provider"("git_host_provider_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."github_app_installation" ADD CONSTRAINT "github_app_installation_git_host_provider_id_git_host_provider_git_host_provider_id_fk" FOREIGN KEY ("git_host_provider_id") REFERENCES "factory_build"."git_host_provider"("git_host_provider_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."module_version" ADD CONSTRAINT "module_version_module_id_module_module_id_fk" FOREIGN KEY ("module_id") REFERENCES "factory_product"."module"("module_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_build"."pipeline_run" ADD CONSTRAINT "pipeline_run_repo_id_repo_repo_id_fk" FOREIGN KEY ("repo_id") REFERENCES "factory_build"."repo"("repo_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_build"."pipeline_run" ADD CONSTRAINT "pipeline_run_webhook_event_id_webhook_event_webhook_event_id_fk" FOREIGN KEY ("webhook_event_id") REFERENCES "factory_build"."webhook_event"("webhook_event_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_build"."pipeline_step_run" ADD CONSTRAINT "pipeline_step_run_pipeline_run_id_pipeline_run_pipeline_run_id_fk" FOREIGN KEY ("pipeline_run_id") REFERENCES "factory_build"."pipeline_run"("pipeline_run_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."repo" ADD CONSTRAINT "repo_module_id_module_module_id_fk" FOREIGN KEY ("module_id") REFERENCES "factory_product"."module"("module_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."repo" ADD CONSTRAINT "repo_git_host_provider_id_git_host_provider_git_host_provider_id_fk" FOREIGN KEY ("git_host_provider_id") REFERENCES "factory_build"."git_host_provider"("git_host_provider_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_build"."repo" ADD CONSTRAINT "repo_team_id_team_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "factory_org"."team"("team_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1034,11 +1264,13 @@ ALTER TABLE "factory_fleet"."deployment_target" ADD CONSTRAINT "deployment_targe
 ALTER TABLE "factory_fleet"."deployment_target" ADD CONSTRAINT "deployment_target_site_id_site_site_id_fk" FOREIGN KEY ("site_id") REFERENCES "factory_fleet"."site"("site_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."deployment_target" ADD CONSTRAINT "deployment_target_cluster_id_cluster_cluster_id_fk" FOREIGN KEY ("cluster_id") REFERENCES "factory_infra"."cluster"("cluster_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."site" ADD CONSTRAINT "site_cluster_id_cluster_cluster_id_fk" FOREIGN KEY ("cluster_id") REFERENCES "factory_infra"."cluster"("cluster_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_fleet"."forwarded_port" ADD CONSTRAINT "forwarded_port_sandbox_id_sandbox_sandbox_id_fk" FOREIGN KEY ("sandbox_id") REFERENCES "factory_fleet"."sandbox"("sandbox_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."install_manifest" ADD CONSTRAINT "install_manifest_site_id_site_site_id_fk" FOREIGN KEY ("site_id") REFERENCES "factory_fleet"."site"("site_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."intervention" ADD CONSTRAINT "intervention_deployment_target_id_deployment_target_deployment_target_id_fk" FOREIGN KEY ("deployment_target_id") REFERENCES "factory_fleet"."deployment_target"("deployment_target_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."intervention" ADD CONSTRAINT "intervention_workload_id_workload_workload_id_fk" FOREIGN KEY ("workload_id") REFERENCES "factory_fleet"."workload"("workload_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."preview" ADD CONSTRAINT "preview_deployment_target_id_deployment_target_deployment_target_id_fk" FOREIGN KEY ("deployment_target_id") REFERENCES "factory_fleet"."deployment_target"("deployment_target_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."preview" ADD CONSTRAINT "preview_site_id_site_site_id_fk" FOREIGN KEY ("site_id") REFERENCES "factory_fleet"."site"("site_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_fleet"."preview" ADD CONSTRAINT "preview_sandbox_id_sandbox_sandbox_id_fk" FOREIGN KEY ("sandbox_id") REFERENCES "factory_fleet"."sandbox"("sandbox_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."release_bundle" ADD CONSTRAINT "release_bundle_release_id_release_release_id_fk" FOREIGN KEY ("release_id") REFERENCES "factory_fleet"."release"("release_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."release_module_pin" ADD CONSTRAINT "release_module_pin_release_id_release_release_id_fk" FOREIGN KEY ("release_id") REFERENCES "factory_fleet"."release"("release_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_fleet"."release_module_pin" ADD CONSTRAINT "release_module_pin_module_version_id_module_version_module_version_id_fk" FOREIGN KEY ("module_version_id") REFERENCES "factory_build"."module_version"("module_version_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -1065,19 +1297,25 @@ ALTER TABLE "factory_infra"."host" ADD CONSTRAINT "host_datacenter_id_datacenter
 ALTER TABLE "factory_infra"."ip_address" ADD CONSTRAINT "ip_address_subnet_id_subnet_subnet_id_fk" FOREIGN KEY ("subnet_id") REFERENCES "factory_infra"."subnet"("subnet_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."kube_node" ADD CONSTRAINT "kube_node_cluster_id_cluster_cluster_id_fk" FOREIGN KEY ("cluster_id") REFERENCES "factory_infra"."cluster"("cluster_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."kube_node" ADD CONSTRAINT "kube_node_vm_id_vm_vm_id_fk" FOREIGN KEY ("vm_id") REFERENCES "factory_infra"."vm"("vm_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "factory_infra"."proxmox_cluster" ADD CONSTRAINT "proxmox_cluster_provider_id_provider_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "factory_infra"."provider"("provider_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."region" ADD CONSTRAINT "region_provider_id_provider_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "factory_infra"."provider"("provider_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."subnet" ADD CONSTRAINT "subnet_datacenter_id_datacenter_datacenter_id_fk" FOREIGN KEY ("datacenter_id") REFERENCES "factory_infra"."datacenter"("datacenter_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_provider_id_provider_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "factory_infra"."provider"("provider_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_datacenter_id_datacenter_datacenter_id_fk" FOREIGN KEY ("datacenter_id") REFERENCES "factory_infra"."datacenter"("datacenter_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_host_id_host_host_id_fk" FOREIGN KEY ("host_id") REFERENCES "factory_infra"."host"("host_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_cluster_id_cluster_cluster_id_fk" FOREIGN KEY ("cluster_id") REFERENCES "factory_infra"."cluster"("cluster_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_proxmox_cluster_id_proxmox_cluster_proxmox_cluster_id_fk" FOREIGN KEY ("proxmox_cluster_id") REFERENCES "factory_infra"."proxmox_cluster"("proxmox_cluster_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_infra"."vm" ADD CONSTRAINT "vm_vm_cluster_id_vm_cluster_vm_cluster_id_fk" FOREIGN KEY ("vm_cluster_id") REFERENCES "factory_infra"."vm_cluster"("vm_cluster_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_infra"."vm_cluster" ADD CONSTRAINT "vm_cluster_provider_id_provider_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "factory_infra"."provider"("provider_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."channel_mapping" ADD CONSTRAINT "channel_mapping_messaging_provider_id_messaging_provider_messaging_provider_id_fk" FOREIGN KEY ("messaging_provider_id") REFERENCES "factory_org"."messaging_provider"("messaging_provider_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."identity_link" ADD CONSTRAINT "identity_link_principal_id_principal_principal_id_fk" FOREIGN KEY ("principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."memory" ADD CONSTRAINT "memory_approved_by_principal_id_principal_principal_id_fk" FOREIGN KEY ("approved_by_principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."message_thread" ADD CONSTRAINT "message_thread_messaging_provider_id_messaging_provider_messaging_provider_id_fk" FOREIGN KEY ("messaging_provider_id") REFERENCES "factory_org"."messaging_provider"("messaging_provider_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."message_thread" ADD CONSTRAINT "message_thread_initiator_principal_id_principal_principal_id_fk" FOREIGN KEY ("initiator_principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."messaging_provider" ADD CONSTRAINT "messaging_provider_team_id_team_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "factory_org"."team"("team_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."principal" ADD CONSTRAINT "principal_team_id_team_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "factory_org"."team"("team_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."principal_team_membership" ADD CONSTRAINT "principal_team_membership_principal_id_principal_principal_id_fk" FOREIGN KEY ("principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."principal_team_membership" ADD CONSTRAINT "principal_team_membership_team_id_team_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "factory_org"."team"("team_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."scope" ADD CONSTRAINT "scope_team_id_team_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "factory_org"."team"("team_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "factory_org"."secret" ADD CONSTRAINT "secret_created_by_principal_principal_id_fk" FOREIGN KEY ("created_by") REFERENCES "factory_org"."principal"("principal_id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."tool_credential" ADD CONSTRAINT "tool_credential_principal_id_principal_principal_id_fk" FOREIGN KEY ("principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_org"."tool_usage" ADD CONSTRAINT "tool_usage_principal_id_principal_principal_id_fk" FOREIGN KEY ("principal_id") REFERENCES "factory_org"."principal"("principal_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "factory_product"."component_spec" ADD CONSTRAINT "component_spec_module_id_module_module_id_fk" FOREIGN KEY ("module_id") REFERENCES "factory_product"."module"("module_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1087,6 +1325,16 @@ ALTER TABLE "factory_product"."work_tracker_project_mapping" ADD CONSTRAINT "wor
 ALTER TABLE "factory_product"."work_tracker_project_mapping" ADD CONSTRAINT "work_tracker_project_mapping_module_id_module_module_id_fk" FOREIGN KEY ("module_id") REFERENCES "factory_product"."module"("module_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "agent_name_unique" ON "factory_agent"."agent" USING btree ("name");--> statement-breakpoint
 CREATE UNIQUE INDEX "agent_slug_unique" ON "factory_agent"."agent" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "agent_preset_idx" ON "factory_agent"."agent" USING btree ("role_preset_slug");--> statement-breakpoint
+CREATE INDEX "agent_relationship_idx" ON "factory_agent"."agent" USING btree ("relationship","relationship_entity_id");--> statement-breakpoint
+CREATE INDEX "agent_reports_to_idx" ON "factory_agent"."agent" USING btree ("reports_to_agent_id");--> statement-breakpoint
+CREATE INDEX "job_agent_idx" ON "factory_agent"."job" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "job_status_idx" ON "factory_agent"."job" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "job_entity_idx" ON "factory_agent"."job" USING btree ("entity_kind","entity_id");--> statement-breakpoint
+CREATE INDEX "job_parent_idx" ON "factory_agent"."job" USING btree ("parent_job_id");--> statement-breakpoint
+CREATE INDEX "job_message_thread_idx" ON "factory_agent"."job" USING btree ("message_thread_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "role_preset_slug_unique" ON "factory_agent"."role_preset" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "role_preset_org_idx" ON "factory_agent"."role_preset" USING btree ("org_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "git_host_provider_slug_unique" ON "factory_build"."git_host_provider" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "git_repo_sync_provider_external_unique" ON "factory_build"."git_repo_sync" USING btree ("git_host_provider_id","external_repo_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "git_user_sync_provider_external_unique" ON "factory_build"."git_user_sync" USING btree ("git_host_provider_id","external_user_id");--> statement-breakpoint
@@ -1118,6 +1366,10 @@ CREATE INDEX "deployment_target_kind_status_idx" ON "factory_fleet"."deployment_
 CREATE UNIQUE INDEX "fleet_site_name_unique" ON "factory_fleet"."site" USING btree ("name");--> statement-breakpoint
 CREATE UNIQUE INDEX "fleet_site_slug_unique" ON "factory_fleet"."site" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "fleet_site_product_idx" ON "factory_fleet"."site" USING btree ("product");--> statement-breakpoint
+CREATE INDEX "fleet_workbench_type_idx" ON "factory_fleet"."workbench" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "fleet_workbench_principal_idx" ON "factory_fleet"."workbench" USING btree ("principal_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "forwarded_port_sandbox_port_unique" ON "factory_fleet"."forwarded_port" USING btree ("sandbox_id","port");--> statement-breakpoint
+CREATE INDEX "forwarded_port_sandbox_idx" ON "factory_fleet"."forwarded_port" USING btree ("sandbox_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "install_manifest_site_id_unique" ON "factory_fleet"."install_manifest" USING btree ("site_id");--> statement-breakpoint
 CREATE INDEX "install_manifest_role_idx" ON "factory_fleet"."install_manifest" USING btree ("role");--> statement-breakpoint
 CREATE UNIQUE INDEX "preview_slug_unique" ON "factory_fleet"."preview" USING btree ("slug");--> statement-breakpoint
@@ -1156,15 +1408,30 @@ CREATE UNIQUE INDEX "ip_address_unique" ON "factory_infra"."ip_address" USING bt
 CREATE UNIQUE INDEX "kube_node_cluster_name_unique" ON "factory_infra"."kube_node" USING btree ("cluster_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "kube_node_cluster_slug_unique" ON "factory_infra"."kube_node" USING btree ("cluster_id","slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "provider_slug_unique" ON "factory_infra"."provider" USING btree ("slug");--> statement-breakpoint
-CREATE UNIQUE INDEX "proxmox_cluster_name_unique" ON "factory_infra"."proxmox_cluster" USING btree ("name");--> statement-breakpoint
-CREATE UNIQUE INDEX "proxmox_cluster_slug_unique" ON "factory_infra"."proxmox_cluster" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "region_slug_unique" ON "factory_infra"."region" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "ssh_key_fingerprint_unique" ON "factory_infra"."ssh_key" USING btree ("fingerprint");--> statement-breakpoint
+CREATE UNIQUE INDEX "ssh_key_principal_name_unique" ON "factory_infra"."ssh_key" USING btree ("principal_id","name");--> statement-breakpoint
+CREATE INDEX "ssh_key_principal_idx" ON "factory_infra"."ssh_key" USING btree ("principal_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "subnet_cidr_unique" ON "factory_infra"."subnet" USING btree ("cidr");--> statement-breakpoint
 CREATE UNIQUE INDEX "vm_slug_unique" ON "factory_infra"."vm" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "vm_cluster_name_unique" ON "factory_infra"."vm_cluster" USING btree ("name");--> statement-breakpoint
+CREATE UNIQUE INDEX "vm_cluster_slug_unique" ON "factory_infra"."vm_cluster" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "org_channel_mapping_provider_channel_unique" ON "factory_org"."channel_mapping" USING btree ("messaging_provider_id","external_channel_id");--> statement-breakpoint
+CREATE INDEX "org_channel_mapping_entity_idx" ON "factory_org"."channel_mapping" USING btree ("entity_kind","entity_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "org_identity_link_provider_external_unique" ON "factory_org"."identity_link" USING btree ("provider","external_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "org_identity_link_principal_provider_unique" ON "factory_org"."identity_link" USING btree ("principal_id","provider");--> statement-breakpoint
 CREATE INDEX "org_identity_link_principal_idx" ON "factory_org"."identity_link" USING btree ("principal_id");--> statement-breakpoint
 CREATE INDEX "org_identity_link_email_idx" ON "factory_org"."identity_link" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "memory_org_layer_idx" ON "factory_org"."memory" USING btree ("org_id","layer");--> statement-breakpoint
+CREATE INDEX "memory_layer_entity_idx" ON "factory_org"."memory" USING btree ("layer","layer_entity_id");--> statement-breakpoint
+CREATE INDEX "memory_status_idx" ON "factory_org"."memory" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "memory_source_job_idx" ON "factory_org"."memory" USING btree ("source_job_id");--> statement-breakpoint
+CREATE INDEX "memory_source_agent_idx" ON "factory_org"."memory" USING btree ("source_agent_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "org_message_thread_provider_thread_unique" ON "factory_org"."message_thread" USING btree ("messaging_provider_id","external_thread_id");--> statement-breakpoint
+CREATE INDEX "org_message_thread_channel_idx" ON "factory_org"."message_thread" USING btree ("messaging_provider_id","external_channel_id");--> statement-breakpoint
+CREATE INDEX "org_message_thread_initiator_idx" ON "factory_org"."message_thread" USING btree ("initiator_principal_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "org_messaging_provider_slug_unique" ON "factory_org"."messaging_provider" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "org_messaging_provider_team_idx" ON "factory_org"."messaging_provider" USING btree ("team_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "org_principal_slug_unique" ON "factory_org"."principal" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "org_principal_auth_user_idx" ON "factory_org"."principal" USING btree ("auth_user_id");--> statement-breakpoint
 CREATE INDEX "org_principal_agent_idx" ON "factory_org"."principal" USING btree ("agent_id");--> statement-breakpoint
@@ -1175,6 +1442,9 @@ CREATE UNIQUE INDEX "org_scope_slug_unique" ON "factory_org"."scope" USING btree
 CREATE INDEX "org_scope_parent_idx" ON "factory_org"."scope" USING btree ("parent_scope_id");--> statement-breakpoint
 CREATE INDEX "org_scope_team_idx" ON "factory_org"."scope" USING btree ("team_id");--> statement-breakpoint
 CREATE INDEX "org_scope_resource_idx" ON "factory_org"."scope" USING btree ("resource_kind","resource_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "org_secret_key_scope_env_unique" ON "factory_org"."secret" USING btree ("key","scope_type","scope_id","environment");--> statement-breakpoint
+CREATE INDEX "org_secret_scope_idx" ON "factory_org"."secret" USING btree ("scope_type","scope_id");--> statement-breakpoint
+CREATE INDEX "org_secret_environment_idx" ON "factory_org"."secret" USING btree ("environment");--> statement-breakpoint
 CREATE UNIQUE INDEX "org_team_slug_unique" ON "factory_org"."team" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "org_team_name_unique" ON "factory_org"."team" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "org_team_parent_idx" ON "factory_org"."team" USING btree ("parent_team_id");--> statement-breakpoint
