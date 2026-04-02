@@ -36,6 +36,7 @@ routes:
 - id: factory
   uri: /api/v1/factory*
   upstream_id: factory-service
+  enable_websocket: true
   plugins:
     cors:
       allow_origins: '**'
