@@ -105,7 +105,15 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
 
       // Pre-registration: JSON text messages
       try {
-        const msg = JSON.parse(typeof data === "string" ? data : "");
+        const raw = typeof data === "string"
+          ? data
+          : data instanceof ArrayBuffer
+            ? new TextDecoder().decode(data)
+            : data instanceof Uint8Array || Buffer.isBuffer(data)
+              ? new TextDecoder().decode(data)
+              : "";
+        logger.debug({ dataType: typeof data, constructorName: data?.constructor?.name, raw: raw.slice(0, 200) }, "tunnel message received");
+        const msg = JSON.parse(raw);
 
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain();
