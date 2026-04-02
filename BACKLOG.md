@@ -398,6 +398,8 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] Custom image UX: document how custom `devcontainerImage` users can add ttyd/openvscode to their own images
 - [ ] CI workflow to build+push `ghcr.io/nksaraf/dx-sandbox:latest` on changes to `images/dx-sandbox/`
 - [ ] WebSocket proxy verification: confirm ttyd and openvscode-server WS upgrades work through Traefik + tunnel relay
+- [x] Configurable primary sandbox endpoint: `SANDBOX_PRIMARY_ENDPOINT` env var (`ide`|`terminal`, default `ide`) controls which service the base `*.sandbox.*` domain serves
+- [x] CI build for `ghcr.io/nksaraf/dx-sandbox` image: `.github/workflows/build-sandbox-image.yml` — push on main, build-only on PR, GHA cache
 
 ### Devcontainer & Envbuilder
 - [x] Envbuilder integration: sandbox pods use envbuilder to auto-detect/build devcontainer.json
@@ -430,6 +432,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] SpiceDB migration step in docker compose startup (run `datastore migrate head` before serve)
 - [ ] Traefik v3 config validation: add CI check that HostRegexp rules use v3 syntax (not v2 `{name:.+}` which silently fails)
 - [ ] Edge Traefik health monitoring: alert when `*.tunnel.lepton.software` or `*.preview.lepton.software` routes stop resolving
+- [x] k3s Traefik CRD cleanup: `SANDBOX_INGRESS_ENABLED` flipped to opt-in (default off); IngressRoutes only generated when explicitly set to `"true"`
 
 ---
 

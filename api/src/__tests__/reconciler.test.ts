@@ -307,17 +307,29 @@ describe("generateSandboxResources", () => {
     expect(ports.map((p: any) => p.targetPort)).toEqual([22, 8080, 8081]);
   });
 
-  it("generates IngressRoute with 2 route rules (terminal + IDE)", () => {
-    const resources = generateSandboxResources(baseSandbox);
-    const ingress = resources.find((r) => r.kind === "IngressRoute");
-    expect(ingress).toBeTruthy();
+  it("generates IngressRoute with 3 route rules when SANDBOX_INGRESS_ENABLED=true", () => {
+    const orig = process.env.SANDBOX_INGRESS_ENABLED;
+    process.env.SANDBOX_INGRESS_ENABLED = "true";
+    try {
+      const resources = generateSandboxResources(baseSandbox);
+      const ingress = resources.find((r) => r.kind === "IngressRoute");
+      expect(ingress).toBeTruthy();
 
-    const routes = (ingress!.spec as any).routes;
-    expect(routes).toHaveLength(2);
-    expect(routes[0].match).toContain("my-sandbox.sandbox.dx.dev");
-    expect(routes[0].services[0].port).toBe(8080);
-    expect(routes[1].match).toContain("my-sandbox--ide.sandbox.dx.dev");
-    expect(routes[1].services[0].port).toBe(8081);
+      const routes = (ingress!.spec as any).routes;
+      expect(routes).toHaveLength(3);
+      // Primary domain serves IDE by default
+      expect(routes[0].match).toContain("my-sandbox.sandbox.dx.dev");
+      expect(routes[0].services[0].port).toBe(8081);
+      // Named terminal endpoint
+      expect(routes[1].match).toContain("my-sandbox--terminal.sandbox.");
+      expect(routes[1].services[0].port).toBe(8080);
+      // Named IDE endpoint
+      expect(routes[2].match).toContain("my-sandbox--ide.sandbox.");
+      expect(routes[2].services[0].port).toBe(8081);
+    } finally {
+      if (orig === undefined) delete process.env.SANDBOX_INGRESS_ENABLED;
+      else process.env.SANDBOX_INGRESS_ENABLED = orig;
+    }
   });
 
   it("uses dx-entrypoint.sh instead of sleep infinity in direct-image mode", () => {

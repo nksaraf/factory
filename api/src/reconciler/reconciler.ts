@@ -292,20 +292,23 @@ export class Reconciler {
     }
 
     // 12. Create bare domain route (landing page / primary service)
+    // SANDBOX_PRIMARY_ENDPOINT controls which service the base domain serves: "ide" (default) or "terminal"
+    const primaryEndpoint = process.env.SANDBOX_PRIMARY_ENDPOINT || "ide";
     const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
     const sandboxDomain = `${sbx.slug}.sandbox.${gatewayDomain}`;
+    const primaryPort = primaryEndpoint === "terminal" ? (webPort ?? 8080) : (webIdePort ?? 8081);
     const existingRoute = await lookupRouteByDomain(this.db, sandboxDomain);
     if (!existingRoute) {
       await createRoute(this.db, {
         kind: "sandbox",
         domain: sandboxDomain,
         targetService: clusterEndpoint,
-        targetPort: webPort ?? 8080,
+        targetPort: primaryPort,
         deploymentTargetId: dt.deploymentTargetId,
         status: "active",
         createdBy: "reconciler",
       });
-      logger.info({ domain: sandboxDomain }, "Created bare domain route for sandbox");
+      logger.info({ domain: sandboxDomain, endpoint: primaryEndpoint }, "Created bare domain route for sandbox");
     }
 
     // 13. Create named endpoint routes from devcontainer config

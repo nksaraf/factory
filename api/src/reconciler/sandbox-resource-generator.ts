@@ -37,8 +37,10 @@ export function generateSandboxResources(
     makeService(sandbox, ns, labels),
   ];
 
-  // Generate IngressRoute for Traefik unless explicitly disabled.
-  if (process.env.SANDBOX_INGRESS_ENABLED !== "false") {
+  // Generate IngressRoute for Traefik only when explicitly enabled.
+  // Default is off because the Docker-based gateway proxy handles routing;
+  // k3s clusters typically don't have a Traefik controller installed.
+  if (process.env.SANDBOX_INGRESS_ENABLED === "true") {
     resources.push(makeIngressRoute(sandbox, ns, labels));
   }
 
@@ -354,8 +356,10 @@ function makeIngressRoute(
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
+  const primaryEndpoint = process.env.SANDBOX_PRIMARY_ENDPOINT || "ide";
   const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
   const host = `${sandbox.slug}.sandbox.${gatewayDomain}`;
+  const primaryPort = primaryEndpoint === "terminal" ? 8080 : 8081;
   return {
     apiVersion: "traefik.io/v1alpha1",
     kind: "IngressRoute",
@@ -369,6 +373,16 @@ function makeIngressRoute(
       routes: [
         {
           match: `Host(\`${host}\`)`,
+          kind: "Rule",
+          services: [
+            {
+              name: `sandbox-${sandbox.slug}`,
+              port: primaryPort,
+            },
+          ],
+        },
+        {
+          match: `Host(\`${sandbox.slug}--terminal.sandbox.${gatewayDomain}\`)`,
           kind: "Rule",
           services: [
             {

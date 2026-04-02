@@ -22,16 +22,15 @@ describe("Sandbox Resource Generator", () => {
     dockerCacheGb: 30,
   };
 
-  it("generates 6 resources for a container sandbox", () => {
+  it("generates 5 resources for a container sandbox (IngressRoute off by default)", () => {
     const resources = generateSandboxResources(baseSandbox);
-    expect(resources).toHaveLength(6);
+    expect(resources).toHaveLength(5);
     expect(resources.map((r) => r.kind)).toEqual([
       "Namespace",
       "PersistentVolumeClaim",
       "PersistentVolumeClaim",
       "Pod",
       "Service",
-      "IngressRoute",
     ]);
   });
 
@@ -129,11 +128,28 @@ describe("Sandbox Resource Generator", () => {
     }
   });
 
-  it("IngressRoute hostname is {slug}.sandbox.dx.dev", () => {
-    const resources = generateSandboxResources(baseSandbox);
-    const ingress = resources.find((r) => r.kind === "IngressRoute")!;
-    const route = (ingress.spec as any).routes[0];
-    expect(route.match).toContain("my-sandbox.sandbox.dx.dev");
+  it("IngressRoute generated when SANDBOX_INGRESS_ENABLED=true", () => {
+    const orig = process.env.SANDBOX_INGRESS_ENABLED;
+    process.env.SANDBOX_INGRESS_ENABLED = "true";
+    try {
+      const resources = generateSandboxResources(baseSandbox);
+      const ingress = resources.find((r) => r.kind === "IngressRoute")!;
+      expect(ingress).toBeTruthy();
+      // Primary route serves IDE by default (port 8081)
+      const primaryRoute = (ingress.spec as any).routes[0];
+      expect(primaryRoute.match).toContain("my-sandbox.sandbox.dx.dev");
+      expect(primaryRoute.services[0].port).toBe(8081);
+      // Terminal and IDE named routes also present
+      const terminalRoute = (ingress.spec as any).routes[1];
+      expect(terminalRoute.match).toContain("my-sandbox--terminal.sandbox.");
+      expect(terminalRoute.services[0].port).toBe(8080);
+      const ideRoute = (ingress.spec as any).routes[2];
+      expect(ideRoute.match).toContain("my-sandbox--ide.sandbox.");
+      expect(ideRoute.services[0].port).toBe(8081);
+    } finally {
+      if (orig === undefined) delete process.env.SANDBOX_INGRESS_ENABLED;
+      else process.env.SANDBOX_INGRESS_ENABLED = orig;
+    }
   });
 
   it("uses default image when devcontainerImage is null", () => {
