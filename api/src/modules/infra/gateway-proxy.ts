@@ -1,20 +1,32 @@
 import { LRUCache } from "lru-cache";
 import type { Database } from "../../db/connection";
+import { logger as rootLogger } from "../../logger";
 import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service";
 import type { StreamManager } from "./tunnel-streams";
+
+const logger = rootLogger.child({ module: "gateway-proxy" });
 
 export type RouteFamily = "tunnel" | "preview" | "sandbox";
 
 export interface ParsedHost {
   family: RouteFamily;
-  slug: string;
+  slug: string;          // base sandbox/preview slug (e.g. "my-env")
+  port?: number;         // from -p{port} suffix (e.g. 3000)
+  endpointName?: string; // from --{name} suffix (e.g. "terminal")
+  fullSubdomain: string; // full subdomain for route lookup (e.g. "my-env-p3000" or "my-env--terminal")
 }
 
+const GATEWAY_DOMAIN = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+
 const FAMILY_SUFFIXES: { suffix: string; family: RouteFamily }[] = [
-  { suffix: ".tunnel.dx.dev", family: "tunnel" },
-  { suffix: ".preview.dx.dev", family: "preview" },
-  { suffix: ".sandbox.dx.dev", family: "sandbox" },
+  { suffix: `.tunnel.${GATEWAY_DOMAIN}`, family: "tunnel" },
+  { suffix: `.preview.${GATEWAY_DOMAIN}`, family: "preview" },
+  { suffix: `.sandbox.${GATEWAY_DOMAIN}`, family: "sandbox" },
 ];
+
+// Patterns for port-based (-p3000) and named endpoint (--terminal) suffixes
+const PORT_SUFFIX_RE = /^(.+)-p(\d+)$/;
+const NAME_SUFFIX_RE = /^(.+)--([a-z][a-z0-9-]*)$/;
 
 export function parseHostname(host: string | undefined): ParsedHost | null {
   if (!host) return null;
@@ -24,10 +36,33 @@ export function parseHostname(host: string | undefined): ParsedHost | null {
 
   for (const { suffix, family } of FAMILY_SUFFIXES) {
     if (hostname.endsWith(suffix)) {
-      const slug = hostname.slice(0, -suffix.length);
-      if (slug.length > 0) {
-        return { family, slug };
+      const fullSubdomain = hostname.slice(0, -suffix.length);
+      if (fullSubdomain.length === 0) continue;
+
+      // Try to parse port suffix: {slug}-p{port}
+      const portMatch = PORT_SUFFIX_RE.exec(fullSubdomain);
+      if (portMatch) {
+        return {
+          family,
+          slug: portMatch[1]!,
+          port: parseInt(portMatch[2]!, 10),
+          fullSubdomain,
+        };
       }
+
+      // Try to parse named endpoint suffix: {slug}--{name}
+      const nameMatch = NAME_SUFFIX_RE.exec(fullSubdomain);
+      if (nameMatch) {
+        return {
+          family,
+          slug: nameMatch[1]!,
+          endpointName: nameMatch[2]!,
+          fullSubdomain,
+        };
+      }
+
+      // Bare subdomain (no port or name suffix)
+      return { family, slug: fullSubdomain, fullSubdomain };
     }
   }
 
@@ -80,10 +115,22 @@ export class RouteCache {
   }
 }
 
+export interface AuthCheckResult {
+  allowed: boolean;
+  principalId?: string;
+  redirectUrl?: string;
+}
+
+export type AuthCheckFn = (
+  req: Request,
+  resource: { kind: string; slug: string; authMode: string }
+) => Promise<AuthCheckResult>;
+
 export interface GatewayServerOptions {
   cache: RouteCache;
   port?: number;
   getTunnelStreamManager?: (subdomain: string) => StreamManager | undefined;
+  checkAuth?: AuthCheckFn;
 }
 
 export function createGatewayServer(opts: GatewayServerOptions) {
@@ -93,62 +140,88 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     port,
     async fetch(req) {
       const host = req.headers.get("host") ?? "";
+      const url = new URL(req.url);
       const parsed = parseHostname(host);
 
+      logger.info({ method: req.method, host, path: url.pathname, family: parsed?.family, slug: parsed?.slug }, "gateway request");
+
       if (!parsed) {
+        logger.warn({ host }, "gateway no route match");
         return new Response("Not Found", { status: 404 });
       }
 
       // Build the full domain for route lookup
       const suffixMap: Record<RouteFamily, string> = {
-        tunnel: ".tunnel.dx.dev",
-        preview: ".preview.dx.dev",
-        sandbox: ".sandbox.dx.dev",
+        tunnel: `.tunnel.${GATEWAY_DOMAIN}`,
+        preview: `.preview.${GATEWAY_DOMAIN}`,
+        sandbox: `.sandbox.${GATEWAY_DOMAIN}`,
       };
-      const domain = parsed.slug + suffixMap[parsed.family];
+      const domain = parsed.fullSubdomain + suffixMap[parsed.family];
 
       const route = await cache.get(domain);
       if (!route) {
+        logger.warn({ domain }, "gateway route not found in db");
         return new Response("Not Found", { status: 404 });
       }
+      logger.debug({ domain, kind: route.kind, targetService: route.targetService }, "gateway route matched");
 
-      // Forward tunnel requests through WebSocket
-      if (parsed.family === "tunnel") {
-        const sm = opts.getTunnelStreamManager?.(parsed.slug);
+      // Auth enforcement for sandbox/preview routes
+      if (opts.checkAuth && (route.kind === "sandbox" || route.kind === "preview")) {
+        const authMode = route.metadata?.authMode ?? "private";
+        if (authMode !== "public") {
+          const authResult = await opts.checkAuth(req, {
+            kind: route.kind,
+            slug: parsed.slug,
+            authMode,
+          });
+          if (!authResult.allowed) {
+            if (authResult.redirectUrl) {
+              return Response.redirect(authResult.redirectUrl, 302);
+            }
+            return new Response("Unauthorized", { status: 401 });
+          }
+        }
+      }
+
+      // Check if this route is tunnel-backed (targetService === "tunnel-broker")
+      const isTunnelBacked = route.targetService === "tunnel-broker";
+
+      // Forward tunnel requests (both *.tunnel.dx.dev and tunnel-backed sandbox/preview routes)
+      if (parsed.family === "tunnel" || isTunnelBacked) {
+        const tunnelSubdomain = isTunnelBacked ? parsed.fullSubdomain : parsed.slug;
+        const sm = opts.getTunnelStreamManager?.(tunnelSubdomain);
         if (!sm) {
+          logger.warn({ tunnelSubdomain, domain }, "tunnel not connected");
           return new Response("Tunnel Not Connected", { status: 502 });
         }
 
         try {
-          // Build HTTP_REQ payload from incoming request
           const headerObj: Record<string, string> = {};
           req.headers.forEach((val, key) => {
             headerObj[key] = val;
           });
 
-          const reqBody = req.body
-            ? new Uint8Array(await new Response(req.body).arrayBuffer())
-            : undefined;
-
+          const reqUrl = new URL(req.url);
           const tunnelRes = await sm.sendHttpRequest(
             {
               method: req.method,
-              url: new URL(req.url).pathname + new URL(req.url).search,
+              url: reqUrl.pathname + reqUrl.search,
               headers: headerObj,
             },
-            { body: reqBody, timeoutMs: 30_000 }
+            { body: req.body ?? undefined, timeoutMs: 30_000 }
           );
 
-          return new Response(new Uint8Array(tunnelRes.body), {
+          return new Response(tunnelRes.body, {
             status: tunnelRes.status,
             headers: tunnelRes.headers,
           });
-        } catch {
+        } catch (err) {
+          logger.error({ err, domain }, "tunnel proxy error");
           return new Response("Gateway Timeout", { status: 504 });
         }
       }
 
-      // Reverse proxy for preview/sandbox
+      // Reverse proxy for preview/sandbox (NodePort-backed routes)
       const targetPort = route.targetPort ?? 80;
       const targetUrl = new URL(req.url);
       targetUrl.hostname = route.targetService;
@@ -167,7 +240,8 @@ export function createGatewayServer(opts: GatewayServerOptions) {
           statusText: proxyRes.statusText,
           headers: proxyRes.headers,
         });
-      } catch {
+      } catch (err) {
+        logger.error({ err, targetService: route.targetService, targetPort }, "reverse proxy error");
         return new Response("Bad Gateway", { status: 502 });
       }
     },
@@ -247,6 +321,7 @@ export function startGateway(opts: {
   db: Database;
   port?: number;
   getTunnelStreamManager?: (subdomain: string) => StreamManager | undefined;
+  checkAuth?: AuthCheckFn;
 }) {
   const cache = new RouteCache({
     lookup: (domain) => lookupRouteByDomain(opts.db, domain),
@@ -257,11 +332,14 @@ export function startGateway(opts: {
   // Wire up cache invalidation
   setRouteChangeListener((domain) => cache.invalidate(domain));
 
+  const gwPort = opts.port ?? 9090;
   const gw = createGatewayServer({
     cache,
-    port: opts.port ?? 9090,
+    port: gwPort,
     getTunnelStreamManager: opts.getTunnelStreamManager,
+    checkAuth: opts.checkAuth,
   });
 
+  logger.info({ port: gwPort, domain: GATEWAY_DOMAIN }, "gateway proxy started");
   return { ...gw, cache };
 }

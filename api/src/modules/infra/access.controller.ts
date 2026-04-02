@@ -82,7 +82,7 @@ export function accessController(db: Database) {
       detail: { tags: ["Access"], summary: "Revoke SSH key" },
     })
 
-    .delete("/ssh-keys/:id", async ({ params, set }) => {
+    .post("/ssh-keys/:id/delete", async ({ params, set }) => {
       const row = await sshKeySvc.deleteKey(db, params.id)
       if (!row) { set.status = 404; return { success: false, error: "not_found" } }
       return { success: true, data: row }

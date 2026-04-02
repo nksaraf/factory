@@ -100,14 +100,46 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 
 ---
 
+## Build Plane — Quality Gates (`dx check`)
+
+Design spec: `plans/immutable-prancing-crown.md`
+
+### Completed (2026-03-29)
+- [x] Conventions schema `quality` section (shared/src/conventions-schema.ts) with floor enforcement
+- [x] Quality library: strategy pattern for Node (oxlint/tsc/vitest/prettier), Python (ruff/mypy/pytest), Java (checkstyle/mvn/spotless)
+- [x] `dx check` command with lint/typecheck/test/format subcommands, --component/--staged/--ci/--fix/--report flags
+- [x] Reporter: summary table, JSON output, CI exit code logic
+- [x] All 8 templates updated with quality tooling baked in (node-api, node-lib, web-app, ui-lib, python-api, python-lib, java-api, java-lib)
+- [x] Shared quality-configs.ts module (no duplication across templates)
+- [x] Project template: root scripts, simple-git-hooks, lint-staged, oxlint, editorconfig, vscode config, conventions.yaml
+- [x] Factory monorepo self-adoption: oxlint.config.json, .editorconfig, .vscode/, ci-quality.yml, .dx/conventions.yaml, root scripts
+
+### Deferred
+- [ ] SonarQube integration — hooks designed (`dx check --report sonar`), needs SonarQube instance + token config
+- [ ] Coverage enforcement — schema supports `min-line`/`min-branch` but not wired to actual coverage collection yet
+- [ ] `dx check --ci` in CI workflow — currently CI uses raw `pnpm lint`/`pnpm typecheck`; switch to `dx check --ci` once dx binary is available in CI
+- [ ] Editor layer: `.vscode/tasks.json` auto-generation for `dx check` commands
+- [ ] `dx check` watch mode — re-run checks on file save for rapid feedback loop
+
+---
+
 ## Drift Items (identified 2026-03-28)
 
-### Slack Conversational Agent
-Plan: `slack-conversational-agent-vercel-chat-sdk-ai-gate.md`
-- [ ] Vercel Chat SDK integration (current implementation is basic webhook-based)
+### Slack Conversational Agent (Chat SDK Layer)
+Spec: `docs/superpowers/specs/2026-03-28-chat-sdk-agent-layer-design.md`
+- [ ] Scaffold `agent-chat/` Next.js app in monorepo (Chat SDK + Vercel Workflow + AI SDK)
+- [ ] Chat SDK Slack adapter setup + webhook route
+- [ ] Custom state adapter: Chat SDK state → `factory_org.message_thread` + Redis locks
+- [ ] Factory API client (typed HTTP client for bot → Factory API communication)
+- [ ] Durable conversation workflow (Vercel Workflow: start on @mention, resume on messages/actions)
+- [ ] Agent tools: bash (dx CLI), read/write/edit files, grep, glob, ask_user, web_fetch
+- [ ] `ask_user` tool: post question to Slack thread, render options as buttons, pause workflow for response
+- [ ] Context builder: assemble system prompt from org/team memories + channel context + user identity
+- [ ] Execution mode: lightweight (dx CLI in-process) vs sandbox (spin up sandbox for code changes)
+- [ ] Sandbox integration: create sandbox → run coding agent → create PR → preview → merge flow
+- [ ] Agent skill definition (system prompt + tool configs — separate deliverable)
 - [ ] AI Gateway for model routing
-- [ ] `agent_persona` table for configurable agent behaviors
-- [ ] Rich conversational threading (beyond current `messageThread` persistence)
+- [ ] Web UI transport (same backend, useChat() React client instead of Slack)
 
 ### Local-First CLI
 Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (all 11 phases)
@@ -145,6 +177,8 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 - [x] `dx ssh` now uses same cascading machine resolver as `dx docker` (Factory → SSH config → local machines.json)
 
 ### Deferred
+- [ ] `dx ssh` remote command quoting: ensure `dx ssh <target> -- <cmd>` properly escape/quote commands with special chars (spaces, quotes, parens, pipes) — current `cloud ssh` mangles multi-word args and SQL commands, basically any command that runs with normal ssh, should work with dx ssh
+- [ ] `dx ssh` arbitrary command execution: support `dx ssh <target> -- docker exec ... psql -c "SELECT 1"` with proper stdin piping (match how `ssh user@host 'cmd'` works natively)
 - [ ] Tunnel-based DOCKER_HOST (`tcp://localhost:PORT` via SSH port forward) for environments where direct SSH to Docker socket is blocked
 - [ ] Machine provisioning flow: `dx docker compose up --on new-vm` spins up a VM then deploys (persona B)
 - [ ] `dx machine` as a unified DB-level view over Host+VM+Sandbox tables (decided against for v1, revisit if needed)
@@ -176,6 +210,8 @@ Built-in playbook runner for installing tools and configuring machines on demand
 - [ ] Build artifacts → artifact registry integration
 - [ ] Preview auto-sleep (hot→warm→cold tier transitions already in preview service cleanup loop)
 - [ ] Preview auth modes (public, team-only, password-protected — `authMode` column exists)
+- [ ] Docker Compose runtime for previews — deploy preview containers via `docker compose up` on same network as factory API (no k8s needed, simplest path for single-VM deployments)
+- [ ] Migrate full Factory stack into k3s (postgres, spicedb, auth, factory API as k8s Deployments) for multi-node/multi-cluster production
 - [ ] Webhook retry/replay for failed deliveries
 - [ ] `dx ci replay <run-id>` — re-run a pipeline from a specific run
 - [ ] Metrics/observability: pipeline duration trends, failure rates, flaky step detection
@@ -215,9 +251,10 @@ Built-in playbook runner for installing tools and configuring machines on demand
 These commands are registered but return "Not yet implemented":
 
 - [ ] `dx auth config`
+- [ ] `dx auth login` should not print session file path (security concern — just say "Signed in as ...")
 - [ ] `dx ops restart`, `dx ops scale`
 - [ ] `dx context list`, `dx context show`, `dx context select`
-- [ ] `dx secret get`, `dx secret list`
+- [ ] `dx secret` — centralized secret management (see Phase 10 below)
 - [ ] `dx agent list`, `dx agent run`, `dx agent show`
 - [ ] `dx work create`, `dx work done`, `dx work list`, `dx work start`
 - [ ] `dx tenant assign`, `dx tenant list`, `dx tenant show`
@@ -250,6 +287,9 @@ These commands are registered but return "Not yet implemented":
 - [ ] Cloud-init integration for VM bootstrap (SSH keys, user data, network config)
 - [ ] VM migration between Proxmox nodes (live migration for load balancing)
 - [ ] Hybrid routing: gateway proxy support for VM-based sandboxes (not just k8s pods)
+resolveVm() does a full table scan — fine for typical VM counts (<1000), could add provider scope later if needed
+createVm() picks templates[0] as fallback when no templateId specified — non-deterministic but acceptable for single-template setups
+Service layer passes internal vmId to adapter which re-resolves it — works correctly because resolveVm matches on vmId, but the parameter name externalId is misleading. This is a naming concern, not a bug.
 
 ### Sandbox Cloning
 - [ ] `dx sandbox clone <source> --name <new>` — create new sandbox from existing sandbox's current state
@@ -258,17 +298,35 @@ These commands are registered but return "Not yet implemented":
 - [ ] Clone with overrides (different env vars, different branch, different resource limits)
 - [ ] Bulk clone for load testing / parallel CI (clone N sandboxes from a template snapshot)
 
+### Web IDE & Web Terminal
+- [~] Base image with ttyd + openvscode-server (`images/dx-sandbox/Dockerfile` + `entrypoint.sh`) — built, needs CI push
+- [~] Pod spec: 3 ports (22, 8080, 8081), dual IngressRoute, entrypoint fallback — code done, needs k8s deploy
+- [~] Schema `webIdeUrl` column + reconciler IDE route creation — code done, needs k8s deploy
+- [~] CLI: shows Terminal + IDE URLs, `dx sandbox open` defaults to IDE — code done
+- [ ] Process supervision in entrypoint: replace `wait` with s6-overlay for ttyd/openvscode auto-restart
+- [ ] Image size optimization: `dx-sandbox:slim` variant without Java/Go (~1GB vs ~3-4GB)
+- [ ] API key security: move `ANTHROPIC_API_KEY` from plain env var to Kubernetes Secret (`valueFrom.secretKeyRef`)
+- [ ] Custom image UX: document how custom `devcontainerImage` users can add ttyd/openvscode to their own images
+- [ ] CI workflow to build+push `ghcr.io/nksaraf/dx-sandbox:latest` on changes to `images/dx-sandbox/`
+- [ ] WebSocket proxy verification: confirm ttyd and openvscode-server WS upgrades work through Traefik + tunnel relay
+
 ### Devcontainer & Envbuilder
 - [x] Envbuilder integration: sandbox pods use envbuilder to auto-detect/build devcontainer.json
+- [x] PVC mount fix: workspace PVC at `/workspace-pvc` with init script sync (envbuilder wipes `/workspaces` on rebuild)
+- [x] `dx sandbox exec` command (kubectl exec via slug or ID, TTY detection, `--context` override)
+- [x] Slug-based sandbox lookup in `getSandbox()` (resolves by sandboxId or slug)
 - [ ] Prebuild pipeline (Track 2): external CI-driven image builds for instant spawn on cache hit
 - [ ] Registry setup for envbuilder cache (k3d built-in registry or cluster-local registry)
 - [ ] Multi-repo devcontainer support (primary repo has devcontainer, additional repos mounted alongside)
 - [ ] Devcontainer features support validation (verify envbuilder handles features correctly)
+- [ ] SSH server feature in devcontainer (sshd) for `ssh -p <nodeport>` access
 - [ ] Custom Dockerfile builds via envbuilder (beyond just image references)
 - [ ] `dx sandbox create --devcontainer-path` flag to specify non-standard devcontainer location
 - [ ] Devcontainer lifecycle hooks (`postCreateCommand`, `postStartCommand`, `postAttachCommand`)
 - [ ] Prebaked base images: maintain a set of optimized base images with common toolchains pre-installed
 - [ ] Image layer caching metrics: track cache hit rates, build times, image sizes
+- [ ] Replace background `cp` sync with inotifywait or bind mount for real-time PVC persistence
+- [ ] Envbuilder cache warming: pre-pull common base images on cluster nodes for faster first build
 
 ### Sandbox Templates & Presets
 - [ ] `sandbox_template` table already has `runtimeType` column — wire up VM template support
@@ -277,11 +335,74 @@ These commands are registered but return "Not yet implemented":
 
 ---
 
+## Dev Environment / DX Improvements
+
+- [x] Fix k3d TLS cert mismatch: `kubectl` fails with "x509: certificate signed by unknown authority" after cluster recreation — daemon now re-fetches kubeconfig from k3d on startup + `getK3dKubeconfig` verifies certs
+- [x] PGlite WAL corruption from unclean daemon shutdowns: added graceful shutdown handler (`SIGTERM`/`SIGINT` → `client.close()` + PID cleanup)
+- [x] Local daemon: `gatewayController.onStart` conflicts with explicit `startGateway` — guarded with `__DX_SKIP_GATEWAY_ONSTART` env flag + switched to `app.listen()` to fix PGlite db isolation
+- [ ] Fix dx-cli-project-init seed overwriting shared DB on restart (seed should be idempotent / skip if data exists)
+- [ ] Drizzle migration idempotency: all `CREATE SCHEMA` → `CREATE SCHEMA IF NOT EXISTS` across migrations
+- [ ] `dx sandbox ssh` command (SSH into sandbox via NodePort, auto-detect port from API)
+- [ ] `dx sandbox logs` command (stream envbuilder build logs, workspace logs)
+- [ ] `dx sandbox open` command (open web terminal URL in browser)
+- [ ] Sandbox status reconciliation: poll k8s pod status back into DB (currently fire-and-forget)
+- [ ] Sandbox health checks: readiness probe integration for envbuilder completion detection
+
+---
+
+## Phase 10: `dx secret` — Centralized Secret Management
+
+Inspired by Fly.io secrets, Doppler, Railway variables. Store secrets in Factory DB (encrypted at rest), scoped per site/environment. Eliminates plaintext `.env` files on VMs.
+
+- [ ] `secret` DB table (secretId, siteId/envId, key, encrypted value, createdBy, createdAt, updatedAt)
+- [ ] Encryption at rest (envelope encryption: per-secret DEK, master KEK from env var or KMS)
+- [ ] `dx secret set KEY=value --site <site>` — store a secret scoped to a site/environment
+- [ ] `dx secret get KEY --site <site>` — retrieve a single secret value
+- [ ] `dx secret list --site <site>` — list keys with masked values and metadata
+- [ ] `dx secret delete KEY --site <site>` — remove a secret
+- [ ] `dx secret env --site <site>` — generate `.env` file contents to stdout (`KEY=value\n...`)
+- [ ] `dx secret env --site <site> | docker compose --env-file /dev/stdin up -d` — pipe into docker compose
+- [ ] Secret injection into `dx ci run` (replaces `--secret` flag with automatic lookup)
+- [ ] Audit log: track who set/read/deleted each secret and when
+- [ ] Secret rotation support: `dx secret rotate KEY --site <site>` (set new value, restart dependent services)
+
+---
+
 ## Proxmox Adapter TODOs
 
 - [ ] VM creation from template — cloud-init integration via `getVmContext`
 - [ ] VM migration — actual migrate call in Proxmox client
 - [ ] VM snapshots — Proxmox client snapshot API integration
+
+---
+
+## Agent Platform
+
+### Agent Taxonomy (v1 — implemented, needs migration)
+- [~] Generate Drizzle migration for agent schema changes (role_preset, job, memory tables, agent new columns)
+- [ ] Migrate existing `agent_execution` rows → `job` table (script or SQL migration)
+
+### Agent Model — Future Dimensions
+- [ ] Migrate agent tables from `factory_agent` to `factory_org` schema (agents as org workers)
+- [ ] Trust score auto-computation from job history (success rate, override rate, escalation accuracy)
+- [ ] Autonomy auto-promotion: when trust exceeds thresholds, suggest level-up (with human confirmation)
+- [ ] Agent lifecycle: onboarding → active → expert stages with automatic context learning
+
+### Memory System — v2 (Search Layer)
+- [ ] pgvector extension + `embedding` column type change (text → vector(1536))
+- [ ] Semantic retrieval pipeline: embed memories, top-K by cosine similarity before each job
+- [ ] Memory injection into agent context (structured sections: org → team → session)
+- [ ] Auto-propose: extract learnings from completed jobs → propose as team memories
+- [ ] Confidence decay (daily decay, reinforcement on access, archive when stale)
+- [ ] Memory conflict resolution (session > team > org priority)
+- [ ] Host memory layer (what agent knows about its owner — personal preferences, style)
+- [ ] Agent memory layer (what agent learned about itself and its domain)
+- [ ] Cross-org memory layer (anonymized patterns across orgs — platform knowledge moat)
+
+### Multi-Agent Collaboration
+- [ ] Supervisor agent: decompose tasks, delegate to specialist agents (uses job.parentJobId)
+- [ ] Crew mode: multiple agents collaborating on a shared goal
+- [ ] Event-triggered workflows: PR opened → auto-review, test failure → auto-diagnose, deploy failure → auto-investigate
 
 ---
 

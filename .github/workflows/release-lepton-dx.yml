@@ -1,12 +1,14 @@
 name: Release lepton-dx
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "cli/**"
       - "shared/**"
       - "pnpm-lock.yaml"
+      - ".github/workflows/release-lepton-dx.yml"
 
 permissions:
   contents: write
@@ -32,7 +34,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -53,12 +54,20 @@ jobs:
           restore-keys: deps-
 
       # Authenticate to Google Artifact Registry for @rio.js/* deps
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
+
+      - name: "Authenticate with Google Cloud"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+        run: npx get-artifactregistry-token
 
       - name: Install dependencies
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
         run: pnpm install --frozen-lockfile --filter lepton-dx...
 
       - name: Bump minor version
@@ -80,11 +89,14 @@ jobs:
         working-directory: cli
         run: pnpm build:crust
 
+      - name: Set npm auth for publish
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
         working-directory: cli
         run: pnpm release:publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Commit version bump & tag
         run: |

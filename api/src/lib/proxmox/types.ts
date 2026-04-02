@@ -186,6 +186,21 @@ export interface ProxmoxApiResponse<T> {
   data: T
 }
 
+// Snapshot from /api2/json/nodes/{node}/qemu/{vmid}/snapshot
+export interface ProxmoxSnapshot {
+  name: string
+  description?: string
+  snaptime?: number
+  vmstate?: 0 | 1
+  parent?: string
+}
+
+// Task log line from /api2/json/nodes/{node}/tasks/{upid}/log
+export interface ProxmoxTaskLogLine {
+  n: number
+  t: string
+}
+
 // Clone options
 export interface ProxmoxCloneOptions {
   newid: number

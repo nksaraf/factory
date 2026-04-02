@@ -14,12 +14,17 @@ export const PROTOCOL_VERSION = 0x01;
 export const HEADER_SIZE = 11;
 export const MAX_PAYLOAD_SIZE = 65536;
 
+const EMPTY = new Uint8Array(0);
+
 export const FrameType = {
   CONTROL: 0x00,
   HTTP_REQ: 0x01,
   HTTP_RES: 0x02,
   DATA: 0x03,
+  WS_UPGRADE: 0x04,
+  WS_DATA: 0x05,
   RST_STREAM: 0x06,
+  WS_CLOSE: 0x07,
   PING: 0x08,
   PONG: 0x09,
   GOAWAY: 0x0a,
@@ -32,6 +37,7 @@ export const Flags = {
   FIN: 0x01,
   RST: 0x02,
   ACK: 0x04,
+  BINARY: 0x08,
 } as const;
 
 export type Flags = number; // bitmask combination
@@ -112,7 +118,7 @@ export function decodeFrame(buf: Uint8Array): Frame {
     );
   }
 
-  const payload = buf.slice(HEADER_SIZE, HEADER_SIZE + length);
+  const payload = buf.subarray(HEADER_SIZE, HEADER_SIZE + length);
 
   return { version, type, streamId, flags, payload };
 }
@@ -172,7 +178,7 @@ export function buildRstStreamFrame(streamId: number): Frame {
     FrameType.RST_STREAM,
     streamId,
     Flags.RST,
-    new Uint8Array(0)
+    EMPTY
   );
 }
 
@@ -181,7 +187,7 @@ export function buildPingFrame(): Frame {
     FrameType.PING,
     0,
     Flags.NONE,
-    new Uint8Array(0)
+    EMPTY
   );
 }
 
@@ -190,7 +196,7 @@ export function buildPongFrame(): Frame {
     FrameType.PONG,
     0,
     Flags.NONE,
-    new Uint8Array(0)
+    EMPTY
   );
 }
 
@@ -203,17 +209,59 @@ export function buildDataFrames(
   data: Uint8Array
 ): Frame[] {
   if (data.byteLength === 0) {
-    return [buildDataFrame(streamId, new Uint8Array(0), true)];
+    return [buildDataFrame(streamId, EMPTY, true)];
   }
 
   const frames: Frame[] = [];
   let offset = 0;
   while (offset < data.byteLength) {
     const end = Math.min(offset + MAX_PAYLOAD_SIZE, data.byteLength);
-    const chunk = data.slice(offset, end);
+    const chunk = data.subarray(offset, end);
     const isFin = end >= data.byteLength;
     frames.push(buildDataFrame(streamId, chunk, isFin));
     offset = end;
   }
   return frames;
 }
+
+/**
+ * JSON payload for WS_UPGRADE frames.
+ */
+export interface WsUpgradePayload {
+  url: string;
+  headers: Record<string, string>;
+}
+
+export function buildWsUpgradeFrame(
+  streamId: number,
+  payload: WsUpgradePayload
+): Frame {
+  return makeFrame(FrameType.WS_UPGRADE, streamId, Flags.NONE, jsonPayload(payload));
+}
+
+export function buildWsDataFrame(
+  streamId: number,
+  data: Uint8Array,
+  isBinary: boolean
+): Frame {
+  return makeFrame(
+    FrameType.WS_DATA,
+    streamId,
+    isBinary ? Flags.BINARY : Flags.NONE,
+    data
+  );
+}
+
+export function buildWsCloseFrame(streamId: number): Frame {
+  return makeFrame(FrameType.WS_CLOSE, streamId, Flags.NONE, EMPTY);
+}
+
+export function buildGoawayFrame(): Frame {
+  return makeFrame(FrameType.GOAWAY, 0, Flags.NONE, EMPTY);
+}
+
+/** Pre-encoded PING frame — avoids allocation on every heartbeat. */
+export const ENCODED_PING = encodeFrame(buildPingFrame());
+
+/** Pre-encoded PONG frame — avoids allocation on every heartbeat response. */
+export const ENCODED_PONG = encodeFrame(buildPongFrame());

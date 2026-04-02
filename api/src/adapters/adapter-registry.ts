@@ -1,7 +1,7 @@
 import type { ProviderType } from "@smp/factory-shared/types";
 import type { ObservabilityBackendType } from "@smp/factory-shared/observability-types";
 import type { Database } from "../db/connection";
-import type { ProviderAdapter } from "./provider-adapter";
+import type { VMProviderAdapter } from "./vm-provider-adapter";
 import type { ObservabilityAdapter } from "./observability-adapter";
 import type { WorkTrackerAdapter } from "./work-tracker-adapter";
 import type { GitHostAdapter } from "./git-host-adapter";
@@ -16,11 +16,11 @@ import { LinearWorkTrackerAdapter } from "./work-tracker-adapter-linear";
 import { NoopMessagingAdapter } from "./messaging-adapter-noop";
 import { SlackMessagingAdapter } from "./messaging-adapter-slack";
 
-const adapters: Partial<Record<ProviderType, (db: Database) => ProviderAdapter>> = {
+const adapters: Partial<Record<ProviderType, (db: Database) => VMProviderAdapter>> = {
   proxmox: (db) => new ProxmoxAdapter(db),
 };
 
-export function getProviderAdapter(type: ProviderType, db: Database): ProviderAdapter {
+export function getVMProviderAdapter(type: ProviderType, db: Database): VMProviderAdapter {
   const factory = adapters[type];
   if (!factory) {
     throw new Error(

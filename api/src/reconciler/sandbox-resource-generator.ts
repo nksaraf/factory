@@ -121,7 +121,7 @@ function buildCloneScript(
 }
 
 const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest";
-const DEFAULT_FALLBACK_IMAGE = "mcr.microsoft.com/devcontainers/base:ubuntu";
+const DEFAULT_FALLBACK_IMAGE = "ghcr.io/nksaraf/dx-sandbox:latest";
 
 function makePod(
   sandbox: SandboxResourceInput,
@@ -133,7 +133,15 @@ function makePod(
 
   const containerEnv = (sandbox.devcontainerConfig.containerEnv ?? {}) as Record<string, string>;
   const remoteEnv = (sandbox.devcontainerConfig.remoteEnv ?? {}) as Record<string, string>;
-  const mergedEnv = { ...containerEnv, ...remoteEnv, DOCKER_HOST: "tcp://localhost:2375" };
+  const factoryWsUrl = process.env.DX_FACTORY_WS_URL || "wss://factory.dx.dev/ws";
+  const mergedEnv = {
+    ...containerEnv,
+    ...remoteEnv,
+    DOCKER_HOST: "tcp://localhost:2375",
+    DX_SANDBOX_ID: sandbox.sandboxId,
+    DX_SANDBOX_SLUG: sandbox.slug,
+    DX_FACTORY_WS_URL: factoryWsUrl,
+  };
 
   const resourceLimits: Record<string, string> = {};
   if (sandbox.cpu) resourceLimits.cpu = sandbox.cpu;
@@ -175,13 +183,23 @@ function makePod(
     const envbuilderImage = sandbox.envbuilderImage ?? DEFAULT_ENVBUILDER_IMAGE;
     const fallbackImage = sandbox.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE;
 
+    // The workspace PVC is mounted at /workspace-pvc (not /workspaces) because
+    // envbuilder deletes the root filesystem during image rebuilds. After envbuilder
+    // finishes, the init script syncs user data from the PVC into /workspaces so
+    // snapshot-restored files survive container restarts.
+    const initScript =
+      "cp -a /workspace-pvc/. /workspaces/ 2>/dev/null; " +
+      "touch /tmp/.envbuilder-ready; " +
+      "(while true; do sleep 30; cp -a /workspaces/. /workspace-pvc/ 2>/dev/null; done) & " +
+      "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi";
+
     const envbuilderEnv: Array<{ name: string; value: string }> = [
       { name: "ENVBUILDER_GIT_URL", value: primaryRepo!.url },
       { name: "ENVBUILDER_GIT_CLONE_DEPTH", value: "1" },
       { name: "ENVBUILDER_FALLBACK_IMAGE", value: fallbackImage },
-      // After building, keep the container alive so we can exec into it
-      { name: "ENVBUILDER_INIT_SCRIPT", value: "sleep infinity" },
-      // Persist workspace on the PVC
+      // After building, sync PVC data and keep alive
+      { name: "ENVBUILDER_INIT_SCRIPT", value: initScript },
+      // Envbuilder clones to /workspaces (its own managed directory)
       { name: "ENVBUILDER_WORKSPACE_FOLDER", value: "/workspaces" },
     ];
 
@@ -212,13 +230,20 @@ function makePod(
       ports: [
         { containerPort: 22, name: "ssh" },
         { containerPort: 8080, name: "web-terminal" },
+        { containerPort: 8081, name: "web-ide" },
       ],
       ...(Object.keys(resourceLimits).length > 0
         ? { resources: { limits: resourceLimits, requests: resourceLimits } }
         : {}),
       volumeMounts: [
-        { name: "workspace", mountPath: "/workspaces" },
+        { name: "workspace", mountPath: "/workspace-pvc" },
       ],
+      readinessProbe: {
+        exec: { command: ["sh", "-c", "test -f /tmp/.envbuilder-ready"] },
+        initialDelaySeconds: 5,
+        periodSeconds: 5,
+        failureThreshold: 120,
+      },
     };
   } else {
     // Direct image mode: no repos or explicit image only
@@ -228,11 +253,12 @@ function makePod(
     workspaceContainer = {
       name: "workspace",
       image,
-      command: ["sleep", "infinity"],
+      command: ["sh", "-c", "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi"],
       env: envVars,
       ports: [
         { containerPort: 22, name: "ssh" },
         { containerPort: 8080, name: "web-terminal" },
+        { containerPort: 8081, name: "web-ide" },
       ],
       ...(Object.keys(resourceLimits).length > 0
         ? { resources: { limits: resourceLimits, requests: resourceLimits } }
@@ -240,6 +266,11 @@ function makePod(
       volumeMounts: [
         { name: "workspace", mountPath: "/workspaces" },
       ],
+      readinessProbe: {
+        exec: { command: ["true"] },
+        initialDelaySeconds: 1,
+        periodSeconds: 5,
+      },
     };
   }
 
@@ -306,6 +337,7 @@ function makeService(
       ports: [
         { name: "ssh", port: 22, targetPort: 22 },
         { name: "web-terminal", port: 8080, targetPort: 8080 },
+        { name: "web-ide", port: 8081, targetPort: 8081 },
       ],
     },
   };
@@ -316,7 +348,8 @@ function makeIngressRoute(
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const host = `${sandbox.slug}.sandbox.dx.dev`;
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+  const host = `${sandbox.slug}.sandbox.${gatewayDomain}`;
   return {
     apiVersion: "traefik.io/v1alpha1",
     kind: "IngressRoute",
@@ -335,6 +368,16 @@ function makeIngressRoute(
             {
               name: `sandbox-${sandbox.slug}`,
               port: 8080,
+            },
+          ],
+        },
+        {
+          match: `Host(\`${sandbox.slug}--ide.sandbox.${gatewayDomain}\`)`,
+          kind: "Rule",
+          services: [
+            {
+              name: `sandbox-${sandbox.slug}`,
+              port: 8081,
             },
           ],
         },

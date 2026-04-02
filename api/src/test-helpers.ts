@@ -27,14 +27,14 @@ export async function createTestContext() {
   const infraRoutes = new Elysia({ prefix: "/infra" })
     .use(infraController(database))
     .use(gatewayController(database))
-    .use(sandboxController(database))
+    .use(sandboxController(database, null))
     .use(previewController(database))
 
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", database)
     .use(productController(database))
     .use(buildController(database))
-    .use(agentController)
+    .use(agentController(database))
     .use(commerceController(database))
     .use(fleetController(database))
     .use(infraRoutes)
@@ -88,11 +88,12 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE factory_product.work_item RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_product.component_spec RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_product.module RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.team RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.ip_address RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.subnet RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.kube_node RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.vm RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.proxmox_cluster RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.vm_cluster RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.host RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.datacenter RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_infra.cluster RESTART IDENTITY CASCADE`,

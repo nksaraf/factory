@@ -29,6 +29,7 @@ import {
   portEnvVars,
 } from "./port-manager.js";
 import { composeIsRunning, composeStop } from "./docker.js";
+import { openTunnel, type TunnelClientOptions } from "./tunnel-client.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -163,6 +164,9 @@ export class DevController {
   private readonly stateDir: string;
   private readonly portManager: PortManager;
   private readonly projectName: string;
+  private readonly sandboxId: string | undefined;
+  private readonly sandboxSlug: string | undefined;
+  private readonly activeTunnels = new Map<string, { close: () => void }>();
 
   constructor(
     private readonly rootDir: string,
@@ -172,6 +176,13 @@ export class DevController {
     this.stateDir = join(rootDir, ".dx", "dev");
     this.portManager = new PortManager(join(rootDir, ".dx"));
     this.projectName = basename(rootDir);
+    this.sandboxId = process.env.DX_SANDBOX_ID;
+    this.sandboxSlug = process.env.DX_SANDBOX_SLUG;
+  }
+
+  /** Whether we're running inside a sandbox environment */
+  get inSandbox(): boolean {
+    return !!this.sandboxId;
   }
 
   // ------------------------------------------------------------------
@@ -313,6 +324,11 @@ export class DevController {
     writeFileSync(pidFile, String(pid));
     writeFileSync(portFile, String(actualPort));
 
+    // Create tunnel(s) when running inside a sandbox
+    if (this.sandboxSlug) {
+      await this.createSandboxTunnels(resolved.name, actualPort);
+    }
+
     return {
       name: resolved.name,
       pid,
@@ -320,6 +336,79 @@ export class DevController {
       alreadyRunning: false,
       stoppedDocker,
     };
+  }
+
+  // ------------------------------------------------------------------
+  // Sandbox tunnel management
+  // ------------------------------------------------------------------
+
+  private async createSandboxTunnels(
+    componentName: string,
+    port: number,
+  ): Promise<void> {
+    if (!this.sandboxSlug) return;
+
+    const slug = this.sandboxSlug;
+
+    // Port-based tunnel: {slug}-p{port}.sandbox.dx.dev
+    const portSubdomain = `${slug}-p${port}`;
+    const portTunnel = await openTunnel(
+      { port, subdomain: portSubdomain, principalId: process.env.DX_PRINCIPAL_ID },
+      {
+        onRegistered: (info) => {
+          // Port tunnel registered at info.url
+        },
+        onError: () => {},
+        onClose: () => { this.activeTunnels.delete(`${componentName}:port`); },
+      },
+    );
+    this.activeTunnels.set(`${componentName}:port`, portTunnel);
+
+    // Check if this component has a named endpoint configured
+    const comp = this.catalog.components[componentName];
+    const dxConfig = comp?.spec as Record<string, unknown> | undefined;
+    const endpointName = (dxConfig?.endpointName as string) ?? undefined;
+    if (endpointName) {
+      const namedSubdomain = `${slug}--${endpointName}`;
+      const namedTunnel = await openTunnel(
+        { port, subdomain: namedSubdomain, principalId: process.env.DX_PRINCIPAL_ID },
+        {
+          onRegistered: () => {},
+          onError: () => {},
+          onClose: () => { this.activeTunnels.delete(`${componentName}:named`); },
+        },
+      );
+      this.activeTunnels.set(`${componentName}:named`, namedTunnel);
+    }
+
+    // If this is the primary port (port 80, 443, or configured as primary), tunnel bare domain too
+    const isPrimary = port === 80 || port === 443 || (dxConfig?.isPrimary === true);
+    if (isPrimary) {
+      const bareTunnel = await openTunnel(
+        { port, subdomain: slug, principalId: process.env.DX_PRINCIPAL_ID },
+        {
+          onRegistered: () => {},
+          onError: () => {},
+          onClose: () => { this.activeTunnels.delete(`${componentName}:bare`); },
+        },
+      );
+      this.activeTunnels.set(`${componentName}:bare`, bareTunnel);
+    }
+  }
+
+  private closeSandboxTunnels(componentName?: string): void {
+    if (componentName) {
+      for (const suffix of ["port", "named", "bare"]) {
+        const key = `${componentName}:${suffix}`;
+        this.activeTunnels.get(key)?.close();
+        this.activeTunnels.delete(key);
+      }
+    } else {
+      for (const [, tunnel] of this.activeTunnels) {
+        tunnel.close();
+      }
+      this.activeTunnels.clear();
+    }
   }
 
   // ------------------------------------------------------------------
@@ -332,6 +421,7 @@ export class DevController {
     if (!existsSync(this.stateDir)) return stopped;
 
     if (component === undefined) {
+      this.closeSandboxTunnels();
       for (const entry of readdirSync(this.stateDir)) {
         if (!entry.endsWith(".pid")) continue;
         const name = entry.replace(/\.pid$/, "");
@@ -349,6 +439,7 @@ export class DevController {
     }
 
     const resolved = this.resolveComponent(component);
+    this.closeSandboxTunnels(resolved.name);
     const pidFile = join(this.stateDir, `${resolved.name}.pid`);
     const portFile = join(this.stateDir, `${resolved.name}.port`);
 

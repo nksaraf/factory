@@ -9,6 +9,25 @@ import {
   PROTOCOL_VERSION,
 } from "@smp/factory-shared/tunnel-protocol";
 
+/** Consume a ReadableStream into a single Uint8Array. */
+async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const totalLen = chunks.reduce((s, c) => s + c.byteLength, 0);
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
+}
+
 describe("StreamManager", () => {
   let sm: StreamManager;
   const mockSend = vi.fn();
@@ -27,7 +46,7 @@ describe("StreamManager", () => {
     expect(id2 % 2).toBe(0);
   });
 
-  it("sendHttpRequest sends HTTP_REQ frame and returns a promise", async () => {
+  it("sendHttpRequest sends HTTP_REQ frame and returns a streaming response", async () => {
     const promise = sm.sendHttpRequest({
       method: "GET",
       url: "/health",
@@ -58,7 +77,8 @@ describe("StreamManager", () => {
 
     const res = await promise;
     expect(res.status).toBe(200);
-    expect(new TextDecoder().decode(res.body)).toBe("OK");
+    const body = await readAll(res.body);
+    expect(new TextDecoder().decode(body)).toBe("OK");
   });
 
   it("times out pending requests", async () => {
@@ -90,7 +110,7 @@ describe("StreamManager", () => {
     await expect(promise).rejects.toThrow("reset");
   });
 
-  it("assembles multi-chunk DATA frames", async () => {
+  it("streams multi-chunk DATA frames", async () => {
     const promise = sm.sendHttpRequest({
       method: "GET",
       url: "/big",
@@ -108,7 +128,8 @@ describe("StreamManager", () => {
     );
 
     const res = await promise;
-    expect(new TextDecoder().decode(res.body)).toBe("chunk1chunk2");
+    const body = await readAll(res.body);
+    expect(new TextDecoder().decode(body)).toBe("chunk1chunk2");
   });
 
   it("cleanup cancels all pending streams", async () => {
@@ -117,5 +138,29 @@ describe("StreamManager", () => {
     sm.cleanup();
     await expect(p1).rejects.toThrow("closed");
     await expect(p2).rejects.toThrow("closed");
+  });
+
+  it("rejects when concurrent stream limit is exceeded", async () => {
+    const sm2 = new StreamManager(mockSend, { maxConcurrentStreams: 2 });
+    // Fill up 2 streams (catch cleanup rejections)
+    const p1 = sm2.sendHttpRequest({ method: "GET", url: "/a", headers: {} }).catch(() => {});
+    const p2 = sm2.sendHttpRequest({ method: "GET", url: "/b", headers: {} }).catch(() => {});
+    // Third should fail
+    await expect(
+      sm2.sendHttpRequest({ method: "GET", url: "/c", headers: {} })
+    ).rejects.toThrow("Too many concurrent streams");
+    sm2.cleanup();
+    await p1;
+    await p2;
+  });
+
+  it("wraps stream IDs at u32 boundary", () => {
+    // Force nextId near overflow
+    (sm as any).nextId = 0xfffffffe;
+    const id1 = sm.nextStreamId();
+    expect(id1).toBe(0xfffffffe);
+    // Next should wrap to 2
+    const id2 = sm.nextStreamId();
+    expect(id2).toBe(2);
   });
 });

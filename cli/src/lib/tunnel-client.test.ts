@@ -30,12 +30,12 @@ describe("handleBinaryFrame", () => {
   it("forwards HTTP_REQ to localhost and sends back HTTP_RES + DATA", async () => {
     // Mock global fetch to simulate localhost response
     const originalFetch = globalThis.fetch;
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    globalThis.fetch = vi.fn().mockResolvedValue(
       new Response("hello from local", {
         status: 200,
         headers: { "content-type": "text/plain" },
       })
-    ));
+    ) as any;
 
     const reqFrame = buildHttpReqFrame(2, {
       method: "GET",
@@ -53,24 +53,41 @@ describe("handleBinaryFrame", () => {
       expect.objectContaining({ method: "GET" })
     );
 
-    // Should have sent HTTP_RES + DATA frames
+    // Should have sent HTTP_RES + DATA frame(s) + FIN frame
     expect(ws.send.mock.calls.length).toBeGreaterThanOrEqual(2);
 
     const resFrame = decodeFrame(ws.send.mock.calls[0][0] as Uint8Array);
     expect(resFrame.type).toBe(FrameType.HTTP_RES);
     expect(resFrame.streamId).toBe(2);
 
-    const dataFrame = decodeFrame(ws.send.mock.calls[1][0] as Uint8Array);
-    expect(dataFrame.type).toBe(FrameType.DATA);
-    expect(dataFrame.flags & Flags.FIN).toBeTruthy();
-    expect(new TextDecoder().decode(dataFrame.payload)).toBe("hello from local");
+    // Collect all DATA frames and concatenate body
+    const dataFrames = ws.send.mock.calls
+      .slice(1)
+      .map((call: any) => decodeFrame(call[0] as Uint8Array))
+      .filter((f: any) => f.type === FrameType.DATA);
+
+    const bodyParts: Uint8Array[] = [];
+    let hasFin = false;
+    for (const df of dataFrames) {
+      if (df.payload.byteLength > 0) bodyParts.push(df.payload);
+      if (df.flags & Flags.FIN) hasFin = true;
+    }
+    expect(hasFin).toBe(true);
+    const totalLen = bodyParts.reduce((s: number, c: Uint8Array) => s + c.byteLength, 0);
+    const body = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const part of bodyParts) {
+      body.set(part, offset);
+      offset += part.byteLength;
+    }
+    expect(new TextDecoder().decode(body)).toBe("hello from local");
 
     globalThis.fetch = originalFetch;
   });
 
   it("sends RST_STREAM when localhost is unreachable", async () => {
     const originalFetch = globalThis.fetch;
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED")) as any;
 
     const reqFrame = buildHttpReqFrame(4, {
       method: "GET",

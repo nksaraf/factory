@@ -8,8 +8,7 @@ import { NoopSandboxAdapter } from "./adapters/sandbox-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
-import { bootstrapResourceTypes } from "./lib/auth-resource-bootstrap"
-import { FactoryAuthResourceClient } from "./lib/auth-resource-client"
+import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
@@ -17,6 +16,7 @@ import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
 import { startMessagingSyncLoop } from "./lib/messaging-sync-loop"
 import { logger } from "./logger"
+import { presenceController } from "./modules/presence/index"
 import { agentController } from "./modules/agent/index"
 import { memoryController } from "./modules/memory/index"
 import { seedPlatformPresets } from "./modules/agent/preset.service"
@@ -46,6 +46,7 @@ import {
   getDatabaseUrl,
   getJwksUrl,
   getMode,
+  getRedisUrl,
   getSiteConfig,
 } from "./settings"
 
@@ -54,8 +55,9 @@ export class FactoryAPI {
   readonly settings: FactorySettings
   readonly sandboxAdapter = new NoopSandboxAdapter()
   readonly observabilityAdapter = new NoopObservabilityAdapter()
-  readonly authClient: FactoryAuthResourceClient | null
+  readonly authzClient: FactoryAuthzClient | null
   reconciler: Reconciler | null = null
+  private redis?: { publisher: import("ioredis").Redis; subscriber: import("ioredis").Redis }
   private stopTtlCleanup?: () => void
   private stopProxmoxSync?: () => void
   private stopWorkTrackerSync?: () => void
@@ -69,7 +71,7 @@ export class FactoryAPI {
     const url = getDatabaseUrl(settings)
     const authUrl = getAuthServiceUrl(settings)
 
-    this.authClient = authUrl ? new FactoryAuthResourceClient(authUrl) : null
+    this.authzClient = authUrl ? new FactoryAuthzClient(authUrl) : null
 
     if (mode === "site") {
       // Site mode does not require a database
@@ -94,7 +96,7 @@ export class FactoryAPI {
       .use(infraController(db))
       .use(accessController(db))
       .use(gatewayController(db))
-      .use(sandboxController(db, () => this.reconciler))
+      .use(sandboxController(db, this.authzClient, () => this.reconciler))
       .use(previewController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
@@ -152,7 +154,18 @@ export class FactoryAPI {
 
     return new Elysia()
       .use(cors({ credentials: true, origin: true }))
+      .onRequest(({ request }) => {
+        const url = new URL(request.url)
+        // Skip health checks to reduce noise
+        if (url.pathname === "/health") return
+        logger.info({ method: request.method, path: url.pathname, host: request.headers.get("host") }, "request")
+      })
+      .onError(({ request, error, code }) => {
+        const url = new URL(request.url)
+        logger.error({ method: request.method, path: url.pathname, code, err: error }, "request error")
+      })
       .use(healthController)
+      .use(presenceController(() => this.redis))
       .use(webhookController(db))
       .use(messagingWebhookController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
@@ -204,11 +217,23 @@ export class FactoryAPI {
       logger.warn({ err }, "role preset seeding failed")
     )
 
-    if (this.authClient) {
-      bootstrapResourceTypes(this.authClient).catch((err) =>
-        logger.warn({ err }, "resource type bootstrap failed")
-      )
+    // Set up Redis for presence fan-out (optional — degrades gracefully)
+    const redisUrl = getRedisUrl(this.settings)
+    if (redisUrl) {
+      try {
+        const { default: IORedis } = await import("ioredis")
+        this.redis = {
+          publisher: new IORedis(redisUrl),
+          subscriber: new IORedis(redisUrl),
+        }
+        logger.info("Redis connected for presence fan-out")
+      } catch (err) {
+        logger.warn({ err }, "Redis unavailable — presence limited to single instance")
+      }
     }
+
+    // IAM registry bootstrap (resource types, scope types, slot mappings) is
+    // owned by auth-service's bootstrapIamRegistry() — no client-side bootstrap needed.
   }
 
   async close() {
@@ -218,6 +243,10 @@ export class FactoryAPI {
     this.stopGitHostSync?.()
     this.stopIdentitySync?.()
     this.stopMessagingSync?.()
+    if (this.redis) {
+      this.redis.publisher.disconnect()
+      this.redis.subscriber.disconnect()
+    }
     if (this.db) {
       await this.db.$client.end()
     }

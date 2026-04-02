@@ -1,4 +1,5 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
+import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js";
 
 /** Converts a hyphenated name to a Python module name (e.g. "my-lib" -> "my_lib") */
 export function toPythonModule(name: string): string {
@@ -28,7 +29,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/${pythonName}"]
-`,
+${pythonQualityToml()}`,
   });
 
   // src/{pythonName}/__init__.py
@@ -62,6 +63,9 @@ dist/
 .ruff_cache/
 `,
   });
+
+  // Quality tooling configs
+  files.push(...pythonQualityFiles());
 
   return files;
 }

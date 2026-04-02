@@ -11,6 +11,25 @@ import {
   type HttpRequestPayload,
 } from "@smp/factory-shared/tunnel-protocol";
 
+/** Consume a ReadableStream into a single Uint8Array. */
+async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const totalLen = chunks.reduce((s, c) => s + c.byteLength, 0);
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
+}
+
 /**
  * Simulates a CLI tunnel client: receives HTTP_REQ frames,
  * forwards to a mock local server, sends HTTP_RES + DATA back.
@@ -83,7 +102,7 @@ describe("Tunnel Relay E2E (in-process)", () => {
     });
 
     expect(res.status).toBe(200);
-    const body = JSON.parse(new TextDecoder().decode(res.body));
+    const body = JSON.parse(new TextDecoder().decode(await readAll(res.body)));
     expect(body.path).toBe("/api/health");
     expect(body.method).toBe("GET");
   });
@@ -140,8 +159,8 @@ describe("Tunnel Relay E2E (in-process)", () => {
       sm.sendHttpRequest({ method: "GET", url: "/b", headers: {} }),
     ]);
 
-    expect(new TextDecoder().decode(res1.body)).toBe("response-for-/a");
-    expect(new TextDecoder().decode(res2.body)).toBe("response-for-/b");
+    expect(new TextDecoder().decode(await readAll(res1.body))).toBe("response-for-/a");
+    expect(new TextDecoder().decode(await readAll(res2.body))).toBe("response-for-/b");
   });
 
   it("timeout when client never responds", async () => {

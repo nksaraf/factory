@@ -38,7 +38,7 @@ COPY --from=builder /repo/api/.output ./.output
 COPY --from=builder /repo/api/drizzle ./drizzle
 
 ENV NODE_ENV=production
-ENV PORT=3000
-EXPOSE 3000
+ENV PORT=4100
+EXPOSE 4100
 
 CMD ["node", ".output/server/index.mjs"]

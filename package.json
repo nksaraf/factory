@@ -3,12 +3,40 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "preinstall": "npx get-artifactregistry-token@3.4.2"
+    "preinstall": "npx get-artifactregistry-token@3.4.2",
+    "lint": "oxlint .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format:check": "prettier --check .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@vercel/functions": "^3.4.3",
+    "better-sqlite3": "^12.6.2",
+    "db0": "^0.3.4",
+    "drizzle-orm": "^0.45.1",
+    "encoding": "^0.1.13",
+    "ioredis": "^5.9.2",
+    "jiti": "^2.6.1",
+    "lightningcss": "^1.32.0",
+    "rolldown": "^1.0.0-rc.9",
+    "terser": "^5.46.0",
     "typescript": "^5.9.3",
+    "xml2js": "^0.6.2",
+    "yaml": "^2.8.2",
     "prettier": "3.8.1",
-    "@trivago/prettier-plugin-sort-imports": "6.0.2"
+    "@trivago/prettier-plugin-sort-imports": "6.0.2",
+    "oxlint": "latest",
+    "simple-git-hooks": "latest",
+    "lint-staged": "latest"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["oxlint --fix", "prettier --write"],
+    "*.{json,md,css,yaml,yml}": ["prettier --write"]
   },
   "pnpm": {
     "overrides": {
@@ -20,6 +48,7 @@
       "@types/node": "25.0.9",
       "@aws-sdk/credential-provider-web-identity": "3.972.18",
       "ioredis": "5.10.1",
+      "@rio.js/app-ui": "0.0.30",
       "drizzle-orm": "0.45.1",
       "@electric-sql/pglite": "0.3.16",
       "@types/pg": "8.20.0",

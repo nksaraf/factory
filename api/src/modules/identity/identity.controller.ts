@@ -65,8 +65,8 @@ export function identityController(db: Database) {
         detail: { tags: ["Identity"], summary: "Link identity provider" },
       },
     )
-    .delete(
-      "/me/identities/:provider",
+    .post(
+      "/me/identities/:provider/delete",
       async ({ params, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);
@@ -85,8 +85,8 @@ export function identityController(db: Database) {
     )
 
     // ─── Profile ────────────────────────────────────────────
-    .patch(
-      "/me/profile",
+    .post(
+      "/me/profile/update",
       async ({ body, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);
@@ -144,8 +144,8 @@ export function identityController(db: Database) {
       },
       { detail: { tags: ["Identity"], summary: "List tool credentials" } },
     )
-    .delete(
-      "/me/tool-credentials/:id",
+    .post(
+      "/me/tool-credentials/:id/delete",
       async ({ params, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);

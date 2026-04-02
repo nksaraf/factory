@@ -123,6 +123,10 @@ export async function listK3dClusters(): Promise<any[]> {
 
 /**
  * Extract kubeconfig for a k3d cluster and save to ~/.config/dx/.
+ *
+ * Always re-fetches from k3d to pick up fresh TLS certs — k3d generates
+ * new server certs on each cluster create, and stale certs cause
+ * "x509: certificate signed by unknown authority" kubectl errors.
  */
 export async function getK3dKubeconfig(name: string): Promise<string> {
   mkdirSync(DX_CONFIG_DIR, { recursive: true })
@@ -130,6 +134,25 @@ export async function getK3dKubeconfig(name: string): Promise<string> {
 
   const result = await captureOrThrow(["k3d", "kubeconfig", "get", name])
   writeFileSync(kubeconfigPath, result.stdout)
+
+  // Verify the kubeconfig works (catches stale TLS certs early)
+  const verify = await capture([
+    "kubectl", "--kubeconfig", kubeconfigPath,
+    "cluster-info", "--request-timeout=5s",
+  ])
+  if (verify.exitCode !== 0 && verify.stderr.includes("x509")) {
+    console.warn(
+      `[k3d] TLS cert mismatch detected for cluster '${name}'. ` +
+      `This usually means the cluster was recreated. Regenerating kubeconfig...`
+    )
+    // Force k3d to overwrite the merged kubeconfig entry
+    const regen = await capture([
+      "k3d", "kubeconfig", "get", name, "--output", "raw",
+    ])
+    if (regen.exitCode === 0) {
+      writeFileSync(kubeconfigPath, regen.stdout)
+    }
+  }
 
   return kubeconfigPath
 }

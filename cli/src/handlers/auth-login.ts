@@ -168,7 +168,7 @@ export async function runAuthLogin(
     styleSuccess(
       `Signed in as ${u?.email ?? email}` +
         (u?.name ? ` (${u.name})` : "") +
-        `. Session saved to ${SESSION_FILE} (mode 0600).`
+        `.`
     )
   );
 }

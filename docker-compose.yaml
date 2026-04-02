@@ -20,7 +20,8 @@ services:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     restart: unless-stopped
     ports:
-      - "${INFRA_FACTORY_PORT:-8181}:3000"
+      - "${INFRA_FACTORY_PORT:-4100}:4100"
+      - "${INFRA_GATEWAY_PROXY_PORT:-9090}:9090"
     depends_on:
       infra-postgres:
         condition: service_healthy
@@ -29,10 +30,16 @@ services:
     volumes:
       - ./infra/factory/application.yml:/app/config/application.yml:ro
     environment:
+      PORT: 4100
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+      DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/factory/openapi').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://localhost:4100/api/v1/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,13 +49,16 @@ services:
       catalog.owner: platform
       catalog.tags: "api,rest,elysia"
       catalog.lifecycle: production
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      catalog.port.4100.name: http
+      catalog.port.4100.protocol: http
       catalog.api.provides: "factory-api"
       catalog.api.type: openapi
       catalog.api.consumes: "auth-api"
       catalog.docs.api: "/api/v1/factory/openapi"
       catalog.docs.url: "https://docs.internal/factory"
+      dx.dev.command: "pnpm --filter @smp/factory-api dev"
+      dx.dev.sync: "./api/src,./shared/src"
+      dx.runtime: node
 
   # ─── Resources (infrastructure) ──────────────────────────────
 
@@ -74,6 +84,34 @@ services:
       catalog.port.5432.name: postgres
       catalog.port.5432.protocol: tcp
 
+  infra-spicedb:
+    image: authzed/spicedb:latest
+    command: serve
+    restart: unless-stopped
+    ports:
+      - "${INFRA_SPICEDB_PORT:-50051}:50051"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/spicedb?sslmode=disable
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.kind: Resource
+      catalog.description: "SpiceDB — Zanzibar-style authorization (ReBAC)"
+      catalog.owner: platform
+      catalog.type: auth-provider
+      catalog.tags: "authz,spicedb,rebac"
+      catalog.port.50051.name: grpc
+      catalog.port.50051.protocol: grpc
+
   infra-auth:
     image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
     platform: linux/amd64
@@ -88,8 +126,16 @@ services:
     environment:
       AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
+      AUTH_SPICEDB_ENABLED: "true"
+      AUTH_SPICEDB_ENDPOINT: infra-spicedb:50051
+      AUTH_SPICEDB_TOKEN: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      AUTH_SPICEDB_INSECURE: "true"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/auth/reference').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -109,7 +155,7 @@ services:
   infra-gateway:
     image: apache/apisix:3.11.0-debian
     ports:
-      - "${INFRA_GATEWAY_PORT:-8005}:8005"
+      - "${INFRA_GATEWAY_PORT:-9000}:9000"
     environment:
       CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY}
     volumes:
@@ -117,7 +163,7 @@ services:
       - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -127,8 +173,8 @@ services:
       catalog.owner: platform
       catalog.type: gateway
       catalog.tags: "gateway,apisix,routing"
-      catalog.port.8005.name: http
-      catalog.port.8005.protocol: http
+      catalog.port.9000.name: http
+      catalog.port.9000.protocol: http
 
   infra-reverse-proxy:
     image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}
@@ -178,5 +224,56 @@ services:
       catalog.type: other
       catalog.tags: "docs,nginx,scalar"
 
+  # ---------------------------------------------------------------------------
+  # PowerSync — Postgres-to-client realtime sync engine
+  # ---------------------------------------------------------------------------
+  infra-powersync-mongo:
+    image: mongo:7-jammy
+    volumes:
+      - powersync-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  infra-powersync:
+    image: journeyapps/powersync-service:latest
+    ports:
+      - "${INFRA_POWERSYNC_PORT:-8090}:8080"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+      infra-powersync-mongo:
+        condition: service_healthy
+    volumes:
+      - ./infra/powersync/powersync.yaml:/config/powersync.yaml:ro
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/powersync.yaml
+      POWERSYNC_JWKS_URL: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Redis — used for presence WebSocket fan-out across API instances
+  # ---------------------------------------------------------------------------
+  infra-redis:
+    image: redis:7-alpine
+    ports:
+      - "${INFRA_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres-data:
+  powersync-mongo-data:
+  redis-data:

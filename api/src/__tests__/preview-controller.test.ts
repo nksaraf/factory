@@ -17,15 +17,15 @@ function post(url: string, body: Record<string, unknown>) {
 }
 
 function patch(url: string, body: Record<string, unknown>) {
-  return new Request(url, {
-    method: "PATCH",
+  return new Request(`${url}/update`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
 function del(url: string) {
-  return new Request(url, { method: "DELETE" });
+  return new Request(`${url}/delete`, { method: "POST" });
 }
 
 describe("Preview Controller", () => {
@@ -67,20 +67,28 @@ describe("Preview Controller", () => {
   // Preview CRUD
   // =========================================================================
   describe("Preview CRUD", () => {
-    it("POST /previews creates preview with 3-layer structure", async () => {
+    it("POST /previews creates preview in pending_image status", async () => {
       const res = await createPreview();
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
       expect(data.preview).toBeTruthy();
       expect(data.preview.previewId).toBeTruthy();
       expect(data.preview.slug).toBe("pr-42--feat-auth-fix--default");
-      expect(data.preview.status).toBe("building");
+      expect(data.preview.status).toBe("pending_image");
       expect(data.preview.runtimeClass).toBe("hot");
       expect(data.deploymentTarget).toBeTruthy();
       expect(data.deploymentTarget.kind).toBe("preview");
       expect(data.route).toBeTruthy();
       expect(data.route.domain).toBe("pr-42--feat-auth-fix--default.preview.dx.dev");
       expect(data.route.status).toBe("active");
+    });
+
+    it("POST /previews with imageRef creates preview in deploying status", async () => {
+      const res = await createPreview({ imageRef: "ghcr.io/myorg/myapp:pr-42" });
+      expect(res.status).toBe(200);
+      const { data } = (await res.json()) as any;
+      expect(data.preview.status).toBe("deploying");
+      expect(data.preview.imageRef).toBe("ghcr.io/myorg/myapp:pr-42");
     });
 
     it("GET /previews lists previews", async () => {
@@ -98,7 +106,7 @@ describe("Preview Controller", () => {
       await createPreview({ prNumber: 2, sourceBranch: "branch-b" });
 
       const res = await app.handle(
-        new Request(`${BASE}?status=building`)
+        new Request(`${BASE}?status=pending_image`)
       );
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(2);
@@ -141,7 +149,7 @@ describe("Preview Controller", () => {
   // Status Updates
   // =========================================================================
   describe("Status Updates", () => {
-    it("PATCH /previews/:slug/status updates preview status", async () => {
+    it("POST /previews/:slug/status/update updates preview status", async () => {
       await createPreview();
 
       const res = await app.handle(
@@ -156,7 +164,7 @@ describe("Preview Controller", () => {
       expect(data.runtimeClass).toBe("hot");
     });
 
-    it("PATCH /previews/:slug/status returns 404 for nonexistent", async () => {
+    it("POST /previews/:slug/status/update returns 404 for nonexistent", async () => {
       const res = await app.handle(
         patch(`${BASE}/nonexistent/status`, { status: "active" })
       );
@@ -179,7 +187,7 @@ describe("Preview Controller", () => {
       expect(data.status).toBe("expired");
     });
 
-    it("DELETE /previews/:slug expires and returns previewId", async () => {
+    it("POST /previews/:slug/delete expires and returns previewId", async () => {
       const createRes = await createPreview();
       const { data: created } = (await createRes.json()) as any;
 
@@ -191,9 +199,81 @@ describe("Preview Controller", () => {
       expect(data.previewId).toBe(created.preview.previewId);
     });
 
-    it("DELETE /previews/:slug returns 404 for nonexistent", async () => {
+    it("POST /previews/:slug/delete returns 404 for nonexistent", async () => {
       const res = await app.handle(del(`${BASE}/nonexistent`));
       expect(res.status).toBe(404);
+    });
+  });
+
+  // =========================================================================
+  // Image Delivery
+  // =========================================================================
+  describe("Image Delivery", () => {
+    it("POST /previews/:slug/image transitions pending_image → deploying", async () => {
+      await createPreview();
+      const slug = "pr-42--feat-auth-fix--default";
+
+      const res = await app.handle(
+        post(`${BASE}/${slug}/image`, { imageRef: "ghcr.io/myorg/app:pr-42" })
+      );
+      expect(res.status).toBe(200);
+      const { data } = (await res.json()) as any;
+      expect(data.status).toBe("deploying");
+      expect(data.imageRef).toBe("ghcr.io/myorg/app:pr-42");
+    });
+
+    it("POST /previews/:slug/image rejects if already active", async () => {
+      await createPreview();
+      const slug = "pr-42--feat-auth-fix--default";
+
+      // First, set it to active
+      await app.handle(
+        patch(`${BASE}/${slug}/status`, { status: "active" })
+      );
+
+      const res = await app.handle(
+        post(`${BASE}/${slug}/image`, { imageRef: "ghcr.io/myorg/app:v2" })
+      );
+      expect(res.status).toBe(409);
+      const body = (await res.json()) as any;
+      expect(body.error).toBe("invalid_status");
+    });
+
+    it("POST /previews/:slug/image returns 404 for nonexistent", async () => {
+      const res = await app.handle(
+        post(`${BASE}/nonexistent/image`, { imageRef: "ghcr.io/myorg/app:v1" })
+      );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // =========================================================================
+  // Extend TTL
+  // =========================================================================
+  describe("Extend TTL", () => {
+    it("POST /previews/:slug/extend extends preview expiry", async () => {
+      await createPreview();
+      const slug = "pr-42--feat-auth-fix--default";
+
+      const res = await app.handle(
+        post(`${BASE}/${slug}/extend`, { days: 14 })
+      );
+      expect(res.status).toBe(200);
+      const { data } = (await res.json()) as any;
+      expect(data.expiresAt).toBeTruthy();
+    });
+
+    it("POST /previews/:slug/extend rejects expired preview", async () => {
+      await createPreview();
+      const slug = "pr-42--feat-auth-fix--default";
+
+      // Expire it
+      await app.handle(post(`${BASE}/${slug}/expire`, {}));
+
+      const res = await app.handle(
+        post(`${BASE}/${slug}/extend`, { days: 7 })
+      );
+      expect(res.status).toBe(409);
     });
   });
 

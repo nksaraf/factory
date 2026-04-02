@@ -1,5 +1,6 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
 import { componentLabels, labelsToYaml } from "../compose-labels.js";
+import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name, owner, description } = vars;
@@ -29,7 +30,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
-`,
+${pythonQualityToml()}`,
   });
 
   // config/application.yml
@@ -144,6 +145,12 @@ class Settings(BaseSettings):
 settings = Settings()
 `,
   });
+
+  // tests/__init__.py
+  files.push({ path: "tests/__init__.py", content: "" });
+
+  // Quality tooling configs
+  files.push(...pythonQualityFiles());
 
   return files;
 }

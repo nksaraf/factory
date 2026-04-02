@@ -21,6 +21,8 @@ import { CommandController } from "@rio.js/uikit/components/command-provider"
 import { fsRoutes } from "@rio.js/vinxi/fs-routes"
 import { createClient as createWorkflowsClient } from "@rio.js/workflows/lib/client"
 
+import { FactorySidebar } from "./components/factory/factory-sidebar"
+import { FactoryPowerSyncProvider } from "./lib/powersync/provider"
 import { rio } from "./lib/rio"
 
 declare module "@rio.js/client" {
@@ -52,26 +54,20 @@ async function boot() {
   }
 
   rio.extensions.register({
-    "app.core": () => import("@rio.js/app.core"),
-    "auth.core": () => import("@rio.js/auth.core"),
-    "settings.user": () => import("@rio.js/settings.user"),
-    "settings.organization": () => import("@rio.js/settings.organization"),
-    "gis.core": () => import("@rio.js/gis.core"),
-    "gis.flows": () => import("@rio.js/gis.flows"),
-    "trafficure.core": () => import("./modules/trafficure.core"),
-    "agents.core": () => import("@rio.js/agents.core"),
-    "smart-market.core": () => import("./modules/smart-market.core"),
-    "smart-market.scouts": () => import("./modules/smart-market.scouts"),
-    "smart-market.workspaces": () =>
-      import("./modules/smart-market.workspaces"),
-    "smart-market.docs": () => import("./modules/smart-market.docs"),
+    // "app.core": () => import("@rio.js/app.core"),
+    // "auth.core": () => import("@rio.js/auth.core"),
+    // "settings.user": () => import("@rio.js/settings.user"),
+    // "settings.organization": () => import("@rio.js/settings.organization"),
+    "factory.fleet": () => import("./modules/factory.fleet"),
+    "factory.infra": () => import("./modules/factory.infra"),
+    "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
 
   const url = new URL(window.location.href)
 
   console.log(rio.env)
   const authService = createAuthClient({
-    baseURL: rio.env.PUBLIC_AUTH_URL,
+    baseURL: "https://dev.trafficure.rio.software",
     basePath: "/api/v1/auth",
     bearer: true,
   })
@@ -79,15 +75,13 @@ async function boot() {
   rio.services.registerSync("auth", authService)
 
   await rio.extensions.enable(
-    "app.core",
-    "auth.core",
-    "settings.user",
-    "settings.organization",
-    // "gis.core",
-    "smart-market.core",
-    "smart-market.scouts",
-    "smart-market.workspaces",
-    "smart-market.docs"
+    // "app.core",
+    // "auth.core",
+    // "settings.user",
+    // "settings.organization",
+    "factory.fleet",
+    "factory.infra",
+    "factory.game-viz"
   )
 
   // Extract modules from enabled extensions that have a "module" field
@@ -160,14 +154,21 @@ async function boot() {
               providers: ["google"],
             }}
           >
-            <ThemeProvider defaultTheme="light" storageKey="trafficure-theme">
-              <TooltipProvider>
-                <Toaster />
-                <RouterProvider router={router} />
-                <CommandController />
-                {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
-              </TooltipProvider>
-            </ThemeProvider>
+            <FactoryPowerSyncProvider
+              powersyncUrl={rio.env.PUBLIC_POWERSYNC_URL ?? ""}
+              factoryApiUrl={rio.env.PUBLIC_FACTORY_API_URL ?? ""}
+              enabled={rio.env.PUBLIC_ENABLE_POWERSYNC === "true"}
+            >
+              <ThemeProvider defaultTheme="light" storageKey="trafficure-theme">
+                <TooltipProvider>
+                  <Toaster />
+                  <RouterProvider router={router} />
+                  <FactorySidebar />
+                  <CommandController />
+                  {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
+                </TooltipProvider>
+              </ThemeProvider>
+            </FactoryPowerSyncProvider>
           </AuthProvider>
         </RioClientProvider>
       </AppProvider>

@@ -9,7 +9,7 @@ upstreams:
     infra-auth:3000: 1
 - id: factory-service
   nodes:
-    192.168.67.1:4100: 1
+    infra-factory:4100: 1
 - id: api-docs
   nodes:
     infra-api-docs:80: 1
@@ -36,6 +36,7 @@ routes:
 - id: factory
   uri: /api/v1/factory*
   upstream_id: factory-service
+  enable_websocket: true
   plugins:
     cors:
       allow_origins: '**'

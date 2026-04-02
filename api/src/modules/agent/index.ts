@@ -136,7 +136,7 @@ export function agentController(db: Database) {
       params: AgentModel.idParams,
       detail: { tags: ["Agent"], summary: "Get agent" },
     })
-    .patch("/agents/:id", async ({ params, body, set }) => {
+    .post("/agents/:id/update", async ({ params, body, set }) => {
       const data = await agentSvc.updateAgent(db, params.id, body);
       if (!data) {
         set.status = 404;
@@ -148,7 +148,7 @@ export function agentController(db: Database) {
       body: AgentModel.updateBody,
       detail: { tags: ["Agent"], summary: "Update agent" },
     })
-    .delete("/agents/:id", async ({ params, set }) => {
+    .post("/agents/:id/delete", async ({ params, set }) => {
       const data = await agentSvc.deleteAgent(db, params.id);
       if (!data) {
         set.status = 404;
@@ -186,7 +186,7 @@ export function agentController(db: Database) {
       params: PresetModel.idParams,
       detail: { tags: ["Agent"], summary: "Get role preset" },
     })
-    .patch("/presets/:id", async ({ params, body, set }) => {
+    .post("/presets/:id/update", async ({ params, body, set }) => {
       const data = await presetSvc.updateRolePreset(db, params.id, body);
       if (!data) {
         set.status = 404;
@@ -198,7 +198,7 @@ export function agentController(db: Database) {
       body: PresetModel.updateBody,
       detail: { tags: ["Agent"], summary: "Update role preset" },
     })
-    .delete("/presets/:id", async ({ params }) => {
+    .post("/presets/:id/delete", async ({ params }) => {
       await presetSvc.deleteRolePreset(db, params.id);
       return { success: true };
     }, {

@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { KubeClient, KubeResource } from "./kube-client";
+import type { KubeClient, KubeResource, ExecResult } from "./kube-client";
 
 /**
  * Resolve kubeconfig to a file path. If it's already a path, return it.
@@ -85,6 +85,37 @@ export class KubeClientImpl implements KubeClient {
     const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
     try {
       kubectl(kcPath, ["delete", kind, name, "-n", namespace, "--ignore-not-found", "--wait=false"]);
+    } finally {
+      cleanup();
+    }
+  }
+
+  async execInPod(
+    kubeconfig: string,
+    namespace: string,
+    podName: string,
+    container: string,
+    command: string[],
+    opts?: { timeoutMs?: number }
+  ): Promise<ExecResult> {
+    const { path: kcPath, cleanup } = resolveKubeconfigPath(kubeconfig);
+    try {
+      const stdout = kubectl(
+        kcPath,
+        ["exec", podName, "-n", namespace, "-c", container, "--", ...command],
+        { timeout: opts?.timeoutMs ?? 300_000 }
+      );
+      return { exitCode: 0, stdout, stderr: "" };
+    } catch (err: unknown) {
+      if (typeof err === "object" && err !== null) {
+        const e = err as { status?: number; stdout?: string; stderr?: string };
+        return {
+          exitCode: e.status ?? 1,
+          stdout: String(e.stdout ?? ""),
+          stderr: String(e.stderr ?? ""),
+        };
+      }
+      return { exitCode: 1, stdout: "", stderr: String(err) };
     } finally {
       cleanup();
     }

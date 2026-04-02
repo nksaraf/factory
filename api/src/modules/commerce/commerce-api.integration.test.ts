@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 
 import { createTestContext, truncateAllTables } from "../../test-helpers";
 import { productModule } from "../../db/schema/product";
+import { orgTeam } from "../../db/schema/org";
 
 describe("commerce plane API", () => {
   let ctx: Awaited<ReturnType<typeof createTestContext>>;
@@ -117,9 +118,9 @@ describe("commerce plane API", () => {
 
     const patchRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/factory/commerce/customers/${created.data.customerId}`,
+        `http://localhost/api/v1/factory/commerce/customers/${created.data.customerId}/update`,
         {
-          method: "PATCH",
+          method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ status: "active" }),
         }
@@ -191,13 +192,19 @@ describe("commerce plane API", () => {
       data: { customerId: string };
     };
 
+    // Create a team first (module.team_id FK)
+    const [team] = await ctx.db
+      .insert(orgTeam)
+      .values({ name: "platform", slug: "platform" })
+      .returning();
+
     // Insert a product module directly
     const [mod] = await ctx.db
       .insert(productModule)
       .values({
         name: "notifications",
         slug: "notifications",
-        team: "platform",
+        teamId: team!.teamId,
         lifecycleState: "active",
       })
       .returning();
@@ -251,8 +258,8 @@ describe("commerce plane API", () => {
     // Revoke
     const revokeRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/factory/commerce/entitlements?id=${granted.data.entitlementId}`,
-        { method: "DELETE" }
+        `http://localhost/api/v1/factory/commerce/entitlements/delete?id=${granted.data.entitlementId}`,
+        { method: "POST" }
       )
     );
     expect(revokeRes.status).toBe(200);
@@ -279,13 +286,19 @@ describe("commerce plane API", () => {
       data: { customerId: string };
     };
 
+    // Create a team first (module.team_id FK)
+    const [team] = await ctx.db
+      .insert(orgTeam)
+      .values({ name: "platform", slug: "platform" })
+      .returning();
+
     // Insert two product modules
     const [mod1] = await ctx.db
       .insert(productModule)
       .values({
         name: "payments",
         slug: "payments",
-        team: "platform",
+        teamId: team!.teamId,
         lifecycleState: "active",
       })
       .returning();
@@ -294,7 +307,7 @@ describe("commerce plane API", () => {
       .values({
         name: "reporting",
         slug: "reporting",
-        team: "platform",
+        teamId: team!.teamId,
         lifecycleState: "active",
       })
       .returning();
@@ -327,8 +340,8 @@ describe("commerce plane API", () => {
     // Revoke one entitlement
     await ctx.app.handle(
       new Request(
-        `http://localhost/api/v1/factory/commerce/entitlements?id=${ent2.data.entitlementId}`,
-        { method: "DELETE" }
+        `http://localhost/api/v1/factory/commerce/entitlements/delete?id=${ent2.data.entitlementId}`,
+        { method: "POST" }
       )
     );
 

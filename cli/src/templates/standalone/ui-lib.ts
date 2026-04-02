@@ -1,4 +1,5 @@
 import type { TemplateVars, GeneratedFile } from "../types.js";
+import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
   const { name } = vars;
@@ -25,11 +26,15 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
           "react-dom": "^19.0.0",
           "@types/react": "^19.0.0",
           tailwindcss: "^3.4.0",
+          ...nodeQualityPackageJson().devDependencies,
         },
         scripts: {
           build: "tsc",
           dev: "tsc --watch",
+          ...nodeQualityPackageJson().scripts,
         },
+        "simple-git-hooks": nodeQualityPackageJson()["simple-git-hooks"],
+        "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
       2,
@@ -94,6 +99,10 @@ module.exports = {
 dist/
 `,
   });
+
+  // Quality tooling configs
+  files.push(nodePrettierConfig());
+  files.push(...nodeQualityFiles());
 
   return files;
 }

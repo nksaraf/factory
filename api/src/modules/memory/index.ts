@@ -80,7 +80,7 @@ export function memoryController(db: Database) {
       params: MemoryModel.idParams,
       detail: { tags: ["Memory"], summary: "Get memory" },
     })
-    .patch("/memories/:id", async ({ params, body, set }) => {
+    .post("/memories/:id/update", async ({ params, body, set }) => {
       const data = await memorySvc.updateMemory(db, params.id, body);
       if (!data) {
         set.status = 404;
@@ -92,7 +92,7 @@ export function memoryController(db: Database) {
       body: MemoryModel.updateBody,
       detail: { tags: ["Memory"], summary: "Update memory" },
     })
-    .delete("/memories/:id", async ({ params, set }) => {
+    .post("/memories/:id/delete", async ({ params, set }) => {
       const data = await memorySvc.archiveMemory(db, params.id);
       if (!data) {
         set.status = 404;
