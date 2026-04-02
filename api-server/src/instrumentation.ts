@@ -1,35 +1,56 @@
 const enabled = process.env.TELEMETRY_ENABLED === "true"
 
 if (enabled) {
-  const { BasicTracerProvider, BatchSpanProcessor } = await import(
-    "@opentelemetry/sdk-trace-base"
+  const { NodeSDK } = await import("@opentelemetry/sdk-node")
+  const { getNodeAutoInstrumentations } = await import(
+    "@opentelemetry/auto-instrumentations-node"
   )
   const { OTLPTraceExporter } = await import(
     "@opentelemetry/exporter-trace-otlp-http"
   )
-  const { resourceFromAttributes } = await import("@opentelemetry/resources")
+  const { OTLPMetricExporter } = await import(
+    "@opentelemetry/exporter-metrics-otlp-http"
+  )
+  const { PeriodicExportingMetricReader } = await import(
+    "@opentelemetry/sdk-metrics"
+  )
+  const { Resource } = await import("@opentelemetry/resources")
+  const {
+    SEMRESATTRS_SERVICE_NAME,
+    SEMRESATTRS_SERVICE_VERSION,
+  } = await import("@opentelemetry/semantic-conventions")
 
   const endpoint =
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318"
 
-  const provider = new BasicTracerProvider({
-    resource: resourceFromAttributes({
-      "service.name": "factory-api",
-      "service.version": "0.0.1",
+  const sdk = new NodeSDK({
+    resource: new Resource({
+      [SEMRESATTRS_SERVICE_NAME]: "factory-api",
+      [SEMRESATTRS_SERVICE_VERSION]: "0.0.1",
+      "deployment.environment": process.env.NODE_ENV || "development",
+      "telemetry.sdk.runtime": "bun",
     }),
-    spanProcessors: [
-      new BatchSpanProcessor(
-        new OTLPTraceExporter({ url: `${endpoint}/v1/traces` })
-      ),
+    traceExporter: new OTLPTraceExporter({
+      url: `${endpoint}/v1/traces`,
+    }),
+    metricReader: new PeriodicExportingMetricReader({
+      exporter: new OTLPMetricExporter({
+        url: `${endpoint}/v1/metrics`,
+      }),
+      exportIntervalMillis: 60000,
+    }),
+    instrumentations: [
+      getNodeAutoInstrumentations({
+        "@opentelemetry/instrumentation-fs": { enabled: false },
+        "@opentelemetry/instrumentation-dns": { enabled: false },
+      }),
     ],
   })
 
-  // register() sets up the global tracer provider and default W3C propagator
-  provider.register()
+  sdk.start()
 
   process.on("SIGTERM", async () => {
-    await provider.forceFlush()
-    await provider.shutdown()
+    await sdk.shutdown()
   })
 
   console.log("[otel] Telemetry enabled — exporting to", endpoint)
