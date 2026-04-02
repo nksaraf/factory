@@ -216,16 +216,42 @@ export class WebhookService {
         const activePreviews = previews.filter(
           (p) => p.prNumber === prNumber && p.status !== "expired" && p.status !== "inactive",
         );
-        for (const p of activePreviews) {
-          logger.info(
-            { previewId: p.previewId, newSha: headSha },
-            "Resetting preview for new commit",
-          );
-          await previewSvc.updatePreviewStatus(this.db, p.previewId, {
-            commitSha: headSha,
-            status: "pending_image",
-            imageRef: null,
-          });
+        if (activePreviews.length > 0) {
+          for (const p of activePreviews) {
+            logger.info(
+              { previewId: p.previewId, newSha: headSha },
+              "Resetting preview for new commit",
+            );
+            await previewSvc.updatePreviewStatus(this.db, p.previewId, {
+              commitSha: headSha,
+              status: "pending_image",
+              imageRef: null,
+            });
+          }
+        } else {
+          // No preview exists — bootstrap one (handles missed "opened" events)
+          const site = await this.findPreviewSite(repoFullName);
+          if (site) {
+            const ttlDays = site.previewConfig.ttlDays ?? 7;
+            logger.info(
+              { repo: repoFullName, pr: prNumber, branch: headBranch },
+              "Creating preview on synchronize (no existing preview found)",
+            );
+            await previewSvc.createPreview(this.db, {
+              name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
+              sourceBranch: headBranch,
+              commitSha: headSha,
+              repo: repoFullName,
+              prNumber,
+              siteName: "default",
+              siteId: site.siteId,
+              clusterId: site.clusterId,
+              ownerId: senderLogin,
+              createdBy: senderLogin,
+              authMode: site.previewConfig.defaultAuthMode ?? "team",
+              expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+            });
+          }
         }
         break;
       }
