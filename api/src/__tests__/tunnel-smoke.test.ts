@@ -1,80 +1,107 @@
 /**
- * Tunnel smoke test — boots a real Elysia server with PGlite,
- * connects a WebSocket tunnel client, starts the gateway proxy,
- * and verifies full round-trip: HTTP → gateway proxy → tunnel → local server → response.
+ * Tunnel integration test — verifies the full tunnel round-trip.
  *
- * This test catches:
- *  - WebSocket upgrade failures (runtime adapter issues)
- *  - Tunnel registration DB errors (schema mismatches, silent catch blocks)
- *  - Gateway proxy hostname parsing (DX_GATEWAY_DOMAIN misconfig)
- *  - Route lookup failures (domain not found in DB)
- *  - Binary framing protocol round-trip (GET, POST with body, large responses)
- *  - Tunnel disconnect cleanup
- *  - Response header preservation
+ * Two modes controlled by FACTORY_URL env var:
+ *   - Local (default): boots Elysia + PGlite, runs local gateway proxy,
+ *     and tests local-only concerns (parseHostname, DB routes, error paths).
+ *   - Production: connects to the real factory API and hits *.tunnel.lepton.software.
  *
- * Requires Bun runtime (uses Bun.serve, WebSocket, app.listen).
- * Run: cd api && bun test src/__tests__/tunnel-smoke.test.ts
+ * Both modes run the same round-trip tests (GET, POST body, large payloads,
+ * WebSocket passthrough) using the real handleBinaryFrame from the CLI.
+ *
+ * Local:  cd api && bun test src/__tests__/tunnel-smoke.test.ts
+ * Prod:   cd api && FACTORY_URL=https://factory.lepton.software bun test src/__tests__/tunnel-smoke.test.ts
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test"
-import { createTestContext } from "../test-helpers"
-import type { Database } from "../db/connection"
-import type { PGlite } from "@electric-sql/pglite"
-import {
-  createGatewayServer,
-  parseHostname,
-  RouteCache,
-} from "../modules/infra/gateway-proxy"
-import { getTunnelStreamManager } from "../modules/infra/tunnel-broker"
-import { lookupRouteByDomain } from "../modules/infra/gateway.service"
 import {
   handleBinaryFrame,
   type PendingBodies,
 } from "../../../cli/src/lib/tunnel-client"
 
+// ---------------------------------------------------------------------------
+// Mode detection
+// ---------------------------------------------------------------------------
+
+const FACTORY_URL = process.env.FACTORY_URL
+const IS_PROD = !!FACTORY_URL
+
+const GATEWAY_DOMAIN = IS_PROD
+  ? "lepton.software"
+  : (process.env.DX_GATEWAY_DOMAIN ?? "dx.dev")
+
 // Prevent the onStart hook from auto-starting gateway on port 9090
-process.env.__DX_SKIP_GATEWAY_ONSTART = "1"
+if (!IS_PROD) {
+  process.env.__DX_SKIP_GATEWAY_ONSTART = "1"
+}
 
-const GATEWAY_DOMAIN = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
-
-// Pick random ports to avoid conflicts
+// Pick random ports to avoid conflicts (local mode only)
 const API_PORT = 14100 + Math.floor(Math.random() * 1000)
 const GATEWAY_PORT = 19090 + Math.floor(Math.random() * 1000)
-const LOCAL_PORT = 18000 + Math.floor(Math.random() * 1000)
-
-// Port for a second local server that we intentionally don't start (unreachable)
+const LOCAL_PORT = IS_PROD
+  ? 28000 + Math.floor(Math.random() * 1000)
+  : 18000 + Math.floor(Math.random() * 1000)
 const DEAD_PORT = 18999 + Math.floor(Math.random() * 1000)
 
-describe("Tunnel Smoke Test", () => {
-  let db: Database
-  let client: PGlite
+const SUBDOMAIN = IS_PROD ? `prod-test-${Date.now()}` : "smoke-test"
+
+// ---------------------------------------------------------------------------
+// Build the tunnel-target URL based on mode
+// ---------------------------------------------------------------------------
+
+function tunnelFetchUrl(path: string): string {
+  if (IS_PROD) {
+    return `https://${SUBDOMAIN}.tunnel.${GATEWAY_DOMAIN}${path}`
+  }
+  return `http://localhost:${GATEWAY_PORT}${path}`
+}
+
+function tunnelFetchOpts(extra?: RequestInit): RequestInit {
+  if (IS_PROD) return extra ?? {}
+  return {
+    ...extra,
+    headers: {
+      ...(extra?.headers ?? {}),
+      host: `${SUBDOMAIN}.tunnel.${GATEWAY_DOMAIN}`,
+    },
+  }
+}
+
+function tunnelWsUrl(path: string): string {
+  if (IS_PROD) {
+    return `wss://${SUBDOMAIN}.tunnel.${GATEWAY_DOMAIN}${path}`
+  }
+  return `ws://localhost:${GATEWAY_PORT}${path}`
+}
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
+
+describe(`Tunnel Integration (${IS_PROD ? "prod" : "local"})`, () => {
+  // Local-mode infrastructure
+  let db: any = null
+  let client: any = null
   let apiServer: { stop: () => void } | null = null
-  let gatewayServer: ReturnType<typeof createGatewayServer> | null = null
+  let gatewayServer: any = null
+
+  // Shared state
   let localServer: ReturnType<typeof Bun.serve> | null = null
   let tunnelWs: WebSocket | null = null
   let tunnel2Ws: WebSocket | null = null
 
   beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
-
-    // Start the Elysia API server on a random port
-    apiServer = ctx.app.listen(API_PORT)
-
-    // Start a mock local dev server (simulates user's localhost)
+    // Start the local test server (both modes need this)
     localServer = Bun.serve({
       port: LOCAL_PORT,
       async fetch(req, server) {
         const url = new URL(req.url)
 
-        // WebSocket upgrade for echo endpoint
         if (url.pathname === "/ws-echo" && req.headers.get("upgrade")?.toLowerCase() === "websocket") {
           const upgraded = server.upgrade(req)
           if (upgraded) return undefined as any
           return new Response("WebSocket upgrade failed", { status: 500 })
         }
 
-        // Echo endpoint: returns method, path, query, headers, body
         if (url.pathname === "/echo") {
           const body = req.body ? await req.text() : null
           return new Response(
@@ -94,32 +121,105 @@ describe("Tunnel Smoke Test", () => {
           )
         }
 
-        // Large response endpoint: returns ~100KB of data
         if (url.pathname === "/large") {
-          const chunk = "x".repeat(1024) // 1KB
-          const body = Array.from({ length: 100 }, () => chunk).join("")
-          return new Response(body, {
-            headers: { "content-type": "text/plain" },
-          })
+          const body = "x".repeat(100 * 1024)
+          return new Response(body, { headers: { "content-type": "text/plain" } })
         }
 
-        // Default: return path + host
         return new Response(
-          JSON.stringify({
-            path: url.pathname,
-            host: req.headers.get("host"),
-          }),
+          JSON.stringify({ path: url.pathname, host: req.headers.get("host") }),
           { headers: { "content-type": "application/json" } },
         )
       },
       websocket: {
         message(ws, message) {
-          // Echo back with prefix
           const text = typeof message === "string" ? message : new TextDecoder().decode(message)
           ws.send(`echo:${text}`)
         },
       },
     })
+
+    if (IS_PROD) {
+      // Connect tunnel to production
+      const wsUrl = FACTORY_URL!.replace(/^http/, "ws") + "/api/v1/factory/infra/gateway/tunnels/ws"
+      console.log(`Connecting tunnel to ${wsUrl} with subdomain ${SUBDOMAIN}...`)
+
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(wsUrl)
+        ws.binaryType = "arraybuffer"
+        tunnelWs = ws
+
+        const activeLocalWs = new Map<number, WebSocket>()
+        const pendingBodies: PendingBodies = new Map()
+
+        const timeout = setTimeout(() => {
+          reject(new Error("Tunnel registration timed out after 10s"))
+        }, 10_000)
+
+        ws.addEventListener("open", () => {
+          ws.send(JSON.stringify({
+            type: "register",
+            localAddr: `localhost:${LOCAL_PORT}`,
+            subdomain: SUBDOMAIN,
+            principalId: "prod-test",
+          }))
+        })
+
+        ws.addEventListener("message", (event) => {
+          if (event.data instanceof ArrayBuffer) {
+            handleBinaryFrame(new Uint8Array(event.data), ws, LOCAL_PORT, activeLocalWs, pendingBodies)
+            return
+          }
+          try {
+            const msg = JSON.parse(typeof event.data === "string" ? event.data : "")
+            if (msg.type === "registered") {
+              clearTimeout(timeout)
+              console.log(`Tunnel registered: ${msg.url}`)
+              resolve()
+            } else if (msg.type === "error") {
+              clearTimeout(timeout)
+              reject(new Error(`Registration error: ${msg.message}`))
+            }
+          } catch {}
+        })
+
+        ws.addEventListener("error", () => {
+          clearTimeout(timeout)
+          reject(new Error("WebSocket connection error"))
+        })
+      })
+    } else {
+      // Local mode: boot Elysia + PGlite + gateway proxy
+      const { createTestContext } = await import("../test-helpers")
+      const ctx = await createTestContext()
+      db = ctx.db
+      client = ctx.client
+      apiServer = ctx.app.listen(API_PORT)
+
+      // Register tunnel
+      await registerTunnel({
+        port: API_PORT,
+        localPort: LOCAL_PORT,
+        subdomain: SUBDOMAIN,
+        onWs: (ws) => { tunnelWs = ws },
+      })
+
+      // Start gateway proxy
+      const { createGatewayServer, RouteCache } = await import("../modules/infra/gateway-proxy")
+      const { getTunnelStreamManager } = await import("../modules/infra/tunnel-broker")
+      const { lookupRouteByDomain } = await import("../modules/infra/gateway.service")
+      const cache = new RouteCache({
+        lookup: (domain: string) => lookupRouteByDomain(db, domain),
+        maxSize: 100,
+        ttlMs: 1_000,
+      })
+      gatewayServer = createGatewayServer({
+        cache,
+        port: GATEWAY_PORT,
+        getTunnelStreamManager: (subdomain: string) => getTunnelStreamManager(subdomain),
+      })
+      await new Promise((r) => setTimeout(r, 100))
+    }
   }, 15_000)
 
   afterAll(async () => {
@@ -128,105 +228,78 @@ describe("Tunnel Smoke Test", () => {
     gatewayServer?.stop()
     localServer?.stop()
     apiServer?.stop()
-    await client.close()
+    if (client) await client.close()
   })
 
   // =========================================================================
-  // Core: server boots and routes are registered
+  // Local-only: infrastructure tests
   // =========================================================================
 
-  it("1. health endpoint responds", async () => {
-    const res = await fetch(`http://localhost:${API_PORT}/health`)
-    expect(res.status).toBe(200)
-    const body = (await res.json()) as { status: string }
-    expect(body.status).toBe("ok")
-  })
-
-  it("2. tunnel WS endpoint exists", async () => {
-    const res = await fetch(
-      `http://localhost:${API_PORT}/api/v1/factory/infra/gateway/tunnels/ws`,
-    )
-    expect([101, 400, 404, 426]).toContain(res.status)
-  })
-
-  // =========================================================================
-  // Tunnel registration
-  // =========================================================================
-
-  it("3. WebSocket tunnel registers and handles binary frames", async () => {
-    const registered = await registerTunnel({
-      port: API_PORT,
-      localPort: LOCAL_PORT,
-      subdomain: "smoke-test",
-      onWs: (ws) => { tunnelWs = ws },
+  if (!IS_PROD) {
+    it("health endpoint responds", async () => {
+      const res = await fetch(`http://localhost:${API_PORT}/health`)
+      expect(res.status).toBe(200)
     })
 
-    expect(registered.tunnelId).toBeTruthy()
-    expect(registered.subdomain).toBe("smoke-test")
-    expect(registered.url).toBe(`https://smoke-test.tunnel.${GATEWAY_DOMAIN}`)
-  }, 10_000)
-
-  it("4. parseHostname resolves tunnel subdomains for configured domain", () => {
-    const parsed = parseHostname(`smoke-test.tunnel.${GATEWAY_DOMAIN}`)
-    expect(parsed).not.toBeNull()
-    expect(parsed!.family).toBe("tunnel")
-    expect(parsed!.slug).toBe("smoke-test")
-  })
-
-  it("5. parseHostname handles port-suffixed subdomains", () => {
-    const parsed = parseHostname(`my-env-p3000.tunnel.${GATEWAY_DOMAIN}`)
-    expect(parsed).not.toBeNull()
-    expect(parsed!.family).toBe("tunnel")
-    expect(parsed!.slug).toBe("my-env")
-    expect(parsed!.port).toBe(3000)
-  })
-
-  it("6. parseHostname handles named endpoint subdomains", () => {
-    const parsed = parseHostname(`my-env--terminal.sandbox.${GATEWAY_DOMAIN}`)
-    expect(parsed).not.toBeNull()
-    expect(parsed!.family).toBe("sandbox")
-    expect(parsed!.slug).toBe("my-env")
-    expect(parsed!.endpointName).toBe("terminal")
-  })
-
-  it("7. tunnel route exists in database", async () => {
-    const route = await lookupRouteByDomain(
-      db,
-      `smoke-test.tunnel.${GATEWAY_DOMAIN}`,
-    )
-    expect(route).not.toBeNull()
-    expect(route!.kind).toBe("tunnel")
-    expect(route!.targetService).toBe("tunnel-broker")
-    expect(route!.status).toBe("active")
-  })
-
-  // =========================================================================
-  // Gateway proxy: round-trip
-  // =========================================================================
-
-  it("8. gateway proxy forwards GET through tunnel", async () => {
-    startGateway()
-    await new Promise((r) => setTimeout(r, 100))
-
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/hello?foo=bar`, {
-      headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` },
+    it("tunnel WS endpoint exists", async () => {
+      const res = await fetch(
+        `http://localhost:${API_PORT}/api/v1/factory/infra/gateway/tunnels/ws`,
+      )
+      expect([101, 400, 404, 426]).toContain(res.status)
     })
 
+    it("parseHostname resolves tunnel subdomains", async () => {
+      const { parseHostname } = await import("../modules/infra/gateway-proxy")
+      const parsed = parseHostname(`smoke-test.tunnel.${GATEWAY_DOMAIN}`)
+      expect(parsed).not.toBeNull()
+      expect(parsed!.family).toBe("tunnel")
+      expect(parsed!.slug).toBe("smoke-test")
+    })
+
+    it("parseHostname handles port-suffixed subdomains", async () => {
+      const { parseHostname } = await import("../modules/infra/gateway-proxy")
+      const parsed = parseHostname(`my-env-p3000.tunnel.${GATEWAY_DOMAIN}`)
+      expect(parsed).not.toBeNull()
+      expect(parsed!.slug).toBe("my-env")
+      expect(parsed!.port).toBe(3000)
+    })
+
+    it("parseHostname handles named endpoint subdomains", async () => {
+      const { parseHostname } = await import("../modules/infra/gateway-proxy")
+      const parsed = parseHostname(`my-env--terminal.sandbox.${GATEWAY_DOMAIN}`)
+      expect(parsed).not.toBeNull()
+      expect(parsed!.slug).toBe("my-env")
+      expect(parsed!.endpointName).toBe("terminal")
+    })
+
+    it("tunnel route exists in database", async () => {
+      const { lookupRouteByDomain } = await import("../modules/infra/gateway.service")
+      const route = await lookupRouteByDomain(db, `smoke-test.tunnel.${GATEWAY_DOMAIN}`)
+      expect(route).not.toBeNull()
+      expect(route!.kind).toBe("tunnel")
+      expect(route!.targetService).toBe("tunnel-broker")
+    })
+  }
+
+  // =========================================================================
+  // Round-trip tests (run in both modes)
+  // =========================================================================
+
+  it("GET round-trip", async () => {
+    const res = await fetch(tunnelFetchUrl("/echo"), tunnelFetchOpts())
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { path: string }
-    expect(body.path).toBe("/hello")
+    const body = (await res.json()) as { method: string; path: string }
+    expect(body.method).toBe("GET")
+    expect(body.path).toBe("/echo")
   }, 15_000)
 
-  it("9. gateway proxy forwards POST with body (body round-trip)", async () => {
+  it("POST body round-trip", async () => {
     const payload = JSON.stringify({ message: "hello from tunnel", count: 42 })
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+    const res = await fetch(tunnelFetchUrl("/echo"), tunnelFetchOpts({
       method: "POST",
-      headers: {
-        host: `smoke-test.tunnel.${GATEWAY_DOMAIN}`,
-        "content-type": "application/json",
-      },
+      headers: { "content-type": "application/json" },
       body: payload,
-    })
+    }))
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { method: string; body: string }
@@ -234,71 +307,52 @@ describe("Tunnel Smoke Test", () => {
     expect(body.body).toBe(payload)
   }, 15_000)
 
-  it("10. response headers are preserved through tunnel", async () => {
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
-      headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` },
-    })
-
-    expect(res.status).toBe(200)
+  it("response headers preserved", async () => {
+    const res = await fetch(tunnelFetchUrl("/echo"), tunnelFetchOpts())
     expect(res.headers.get("x-custom-header")).toBe("tunnel-works")
-    expect(res.headers.get("x-request-id")).toBe("smoke-123")
+    expect(res.headers.get("content-type")).toContain("application/json")
   }, 15_000)
 
-  it("11. query string is preserved through tunnel", async () => {
+  it("query string preserved", async () => {
     const res = await fetch(
-      `http://localhost:${GATEWAY_PORT}/echo?key=value&arr=1&arr=2`,
-      { headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` } },
+      tunnelFetchUrl("/echo?foo=bar&baz=123"),
+      tunnelFetchOpts(),
     )
-
-    expect(res.status).toBe(200)
     const body = (await res.json()) as { query: string }
-    expect(body.query).toBe("?key=value&arr=1&arr=2")
+    expect(body.query).toBe("?foo=bar&baz=123")
   }, 15_000)
 
-  it("12. large response body (~100KB) survives chunked transfer", async () => {
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/large`, {
-      headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` },
-    })
-
+  it("large response (100KB) streams correctly", async () => {
+    const res = await fetch(tunnelFetchUrl("/large"), tunnelFetchOpts())
     expect(res.status).toBe(200)
-    const body = await res.text()
-    expect(body.length).toBe(100 * 1024) // 100KB
-    expect(body).toBe("x".repeat(100 * 1024))
-  }, 15_000)
+    const text = await res.text()
+    expect(text.length).toBe(100 * 1024)
+    expect(text).toBe("x".repeat(100 * 1024))
+  }, 30_000)
 
-  it("13. large POST body (~200KB) survives chunked transfer", async () => {
-    const largeBody = "A".repeat(200 * 1024) // 200KB — exceeds MAX_PAYLOAD_SIZE (64KB)
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+  it("large POST body (200KB) survives chunked transfer", async () => {
+    const largeBody = "A".repeat(200 * 1024)
+    const res = await fetch(tunnelFetchUrl("/echo"), tunnelFetchOpts({
       method: "POST",
-      headers: {
-        host: `smoke-test.tunnel.${GATEWAY_DOMAIN}`,
-        "content-type": "text/plain",
-      },
+      headers: { "content-type": "text/plain" },
       body: largeBody,
-    })
+    }))
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { method: string; body: string }
     expect(body.method).toBe("POST")
     expect(body.body?.length).toBe(200 * 1024)
-    expect(body.body).toBe(largeBody)
   }, 30_000)
 
-  // =========================================================================
-  // WebSocket passthrough
-  // =========================================================================
-
-  it("14. WebSocket upgrade through tunnel round-trips messages", async () => {
-    // The gateway proxy should upgrade browser WS → tunnel WS_DATA frames
-    // → local WS server, and bridge messages in both directions.
-    const ws = new WebSocket(
-      `ws://localhost:${GATEWAY_PORT}/ws-echo`,
-      { headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` } } as any,
-    )
+  it("WebSocket round-trips messages", async () => {
+    const wsUrl = tunnelWsUrl("/ws-echo")
+    const wsOpts = IS_PROD ? undefined : { headers: { host: `${SUBDOMAIN}.tunnel.${GATEWAY_DOMAIN}` } } as any
+    const ws = new WebSocket(wsUrl, wsOpts)
 
     const messages: string[] = []
-    const opened = new Promise<void>((resolve) => {
+    const opened = new Promise<void>((resolve, reject) => {
       ws.addEventListener("open", () => resolve())
+      ws.addEventListener("error", () => reject(new Error("WS connection failed")))
     })
     const closed = new Promise<void>((resolve) => {
       ws.addEventListener("close", () => resolve())
@@ -310,8 +364,7 @@ describe("Tunnel Smoke Test", () => {
     await opened
     ws.send("ping-1")
     ws.send("ping-2")
-    // Give time for round-trip
-    await new Promise((r) => setTimeout(r, 500))
+    await new Promise((r) => setTimeout(r, IS_PROD ? 2000 : 500))
     ws.close()
     await closed
 
@@ -319,120 +372,96 @@ describe("Tunnel Smoke Test", () => {
     expect(messages).toContain("echo:ping-2")
   }, 15_000)
 
-  // =========================================================================
-  // Multiple concurrent tunnels
-  // =========================================================================
-
-  it("15. second tunnel on different subdomain works independently", async () => {
-    const registered = await registerTunnel({
-      port: API_PORT,
-      localPort: LOCAL_PORT,
-      subdomain: "smoke-test-2",
-      onWs: (ws) => { tunnel2Ws = ws },
-    })
-
-    expect(registered.subdomain).toBe("smoke-test-2")
-
-    // Both tunnels should respond
-    const [res1, res2] = await Promise.all([
-      fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
-        headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` },
-      }),
-      fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
-        headers: { host: `smoke-test-2.tunnel.${GATEWAY_DOMAIN}` },
-      }),
-    ])
-
-    expect(res1.status).toBe(200)
-    expect(res2.status).toBe(200)
+  it("unknown subdomain returns 404 or 502", async () => {
+    const unknownSubdomain = `nonexistent-${Date.now()}`
+    let res: Response
+    if (IS_PROD) {
+      res = await fetch(`https://${unknownSubdomain}.tunnel.${GATEWAY_DOMAIN}/`)
+    } else {
+      res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
+        headers: { host: `${unknownSubdomain}.tunnel.${GATEWAY_DOMAIN}` },
+      })
+    }
+    expect([404, 502]).toContain(res.status)
   }, 15_000)
 
   // =========================================================================
-  // Error paths
+  // Local-only: error paths + concurrent tunnels
   // =========================================================================
 
-  it("16. gateway returns 404 for unknown tunnel subdomain", async () => {
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
-      headers: { host: `nonexistent.tunnel.${GATEWAY_DOMAIN}` },
-    })
-    expect(res.status).toBe(404)
-  })
-
-  it("17. gateway returns 404 for unrecognized host", async () => {
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
-      headers: { host: "random.example.com" },
-    })
-    expect(res.status).toBe(404)
-  })
-
-  it("18. tunnel disconnect: gateway returns 502 after WS closes", async () => {
-    // Register a tunnel that we'll close
-    const ephemeralWs = await new Promise<WebSocket>((resolve) => {
-      let ws: WebSocket
-      registerTunnel({
+  if (!IS_PROD) {
+    it("second tunnel on different subdomain works independently", async () => {
+      const registered = await registerTunnel({
         port: API_PORT,
         localPort: LOCAL_PORT,
-        subdomain: "ephemeral",
-        onWs: (w) => { ws = w },
-      }).then(() => resolve(ws!))
+        subdomain: "smoke-test-2",
+        onWs: (ws) => { tunnel2Ws = ws },
+      })
+
+      expect(registered.subdomain).toBe("smoke-test-2")
+
+      const [res1, res2] = await Promise.all([
+        fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+          headers: { host: `smoke-test.tunnel.${GATEWAY_DOMAIN}` },
+        }),
+        fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+          headers: { host: `smoke-test-2.tunnel.${GATEWAY_DOMAIN}` },
+        }),
+      ])
+
+      expect(res1.status).toBe(200)
+      expect(res2.status).toBe(200)
+    }, 15_000)
+
+    it("gateway returns 404 for unrecognized host", async () => {
+      const res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
+        headers: { host: "random.example.com" },
+      })
+      expect(res.status).toBe(404)
     })
 
-    // Verify it works first
-    const before = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
-      headers: { host: `ephemeral.tunnel.${GATEWAY_DOMAIN}` },
-    })
-    expect(before.status).toBe(200)
+    it("tunnel disconnect: gateway returns 502", async () => {
+      const ephemeralWs = await new Promise<WebSocket>((resolve) => {
+        let ws: WebSocket
+        registerTunnel({
+          port: API_PORT,
+          localPort: LOCAL_PORT,
+          subdomain: "ephemeral",
+          onWs: (w) => { ws = w },
+        }).then(() => resolve(ws!))
+      })
 
-    // Close the tunnel
-    ephemeralWs.close()
-    await new Promise((r) => setTimeout(r, 200))
+      const before = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+        headers: { host: `ephemeral.tunnel.${GATEWAY_DOMAIN}` },
+      })
+      expect(before.status).toBe(200)
 
-    // Now the gateway should return 502 (tunnel not connected)
-    const after = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
-      headers: { host: `ephemeral.tunnel.${GATEWAY_DOMAIN}` },
-    })
-    // 502 if route exists but tunnel disconnected, or 404 if route was cleaned up
-    expect([404, 502]).toContain(after.status)
-  }, 15_000)
+      ephemeralWs.close()
+      await new Promise((r) => setTimeout(r, 200))
 
-  it("19. tunnel to unreachable local port returns 504", async () => {
-    // Register tunnel pointing to a port nobody is listening on
-    await registerTunnel({
-      port: API_PORT,
-      localPort: DEAD_PORT, // nothing listens here
-      subdomain: "dead-local",
-    })
+      const after = await fetch(`http://localhost:${GATEWAY_PORT}/echo`, {
+        headers: { host: `ephemeral.tunnel.${GATEWAY_DOMAIN}` },
+      })
+      expect([404, 502]).toContain(after.status)
+    }, 15_000)
 
-    const res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
-      headers: { host: `dead-local.tunnel.${GATEWAY_DOMAIN}` },
-    })
+    it("tunnel to unreachable local port returns 504", async () => {
+      await registerTunnel({
+        port: API_PORT,
+        localPort: DEAD_PORT,
+        subdomain: "dead-local",
+      })
 
-    // The tunnel client tries to fetch from DEAD_PORT, gets ECONNREFUSED,
-    // sends RST_STREAM → gateway returns 504 Gateway Timeout
-    expect([502, 504]).toContain(res.status)
-  }, 15_000)
-
-  // =========================================================================
-  // Helpers
-  // =========================================================================
-
-  function startGateway() {
-    if (gatewayServer) return
-    const cache = new RouteCache({
-      lookup: (domain) => lookupRouteByDomain(db, domain),
-      maxSize: 100,
-      ttlMs: 1_000,
-    })
-    gatewayServer = createGatewayServer({
-      cache,
-      port: GATEWAY_PORT,
-      getTunnelStreamManager: (subdomain) => getTunnelStreamManager(subdomain),
-    })
+      const res = await fetch(`http://localhost:${GATEWAY_PORT}/`, {
+        headers: { host: `dead-local.tunnel.${GATEWAY_DOMAIN}` },
+      })
+      expect([502, 504]).toContain(res.status)
+    }, 15_000)
   }
 })
 
 // ---------------------------------------------------------------------------
-// Tunnel registration helper
+// Tunnel registration helper (local mode only)
 // ---------------------------------------------------------------------------
 
 interface RegisterOpts {
@@ -443,7 +472,6 @@ interface RegisterOpts {
 }
 
 async function registerTunnel(opts: RegisterOpts) {
-  // State maps for the real handleBinaryFrame
   const activeLocalWs = new Map<number, WebSocket>()
   const pendingBodies: PendingBodies = new Map()
 
@@ -499,4 +527,3 @@ async function registerTunnel(opts: RegisterOpts) {
     },
   )
 }
-

@@ -16,13 +16,18 @@ export interface ParsedHost {
   fullSubdomain: string; // full subdomain for route lookup (e.g. "my-env-p3000" or "my-env--terminal")
 }
 
-const GATEWAY_DOMAIN = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+function getGatewayDomain(): string {
+  return process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+}
 
-const FAMILY_SUFFIXES: { suffix: string; family: RouteFamily }[] = [
-  { suffix: `.tunnel.${GATEWAY_DOMAIN}`, family: "tunnel" },
-  { suffix: `.preview.${GATEWAY_DOMAIN}`, family: "preview" },
-  { suffix: `.sandbox.${GATEWAY_DOMAIN}`, family: "sandbox" },
-];
+function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
+  const domain = getGatewayDomain();
+  return [
+    { suffix: `.tunnel.${domain}`, family: "tunnel" },
+    { suffix: `.preview.${domain}`, family: "preview" },
+    { suffix: `.sandbox.${domain}`, family: "sandbox" },
+  ];
+}
 
 // Patterns for port-based (-p3000) and named endpoint (--terminal) suffixes
 const PORT_SUFFIX_RE = /^(.+)-p(\d+)$/;
@@ -34,7 +39,7 @@ export function parseHostname(host: string | undefined): ParsedHost | null {
   // Strip port if present
   const hostname = host.split(":")[0];
 
-  for (const { suffix, family } of FAMILY_SUFFIXES) {
+  for (const { suffix, family } of getFamilySuffixes()) {
     if (hostname.endsWith(suffix)) {
       const fullSubdomain = hostname.slice(0, -suffix.length);
       if (fullSubdomain.length === 0) continue;
@@ -164,10 +169,11 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       return new Response("Not Found", { status: 404 });
     }
 
+    const gwd = getGatewayDomain();
     const suffixMap: Record<RouteFamily, string> = {
-      tunnel: `.tunnel.${GATEWAY_DOMAIN}`,
-      preview: `.preview.${GATEWAY_DOMAIN}`,
-      sandbox: `.sandbox.${GATEWAY_DOMAIN}`,
+      tunnel: `.tunnel.${gwd}`,
+      preview: `.preview.${gwd}`,
+      sandbox: `.sandbox.${gwd}`,
     };
     const domain = parsed.fullSubdomain + suffixMap[parsed.family];
 
@@ -435,6 +441,6 @@ export function startGateway(opts: {
     checkAuth: opts.checkAuth,
   });
 
-  logger.info({ port: gwPort, domain: GATEWAY_DOMAIN }, "gateway proxy started");
+  logger.info({ port: gwPort, domain: getGatewayDomain() }, "gateway proxy started");
   return { ...gw, cache };
 }
