@@ -193,6 +193,7 @@ export async function getSandbox(db: Database, sandboxId: string) {
 export async function listSandboxes(
   db: Database,
   filters?: {
+    slug?: string;
     ownerId?: string;
     ownerType?: string;
     runtimeType?: string;
@@ -211,6 +212,9 @@ export async function listSandboxes(
       eq(sandbox.deploymentTargetId, deploymentTarget.deploymentTargetId)
     );
 
+  if (filters?.slug) {
+    query = query.where(eq(sandbox.slug, filters.slug)) as typeof query;
+  }
   if (filters?.ownerId) {
     query = query.where(eq(sandbox.ownerId, filters.ownerId)) as typeof query;
   }

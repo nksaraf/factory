@@ -1,6 +1,6 @@
 import { execFileSync, execSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
@@ -392,11 +392,21 @@ async function connectToEntity(entity: ResolvedEntity, flags: Record<string, unk
     });
     kubectlArgs.push("--", "/bin/bash");
 
+    // If we have an inline kubeconfig from the factory, write it to a temp file
+    let kubeconfigTmp: string | undefined;
+    if (entity.kubeconfig) {
+      kubeconfigTmp = join(tmpdir(), `dx-kubeconfig-${Date.now()}.yaml`);
+      writeFileSync(kubeconfigTmp, entity.kubeconfig, { mode: 0o600 });
+      kubectlArgs.unshift("--kubeconfig", kubeconfigTmp);
+    }
+
     try {
       execFileSync("kubectl", kubectlArgs, { stdio: "inherit" });
     } catch (err: any) {
       if (err.status != null) process.exit(err.status);
       throw err;
+    } finally {
+      if (kubeconfigTmp) try { unlinkSync(kubeconfigTmp); } catch {}
     }
     return;
   }

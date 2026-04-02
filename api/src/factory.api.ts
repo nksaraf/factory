@@ -64,6 +64,7 @@ export class FactoryAPI {
   private stopGitHostSync?: () => void
   private stopIdentitySync?: () => void
   private stopMessagingSync?: () => void
+  private stopReconcilerLoop?: NodeJS.Timeout
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -206,6 +207,7 @@ export class FactoryAPI {
       "factory migrations complete"
     )
     this.reconciler = new Reconciler(this.db, new KubeClientImpl())
+    this.stopReconcilerLoop = this.reconciler.startLoop()
     this.stopTtlCleanup = startTtlCleanupLoop(this.db, this.sandboxAdapter)
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)
     this.stopWorkTrackerSync = startWorkTrackerSyncLoop(this.db)
@@ -237,6 +239,7 @@ export class FactoryAPI {
   }
 
   async close() {
+    if (this.stopReconcilerLoop) clearInterval(this.stopReconcilerLoop)
     this.stopTtlCleanup?.()
     this.stopProxmoxSync?.()
     this.stopWorkTrackerSync?.()

@@ -24,6 +24,10 @@ export interface ResolvedEntity {
   namespace?: string;
   container?: string;
   kubeContext?: string;
+  kubeconfig?: string;  // inline kubeconfig YAML fetched from factory
+
+  // Internal — used to resolve kubeconfig lazily
+  deploymentTargetId?: string;
 
   // Display
   context?: string;
@@ -58,8 +62,14 @@ export class EntityFinder {
           if (sbx?.sandboxId) items.push(sbx);
         } catch { /* not found by id */ }
       }
-      if (items.length > 0) {
-        return sandboxToEntity(items[0]);
+      // Verify the slug actually matches — guards against API ignoring the filter
+      const match = items.find((s: any) => s.slug === target || s.sandboxId === target);
+      if (match) {
+        const entity = sandboxToEntity(match);
+        if (entity?.transport === 'kubectl' && entity.deploymentTargetId) {
+          entity.kubeconfig = await this.resolveKubeconfig(api, entity.deploymentTargetId);
+        }
+        return entity;
       }
     } catch { /* endpoint may not exist or error */ }
 
@@ -76,8 +86,9 @@ export class EntityFinder {
           if (vm?.vmId) items.push(vm);
         } catch { /* not found */ }
       }
-      if (items.length > 0) {
-        return vmToEntity(items[0]);
+      const match = items.find((v: any) => v.slug === target || v.vmId === target);
+      if (match) {
+        return vmToEntity(match);
       }
     } catch { /* endpoint may not exist */ }
 
@@ -94,8 +105,9 @@ export class EntityFinder {
           if (host?.hostId) items.push(host);
         } catch { /* not found */ }
       }
-      if (items.length > 0) {
-        return hostToEntity(items[0]);
+      const match = items.find((h: any) => h.slug === target || h.hostId === target);
+      if (match) {
+        return hostToEntity(match);
       }
     } catch { /* endpoint may not exist */ }
 
@@ -119,6 +131,34 @@ export class EntityFinder {
     } catch { /* not found */ }
 
     return null;
+  }
+
+  /**
+   * Resolve kubeconfig for a deployment target by following:
+   * deploymentTargetId → clusterId → cluster.kubeconfigRef
+   */
+  private async resolveKubeconfig(api: any, deploymentTargetId: string): Promise<string | undefined> {
+    try {
+      // 1. Get deployment target → clusterId
+      const dtResult = await (api as any).api.v1.factory.fleet["deployment-targets"]({ id: deploymentTargetId }).get();
+      const dt = dtResult?.data ?? dtResult;
+      const clusterId = dt?.clusterId;
+      if (!clusterId) return undefined;
+
+      // 2. Get cluster → kubeconfigRef
+      const clResult = await (api as any).api.v1.factory.infra.clusters({ id: clusterId }).get();
+      const cl = clResult?.data?.data ?? clResult?.data ?? clResult;
+      const kubeconfigRef = cl?.kubeconfigRef;
+      if (!kubeconfigRef) return undefined;
+
+      // Only inline YAML kubeconfigs are usable from the CLI.
+      // Vault references and server-side file paths can't be resolved client-side.
+      if (kubeconfigRef.startsWith('vault:')) return undefined;
+
+      return kubeconfigRef;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -182,6 +222,7 @@ function sandboxToEntity(sbx: any): ResolvedEntity | null {
     podName: isContainer ? (sbx.podName ?? `sandbox-${sbx.slug}`) : undefined,
     namespace: isContainer ? `sandbox-${sbx.slug}` : undefined,
     container: isContainer ? 'workspace' : undefined,
+    deploymentTargetId: sbx.deploymentTargetId,
   };
 }
 

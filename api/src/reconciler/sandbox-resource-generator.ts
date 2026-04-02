@@ -29,14 +29,22 @@ export function generateSandboxResources(
     "dx.dev/target-kind": "sandbox",
   };
 
-  return [
+  const resources = [
     makeNamespace(ns, labels),
     makeWorkspacePVC(sandbox, ns, labels),
     makeDockerPVC(sandbox, ns, labels),
     makePod(sandbox, ns, labels),
     makeService(sandbox, ns, labels),
-    makeIngressRoute(sandbox, ns, labels),
   ];
+
+  // Only generate IngressRoute when in-cluster Traefik CRDs are available.
+  // When routing is handled by the gateway proxy (the common case), this is
+  // not needed — the reconciler creates DB-backed routes instead.
+  if (process.env.SANDBOX_INGRESS_ENABLED === "true") {
+    resources.push(makeIngressRoute(sandbox, ns, labels));
+  }
+
+  return resources;
 }
 
 function makeNamespace(
@@ -121,7 +129,7 @@ function buildCloneScript(
 }
 
 const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest";
-const DEFAULT_FALLBACK_IMAGE = "ghcr.io/nksaraf/dx-sandbox:latest";
+const DEFAULT_FALLBACK_IMAGE = "ubuntu:22.04";
 
 function makePod(
   sandbox: SandboxResourceInput,
