@@ -5,6 +5,7 @@ import {
   encodeFrame,
   buildHttpResFrame,
   buildDataFrame,
+  buildDataFrames,
   buildRstStreamFrame,
   buildWsDataFrame,
   buildWsCloseFrame,
@@ -85,12 +86,19 @@ export async function openTunnel(
   let currentWs: WebSocket | null = null;
   // Track forwarded WebSocket connections per streamId
   let activeLocalWs = new Map<number, WebSocket>();
+  // Track pending request body streams per streamId
+  let pendingBodies: PendingBodies = new Map();
 
   function cleanupLocalWebSockets() {
     for (const [, localWs] of activeLocalWs) {
       try { localWs.close(); } catch {}
     }
     activeLocalWs.clear();
+    // Close any pending body streams
+    for (const [, controller] of pendingBodies) {
+      try { controller.error(new Error("tunnel disconnected")); } catch {}
+    }
+    pendingBodies.clear();
   }
 
   function connect() {
@@ -113,7 +121,7 @@ export async function openTunnel(
 
     ws.addEventListener("message", (event) => {
       if (registered && event.data instanceof ArrayBuffer) {
-        handleBinaryFrame(new Uint8Array(event.data), ws, opts.port, activeLocalWs);
+        handleBinaryFrame(new Uint8Array(event.data), ws, opts.port, activeLocalWs, pendingBodies);
         return;
       }
 
@@ -188,13 +196,22 @@ export async function openTunnel(
 }
 
 /**
+ * Tracks pending request body streams.
+ * When an HTTP_REQ arrives for a method with a body (POST/PUT/PATCH),
+ * we create a ReadableStream and stash the controller here.
+ * Subsequent DATA frames for that streamId push data into the stream.
+ */
+export type PendingBodies = Map<number, ReadableStreamDefaultController<Uint8Array>>;
+
+/**
  * Handle an incoming binary frame from the broker.
  */
 export function handleBinaryFrame(
   data: Uint8Array,
   ws: WebSocket,
   localPort: number,
-  activeLocalWs?: Map<number, WebSocket>
+  activeLocalWs?: Map<number, WebSocket>,
+  pendingBodies?: PendingBodies
 ): void {
   let frame;
   try {
@@ -210,7 +227,26 @@ export function handleBinaryFrame(
     }
 
     case FrameType.HTTP_REQ: {
-      forwardToLocal(frame.streamId, frame, ws, localPort);
+      forwardToLocal(frame.streamId, frame, ws, localPort, pendingBodies);
+      break;
+    }
+
+    case FrameType.DATA: {
+      // Request body DATA frame — push to the pending body stream
+      const controller = pendingBodies?.get(frame.streamId);
+      if (controller) {
+        try {
+          if (frame.payload.byteLength > 0) {
+            controller.enqueue(frame.payload);
+          }
+          if (frame.flags & Flags.FIN) {
+            controller.close();
+            pendingBodies?.delete(frame.streamId);
+          }
+        } catch {
+          pendingBodies?.delete(frame.streamId);
+        }
+      }
       break;
     }
 
@@ -222,12 +258,18 @@ export function handleBinaryFrame(
     case FrameType.WS_DATA: {
       // Forward data to the local WebSocket for this stream
       const localWs = activeLocalWs?.get(frame.streamId);
-      if (localWs && localWs.readyState === WebSocket.OPEN) {
-        if (frame.flags & Flags.BINARY) {
+      if (!localWs) break;
+      const isBinary = !!(frame.flags & Flags.BINARY);
+      if (localWs.readyState === WebSocket.OPEN) {
+        if (isBinary) {
           localWs.send(frame.payload);
         } else {
           localWs.send(new TextDecoder().decode(frame.payload));
         }
+      } else if (localWs.readyState === WebSocket.CONNECTING) {
+        // Queue until the local WS opens
+        const queue = wsConnectQueues.get(frame.streamId);
+        queue?.push({ data: frame.payload, isBinary });
       }
       break;
     }
@@ -246,6 +288,19 @@ export function handleBinaryFrame(
       break;
     }
   }
+}
+
+/**
+ * Per-stream queue for WS_DATA messages received before the local WS is open.
+ * Without this, messages arriving during the CONNECTING state are lost.
+ */
+const wsConnectQueues = new Map<number, { data: Uint8Array; isBinary: boolean }[]>();
+
+/**
+ * Get the queue for a stream (used by handleBinaryFrame for WS_DATA).
+ */
+export function getWsConnectQueue(streamId: number) {
+  return wsConnectQueues.get(streamId);
 }
 
 /**
@@ -271,6 +326,22 @@ function forwardWsUpgrade(
     localWs.binaryType = "arraybuffer";
     activeLocalWs?.set(streamId, localWs);
 
+    // Create a queue for messages received while the WS is still connecting
+    const queue: { data: Uint8Array; isBinary: boolean }[] = [];
+    wsConnectQueues.set(streamId, queue);
+
+    localWs.addEventListener("open", () => {
+      // Drain queued messages
+      for (const msg of queue) {
+        if (msg.isBinary) {
+          localWs.send(msg.data);
+        } else {
+          localWs.send(new TextDecoder().decode(msg.data));
+        }
+      }
+      wsConnectQueues.delete(streamId);
+    });
+
     localWs.addEventListener("message", (event) => {
       try {
         if (event.data instanceof ArrayBuffer) {
@@ -285,6 +356,7 @@ function forwardWsUpgrade(
 
     localWs.addEventListener("close", () => {
       activeLocalWs?.delete(streamId);
+      wsConnectQueues.delete(streamId);
       try {
         tunnelWs.send(encodeFrame(buildWsCloseFrame(streamId)));
       } catch {}
@@ -292,6 +364,7 @@ function forwardWsUpgrade(
 
     localWs.addEventListener("error", () => {
       activeLocalWs?.delete(streamId);
+      wsConnectQueues.delete(streamId);
       try {
         tunnelWs.send(encodeFrame(buildRstStreamFrame(streamId)));
       } catch {}
@@ -301,14 +374,22 @@ function forwardWsUpgrade(
   }
 }
 
+const METHODS_WITH_BODY = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 /**
  * Forward an HTTP_REQ frame to localhost and stream the response back.
+ *
+ * For methods that can have a body (POST/PUT/PATCH/DELETE), we create a
+ * ReadableStream and register the controller in `pendingBodies`. Subsequent
+ * DATA frames for this streamId will push data into the stream. The fetch
+ * to localhost starts immediately with the stream as body (true streaming).
  */
 async function forwardToLocal(
   streamId: number,
   frame: { payload: Uint8Array },
   ws: WebSocket,
-  localPort: number
+  localPort: number,
+  pendingBodies?: PendingBodies
 ): Promise<void> {
   let req: HttpRequestPayload;
   try {
@@ -320,10 +401,27 @@ async function forwardToLocal(
 
   try {
     const url = `http://localhost:${localPort}${req.url}`;
+
+    // Build request body for methods that support it
+    let body: ReadableStream<Uint8Array> | undefined;
+    if (METHODS_WITH_BODY.has(req.method.toUpperCase()) && pendingBodies) {
+      body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          pendingBodies.set(streamId, controller);
+        },
+        cancel() {
+          pendingBodies.delete(streamId);
+        },
+      });
+    }
+
     const localRes = await fetch(url, {
       method: req.method,
       headers: req.headers,
+      body,
       redirect: "manual",
+      // @ts-expect-error Bun supports duplex streaming
+      duplex: body ? "half" : undefined,
     });
 
     // Send HTTP_RES frame with status + headers (strip hop-by-hop headers)

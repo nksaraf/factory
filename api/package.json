@@ -15,6 +15,7 @@
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:smoke": "bun test src/__tests__/tunnel-smoke.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

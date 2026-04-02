@@ -133,73 +133,125 @@ export interface GatewayServerOptions {
   checkAuth?: AuthCheckFn;
 }
 
+/**
+ * Per-WebSocket state for browser↔tunnel bridging.
+ * Stored in Bun's `ws.data` via `server.upgrade(req, { data })`.
+ */
+interface WsUpgradeData {
+  streamId: number;
+  sm: StreamManager;
+}
+
 export function createGatewayServer(opts: GatewayServerOptions) {
   const { cache, port = 9090 } = opts;
 
-  const server = Bun.serve({
-    port,
-    async fetch(req) {
-      const host = req.headers.get("host") ?? "";
-      const url = new URL(req.url);
-      const parsed = parseHostname(host);
+  /**
+   * Shared request handler for both HTTP and WebSocket upgrade paths.
+   * Returns { parsed, route, tunnelSubdomain, sm } or a Response (error).
+   */
+  async function resolveRoute(req: Request): Promise<
+    | Response
+    | { parsed: ParsedHost; route: any; tunnelSubdomain: string; sm: StreamManager }
+  > {
+    const host = req.headers.get("host") ?? "";
+    const url = new URL(req.url);
+    const parsed = parseHostname(host);
 
-      logger.info({ method: req.method, host, path: url.pathname, family: parsed?.family, slug: parsed?.slug }, "gateway request");
+    logger.info({ method: req.method, host, path: url.pathname, family: parsed?.family, slug: parsed?.slug }, "gateway request");
 
-      if (!parsed) {
-        logger.warn({ host }, "gateway no route match");
-        return new Response("Not Found", { status: 404 });
-      }
+    if (!parsed) {
+      logger.warn({ host }, "gateway no route match");
+      return new Response("Not Found", { status: 404 });
+    }
 
-      // Build the full domain for route lookup
-      const suffixMap: Record<RouteFamily, string> = {
-        tunnel: `.tunnel.${GATEWAY_DOMAIN}`,
-        preview: `.preview.${GATEWAY_DOMAIN}`,
-        sandbox: `.sandbox.${GATEWAY_DOMAIN}`,
-      };
-      const domain = parsed.fullSubdomain + suffixMap[parsed.family];
+    const suffixMap: Record<RouteFamily, string> = {
+      tunnel: `.tunnel.${GATEWAY_DOMAIN}`,
+      preview: `.preview.${GATEWAY_DOMAIN}`,
+      sandbox: `.sandbox.${GATEWAY_DOMAIN}`,
+    };
+    const domain = parsed.fullSubdomain + suffixMap[parsed.family];
 
-      const route = await cache.get(domain);
-      if (!route) {
-        logger.warn({ domain }, "gateway route not found in db");
-        return new Response("Not Found", { status: 404 });
-      }
-      logger.debug({ domain, kind: route.kind, targetService: route.targetService }, "gateway route matched");
+    const route = await cache.get(domain);
+    if (!route) {
+      logger.warn({ domain }, "gateway route not found in db");
+      return new Response("Not Found", { status: 404 });
+    }
+    logger.debug({ domain, kind: route.kind, targetService: route.targetService }, "gateway route matched");
 
-      // Auth enforcement for sandbox/preview routes
-      if (opts.checkAuth && (route.kind === "sandbox" || route.kind === "preview")) {
-        const authMode = route.metadata?.authMode ?? "private";
-        if (authMode !== "public") {
-          const authResult = await opts.checkAuth(req, {
-            kind: route.kind,
-            slug: parsed.slug,
-            authMode,
-          });
-          if (!authResult.allowed) {
-            if (authResult.redirectUrl) {
-              return Response.redirect(authResult.redirectUrl, 302);
-            }
-            return new Response("Unauthorized", { status: 401 });
+    // Auth enforcement for sandbox/preview routes
+    if (opts.checkAuth && (route.kind === "sandbox" || route.kind === "preview")) {
+      const authMode = route.metadata?.authMode ?? "private";
+      if (authMode !== "public") {
+        const authResult = await opts.checkAuth(req, {
+          kind: route.kind,
+          slug: parsed.slug,
+          authMode,
+        });
+        if (!authResult.allowed) {
+          if (authResult.redirectUrl) {
+            return Response.redirect(authResult.redirectUrl, 302);
           }
+          return new Response("Unauthorized", { status: 401 });
         }
       }
+    }
 
-      // Check if this route is tunnel-backed (targetService === "tunnel-broker")
+    const isTunnelBacked = route.targetService === "tunnel-broker";
+    if (!(parsed.family === "tunnel" || isTunnelBacked)) {
+      // Not a tunnel route — return null sm so caller can handle reverse proxy
+      return { parsed, route, tunnelSubdomain: "", sm: null as any };
+    }
+
+    const tunnelSubdomain = isTunnelBacked ? parsed.fullSubdomain : parsed.slug;
+    const sm = opts.getTunnelStreamManager?.(tunnelSubdomain);
+    if (!sm) {
+      logger.warn({ tunnelSubdomain, domain }, "tunnel not connected");
+      return new Response("Tunnel Not Connected", { status: 502 });
+    }
+
+    return { parsed, route, tunnelSubdomain, sm };
+  }
+
+  const server = Bun.serve<WsUpgradeData>({
+    port,
+    async fetch(req, server) {
+      const result = await resolveRoute(req);
+      if (result instanceof Response) return result;
+
+      const { parsed, route, sm } = result;
       const isTunnelBacked = route.targetService === "tunnel-broker";
 
-      // Forward tunnel requests (both *.tunnel.dx.dev and tunnel-backed sandbox/preview routes)
-      if (parsed.family === "tunnel" || isTunnelBacked) {
-        const tunnelSubdomain = isTunnelBacked ? parsed.fullSubdomain : parsed.slug;
-        const sm = opts.getTunnelStreamManager?.(tunnelSubdomain);
-        if (!sm) {
-          logger.warn({ tunnelSubdomain, domain }, "tunnel not connected");
-          return new Response("Tunnel Not Connected", { status: 502 });
-        }
+      // WebSocket upgrade: bridge browser WS ↔ tunnel WS_DATA frames
+      if (
+        (parsed.family === "tunnel" || isTunnelBacked) &&
+        sm &&
+        req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      ) {
+        const headerObj: Record<string, string> = {};
+        req.headers.forEach((val, key) => { headerObj[key] = val; });
+        const reqUrl = new URL(req.url);
 
+        // Initiate WS_UPGRADE through the tunnel to the local server
+        const streamId = sm.sendWsUpgrade({
+          url: reqUrl.pathname + reqUrl.search,
+          headers: headerObj,
+        });
+
+        logger.debug({ streamId, path: reqUrl.pathname }, "gateway upgrading ws");
+
+        // Upgrade the browser connection to WebSocket
+        const upgraded = server.upgrade(req, { data: { streamId, sm } });
+        if (!upgraded) {
+          return new Response("WebSocket upgrade failed", { status: 500 });
+        }
+        return undefined as any; // Bun requires no return after upgrade
+      }
+
+      // HTTP tunnel proxy
+      if ((parsed.family === "tunnel" || isTunnelBacked) && sm) {
         try {
           const headerObj: Record<string, string> = {};
-          req.headers.forEach((val, key) => {
-            headerObj[key] = val;
-          });
+          req.headers.forEach((val, key) => { headerObj[key] = val; });
 
           const reqUrl = new URL(req.url);
           const tunnelRes = await sm.sendHttpRequest(
@@ -216,7 +268,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
             headers: tunnelRes.headers,
           });
         } catch (err) {
-          logger.error({ err, domain }, "tunnel proxy error");
+          logger.error({ err }, "tunnel proxy error");
           return new Response("Gateway Timeout", { status: 504 });
         }
       }
@@ -244,6 +296,49 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         logger.error({ err, targetService: route.targetService, targetPort }, "reverse proxy error");
         return new Response("Bad Gateway", { status: 502 });
       }
+    },
+
+    // WebSocket handler: bridges browser WS ↔ tunnel WS_DATA/WS_CLOSE frames
+    websocket: {
+      open(ws) {
+        const { streamId, sm } = ws.data;
+        logger.debug({ streamId }, "gateway ws bridge opened");
+
+        // When the tunnel client sends WS_DATA back, forward to browser
+        sm.onWsMessage = (sid: number, data: Uint8Array, isBinary: boolean) => {
+          if (sid === streamId) {
+            ws.send(isBinary ? data : new TextDecoder().decode(data));
+          }
+        };
+
+        // When the tunnel client sends WS_CLOSE, close the browser WS
+        sm.onWsClose = (sid: number) => {
+          if (sid === streamId) {
+            ws.close();
+          }
+        };
+      },
+
+      message(ws, message) {
+        const { streamId, sm } = ws.data;
+        if (typeof message === "string") {
+          sm.sendWsData(streamId, new TextEncoder().encode(message), false);
+        } else {
+          const bytes = message instanceof ArrayBuffer
+            ? new Uint8Array(message)
+            : new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
+          sm.sendWsData(streamId, bytes, true);
+        }
+      },
+
+      close(ws) {
+        const { streamId, sm } = ws.data;
+        logger.debug({ streamId }, "gateway ws bridge closed");
+        sm.sendWsClose(streamId);
+        // Clean up callbacks to avoid leaks
+        sm.onWsMessage = null;
+        sm.onWsClose = null;
+      },
     },
   });
 
