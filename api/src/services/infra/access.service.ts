@@ -42,7 +42,7 @@ export async function resolveTarget(
       name: sbxRow.sandbox.name,
       host: sbxRow.sandbox.sshHost,
       port: sbxRow.sandbox.sshPort,
-      user: "coder",
+      user: "root",
       status: sbxRow.status,
     };
   }
@@ -108,7 +108,7 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
         name: row.sandbox.name,
         host: row.sandbox.sshHost,
         port: row.sandbox.sshPort,
-        user: "coder",
+        user: "root",
         status: row.status,
       });
     }

@@ -142,10 +142,23 @@ export interface GatewayServerOptions {
  * Per-WebSocket state for browser↔tunnel bridging.
  * Stored in Bun's `ws.data` via `server.upgrade(req, { data })`.
  */
-interface WsUpgradeData {
+interface TunnelWsData {
+  kind: "tunnel";
   streamId: number;
   sm: StreamManager;
 }
+
+/**
+ * Per-WebSocket state for browser↔backend bridging (sandbox/preview).
+ * The gateway opens a raw WebSocket to the backend NodePort service and
+ * relays frames in both directions.
+ */
+interface ProxyWsData {
+  kind: "proxy";
+  backend: WebSocket;
+}
+
+type WsUpgradeData = TunnelWsData | ProxyWsData;
 
 export function createGatewayServer(opts: GatewayServerOptions) {
   const { cache, port = 9090 } = opts;
@@ -246,7 +259,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         logger.debug({ streamId, path: reqUrl.pathname }, "gateway upgrading ws");
 
         // Upgrade the browser connection to WebSocket
-        const upgraded = server.upgrade(req, { data: { streamId, sm } });
+        const upgraded = server.upgrade(req, { data: { kind: "tunnel" as const, streamId, sm } });
         if (!upgraded) {
           return new Response("WebSocket upgrade failed", { status: 500 });
         }
@@ -286,6 +299,35 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       targetUrl.port = String(targetPort);
       targetUrl.protocol = "http:";
 
+      // WebSocket upgrade for sandbox/preview routes
+      const upgradeHeader = req.headers.get("upgrade");
+      if (upgradeHeader?.toLowerCase() === "websocket") {
+        const wsTarget = new URL(targetUrl);
+        wsTarget.protocol = "ws:";
+        logger.debug({ target: wsTarget.toString(), targetPort }, "sandbox ws upgrade");
+
+        try {
+          const backend = new WebSocket(wsTarget.toString());
+          backend.binaryType = "arraybuffer";
+
+          await new Promise<void>((resolve, reject) => {
+            backend.addEventListener("open", () => resolve(), { once: true });
+            backend.addEventListener("error", (e) => reject(e), { once: true });
+            setTimeout(() => reject(new Error("backend ws connect timeout")), 10_000);
+          });
+
+          const upgraded = server.upgrade(req, { data: { kind: "proxy" as const, backend } });
+          if (!upgraded) {
+            backend.close();
+            return new Response("WebSocket upgrade failed", { status: 500 });
+          }
+          return undefined as any;
+        } catch (err) {
+          logger.error({ err, target: wsTarget.toString() }, "sandbox ws proxy error");
+          return new Response("Bad Gateway", { status: 502 });
+        }
+      }
+
       try {
         const proxyRes = await fetch(targetUrl.toString(), {
           method: req.method,
@@ -293,10 +335,15 @@ export function createGatewayServer(opts: GatewayServerOptions) {
           body: req.body,
           redirect: "manual",
         });
+        // fetch() auto-decompresses gzip/br but keeps the Content-Encoding header.
+        // Strip encoding headers so the browser doesn't try to decompress again.
+        const respHeaders = new Headers(proxyRes.headers);
+        respHeaders.delete("content-encoding");
+        respHeaders.delete("content-length");
         return new Response(proxyRes.body, {
           status: proxyRes.status,
           statusText: proxyRes.statusText,
-          headers: proxyRes.headers,
+          headers: respHeaders,
         });
       } catch (err) {
         logger.error({ err, targetService: route.targetService, targetPort }, "reverse proxy error");
@@ -304,46 +351,84 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       }
     },
 
-    // WebSocket handler: bridges browser WS ↔ tunnel WS_DATA/WS_CLOSE frames
+    // WebSocket handler: bridges browser WS ↔ backend (tunnel or direct proxy)
     websocket: {
+      perMessageDeflate: false,
       open(ws) {
-        const { streamId, sm } = ws.data;
-        logger.debug({ streamId }, "gateway ws bridge opened");
+        if (ws.data.kind === "tunnel") {
+          const { streamId, sm } = ws.data;
+          logger.debug({ streamId }, "gateway tunnel ws bridge opened");
 
-        // When the tunnel client sends WS_DATA back, forward to browser
-        sm.onWsMessage = (sid: number, data: Uint8Array, isBinary: boolean) => {
-          if (sid === streamId) {
-            ws.send(isBinary ? data : new TextDecoder().decode(data));
-          }
-        };
+          sm.onWsMessage = (sid: number, data: Uint8Array, isBinary: boolean) => {
+            if (sid === streamId) {
+              ws.send(isBinary ? data : new TextDecoder().decode(data));
+            }
+          };
+          sm.onWsClose = (sid: number) => {
+            if (sid === streamId) ws.close();
+          };
+        } else {
+          const { backend } = ws.data;
+          logger.debug("gateway proxy ws bridge opened");
 
-        // When the tunnel client sends WS_CLOSE, close the browser WS
-        sm.onWsClose = (sid: number) => {
-          if (sid === streamId) {
-            ws.close();
-          }
-        };
+          // Relay backend → browser (binaryType=arraybuffer, so data is always string or ArrayBuffer)
+          backend.addEventListener("message", (ev: MessageEvent) => {
+            try {
+              if (typeof ev.data === "string") {
+                ws.send(ev.data);
+              } else {
+                ws.sendBinary(new Uint8Array(ev.data as ArrayBuffer));
+              }
+            } catch { /* client disconnected */ }
+          });
+          backend.addEventListener("close", () => {
+            try { ws.close(); } catch { /* already closed */ }
+          });
+          backend.addEventListener("error", () => {
+            try { ws.close(); } catch {}
+          });
+        }
       },
 
       message(ws, message) {
-        const { streamId, sm } = ws.data;
-        if (typeof message === "string") {
-          sm.sendWsData(streamId, new TextEncoder().encode(message), false);
+        if (ws.data.kind === "tunnel") {
+          const { streamId, sm } = ws.data;
+          if (typeof message === "string") {
+            sm.sendWsData(streamId, new TextEncoder().encode(message), false);
+          } else {
+            const bytes = message instanceof ArrayBuffer
+              ? new Uint8Array(message)
+              : new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
+            sm.sendWsData(streamId, bytes, true);
+          }
         } else {
-          const bytes = message instanceof ArrayBuffer
-            ? new Uint8Array(message)
-            : new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
-          sm.sendWsData(streamId, bytes, true);
+          // Relay browser → backend
+          const { backend } = ws.data;
+          try {
+            if (typeof message === "string") {
+              backend.send(message);
+            } else {
+              // Bun gives us Buffer (Uint8Array subclass) — convert to ArrayBuffer for standard WebSocket
+              const buf = message instanceof ArrayBuffer
+                ? message
+                : message.buffer.slice(message.byteOffset, message.byteOffset + message.byteLength);
+              backend.send(buf);
+            }
+          } catch { /* backend disconnected */ }
         }
       },
 
       close(ws) {
-        const { streamId, sm } = ws.data;
-        logger.debug({ streamId }, "gateway ws bridge closed");
-        sm.sendWsClose(streamId);
-        // Clean up callbacks to avoid leaks
-        sm.onWsMessage = null;
-        sm.onWsClose = null;
+        if (ws.data.kind === "tunnel") {
+          const { streamId, sm } = ws.data;
+          logger.debug({ streamId }, "gateway tunnel ws bridge closed");
+          sm.sendWsClose(streamId);
+          sm.onWsMessage = null;
+          sm.onWsClose = null;
+        } else {
+          logger.debug("gateway proxy ws bridge closed");
+          try { ws.data.backend.close(); } catch {}
+        }
       },
     },
   });

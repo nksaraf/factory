@@ -29,6 +29,8 @@ services:
         condition: service_healthy
     volumes:
       - ./infra/factory/application.yml:/app/config/application.yml:ro
+      - /usr/local/bin/kubectl:/usr/local/bin/kubectl:ro
+      - /etc/rancher/k3s/k3s-docker.yaml:/etc/rancher/k3s/k3s.yaml:ro
     environment:
       PORT: 4100
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
@@ -36,6 +38,7 @@ services:
       DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
+      SANDBOX_STORAGE_CLASS: local-path
     healthcheck:
       test:
         [

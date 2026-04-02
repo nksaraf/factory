@@ -37,10 +37,8 @@ export function generateSandboxResources(
     makeService(sandbox, ns, labels),
   ];
 
-  // Only generate IngressRoute when in-cluster Traefik CRDs are available.
-  // When routing is handled by the gateway proxy (the common case), this is
-  // not needed — the reconciler creates DB-backed routes instead.
-  if (process.env.SANDBOX_INGRESS_ENABLED === "true") {
+  // Generate IngressRoute for Traefik unless explicitly disabled.
+  if (process.env.SANDBOX_INGRESS_ENABLED !== "false") {
     resources.push(makeIngressRoute(sandbox, ns, labels));
   }
 
