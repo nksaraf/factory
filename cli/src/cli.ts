@@ -1,5 +1,6 @@
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
+import { shutdownTelemetry } from "./telemetry.js";
 import { createDxApp } from "./build-app.js";
 import { fireWorkbenchPing } from "./handlers/install/workbench-ping.js";
 
@@ -17,6 +18,7 @@ if (args[0] === "help") {
 }
 
 const app = createDxApp();
+let exitCode = ExitCodes.SUCCESS;
 try {
   await app.execute();
 } catch (err) {
@@ -35,10 +37,12 @@ try {
   } else {
     console.error(message);
   }
-  process.exit(ExitCodes.GENERAL_FAILURE);
+  exitCode = ExitCodes.GENERAL_FAILURE;
+} finally {
+  await shutdownTelemetry();
 }
 
 // Fire-and-forget workbench ping (non-blocking, no await)
 fireWorkbenchPing();
 
-process.exit(ExitCodes.SUCCESS);
+process.exit(exitCode);

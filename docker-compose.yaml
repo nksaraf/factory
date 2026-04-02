@@ -34,6 +34,8 @@ services:
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
       DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
     healthcheck:
       test:
         [
@@ -192,8 +194,7 @@ services:
       - --tracing=true
       - --tracing.otlp=true
       - --tracing.otlp.http=true
-      - --tracing.otlp.http.endpoint=http://infra-clickstack-otel:4318/v1/traces
-      - --tracing.otlp.http.headers.authorization=${CLICKSTACK_API_KEY}
+      - --tracing.otlp.http.endpoint=http://infra-otel-collector:4318/v1/traces
       - --tracing.serviceName=infra-reverse-proxy
     ports:
       - "${INFRA_REVERSE_PROXY_PORT:-3001}:80"
@@ -272,6 +273,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector — debug exporter for development
+  # Start with: docker compose --profile otel up
+  # ---------------------------------------------------------------------------
+  infra-otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    profiles: [otel]
+    ports:
+      - "${INFRA_OTEL_COLLECTOR_PORT:-4318}:4318"
+      - "4317:4317"
+      - "55679:55679"
+    volumes:
+      - ./infra/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    labels:
+      catalog.description: "OpenTelemetry Collector — debug exporter for development"
+      catalog.owner: platform
+      catalog.type: observability
+      catalog.tags: "otel,tracing,observability"
 
 volumes:
   postgres-data:

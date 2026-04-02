@@ -3,6 +3,7 @@ import type { FactoryApp } from "@smp/factory-api/app-type"
 
 import { readConfig, resolveFactoryUrl } from "./config.js"
 import { getStoredBearerToken } from "./session-token.js"
+import { getTraceHeaders } from "./telemetry.js"
 
 export type FactoryEdenClient = Treaty.Create<FactoryApp>
 
@@ -26,7 +27,10 @@ export async function getFactoryClient(
   const token = init?.token ?? stored
 
   return treaty<FactoryApp>(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: () => ({
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getTraceHeaders(),
+    }),
   })
 }
 
@@ -56,6 +60,9 @@ export async function getSiteClient(
   const token = init?.token ?? stored
 
   return treaty<FactoryApp>(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: () => ({
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getTraceHeaders(),
+    }),
   })
 }
