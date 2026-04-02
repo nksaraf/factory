@@ -27,9 +27,30 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [x] Preview model (Elysia validation schemas)
 - [x] `dx preview deploy/list/show/destroy/open` CLI commands
 - [x] Webhook dispatch: PR opened → create preview, synchronize → update SHA, closed → expire
+- [x] GitHub Deployments API integration (creates "View deployment" button in PR sidebar)
+- [x] Auto-updating PR comments via `<!-- dx-preview:{slug} -->` marker upsert
+- [x] GitHub Check Runs with rich structured output per state
+- [x] Image delivery endpoint (`POST /previews/:slug/image`) for external CI
+- [x] Extend TTL endpoint (`POST /previews/:slug/extend`)
+- [x] CLI `status`, `extend`, `wait`, `logs` subcommands
+- [x] Preview reconciler state machine (`pending_image` → `deploying` → `active`/`failed`)
+- [x] K8s resource generator (Namespace + Deployment + Service from imageRef)
+- [x] Gateway proxy lazy `DX_GATEWAY_DOMAIN` evaluation fix
 - [ ] `dx preview deploy --wait` polling (endpoint works, CLI polling not wired)
-- [ ] Post preview URL as PR comment via git host adapter
 - [ ] Link preview to sandbox (create sandbox on preview deploy, destroy on expire)
+
+### 1B-Blockers: Preview Production Gaps
+- [ ] Auth on preview endpoints — no API key or JWT middleware; anyone can create/expire/deliver images
+- [x] Wire reconciler loop — reconcileAll() now polls deploying/pending previews every 30s + gitHost adapter wired for PR comments/checks
+- [x] Set `clusterId` on preview creation from webhook — `findPreviewSite()` returns it and `createPreview` passes it through
+- [x] Duplicate slug handling — webhook service now checks for existing preview by slug before creating; resets expired/failed previews to pending_image
+- [ ] `findPreviewSite()` repo matching — currently returns first site with `previewConfig.enabled`; should match via repo → module → product → site linkage
+- [ ] Resource limits on preview pods — generated Deployment has no CPU/memory requests/limits; could starve cluster
+- [x] K8s resource cleanup on expire — reconcileAll() now deletes K8s namespace for expired previews and marks deployment target as destroyed
+- [x] imagePullSecrets for GAR — preview resource generator creates `gar-pull-secret` when `GAR_JSON_KEY` env var is set (skip on GKE with Workload Identity)
+- [x] GitHub Actions workflow — `.github/workflows/preview-build.yml` builds image on PR, pushes to GAR, delivers imageRef to Factory API
+- [ ] Enforce `maxConcurrent` — `previewConfig.maxConcurrent` in schema but never checked during creation
+- [ ] Webhook handler test coverage — no unit tests for PR opened/synchronize/closed → preview lifecycle
 
 ---
 

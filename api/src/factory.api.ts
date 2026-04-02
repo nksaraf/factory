@@ -2,12 +2,16 @@ import { cors } from "@elysiajs/cors"
 import { openapi } from "@elysiajs/openapi"
 import { Elysia } from "elysia"
 
+import { and, eq } from "drizzle-orm"
+import { createGitHostAdapter } from "./adapters/adapter-registry"
 import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
 import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
 import { NoopSandboxAdapter } from "./adapters/sandbox-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
+import { gitHostProvider } from "./db/schema/build"
+import { parseCredentials } from "./lib/parse-credentials"
 import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
@@ -206,7 +210,26 @@ export class FactoryAPI {
       { durationMs: Math.round(performance.now() - start) },
       "factory migrations complete"
     )
-    this.reconciler = new Reconciler(this.db, new KubeClientImpl())
+    // Load first active GitHub provider for preview PR comments/deployments/checks
+    let gitHost;
+    try {
+      const [ghProvider] = await this.db.select().from(gitHostProvider)
+        .where(and(eq(gitHostProvider.hostType, "github"), eq(gitHostProvider.status, "active")))
+        .limit(1);
+      if (ghProvider) {
+        gitHost = createGitHostAdapter("github", {
+          ...parseCredentials(ghProvider.credentialsEnc),
+          apiBaseUrl: ghProvider.apiBaseUrl ?? undefined,
+        });
+        logger.info({ provider: ghProvider.name }, "Loaded GitHub adapter for preview reconciler");
+      } else {
+        logger.warn("No active GitHub provider found — preview PR comments/checks will be skipped");
+      }
+    } catch (err) {
+      logger.warn({ err }, "Failed to load GitHub adapter — preview PR integration disabled");
+    }
+
+    this.reconciler = new Reconciler(this.db, new KubeClientImpl(), gitHost)
     this.stopReconcilerLoop = this.reconciler.startLoop()
     this.stopTtlCleanup = startTtlCleanupLoop(this.db, this.sandboxAdapter)
     this.stopProxmoxSync = startProxmoxSyncLoop(this.db)

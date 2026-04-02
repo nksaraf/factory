@@ -4,7 +4,7 @@ import { preview, deploymentTarget } from "../../db/schema/fleet";
 import { route } from "../../db/schema/gateway";
 import { createRoute, updateRoute } from "../../modules/infra/gateway.service";
 
-function buildPreviewSlug(input: { prNumber?: number; sourceBranch: string; siteName: string }): string {
+export function buildPreviewSlug(input: { prNumber?: number; sourceBranch: string; siteName: string }): string {
   const branch = input.sourceBranch
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")

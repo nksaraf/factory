@@ -124,6 +124,51 @@ export class Reconciler {
       }
     }
 
+    // --- Expired preview K8s cleanup ---
+    const expiredPreviews = await this.db
+      .select({
+        previewId: preview.previewId,
+        slug: preview.slug,
+        dtId: deploymentTarget.deploymentTargetId,
+        clusterId: deploymentTarget.clusterId,
+      })
+      .from(preview)
+      .innerJoin(
+        deploymentTarget,
+        eq(preview.deploymentTargetId, deploymentTarget.deploymentTargetId)
+      )
+      .where(
+        and(
+          eq(preview.status, "expired"),
+          notInArray(deploymentTarget.status, ["destroyed"])
+        )
+      );
+
+    for (const ep of expiredPreviews) {
+      try {
+        if (!ep.clusterId) continue;
+        const [cl] = await this.db
+          .select()
+          .from(cluster)
+          .where(eq(cluster.clusterId, ep.clusterId))
+          .limit(1);
+        if (!cl?.kubeconfigRef) continue;
+
+        const ns = `preview-${ep.slug}`;
+        await this.kube.remove(cl.kubeconfigRef, "Namespace", "", ns);
+        await this.db
+          .update(deploymentTarget)
+          .set({ status: "destroyed", destroyedAt: new Date() })
+          .where(eq(deploymentTarget.deploymentTargetId, ep.dtId));
+        logger.info({ previewId: ep.previewId, ns }, "Cleaned up expired preview K8s resources");
+      } catch (err) {
+        logger.error(
+          { previewId: ep.previewId, error: err },
+          "Failed to cleanup expired preview"
+        );
+      }
+    }
+
     // Expire stale sandboxes past their TTL
     await expireStale(this.db);
 

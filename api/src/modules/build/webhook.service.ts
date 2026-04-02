@@ -169,6 +169,23 @@ export class WebhookService {
         }
 
         const ttlDays = site.previewConfig.ttlDays ?? 7;
+
+        // Check for existing preview to handle PR reopen without duplicate slug crash
+        const slug = previewSvc.buildPreviewSlug({ prNumber, sourceBranch: headBranch, siteName: "default" });
+        const existing = await previewSvc.getPreviewBySlug(this.db, slug);
+        if (existing) {
+          logger.info(
+            { repo: repoFullName, pr: prNumber, slug, prevStatus: existing.status },
+            "Resetting existing preview for reopened PR",
+          );
+          await previewSvc.updatePreviewStatus(this.db, existing.previewId, {
+            status: "pending_image",
+            commitSha: headSha,
+            imageRef: null,
+          });
+          break;
+        }
+
         logger.info(
           { repo: repoFullName, pr: prNumber, branch: headBranch, siteId: site.siteId },
           "Creating preview for PR",

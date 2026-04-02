@@ -1,0 +1,85 @@
+name: Preview Build & Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  REGISTRY: asia-south2-docker.pkg.dev
+  PROJECT_ID: rio-platform
+  REPOSITORY: docker
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$REGISTRY" --quiet
+
+      - name: Build image metadata
+        id: meta
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          IMAGE="${REGISTRY}/${PROJECT_ID}/${REPOSITORY}/${REPO_NAME}"
+          SHORT_SHA=$(echo "$HEAD_SHA" | cut -c1-7)
+          TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+          echo "image_ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Image: ${IMAGE}:${TAG}"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.image_ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deliver image to Factory
+        env:
+          FACTORY_API_URL: ${{ vars.FACTORY_API_URL }}
+          HEAD_REF: ${{ github.head_ref }}
+          SITE_NAME: ${{ vars.FACTORY_SITE_NAME }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+        run: |
+          # Construct preview slug using the same formula as the server:
+          #   pr-{number}--{branch-slug}--{site-slug}
+          BRANCH_SLUG=$(echo "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/-\{2,\}/-/g; s/^-\|-$//g')
+          SITE=${SITE_NAME:-default}
+          SITE_SLUG=$(echo "$SITE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/-\{2,\}/-/g; s/^-\|-$//g')
+          SLUG="pr-${PR_NUMBER}--${BRANCH_SLUG}--${SITE_SLUG}"
+
+          echo "Preview slug: ${SLUG}"
+          curl -sf -X POST \
+            "${FACTORY_API_URL}/api/v1/factory/infra/previews/${SLUG}/image" \
+            -H "Content-Type: application/json" \
+            -d "{\"imageRef\": \"${IMAGE_REF}\"}"
+
+      - name: Summary
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+        run: |
+          echo "### Preview Image Built & Delivered" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Image:** \`${IMAGE_REF}\`" >> "$GITHUB_STEP_SUMMARY"

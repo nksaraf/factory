@@ -5,24 +5,7 @@ import { gitHostProvider, gitRepoSync, gitUserSync, repo } from "../../db/schema
 import { createGitHostAdapter, type GitHostAdapterConfig } from "../../adapters/adapter-registry";
 import type { GitHostAdapter, GitHostPullRequestCreate } from "../../adapters/git-host-adapter";
 import type { AuthAdminClient } from "../../lib/auth-admin-client";
-
-/**
- * Parse the credentialsEnc field. Supports:
- * - Plain string token (legacy)
- * - JSON object with { token, org, webhookSecret, ... }
- */
-function parseCredentials(credentialsEnc: string | null | undefined): Partial<GitHostAdapterConfig> {
-  if (!credentialsEnc) return {};
-  const trimmed = credentialsEnc.trim();
-  if (trimmed.startsWith("{")) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      return { token: trimmed };
-    }
-  }
-  return { token: trimmed };
-}
+import { parseCredentials } from "../../lib/parse-credentials";
 
 export type CreateProviderBody = {
   name: string;
