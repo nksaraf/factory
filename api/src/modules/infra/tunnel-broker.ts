@@ -104,16 +104,20 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
       }
 
       // Pre-registration: JSON text messages
+      // Elysia may auto-parse JSON WebSocket messages into plain objects,
+      // or pass raw strings/buffers depending on version.
       try {
-        const raw = typeof data === "string"
-          ? data
-          : data instanceof ArrayBuffer
-            ? new TextDecoder().decode(data)
-            : data instanceof Uint8Array || Buffer.isBuffer(data)
-              ? new TextDecoder().decode(data)
-              : "";
-        logger.debug({ dataType: typeof data, constructorName: data?.constructor?.name, raw: raw.slice(0, 200) }, "tunnel message received");
-        const msg = JSON.parse(raw);
+        const msg = typeof data === "object" && data !== null && !(data instanceof ArrayBuffer) && !(data instanceof Uint8Array) && !Buffer.isBuffer(data)
+          ? data as any
+          : JSON.parse(
+              typeof data === "string"
+                ? data
+                : data instanceof ArrayBuffer
+                  ? new TextDecoder().decode(data)
+                  : data instanceof Uint8Array || Buffer.isBuffer(data)
+                    ? new TextDecoder().decode(data)
+                    : ""
+            );
 
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain();
@@ -162,7 +166,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
           }, heartbeatIntervalMs);
         }
       } catch (err) {
-        logger.error({ err }, "tunnel registration failed");
+        logger.error({ err, dataType: typeof data, constructorName: data?.constructor?.name }, "tunnel registration failed");
         ws.send(JSON.stringify({ type: "error", message: "Invalid message" }));
       }
     },
