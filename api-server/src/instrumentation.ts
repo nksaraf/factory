@@ -1,46 +1,39 @@
+import { propagation } from "@opentelemetry/api"
+
 const enabled = process.env.TELEMETRY_ENABLED === "true"
 
 if (enabled) {
-  const { NodeSDK } = await import("@opentelemetry/sdk-node")
-  const { getNodeAutoInstrumentations } = await import(
-    "@opentelemetry/auto-instrumentations-node"
+  const { BasicTracerProvider, BatchSpanProcessor } = await import(
+    "@opentelemetry/sdk-trace-base"
   )
   const { OTLPTraceExporter } = await import(
     "@opentelemetry/exporter-trace-otlp-http"
   )
-  const { OTLPMetricExporter } = await import(
-    "@opentelemetry/exporter-metrics-otlp-http"
-  )
-  const { PeriodicExportingMetricReader } = await import(
-    "@opentelemetry/sdk-metrics"
-  )
   const { resourceFromAttributes } = await import("@opentelemetry/resources")
+  const { W3CTraceContextPropagator } = await import("@opentelemetry/core")
 
   const endpoint =
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318"
 
-  const sdk = new NodeSDK({
+  const provider = new BasicTracerProvider({
     resource: resourceFromAttributes({
       "service.name": "factory-api",
       "service.version": "0.0.1",
     }),
-    traceExporter: new OTLPTraceExporter({
-      url: `${endpoint}/v1/traces`,
-    }),
-    metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: `${endpoint}/v1/metrics`,
-      }),
-    }),
-    instrumentations: [
-      getNodeAutoInstrumentations({
-        "@opentelemetry/instrumentation-fs": { enabled: false },
-        "@opentelemetry/instrumentation-dns": { enabled: false },
-      }),
+    spanProcessors: [
+      new BatchSpanProcessor(
+        new OTLPTraceExporter({ url: `${endpoint}/v1/traces` })
+      ),
     ],
   })
 
-  sdk.start()
-  process.on("SIGTERM", () => sdk.shutdown())
+  propagation.setGlobalTextMapPropagator(new W3CTraceContextPropagator())
+  provider.register()
+
+  process.on("SIGTERM", async () => {
+    await provider.forceFlush()
+    await provider.shutdown()
+  })
+
   console.log("[otel] Telemetry enabled — exporting to", endpoint)
 }

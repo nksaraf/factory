@@ -1,3 +1,4 @@
+import "./instrumentation.js" // must be first — sets up OTel before modules load
 import "dotenv/config"
 import { FactoryAPI } from "@smp/factory-api"
 import { getMode } from "@smp/factory-api/settings"
