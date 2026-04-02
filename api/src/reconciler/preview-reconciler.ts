@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "../db/connection";
 import type { KubeClient } from "../lib/kube-client";
 import type { GitHostAdapter } from "../adapters/git-host-adapter";
-import { preview, deploymentTarget, sandbox } from "../db/schema/fleet";
+import { preview, deploymentTarget, sandbox, fleetSite } from "../db/schema/fleet";
 import { cluster } from "../db/schema/infra";
 import { createRoute, lookupRouteByDomain, updateRoute } from "../modules/infra/gateway.service";
 import { generatePreviewResources } from "./preview-resource-generator";
@@ -169,7 +169,16 @@ export class PreviewReconciler {
     }
 
     const kubeconfig = cl.kubeconfigRef;
-    const port = DEFAULT_PREVIEW_PORT;
+
+    // Load container port from site preview config, fallback to default
+    let port = DEFAULT_PREVIEW_PORT;
+    if (prev.siteId) {
+      const [site] = await this.db.select({ previewConfig: fleetSite.previewConfig })
+        .from(fleetSite).where(eq(fleetSite.siteId, prev.siteId)).limit(1);
+      if (site?.previewConfig?.containerPort) {
+        port = site.previewConfig.containerPort;
+      }
+    }
 
     // Update GitHub status to deploying
     await this.createOrUpdateCheck(prev, "in_progress");

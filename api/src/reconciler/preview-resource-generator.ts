@@ -1,6 +1,9 @@
 import type { KubeResource } from "../lib/kube-client";
 
-const GAR_JSON_KEY = process.env.GAR_JSON_KEY;
+const GAR_JSON_KEY = process.env.GAR_JSON_KEY
+  ?? (process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64
+    ? Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64, "base64").toString("utf-8")
+    : undefined);
 const PREVIEW_REGISTRY_HOST = process.env.PREVIEW_REGISTRY_HOST ?? "asia-south2-docker.pkg.dev";
 const IMAGE_PULL_SECRET_NAME = "gar-pull-secret";
 

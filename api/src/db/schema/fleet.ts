@@ -44,6 +44,7 @@ export const fleetSite = factoryFleet.table(
       defaultAuthMode?: "public" | "team" | "private";
       ttlDays?: number;
       maxConcurrent?: number;
+      containerPort?: number;
     }>().notNull().default({ enabled: false }),
   },
   (t) => [
