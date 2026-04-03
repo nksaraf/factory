@@ -198,7 +198,7 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 - [x] `dx ssh` now uses same cascading machine resolver as `dx docker` (Factory → SSH config → local machines.json)
 
 ### Deferred
-- [ ] `dx ssh` remote command quoting: ensure `cloud ssh <target> -- <cmd>` and `dx ssh <target> -- <cmd>` properly escape/quote commands with special chars (spaces, quotes, parens, pipes) — current `cloud ssh` mangles multi-word args and SQL commands
+- [ ] `dx ssh` remote command quoting: ensure `dx ssh <target> -- <cmd>` properly escape/quote commands with special chars (spaces, quotes, parens, pipes) — current `cloud ssh` mangles multi-word args and SQL commands, basically any command that runs with normal ssh, should work with dx ssh
 - [ ] `dx ssh` arbitrary command execution: support `dx ssh <target> -- docker exec ... psql -c "SELECT 1"` with proper stdin piping (match how `ssh user@host 'cmd'` works natively)
 - [ ] Host `defaultSshConfig` JSONB column — per-host SSH defaults (user, port, jump host/user/port, identity file) in DB, flowing through access service → entity-finder → CLI. Includes: schema + migration, API update endpoint (`POST /hosts/:id/update`), `dx infra host add/update` CLI flags (`--ssh-user`, `--ssh-port`, `--jump-host`, etc.), VM inheritance from parent host's config. Plan: `.claude/plans/serene-spinning-fern.md`
 - [ ] Tunnel-based DOCKER_HOST (`tcp://localhost:PORT` via SSH port forward) for environments where direct SSH to Docker socket is blocked
