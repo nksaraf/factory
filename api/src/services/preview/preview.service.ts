@@ -4,7 +4,7 @@ import { preview, deploymentTarget } from "../../db/schema/fleet";
 import { route } from "../../db/schema/gateway";
 import { createRoute, updateRoute } from "../../modules/infra/gateway.service";
 
-function buildPreviewSlug(input: { prNumber?: number; sourceBranch: string; siteName: string }): string {
+export function buildPreviewSlug(input: { prNumber?: number; sourceBranch: string; siteName: string }): string {
   const branch = input.sourceBranch
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
@@ -38,9 +38,13 @@ export async function createPreview(
     createdBy: string;
     authMode?: string;
     expiresAt?: Date;
+    imageRef?: string;
   }
 ): Promise<{ preview: any; deploymentTarget: any; route: any }> {
   const slug = buildPreviewSlug(input);
+
+  // Determine initial status based on whether image is already provided
+  const initialStatus = input.imageRef ? "deploying" : "pending_image";
 
   // Layer 1: Create deploymentTarget
   const [dt] = await db
@@ -73,7 +77,8 @@ export async function createPreview(
       prNumber: input.prNumber ?? null,
       ownerId: input.ownerId,
       authMode: input.authMode ?? "team",
-      status: "building",
+      status: initialStatus,
+      imageRef: input.imageRef ?? null,
     })
     .returning();
 
@@ -83,7 +88,7 @@ export async function createPreview(
     siteId: input.siteId,
     clusterId: input.clusterId,
     kind: "preview",
-    domain: `${slug}.preview.dx.dev`,
+    domain: `${slug}.preview.${process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"}`,
     targetService: slug,
     protocol: "http",
     status: "active",
@@ -119,6 +124,9 @@ export async function updatePreviewStatus(
     runtimeClass?: string;
     statusMessage?: string;
     commitSha?: string;
+    imageRef?: string | null;
+    githubDeploymentId?: number;
+    githubCommentId?: number;
     lastAccessedAt?: Date;
   }
 ) {
@@ -144,6 +152,27 @@ export async function expirePreview(db: Database, previewId: string) {
   for (const r of routes) {
     await updateRoute(db, r.routeId, { status: "expired" });
   }
+
+  return await getPreview(db, previewId);
+}
+
+export async function extendPreview(db: Database, previewId: string, days: number) {
+  const prev = await getPreview(db, previewId);
+  if (!prev) return null;
+
+  const baseDate = prev.expiresAt && prev.expiresAt > new Date() ? prev.expiresAt : new Date();
+  const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+  // Update both preview's expiresAt and deployment target's expiresAt
+  await db
+    .update(preview)
+    .set({ expiresAt: newExpiry, updatedAt: new Date() })
+    .where(eq(preview.previewId, previewId));
+
+  await db
+    .update(deploymentTarget)
+    .set({ expiresAt: newExpiry })
+    .where(eq(deploymentTarget.deploymentTargetId, prev.deploymentTargetId));
 
   return await getPreview(db, previewId);
 }

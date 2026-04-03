@@ -1,22 +1,22 @@
 /**
  * VM Resolver — resolves a flexible identifier to a VM record
- * Ported from lepton-cloud's resolveVmId() pattern
+ * Accepts: vmId, slug, name, ipAddress, or externalVmid (numeric)
  */
 
 import { eq } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { vm, host, proxmoxCluster } from "../../db/schema/infra";
+import { vm, host, vmCluster } from "../../db/schema/infra";
 import { createProxmoxClientFromCluster } from "./client";
 import type { ProxmoxClient } from "./client";
 
 /**
- * Resolve a VM by any identifier: vmId, slug, name, ipAddress, or proxmoxVmid.
+ * Resolve a VM by any identifier: vmId, slug, name, ipAddress, or externalVmid.
  * All string matches are case-insensitive.
  * Throws if not found or if multiple VMs match (ambiguous).
  */
 export async function resolveVm(db: Database, identifier: string) {
   const targetLower = identifier.toLowerCase();
-  const vmid = parseInt(identifier, 10);
+  const numericId = parseInt(identifier, 10);
 
   const allVms = await db.select().from(vm);
 
@@ -26,7 +26,7 @@ export async function resolveVm(db: Database, identifier: string) {
       v.slug.toLowerCase() === targetLower ||
       v.name.toLowerCase() === targetLower ||
       v.ipAddress?.toLowerCase() === targetLower ||
-      (!isNaN(vmid) && v.proxmoxVmid === vmid)
+      (!isNaN(numericId) && v.externalVmid === numericId)
   );
 
   if (matches.length === 0) {
@@ -35,7 +35,7 @@ export async function resolveVm(db: Database, identifier: string) {
 
   if (matches.length > 1) {
     const descriptions = matches.map(
-      (v) => `  ${v.vmId} (name=${v.name}, slug=${v.slug}, vmid=${v.proxmoxVmid})`
+      (v) => `  ${v.vmId} (name=${v.name}, slug=${v.slug}, vmid=${v.externalVmid})`
     );
     throw new Error(
       `Ambiguous VM identifier "${identifier}" matches ${matches.length} VMs:\n${descriptions.join("\n")}`
@@ -58,7 +58,7 @@ export interface VmContext {
 
 /**
  * Resolve a VM identifier and build context for Proxmox API calls.
- * Looks up the VM, its host (for node name), and proxmoxCluster (for credentials).
+ * Looks up the VM, its host (for node name), and vmCluster (for credentials).
  */
 export async function getVmContext(
   db: Database,
@@ -66,11 +66,11 @@ export async function getVmContext(
 ): Promise<VmContext> {
   const vmRecord = await resolveVm(db, identifier);
 
-  if (!vmRecord.proxmoxClusterId) {
-    throw new Error(`VM ${vmRecord.vmId} is not linked to a Proxmox cluster`);
+  if (!vmRecord.vmClusterId) {
+    throw new Error(`VM ${vmRecord.vmId} is not linked to a VM cluster`);
   }
-  if (vmRecord.proxmoxVmid == null) {
-    throw new Error(`VM ${vmRecord.vmId} has no Proxmox VMID`);
+  if (vmRecord.externalVmid == null) {
+    throw new Error(`VM ${vmRecord.vmId} has no external VMID`);
   }
 
   // Get the host to determine the Proxmox node name
@@ -84,18 +84,18 @@ export async function getVmContext(
     nodeName = hostRecord?.name;
   }
   if (!nodeName) {
-    throw new Error(`Cannot determine Proxmox node for VM ${vmRecord.vmId}`);
+    throw new Error(`Cannot determine node for VM ${vmRecord.vmId}`);
   }
 
-  // Get the proxmoxCluster for credentials
+  // Get the vmCluster for credentials
   const [clusterRecord] = await db
     .select()
-    .from(proxmoxCluster)
-    .where(eq(proxmoxCluster.proxmoxClusterId, vmRecord.proxmoxClusterId))
+    .from(vmCluster)
+    .where(eq(vmCluster.vmClusterId, vmRecord.vmClusterId))
     .limit(1);
 
   if (!clusterRecord) {
-    throw new Error(`Proxmox cluster not found: ${vmRecord.proxmoxClusterId}`);
+    throw new Error(`VM cluster not found: ${vmRecord.vmClusterId}`);
   }
 
   const client = createProxmoxClientFromCluster({
@@ -109,7 +109,7 @@ export async function getVmContext(
   return {
     client,
     nodeName,
-    vmid: vmRecord.proxmoxVmid,
+    vmid: vmRecord.externalVmid,
     vmType: (vmRecord.vmType === "lxc" ? "lxc" : "qemu") as "qemu" | "lxc",
     vm: vmRecord,
   };

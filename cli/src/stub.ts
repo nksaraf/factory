@@ -38,5 +38,5 @@ export function emitStub(
     process.exit(ExitCodes.GENERAL_FAILURE);
     return;
   }
-  console.error(styleWarn(message));
+  console.log(styleWarn(message));
 }

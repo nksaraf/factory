@@ -1,9 +1,15 @@
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { composeUp, isDockerRunning } from "../lib/docker.js";
 import { ProjectContext } from "../lib/project.js";
+import {
+  PortManager,
+  catalogToPortRequests,
+  portEnvVars,
+  printPortTable,
+} from "../lib/port-manager.js";
 
 import { toDxFlags } from "./dx-flags.js";
 import { setExamples } from "../plugins/examples-plugin.js";
@@ -37,7 +43,7 @@ export function upCommand(app: DxBase) {
         description: "Run in detached mode (default: true)",
       },
     })
-    .run(({ args, flags }) => {
+    .run(async ({ args, flags }) => {
       const f = toDxFlags(flags);
       try {
         if (!isDockerRunning()) {
@@ -49,6 +55,24 @@ export function upCommand(app: DxBase) {
           exitWithError(f, "No docker-compose files found.");
         }
 
+        // Resolve all ports through PortManager
+        const portManager = new PortManager(join(project.rootDir, ".dx"));
+        const portRequests = catalogToPortRequests(project.catalog);
+        const resolved = await portManager.resolveMulti(portRequests);
+
+        // Build flat env var map and write .dx/ports.env
+        const allEnvVars: Record<string, string> = {};
+        for (const [service, ports] of Object.entries(resolved)) {
+          Object.assign(allEnvVars, portEnvVars(service, ports));
+        }
+        const envPath = join(project.rootDir, ".dx", "ports.env");
+        portManager.writeEnvFile(allEnvVars, envPath);
+
+        // Print clickable port table
+        if (!f.quiet) {
+          printPortTable(resolved, f.verbose as boolean);
+        }
+
         const knownProfiles = new Set(project.allProfiles);
         const targets = args.targets ?? [];
 
@@ -57,7 +81,6 @@ export function upCommand(app: DxBase) {
         const services: string[] = [];
 
         if (targets.length === 0) {
-          // No targets → activate all known profiles
           profiles.push(...knownProfiles);
         } else {
           for (const target of targets) {
@@ -85,6 +108,7 @@ export function upCommand(app: DxBase) {
           projectName: basename(project.rootDir),
           profiles: profiles.length > 0 ? profiles : undefined,
           services: services.length > 0 ? services : undefined,
+          envFile: envPath,
         });
 
         if (!f.json) {

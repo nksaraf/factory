@@ -47,11 +47,11 @@ describe("dx db CLI", () => {
     expect(stdout).toContain("plan");
   });
 
-  // ── Error handling (no dx.yaml) ────────────────────────────────────────
+  // ── Error handling (no docker-compose) ─────────────────────────────────
 
   it("dx db tables fails when cannot connect to database", () => {
     const home = isolatedHome();
-    // Factory dx.yaml has postgres on port 5433 which is likely not running
+    // Factory docker-compose has postgres on port 5433 which is likely not running
     // The command should fail with a connection error (exit 1), not crash
     const { status } = runDx(["db", "table"], { home });
     // Either succeeds (if postgres is running) or fails gracefully
@@ -66,7 +66,7 @@ describe("dx db CLI", () => {
     expect(typeof body.success).toBe("boolean");
   });
 
-  it("dx db connect errors when no dx.yaml exists", () => {
+  it("dx db connect errors when no docker-compose exists", () => {
     const home = isolatedHome();
     const { status } = runDx(["db", "connect"], {
       home,
@@ -77,20 +77,18 @@ describe("dx db CLI", () => {
 
   it("dx db query errors without SQL or -f flag", () => {
     const home = isolatedHome();
-    // Create a minimal dx.yaml so it gets past the "no dx.yaml" check
+    // Create a minimal docker-compose.yaml so it gets past project detection
     // but still fails because no DB is reachable
     const dir = mkdtempSync(path.join(os.tmpdir(), "dx-db-query-"));
     writeFileSync(
-      path.join(dir, "dx.yaml"),
+      path.join(dir, "docker-compose.yaml"),
       [
-        "module: test-mod",
-        "team: test",
-        "components: {}",
-        "dependencies:",
+        "services:",
         "  postgres:",
         "    image: postgres:16",
-        "    port: 59999",
-        "    env:",
+        "    ports:",
+        '      - "59999:5432"',
+        "    environment:",
         "      POSTGRES_DB: testdb",
         "      POSTGRES_USER: test",
         "      POSTGRES_PASSWORD: test",
@@ -109,16 +107,14 @@ describe("dx db CLI", () => {
     const home = isolatedHome();
     const dir = mkdtempSync(path.join(os.tmpdir(), "dx-db-reset-"));
     writeFileSync(
-      path.join(dir, "dx.yaml"),
+      path.join(dir, "docker-compose.yaml"),
       [
-        "module: test-mod",
-        "team: test",
-        "components: {}",
-        "dependencies:",
+        "services:",
         "  postgres:",
         "    image: postgres:16",
-        "    port: 59999",
-        "    env:",
+        "    ports:",
+        '      - "59999:5432"',
+        "    environment:",
         "      POSTGRES_DB: testdb",
         "      POSTGRES_USER: test",
         "      POSTGRES_PASSWORD: test",

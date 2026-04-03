@@ -80,14 +80,17 @@ describe("RouteCache", () => {
     expect(mockLookup).toHaveBeenCalledTimes(2);
   });
 
-  it("caches null results (negative cache)", async () => {
+  it("does not cache null results so new routes are discovered immediately", async () => {
     mockLookup.mockResolvedValueOnce(null);
+    mockLookup.mockResolvedValueOnce({ domain: "missing.tunnel.dx.dev", targetService: "svc", status: "active" });
 
     const r1 = await cache.get("missing.tunnel.dx.dev");
-    const r2 = await cache.get("missing.tunnel.dx.dev");
     expect(r1).toBeNull();
-    expect(r2).toBeNull();
-    expect(mockLookup).toHaveBeenCalledTimes(1);
+    // Second call should hit the DB again (miss not cached) and find the newly created route
+    const r2 = await cache.get("missing.tunnel.dx.dev");
+    expect(r2).not.toBeNull();
+    expect(r2.targetService).toBe("svc");
+    expect(mockLookup).toHaveBeenCalledTimes(2);
   });
 });
 

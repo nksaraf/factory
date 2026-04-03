@@ -1,5 +1,5 @@
 {
-  "id": "3acf8435-0bce-4a67-8de7-55b2d401a971",
+  "id": "bcd56082-8c19-4a49-90e8-1185cb452548",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -52,6 +52,66 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
+        "role_preset_slug": {
+          "name": "role_preset_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "autonomy_level": {
+          "name": "autonomy_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'executor'"
+        },
+        "relationship": {
+          "name": "relationship",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'team'"
+        },
+        "relationship_entity_id": {
+          "name": "relationship_entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "collaboration_mode": {
+          "name": "collaboration_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'solo'"
+        },
+        "reports_to_agent_id": {
+          "name": "reports_to_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "trust_score": {
+          "name": "trust_score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0.5
+        },
+        "guardrails": {
+          "name": "guardrails",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -90,6 +150,57 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "agent_preset_idx": {
+          "name": "agent_preset_idx",
+          "columns": [
+            {
+              "expression": "role_preset_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_relationship_idx": {
+          "name": "agent_relationship_idx",
+          "columns": [
+            {
+              "expression": "relationship",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "relationship_entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_reports_to_idx": {
+          "name": "agent_reports_to_idx",
+          "columns": [
+            {
+              "expression": "reports_to_agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -98,12 +209,8 @@
           "tableFrom": "agent",
           "tableTo": "principal",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "principal_id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["principal_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -119,6 +226,18 @@
         "agent_status_valid": {
           "name": "agent_status_valid",
           "value": "\"factory_agent\".\"agent\".\"status\" IN ('active', 'disabled')"
+        },
+        "agent_autonomy_level_valid": {
+          "name": "agent_autonomy_level_valid",
+          "value": "\"factory_agent\".\"agent\".\"autonomy_level\" IN ('observer', 'advisor', 'executor', 'operator', 'supervisor')"
+        },
+        "agent_relationship_valid": {
+          "name": "agent_relationship_valid",
+          "value": "\"factory_agent\".\"agent\".\"relationship\" IN ('personal', 'team', 'org')"
+        },
+        "agent_collaboration_mode_valid": {
+          "name": "agent_collaboration_mode_valid",
+          "value": "\"factory_agent\".\"agent\".\"collaboration_mode\" IN ('solo', 'pair', 'crew', 'hierarchy')"
         }
       },
       "isRLSEnabled": false
@@ -179,12 +298,8 @@
           "tableFrom": "agent_execution",
           "tableTo": "agent",
           "schemaTo": "factory_agent",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "agent_id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["agent_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -198,6 +313,361 @@
           "value": "\"factory_agent\".\"agent_execution\".\"status\" IN ('pending', 'running', 'succeeded', 'failed')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "factory_agent.job": {
+      "name": "job",
+      "schema": "factory_agent",
+      "columns": {
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trigger": {
+          "name": "trigger",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "channel_kind": {
+          "name": "channel_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message_thread_id": {
+          "name": "message_thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_job_id": {
+          "name": "parent_job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delegated_by_agent_id": {
+          "name": "delegated_by_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cost_cents": {
+          "name": "cost_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "human_override": {
+          "name": "human_override",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "override_note": {
+          "name": "override_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        }
+      },
+      "indexes": {
+        "job_agent_idx": {
+          "name": "job_agent_idx",
+          "columns": [
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "job_status_idx": {
+          "name": "job_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "job_entity_idx": {
+          "name": "job_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "job_parent_idx": {
+          "name": "job_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "job_message_thread_idx": {
+          "name": "job_message_thread_idx",
+          "columns": [
+            {
+              "expression": "message_thread_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "job_agent_id_agent_agent_id_fk": {
+          "name": "job_agent_id_agent_agent_id_fk",
+          "tableFrom": "job",
+          "tableTo": "agent",
+          "schemaTo": "factory_agent",
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["agent_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "job_message_thread_id_message_thread_message_thread_id_fk": {
+          "name": "job_message_thread_id_message_thread_message_thread_id_fk",
+          "tableFrom": "job",
+          "tableTo": "message_thread",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["message_thread_id"],
+          "columnsTo": ["message_thread_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "job_delegated_by_agent_id_agent_agent_id_fk": {
+          "name": "job_delegated_by_agent_id_agent_agent_id_fk",
+          "tableFrom": "job",
+          "tableTo": "agent",
+          "schemaTo": "factory_agent",
+          "columnsFrom": ["delegated_by_agent_id"],
+          "columnsTo": ["agent_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "job_mode_valid": {
+          "name": "job_mode_valid",
+          "value": "\"factory_agent\".\"job\".\"mode\" IN ('conversational', 'autonomous', 'observation')"
+        },
+        "job_trigger_valid": {
+          "name": "job_trigger_valid",
+          "value": "\"factory_agent\".\"job\".\"trigger\" IN ('mention', 'event', 'schedule', 'delegation', 'manual')"
+        },
+        "job_status_valid": {
+          "name": "job_status_valid",
+          "value": "\"factory_agent\".\"job\".\"status\" IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')"
+        },
+        "job_channel_kind_valid": {
+          "name": "job_channel_kind_valid",
+          "value": "\"factory_agent\".\"job\".\"channel_kind\" IS NULL OR \"factory_agent\".\"job\".\"channel_kind\" IN ('slack', 'cli', 'web', 'internal')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_agent.role_preset": {
+      "name": "role_preset",
+      "schema": "factory_agent",
+      "columns": {
+        "role_preset_id": {
+          "name": "role_preset_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "defaults": {
+          "name": "defaults",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "role_preset_slug_unique": {
+          "name": "role_preset_slug_unique",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "role_preset_org_idx": {
+          "name": "role_preset_org_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "factory_build.artifact": {
@@ -292,12 +762,8 @@
           "tableFrom": "component_artifact",
           "tableTo": "module_version",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "module_version_id"
-          ],
-          "columnsTo": [
-            "module_version_id"
-          ],
+          "columnsFrom": ["module_version_id"],
+          "columnsTo": ["module_version_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -306,12 +772,8 @@
           "tableFrom": "component_artifact",
           "tableTo": "component_spec",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "component_id"
-          ],
-          "columnsTo": [
-            "component_id"
-          ],
+          "columnsFrom": ["component_id"],
+          "columnsTo": ["component_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -320,12 +782,8 @@
           "tableFrom": "component_artifact",
           "tableTo": "artifact",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "artifact_id"
-          ],
-          "columnsTo": [
-            "artifact_id"
-          ],
+          "columnsFrom": ["artifact_id"],
+          "columnsTo": ["artifact_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -445,12 +903,8 @@
           "tableFrom": "git_host_provider",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -568,12 +1022,8 @@
           "tableFrom": "git_repo_sync",
           "tableTo": "repo",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "repo_id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["repo_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -582,12 +1032,8 @@
           "tableFrom": "git_repo_sync",
           "tableTo": "git_host_provider",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "git_host_provider_id"
-          ],
-          "columnsTo": [
-            "git_host_provider_id"
-          ],
+          "columnsFrom": ["git_host_provider_id"],
+          "columnsTo": ["git_host_provider_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -687,12 +1133,8 @@
           "tableFrom": "git_user_sync",
           "tableTo": "git_host_provider",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "git_host_provider_id"
-          ],
-          "columnsTo": [
-            "git_host_provider_id"
-          ],
+          "columnsFrom": ["git_host_provider_id"],
+          "columnsTo": ["git_host_provider_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -789,12 +1231,8 @@
           "tableFrom": "github_app_installation",
           "tableTo": "git_host_provider",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "git_host_provider_id"
-          ],
-          "columnsTo": [
-            "git_host_provider_id"
-          ],
+          "columnsFrom": ["git_host_provider_id"],
+          "columnsTo": ["git_host_provider_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -876,12 +1314,8 @@
           "tableFrom": "module_version",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -890,6 +1324,226 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_build.pipeline_run": {
+      "name": "pipeline_run",
+      "schema": "factory_build",
+      "columns": {
+        "pipeline_run_id": {
+          "name": "pipeline_run_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "repo_id": {
+          "name": "repo_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trigger_event": {
+          "name": "trigger_event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trigger_ref": {
+          "name": "trigger_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commit_sha": {
+          "name": "commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workflow_file": {
+          "name": "workflow_file",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "sandbox_id": {
+          "name": "sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "webhook_event_id": {
+          "name": "webhook_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trigger_actor": {
+          "name": "trigger_actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pipeline_run_repo_id_repo_repo_id_fk": {
+          "name": "pipeline_run_repo_id_repo_repo_id_fk",
+          "tableFrom": "pipeline_run",
+          "tableTo": "repo",
+          "schemaTo": "factory_build",
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["repo_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pipeline_run_webhook_event_id_webhook_event_webhook_event_id_fk": {
+          "name": "pipeline_run_webhook_event_id_webhook_event_webhook_event_id_fk",
+          "tableFrom": "pipeline_run",
+          "tableTo": "webhook_event",
+          "schemaTo": "factory_build",
+          "columnsFrom": ["webhook_event_id"],
+          "columnsTo": ["webhook_event_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pipeline_run_trigger_event_valid": {
+          "name": "pipeline_run_trigger_event_valid",
+          "value": "\"factory_build\".\"pipeline_run\".\"trigger_event\" IN ('push', 'pull_request', 'manual', 'schedule')"
+        },
+        "pipeline_run_status_valid": {
+          "name": "pipeline_run_status_valid",
+          "value": "\"factory_build\".\"pipeline_run\".\"status\" IN ('pending', 'queued', 'running', 'success', 'failure', 'cancelled', 'timed_out')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_build.pipeline_step_run": {
+      "name": "pipeline_step_run",
+      "schema": "factory_build",
+      "columns": {
+        "pipeline_step_run_id": {
+          "name": "pipeline_step_run_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "pipeline_run_id": {
+          "name": "pipeline_run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_name": {
+          "name": "job_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "step_name": {
+          "name": "step_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "exit_code": {
+          "name": "exit_code",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "log_url": {
+          "name": "log_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pipeline_step_run_pipeline_run_id_pipeline_run_pipeline_run_id_fk": {
+          "name": "pipeline_step_run_pipeline_run_id_pipeline_run_pipeline_run_id_fk",
+          "tableFrom": "pipeline_step_run",
+          "tableTo": "pipeline_run",
+          "schemaTo": "factory_build",
+          "columnsFrom": ["pipeline_run_id"],
+          "columnsTo": ["pipeline_run_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pipeline_step_run_status_valid": {
+          "name": "pipeline_step_run_status_valid",
+          "value": "\"factory_build\".\"pipeline_step_run\".\"status\" IN ('pending', 'running', 'success', 'failure', 'skipped', 'cancelled')"
+        }
+      },
       "isRLSEnabled": false
     },
     "factory_build.repo": {
@@ -996,12 +1650,8 @@
           "tableFrom": "repo",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1010,12 +1660,8 @@
           "tableFrom": "repo",
           "tableTo": "git_host_provider",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "git_host_provider_id"
-          ],
-          "columnsTo": [
-            "git_host_provider_id"
-          ],
+          "columnsFrom": ["git_host_provider_id"],
+          "columnsTo": ["git_host_provider_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1024,12 +1670,8 @@
           "tableFrom": "repo",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1141,12 +1783,8 @@
           "tableFrom": "webhook_event",
           "tableTo": "git_host_provider",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "git_host_provider_id"
-          ],
-          "columnsTo": [
-            "git_host_provider_id"
-          ],
+          "columnsFrom": ["git_host_provider_id"],
+          "columnsTo": ["git_host_provider_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1314,12 +1952,8 @@
           "tableFrom": "api",
           "tableTo": "system",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "system_id"
-          ],
-          "columnsTo": [
-            "system_id"
-          ],
+          "columnsFrom": ["system_id"],
+          "columnsTo": ["system_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1328,12 +1962,8 @@
           "tableFrom": "api",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "owner_team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["owner_team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1342,12 +1972,8 @@
           "tableFrom": "api",
           "tableTo": "component",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "provided_by_component_id"
-          ],
-          "columnsTo": [
-            "component_id"
-          ],
+          "columnsFrom": ["provided_by_component_id"],
+          "columnsTo": ["component_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1584,12 +2210,8 @@
           "tableFrom": "component",
           "tableTo": "system",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "system_id"
-          ],
-          "columnsTo": [
-            "system_id"
-          ],
+          "columnsFrom": ["system_id"],
+          "columnsTo": ["system_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1598,12 +2220,8 @@
           "tableFrom": "component",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "owner_team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["owner_team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1752,12 +2370,8 @@
           "tableFrom": "domain",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "owner_team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["owner_team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2079,12 +2693,8 @@
           "tableFrom": "resource",
           "tableTo": "system",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "system_id"
-          ],
-          "columnsTo": [
-            "system_id"
-          ],
+          "columnsFrom": ["system_id"],
+          "columnsTo": ["system_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2093,12 +2703,8 @@
           "tableFrom": "resource",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "owner_team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["owner_team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2281,12 +2887,8 @@
           "tableFrom": "system",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "owner_team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["owner_team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2295,12 +2897,8 @@
           "tableFrom": "system",
           "tableTo": "domain",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "domain_id"
-          ],
-          "columnsTo": [
-            "domain_id"
-          ],
+          "columnsFrom": ["domain_id"],
+          "columnsTo": ["domain_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2506,12 +3104,8 @@
           "tableFrom": "entitlement",
           "tableTo": "customer_account",
           "schemaTo": "factory_commerce",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "customer_id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["customer_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2520,12 +3114,8 @@
           "tableFrom": "entitlement",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2603,12 +3193,8 @@
           "tableFrom": "entitlement_bundle",
           "tableTo": "customer_account",
           "schemaTo": "factory_commerce",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "customer_id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["customer_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2682,12 +3268,8 @@
           "tableFrom": "connection_audit_event",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2788,12 +3370,8 @@
           "tableFrom": "dependency_workload",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2802,12 +3380,8 @@
           "tableFrom": "dependency_workload",
           "tableTo": "resource",
           "schemaTo": "factory_catalog",
-          "columnsFrom": [
-            "catalog_resource_id"
-          ],
-          "columnsTo": [
-            "resource_id"
-          ],
+          "columnsFrom": ["catalog_resource_id"],
+          "columnsTo": ["resource_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3006,12 +3580,8 @@
           "tableFrom": "deployment_target",
           "tableTo": "host",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "host_id"
-          ],
-          "columnsTo": [
-            "host_id"
-          ],
+          "columnsFrom": ["host_id"],
+          "columnsTo": ["host_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3020,12 +3590,8 @@
           "tableFrom": "deployment_target",
           "tableTo": "vm",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "vm_id"
-          ],
-          "columnsTo": [
-            "vm_id"
-          ],
+          "columnsFrom": ["vm_id"],
+          "columnsTo": ["vm_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3034,12 +3600,8 @@
           "tableFrom": "deployment_target",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3048,12 +3610,8 @@
           "tableFrom": "deployment_target",
           "tableTo": "cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "cluster_id"
-          ],
-          "columnsTo": [
-            "cluster_id"
-          ],
+          "columnsFrom": ["cluster_id"],
+          "columnsTo": ["cluster_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3140,6 +3698,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "preview_config": {
+          "name": "preview_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"enabled\":false}'::jsonb"
         }
       },
       "indexes": {
@@ -3195,12 +3760,8 @@
           "tableFrom": "site",
           "tableTo": "cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "cluster_id"
-          ],
-          "columnsTo": [
-            "cluster_id"
-          ],
+          "columnsFrom": ["cluster_id"],
+          "columnsTo": ["cluster_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3212,6 +3773,272 @@
         "fleet_site_status_valid": {
           "name": "fleet_site_status_valid",
           "value": "\"factory_fleet\".\"site\".\"status\" IN ('provisioning', 'active', 'suspended', 'decommissioned')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.workbench": {
+      "name": "workbench",
+      "schema": "factory_fleet",
+      "columns": {
+        "workbench_id": {
+          "name": "workbench_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'developer'"
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ips": {
+          "name": "ips",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "os": {
+          "name": "os",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arch": {
+          "name": "arch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dx_version": {
+          "name": "dx_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_id": {
+          "name": "principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_ping_at": {
+          "name": "last_ping_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_command": {
+          "name": "last_command",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registered_at": {
+          "name": "registered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fleet_workbench_type_idx": {
+          "name": "fleet_workbench_type_idx",
+          "columns": [
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fleet_workbench_principal_idx": {
+          "name": "fleet_workbench_principal_idx",
+          "columns": [
+            {
+              "expression": "principal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fleet_workbench_type_valid": {
+          "name": "fleet_workbench_type_valid",
+          "value": "\"factory_fleet\".\"workbench\".\"type\" IN ('developer', 'ci', 'agent', 'sandbox', 'build', 'testbed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_fleet.forwarded_port": {
+      "name": "forwarded_port",
+      "schema": "factory_fleet",
+      "columns": {
+        "forwarded_port_id": {
+          "name": "forwarded_port_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sandbox_id": {
+          "name": "sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tunnel_id": {
+          "name": "tunnel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "port": {
+          "name": "port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "protocol": {
+          "name": "protocol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'http'"
+        },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "detected_by": {
+          "name": "detected_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "forwarded_port_sandbox_port_unique": {
+          "name": "forwarded_port_sandbox_port_unique",
+          "columns": [
+            {
+              "expression": "sandbox_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "port",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "forwarded_port_sandbox_idx": {
+          "name": "forwarded_port_sandbox_idx",
+          "columns": [
+            {
+              "expression": "sandbox_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "forwarded_port_sandbox_id_sandbox_sandbox_id_fk": {
+          "name": "forwarded_port_sandbox_id_sandbox_sandbox_id_fk",
+          "tableFrom": "forwarded_port",
+          "tableTo": "sandbox",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": ["sandbox_id"],
+          "columnsTo": ["sandbox_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "forwarded_port_protocol_valid": {
+          "name": "forwarded_port_protocol_valid",
+          "value": "\"factory_fleet\".\"forwarded_port\".\"protocol\" IN ('http', 'tcp')"
+        },
+        "forwarded_port_status_valid": {
+          "name": "forwarded_port_status_valid",
+          "value": "\"factory_fleet\".\"forwarded_port\".\"status\" IN ('active', 'inactive')"
         }
       },
       "isRLSEnabled": false
@@ -3371,12 +4198,8 @@
           "tableFrom": "install_manifest",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3458,12 +4281,8 @@
           "tableFrom": "intervention",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3472,12 +4291,8 @@
           "tableFrom": "intervention",
           "tableTo": "workload",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "workload_id"
-          ],
-          "columnsTo": [
-            "workload_id"
-          ],
+          "columnsFrom": ["workload_id"],
+          "columnsTo": ["workload_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3572,6 +4387,30 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'building'"
+        },
+        "sandbox_id": {
+          "name": "sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_ref": {
+          "name": "image_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "github_deployment_id": {
+          "name": "github_deployment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "github_comment_id": {
+          "name": "github_comment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "status_message": {
           "name": "status_message",
@@ -3689,12 +4528,8 @@
           "tableFrom": "preview",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3703,12 +4538,18 @@
           "tableFrom": "preview",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "preview_sandbox_id_sandbox_sandbox_id_fk": {
+          "name": "preview_sandbox_id_sandbox_sandbox_id_fk",
+          "tableFrom": "preview",
+          "tableTo": "sandbox",
+          "schemaTo": "factory_fleet",
+          "columnsFrom": ["sandbox_id"],
+          "columnsTo": ["sandbox_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3727,7 +4568,7 @@
         },
         "preview_status_valid": {
           "name": "preview_status_valid",
-          "value": "\"factory_fleet\".\"preview\".\"status\" IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed')"
+          "value": "\"factory_fleet\".\"preview\".\"status\" IN ('pending_image', 'building', 'deploying', 'active', 'inactive', 'expired', 'failed')"
         }
       },
       "isRLSEnabled": false
@@ -3936,12 +4777,8 @@
           "tableFrom": "release_bundle",
           "tableTo": "release",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "release_id"
-          ],
-          "columnsTo": [
-            "release_id"
-          ],
+          "columnsFrom": ["release_id"],
+          "columnsTo": ["release_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3995,12 +4832,8 @@
           "tableFrom": "release_module_pin",
           "tableTo": "release",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "release_id"
-          ],
-          "columnsTo": [
-            "release_id"
-          ],
+          "columnsFrom": ["release_id"],
+          "columnsTo": ["release_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4009,12 +4842,8 @@
           "tableFrom": "release_module_pin",
           "tableTo": "module_version",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "module_version_id"
-          ],
-          "columnsTo": [
-            "module_version_id"
-          ],
+          "columnsFrom": ["module_version_id"],
+          "columnsTo": ["module_version_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -4091,12 +4920,8 @@
           "tableFrom": "rollout",
           "tableTo": "release",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "release_id"
-          ],
-          "columnsTo": [
-            "release_id"
-          ],
+          "columnsFrom": ["release_id"],
+          "columnsTo": ["release_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4105,12 +4930,8 @@
           "tableFrom": "rollout",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4243,6 +5064,19 @@
           "notNull": true,
           "default": 10
         },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auth_mode": {
+          "name": "auth_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
         "ssh_host": {
           "name": "ssh_host",
           "type": "text",
@@ -4258,6 +5092,25 @@
         "web_terminal_url": {
           "name": "web_terminal_url",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "web_ide_url": {
+          "name": "web_ide_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "health_status": {
+          "name": "health_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'unknown'"
+        },
+        "health_checked_at": {
+          "name": "health_checked_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -4341,12 +5194,8 @@
           "tableFrom": "sandbox",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4362,6 +5211,10 @@
         "sandbox_owner_type_valid": {
           "name": "sandbox_owner_type_valid",
           "value": "\"factory_fleet\".\"sandbox\".\"owner_type\" IN ('user', 'agent')"
+        },
+        "sandbox_auth_mode_valid": {
+          "name": "sandbox_auth_mode_valid",
+          "value": "\"factory_fleet\".\"sandbox\".\"auth_mode\" IN ('public', 'team', 'private')"
         }
       },
       "isRLSEnabled": false
@@ -4412,8 +5265,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "proxmox_snapshot_name": {
-          "name": "proxmox_snapshot_name",
+        "external_snapshot_name": {
+          "name": "external_snapshot_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4475,12 +5328,8 @@
           "tableFrom": "sandbox_snapshot",
           "tableTo": "sandbox",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "sandbox_id"
-          ],
-          "columnsTo": [
-            "sandbox_id"
-          ],
+          "columnsFrom": ["sandbox_id"],
+          "columnsTo": ["sandbox_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4725,12 +5574,8 @@
           "tableFrom": "site_manifest",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4739,12 +5584,8 @@
           "tableFrom": "site_manifest",
           "tableTo": "release",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "release_id"
-          ],
-          "columnsTo": [
-            "release_id"
-          ],
+          "columnsFrom": ["release_id"],
+          "columnsTo": ["release_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4892,12 +5733,8 @@
           "tableFrom": "workload",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4906,12 +5743,8 @@
           "tableFrom": "workload",
           "tableTo": "module_version",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "module_version_id"
-          ],
-          "columnsTo": [
-            "module_version_id"
-          ],
+          "columnsFrom": ["module_version_id"],
+          "columnsTo": ["module_version_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4920,12 +5753,8 @@
           "tableFrom": "workload",
           "tableTo": "component_spec",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "component_id"
-          ],
-          "columnsTo": [
-            "component_id"
-          ],
+          "columnsFrom": ["component_id"],
+          "columnsTo": ["component_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4934,12 +5763,8 @@
           "tableFrom": "workload",
           "tableTo": "artifact",
           "schemaTo": "factory_build",
-          "columnsFrom": [
-            "artifact_id"
-          ],
-          "columnsTo": [
-            "artifact_id"
-          ],
+          "columnsFrom": ["artifact_id"],
+          "columnsTo": ["artifact_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5028,12 +5853,8 @@
           "tableFrom": "workload_override",
           "tableTo": "workload",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "workload_id"
-          ],
-          "columnsTo": [
-            "workload_id"
-          ],
+          "columnsFrom": ["workload_id"],
+          "columnsTo": ["workload_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5157,12 +5978,8 @@
           "tableFrom": "domain",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5395,12 +6212,8 @@
           "tableFrom": "route",
           "tableTo": "site",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "site_id"
-          ],
+          "columnsFrom": ["site_id"],
+          "columnsTo": ["site_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5409,12 +6222,8 @@
           "tableFrom": "route",
           "tableTo": "deployment_target",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "deployment_target_id"
-          ],
-          "columnsTo": [
-            "deployment_target_id"
-          ],
+          "columnsFrom": ["deployment_target_id"],
+          "columnsTo": ["deployment_target_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5423,12 +6232,8 @@
           "tableFrom": "route",
           "tableTo": "cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "cluster_id"
-          ],
-          "columnsTo": [
-            "cluster_id"
-          ],
+          "columnsFrom": ["cluster_id"],
+          "columnsTo": ["cluster_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5589,12 +6394,8 @@
           "tableFrom": "tunnel",
           "tableTo": "route",
           "schemaTo": "factory_fleet",
-          "columnsFrom": [
-            "route_id"
-          ],
-          "columnsTo": [
-            "route_id"
-          ],
+          "columnsFrom": ["route_id"],
+          "columnsTo": ["route_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5655,6 +6456,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5701,12 +6508,8 @@
           "tableFrom": "cluster",
           "tableTo": "provider",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "provider_id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["provider_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5826,12 +6629,8 @@
           "tableFrom": "datacenter",
           "tableTo": "region",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "region_id"
-          ],
-          "columnsTo": [
-            "region_id"
-          ],
+          "columnsFrom": ["region_id"],
+          "columnsTo": ["region_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -5985,12 +6784,8 @@
           "tableFrom": "host",
           "tableTo": "provider",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "provider_id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["provider_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -5999,12 +6794,8 @@
           "tableFrom": "host",
           "tableTo": "datacenter",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "datacenter_id"
-          ],
-          "columnsTo": [
-            "datacenter_id"
-          ],
+          "columnsFrom": ["datacenter_id"],
+          "columnsTo": ["datacenter_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6118,12 +6909,8 @@
           "tableFrom": "ip_address",
           "tableTo": "subnet",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "subnet_id"
-          ],
-          "columnsTo": [
-            "subnet_id"
-          ],
+          "columnsFrom": ["subnet_id"],
+          "columnsTo": ["subnet_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6254,12 +7041,8 @@
           "tableFrom": "kube_node",
           "tableTo": "cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "cluster_id"
-          ],
-          "columnsTo": [
-            "cluster_id"
-          ],
+          "columnsFrom": ["cluster_id"],
+          "columnsTo": ["cluster_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -6268,12 +7051,8 @@
           "tableFrom": "kube_node",
           "tableTo": "vm",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "vm_id"
-          ],
-          "columnsTo": [
-            "vm_id"
-          ],
+          "columnsFrom": ["vm_id"],
+          "columnsTo": ["vm_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6376,165 +7155,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "provider_type_valid": {
-          "name": "provider_type_valid",
-          "value": "\"factory_infra\".\"provider\".\"provider_type\" IN ('proxmox', 'hetzner', 'aws', 'gcp')"
-        },
-        "provider_status_valid": {
-          "name": "provider_status_valid",
-          "value": "\"factory_infra\".\"provider\".\"status\" IN ('active', 'inactive')"
-        },
-        "provider_kind_valid": {
-          "name": "provider_kind_valid",
-          "value": "\"factory_infra\".\"provider\".\"provider_kind\" IN ('internal', 'cloud', 'partner')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "factory_infra.proxmox_cluster": {
-      "name": "proxmox_cluster",
-      "schema": "factory_infra",
-      "columns": {
-        "proxmox_cluster_id": {
-          "name": "proxmox_cluster_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider_id": {
-          "name": "provider_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "api_host": {
-          "name": "api_host",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "api_port": {
-          "name": "api_port",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 8006
-        },
-        "token_id": {
-          "name": "token_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "token_secret": {
-          "name": "token_secret",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ssl_fingerprint": {
-          "name": "ssl_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sync_status": {
-          "name": "sync_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'idle'"
-        },
-        "last_sync_at": {
-          "name": "last_sync_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sync_error": {
-          "name": "sync_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "proxmox_cluster_name_unique": {
-          "name": "proxmox_cluster_name_unique",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "proxmox_cluster_slug_unique": {
-          "name": "proxmox_cluster_slug_unique",
-          "columns": [
-            {
-              "expression": "slug",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "proxmox_cluster_provider_id_provider_provider_id_fk": {
-          "name": "proxmox_cluster_provider_id_provider_provider_id_fk",
-          "tableFrom": "proxmox_cluster",
-          "tableTo": "provider",
-          "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "provider_id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "sync_status_valid": {
-          "name": "sync_status_valid",
-          "value": "\"factory_infra\".\"proxmox_cluster\".\"sync_status\" IN ('idle', 'syncing', 'error')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "factory_infra.region": {
@@ -6620,12 +7241,8 @@
           "tableFrom": "region",
           "tableTo": "provider",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "provider_id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["provider_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -6634,6 +7251,137 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "factory_infra.ssh_key": {
+      "name": "ssh_key",
+      "schema": "factory_infra",
+      "columns": {
+        "ssh_key_id": {
+          "name": "ssh_key_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "principal_id": {
+          "name": "principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "public_key": {
+          "name": "public_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_type": {
+          "name": "key_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ed25519'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ssh_key_fingerprint_unique": {
+          "name": "ssh_key_fingerprint_unique",
+          "columns": [
+            {
+              "expression": "fingerprint",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ssh_key_principal_name_unique": {
+          "name": "ssh_key_principal_name_unique",
+          "columns": [
+            {
+              "expression": "principal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ssh_key_principal_idx": {
+          "name": "ssh_key_principal_idx",
+          "columns": [
+            {
+              "expression": "principal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ssh_key_type_valid": {
+          "name": "ssh_key_type_valid",
+          "value": "\"factory_infra\".\"ssh_key\".\"key_type\" IN ('ed25519', 'rsa', 'ecdsa')"
+        },
+        "ssh_key_status_valid": {
+          "name": "ssh_key_status_valid",
+          "value": "\"factory_infra\".\"ssh_key\".\"status\" IN ('active', 'revoked')"
+        }
+      },
       "isRLSEnabled": false
     },
     "factory_infra.subnet": {
@@ -6738,12 +7486,8 @@
           "tableFrom": "subnet",
           "tableTo": "datacenter",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "datacenter_id"
-          ],
-          "columnsTo": [
-            "datacenter_id"
-          ],
+          "columnsFrom": ["datacenter_id"],
+          "columnsTo": ["datacenter_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6805,14 +7549,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "proxmox_cluster_id": {
-          "name": "proxmox_cluster_id",
+        "vm_cluster_id": {
+          "name": "vm_cluster_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "proxmox_vmid": {
-          "name": "proxmox_vmid",
+        "external_vmid": {
+          "name": "external_vmid",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -6906,12 +7650,8 @@
           "tableFrom": "vm",
           "tableTo": "provider",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "provider_id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["provider_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -6920,12 +7660,8 @@
           "tableFrom": "vm",
           "tableTo": "datacenter",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "datacenter_id"
-          ],
-          "columnsTo": [
-            "datacenter_id"
-          ],
+          "columnsFrom": ["datacenter_id"],
+          "columnsTo": ["datacenter_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -6934,12 +7670,8 @@
           "tableFrom": "vm",
           "tableTo": "host",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "host_id"
-          ],
-          "columnsTo": [
-            "host_id"
-          ],
+          "columnsFrom": ["host_id"],
+          "columnsTo": ["host_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -6948,26 +7680,18 @@
           "tableFrom": "vm",
           "tableTo": "cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "cluster_id"
-          ],
-          "columnsTo": [
-            "cluster_id"
-          ],
+          "columnsFrom": ["cluster_id"],
+          "columnsTo": ["cluster_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "vm_proxmox_cluster_id_proxmox_cluster_proxmox_cluster_id_fk": {
-          "name": "vm_proxmox_cluster_id_proxmox_cluster_proxmox_cluster_id_fk",
+        "vm_vm_cluster_id_vm_cluster_vm_cluster_id_fk": {
+          "name": "vm_vm_cluster_id_vm_cluster_vm_cluster_id_fk",
           "tableFrom": "vm",
-          "tableTo": "proxmox_cluster",
+          "tableTo": "vm_cluster",
           "schemaTo": "factory_infra",
-          "columnsFrom": [
-            "proxmox_cluster_id"
-          ],
-          "columnsTo": [
-            "proxmox_cluster_id"
-          ],
+          "columnsFrom": ["vm_cluster_id"],
+          "columnsTo": ["vm_cluster_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -6987,6 +7711,269 @@
         "vm_access_method_valid": {
           "name": "vm_access_method_valid",
           "value": "\"factory_infra\".\"vm\".\"access_method\" IN ('ssh', 'winrm', 'rdp')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_infra.vm_cluster": {
+      "name": "vm_cluster",
+      "schema": "factory_infra",
+      "columns": {
+        "vm_cluster_id": {
+          "name": "vm_cluster_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_host": {
+          "name": "api_host",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_port": {
+          "name": "api_port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 8006
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token_secret": {
+          "name": "token_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ssl_fingerprint": {
+          "name": "ssl_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_status": {
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'idle'"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_error": {
+          "name": "sync_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "vm_cluster_name_unique": {
+          "name": "vm_cluster_name_unique",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vm_cluster_slug_unique": {
+          "name": "vm_cluster_slug_unique",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vm_cluster_provider_id_provider_provider_id_fk": {
+          "name": "vm_cluster_provider_id_provider_provider_id_fk",
+          "tableFrom": "vm_cluster",
+          "tableTo": "provider",
+          "schemaTo": "factory_infra",
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["provider_id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sync_status_valid": {
+          "name": "sync_status_valid",
+          "value": "\"factory_infra\".\"vm_cluster\".\"sync_status\" IN ('idle', 'syncing', 'error')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_org.channel_mapping": {
+      "name": "channel_mapping",
+      "schema": "factory_org",
+      "columns": {
+        "channel_mapping_id": {
+          "name": "channel_mapping_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "messaging_provider_id": {
+          "name": "messaging_provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_channel_id": {
+          "name": "external_channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_channel_name": {
+          "name": "external_channel_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_channel_mapping_provider_channel_unique": {
+          "name": "org_channel_mapping_provider_channel_unique",
+          "columns": [
+            {
+              "expression": "messaging_provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_channel_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_channel_mapping_entity_idx": {
+          "name": "org_channel_mapping_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "channel_mapping_messaging_provider_id_messaging_provider_messaging_provider_id_fk": {
+          "name": "channel_mapping_messaging_provider_id_messaging_provider_messaging_provider_id_fk",
+          "tableFrom": "channel_mapping",
+          "tableTo": "messaging_provider",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["messaging_provider_id"],
+          "columnsTo": ["messaging_provider_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_channel_mapping_entity_kind_valid": {
+          "name": "org_channel_mapping_entity_kind_valid",
+          "value": "\"factory_org\".\"channel_mapping\".\"entity_kind\" IN ('module', 'team', 'domain')"
         }
       },
       "isRLSEnabled": false
@@ -7176,12 +8163,8 @@
           "tableFrom": "identity_link",
           "tableTo": "principal",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "principal_id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["principal_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -7197,6 +8180,568 @@
         "org_identity_link_sync_status_valid": {
           "name": "org_identity_link_sync_status_valid",
           "value": "\"factory_org\".\"identity_link\".\"sync_status\" IN ('idle', 'syncing', 'error')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_org.memory": {
+      "name": "memory",
+      "schema": "factory_org",
+      "columns": {
+        "memory_id": {
+          "name": "memory_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "layer": {
+          "name": "layer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "layer_entity_id": {
+          "name": "layer_entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "source_job_id": {
+          "name": "source_job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_agent_id": {
+          "name": "source_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "promoted_from_id": {
+          "name": "promoted_from_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "approved_by_principal_id": {
+          "name": "approved_by_principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_accessed_at": {
+          "name": "last_accessed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_count": {
+          "name": "access_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "superseded_by_id": {
+          "name": "superseded_by_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "memory_org_layer_idx": {
+          "name": "memory_org_layer_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "layer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_layer_entity_idx": {
+          "name": "memory_layer_entity_idx",
+          "columns": [
+            {
+              "expression": "layer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "layer_entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_status_idx": {
+          "name": "memory_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_source_job_idx": {
+          "name": "memory_source_job_idx",
+          "columns": [
+            {
+              "expression": "source_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_source_agent_idx": {
+          "name": "memory_source_agent_idx",
+          "columns": [
+            {
+              "expression": "source_agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "memory_approved_by_principal_id_principal_principal_id_fk": {
+          "name": "memory_approved_by_principal_id_principal_principal_id_fk",
+          "tableFrom": "memory",
+          "tableTo": "principal",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["approved_by_principal_id"],
+          "columnsTo": ["principal_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "memory_layer_valid": {
+          "name": "memory_layer_valid",
+          "value": "\"factory_org\".\"memory\".\"layer\" IN ('session', 'team', 'org')"
+        },
+        "memory_type_valid": {
+          "name": "memory_type_valid",
+          "value": "\"factory_org\".\"memory\".\"type\" IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')"
+        },
+        "memory_status_valid": {
+          "name": "memory_status_valid",
+          "value": "\"factory_org\".\"memory\".\"status\" IN ('proposed', 'active', 'archived', 'superseded')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_org.message_thread": {
+      "name": "message_thread",
+      "schema": "factory_org",
+      "columns": {
+        "message_thread_id": {
+          "name": "message_thread_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "messaging_provider_id": {
+          "name": "messaging_provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_channel_id": {
+          "name": "external_channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_thread_id": {
+          "name": "external_thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "initiator_principal_id": {
+          "name": "initiator_principal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "messages": {
+          "name": "messages",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_message_thread_provider_thread_unique": {
+          "name": "org_message_thread_provider_thread_unique",
+          "columns": [
+            {
+              "expression": "messaging_provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_thread_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_message_thread_channel_idx": {
+          "name": "org_message_thread_channel_idx",
+          "columns": [
+            {
+              "expression": "messaging_provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_channel_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_message_thread_initiator_idx": {
+          "name": "org_message_thread_initiator_idx",
+          "columns": [
+            {
+              "expression": "initiator_principal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_thread_messaging_provider_id_messaging_provider_messaging_provider_id_fk": {
+          "name": "message_thread_messaging_provider_id_messaging_provider_messaging_provider_id_fk",
+          "tableFrom": "message_thread",
+          "tableTo": "messaging_provider",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["messaging_provider_id"],
+          "columnsTo": ["messaging_provider_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_thread_initiator_principal_id_principal_principal_id_fk": {
+          "name": "message_thread_initiator_principal_id_principal_principal_id_fk",
+          "tableFrom": "message_thread",
+          "tableTo": "principal",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["initiator_principal_id"],
+          "columnsTo": ["principal_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_message_thread_status_valid": {
+          "name": "org_message_thread_status_valid",
+          "value": "\"factory_org\".\"message_thread\".\"status\" IN ('active', 'resolved', 'archived')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_org.messaging_provider": {
+      "name": "messaging_provider",
+      "schema": "factory_org",
+      "columns": {
+        "messaging_provider_id": {
+          "name": "messaging_provider_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workspace_external_id": {
+          "name": "workspace_external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bot_token_enc": {
+          "name": "bot_token_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signing_secret": {
+          "name": "signing_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "sync_status": {
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'idle'"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_error": {
+          "name": "sync_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_messaging_provider_slug_unique": {
+          "name": "org_messaging_provider_slug_unique",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_messaging_provider_team_idx": {
+          "name": "org_messaging_provider_team_idx",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "messaging_provider_team_id_team_team_id_fk": {
+          "name": "messaging_provider_team_id_team_team_id_fk",
+          "tableFrom": "messaging_provider",
+          "tableTo": "team",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_messaging_provider_kind_valid": {
+          "name": "org_messaging_provider_kind_valid",
+          "value": "\"factory_org\".\"messaging_provider\".\"kind\" IN ('slack', 'teams', 'google-chat')"
+        },
+        "org_messaging_provider_status_valid": {
+          "name": "org_messaging_provider_status_valid",
+          "value": "\"factory_org\".\"messaging_provider\".\"status\" IN ('active', 'inactive', 'error')"
+        },
+        "org_messaging_provider_sync_status_valid": {
+          "name": "org_messaging_provider_sync_status_valid",
+          "value": "\"factory_org\".\"messaging_provider\".\"sync_status\" IN ('idle', 'syncing', 'error')"
         }
       },
       "isRLSEnabled": false
@@ -7357,12 +8902,8 @@
           "tableFrom": "principal",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -7463,12 +9004,8 @@
           "tableFrom": "principal_team_membership",
           "tableTo": "principal",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "principal_id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["principal_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -7477,12 +9014,8 @@
           "tableFrom": "principal_team_membership",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -7638,12 +9171,8 @@
           "tableFrom": "scope",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -7655,6 +9184,177 @@
         "org_scope_type_valid": {
           "name": "org_scope_type_valid",
           "value": "\"factory_org\".\"scope\".\"type\" IN ('team', 'resource', 'custom')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "factory_org.secret": {
+      "name": "secret",
+      "schema": "factory_org",
+      "columns": {
+        "secret_id": {
+          "name": "secret_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_value": {
+          "name": "encrypted_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "iv": {
+          "name": "iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_tag": {
+          "name": "auth_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_type": {
+          "name": "scope_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_id": {
+          "name": "scope_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_secret_key_scope_env_unique": {
+          "name": "org_secret_key_scope_env_unique",
+          "columns": [
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scope_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scope_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_secret_scope_idx": {
+          "name": "org_secret_scope_idx",
+          "columns": [
+            {
+              "expression": "scope_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scope_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_secret_environment_idx": {
+          "name": "org_secret_environment_idx",
+          "columns": [
+            {
+              "expression": "environment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "secret_created_by_principal_principal_id_fk": {
+          "name": "secret_created_by_principal_principal_id_fk",
+          "tableFrom": "secret",
+          "tableTo": "principal",
+          "schemaTo": "factory_org",
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["principal_id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_secret_scope_type_valid": {
+          "name": "org_secret_scope_type_valid",
+          "value": "\"factory_org\".\"secret\".\"scope_type\" IN ('org', 'team', 'project', 'environment')"
+        },
+        "org_secret_environment_valid": {
+          "name": "org_secret_environment_valid",
+          "value": "\"factory_org\".\"secret\".\"environment\" IS NULL OR \"factory_org\".\"secret\".\"environment\" IN ('production', 'development', 'preview')"
         }
       },
       "isRLSEnabled": false
@@ -7890,12 +9590,8 @@
           "tableFrom": "tool_credential",
           "tableTo": "principal",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "principal_id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["principal_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8038,12 +9734,8 @@
           "tableFrom": "tool_usage",
           "tableTo": "principal",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "principal_id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["principal_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8226,12 +9918,8 @@
           "tableFrom": "component_spec",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8348,12 +10036,8 @@
           "tableFrom": "module",
           "tableTo": "team",
           "schemaTo": "factory_org",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["team_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -8513,12 +10197,8 @@
           "tableFrom": "work_item",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -8628,12 +10308,8 @@
           "tableFrom": "work_tracker_project_mapping",
           "tableTo": "work_tracker_provider",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "work_tracker_provider_id"
-          ],
-          "columnsTo": [
-            "work_tracker_provider_id"
-          ],
+          "columnsFrom": ["work_tracker_provider_id"],
+          "columnsTo": ["work_tracker_provider_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -8642,12 +10318,8 @@
           "tableFrom": "work_tracker_project_mapping",
           "tableTo": "module",
           "schemaTo": "factory_product",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "module_id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["module_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

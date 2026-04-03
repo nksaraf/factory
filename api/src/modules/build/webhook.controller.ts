@@ -4,6 +4,7 @@ import { GitHostService } from "./git-host.service";
 import { WebhookService } from "./webhook.service";
 import { NoopGitHostAdapter } from "../../adapters/git-host-adapter-noop";
 import { createGitHostAdapter } from "../../adapters/adapter-registry";
+import { parseCredentials } from "../../lib/parse-credentials";
 
 export function webhookController(db: Database) {
   const gitHostService = new GitHostService(db);
@@ -20,8 +21,9 @@ export function webhookController(db: Database) {
 
       let adapter;
       try {
+        const creds = parseCredentials(provider.credentialsEnc);
         adapter = createGitHostAdapter(provider.hostType, {
-          webhookSecret: provider.credentialsEnc ?? undefined,
+          webhookSecret: creds.webhookSecret,
         });
       } catch {
         adapter = new NoopGitHostAdapter();

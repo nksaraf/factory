@@ -1,0 +1,17 @@
+services:
+  sub-project-app:
+    build:
+      context: ../apps/sub-project-app
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-9000}:3000"
+    depends_on:
+      sub-project-api:
+        condition: service_healthy
+    labels:
+      catalog.type: website
+      catalog.owner: team
+      catalog.description: "sub-project frontend"
+      catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      dx.runtime: node

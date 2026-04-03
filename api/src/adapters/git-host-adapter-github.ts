@@ -8,6 +8,9 @@ import type {
   GitHostCheckRun,
   GitHostPullRequest,
   GitHostPullRequestCreate,
+  GitHostDeployment,
+  GitHostDeploymentStatus,
+  GitHostComment,
   WebhookVerification,
 } from "./git-host-adapter";
 
@@ -368,5 +371,85 @@ export class GitHubAdapter implements GitHostAdapter {
       conclusion: run.conclusion ?? null,
       url: run.details_url ?? undefined,
     }));
+  }
+
+  async postPRComment(
+    repoFullName: string,
+    prNumber: number,
+    body: string,
+  ): Promise<{ commentId: string }> {
+    const [owner, repoName] = repoFullName.split("/");
+    const { data } = await this.octokit.rest.issues.createComment({
+      owner,
+      repo: repoName,
+      issue_number: prNumber,
+      body,
+    });
+    return { commentId: String(data.id) };
+  }
+
+  async listPRComments(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<GitHostComment[]> {
+    const [owner, repoName] = repoFullName.split("/");
+    const comments = await this.octokit.paginate(
+      this.octokit.rest.issues.listComments,
+      { owner, repo: repoName, issue_number: prNumber, per_page: 100 },
+    );
+    return comments.map((c) => ({
+      commentId: c.id,
+      body: c.body ?? "",
+    }));
+  }
+
+  async updatePRComment(
+    repoFullName: string,
+    commentId: number,
+    body: string,
+  ): Promise<void> {
+    const [owner, repoName] = repoFullName.split("/");
+    await this.octokit.rest.issues.updateComment({
+      owner,
+      repo: repoName,
+      comment_id: commentId,
+      body,
+    });
+  }
+
+  async createDeployment(
+    repoFullName: string,
+    deployment: GitHostDeployment,
+  ): Promise<{ deploymentId: number }> {
+    const [owner, repoName] = repoFullName.split("/");
+    const { data } = await this.octokit.rest.repos.createDeployment({
+      owner,
+      repo: repoName,
+      ref: deployment.ref,
+      environment: deployment.environment,
+      description: deployment.description,
+      auto_merge: deployment.autoMerge ?? false,
+      required_contexts: deployment.requiredContexts ?? [],
+    });
+    // createDeployment can return a merge conflict response (status 409),
+    // but with required_contexts: [] it always creates.
+    return { deploymentId: (data as { id: number }).id };
+  }
+
+  async createDeploymentStatus(
+    repoFullName: string,
+    deploymentId: number,
+    status: GitHostDeploymentStatus,
+  ): Promise<void> {
+    const [owner, repoName] = repoFullName.split("/");
+    await this.octokit.rest.repos.createDeploymentStatus({
+      owner,
+      repo: repoName,
+      deployment_id: deploymentId,
+      state: status.state,
+      environment_url: status.environmentUrl,
+      description: status.description,
+      log_url: status.logUrl,
+    });
   }
 }

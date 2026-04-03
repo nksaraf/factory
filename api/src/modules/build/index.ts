@@ -11,6 +11,7 @@ import { BuildModel } from "./model";
 import { BuildPlaneService } from "./plane.service";
 import { BuildService } from "./service";
 import { gitHostController } from "./git-host.controller";
+import { pipelineRunController } from "./pipeline-run.controller";
 
 export function buildController(db: Database) {
   const plane = new BuildPlaneService(db);
@@ -192,5 +193,6 @@ export function buildController(db: Database) {
         },
       }
     )
-    .use(gitHostController(db));
+    .use(gitHostController(db))
+    .use(pipelineRunController(db));
 }

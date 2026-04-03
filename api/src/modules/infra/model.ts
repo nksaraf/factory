@@ -16,8 +16,8 @@ export const InfraModel = {
     status: t.Optional(t.String()),
   }),
 
-  // Proxmox Cluster
-  createProxmoxClusterBody: t.Object({
+  // VM Cluster
+  createVmClusterBody: t.Object({
     name: t.String(),
     slug: t.Optional(t.String()),
     providerId: t.String(),
@@ -27,7 +27,7 @@ export const InfraModel = {
     tokenSecret: t.Optional(t.String()),
     sslFingerprint: t.Optional(t.String()),
   }),
-  updateProxmoxClusterBody: t.Object({
+  updateVmClusterBody: t.Object({
     name: t.Optional(t.String()),
     apiHost: t.Optional(t.String()),
     apiPort: t.Optional(t.Number()),
@@ -35,7 +35,7 @@ export const InfraModel = {
     tokenSecret: t.Optional(t.String()),
     sslFingerprint: t.Optional(t.String()),
   }),
-  listProxmoxClustersQuery: t.Object({
+  listVmClustersQuery: t.Object({
     providerId: t.Optional(t.String()),
   }),
 
@@ -76,14 +76,15 @@ export const InfraModel = {
     hostId: t.Optional(t.String()),
     datacenterId: t.Optional(t.String()),
     clusterId: t.Optional(t.String()),
-    proxmoxClusterId: t.Optional(t.String()),
-    proxmoxVmid: t.Optional(t.Number()),
+    vmClusterId: t.Optional(t.String()),
+    externalVmid: t.Optional(t.Number()),
     vmType: t.Optional(t.String()),
     osType: t.Optional(t.String()),
     accessMethod: t.Optional(t.String()),
     accessUser: t.Optional(t.String()),
   }),
   listVmsQuery: t.Object({
+    slug: t.Optional(t.String()),
     providerId: t.Optional(t.String()),
     status: t.Optional(t.String()),
     hostId: t.Optional(t.String()),
@@ -98,6 +99,22 @@ export const InfraModel = {
   }),
   migrateVmBody: t.Object({
     targetHostId: t.String(),
+  }),
+  cloneVmBody: t.Object({
+    sourceVmId: t.String(),
+    name: t.String(),
+    cpu: t.Optional(t.Number()),
+    memoryMb: t.Optional(t.Number()),
+    diskGb: t.Optional(t.Number()),
+    full: t.Optional(t.Boolean()),
+  }),
+  createSnapshotBody: t.Object({
+    name: t.Optional(t.String()),
+    description: t.Optional(t.String()),
+  }),
+  snapshotNameParams: t.Object({
+    id: t.String(),
+    name: t.String(),
   }),
 
   // Host
@@ -117,6 +134,7 @@ export const InfraModel = {
     accessMethod: t.Optional(t.String()),
   }),
   listHostsQuery: t.Object({
+    slug: t.Optional(t.String()),
     providerId: t.Optional(t.String()),
     datacenterId: t.Optional(t.String()),
     status: t.Optional(t.String()),

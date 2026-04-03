@@ -1,6 +1,7 @@
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
+import { logger } from "../../logger"
 import { GatewayModel } from "./gateway.model"
 import * as gw from "./gateway.service"
 import { createTunnelHandlers } from "./tunnel-broker"
@@ -14,7 +15,18 @@ export function gatewayController(db: Database) {
     })
     .post(
       "/routes",
-      ({ body }) => gw.createRoute(db, { ...body, createdBy: "system", expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined }),
+      ({ body }) => {
+        // Routes for sandbox/preview/tunnel are immediately routable;
+        // custom_domain starts pending until DNS is verified.
+        const autoActiveKinds = ["sandbox", "preview", "tunnel", "ingress"];
+        const status = autoActiveKinds.includes(body.kind) ? "active" : "pending";
+        return gw.createRoute(db, {
+          ...body,
+          status,
+          createdBy: "system",
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+        });
+      },
       {
         body: GatewayModel.createRouteBody,
         detail: { tags: ["Gateway"], summary: "Create route" },
@@ -28,8 +40,8 @@ export function gatewayController(db: Database) {
         detail: { tags: ["Gateway"], summary: "Get route" },
       }
     )
-    .patch(
-      "/routes/:id",
+    .post(
+      "/routes/:id/update",
       ({ params, body }) => gw.updateRoute(db, params.id, {
         ...body,
         expiresAt: body.expiresAt === null ? null : body.expiresAt ? new Date(body.expiresAt) : undefined,
@@ -40,8 +52,8 @@ export function gatewayController(db: Database) {
         detail: { tags: ["Gateway"], summary: "Update route" },
       }
     )
-    .delete(
-      "/routes/:id",
+    .post(
+      "/routes/:id/delete",
       ({ params }) => gw.deleteRoute(db, params.id),
       {
         params: GatewayModel.routeIdParams,
@@ -70,8 +82,8 @@ export function gatewayController(db: Database) {
         detail: { tags: ["Gateway"], summary: "Get domain" },
       }
     )
-    .delete(
-      "/domains/:id",
+    .post(
+      "/domains/:id/delete",
       ({ params }) => gw.removeDomain(db, params.id),
       {
         params: GatewayModel.domainIdParams,
@@ -92,8 +104,8 @@ export function gatewayController(db: Database) {
       query: GatewayModel.tunnelListQuery,
       detail: { tags: ["Gateway"], summary: "List active tunnels" },
     })
-    .delete(
-      "/tunnels/:id",
+    .post(
+      "/tunnels/:id/delete",
       ({ params }) => gw.closeTunnel(db, params.id),
       {
         params: GatewayModel.tunnelIdParams,
@@ -109,6 +121,10 @@ export function gatewayController(db: Database) {
       };
     })())
     .onStart(async () => {
+      // The local daemon starts the gateway explicitly with the same db
+      // instance to avoid PGlite query isolation issues. Skip here if so.
+      if (process.env.__DX_SKIP_GATEWAY_ONSTART) return;
+      logger.info("starting gateway proxy");
       const { startGateway } = await import("./gateway-proxy");
       const { getTunnelStreamManager } = await import("./tunnel-broker");
       startGateway({ db, port: 9090, getTunnelStreamManager });

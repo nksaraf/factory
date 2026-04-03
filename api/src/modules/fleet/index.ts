@@ -53,8 +53,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Create site" },
       }
     )
-    .delete(
-      "/sites",
+    .post(
+      "/sites/delete",
       ({ query }) => plane.deleteSite(query.name),
       {
         query: FleetModel.siteNameQuery,
@@ -132,8 +132,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Get deployment target" },
       }
     )
-    .delete(
-      "/deployment-targets/:id",
+    .post(
+      "/deployment-targets/:id/delete",
       ({ params }) => plane.destroyDeploymentTarget(params.id),
       {
         params: FleetModel.deploymentTargetIdParams,
@@ -159,8 +159,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Create workload" },
       }
     )
-    .patch(
-      "/workloads/:id",
+    .post(
+      "/workloads/:id/update",
       ({ params, body }) => plane.updateWorkload(params.id, body),
       {
         params: FleetModel.workloadIdParams,
@@ -168,8 +168,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Update workload" },
       }
     )
-    .delete(
-      "/workloads/:id",
+    .post(
+      "/workloads/:id/delete",
       ({ params }) => plane.deleteWorkload(params.id),
       {
         params: FleetModel.workloadIdParams,
@@ -222,8 +222,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Get rollout" },
       }
     )
-    .patch(
-      "/rollouts/:id",
+    .post(
+      "/rollouts/:id/update",
       ({ params, body }) => plane.updateRolloutStatus(params.id, body.status),
       {
         params: FleetModel.rolloutIdParams,
@@ -272,8 +272,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Create sandbox" },
       }
     )
-    .delete(
-      "/sandboxes/:id",
+    .post(
+      "/sandboxes/:id/delete",
       ({ params }) => plane.destroySandbox(params.id),
       {
         params: FleetModel.sandboxIdParams,
@@ -306,8 +306,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Get snapshot" },
       }
     )
-    .delete(
-      "/snapshots/:id",
+    .post(
+      "/snapshots/:id/delete",
       ({ params }) => plane.deleteSnapshot(params.id),
       {
         params: FleetModel.snapshotIdParams,
@@ -332,8 +332,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Create connection audit event" },
       }
     )
-    .patch(
-      "/connection-audit/:id",
+    .post(
+      "/connection-audit/:id/update",
       ({ params }) => plane.endConnectionAuditEvent(params.id),
       {
         params: FleetModel.connectionAuditIdParams,
@@ -401,8 +401,8 @@ export function fleetController(db: Database) {
         detail: { tags: ["Fleet"], summary: "Get release bundle" },
       }
     )
-    .patch(
-      "/bundles/:id",
+    .post(
+      "/bundles/:id/update",
       ({ params, body }) => plane.updateReleaseBundleStatus(params.id, body),
       {
         params: FleetModel.releaseBundleIdParams,

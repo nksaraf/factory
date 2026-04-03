@@ -71,6 +71,26 @@ export interface WebhookVerification {
   payload: Record<string, unknown>;
 }
 
+export interface GitHostDeployment {
+  ref: string;
+  environment: string;
+  description?: string;
+  autoMerge?: boolean;
+  requiredContexts?: string[];
+}
+
+export interface GitHostDeploymentStatus {
+  state: "pending" | "in_progress" | "success" | "failure" | "error" | "inactive";
+  environmentUrl?: string;
+  description?: string;
+  logUrl?: string;
+}
+
+export interface GitHostComment {
+  commentId: number;
+  body: string;
+}
+
 export interface GitHostAdapter {
   readonly hostType: string;
   getAccessToken(): Promise<string>;
@@ -135,4 +155,27 @@ export interface GitHostAdapter {
       url?: string;
     }>
   >;
+  postPRComment(
+    repoFullName: string,
+    prNumber: number,
+    body: string,
+  ): Promise<{ commentId: string }>;
+  listPRComments(
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<GitHostComment[]>;
+  updatePRComment(
+    repoFullName: string,
+    commentId: number,
+    body: string,
+  ): Promise<void>;
+  createDeployment(
+    repoFullName: string,
+    deployment: GitHostDeployment,
+  ): Promise<{ deploymentId: number }>;
+  createDeploymentStatus(
+    repoFullName: string,
+    deploymentId: number,
+    status: GitHostDeploymentStatus,
+  ): Promise<void>;
 }

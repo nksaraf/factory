@@ -128,8 +128,8 @@ describe("PortManager", () => {
     pm.clear("api");
 
     const status = pm.status();
-    expect(status.find((s) => s.name === "api")).toBeUndefined();
-    expect(status.find((s) => s.name === "ui")).toBeDefined();
+    expect(status.find((s) => s.name === "api/default")).toBeUndefined();
+    expect(status.find((s) => s.name === "ui/default")).toBeDefined();
   });
 
   test("clear with no arg removes all", async () => {
@@ -148,17 +148,18 @@ describe("PortManager", () => {
     ]);
     const status = pm.status();
     expect(status).toHaveLength(2);
-    expect(status[0].name).toBe("api");
+    expect(status[0].name).toBe("api/default");
     expect(status[0].port).toBe(14100);
-    expect(status[1].name).toBe("ui");
+    expect(status[1].name).toBe("ui/default");
     expect(status[1].port).toBe(13100);
   });
 
   test("writeEnvFile generates correct format", async () => {
     const pm = new PortManager(stateDir());
     const envPath = join(testDir, ".dx", ".env");
+    // writeEnvFile takes pre-built env var map (from portEnvVars())
     pm.writeEnvFile(
-      { "service-data": 8084, "infra-postgres": 5433 },
+      { INFRA_POSTGRES_PORT: "5433", SERVICE_DATA_PORT: "8084" },
       envPath,
     );
     const content = readFileSync(envPath, "utf-8");
@@ -180,7 +181,8 @@ describe("PortManager", () => {
     expect(existsSync(join(stateDir(), "ports.json"))).toBe(true);
 
     const raw = JSON.parse(readFileSync(join(stateDir(), "ports.json"), "utf-8"));
-    expect(raw.api.port).toBe(14100);
-    expect(raw.api.pinned).toBe(false);
+    // Stored with compound key "api/default"
+    expect(raw["api/default"].port).toBe(14100);
+    expect(raw["api/default"].pinned).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
+import { shutdownTelemetry, tracer } from "./telemetry.js";
 import { createDxApp } from "./build-app.js";
 import { fireWorkbenchPing } from "./handlers/install/workbench-ping.js";
 
@@ -17,28 +18,38 @@ if (args[0] === "help") {
 }
 
 const app = createDxApp();
-try {
-  await app.execute();
-} catch (err) {
-  const message = err instanceof Error ? err.message : String(err);
-  const isJson =
-    process.argv.includes("--json") || process.argv.includes("-j");
+const commandName = args.filter((a) => !a.startsWith("-")).join(" ") || "dx";
+let exitCode = ExitCodes.SUCCESS;
 
-  if (isJson) {
-    console.log(
-      JSON.stringify({
-        success: false,
-        error: { message },
-        exitCode: ExitCodes.GENERAL_FAILURE,
-      })
-    );
-  } else {
-    console.error(message);
+await tracer.startActiveSpan(`dx ${commandName}`, async (rootSpan) => {
+  try {
+    await app.execute();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const isJson =
+      process.argv.includes("--json") || process.argv.includes("-j");
+
+    if (isJson) {
+      console.log(
+        JSON.stringify({
+          success: false,
+          error: { message },
+          exitCode: ExitCodes.GENERAL_FAILURE,
+        })
+      );
+    } else {
+      console.error(message);
+    }
+    exitCode = ExitCodes.GENERAL_FAILURE;
+    rootSpan.recordException(err instanceof Error ? err : new Error(String(err)));
+  } finally {
+    rootSpan.end();
   }
-  process.exit(ExitCodes.GENERAL_FAILURE);
-}
+});
+
+await shutdownTelemetry();
 
 // Fire-and-forget workbench ping (non-blocking, no await)
 fireWorkbenchPing();
 
-process.exit(ExitCodes.SUCCESS);
+process.exit(exitCode);

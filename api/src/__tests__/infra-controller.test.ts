@@ -156,7 +156,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /regions/:id removes region", async () => {
+    it("POST /regions/:id/delete removes region", async () => {
       const create = await app.handle(
         post(`${BASE}/regions`, {
           name: "To Delete",
@@ -167,8 +167,8 @@ describe("Infra Controller", () => {
       const { data: created } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/regions/${created.regionId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/regions/${created.regionId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -256,7 +256,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /clusters/:id sets status to destroying", async () => {
+    it("POST /clusters/:id/delete sets status to destroying", async () => {
       const prov = await createProvider();
       const create = await app.handle(
         post(`${BASE}/clusters`, {
@@ -267,8 +267,8 @@ describe("Infra Controller", () => {
       const { data: created } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/clusters/${created.clusterId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/clusters/${created.clusterId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -391,7 +391,7 @@ describe("Infra Controller", () => {
 
       // Destroy
       const destroy = await app.handle(
-        new Request(`${BASE}/vms/${vm.vmId}`, { method: "DELETE" })
+        new Request(`${BASE}/vms/${vm.vmId}/delete`, { method: "POST" })
       );
       const { data: destroyed } = (await destroy.json()) as any;
       expect(destroyed.status).toBe("destroying");
@@ -435,6 +435,55 @@ describe("Infra Controller", () => {
       );
       const { data } = (await filtered.json()) as any;
       expect(data).toHaveLength(1);
+    });
+
+    it("filters VMs by slug", async () => {
+      const prov = await createProvider();
+      await app.handle(
+        post(`${BASE}/vms`, {
+          name: "lepton-59",
+          providerId: prov.providerId,
+          cpu: 52,
+          memoryMb: 262144,
+          diskGb: 9216,
+        })
+      );
+      await app.handle(
+        post(`${BASE}/vms`, {
+          name: "factory-prod",
+          providerId: prov.providerId,
+          cpu: 2,
+          memoryMb: 4096,
+          diskGb: 50,
+        })
+      );
+
+      // Filter by slug should return only the matching VM
+      const filtered = await app.handle(
+        new Request(`${BASE}/vms?slug=lepton-59`)
+      );
+      const { data } = (await filtered.json()) as any;
+      expect(data).toHaveLength(1);
+      expect(data[0].slug).toBe("lepton-59");
+    });
+
+    it("filters VMs by slug returns empty for non-existent slug", async () => {
+      const prov = await createProvider();
+      await app.handle(
+        post(`${BASE}/vms`, {
+          name: "some-vm",
+          providerId: prov.providerId,
+          cpu: 1,
+          memoryMb: 1024,
+          diskGb: 20,
+        })
+      );
+
+      const filtered = await app.handle(
+        new Request(`${BASE}/vms?slug=nonexistent-slug`)
+      );
+      const { data } = (await filtered.json()) as any;
+      expect(data).toHaveLength(0);
     });
 
     it("creates VM with host and datacenter FKs", async () => {
@@ -549,7 +598,7 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /hosts/:id removes host", async () => {
+    it("POST /hosts/:id/delete removes host", async () => {
       const prov = await createProvider();
       const hostRes = await app.handle(
         post(`${BASE}/hosts`, {
@@ -563,7 +612,7 @@ describe("Infra Controller", () => {
       const host = ((await hostRes.json()) as any).data;
 
       const del = await app.handle(
-        new Request(`${BASE}/hosts/${host.hostId}`, { method: "DELETE" })
+        new Request(`${BASE}/hosts/${host.hostId}/delete`, { method: "POST" })
       );
       expect(del.status).toBe(200);
 
@@ -589,6 +638,54 @@ describe("Infra Controller", () => {
       );
       const { data } = (await filtered.json()) as any;
       expect(data).toHaveLength(1);
+    });
+
+    it("filters hosts by slug", async () => {
+      const prov = await createProvider();
+      await app.handle(
+        post(`${BASE}/hosts`, {
+          name: "lepton-squirtle",
+          providerId: prov.providerId,
+          cpuCores: 40,
+          memoryMb: 257568,
+          diskGb: 94,
+        })
+      );
+      await app.handle(
+        post(`${BASE}/hosts`, {
+          name: "lepton-pikachu",
+          providerId: prov.providerId,
+          cpuCores: 52,
+          memoryMb: 257592,
+          diskGb: 94,
+        })
+      );
+
+      const filtered = await app.handle(
+        new Request(`${BASE}/hosts?slug=lepton-squirtle`)
+      );
+      const { data } = (await filtered.json()) as any;
+      expect(data).toHaveLength(1);
+      expect(data[0].slug).toBe("lepton-squirtle");
+    });
+
+    it("filters hosts by slug returns empty for non-existent slug", async () => {
+      const prov = await createProvider();
+      await app.handle(
+        post(`${BASE}/hosts`, {
+          name: "some-host",
+          providerId: prov.providerId,
+          cpuCores: 8,
+          memoryMb: 32768,
+          diskGb: 500,
+        })
+      );
+
+      const filtered = await app.handle(
+        new Request(`${BASE}/hosts?slug=nonexistent-host`)
+      );
+      const { data } = (await filtered.json()) as any;
+      expect(data).toHaveLength(0);
     });
   });
 
@@ -712,7 +809,7 @@ describe("Infra Controller", () => {
       expect(data.status).toBe("evacuating");
     });
 
-    it("DELETE /kube-nodes/:id removes node", async () => {
+    it("POST /kube-nodes/:id/delete removes node", async () => {
       const cls = await createCluster();
       const addRes = await app.handle(
         post(`${BASE}/kube-nodes`, {
@@ -725,8 +822,8 @@ describe("Infra Controller", () => {
       const { data: node } = (await addRes.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/kube-nodes/${node.kubeNodeId}`, {
-          method: "DELETE",
+        new Request(`${BASE}/kube-nodes/${node.kubeNodeId}/delete`, {
+          method: "POST",
         })
       );
       expect(del.status).toBe(200);
@@ -786,14 +883,14 @@ describe("Infra Controller", () => {
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /subnets/:id removes subnet", async () => {
+    it("POST /subnets/:id/delete removes subnet", async () => {
       const create = await app.handle(
         post(`${BASE}/subnets`, { cidr: "10.0.3.0/24" })
       );
       const { data: sub } = (await create.json()) as any;
 
       const del = await app.handle(
-        new Request(`${BASE}/subnets/${sub.subnetId}`, { method: "DELETE" })
+        new Request(`${BASE}/subnets/${sub.subnetId}/delete`, { method: "POST" })
       );
       expect(del.status).toBe(200);
 

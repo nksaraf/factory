@@ -185,6 +185,21 @@ const WORKBENCH_TOOLS: ToolDef[] = [
       win32: "npm install -g @anthropic-ai/claude-code",
     },
   },
+  {
+    name: "k3d",
+    cmd: "k3d",
+    args: ["version"],
+    versionExtract: (stdout) => {
+      const m = stdout.match(/k3d version\s+v?(\d[\d.]*)/);
+      return m?.[1] ?? stdout.trim();
+    },
+    required: false,
+    install: {
+      darwin: "brew install k3d",
+      linux: "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash",
+      win32: "choco install k3d",
+    },
+  },
 ];
 
 /**
@@ -295,4 +310,41 @@ export async function installTool(toolName: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Ensure a tool is available, attempting installation if missing.
+ * Throws with manual install instructions if all else fails.
+ */
+export async function ensureTool(toolName: string): Promise<void> {
+  const tool = WORKBENCH_TOOLS.find((t) => t.name === toolName);
+  if (!tool) throw new Error(`Unknown tool: ${toolName}`);
+
+  // Check if already available
+  const check = await checkTool(tool);
+  if (check.passed) return;
+
+  // Try to install
+  const platform = process.platform as Platform;
+  const installCmd = tool.install?.[platform];
+
+  if (installCmd) {
+    console.log(`${toolName} not found. Installing: ${installCmd}`);
+    const result = await capture(["sh", "-c", installCmd]);
+    if (result.exitCode === 0) {
+      // Verify installation
+      const recheck = await checkTool(tool);
+      if (recheck.passed) {
+        console.log(`${toolName} installed successfully.`);
+        return;
+      }
+    }
+  }
+
+  // Build multi-platform instructions
+  const lines = [`${toolName} is required but could not be installed automatically.`];
+  if (tool.install?.darwin) lines.push(`  macOS:   ${tool.install.darwin}`);
+  if (tool.install?.linux) lines.push(`  Linux:   ${tool.install.linux}`);
+  if (tool.install?.win32) lines.push(`  Windows: ${tool.install.win32}`);
+  throw new Error(lines.join("\n"));
 }

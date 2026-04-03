@@ -16,8 +16,10 @@ import type {
   ProxmoxCredentials,
   ProxmoxNode,
   ProxmoxNodeStatus,
+  ProxmoxSnapshot,
   ProxmoxStorage,
   ProxmoxTask,
+  ProxmoxTaskLogLine,
   ProxmoxVmConfig,
   ProxmoxVmInfo,
 } from "./types"
@@ -530,6 +532,136 @@ export class ProxmoxClient {
     const data = result.response.data
     // The API returns { result: [...interfaces] } or just [...interfaces]
     return Array.isArray(data) ? data : (data?.result ?? [])
+  }
+
+  /**
+   * Create a snapshot of a VM
+   */
+  async createSnapshot(
+    nodeName: string,
+    vmid: number,
+    snapname: string,
+    description?: string,
+    vmstate?: boolean
+  ): Promise<string> {
+    const params: Record<string, unknown> = { snapname }
+    if (description) params.description = description
+    if (vmstate != null) params.vmstate = vmstate ? 1 : 0
+
+    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.client.set(
+      `/nodes/${nodeName}/qemu/${vmid}/snapshot`,
+      params
+    )
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to create snapshot: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as string // Returns UPID
+  }
+
+  /**
+   * List snapshots of a VM
+   */
+  async listSnapshots(
+    nodeName: string,
+    vmid: number
+  ): Promise<ProxmoxSnapshot[]> {
+    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.snapshotList()
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to list snapshots: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as ProxmoxSnapshot[]
+  }
+
+  /**
+   * Delete a snapshot
+   */
+  async deleteSnapshot(
+    nodeName: string,
+    vmid: number,
+    snapname: string
+  ): Promise<string> {
+    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.get(snapname).client.delete(
+      `/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}`
+    )
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to delete snapshot: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as string // Returns UPID
+  }
+
+  /**
+   * Rollback to a snapshot
+   */
+  async rollbackSnapshot(
+    nodeName: string,
+    vmid: number,
+    snapname: string
+  ): Promise<string> {
+    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.get(snapname).client.set(
+      `/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}/rollback`,
+      {}
+    )
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to rollback snapshot: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as string // Returns UPID
+  }
+
+  /**
+   * Migrate a VM to another node
+   */
+  async migrateVm(
+    nodeName: string,
+    vmid: number,
+    target: string,
+    online?: boolean
+  ): Promise<string> {
+    const params: Record<string, unknown> = { target }
+    if (online != null) params.online = online ? 1 : 0
+
+    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).migrate.client.set(
+      `/nodes/${nodeName}/qemu/${vmid}/migrate`,
+      params
+    )
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to migrate VM: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as string // Returns UPID
+  }
+
+  /**
+   * Get task log lines
+   */
+  async getTaskLog(
+    nodeName: string,
+    upid: string,
+    start?: number,
+    limit?: number
+  ): Promise<ProxmoxTaskLogLine[]> {
+    const params: Record<string, unknown> = {}
+    if (start != null) params.start = start
+    if (limit != null) params.limit = limit
+
+    const result = await this.client.nodes.get(nodeName).tasks.get(upid).log.client.get(
+      `/nodes/${nodeName}/tasks/${encodeURIComponent(upid)}/log`,
+      params
+    )
+
+    if (!result.isSuccessStatusCode) {
+      throw new Error(`Failed to get task log: ${result.reasonPhrase}`)
+    }
+
+    return result.response.data as ProxmoxTaskLogLine[]
   }
 
   /**

@@ -187,8 +187,8 @@ export function observabilityController(adapter: ObservabilityAdapter) {
         detail: { tags: ["Observability"], summary: "Silence alerts" },
       }
     )
-    .patch(
-      "/alerts/rules/:id",
+    .post(
+      "/alerts/rules/:id/update",
       ({ params, body }) =>
         svc.setAlertRuleEnabled(adapter, params.id, body.enabled),
       {

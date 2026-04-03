@@ -265,19 +265,19 @@ describe("Gateway Service", () => {
       expect(routes).toHaveLength(3);
 
       const primary = routes.find(
-        (r: any) => r.domain === "my-sandbox.preview.dx.dev"
+        (r: any) => r.domain === "my-sandbox.sandbox.dx.dev"
       );
       expect(primary).toBeTruthy();
       expect(primary!.kind).toBe("sandbox");
 
       const port3000 = routes.find(
-        (r: any) => r.domain === "my-sandbox-3000.preview.dx.dev"
+        (r: any) => r.domain === "my-sandbox-3000.sandbox.dx.dev"
       );
       expect(port3000).toBeTruthy();
       expect(port3000!.targetPort).toBe(3000);
 
       const port8080 = routes.find(
-        (r: any) => r.domain === "my-sandbox-8080.preview.dx.dev"
+        (r: any) => r.domain === "my-sandbox-8080.sandbox.dx.dev"
       );
       expect(port8080).toBeTruthy();
       expect(port8080!.targetPort).toBe(8080);

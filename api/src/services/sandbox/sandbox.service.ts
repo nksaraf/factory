@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import {
@@ -7,6 +7,7 @@ import {
   sandboxSnapshot,
   deploymentTarget,
 } from "../../db/schema/fleet";
+import { cluster } from "../../db/schema/infra";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +30,7 @@ export interface CreateSandboxInput {
   ttlMinutes?: number;
   trigger?: "manual" | "pr" | "release" | "agent" | "ci";
   gpu?: boolean;
+  clusterId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +93,35 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
     ? new Date(Date.now() + ttlMinutes * 60 * 1000)
     : undefined;
 
-  // 5. Create deployment target
+  // 5. Resolve cluster — explicit or auto-select first active
+  let clusterId = data.clusterId;
+  if (clusterId) {
+    // Validate explicit cluster exists — try by ID first, then by slug
+    let [cl] = await db
+      .select({ clusterId: cluster.clusterId })
+      .from(cluster)
+      .where(eq(cluster.clusterId, clusterId))
+      .limit(1);
+    if (!cl) {
+      [cl] = await db
+        .select({ clusterId: cluster.clusterId })
+        .from(cluster)
+        .where(eq(cluster.slug, clusterId))
+        .limit(1);
+    }
+    if (!cl) throw new Error(`Cluster not found: ${clusterId}`);
+    clusterId = cl.clusterId;
+  } else if (runtimeType === "container") {
+    // Auto-select first active cluster (null if none available)
+    const [firstCluster] = await db
+      .select({ clusterId: cluster.clusterId })
+      .from(cluster)
+      .where(eq(cluster.status, "ready"))
+      .limit(1);
+    clusterId = firstCluster?.clusterId;
+  }
+
+  // 6. Create deployment target
   const [dt] = await db
     .insert(deploymentTarget)
     .values({
@@ -104,10 +134,11 @@ export async function createSandbox(db: Database, data: CreateSandboxInput) {
       ttl: ttlMinutes ? `${ttlMinutes}m` : undefined,
       expiresAt,
       status: "provisioning",
+      clusterId,
     })
     .returning();
 
-  // 6. Create sandbox row
+  // 7. Create sandbox row
   const [sbx] = await db
     .insert(sandbox)
     .values({
@@ -148,7 +179,11 @@ export async function getSandbox(db: Database, sandboxId: string) {
       deploymentTarget,
       eq(sandbox.deploymentTargetId, deploymentTarget.deploymentTargetId)
     )
-    .where(eq(sandbox.sandboxId, sandboxId));
+    .where(
+      sandboxId.startsWith("sbx_")
+        ? eq(sandbox.sandboxId, sandboxId)
+        : or(eq(sandbox.sandboxId, sandboxId), eq(sandbox.slug, sandboxId))
+    );
 
   const row = rows[0];
   if (!row) return null;
@@ -158,6 +193,7 @@ export async function getSandbox(db: Database, sandboxId: string) {
 export async function listSandboxes(
   db: Database,
   filters?: {
+    slug?: string;
     ownerId?: string;
     ownerType?: string;
     runtimeType?: string;
@@ -176,6 +212,9 @@ export async function listSandboxes(
       eq(sandbox.deploymentTargetId, deploymentTarget.deploymentTargetId)
     );
 
+  if (filters?.slug) {
+    query = query.where(eq(sandbox.slug, filters.slug)) as typeof query;
+  }
   if (filters?.ownerId) {
     query = query.where(eq(sandbox.ownerId, filters.ownerId)) as typeof query;
   }
@@ -331,6 +370,22 @@ export async function deleteSnapshot(db: Database, snapshotId: string) {
     .where(eq(sandboxSnapshot.sandboxSnapshotId, snapshotId));
 }
 
+export async function updateSnapshotStatus(
+  db: Database,
+  snapshotId: string,
+  status: "ready" | "failed",
+  extra?: { sizeBytes?: string; volumeSnapshotName?: string }
+) {
+  await db
+    .update(sandboxSnapshot)
+    .set({
+      status,
+      ...(extra?.sizeBytes ? { sizeBytes: extra.sizeBytes } : {}),
+      ...(extra?.volumeSnapshotName ? { volumeSnapshotName: extra.volumeSnapshotName } : {}),
+    })
+    .where(eq(sandboxSnapshot.sandboxSnapshotId, snapshotId));
+}
+
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -400,6 +455,27 @@ export async function cloneSandbox(
     .returning();
 
   return updated!;
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+export async function updateSandboxHealth(
+  db: Database,
+  sandboxId: string,
+  healthStatus: string,
+  statusMessage?: string
+) {
+  await db
+    .update(sandbox)
+    .set({
+      healthStatus,
+      healthCheckedAt: new Date(),
+      ...(statusMessage !== undefined ? { statusMessage } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(sandbox.sandboxId, sandboxId));
 }
 
 // ---------------------------------------------------------------------------

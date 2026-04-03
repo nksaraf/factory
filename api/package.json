@@ -4,14 +4,18 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/server.ts",
-    "./app-type": "./src/app-type.ts"
+    ".": "./src/factory.api.ts",
+    "./app-type": "./src/app-type.ts",
+    "./settings": "./src/settings.ts",
+    "./logger": "./src/logger.ts",
+    "./core": "./src/factory-core.ts",
+    "./test-helpers": "./src/test-helpers.ts"
   },
   "scripts": {
-    "dev": "vinxi dev --port 4100",
-    "build": "vinxi build",
-    "start": "node .output/server/index.js",
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:smoke": "bun test src/__tests__/tunnel-smoke.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -20,6 +24,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "@corsinvest/cv4pve-api-javascript": "^9.1.0",
+    "@electric-sql/pglite": "^0.2.17",
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/node": "^1.4.5",
     "@elysiajs/openapi": "^1.4.14",
@@ -27,7 +32,7 @@
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks-methods": "^6.0.0",
     "@rio.js/app-config": "0.3.0",
-    "@rio.js/vinxi": "^0.0.39",
+    "@slack/web-api": "^7.15.0",
     "@smp/factory-shared": "workspace:*",
     "cuid": "^3.0.0",
     "drizzle-orm": "^0.45.1",
@@ -36,11 +41,9 @@
     "lru-cache": "^11.2.7",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
-    "vinxi": "0.5.11",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.2.17",
     "@types/pg": "^8.18.0",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",

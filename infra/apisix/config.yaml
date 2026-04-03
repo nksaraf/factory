@@ -2,7 +2,7 @@
 # APISIX Configuration — Standalone mode (no etcd)
 #
 apisix:
-  node_listen: 8005
+  node_listen: 9000
   enable_ipv6: false
   enable_admin: false
 
@@ -18,7 +18,7 @@ plugin_attr:
     resource:
       service.name: infra-gateway
     collector:
-      address: infra-clickstack-otel:4318
+      address: infra-otel-collector:4318
       request_timeout: 3
       request_headers:
         authorization: 575a0fc7-426a-4a2f-869a-60d1ef14d99e

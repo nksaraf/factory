@@ -139,6 +139,8 @@ export interface WorkbenchConfig {
   dxVersion: string;
   authProfile?: string;
   factoryUrl?: string;
+  /** How the workbench connects: "local" (embedded daemon), "connected" (remote factory). */
+  installMode?: "local" | "connected";
   factoryRegistered: boolean;
   registeredAt?: string;
   createdAt: string;

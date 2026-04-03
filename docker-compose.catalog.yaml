@@ -4,8 +4,8 @@
 # Uses catalog.* labels to declare APIs, ownership, documentation,
 # named ports, and component types for the Software Catalog.
 #
-# This file is equivalent to our dx.yaml and catalog-info.yaml —
-# all three formats parse into the same CatalogSystem.
+# This is the canonical project definition — docker-compose is the single
+# source of truth, parsed into a CatalogSystem for the Software Catalog.
 
 services:
   # ─── Components (things we build) ────────────────────────────
@@ -15,7 +15,7 @@ services:
     platform: linux/amd64
     build:
       context: ./
-      dockerfile: ./api/Dockerfile
+      dockerfile: ./api-server/Dockerfile
       args:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     restart: unless-stopped

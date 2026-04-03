@@ -88,9 +88,10 @@ export async function readConfig(): Promise<DxConfig> {
   return merged;
 }
 
-/** Resolve the factory API URL from config. */
+/** Resolve the factory API URL from config (env DX_FACTORY_URL overrides). */
 export function resolveFactoryUrl(config: DxConfig): string {
-  return config.factoryUrl.replace(/\/$/, "");
+  const envUrl = process.env.DX_FACTORY_URL
+  return (envUrl ?? config.factoryUrl).replace(/\/$/, "");
 }
 
 /** Resolve the site API URL from config. Returns empty string if not set. */

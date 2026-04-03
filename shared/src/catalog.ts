@@ -8,7 +8,6 @@
  * The spec fields are a superset of what any single output format needs:
  *   - docker-compose uses: image, ports, environment, volumes, healthchecks, build, command
  *   - helm uses: image, ports, healthchecks, compute, routes, secrets, persistent, replicas, command
- *   - dx.yaml uses: image, ports, environment, build, dev, test, lint, connections
  *
  * Terminology is intentionally general (not k8s-specific):
  *   - healthchecks (not probes)   — live, ready, start

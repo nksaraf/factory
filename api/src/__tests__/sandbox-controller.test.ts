@@ -6,7 +6,7 @@ import {
 } from "../test-helpers";
 import type { PGlite } from "@electric-sql/pglite";
 
-const BASE = "http://localhost/api/v1/factory/infra/sandbox";
+const BASE = "http://localhost/api/v1/factory/infra/sandboxes";
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {
@@ -17,7 +17,7 @@ function post(url: string, body: Record<string, unknown>) {
 }
 
 function del(url: string) {
-  return new Request(url, { method: "DELETE" });
+  return new Request(`${url}/delete`, { method: "POST" });
 }
 
 describe("Sandbox Controller", () => {
@@ -41,7 +41,7 @@ describe("Sandbox Controller", () => {
   // Helper to create a sandbox via the API
   async function createSandbox(overrides?: Record<string, unknown>) {
     const res = await app.handle(
-      post(`${BASE}/sandboxes`, {
+      post(`${BASE}`, {
         name: "test-sandbox",
         ownerId: "user_1",
         ownerType: "user",
@@ -57,7 +57,7 @@ describe("Sandbox Controller", () => {
   describe("Sandbox CRUD", () => {
     it("POST /sandboxes creates sandbox and returns sandboxId", async () => {
       const res = await createSandbox();
-      expect(res.status).toBe(200);
+expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
       expect(data.sandboxId).toBeTruthy();
       expect(data.name).toBe("test-sandbox");
@@ -67,7 +67,7 @@ describe("Sandbox Controller", () => {
       await createSandbox({ name: "sbx-1" });
       await createSandbox({ name: "sbx-2" });
 
-      const res = await app.handle(new Request(`${BASE}/sandboxes`));
+      const res = await app.handle(new Request(`${BASE}`));
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(2);
@@ -78,11 +78,33 @@ describe("Sandbox Controller", () => {
       await createSandbox({ name: "sbx-b", ownerId: "user_2" });
 
       const res = await app.handle(
-        new Request(`${BASE}/sandboxes?ownerId=user_1`)
+        new Request(`${BASE}?ownerId=user_1`)
       );
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(1);
       expect(data[0].ownerId).toBe("user_1");
+    });
+
+    it("GET /sandboxes filters by slug", async () => {
+      await createSandbox({ name: "my-workspace", ownerId: "user_1" });
+      await createSandbox({ name: "other-sandbox", ownerId: "user_2" });
+
+      const res = await app.handle(
+        new Request(`${BASE}?slug=my-workspace`)
+      );
+      const { data } = (await res.json()) as any;
+      expect(data).toHaveLength(1);
+      expect(data[0].slug).toBe("my-workspace");
+    });
+
+    it("GET /sandboxes slug filter returns empty for non-matching slug", async () => {
+      await createSandbox({ name: "maria-workspace", ownerId: "user_1" });
+
+      const res = await app.handle(
+        new Request(`${BASE}?slug=lepton-59`)
+      );
+      const { data } = (await res.json()) as any;
+      expect(data).toHaveLength(0);
     });
 
     it("GET /sandboxes/:id returns detail", async () => {
@@ -90,7 +112,7 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        new Request(`${BASE}/sandboxes/${created.sandboxId}`)
+        new Request(`${BASE}/${created.sandboxId}`)
       );
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
@@ -100,31 +122,31 @@ describe("Sandbox Controller", () => {
 
     it("GET /sandboxes/:id returns 404 for nonexistent", async () => {
       const res = await app.handle(
-        new Request(`${BASE}/sandboxes/sbx_nonexistent`)
+        new Request(`${BASE}/sbx_nonexistent`)
       );
       expect(res.status).toBe(404);
     });
 
-    it("DELETE /sandboxes/:id sets status to destroying", async () => {
+    it("POST /sandboxes/:id/delete sets status to destroying", async () => {
       const createRes = await createSandbox();
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        del(`${BASE}/sandboxes/${created.sandboxId}`)
+        del(`${BASE}/${created.sandboxId}`)
       );
       expect(res.status).toBe(200);
 
       // Verify status changed
       const getRes = await app.handle(
-        new Request(`${BASE}/sandboxes/${created.sandboxId}`)
+        new Request(`${BASE}/${created.sandboxId}`)
       );
       const { data } = (await getRes.json()) as any;
       expect(data.status).toBe("destroying");
     });
 
-    it("DELETE /sandboxes/:id returns 404 for nonexistent", async () => {
+    it("POST /sandboxes/:id/delete returns 404 for nonexistent", async () => {
       const res = await app.handle(
-        del(`${BASE}/sandboxes/sbx_nonexistent`)
+        del(`${BASE}/sbx_nonexistent`)
       );
       expect(res.status).toBe(404);
     });
@@ -139,7 +161,7 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/start`, {})
+        post(`${BASE}/${created.sandboxId}/start`, {})
       );
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
@@ -151,11 +173,11 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/start`, {})
+        post(`${BASE}/${created.sandboxId}/start`, {})
       );
 
       const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/stop`, {})
+        post(`${BASE}/${created.sandboxId}/stop`, {})
       );
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
@@ -170,7 +192,7 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/resize`, {
+        post(`${BASE}/${created.sandboxId}/resize`, {
           cpu: "4000m",
           memory: "8Gi",
           storageGb: 50,
@@ -188,7 +210,7 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/extend`, {
+        post(`${BASE}/${created.sandboxId}/extend`, {
           additionalMinutes: 120,
         })
       );
@@ -199,7 +221,7 @@ describe("Sandbox Controller", () => {
 
     it("POST /sandboxes/:id/start returns 404 for nonexistent", async () => {
       const res = await app.handle(
-        post(`${BASE}/sandboxes/sbx_nonexistent/start`, {})
+        post(`${BASE}/sbx_nonexistent/start`, {})
       );
       expect(res.status).toBe(404);
     });
@@ -214,7 +236,7 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/snapshots`, {
+        post(`${BASE}/${created.sandboxId}/snapshots`, {
           name: "my-snapshot",
           description: "A test snapshot",
         })
@@ -230,37 +252,37 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/snapshots`, {
+        post(`${BASE}/${created.sandboxId}/snapshots`, {
           name: "snap-1",
         })
       );
       await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/snapshots`, {
+        post(`${BASE}/${created.sandboxId}/snapshots`, {
           name: "snap-2",
         })
       );
 
       const res = await app.handle(
-        new Request(`${BASE}/sandboxes/${created.sandboxId}/snapshots`)
+        new Request(`${BASE}/${created.sandboxId}/snapshots`)
       );
       expect(res.status).toBe(200);
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(2);
     });
 
-    it("POST /sandbox-snapshots/:id/clone creates new sandbox", async () => {
+    it("POST /snapshots/:id/clone creates new sandbox", async () => {
       const createRes = await createSandbox();
       const { data: created } = (await createRes.json()) as any;
 
       const snapRes = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/snapshots`, {
+        post(`${BASE}/${created.sandboxId}/snapshots`, {
           name: "snap-for-clone",
         })
       );
       const { data: snap } = (await snapRes.json()) as any;
 
       const cloneRes = await app.handle(
-        post(`${BASE}/sandbox-snapshots/${snap.sandboxSnapshotId}/clone`, {
+        post(`${BASE}/snapshots/${snap.sandboxSnapshotId}/clone`, {
           name: "cloned-sbx",
           ownerId: "user_2",
           ownerType: "user",
@@ -273,9 +295,9 @@ describe("Sandbox Controller", () => {
       expect(cloned.clonedFromSnapshotId).toBe(snap.sandboxSnapshotId);
     });
 
-    it("POST /sandbox-snapshots/:id/clone returns 404 for nonexistent", async () => {
+    it("POST /snapshots/:id/clone returns 404 for nonexistent", async () => {
       const res = await app.handle(
-        post(`${BASE}/sandbox-snapshots/snap_nonexistent/clone`, {
+        post(`${BASE}/snapshots/snap_nonexistent/clone`, {
           name: "cloned",
           ownerId: "user_1",
           ownerType: "user",
@@ -285,84 +307,16 @@ describe("Sandbox Controller", () => {
     });
   });
 
-  // =========================================================================
-  // Access
-  // =========================================================================
-  describe("Access", () => {
-    it("POST /sandboxes/:id/access grants access", async () => {
-      const createRes = await createSandbox();
-      const { data: created } = (await createRes.json()) as any;
-
-      const res = await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/access`, {
-          principalId: "user_2",
-          principalType: "user",
-          role: "editor",
-          grantedBy: "user_1",
-        })
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as any;
-      expect(data.role).toBe("editor");
-    });
-
-    it("GET /sandboxes/:id/access lists access entries", async () => {
-      const createRes = await createSandbox();
-      const { data: created } = (await createRes.json()) as any;
-
-      // Grant additional access
-      await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/access`, {
-          principalId: "user_2",
-          principalType: "user",
-          role: "viewer",
-          grantedBy: "user_1",
-        })
-      );
-
-      const res = await app.handle(
-        new Request(`${BASE}/sandboxes/${created.sandboxId}/access`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as any;
-      // Owner + user_2
-      expect(data).toHaveLength(2);
-    });
-
-    it("DELETE /sandboxes/:id/access/:principalId revokes access", async () => {
-      const createRes = await createSandbox();
-      const { data: created } = (await createRes.json()) as any;
-
-      await app.handle(
-        post(`${BASE}/sandboxes/${created.sandboxId}/access`, {
-          principalId: "user_2",
-          principalType: "user",
-          role: "editor",
-          grantedBy: "user_1",
-        })
-      );
-
-      const res = await app.handle(
-        del(`${BASE}/sandboxes/${created.sandboxId}/access/user_2`)
-      );
-      expect(res.status).toBe(200);
-
-      // Verify removed
-      const listRes = await app.handle(
-        new Request(`${BASE}/sandboxes/${created.sandboxId}/access`)
-      );
-      const { data } = (await listRes.json()) as any;
-      expect(data).toHaveLength(1); // Only owner remains
-    });
-  });
+  // Access control is now handled by auth-service resource permissions.
+  // See sandboxAccess removal note in db/schema/fleet.ts.
 
   // =========================================================================
   // Templates
   // =========================================================================
   describe("Templates", () => {
-    it("POST /sandbox-templates creates template", async () => {
+    it("POST /templates creates template", async () => {
       const res = await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "Node Dev",
           runtimeType: "container",
           image: "node:20",
@@ -374,52 +328,52 @@ describe("Sandbox Controller", () => {
       expect(data.name).toBe("Node Dev");
     });
 
-    it("GET /sandbox-templates lists templates", async () => {
+    it("GET /templates lists templates", async () => {
       await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "Tpl A",
           runtimeType: "container",
         })
       );
       await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "Tpl B",
           runtimeType: "vm",
         })
       );
 
       const res = await app.handle(
-        new Request(`${BASE}/sandbox-templates`)
+        new Request(`${BASE}/templates`)
       );
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(2);
     });
 
-    it("GET /sandbox-templates filters by runtimeType", async () => {
+    it("GET /templates filters by runtimeType", async () => {
       await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "Container",
           runtimeType: "container",
         })
       );
       await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "VM",
           runtimeType: "vm",
         })
       );
 
       const res = await app.handle(
-        new Request(`${BASE}/sandbox-templates?runtimeType=container`)
+        new Request(`${BASE}/templates?runtimeType=container`)
       );
       const { data } = (await res.json()) as any;
       expect(data).toHaveLength(1);
       expect(data[0].name).toBe("Container");
     });
 
-    it("DELETE /sandbox-templates/:id deletes template", async () => {
+    it("POST /templates/:id/delete deletes template", async () => {
       const createRes = await app.handle(
-        post(`${BASE}/sandbox-templates`, {
+        post(`${BASE}/templates`, {
           name: "Delete Me",
           runtimeType: "container",
         })
@@ -427,14 +381,14 @@ describe("Sandbox Controller", () => {
       const { data: created } = (await createRes.json()) as any;
 
       const res = await app.handle(
-        del(`${BASE}/sandbox-templates/${created.sandboxTemplateId}`)
+        del(`${BASE}/templates/${created.sandboxTemplateId}`)
       );
       expect(res.status).toBe(200);
 
       // Verify gone
       const getRes = await app.handle(
         new Request(
-          `${BASE}/sandbox-templates/${created.sandboxTemplateId}`
+          `${BASE}/templates/${created.sandboxTemplateId}`
         )
       );
       expect(getRes.status).toBe(404);

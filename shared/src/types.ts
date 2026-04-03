@@ -496,8 +496,8 @@ export interface Vm {
   datacenterId?: string | null;
   hostId?: string | null;
   clusterId?: string | null;
-  proxmoxClusterId?: string | null;
-  proxmoxVmid?: number | null;
+  vmClusterId?: string | null;
+  externalVmid?: number | null;
   vmType: string;
   status: VmStatus;
   osType: OsType;
@@ -557,15 +557,15 @@ export interface Datacenter {
   createdAt: string;
 }
 
-export type ProxmoxSyncStatus = "idle" | "syncing" | "error";
+export type VmClusterSyncStatus = "idle" | "syncing" | "error";
 
-export interface ProxmoxCluster {
-  proxmoxClusterId: string;
+export interface VmCluster {
+  vmClusterId: string;
   name: string;
   providerId: string;
   apiHost: string;
   apiPort: number;
-  syncStatus: ProxmoxSyncStatus;
+  syncStatus: VmClusterSyncStatus;
   lastSyncAt?: string | null;
   syncError?: string | null;
   createdAt: string;
@@ -677,7 +677,7 @@ export interface SandboxSnapshot {
   runtimeType: SandboxRuntimeType;
   volumeSnapshotName?: string | null;
   imageRef?: string | null;
-  proxmoxSnapshotName?: string | null;
+  externalSnapshotName?: string | null;
   vmId?: string | null;
   snapshotMetadata: Record<string, unknown>;
   sizeBytes?: string | null;

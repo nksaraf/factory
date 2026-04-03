@@ -2,18 +2,20 @@ import { and, eq } from "drizzle-orm";
 import type { Provider } from "@smp/factory-shared/types";
 import type { Database } from "../db/connection";
 import type {
-  ProviderAdapter,
+  VMProviderAdapter,
   SyncResult,
   VmCreateSpec,
+  VmCloneSpec,
   VmProvisionResult,
   VmResizeSpec,
   SnapshotResult,
-} from "./provider-adapter";
-import { host, proxmoxCluster, vm, ipAddress } from "../db/schema/infra";
+  SnapshotInfo,
+} from "./vm-provider-adapter";
+import { host, vmCluster, vm, ipAddress } from "../db/schema/infra";
 import { createProxmoxClientFromCluster, type ProxmoxClient } from "../lib/proxmox/client";
 import { getPrimaryIpFromConfig, getIpFromGuestAgent } from "../lib/proxmox/ip-extraction";
 import { getVmContext } from "../lib/proxmox/resolve-vm";
-import { allocateSlug, slugifyFromLabel } from "../lib/slug";
+import { allocateSlug } from "../lib/slug";
 import type { ProxmoxNode, ProxmoxNodeStatus, ProxmoxVmConfig, CloudInitConfig } from "../lib/proxmox/types";
 
 const BYTES_PER_MB = 1024 * 1024;
@@ -31,28 +33,27 @@ function mapVmStatus(status: string): string {
   return "provisioning";
 }
 
-export class ProxmoxAdapter implements ProviderAdapter {
+export class ProxmoxAdapter implements VMProviderAdapter {
   readonly type = "proxmox";
 
   constructor(private db: Database) {}
 
-  async syncInventory(provider: Provider, db: Database): Promise<SyncResult> {
-    // Find all Proxmox clusters for this provider
+  async syncInventory(provider: Provider): Promise<SyncResult> {
+    const db = this.db;
     const clusters = await db
       .select()
-      .from(proxmoxCluster)
-      .where(eq(proxmoxCluster.providerId, provider.providerId));
+      .from(vmCluster)
+      .where(eq(vmCluster.providerId, provider.providerId));
 
     let totalHosts = 0;
     let totalVms = 0;
 
     for (const cluster of clusters) {
       try {
-        // Mark sync in progress
         await db
-          .update(proxmoxCluster)
+          .update(vmCluster)
           .set({ syncStatus: "syncing", syncError: null })
-          .where(eq(proxmoxCluster.proxmoxClusterId, cluster.proxmoxClusterId));
+          .where(eq(vmCluster.vmClusterId, cluster.vmClusterId));
 
         const client = createProxmoxClientFromCluster({
           host: cluster.apiHost,
@@ -62,7 +63,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
           fingerprint: cluster.sslFingerprint,
         });
 
-        // Sync nodes → hosts
         const hostsCount = await this.syncNodes(
           db,
           client,
@@ -71,13 +71,11 @@ export class ProxmoxAdapter implements ProviderAdapter {
         );
         totalHosts += hostsCount;
 
-        // Build node name → hostId map for VM sync
         const nodeNameToHostId = await this.getNodeNameToHostIdMap(
           db,
           provider.providerId
         );
 
-        // Sync VMs
         const vmsCount = await this.syncVms(
           db,
           client,
@@ -87,25 +85,23 @@ export class ProxmoxAdapter implements ProviderAdapter {
         );
         totalVms += vmsCount;
 
-        // Mark sync complete
         await db
-          .update(proxmoxCluster)
+          .update(vmCluster)
           .set({
             syncStatus: "idle",
             lastSyncAt: new Date(),
             syncError: null,
           })
-          .where(eq(proxmoxCluster.proxmoxClusterId, cluster.proxmoxClusterId));
+          .where(eq(vmCluster.vmClusterId, cluster.vmClusterId));
       } catch (error) {
-        // Mark sync error
         await db
-          .update(proxmoxCluster)
+          .update(vmCluster)
           .set({
             syncStatus: "error",
             syncError:
               error instanceof Error ? error.message : "Sync failed",
           })
-          .where(eq(proxmoxCluster.proxmoxClusterId, cluster.proxmoxClusterId));
+          .where(eq(vmCluster.vmClusterId, cluster.vmClusterId));
       }
     }
 
@@ -115,12 +111,11 @@ export class ProxmoxAdapter implements ProviderAdapter {
   private async syncNodes(
     db: Database,
     client: ProxmoxClient,
-    cluster: typeof proxmoxCluster.$inferSelect,
+    cluster: typeof vmCluster.$inferSelect,
     providerId: string
   ): Promise<number> {
     const nodesWithStatus = await client.getNodesWithStatus();
 
-    // Get existing hosts for this provider
     const existingHosts = await db
       .select()
       .from(host)
@@ -143,14 +138,12 @@ export class ProxmoxAdapter implements ProviderAdapter {
       const diskGb = Math.round((node.maxdisk || 0) / BYTES_PER_GB);
       const status = mapNodeStatus(node.status);
 
-      // Determine IP for single-node clusters
       let nodeIpAddress: string | null = existing?.ipAddress || null;
       if (!nodeIpAddress && nodesWithStatus.length === 1 && cluster.apiHost) {
         nodeIpAddress = cluster.apiHost.replace(/^https?:\/\//, "");
       }
 
       if (existing) {
-        // Update existing host
         await db
           .update(host)
           .set({
@@ -162,7 +155,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
           })
           .where(eq(host.hostId, existing.hostId));
       } else {
-        // Insert new host
         const slug = await allocateSlug({
           baseLabel: node.node,
           isTaken: async (s) => {
@@ -190,7 +182,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
         });
       }
 
-      // Upsert IPAM record for host
       if (nodeIpAddress) {
         const existingOrNew = existing || (await db
           .select()
@@ -207,7 +198,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
       count++;
     }
 
-    // Remove stale hosts (nodes no longer in Proxmox)
     for (const [name, existing] of existingHostByName) {
       if (!seenNames.has(name)) {
         await db.delete(host).where(eq(host.hostId, existing.hostId));
@@ -231,24 +221,22 @@ export class ProxmoxAdapter implements ProviderAdapter {
   private async syncVms(
     db: Database,
     client: ProxmoxClient,
-    cluster: typeof proxmoxCluster.$inferSelect,
+    cluster: typeof vmCluster.$inferSelect,
     providerId: string,
     nodeNameToHostId: Map<string, string>
   ): Promise<number> {
     const allVms = await client.getAllVms();
-    // Filter out templates
     const vms = allVms.filter((v) => v.template !== 1);
 
-    // Get existing VMs for this cluster
     const existingVms = await db
       .select()
       .from(vm)
-      .where(eq(vm.proxmoxClusterId, cluster.proxmoxClusterId));
+      .where(eq(vm.vmClusterId, cluster.vmClusterId));
 
     const existingVmByVmid = new Map(
       existingVms
-        .filter((v) => v.proxmoxVmid != null)
-        .map((v) => [v.proxmoxVmid!, v])
+        .filter((v) => v.externalVmid != null)
+        .map((v) => [v.externalVmid!, v])
     );
     const seenVmIds = new Set<string>();
     let count = 0;
@@ -263,7 +251,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
       const status = mapVmStatus(pvm.status || "stopped");
       const hostId = pvm.node ? nodeNameToHostId.get(pvm.node) : undefined;
 
-      // Extract IP from VM config
       let ipAddressValue: string | null = null;
       try {
         if (pvm.node && pvm.vmid) {
@@ -278,13 +265,11 @@ export class ProxmoxAdapter implements ProviderAdapter {
         // Config fetch failed, continue
       }
 
-      // Fallback: guest agent via Proxmox API
       if (!ipAddressValue && pvm.node && pvm.vmid && pvm.status === "running") {
         ipAddressValue = await getIpFromGuestAgent(client, pvm.node, pvm.vmid);
       }
 
       if (existing) {
-        // Update existing VM
         await db
           .update(vm)
           .set({
@@ -294,18 +279,15 @@ export class ProxmoxAdapter implements ProviderAdapter {
             status,
             vmType: pvm.type || "qemu",
             hostId: hostId || existing.hostId,
-            // Only update IP if we found one and it wasn't manually set
             ipAddress: existing.ipAddress || ipAddressValue,
           })
           .where(eq(vm.vmId, existing.vmId));
 
-        // Upsert IPAM
         const effectiveIp = existing.ipAddress || ipAddressValue;
         if (effectiveIp) {
           await this.upsertIpAddress(db, effectiveIp, "vm", existing.vmId, existing.name);
         }
       } else {
-        // Insert new VM
         const vmName = pvm.name || `vm-${pvm.vmid}`;
         const slug = await allocateSlug({
           baseLabel: vmName,
@@ -325,8 +307,8 @@ export class ProxmoxAdapter implements ProviderAdapter {
             name: vmName,
             slug,
             providerId,
-            proxmoxClusterId: cluster.proxmoxClusterId,
-            proxmoxVmid: pvm.vmid,
+            vmClusterId: cluster.vmClusterId,
+            externalVmid: pvm.vmid,
             vmType: pvm.type || "qemu",
             cpu: cpuCount,
             memoryMb,
@@ -339,7 +321,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
           })
           .returning();
 
-        // Upsert IPAM
         if (ipAddressValue && inserted) {
           await this.upsertIpAddress(db, ipAddressValue, "vm", inserted.vmId, vmName);
         }
@@ -347,7 +328,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
       count++;
     }
 
-    // Remove stale VMs (no longer in Proxmox)
     for (const existing of existingVms) {
       if (!seenVmIds.has(existing.vmId)) {
         await db.delete(vm).where(eq(vm.vmId, existing.vmId));
@@ -393,11 +373,181 @@ export class ProxmoxAdapter implements ProviderAdapter {
   // --- VM Lifecycle Methods ---
 
   async createVm(
-    _provider: Provider,
+    provider: Provider,
     spec: VmCreateSpec
   ): Promise<VmProvisionResult> {
-    // TODO: implement template clone + cloud-init via getVmContext pattern
-    return { externalId: `pve-${Date.now()}` };
+    // Find a vmCluster for this provider
+    const clusters = await this.db
+      .select()
+      .from(vmCluster)
+      .where(
+        spec.vmClusterId
+          ? eq(vmCluster.vmClusterId, spec.vmClusterId)
+          : eq(vmCluster.providerId, provider.providerId)
+      );
+
+    const cluster = clusters[0];
+    if (!cluster) {
+      throw new Error(`No VM cluster found for provider ${provider.providerId}`);
+    }
+
+    const client = createProxmoxClientFromCluster({
+      host: cluster.apiHost,
+      port: cluster.apiPort,
+      tokenId: cluster.tokenId,
+      tokenSecret: cluster.tokenSecret,
+      fingerprint: cluster.sslFingerprint,
+    });
+
+    // Find template
+    const templates = await client.getTemplates();
+    let template = spec.templateId
+      ? templates.find((t) => t.vmid === parseInt(spec.templateId!, 10) || t.name === spec.templateId)
+      : templates[0];
+
+    if (!template) {
+      throw new Error("No VM template found. Create a template first.");
+    }
+
+    const nodeName = spec.hostName || template.node || (await client.getNodes())[0]?.node;
+    if (!nodeName) {
+      throw new Error("No Proxmox node available");
+    }
+
+    // Allocate VMID and clone
+    const newVmid = await client.getNextVmid();
+    const upid = await client.cloneVm(nodeName, template.vmid, {
+      newid: newVmid,
+      name: spec.name,
+      full: 1,
+    });
+    await client.waitForTask(nodeName, upid);
+
+    // Apply cloud-init config if provided
+    if (spec.cloudInit) {
+      const ciConfig: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
+      if (spec.cloudInit.user) ciConfig.ciuser = spec.cloudInit.user;
+      if (spec.cloudInit.password) ciConfig.cipassword = spec.cloudInit.password;
+      if (spec.cloudInit.sshKeys) ciConfig.sshkeys = encodeURIComponent(spec.cloudInit.sshKeys);
+      if (spec.cloudInit.ipConfig) ciConfig.ipconfig0 = spec.cloudInit.ipConfig;
+      if (spec.cloudInit.nameserver) ciConfig.nameserver = spec.cloudInit.nameserver;
+      if (spec.cloudInit.searchDomain) ciConfig.searchdomain = spec.cloudInit.searchDomain;
+      await client.updateVmConfig(nodeName, newVmid, ciConfig);
+    }
+
+    // Resize CPU/memory if specs differ from template
+    const resizeConfig: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
+    if (spec.cpu) resizeConfig.cores = spec.cpu;
+    if (spec.memoryMb) resizeConfig.memory = spec.memoryMb;
+    if (Object.keys(resizeConfig).length > 0) {
+      await client.updateVmConfig(nodeName, newVmid, resizeConfig);
+    }
+    // Resize disk to desired total size (Proxmox rejects shrinks, no-ops on same size)
+    if (spec.diskGb) {
+      await client.resizeDisk(nodeName, newVmid, "scsi0", `${spec.diskGb}G`);
+    }
+
+    // Start the VM
+    const startUpid = await client.startVm(nodeName, newVmid);
+    await client.waitForTask(nodeName, startUpid);
+
+    // Poll for IP via guest agent (up to 90s)
+    let vmIpAddress: string | undefined;
+    const pollStart = Date.now();
+    while (Date.now() - pollStart < 90000) {
+      try {
+        const agentUp = await client.checkQemuAgent(nodeName, newVmid);
+        if (agentUp) {
+          const interfaces = await client.getGuestNetworkInterfaces(nodeName, newVmid);
+          for (const iface of interfaces) {
+            if (iface.name === "lo") continue;
+            for (const addr of iface["ip-addresses"] || []) {
+              if (addr["ip-address-type"] === "ipv4" && !addr["ip-address"].startsWith("127.")) {
+                vmIpAddress = addr["ip-address"];
+                break;
+              }
+            }
+            if (vmIpAddress) break;
+          }
+          if (vmIpAddress) break;
+        }
+      } catch {
+        // Agent not ready yet
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    return { externalId: String(newVmid), ipAddress: vmIpAddress };
+  }
+
+  async cloneVm(
+    provider: Provider,
+    spec: VmCloneSpec
+  ): Promise<VmProvisionResult> {
+    const ctx = await getVmContext(this.db, spec.sourceExternalId);
+
+    const newVmid = await ctx.client.getNextVmid();
+    const upid = await ctx.client.cloneVm(ctx.nodeName, ctx.vmid, {
+      newid: newVmid,
+      name: spec.name,
+      full: spec.full ? 1 : 0,
+    });
+    await ctx.client.waitForTask(ctx.nodeName, upid);
+
+    // Apply cloud-init if provided
+    if (spec.cloudInit) {
+      const ciConfig: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
+      if (spec.cloudInit.user) ciConfig.ciuser = spec.cloudInit.user;
+      if (spec.cloudInit.password) ciConfig.cipassword = spec.cloudInit.password;
+      if (spec.cloudInit.sshKeys) ciConfig.sshkeys = encodeURIComponent(spec.cloudInit.sshKeys);
+      if (spec.cloudInit.ipConfig) ciConfig.ipconfig0 = spec.cloudInit.ipConfig;
+      if (spec.cloudInit.nameserver) ciConfig.nameserver = spec.cloudInit.nameserver;
+      if (spec.cloudInit.searchDomain) ciConfig.searchdomain = spec.cloudInit.searchDomain;
+      await ctx.client.updateVmConfig(ctx.nodeName, newVmid, ciConfig);
+    }
+
+    // Resize if specified
+    const resizeConfig: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
+    if (spec.cpu) resizeConfig.cores = spec.cpu;
+    if (spec.memoryMb) resizeConfig.memory = spec.memoryMb;
+    if (Object.keys(resizeConfig).length > 0) {
+      await ctx.client.updateVmConfig(ctx.nodeName, newVmid, resizeConfig);
+    }
+    if (spec.diskGb) {
+      await ctx.client.resizeDisk(ctx.nodeName, newVmid, "scsi0", `${spec.diskGb}G`);
+    }
+
+    // Start the cloned VM
+    const startUpid = await ctx.client.startVm(ctx.nodeName, newVmid);
+    await ctx.client.waitForTask(ctx.nodeName, startUpid);
+
+    // Poll for IP
+    let vmIpAddress: string | undefined;
+    const pollStart = Date.now();
+    while (Date.now() - pollStart < 90000) {
+      try {
+        const agentUp = await ctx.client.checkQemuAgent(ctx.nodeName, newVmid);
+        if (agentUp) {
+          const interfaces = await ctx.client.getGuestNetworkInterfaces(ctx.nodeName, newVmid);
+          for (const iface of interfaces) {
+            if (iface.name === "lo") continue;
+            for (const addr of iface["ip-addresses"] || []) {
+              if (addr["ip-address-type"] === "ipv4" && !addr["ip-address"].startsWith("127.")) {
+                vmIpAddress = addr["ip-address"];
+                break;
+              }
+            }
+            if (vmIpAddress) break;
+          }
+          if (vmIpAddress) break;
+        }
+      } catch {
+        // Agent not ready yet
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    return { externalId: String(newVmid), ipAddress: vmIpAddress };
   }
 
   async startVm(_provider: Provider, externalId: string): Promise<void> {
@@ -425,7 +575,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
   ): Promise<void> {
     const ctx = await getVmContext(this.db, externalId);
 
-    // Update CPU/memory via config
     const configUpdate: Partial<ProxmoxVmConfig> & CloudInitConfig = {};
     if (spec.cpu != null) configUpdate.cores = spec.cpu;
     if (spec.memoryMb != null) configUpdate.memory = spec.memoryMb;
@@ -439,7 +588,6 @@ export class ProxmoxAdapter implements ProviderAdapter {
       );
     }
 
-    // Resize disk if requested
     if (spec.diskGb != null) {
       await ctx.client.resizeDisk(
         ctx.nodeName,
@@ -456,36 +604,91 @@ export class ProxmoxAdapter implements ProviderAdapter {
     targetHost: string
   ): Promise<void> {
     const ctx = await getVmContext(this.db, externalId);
-    // Proxmox migration uses node name as target
-    // The targetHost here is a factory hostId — resolve to node name
+
+    // Resolve targetHost — could be a hostId or host name
     const [targetHostRecord] = await this.db
       .select()
       .from(host)
       .where(eq(host.hostId, targetHost))
       .limit(1);
 
-    if (!targetHostRecord) {
-      throw new Error(`Target host not found: ${targetHost}`);
-    }
+    const targetNodeName = targetHostRecord?.name || targetHost;
 
-    // Use the PveClient's migrate endpoint
-    // POST /api2/json/nodes/{node}/qemu/{vmid}/migrate
-    const upid = await ctx.client.startVm(ctx.nodeName, ctx.vmid, ctx.vmType);
-    // TODO: replace with actual migrate call once available in client
+    const upid = await ctx.client.migrateVm(
+      ctx.nodeName,
+      ctx.vmid,
+      targetNodeName,
+      true // online migration
+    );
     await ctx.client.waitForTask(ctx.nodeName, upid);
   }
 
   async snapshotVm(
     _provider: Provider,
-    externalId: string
+    externalId: string,
+    name?: string,
+    description?: string
   ): Promise<SnapshotResult> {
     const ctx = await getVmContext(this.db, externalId);
-    const snapshotName = `snap-${Date.now()}`;
-    // TODO: implement via client snapshot API
+    const snapshotName = name || `snap-${Date.now()}`;
+    const upid = await ctx.client.createSnapshot(
+      ctx.nodeName,
+      ctx.vmid,
+      snapshotName,
+      description
+    );
+    await ctx.client.waitForTask(ctx.nodeName, upid);
+
     return {
       snapshotId: snapshotName,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  async listSnapshots(
+    _provider: Provider,
+    externalId: string
+  ): Promise<SnapshotInfo[]> {
+    const ctx = await getVmContext(this.db, externalId);
+    const snapshots = await ctx.client.listSnapshots(ctx.nodeName, ctx.vmid);
+
+    return snapshots
+      .filter((s) => s.name !== "current") // Filter out the 'current' pseudo-snapshot
+      .map((s) => ({
+        name: s.name,
+        description: s.description,
+        createdAt: s.snaptime ? new Date(s.snaptime * 1000).toISOString() : undefined,
+        vmstate: s.vmstate === 1,
+        parent: s.parent,
+      }));
+  }
+
+  async restoreSnapshot(
+    _provider: Provider,
+    externalId: string,
+    snapshotName: string
+  ): Promise<void> {
+    const ctx = await getVmContext(this.db, externalId);
+    const upid = await ctx.client.rollbackSnapshot(
+      ctx.nodeName,
+      ctx.vmid,
+      snapshotName
+    );
+    await ctx.client.waitForTask(ctx.nodeName, upid);
+  }
+
+  async deleteSnapshot(
+    _provider: Provider,
+    externalId: string,
+    snapshotName: string
+  ): Promise<void> {
+    const ctx = await getVmContext(this.db, externalId);
+    const upid = await ctx.client.deleteSnapshot(
+      ctx.nodeName,
+      ctx.vmid,
+      snapshotName
+    );
+    await ctx.client.waitForTask(ctx.nodeName, upid);
   }
 
   async destroyVm(_provider: Provider, externalId: string): Promise<void> {
