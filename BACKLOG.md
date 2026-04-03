@@ -434,6 +434,9 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] Traefik v3 config validation: add CI check that HostRegexp rules use v3 syntax (not v2 `{name:.+}` which silently fails)
 - [ ] Edge Traefik health monitoring: alert when `*.tunnel.lepton.software` or `*.preview.lepton.software` routes stop resolving
 - [x] k3s Traefik CRD cleanup: `SANDBOX_INGRESS_ENABLED` flipped to opt-in (default off); IngressRoutes only generated when explicitly set to `"true"`
+- [ ] Track VM1 Traefik config in repo: `/home/lepton/services/traefik/dynamic/factory.yml` on 192.168.1.59 has manual `responseForwarding.flushInterval: "-1"` required for WebSocket proxying — not in any IaC; will break if VM is reprovisioned
+- [ ] GHCR package visibility automation: `ghcr.io/nksaraf/dx-sandbox` was manually set public; new packages default private — add `visibility: public` to CI workflow or org-level package defaults
+- [ ] CI/CD for factory API deployment to VM2: currently requires manual `docker compose up -d --build infra-factory` via SSH to 192.168.2.88
 
 ---
 
