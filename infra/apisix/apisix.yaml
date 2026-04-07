@@ -57,6 +57,18 @@ routes:
         set:
           X-Real-IP: $remote_addr
           X-Forwarded-For: $remote_addr
+- id: webhooks
+  uri: /webhooks/*
+  upstream_id: factory-service
+  plugins:
+    opentelemetry:
+      sampler:
+        name: always_on
+    proxy-rewrite:
+      headers:
+        set:
+          X-Real-IP: $remote_addr
+          X-Forwarded-For: $remote_addr
 - id: docs-portal
   uri: /docs
   upstream_id: api-docs

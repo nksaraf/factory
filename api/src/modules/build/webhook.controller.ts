@@ -32,12 +32,12 @@ export function webhookController(db: Database) {
         return { success: false, error: "provider_not_found" };
       }
 
-      // v2: credentials are in spec JSONB
+      // v2: webhook secret is a dedicated field in spec, separate from the API credentials
       const spec = (provider.spec ?? {}) as GitHostProviderSpec;
       let adapter;
       try {
         adapter = getGitHostAdapter(provider.type as GitHostType, {
-          webhookSecret: spec.credentialsRef ?? undefined,
+          webhookSecret: spec.webhookSecret ?? undefined,
         });
       } catch {
         adapter = new NoopGitHostAdapter();

@@ -138,6 +138,7 @@ export const GitHostProviderSpecSchema = z.object({
   apiUrl: z.string(),
   authMode: z.enum(["token", "app", "oauth"]).optional(),
   credentialsRef: z.string().optional(),
+  webhookSecret: z.string().optional(),
   status: z.enum(["active", "inactive", "error"]).optional(),
   syncStatus: z.enum(["idle", "syncing", "error"]).optional(),
   lastSyncAt: z.coerce.date().optional(),

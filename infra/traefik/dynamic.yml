@@ -6,6 +6,10 @@ http:
       rule: "PathPrefix(`/api/v1`)"
       service: infra-gateway
       priority: 200
+    webhooks-router:
+      rule: "PathPrefix(`/webhooks`)"
+      service: infra-gateway
+      priority: 200
     # frontend-router:
     #   rule: "PathPrefix(`/`)"
     #   service: frontend
