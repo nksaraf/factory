@@ -13,6 +13,7 @@ import { getWorkTrackerAdapter } from "../../../adapters/adapter-registry";
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter";
 import { newId } from "../../../lib/id";
 import { logger } from "../../../logger";
+import { recordWebhookEvent, updateWebhookEventStatus } from "../../../lib/webhook-events";
 import { startWorkflow } from "../../../lib/workflow-engine";
 import { createWorkflowRun } from "../../../lib/workflow-helpers";
 import { godWorkflow, type GodWorkflowInput } from "../workflows/god-workflow";
@@ -25,6 +26,20 @@ export function jiraWebhookTrigger(db: Database) {
     async ({ params, headers, body, set }) => {
       wlog.info({ source: "jira", providerId: params.providerId }, "webhook received");
 
+      // Record every inbound webhook in org.webhook_event
+      const jiraPayload = typeof body === "string" ? JSON.parse(body) : body;
+      const jiraEventType = (jiraPayload as any)?.webhookEvent ?? "unknown";
+      const jiraDeliveryId = (jiraPayload as any)?.timestamp
+        ? `${jiraEventType}-${(jiraPayload as any).timestamp}`
+        : crypto.randomUUID();
+      const eventId = await recordWebhookEvent(db, {
+        source: "jira",
+        providerId: params.providerId,
+        deliveryId: jiraDeliveryId,
+        eventType: jiraEventType,
+        payload: jiraPayload,
+      });
+
       // 1. Look up provider
       const [provider] = await db
         .select()
@@ -34,6 +49,7 @@ export function jiraWebhookTrigger(db: Database) {
 
       if (!provider) {
         wlog.warn({ source: "jira", providerId: params.providerId }, "webhook provider not found");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "provider_not_found" });
         set.status = 404;
         return { success: false, error: "provider_not_found" };
       }
@@ -50,6 +66,7 @@ export function jiraWebhookTrigger(db: Database) {
         const verification = await adapter.verifyWebhook(headerRecord, rawBody);
         if (!verification.valid) {
           wlog.warn({ source: "jira", providerId: params.providerId }, "webhook signature invalid");
+          if (eventId) await updateWebhookEventStatus(db, eventId, { status: "failed", reason: "invalid_signature" });
           set.status = 401;
           return { success: false, error: "webhook_verification_failed" };
         }
@@ -62,6 +79,7 @@ export function jiraWebhookTrigger(db: Database) {
       // Only trigger on issue_updated with status change to "In Progress"
       if (webhookEvent !== "jira:issue_updated") {
         wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "not_a_status_transition" }, "webhook ignored");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "not_a_status_transition" });
         return { success: true, action: "ignored", reason: "not_a_status_transition" };
       }
 
@@ -72,6 +90,7 @@ export function jiraWebhookTrigger(db: Database) {
 
       if (!statusChange) {
         wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_status_change" }, "webhook ignored");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "no_status_change" });
         return { success: true, action: "ignored", reason: "no_status_change" };
       }
 
@@ -80,6 +99,7 @@ export function jiraWebhookTrigger(db: Database) {
       const toStatus = ((statusChange as Record<string, unknown>)["toString"] as string ?? "").toLowerCase();
       if (toStatus !== "in progress") {
         wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: `status_changed_to_${toStatus}` }, "webhook ignored");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: `status_changed_to_${toStatus}` });
         return { success: true, action: "ignored", reason: `status_changed_to_${toStatus}` };
       }
 
@@ -99,6 +119,7 @@ export function jiraWebhookTrigger(db: Database) {
 
       if (!repoFullName) {
         wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_repo_mapping" }, "webhook ignored");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "no_repo_mapping" });
         return { success: true, action: "ignored", reason: "no_repo_mapping" };
       }
 
@@ -132,6 +153,8 @@ export function jiraWebhookTrigger(db: Database) {
       });
 
       await startWorkflow(godWorkflow, workflowInput, workflowRunId);
+
+      if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });
 
       wlog.info(
         { source: "jira", providerId: params.providerId, event: webhookEvent, issueKey, workflowRunId },

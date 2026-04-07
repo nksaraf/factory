@@ -7,6 +7,7 @@ import { getGitHostAdapter } from "../../adapters/adapter-registry";
 import type { GitHostType } from "../../adapters/git-host-adapter";
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import { logger } from "../../logger";
+import { recordWebhookEvent, updateWebhookEventStatus } from "../../lib/webhook-events";
 
 const wlog = logger.child({ module: "webhook" });
 
@@ -25,9 +26,21 @@ export function webhookController(db: Database) {
         "webhook received",
       );
 
+      // Record every inbound webhook in org.webhook_event
+      const payload = typeof body === "string" ? JSON.parse(body) : body;
+      const eventId = await recordWebhookEvent(db, {
+        source: "github",
+        providerId: params.providerId,
+        deliveryId: deliveryId ?? crypto.randomUUID(),
+        eventType: event ?? "unknown",
+        action: (payload as any)?.action,
+        payload,
+      });
+
       const provider = await gitHostService.getProvider(params.providerId);
       if (!provider) {
         wlog.warn({ source: "github", providerId: params.providerId }, "webhook provider not found");
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "provider_not_found" });
         set.status = 404;
         return { success: false, error: "provider_not_found" };
       }
@@ -49,6 +62,8 @@ export function webhookController(db: Database) {
         if (typeof value === "string") headerRecord[key] = value;
       }
 
+      if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processing" });
+
       const result = await webhookService.processWebhook(
         params.providerId,
         headerRecord,
@@ -60,9 +75,12 @@ export function webhookController(db: Database) {
         if (result.reason === "invalid_signature") {
           wlog.warn({ source: "github", providerId: params.providerId, event, deliveryId }, "webhook signature invalid");
         }
+        if (eventId) await updateWebhookEventStatus(db, eventId, { status: "failed", reason: result.reason });
         set.status = result.reason === "duplicate" ? 200 : 400;
         return { success: false, reason: result.reason };
       }
+
+      if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });
 
       wlog.info(
         { source: "github", providerId: params.providerId, event, deliveryId },

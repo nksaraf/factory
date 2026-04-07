@@ -35,6 +35,7 @@ import type {
   SshKeySpec,
   ConfigVarSpec,
   OrgSecretSpec,
+  WebhookEventSpec,
 } from "@smp/factory-shared/schemas/org";
 
 // ─── Team ────────────────────────────────────────────────────
@@ -519,6 +520,33 @@ export const secret = orgSchema.table(
       "org_secret_scope_type_valid",
       sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`,
     ),
+  ],
+);
+
+// ─── Webhook Event ────────────────────────────────────────
+// Universal webhook event log for all external integrations.
+
+export const webhookEvent = orgSchema.table(
+  "webhook_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("whe")),
+    source: text("source").notNull(),
+    providerId: text("provider_id").notNull(),
+    deliveryId: text("delivery_id").notNull(),
+    spec: specCol<WebhookEventSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_webhook_event_source_provider_delivery_unique").on(
+      t.source,
+      t.providerId,
+      t.deliveryId,
+    ),
+    index("org_webhook_event_source_idx").on(t.source),
+    index("org_webhook_event_provider_idx").on(t.providerId),
+    index("org_webhook_event_created_idx").on(t.createdAt),
   ],
 );
 

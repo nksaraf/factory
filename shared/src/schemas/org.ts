@@ -412,6 +412,45 @@ export const SshKeySchema = z.object({
 });
 export type SshKey = z.infer<typeof SshKeySchema>;
 
+// ── Webhook Event ────────────────────────────────────────────
+// Universal webhook event log — all external integrations.
+
+export const WebhookEventSourceSchema = z.enum([
+  "github",
+  "gitlab",
+  "bitbucket",
+  "slack",
+  "teams",
+  "jira",
+  "linear",
+  "cursor",
+  "claude-code",
+  "windsurf",
+  "custom",
+]);
+export type WebhookEventSource = z.infer<typeof WebhookEventSourceSchema>;
+
+export const WebhookEventSpecSchema = z.object({
+  eventType: z.string(),
+  action: z.string().optional(),
+  payload: z.unknown(),
+  status: z.enum(["received", "processing", "processed", "ignored", "failed"]).default("received"),
+  reason: z.string().optional(),
+  error: z.string().optional(),
+  processedAt: z.coerce.date().optional(),
+});
+export type WebhookEventSpec = z.infer<typeof WebhookEventSpecSchema>;
+
+export const WebhookEventSchema = z.object({
+  id: z.string(),
+  source: WebhookEventSourceSchema,
+  providerId: z.string(),
+  deliveryId: z.string(),
+  spec: WebhookEventSpecSchema,
+  createdAt: z.coerce.date(),
+});
+export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
+
 // ── Input Schemas (CREATE / UPDATE) ────────────────────────
 
 export const CreateTeamSchema = z.object({
