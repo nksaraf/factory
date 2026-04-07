@@ -64,4 +64,4 @@ service:
     logs:
       receivers: [otlp, filelog/docker]
       processors: [batch, resource]
-      exporters: [otlphttp/loki, debug]
+      exporters: [otlphttp/loki]
