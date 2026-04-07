@@ -8,7 +8,7 @@ import { Elysia } from "elysia";
 import { eq } from "drizzle-orm";
 
 import type { Database } from "../../../db/connection";
-import { workTrackerProvider } from "../../../db/schema/product";
+import { workTrackerProvider } from "../../../db/schema/build-v2";
 import { getWorkTrackerAdapter } from "../../../adapters/adapter-registry";
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter";
 import { newId } from "../../../lib/id";
@@ -17,24 +17,29 @@ import { startWorkflow } from "../../../lib/workflow-engine";
 import { createWorkflowRun } from "../../../lib/workflow-helpers";
 import { godWorkflow, type GodWorkflowInput } from "../workflows/god-workflow";
 
+const wlog = logger.child({ module: "webhook" });
+
 export function jiraWebhookTrigger(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
     "/jira/:providerId",
     async ({ params, headers, body, set }) => {
+      wlog.info({ source: "jira", providerId: params.providerId }, "webhook received");
+
       // 1. Look up provider
       const [provider] = await db
         .select()
         .from(workTrackerProvider)
-        .where(eq(workTrackerProvider.workTrackerProviderId, params.providerId))
+        .where(eq(workTrackerProvider.id, params.providerId))
         .limit(1);
 
       if (!provider) {
+        wlog.warn({ source: "jira", providerId: params.providerId }, "webhook provider not found");
         set.status = 404;
         return { success: false, error: "provider_not_found" };
       }
 
       // 2. Verify webhook
-      const adapter = getWorkTrackerAdapter(provider.kind as WorkTrackerType);
+      const adapter = getWorkTrackerAdapter(provider.type as WorkTrackerType);
       const rawBody = typeof body === "string" ? body : JSON.stringify(body);
       const headerRecord: Record<string, string> = {};
       for (const [key, value] of Object.entries(headers)) {
@@ -44,6 +49,7 @@ export function jiraWebhookTrigger(db: Database) {
       if (adapter.verifyWebhook) {
         const verification = await adapter.verifyWebhook(headerRecord, rawBody);
         if (!verification.valid) {
+          wlog.warn({ source: "jira", providerId: params.providerId }, "webhook signature invalid");
           set.status = 401;
           return { success: false, error: "webhook_verification_failed" };
         }
@@ -55,6 +61,7 @@ export function jiraWebhookTrigger(db: Database) {
 
       // Only trigger on issue_updated with status change to "In Progress"
       if (webhookEvent !== "jira:issue_updated") {
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "not_a_status_transition" }, "webhook ignored");
         return { success: true, action: "ignored", reason: "not_a_status_transition" };
       }
 
@@ -64,6 +71,7 @@ export function jiraWebhookTrigger(db: Database) {
       );
 
       if (!statusChange) {
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_status_change" }, "webhook ignored");
         return { success: true, action: "ignored", reason: "no_status_change" };
       }
 
@@ -71,6 +79,7 @@ export function jiraWebhookTrigger(db: Database) {
       // which is shadowed by JS Object.prototype.toString — use bracket notation.
       const toStatus = ((statusChange as Record<string, unknown>)["toString"] as string ?? "").toLowerCase();
       if (toStatus !== "in progress") {
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: `status_changed_to_${toStatus}` }, "webhook ignored");
         return { success: true, action: "ignored", reason: `status_changed_to_${toStatus}` };
       }
 
@@ -89,7 +98,7 @@ export function jiraWebhookTrigger(db: Database) {
       const agentId = (spec?.defaultAgentId as string) ?? null;
 
       if (!repoFullName) {
-        logger.warn({ issueKey, providerId: params.providerId }, "No default repo configured for Jira provider");
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_repo_mapping" }, "webhook ignored");
         return { success: true, action: "ignored", reason: "no_repo_mapping" };
       }
 
@@ -99,9 +108,9 @@ export function jiraWebhookTrigger(db: Database) {
         issueKey,
         repoFullName,
         workTracker: {
-          type: provider.kind as "jira" | "linear" | "noop",
-          apiUrl: provider.apiUrl,
-          credentialsRef: provider.credentialsRef ?? "",
+          type: provider.type as "jira" | "linear" | "noop",
+          apiUrl: (spec as any)?.apiUrl ?? "",
+          credentialsRef: (spec as any)?.credentialsRef ?? "",
         },
         gitHost: {
           type: (gitHostConfig.type as string ?? "github") as any,
@@ -124,9 +133,9 @@ export function jiraWebhookTrigger(db: Database) {
 
       await startWorkflow(godWorkflow, workflowInput, workflowRunId);
 
-      logger.info(
-        { workflowRunId, issueKey, repoFullName },
-        "God workflow started from Jira webhook",
+      wlog.info(
+        { source: "jira", providerId: params.providerId, event: webhookEvent, issueKey, workflowRunId },
+        "webhook processed",
       );
 
       return { success: true, action: "workflow_started", workflowRunId };

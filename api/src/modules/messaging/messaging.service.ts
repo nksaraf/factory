@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm";
 import type { Database } from "../../db/connection";
+import { messagingProvider } from "../../db/schema/org-v2";
 import {
-  messagingProvider,
   channelMapping,
   messageThread,
   identityLink,
@@ -9,6 +9,7 @@ import {
 } from "../../db/schema/org";
 import { getMessagingAdapter } from "../../adapters/adapter-registry";
 import type { MessagingConfig, MessagingType } from "../../adapters/messaging-adapter";
+import type { MessagingProviderSpec } from "@smp/factory-shared/schemas/org";
 import { allocateSlug } from "../../lib/slug";
 import { logger } from "../../logger";
 
@@ -19,10 +20,11 @@ import { logger } from "../../logger";
 function providerConfig(
   provider: typeof messagingProvider.$inferSelect,
 ): MessagingConfig {
+  const spec = provider.spec as MessagingProviderSpec;
   return {
-    botToken: provider.botTokenEnc ?? "",
-    signingSecret: provider.signingSecret ?? "",
-    workspaceExternalId: provider.workspaceExternalId ?? undefined,
+    botToken: spec?.botToken ?? "",
+    signingSecret: spec?.signingSecret ?? "",
+    workspaceExternalId: spec?.workspaceId ?? undefined,
   };
 }
 
@@ -34,13 +36,17 @@ export async function listMessagingProviders(
   db: Database,
   filters?: { status?: string },
 ) {
-  let query = db.select().from(messagingProvider);
+  const rows = await db.select().from(messagingProvider);
   if (filters?.status) {
-    query = query.where(
-      eq(messagingProvider.status, filters.status),
-    ) as typeof query;
+    return {
+      data: rows.filter(
+        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status,
+      ),
+      total: rows.filter(
+        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status,
+      ).length,
+    };
   }
-  const rows = await query;
   return { data: rows, total: rows.length };
 }
 
@@ -49,7 +55,7 @@ export async function getMessagingProvider(db: Database, idOrSlug: string) {
   let rows = await db
     .select()
     .from(messagingProvider)
-    .where(eq(messagingProvider.messagingProviderId, idOrSlug));
+    .where(eq(messagingProvider.id, idOrSlug));
   if (rows.length === 0) {
     rows = await db
       .select()
@@ -63,10 +69,10 @@ export async function createMessagingProvider(
   db: Database,
   data: {
     name: string;
-    kind: string;
+    type: string;
     teamId: string;
-    workspaceExternalId?: string;
-    botTokenEnc?: string;
+    workspaceId?: string;
+    botToken?: string;
     signingSecret?: string;
   },
 ) {
@@ -85,11 +91,14 @@ export async function createMessagingProvider(
     .values({
       name: data.name,
       slug,
-      kind: data.kind,
+      type: data.type,
       teamId: data.teamId,
-      workspaceExternalId: data.workspaceExternalId,
-      botTokenEnc: data.botTokenEnc,
-      signingSecret: data.signingSecret,
+      spec: {
+        workspaceId: data.workspaceId,
+        botToken: data.botToken,
+        signingSecret: data.signingSecret,
+        status: "active",
+      } satisfies MessagingProviderSpec,
     })
     .returning();
   return rows[0];
@@ -102,7 +111,7 @@ export async function testMessagingProviderConnection(
   const provider = await getMessagingProvider(db, providerId);
   if (!provider) return { ok: false, error: "provider_not_found" };
 
-  const adapter = getMessagingAdapter(provider.kind as MessagingType);
+  const adapter = getMessagingAdapter(provider.type as MessagingType);
   return adapter.testConnection(providerConfig(provider));
 }
 
@@ -200,7 +209,7 @@ export async function syncProviderUsers(
   const provider = await getMessagingProvider(db, providerId);
   if (!provider) throw new Error("provider_not_found");
 
-  const adapter = getMessagingAdapter(provider.kind as MessagingType);
+  const adapter = getMessagingAdapter(provider.type as MessagingType);
   const externalUsers = await adapter.listUsers(providerConfig(provider));
 
   let linked = 0;
@@ -231,7 +240,7 @@ export async function syncProviderUsers(
       .from(identityLink)
       .where(
         and(
-          eq(identityLink.provider, provider.kind),
+          eq(identityLink.provider, provider.type),
           eq(identityLink.externalUserId, extUser.id),
         ),
       )
@@ -263,7 +272,7 @@ export async function syncProviderUsers(
     // Create new identity link
     await db.insert(identityLink).values({
       principalId: principal.principalId,
-      provider: provider.kind,
+      provider: provider.type,
       externalUserId: extUser.id,
       externalLogin: extUser.displayName,
       email: extUser.email,

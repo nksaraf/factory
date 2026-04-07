@@ -3,6 +3,7 @@ import { createTestContext, truncateAllTables } from "../test-helpers";
 import { GitHostService } from "../modules/build/git-host.service";
 import { NoopGitHostAdapter } from "../adapters/git-host-adapter-noop";
 import type { GitHostRepoInfo } from "../adapters/git-host-adapter";
+import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
 
@@ -30,33 +31,31 @@ describe("GitHostService", () => {
     it("creates a git host provider", async () => {
       const p = await service.createProvider({
         name: "my-github",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        credentialsEnc: "ghp_encrypted_token",
-        teamId: "team_1",
+        type: "github",
+        spec: {
+          apiUrl: "https://api.github.com",
+          authMode: "token",
+          credentialsRef: "ghp_encrypted_token",
+        },
       });
-      expect(p.gitHostProviderId).toMatch(/^ghp_/);
+      expect(p.id).toMatch(/^ghp_/);
       expect(p.name).toBe("my-github");
       expect(p.slug).toBe("my-github");
-      expect(p.status).toBe("active");
-      expect(p.syncStatus).toBe("idle");
+      const spec = p.spec as GitHostProviderSpec;
+      expect(spec.status).toBe("active");
+      expect(spec.syncStatus).toBe("idle");
     });
 
     it("lists providers", async () => {
       await service.createProvider({
         name: "gh1",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
       await service.createProvider({
         name: "gh2",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
       const { data } = await service.listProviders();
       expect(data).toHaveLength(2);
@@ -65,25 +64,21 @@ describe("GitHostService", () => {
     it("gets provider by ID", async () => {
       const p = await service.createProvider({
         name: "gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
-      const found = await service.getProvider(p.gitHostProviderId);
+      const found = await service.getProvider(p.id);
       expect(found?.name).toBe("gh");
     });
 
     it("deletes provider", async () => {
       const p = await service.createProvider({
         name: "gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
-      await service.deleteProvider(p.gitHostProviderId);
-      expect(await service.getProvider(p.gitHostProviderId)).toBeNull();
+      await service.deleteProvider(p.id);
+      expect(await service.getProvider(p.id)).toBeNull();
     });
   });
 
@@ -118,15 +113,13 @@ describe("GitHostService", () => {
     it("syncs repos from adapter into factory", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
       const mockAdapter = createMockAdapter(fixtureRepos);
 
       const result = await service.triggerFullSync(
-        provider.gitHostProviderId,
+        provider.id,
         { adapter: mockAdapter },
       );
 
@@ -138,18 +131,16 @@ describe("GitHostService", () => {
     it("does not duplicate repos on re-sync", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
       const mockAdapter = createMockAdapter(fixtureRepos);
 
-      await service.triggerFullSync(provider.gitHostProviderId, {
+      await service.triggerFullSync(provider.id, {
         adapter: mockAdapter,
       });
       const result = await service.triggerFullSync(
-        provider.gitHostProviderId,
+        provider.id,
         { adapter: mockAdapter },
       );
 
@@ -161,20 +152,18 @@ describe("GitHostService", () => {
     it("detects removed repos", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
 
       // First sync with 2 repos
-      await service.triggerFullSync(provider.gitHostProviderId, {
+      await service.triggerFullSync(provider.id, {
         adapter: createMockAdapter(fixtureRepos),
       });
 
       // Second sync with only 1 repo
       const result = await service.triggerFullSync(
-        provider.gitHostProviderId,
+        provider.id,
         { adapter: createMockAdapter([fixtureRepos[0]]) },
       );
 
@@ -185,35 +174,32 @@ describe("GitHostService", () => {
     it("updates provider sync status on success", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
-      await service.triggerFullSync(provider.gitHostProviderId, {
+      await service.triggerFullSync(provider.id, {
         adapter: createMockAdapter([]),
       });
 
-      const updated = await service.getProvider(provider.gitHostProviderId);
-      expect(updated?.syncStatus).toBe("idle");
-      expect(updated?.lastSyncAt).not.toBeNull();
+      const updated = await service.getProvider(provider.id);
+      const spec = (updated?.spec ?? {}) as GitHostProviderSpec;
+      expect(spec.syncStatus).toBe("idle");
+      expect(spec.lastSyncAt).not.toBeNull();
     });
 
     it("infers repo kind from topics", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
-        hostType: "github",
-        apiBaseUrl: "https://api.github.com",
-        authMode: "pat",
-        teamId: "t1",
+        type: "github",
+        spec: { apiUrl: "https://api.github.com", authMode: "token" },
       });
-      await service.triggerFullSync(provider.gitHostProviderId, {
+      await service.triggerFullSync(provider.id, {
         adapter: createMockAdapter(fixtureRepos),
       });
 
       // Verify the kind was inferred from topics
       const result = await service.triggerFullSync(
-        provider.gitHostProviderId,
+        provider.id,
         { adapter: createMockAdapter(fixtureRepos) },
       );
       // repos already exist, so no new creations — but we can verify by checking the first sync created them

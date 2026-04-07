@@ -3,9 +3,9 @@
  * Syncs all active git host providers on a timer + on startup
  */
 
-import { eq } from "drizzle-orm";
 import type { Database } from "../db/connection";
-import { gitHostProvider } from "../db/schema/build";
+import { gitHostProvider } from "../db/schema/build-v2";
+import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import { GitHostService } from "../modules/build/git-host.service";
 import { createOperationRunner, type OperationRunner } from "./operations";
 
@@ -24,10 +24,15 @@ export function startGitHostSyncLoop(
     intervalMs: opts?.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
     async execute(log) {
       const service = new GitHostService(db);
-      const providers = await db
+      const allProviders = await db
         .select()
-        .from(gitHostProvider)
-        .where(eq(gitHostProvider.status, "active"));
+        .from(gitHostProvider);
+
+      // v2: status is in spec JSONB
+      const providers = allProviders.filter((p) => {
+        const spec = (p.spec ?? {}) as GitHostProviderSpec;
+        return spec.status === "active" || !spec.status;
+      });
 
       if (providers.length === 0) return { providers: 0 };
 
@@ -35,15 +40,15 @@ export function startGitHostSyncLoop(
       let errors = 0;
       for (const prov of providers) {
         try {
-          const result = await service.triggerFullSync(prov.gitHostProviderId);
+          const result = await service.triggerFullSync(prov.id);
           log.info(
-            { providerId: prov.gitHostProviderId, name: prov.name, ...result },
+            { providerId: prov.id, name: prov.name, ...result },
             "git host provider sync complete",
           );
           synced++;
         } catch (err) {
           log.error(
-            { err, providerId: prov.gitHostProviderId, name: prov.name },
+            { err, providerId: prov.id, name: prov.name },
             "git host provider sync failed",
           );
           errors++;

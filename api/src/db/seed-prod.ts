@@ -271,6 +271,7 @@ async function seedProviders(rootTeamId: string) {
     teamId: rootTeamId,
     spec: {
       botToken: "$secret(slack-bot-token)",
+      signingSecret: "$secret(slack-signing-secret)",
       workspaceId: "$secret(slack-workspace-id)",
       status: "active",
     },
@@ -282,8 +283,10 @@ async function seedProviders(rootTeamId: string) {
     spec: {
       apiUrl: "https://leptonsoftware.atlassian.net",
       credentialsRef: "$secret(jira-api-token)",
+      defaultRepoFullName: "nicholasgasior/gogo-factory",
+      defaultBaseBranch: "main",
       status: "active",
-    },
+    } as any,
   });
 }
 

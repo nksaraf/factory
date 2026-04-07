@@ -371,6 +371,7 @@ export type MessagingProviderType = z.infer<typeof MessagingProviderTypeSchema>;
 export const MessagingProviderSpecSchema = z.object({
   webhookUrl: z.string().optional(),
   botToken: z.string().optional(), // encrypted at rest
+  signingSecret: z.string().optional(), // webhook signature verification
   workspaceId: z.string().optional(), // Slack workspace ID
   tenantId: z.string().optional(), // Teams tenant ID
   status: z.enum(["active", "inactive", "error"]).default("active"),

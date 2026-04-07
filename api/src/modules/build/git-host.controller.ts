@@ -24,7 +24,6 @@ export function gitHostController(db: Database) {
       async ({ query }) => ({
         success: true,
         ...(await svc.listProviders({
-          teamId: query.teamId,
           limit: query.limit,
           offset: query.offset,
         })),

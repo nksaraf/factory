@@ -5,10 +5,10 @@ import * as svc from "./messaging.service";
 const MessagingModel = {
   createProviderBody: t.Object({
     name: t.String(),
-    kind: t.String(),
+    type: t.String(),
     teamId: t.String(),
-    workspaceExternalId: t.Optional(t.String()),
-    botTokenEnc: t.Optional(t.String()),
+    workspaceId: t.Optional(t.String()),
+    botToken: t.Optional(t.String()),
     signingSecret: t.Optional(t.String()),
   }),
   providerIdParams: t.Object({ id: t.String() }),
@@ -124,7 +124,7 @@ export function messagingController(db: Database) {
       if (!provider) return { success: false, error: "provider_not_found" };
       await svc.linkMessagingUser(
         db,
-        provider.kind,
+        provider.type,
         body.externalUserId,
         body.principalId,
       );
@@ -137,7 +137,7 @@ export function messagingController(db: Database) {
     .post("/providers/:id/users/link/:linkId/delete", async ({ params }) => {
       const provider = await svc.getMessagingProvider(db, params.id);
       if (!provider) return { success: false, error: "provider_not_found" };
-      await svc.unlinkMessagingUser(db, provider.kind, params.linkId);
+      await svc.unlinkMessagingUser(db, provider.type, params.linkId);
       return { success: true };
     }, {
       params: MessagingModel.unlinkUserParams,

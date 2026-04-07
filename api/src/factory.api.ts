@@ -10,8 +10,8 @@ import { getObservabilityAdapter } from "./adapters/adapter-registry"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
-import { gitHostProvider } from "./db/schema/build"
-import { parseCredentials } from "./lib/parse-credentials"
+import { gitHostProvider } from "./db/schema/build-v2"
+import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
 import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
@@ -230,14 +230,19 @@ export class FactoryAPI {
     let gitHost;
     try {
       const [ghProvider] = await this.db.select().from(gitHostProvider)
-        .where(and(eq(gitHostProvider.hostType, "github"), eq(gitHostProvider.status, "active")))
+        .where(eq(gitHostProvider.type, "github"))
         .limit(1);
       if (ghProvider) {
-        gitHost = createGitHostAdapter("github", {
-          ...parseCredentials(ghProvider.credentialsEnc),
-          apiBaseUrl: ghProvider.apiBaseUrl ?? undefined,
-        });
-        logger.info({ provider: ghProvider.name }, "Loaded GitHub adapter for preview reconciler");
+        const spec = (ghProvider.spec ?? {}) as GitHostProviderSpec;
+        if (spec.status === "active" || !spec.status) {
+          const ref = spec.credentialsRef?.trim() ?? "";
+          const creds = ref.startsWith("{") ? (() => { try { return JSON.parse(ref); } catch { return { token: ref }; } })() : { token: ref };
+          gitHost = createGitHostAdapter("github", {
+            ...creds,
+            apiBaseUrl: spec.apiUrl ?? undefined,
+          });
+          logger.info({ provider: ghProvider.name }, "Loaded GitHub adapter for preview reconciler");
+        }
       } else {
         logger.warn("No active GitHub provider found — preview PR comments/checks will be skipped");
       }

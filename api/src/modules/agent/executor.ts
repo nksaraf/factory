@@ -322,12 +322,13 @@ async function postToThread(
     const provider = await getMessagingProvider(db, providerId);
     if (!provider) return;
 
-    const adapter = getMessagingAdapter(provider.kind as MessagingType);
+    const adapter = getMessagingAdapter(provider.type as MessagingType);
+    const spec = (provider.spec ?? {}) as Record<string, unknown>;
     await adapter.sendMessage(
       {
-        botToken: provider.botTokenEnc ?? "",
-        signingSecret: provider.signingSecret ?? "",
-        workspaceExternalId: provider.workspaceExternalId ?? undefined,
+        botToken: (spec.botToken as string) ?? "",
+        signingSecret: (spec.signingSecret as string) ?? "",
+        workspaceExternalId: (spec.workspaceId as string) ?? undefined,
       },
       jobRow.channelId,
       {
