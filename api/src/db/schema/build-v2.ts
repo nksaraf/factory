@@ -18,12 +18,12 @@ import type {
   PipelineStepSpec,
   GitHostProviderSpec,
   GithubAppInstallationSpec,
-  WebhookEventSpec,
   GitRepoSyncSpec,
   GitUserSyncSpec,
   WorkTrackerProviderSpec,
   WorkItemSpec,
 } from "@smp/factory-shared/schemas/build";
+import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org";
 
 // ─── Git Host Provider ──────────────────────────────────────
 

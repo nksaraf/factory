@@ -20,20 +20,6 @@ function notifyRouteChanged(domain: string): void {
   onRouteChanged?.(domain);
 }
 
-/**
- * Route change listener for cache invalidation.
- * The factory gateway registers its cache.invalidate here.
- */
-let onRouteChanged: ((domain: string) => void) | null = null;
-
-export function setRouteChangeListener(listener: (domain: string) => void): void {
-  onRouteChanged = listener;
-}
-
-function notifyRouteChanged(domain: string): void {
-  onRouteChanged?.(domain);
-}
-
 // ---------------------------------------------------------------------------
 // Route CRUD
 // ---------------------------------------------------------------------------
@@ -245,23 +231,6 @@ export async function lookupRouteByDomain(
     targetService: (active.spec as any)?.targetService,
     targetPort: (active.spec as any)?.targetPort,
   };
-}
-
-/**
- * Look up a single active route by exact domain match.
- * Used by the factory gateway for fast hostname-based routing.
- */
-export async function lookupRouteByDomain(
-  db: Database,
-  domain: string
-): Promise<any | null> {
-  const [row] = await db
-    .select()
-    .from(route)
-    .where(and(eq(route.domain, domain), eq(route.status, "active")))
-    .limit(1);
-
-  return row ?? null;
 }
 
 // ---------------------------------------------------------------------------

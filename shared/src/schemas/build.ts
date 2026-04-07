@@ -177,23 +177,7 @@ export const GithubAppInstallationSchema = z.object({
 export type GithubAppInstallation = z.infer<typeof GithubAppInstallationSchema>;
 
 // ── Webhook Event ───────────────────────────────────────────
-
-export const WebhookEventSpecSchema = z.object({
-  eventType: z.string(), // e.g., "push", "pull_request", "release"
-  payload: z.unknown(), // opaque — we don't validate webhook payloads
-  status: z.enum(["received", "processing", "processed", "failed"]).default("received"),
-  error: z.string().optional(),
-});
-export type WebhookEventSpec = z.infer<typeof WebhookEventSpecSchema>;
-
-export const WebhookEventSchema = z.object({
-  id: z.string(),
-  gitHostProviderId: z.string(),
-  deliveryId: z.string(),
-  spec: WebhookEventSpecSchema,
-  createdAt: z.coerce.date(),
-});
-export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
+// Canonical definition lives in org.ts — re-exported via barrel.
 
 // ── Git Sync ────────────────────────────────────────────────
 

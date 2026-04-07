@@ -8,16 +8,8 @@ import * as previewSvc from "../../services/preview/preview.service";
 import * as pipelineRunSvc from "../../services/build/pipeline-run.service";
 import { logger } from "../../logger";
 import { emitEvent } from "../../lib/workflow-events";
-import type { WebhookEventSpec } from "@smp/factory-shared/schemas/build";
+import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org";
 import type { SiteSpec } from "@smp/factory-shared/schemas/ops";
-
-// TODO: fix type — WebhookEventSpec does not yet include processedAt; add when schema is updated
-type WebhookEventSpecStored = WebhookEventSpec & { processedAt?: string };
-
-// Bridge: safely convert WebhookEventSpecStored to WebhookEventSpec for Drizzle column writes.
-function toWebhookEventSpec(stored: WebhookEventSpecStored): WebhookEventSpec {
-  return stored as unknown as WebhookEventSpec;
-}
 
 export class WebhookService {
   constructor(
@@ -59,11 +51,11 @@ export class WebhookService {
       .values({
         gitHostProviderId: providerId,
         deliveryId: verification.deliveryId,
-        spec: toWebhookEventSpec({
+        spec: {
           eventType: verification.eventType,
           payload: verification.payload,
           status: "processing",
-        }),
+        } satisfies Partial<WebhookEventSpec>,
       })
       .returning();
 
@@ -75,26 +67,26 @@ export class WebhookService {
         verification.payload,
       );
       // v2: status and processedAt in spec JSONB
-      const updatedSpec: WebhookEventSpecStored = {
-        ...(event.spec as WebhookEventSpecStored),
+      const updatedSpec: WebhookEventSpec = {
+        ...(event.spec as WebhookEventSpec),
         status: "processed",
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(),
       };
       await this.db
         .update(webhookEvent)
-        .set({ spec: toWebhookEventSpec(updatedSpec) })
+        .set({ spec: updatedSpec })
         .where(eq(webhookEvent.id, event.id));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      const updatedSpec: WebhookEventSpecStored = {
-        ...(event.spec as WebhookEventSpecStored),
+      const updatedSpec: WebhookEventSpec = {
+        ...(event.spec as WebhookEventSpec),
         status: "failed",
         error: errorMessage,
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(),
       };
       await this.db
         .update(webhookEvent)
-        .set({ spec: toWebhookEventSpec(updatedSpec) })
+        .set({ spec: updatedSpec })
         .where(eq(webhookEvent.id, event.id));
     }
 

@@ -91,24 +91,6 @@ function getOrCreateState(ws: WebSocket): TunnelState {
   return state
 }
 
-interface TunnelState {
-  tunnelId: string | null;
-  streamManager: StreamManager | null;
-  heartbeatTimer: ReturnType<typeof setInterval> | null;
-  cleaning: boolean;
-}
-
-const connectionState = new WeakMap<WebSocket, TunnelState>();
-
-function getOrCreateState(ws: WebSocket): TunnelState {
-  let state = connectionState.get(ws);
-  if (!state) {
-    state = { tunnelId: null, streamManager: null, heartbeatTimer: null, cleaning: false };
-    connectionState.set(ws, state);
-  }
-  return state;
-}
-
 /**
  * Create Elysia-compatible WebSocket handlers for tunnel connections.
  *
@@ -316,18 +298,6 @@ export function getTunnelStreamManager(
   const tunnelId = subdomainToTunnelId.get(subdomain)
   if (!tunnelId) return undefined
   return tunnelStreams.get(tunnelId)
-}
-
-/**
- * Look up the StreamManager for a given subdomain.
- * Used by the gateway proxy to send HTTP requests through the tunnel.
- */
-export function getTunnelStreamManager(
-  subdomain: string
-): StreamManager | undefined {
-  const tunnelId = subdomainToTunnelId.get(subdomain);
-  if (!tunnelId) return undefined;
-  return tunnelStreams.get(tunnelId);
 }
 
 /**
