@@ -1,10 +1,12 @@
-import { styleBold, styleInfo, styleMuted } from "../cli-style.js";
-import { readConfig, configPath, resolveFactoryUrl, resolveSiteUrl } from "../config.js";
+import { styleBold, styleInfo, styleMuted, styleSuccess } from "../cli-style.js";
+import { readConfig, configPath, resolveFactoryUrl, resolveFactoryMode, resolveSiteUrl } from "../config.js";
 import type { DxFlags } from "../stub.js";
 
 export async function runFactoryConfig(flags: DxFlags): Promise<void> {
   const config = await readConfig();
   const file = configPath();
+
+  const modeInfo = resolveFactoryMode(config);
 
   if (flags.json) {
     console.log(
@@ -13,7 +15,9 @@ export async function runFactoryConfig(flags: DxFlags): Promise<void> {
           success: true,
           data: {
             configPath: file,
-            factoryUrl: resolveFactoryUrl(config),
+            factoryMode: modeInfo.mode,
+            factoryUrl: modeInfo.url,
+            envOverride: modeInfo.envOverride,
             siteUrl: resolveSiteUrl(config) || undefined,
             role: config.role,
             siteName: config.siteName || undefined,
@@ -37,7 +41,8 @@ export async function runFactoryConfig(flags: DxFlags): Promise<void> {
   console.log(styleBold("Factory Configuration"));
   console.log(styleMuted(file));
   console.log("");
-  console.log(`${styleBold("Factory URL:")}  ${styleInfo(resolveFactoryUrl(config))}`);
+  console.log(`${styleBold("Mode:")}         ${modeInfo.mode === "local" ? styleSuccess(modeInfo.label) : modeInfo.label}`);
+  console.log(`${styleBold("Factory URL:")}  ${styleInfo(modeInfo.url)}`);
   const siteUrl = resolveSiteUrl(config);
   if (siteUrl) {
     console.log(`${styleBold("Site URL:")}     ${styleInfo(siteUrl)}`);

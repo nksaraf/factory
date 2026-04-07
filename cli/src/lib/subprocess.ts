@@ -1,6 +1,9 @@
 /**
  * Process utilities for running shell commands.
  *
+ * All functions delegate to the centralized shell adapter (`./shell.ts`)
+ * which handles secret env injection, OS normalization, and path injection.
+ *
  * Two APIs:
  *
  * **Async (preferred)** — uses Bun shell, streams output by default:
@@ -13,8 +16,75 @@
  *   @deprecated Prefer the async API for new code.
  */
 
-import { $ as bun$ } from "bun";
-import { spawnSync, type SpawnSyncOptions } from "node:child_process";
+import {
+  shell,
+  shellCapture,
+  shellCaptureOrThrow,
+  shellSync,
+  type ShellOptions,
+  type ShellResult,
+} from "./shell.js";
+
+// ---------------------------------------------------------------------------
+// Async API — delegates to shell adapter
+// ---------------------------------------------------------------------------
+
+export interface ExecOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
+export interface CaptureResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Run a command with output streamed to the terminal.
+ * Prints the command being run (dimmed), then streams stdout/stderr.
+ * Throws on non-zero exit.
+ *
+ * Use for mutative or long-running commands:
+ *   await exec(["git", "clone", "--progress", url, dest], { cwd });
+ *   await exec(["pnpm", "install"], { cwd: root });
+ */
+export async function exec(
+  cmd: string[],
+  opts: ExecOptions = {},
+): Promise<void> {
+  await shell(cmd, toShellOpts(opts));
+}
+
+/**
+ * Run a command and capture its output (no terminal streaming).
+ * Does NOT throw on non-zero exit — check result.exitCode.
+ *
+ * Use for read-only / query commands:
+ *   const { stdout } = await capture(["git", "rev-parse", "HEAD"], { cwd });
+ */
+export async function capture(
+  cmd: string[],
+  opts: ExecOptions = {},
+): Promise<CaptureResult> {
+  return shellCapture(cmd, toShellOpts(opts));
+}
+
+/**
+ * Run a command, capture output, and throw on non-zero exit.
+ *
+ *   const { stdout } = await captureOrThrow(["git", "rev-parse", "HEAD"], { cwd });
+ */
+export async function captureOrThrow(
+  cmd: string[],
+  opts: ExecOptions = {},
+): Promise<CaptureResult> {
+  return shellCaptureOrThrow(cmd, toShellOpts(opts));
+}
+
+// ---------------------------------------------------------------------------
+// Sync API (legacy) — kept for callers that haven't migrated yet
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Async API (Bun shell) — preferred for new code
@@ -118,45 +188,27 @@ export interface RunOptions {
   timeout?: number;
 }
 
-/** @deprecated Use `exec` or `capture` instead. */
+/** @deprecated Use the async API instead. */
 export function run(
   cmd: string,
   args: string[],
   opts: RunOptions = {},
 ): RunResult {
-  if (opts.verbose) {
-    console.error(`$ ${cmd} ${args.join(" ")}`);
-  }
-
-  const spawnOpts: SpawnSyncOptions = {
+  const result = shellSync(cmd, args, {
     cwd: opts.cwd,
-    timeout: opts.timeout ?? 120_000,
-    env: opts.env ? { ...process.env, ...opts.env } : undefined,
+    env: opts.env,
+    verbose: opts.verbose,
+    inherit: opts.inherit,
+    timeout: opts.timeout,
+  });
+  return {
+    status: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
   };
-
-  if (opts.inherit) {
-    spawnOpts.stdio = "inherit";
-  } else {
-    spawnOpts.encoding = "utf8";
-  }
-
-  const proc = spawnSync(cmd, args, spawnOpts);
-
-  const result: RunResult = {
-    status: proc.status ?? 1,
-    stdout: typeof proc.stdout === "string" ? proc.stdout : "",
-    stderr: typeof proc.stderr === "string" ? proc.stderr : "",
-  };
-
-  if (opts.verbose && !opts.inherit) {
-    if (result.stdout) console.error(result.stdout);
-    if (result.stderr) console.error(result.stderr);
-  }
-
-  return result;
 }
 
-/** @deprecated Use `exec` or `captureOrThrow` instead. */
+/** @deprecated Use the async API instead. */
 export function runOrThrow(
   cmd: string,
   args: string[],
@@ -171,7 +223,7 @@ export function runOrThrow(
   return result;
 }
 
-/** @deprecated Use `exec` instead. */
+/** @deprecated Use the async API instead. */
 export function runInherit(
   cmd: string,
   args: string[],
@@ -179,4 +231,15 @@ export function runInherit(
 ): number {
   const result = run(cmd, args, { ...opts, inherit: true });
   return result.status;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function toShellOpts(opts: ExecOptions): ShellOptions {
+  return {
+    cwd: opts.cwd,
+    env: opts.env,
+  };
 }

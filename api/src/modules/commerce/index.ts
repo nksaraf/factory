@@ -52,8 +52,8 @@ export function commerceController(db: Database) {
         detail: { tags: ["Commerce"], summary: "Get customer" },
       }
     )
-    .patch(
-      "/customers/:id",
+    .post(
+      "/customers/:id/update",
       async ({ params, body, set }) => {
         const row = await plane.updateCustomerStatus(params.id, body)
         if (!row) {
@@ -120,8 +120,8 @@ export function commerceController(db: Database) {
         detail: { tags: ["Commerce"], summary: "Grant entitlement" },
       }
     )
-    .delete(
-      "/entitlements",
+    .post(
+      "/entitlements/delete",
       async ({ query, set }) => {
         const row = await plane.revokeEntitlement(query.id)
         if (!row) {

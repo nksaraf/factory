@@ -9,7 +9,7 @@ import { IdentityService } from "./identity.service";
 export function identityController(db: Database) {
   const svc = new IdentityService(db);
 
-  return new Elysia({ prefix: "/identity" })
+  return new Elysia({ prefix: "/org" })
     // ─── Me ─────────────────────────────────────────────────
     .get(
       "/me",
@@ -21,7 +21,7 @@ export function identityController(db: Database) {
           return { success: false, error: "principal_not_found" };
         }
         const identities = await svc.getLinkedIdentities(
-          principal.principalId,
+          principal.id,
         );
         return { success: true, data: { ...principal, identities } };
       },
@@ -38,7 +38,7 @@ export function identityController(db: Database) {
           ctx.set.status = 404;
           return { success: false, error: "principal_not_found" };
         }
-        const data = await svc.getLinkedIdentities(principal.principalId);
+        const data = await svc.getLinkedIdentities(principal.id);
         return { success: true, data };
       },
       { detail: { tags: ["Identity"], summary: "List linked identities" } },
@@ -52,11 +52,11 @@ export function identityController(db: Database) {
           email: user.email,
         });
         const row = await svc.linkIdentity(
-          principal.principalId,
+          principal.id,
           params.provider,
           body,
         );
-        await svc.refreshPrincipalProfile(principal.principalId);
+        await svc.refreshPrincipalProfile(principal.id);
         return { success: true, data: row };
       },
       {
@@ -65,8 +65,8 @@ export function identityController(db: Database) {
         detail: { tags: ["Identity"], summary: "Link identity provider" },
       },
     )
-    .delete(
-      "/me/identities/:provider",
+    .post(
+      "/me/identities/:provider/delete",
       async ({ params, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);
@@ -74,8 +74,8 @@ export function identityController(db: Database) {
           ctx.set.status = 404;
           return { success: false, error: "principal_not_found" };
         }
-        await svc.unlinkIdentity(principal.principalId, params.provider);
-        await svc.refreshPrincipalProfile(principal.principalId);
+        await svc.unlinkIdentity(principal.id, params.provider);
+        await svc.refreshPrincipalProfile(principal.id);
         return { success: true };
       },
       {
@@ -85,8 +85,8 @@ export function identityController(db: Database) {
     )
 
     // ─── Profile ────────────────────────────────────────────
-    .patch(
-      "/me/profile",
+    .post(
+      "/me/profile/update",
       async ({ body, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);
@@ -95,7 +95,7 @@ export function identityController(db: Database) {
           return { success: false, error: "principal_not_found" };
         }
         const profile = await svc.updateProfileOverrides(
-          principal.principalId,
+          principal.id,
           body,
         );
         return { success: true, data: profile };
@@ -118,7 +118,7 @@ export function identityController(db: Database) {
         }
         // Hash the key with sha256 for storage
         const keyHash = createHash("sha256").update(body.key).digest("hex");
-        const row = await svc.createToolCredential(principal.principalId, {
+        const row = await svc.createToolCredential(principal.id, {
           provider: body.provider,
           keyName: body.keyName,
           keyHash,
@@ -139,13 +139,13 @@ export function identityController(db: Database) {
           ctx.set.status = 404;
           return { success: false, error: "principal_not_found" };
         }
-        const data = await svc.listToolCredentials(principal.principalId);
+        const data = await svc.listToolCredentials(principal.id);
         return { success: true, data };
       },
       { detail: { tags: ["Identity"], summary: "List tool credentials" } },
     )
-    .delete(
-      "/me/tool-credentials/:id",
+    .post(
+      "/me/tool-credentials/:id/delete",
       async ({ params, ...ctx }) => {
         const user = (ctx as unknown as { user: AuthUser }).user;
         const principal = await svc.getPrincipalByAuthUserId(user.id);
@@ -154,7 +154,7 @@ export function identityController(db: Database) {
           return { success: false, error: "principal_not_found" };
         }
         const row = await svc.revokeToolCredential(
-          principal.principalId,
+          principal.id,
           params.id,
         );
         if (!row) {
@@ -179,7 +179,7 @@ export function identityController(db: Database) {
           ctx.set.status = 404;
           return { success: false, error: "principal_not_found" };
         }
-        const row = await svc.reportToolUsage(principal.principalId, body);
+        const row = await svc.reportToolUsage(principal.id, body);
         return { success: true, data: row };
       },
       {
@@ -197,7 +197,7 @@ export function identityController(db: Database) {
           return { success: false, error: "principal_not_found" };
         }
         const result = await svc.queryToolUsage(
-          principal.principalId,
+          principal.id,
           query,
         );
         return { success: true, ...result };

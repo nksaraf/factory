@@ -66,7 +66,7 @@ The CLI doesn't care which backend is active — the commands are the same. The 
 
 ## 2.2 The Reference Pattern
 
-Secrets are never stored in `dx.yaml`, tier overlays, or the Factory DB as plaintext. They're stored as **references** — URIs that point to the secret backend:
+Secrets are never stored in `docker-compose.yaml`, tier overlays, or the Factory DB as plaintext. They're stored as **references** — URIs that point to the secret backend:
 
 ```yaml
 # .dx/tiers/production.yaml
@@ -151,7 +151,7 @@ dx secret resolve api --tier production
   # STRIPE_KEY         vault://geoanalytics/production/stripe-key  
   # SENDGRID_API_KEY   vault://geoanalytics/production/sendgrid-key
   # LOG_LEVEL          .dx/tiers/production.yaml (plaintext: "info")
-  # PORT               dx.yaml component default (plaintext: "8080")
+  # PORT               docker-compose service port (plaintext: "8080")
   # REDIS_URL          .dx/tiers/production.yaml (plaintext)       
 
 # Resolve AND show values (requires authorization for secret tiers)
@@ -266,7 +266,7 @@ dx secret rotate auth-signing-key --site trafficure-prod-india
 ### At deploy time (reconciler resolves secrets → K8s Secrets)
 
 ```
-dx.yaml declares:        component api needs env vars
+docker-compose declares:  component api needs env vars
 .dx/tiers/prod.yaml:     DATABASE_URL = vault://geoanalytics/production/database-url
                           STRIPE_KEY = vault://geoanalytics/production/stripe-key
 

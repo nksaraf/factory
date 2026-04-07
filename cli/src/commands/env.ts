@@ -3,7 +3,7 @@ import { loadTierOverlay } from "@smp/factory-shared/tier-overlay-loader";
 import { loadNormalizedProfile } from "@smp/factory-shared/connection-profile-loader";
 
 import type { DxBase } from "../dx-root.js";
-import { ProjectContext } from "../lib/project.js";
+import { resolveDxContext } from "../lib/dx-context.js";
 import {
   parseConnectToFlag,
   parseConnectFlags,
@@ -49,12 +49,47 @@ export function envCommand(app: DxBase) {
             type: "boolean",
             description: "Output in export format (shell-eval compatible)",
           },
+          scope: {
+            type: "string",
+            description:
+              'Resolution scope: "org", "team", or "project" (fetches from Factory API)',
+          },
+          team: {
+            type: "string",
+            description: "Team slug (used with --scope)",
+          },
+          project: {
+            type: "string",
+            description: "Project slug (used with --scope)",
+          },
         })
-        .run(({ flags }) => {
+        .run(async ({ flags }) => {
           const f = toDxFlags(flags);
 
           try {
-            const project = ProjectContext.fromCwd();
+            // Remote scope-based resolution
+            if (flags.scope) {
+              const validScopes = ["org", "team", "project", "principal", "system"];
+              const scopeVal = flags.scope as string;
+              if (!validScopes.includes(scopeVal)) {
+                console.error(`Error: Invalid scope "${scopeVal}". Must be one of: ${validScopes.join(", ")}`);
+                process.exit(1);
+              }
+              const { resolveEnvScope } = await import(
+                "../handlers/env-scope.js"
+              );
+              await resolveEnvScope({
+                scope: scopeVal,
+                team: flags.team as string | undefined,
+                project: flags.project as string | undefined,
+                env: flags.env as string | undefined,
+                export: flags.export as boolean | undefined,
+                json: f.json,
+              });
+              return;
+            }
+            const ctx = await resolveDxContext({ need: "project" });
+            const project = ctx.project;
 
             // Build connection overrides from flags
             const profileOverrides = flags.profile
@@ -99,7 +134,7 @@ export function envCommand(app: DxBase) {
               ? loadTierOverlay(project.rootDir, tier) ?? undefined
               : undefined;
 
-            const ctx = resolveEnvVars({
+            const resolved = resolveEnvVars({
               catalog: project.catalog,
               tierOverlay,
               connectionOverrides: overrides,
@@ -107,11 +142,11 @@ export function envCommand(app: DxBase) {
             });
 
             if (f.json) {
-              console.log(JSON.stringify(ctx.envVars, null, 2));
+              console.log(JSON.stringify(resolved.envVars, null, 2));
             } else if (flags.export) {
-              console.log(formatResolvedEnv(ctx.envVars, "export"));
+              console.log(formatResolvedEnv(resolved.envVars, "export"));
             } else {
-              console.log(formatResolvedEnv(ctx.envVars, "annotated"));
+              console.log(formatResolvedEnv(resolved.envVars, "annotated"));
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);

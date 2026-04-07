@@ -11,6 +11,7 @@ import type { DxFlags } from "../stub.js";
 export type AuthLoginArgs = {
   email?: string;
   password?: string;
+  ci?: boolean;
 };
 
 function exitAuthError(
@@ -63,14 +64,20 @@ export async function runAuthLogin(
     process.env.DX_AUTH_EMAIL?.trim() ||
     process.env.FACTORY_AUTH_EMAIL?.trim();
 
-  if (!email) {
-    email = await input({ message: "Email:" });
+  if (!email && !args.ci) {
+    try {
+      email = await input({ message: "Email:" });
+    } catch {
+      // Non-interactive terminal — no email available
+    }
   }
 
   if (!email) {
     exitAuthError(
       flags,
-      "Email is required (flag --email, env DX_AUTH_EMAIL, or prompt).",
+      args.ci
+        ? "In CI mode, provide --email or set DX_AUTH_EMAIL environment variable."
+        : "Email is required (flag --email, env DX_AUTH_EMAIL, or prompt).",
       "AUTH_DENIED",
       ExitCodes.USAGE_ERROR
     );
@@ -81,14 +88,20 @@ export async function runAuthLogin(
     process.env.DX_AUTH_PASSWORD ??
     process.env.FACTORY_AUTH_PASSWORD;
 
-  if (!password) {
-    password = await passwordPrompt({ message: "Password:" });
+  if (!password && !args.ci) {
+    try {
+      password = await passwordPrompt({ message: "Password:" });
+    } catch {
+      // Non-interactive terminal — no password available
+    }
   }
 
   if (!password) {
     exitAuthError(
       flags,
-      "Password is required (omit --password to be prompted, or set DX_AUTH_PASSWORD for automation only).",
+      args.ci
+        ? "In CI mode, set DX_AUTH_PASSWORD environment variable."
+        : "Password is required (omit --password to be prompted, or set DX_AUTH_PASSWORD for automation only).",
       "AUTH_DENIED",
       ExitCodes.USAGE_ERROR
     );
@@ -160,7 +173,7 @@ export async function runAuthLogin(
     styleSuccess(
       `Signed in as ${u?.email ?? email}` +
         (u?.name ? ` (${u.name})` : "") +
-        `. Session saved to ${SESSION_FILE} (mode 0600).`
+        `.`
     )
   );
 }

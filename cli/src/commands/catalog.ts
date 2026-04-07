@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 import type { DxBase } from "../dx-root.js";
 import type {
@@ -26,6 +26,7 @@ import { toDxFlags } from "./dx-flags.js";
 import { setExamples } from "../plugins/examples-plugin.js";
 import { printTable } from "../output.js";
 import { runCatalogDoctor } from "./catalog-doctor.js";
+import { getWorktreeInfo } from "../lib/worktree-detect.js";
 
 setExamples("catalog", [
   "$ dx catalog              List all catalog entries",
@@ -155,6 +156,8 @@ interface CatalogResult {
   rootDir: string;
   warnings: string[];
   drifts: FileDrift[];
+  /** Resolved owner: catalog spec → dx config team → "unknown" */
+  owner: string;
 }
 
 /**
@@ -174,6 +177,7 @@ function loadCatalog(cwd: string): CatalogResult | null {
       rootDir: ctx.rootDir,
       warnings: [],
       drifts,
+      owner: ctx.owner,
     };
   } catch {
     // No compose files found, fall through
@@ -193,6 +197,7 @@ function loadCatalog(cwd: string): CatalogResult | null {
         rootDir: cwd,
         warnings: result.warnings,
         drifts,
+        owner: result.system.spec.owner,
       };
     }
   }
@@ -351,10 +356,18 @@ export function catalogCommand(app: DxBase) {
         return;
       }
 
+      // Show project name + worktree context in header
+      const worktree = getWorktreeInfo(process.cwd());
+      let headerName: string;
+      if (worktree) {
+        const repoName = basename(worktree.mainRepoDir);
+        headerName = `${repoName} ${styleMuted(`(worktree: ${worktree.worktreeName})`)}`;
+      } else {
+        headerName = cat.metadata.name;
+      }
       console.log(
-        styleBold(`${cat.metadata.name}`) +
-          styleMuted(` (${cat.spec.owner})`) +
-          styleMuted(` via ${result.format}`)
+        styleBold(headerName) +
+          styleMuted(` (${result.owner})`)
       );
       console.log("");
       console.log(printTable(["NAME", "KIND", "TYPE", "LIFECYCLE"], rows));

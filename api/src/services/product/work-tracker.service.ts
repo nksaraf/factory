@@ -6,6 +6,7 @@ import {
   workItem,
 } from "../../db/schema/product";
 import { getWorkTrackerAdapter } from "../../adapters/adapter-registry";
+import type { WorkTrackerType } from "../../adapters/work-tracker-adapter";
 import type {
   WorkTrackerSyncResult,
   PushResult,
@@ -142,7 +143,7 @@ export async function testWorkTrackerConnection(
 ): Promise<{ ok: boolean; error?: string }> {
   const prov = await getWorkTrackerProvider(db, id);
   if (!prov) return { ok: false, error: "provider not found" };
-  const adapter = getWorkTrackerAdapter(prov.kind);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
   return adapter.testConnection(prov.apiUrl, prov.credentialsRef ?? "");
 }
 
@@ -193,7 +194,7 @@ export async function deleteProjectMapping(db: Database, mappingId: string) {
 export async function listExternalProjects(db: Database, providerId: string) {
   const prov = await getWorkTrackerProvider(db, providerId);
   if (!prov) throw new Error("provider not found");
-  const adapter = getWorkTrackerAdapter(prov.kind);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
   return adapter.listProjects(prov.apiUrl, prov.credentialsRef ?? "");
 }
 
@@ -222,7 +223,7 @@ export async function syncWorkTracker(
         eq(workTrackerProjectMapping.workTrackerProviderId, providerId)
       );
 
-    const adapter = getWorkTrackerAdapter(prov.kind);
+    const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
     let created = 0;
     let updated = 0;
     let total = 0;
@@ -341,7 +342,7 @@ export async function pushWorkItem(
   const projectId =
     mapping?.externalProjectId ?? prov.defaultProjectKey ?? "";
 
-  const adapter = getWorkTrackerAdapter(prov.kind);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
   const spec: PushWorkItemSpec = {
     title: item.title,
     description: item.description ?? undefined,
@@ -406,7 +407,7 @@ export async function createEpicFromPrd(
   const projectId =
     mapping?.externalProjectId ?? prov.defaultProjectKey ?? "";
 
-  const adapter = getWorkTrackerAdapter(prov.kind);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
 
   // 1. Push epic to external
   const epicResult = await adapter.pushIssue(

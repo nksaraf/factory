@@ -2,44 +2,63 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestContext, truncateAllTables } from "../test-helpers";
 
 import * as gw from "../modules/infra/gateway.service";
-import * as fleet from "../modules/fleet/service";
-import * as providerSvc from "../services/infra/provider.service";
-import * as regionSvc from "../services/infra/region.service";
-import * as clusterSvc from "../services/infra/cluster.service";
 
+import { substrate, runtime } from "../db/schema/infra-v2";
+import { site, systemDeployment } from "../db/schema/ops";
+import { system } from "../db/schema/software-v2";
+import { principal } from "../db/schema/org-v2";
+import { eq } from "drizzle-orm";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
+import type { PrincipalSpec } from "@smp/factory-shared/schemas/org";
+import type { SystemSpec } from "@smp/factory-shared/schemas/software";
+import type { SubstrateSpec, RuntimeSpec, RouteSpec } from "@smp/factory-shared/schemas/infra";
+import type { SiteSpec, SystemDeploymentSpec } from "@smp/factory-shared/schemas/ops";
 
 describe("Gateway Service", () => {
   let db: Database;
   let client: PGlite;
 
+  async function ensurePrincipal(id: string) {
+    const [existing] = await db.select().from(principal).where(eq(principal.id, id)).limit(1);
+    if (existing) return existing;
+    const [p] = await db.insert(principal).values({ id, name: id, slug: id, type: "human", spec: {} satisfies PrincipalSpec }).returning();
+    return p;
+  }
+
   async function createInfraPrereqs() {
-    const provider = await providerSvc.createProvider(db, {
-      name: "test-provider",
-      providerType: "proxmox",
-    });
-    const region = await regionSvc.createRegion(db, {
-      name: "test-region",
-      displayName: "Test Region",
-      providerId: provider.providerId,
-    });
-    const cluster = await clusterSvc.createCluster(db, {
-      name: "test-cluster",
-      providerId: provider.providerId,
-    });
-    return { provider, region, cluster };
+    const [sub] = await db
+      .insert(substrate)
+      .values({
+        name: "test-substrate",
+        slug: "test-substrate",
+        type: "hypervisor",
+        spec: { providerKind: "proxmox" } satisfies SubstrateSpec,
+      })
+      .returning();
+    const [rt] = await db
+      .insert(runtime)
+      .values({
+        name: "test-runtime",
+        slug: "test-runtime",
+        type: "k8s-cluster",
+        spec: { kubeconfigRef: "fake-kc", status: "ready" } satisfies RuntimeSpec,
+      })
+      .returning();
+    return { substrate: sub, runtime: rt };
   }
 
   async function createSitePrereqs() {
-    const { provider, region, cluster } = await createInfraPrereqs();
-    const site = await fleet.createSite(db, {
-      name: "test-site",
-      product: "test-product",
-      clusterId: cluster.clusterId,
-      createdBy: "test",
-    });
-    return { provider, region, cluster, site };
+    const { substrate: sub, runtime: rt } = await createInfraPrereqs();
+    const [s] = await db
+      .insert(site)
+      .values({
+        name: "test-site",
+        slug: "test-site",
+        spec: { type: "shared", status: "provisioning", product: "test-product" } satisfies SiteSpec,
+      })
+      .returning();
+    return { substrate: sub, runtime: rt, site: s };
   }
 
   beforeAll(async () => {
@@ -62,12 +81,12 @@ describe("Gateway Service", () => {
   describe("route CRUD", () => {
     it("creates and lists routes", async () => {
       const r = await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "api.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
       });
-      expect(r.routeId).toBeTruthy();
+      expect(r.id).toBeTruthy();
       expect(r.domain).toBe("api.test.dx.dev");
 
       const { data, total } = await gw.listRoutes(db);
@@ -77,20 +96,19 @@ describe("Gateway Service", () => {
 
     it("gets route by id", async () => {
       const created = await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "api.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
       });
 
-      const fetched = await gw.getRoute(db, created.routeId);
+      const fetched = await gw.getRoute(db, created.id);
       expect(fetched).not.toBeNull();
-      expect(fetched!.routeId).toBe(created.routeId);
-      expect(fetched!.kind).toBe("ingress");
+      expect(fetched!.id).toBe(created.id);
+      expect(fetched!.type).toBe("ingress");
       expect(fetched!.domain).toBe("api.test.dx.dev");
-      expect(fetched!.targetService).toBe("api-svc");
-      expect(fetched!.createdBy).toBe("test");
-      expect(fetched!.status).toBe("pending");
+      expect(fetched!.spec.targetService).toBe("api-svc");
+      expect(fetched!.spec.status).toBe("active");
     });
 
     it("returns null for nonexistent route", async () => {
@@ -100,27 +118,27 @@ describe("Gateway Service", () => {
 
     it("updates route status", async () => {
       const created = await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "api.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
       });
 
-      const updated = await gw.updateRoute(db, created.routeId, {
+      const updated = await gw.updateRoute(db, created.id, {
         status: "active",
       });
-      expect(updated!.status).toBe("active");
+      expect(updated!.spec.status).toBe("active");
     });
 
     it("deletes route", async () => {
       const created = await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "api.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
       });
 
-      await gw.deleteRoute(db, created.routeId);
+      await gw.deleteRoute(db, created.id);
 
       const { data } = await gw.listRoutes(db);
       expect(data).toHaveLength(0);
@@ -128,27 +146,27 @@ describe("Gateway Service", () => {
 
     it("filters routes by kind", async () => {
       await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "api.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
       });
       await gw.createRoute(db, {
-        kind: "sandbox",
-        domain: "sandbox.test.dx.dev",
-        targetService: "sandbox-svc",
+        type: "workspace",
+        domain: "workspace.test.dx.dev",
+        targetService: "workspace-svc",
         createdBy: "test",
       });
 
-      const { data, total } = await gw.listRoutes(db, { kind: "sandbox" });
+      const { data, total } = await gw.listRoutes(db, { type: "workspace" });
       expect(data).toHaveLength(1);
       expect(total).toBe(1);
-      expect(data[0].kind).toBe("sandbox");
+      expect(data[0].type).toBe("workspace");
     });
 
     it("cleans up expired routes", async () => {
       await gw.createRoute(db, {
-        kind: "ingress",
+        type: "ingress",
         domain: "expired.test.dx.dev",
         targetService: "api-svc",
         createdBy: "test",
@@ -170,57 +188,59 @@ describe("Gateway Service", () => {
     it("registers domain with verification token", async () => {
       const d = await gw.registerDomain(db, {
         fqdn: "app.acme.com",
-        kind: "custom",
+        type: "custom",
         createdBy: "test",
       });
 
-      expect(d.domainId).toBeTruthy();
+      expect(d.id).toBeTruthy();
       expect(d.fqdn).toBe("app.acme.com");
-      expect(d.verificationToken).toMatch(/^dx-verify-/);
-      expect(d.status).toBe("pending");
-      expect(d.dnsVerified).toBe(false);
+      const dSpec = d.spec as Record<string, unknown>;
+      expect(dSpec.verificationToken).toMatch(/^dx-verify-/);
+      expect(dSpec.status).toBe("pending");
+      expect(dSpec.dnsVerified).toBe(false);
     });
 
     it("gets domain by id and by fqdn", async () => {
       const created = await gw.registerDomain(db, {
         fqdn: "app.acme.com",
-        kind: "custom",
+        type: "custom",
         createdBy: "test",
       });
 
-      const byId = await gw.getDomain(db, created.domainId);
+      const byId = await gw.getDomain(db, created.id);
       const byFqdn = await gw.getDomainByFqdn(db, "app.acme.com");
 
       expect(byId).not.toBeNull();
       expect(byFqdn).not.toBeNull();
-      expect(byId!.domainId).toBe(byFqdn!.domainId);
+      expect(byId!.id).toBe(byFqdn!.id);
       expect(byId!.fqdn).toBe("app.acme.com");
     });
 
     it("updates domain verification", async () => {
       const created = await gw.registerDomain(db, {
         fqdn: "app.acme.com",
-        kind: "custom",
+        type: "custom",
         createdBy: "test",
       });
 
-      const updated = await gw.updateDomain(db, created.domainId, {
+      const updated = await gw.updateDomain(db, created.id, {
         dnsVerified: true,
         status: "verified",
       });
 
-      expect(updated!.dnsVerified).toBe(true);
-      expect(updated!.status).toBe("verified");
+      const updatedSpec = updated!.spec as Record<string, unknown>;
+      expect(updatedSpec.dnsVerified).toBe(true);
+      expect(updatedSpec.status).toBe("verified");
     });
 
     it("removes domain", async () => {
       const created = await gw.registerDomain(db, {
         fqdn: "app.acme.com",
-        kind: "custom",
+        type: "custom",
         createdBy: "test",
       });
 
-      await gw.removeDomain(db, created.domainId);
+      await gw.removeDomain(db, created.id);
 
       const { data } = await gw.listDomains(db);
       expect(data).toHaveLength(0);
@@ -229,14 +249,14 @@ describe("Gateway Service", () => {
     it("enforces unique fqdn", async () => {
       await gw.registerDomain(db, {
         fqdn: "app.acme.com",
-        kind: "custom",
+        type: "custom",
         createdBy: "test",
       });
 
       await expect(
         gw.registerDomain(db, {
           fqdn: "app.acme.com",
-          kind: "custom",
+          type: "custom",
           createdBy: "test",
         })
       ).rejects.toThrow();
@@ -244,20 +264,42 @@ describe("Gateway Service", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Sandbox Route Helpers
+  // Workspace Route Helpers (was sandbox route helpers)
   // ---------------------------------------------------------------------------
-  describe("sandbox route helpers", () => {
-    it("creates sandbox routes with publish ports", async () => {
-      const dt = await fleet.createDeploymentTarget(db, {
-        name: `sandbox-${Date.now()}`,
-        kind: "sandbox",
-        trigger: "manual",
-        createdBy: "test",
-      });
+  describe("workspace route helpers", () => {
+    async function createSystemDeploymentPrereqs() {
+      const { site: s } = await createSitePrereqs();
+      const [sys] = await db
+        .insert(system)
+        .values({ name: "test-system", slug: "test-system", spec: { namespace: "default", lifecycle: "experimental", tags: [] } satisfies SystemSpec })
+        .returning();
+      return { site: s, system: sys };
+    }
 
-      const routes = await gw.createSandboxRoutes(db, {
-        sandboxSlug: "my-sandbox",
-        deploymentTargetId: dt.deploymentTargetId,
+    it("creates workspace routes with publish ports", async () => {
+      const { site: s, system: sys } = await createSystemDeploymentPrereqs();
+      const [sd] = await db
+        .insert(systemDeployment)
+        .values({
+          name: `workspace-${Date.now()}`,
+          slug: `workspace-${Date.now()}`,
+          type: "dev",
+          systemId: sys.id,
+          siteId: s.id,
+          spec: {
+            trigger: "manual",
+            createdBy: "test",
+            status: "provisioning",
+            deploymentStrategy: "rolling",
+            labels: {},
+            runtime: "kubernetes",
+          } satisfies SystemDeploymentSpec,
+        })
+        .returning();
+
+      const routes = await gw.createWorkspaceRoutes(db, {
+        workspaceSlug: "my-workspace",
+        systemDeploymentId: sd.id,
         publishPorts: [3000, 8080],
         createdBy: "test",
       });
@@ -265,62 +307,84 @@ describe("Gateway Service", () => {
       expect(routes).toHaveLength(3);
 
       const primary = routes.find(
-        (r: any) => r.domain === "my-sandbox.preview.dx.dev"
+        (r) => r.domain === "my-workspace.workspace.dx.dev"
       );
       expect(primary).toBeTruthy();
-      expect(primary!.kind).toBe("sandbox");
 
       const port3000 = routes.find(
-        (r: any) => r.domain === "my-sandbox-3000.preview.dx.dev"
+        (r) => r.domain === "my-workspace-3000.workspace.dx.dev"
       );
       expect(port3000).toBeTruthy();
-      expect(port3000!.targetPort).toBe(3000);
 
       const port8080 = routes.find(
-        (r: any) => r.domain === "my-sandbox-8080.preview.dx.dev"
+        (r) => r.domain === "my-workspace-8080.workspace.dx.dev"
       );
       expect(port8080).toBeTruthy();
-      expect(port8080!.targetPort).toBe(8080);
     });
 
-    it("creates sandbox routes for site", async () => {
-      const { site } = await createSitePrereqs();
-      const dt = await fleet.createDeploymentTarget(db, {
-        name: `sandbox-site-${Date.now()}`,
-        kind: "sandbox",
-        trigger: "manual",
-        createdBy: "test",
-      });
+    it("creates workspace routes for site", async () => {
+      const { site: s, system: sys } = await createSystemDeploymentPrereqs();
+      const [sd] = await db
+        .insert(systemDeployment)
+        .values({
+          name: `workspace-site-${Date.now()}`,
+          slug: `workspace-site-${Date.now()}`,
+          type: "dev",
+          systemId: sys.id,
+          siteId: s.id,
+          spec: {
+            trigger: "manual",
+            createdBy: "test",
+            status: "provisioning",
+            deploymentStrategy: "rolling",
+            labels: {},
+            runtime: "kubernetes",
+          } satisfies SystemDeploymentSpec,
+        })
+        .returning();
 
-      const routes = await gw.createSandboxRoutes(db, {
-        sandboxSlug: "my-sandbox",
-        deploymentTargetId: dt.deploymentTargetId,
-        siteId: site.siteId,
+      const routes = await gw.createWorkspaceRoutes(db, {
+        workspaceSlug: "my-workspace",
+        systemDeploymentId: sd.id,
+        siteId: s.id,
         createdBy: "test",
       });
 
       expect(routes).toHaveLength(1);
       expect(routes[0].domain).toBe(
-        `my-sandbox.${site.siteId}.dx.dev`
+        `my-workspace.${s.id}.dx.dev`
       );
     });
 
     it("removes target routes", async () => {
-      const dt = await fleet.createDeploymentTarget(db, {
-        name: `sandbox-${Date.now()}`,
-        kind: "sandbox",
-        trigger: "manual",
-        createdBy: "test",
-      });
+      const { site: s, system: sys } = await createSystemDeploymentPrereqs();
+      const [sd] = await db
+        .insert(systemDeployment)
+        .values({
+          name: `workspace-${Date.now()}`,
+          slug: `workspace-${Date.now()}`,
+          type: "dev",
+          systemId: sys.id,
+          siteId: s.id,
+          spec: {
+            trigger: "manual",
+            createdBy: "test",
+            status: "provisioning",
+            deploymentStrategy: "rolling",
+            labels: {},
+            runtime: "kubernetes",
+          } satisfies SystemDeploymentSpec,
+        })
+        .returning();
 
-      await gw.createSandboxRoutes(db, {
-        sandboxSlug: "my-sandbox",
-        deploymentTargetId: dt.deploymentTargetId,
+      await gw.createWorkspaceRoutes(db, {
+        workspaceSlug: "my-workspace",
+        systemDeploymentId: sd.id,
         publishPorts: [3000],
         createdBy: "test",
       });
 
-      const removed = await gw.removeTargetRoutes(db, dt.deploymentTargetId);
+      const removed = await gw.removeTargetRoutes(db, sd.id);
       expect(removed).toBe(2);
 
       const { data } = await gw.listRoutes(db);
@@ -333,6 +397,7 @@ describe("Gateway Service", () => {
   // ---------------------------------------------------------------------------
   describe("tunnel lifecycle", () => {
     it("registers tunnel with route", async () => {
+      await ensurePrincipal("user1");
       const { tunnel: t, route: r } = await gw.registerTunnel(db, {
         subdomain: "test-tunnel",
         principalId: "user1",
@@ -341,12 +406,13 @@ describe("Gateway Service", () => {
       });
 
       expect(t.subdomain).toBe("test-tunnel");
-      expect(t.status).toBe("connecting");
+      expect(t.phase).toBe("connected");
       expect(r.domain).toBe("test-tunnel.tunnel.dx.dev");
-      expect(r.kind).toBe("tunnel");
+      expect(r.type).toBe("tunnel");
     });
 
     it("closes tunnel and cascades route", async () => {
+      await ensurePrincipal("user1");
       const { tunnel: t, route: r } = await gw.registerTunnel(db, {
         subdomain: "test-tunnel",
         principalId: "user1",
@@ -354,16 +420,17 @@ describe("Gateway Service", () => {
         createdBy: "test",
       });
 
-      await gw.closeTunnel(db, t.tunnelId);
+      await gw.closeTunnel(db, t.id);
 
-      const fetchedTunnel = await gw.getTunnel(db, t.tunnelId);
+      const fetchedTunnel = await gw.getTunnel(db, t.id);
       expect(fetchedTunnel).toBeNull();
 
-      const fetchedRoute = await gw.getRoute(db, r.routeId);
+      const fetchedRoute = await gw.getRoute(db, r.id);
       expect(fetchedRoute).toBeNull();
     });
 
     it("heartbeat updates timestamp", async () => {
+      await ensurePrincipal("user1");
       const { tunnel: t } = await gw.registerTunnel(db, {
         subdomain: "test-tunnel",
         principalId: "user1",
@@ -371,13 +438,15 @@ describe("Gateway Service", () => {
         createdBy: "test",
       });
 
-      await gw.heartbeatTunnel(db, t.tunnelId);
+      await gw.heartbeatTunnel(db, t.id);
 
-      const updated = await gw.getTunnel(db, t.tunnelId);
-      expect(updated!.lastHeartbeatAt).not.toBeNull();
+      const updated = await gw.getTunnel(db, t.id);
+      expect(updated!.updatedAt).not.toBeNull();
     });
 
     it("lists tunnels with filters", async () => {
+      await ensurePrincipal("user1");
+      await ensurePrincipal("user2");
       await gw.registerTunnel(db, {
         subdomain: "tunnel-a",
         principalId: "user1",

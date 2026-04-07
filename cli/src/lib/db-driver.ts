@@ -1,4 +1,7 @@
-import type { ProjectContext } from "./project.js";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+import type { CatalogSystem } from "@smp/factory-shared/catalog";
 
 /** Result row from a query — column name → value. */
 export type Row = Record<string, unknown>;
@@ -105,6 +108,12 @@ export interface DbDriver {
     thresholdSeconds?: number
   ): Promise<ActivityInfo[]>;
   killQuery(client: DbClient, pid: number): Promise<boolean>;
+
+  /** Create a native dump of the database to outputPath. */
+  backup(url: string, outputPath: string): Promise<void>;
+
+  /** Restore a native dump into the database from inputPath. */
+  restore(url: string, inputPath: string): Promise<void>;
 }
 
 // Known database image prefixes → driver type
@@ -161,13 +170,13 @@ function resourceToDbConfig(res: {
   };
 }
 
-/** Find all database dependencies from a project's catalog. */
+/** Find all database dependencies from a catalog. */
 export function findDbDependencies(
-  ctx: ProjectContext
+  catalog: CatalogSystem
 ): { name: string; res: DbResourceConfig; dbType: string }[] {
   const results: { name: string; res: DbResourceConfig; dbType: string }[] = [];
 
-  for (const [name, resource] of Object.entries(ctx.catalog.resources)) {
+  for (const [name, resource] of Object.entries(catalog.resources)) {
     const res = resourceToDbConfig(resource);
     const dbType = detectDbType(name, res);
     if (dbType) {
@@ -200,10 +209,11 @@ export function getDriver(type: string): DbDriver {
  * Uses --db flag to select if multiple databases exist.
  */
 export function resolveDbTarget(
-  ctx: ProjectContext,
+  catalog: CatalogSystem,
+  systemName: string,
   dbFlag?: string
 ): { name: string; res: DbResourceConfig; driver: DbDriver; url: string } {
-  const dbDeps = findDbDependencies(ctx);
+  const dbDeps = findDbDependencies(catalog);
 
   if (dbDeps.length === 0) {
     throw new Error(
@@ -239,11 +249,26 @@ export function resolveDbTarget(
 
   // Check for URL override via env var
   const envKey =
-    `${ctx.systemName.toUpperCase().replace(/-/g, "_")}_DATABASE_URL`;
+    `${systemName.toUpperCase().replace(/-/g, "_")}_DATABASE_URL`;
   const url =
     process.env[envKey] ||
     process.env.DATABASE_URL ||
     driver.buildUrl(selected.res, selected.name);
 
   return { name: selected.name, res: selected.res, driver, url };
+}
+
+// ── Backup Storage ────────────────────────────────────────────────────────────
+
+export const DB_BACKUP_DIR = join(homedir(), ".dx", "backups", "db");
+
+export interface BackupMetadata {
+  name: string;
+  dbType: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
+export function backupFilePath(name: string, ext: string): string {
+  return join(DB_BACKUP_DIR, `${name}.${ext}`);
 }

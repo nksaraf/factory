@@ -1,5 +1,6 @@
 packages:
   - "./api"
+  - "./api-server"
   - "./cli"
   - "./shared"
   - "./ui"

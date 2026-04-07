@@ -65,9 +65,9 @@ export function logsCommand(app: DxBase) {
         type: "string",
         description: "Target site",
       },
-      sandbox: {
+      workspace: {
         type: "string",
-        description: "Target sandbox",
+        description: "Target workspace",
       },
       build: {
         type: "string",
@@ -92,7 +92,7 @@ export function logsCommand(app: DxBase) {
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
-      const isRemote = !!(flags.site || flags.sandbox || flags.build || flags.rollout)
+      const isRemote = !!(flags.site || flags.workspace || flags.build || flags.rollout)
 
       try {
         if (isRemote) {
@@ -167,7 +167,7 @@ async function fetchRemoteLogs(
     module: args.module,
     component: args.component,
     site: flags.site as string | undefined,
-    sandbox: flags.sandbox as string | undefined,
+    workspace: flags.workspace as string | undefined,
     level: flags.level as string | undefined,
     grep: flags.grep as string | undefined,
     since: flags.since as string | undefined,

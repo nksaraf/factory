@@ -1,11 +1,11 @@
-import { findComposeRoot } from "@smp/factory-shared/config-loader";
 import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
-import { loadConventions, validateCommitMessage } from "@smp/factory-shared/conventions";
+import { validateCommitMessage } from "@smp/factory-shared/conventions";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import type { DxBase } from "../dx-root.js";
-import { getFactoryClient } from "../client.js";
+import { getFactoryRestClient } from "../client.js";
 import { exitWithError } from "../lib/cli-exit.js";
+import { resolveDxContext } from "../lib/dx-context.js";
 import { stageAll, gitCommit, getCurrentBranch } from "../lib/git.js";
 import { gitPushAuto } from "../lib/git-push.js";
 import { resolveRepoContext } from "../lib/repo-context.js";
@@ -44,10 +44,8 @@ export function shipCommand(app: DxBase) {
         const cwd = process.cwd();
 
         // 1. Validate commit message
-        const root = findComposeRoot(cwd);
-        const conventions = root
-          ? loadConventions(root)
-          : defaultConventionsConfig();
+        const dxCtx = await resolveDxContext({ need: "host", cwd });
+        const conventions = dxCtx.project?.conventions ?? defaultConventionsConfig();
         const result = validateCommitMessage(args.message, conventions);
         if (!result.valid && !flags.force) {
           if (f.json) {
@@ -91,36 +89,36 @@ export function shipCommand(app: DxBase) {
         try {
           const ctx = await resolveRepoContext(cwd);
           const branch = getCurrentBranch(cwd);
-          const api = await getFactoryClient();
+          const rest = await getFactoryRestClient();
+          const pullsBase = `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`;
 
           // Check for existing open PR on this branch
-          const listRes = await (api as any).api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.get({
-            query: { state: "open" },
-          });
-          const pulls = Array.isArray(listRes?.data?.data)
-            ? listRes.data.data
-            : Array.isArray(listRes?.data)
-              ? listRes.data
-              : [];
-          const existing = pulls.find((pr: any) => pr.head === branch);
+          const listRes = await rest.request<{ data?: Record<string, unknown>[] }>(
+            "GET", `${pullsBase}?state=open`
+          );
+          const pulls = Array.isArray(listRes?.data) ? listRes.data : [];
+          const existing = pulls.find((pr) => pr.head === branch);
 
           if (existing) {
-            prNumber = existing.number;
-            prUrl = existing.url ?? existing.htmlUrl;
+            prNumber = existing.number as number;
+            prUrl = (existing.url ?? existing.htmlUrl) as string;
           } else {
             // Create new PR
             const prTitle = (flags.title as string) || args.message;
             const prBase = (flags.base as string) || ctx.defaultBranch;
-            const createRes = await (api as any).api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.post({
-              title: prTitle,
-              body: "",
-              head: branch,
-              base: prBase,
-              draft: !!flags.draft,
-            });
-            const pr = createRes?.data?.data ?? createRes?.data ?? createRes;
-            prNumber = pr.number;
-            prUrl = pr.url ?? pr.htmlUrl;
+            const createRes = await rest.request<{ data?: Record<string, unknown> }>(
+              "POST", pullsBase,
+              {
+                title: prTitle,
+                body: "",
+                head: branch,
+                base: prBase,
+                draft: !!flags.draft,
+              }
+            );
+            const pr = createRes?.data ?? (createRes as Record<string, unknown>);
+            prNumber = pr.number as number;
+            prUrl = (pr.url ?? pr.htmlUrl) as string;
           }
         } catch {
           // PR creation is best-effort; commit and push already succeeded

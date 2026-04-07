@@ -31,8 +31,8 @@ So "hybrid dev" isn't a special infrastructure feature. It's an **environment re
 When a component starts (in any mode — local, sandbox, staging, production), its environment variables are resolved by merging layers, top-down:
 
 ```
-Layer 1: Component defaults           (from dx.yaml, component-level env)
-Layer 2: Module defaults               (from dx.yaml, module-level env)
+Layer 1: Component defaults           (from docker-compose.yaml, component-level env)
+Layer 2: Module defaults               (from docker-compose.yaml, module-level env)
 Layer 3: Dependency auto-discovery     (generated from dependency declarations)
 Layer 4: Tier overrides                (from .dx/tiers/staging.yaml, etc.)
 Layer 5: Target overrides              (specific to this deployment target)
@@ -119,7 +119,7 @@ When a developer runs `dx dev api --connect-to staging`:
 
 1. dx resolves "staging" to a deployment target (the staging deployment_target for this module's product).
 
-2. For each dependency declared in `dx.yaml`, dx checks if that dependency exists as a workload or resolvable endpoint in the staging target.
+2. For each dependency declared in `docker-compose.yaml`, dx checks if that dependency exists as a workload or resolvable endpoint in the staging target.
 
 3. For matched dependencies, dx resolves the staging endpoint and **substitutes it into the local component's environment variables**.
 
@@ -425,7 +425,7 @@ Not everything is a module. Sometimes a developer is writing:
 - A third-party integration test harness
 - A load test tool
 
-These aren't modules. They don't have `dx.yaml`. They don't have components. But they still need to connect to remote deployment targets.
+These aren't modules. They don't have `docker-compose.yaml`. They don't have components. But they still need to connect to remote deployment targets.
 
 ### `dx connect` — standalone connection mode
 
@@ -502,7 +502,7 @@ This is useful for debugging ("why is my component connecting to the wrong datab
 The connection profile system doesn't add new entities to the component/workload model. It operates at the **environment resolution layer** — the moment when a component's abstract dependency declarations get resolved into concrete URLs.
 
 ```
-DEFINE (dx.yaml)
+DEFINE (docker-compose.yaml)
   module: geoanalytics
   components: [api, worker]
   dependencies: [postgres, redis]

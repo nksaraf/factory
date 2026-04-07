@@ -7,8 +7,6 @@ import { stringify } from "yaml";
 import type { ServiceType } from "../lib/detect-service-type.js";
 
 export interface TestProjectOptions {
-  module?: string;
-  team?: string;
   components?: Record<
     string,
     {
@@ -43,7 +41,7 @@ export function createTestProject(opts?: TestProjectOptions): TestProject {
   const rootDir = mkdtempSync(join(tmpdir(), "dx-test-"));
   mkdirSync(join(rootDir, ".dx"), { recursive: true });
 
-  const components: Record<string, Record<string, unknown>> = {};
+  // Create marker files for component type detection
   for (const [name, cfg] of Object.entries(opts?.components ?? {})) {
     const compDir = join(rootDir, name);
     mkdirSync(compDir, { recursive: true });
@@ -58,25 +56,30 @@ export function createTestProject(opts?: TestProjectOptions): TestProject {
         );
       }
     }
+  }
 
-    components[name] = {
-      path: `./${name}`,
-      ...(cfg.port != null ? { port: cfg.port } : {}),
-      ...(cfg.container_port != null
-        ? { container_port: cfg.container_port }
+  // Build docker-compose.yaml with services for components + dependencies
+  const services: Record<string, Record<string, unknown>> = {};
+
+  for (const [name, cfg] of Object.entries(opts?.components ?? {})) {
+    services[name] = {
+      build: { context: `./${name}` },
+      ...(cfg.port != null
+        ? { ports: [`${cfg.port}:${cfg.container_port ?? cfg.port}`] }
         : {}),
     };
   }
 
-  const dxYaml = {
-    module: opts?.module ?? "test",
-    team: opts?.team ?? "test-team",
-    components,
-    dependencies: opts?.dependencies ?? {},
-    connections: {},
-  };
+  for (const [name, dep] of Object.entries(opts?.dependencies ?? {})) {
+    services[name] = {
+      image: dep.image,
+      ports: [`${dep.port}:${dep.container_port ?? dep.port}`],
+      ...(dep.env ? { environment: dep.env } : {}),
+    };
+  }
 
-  writeFileSync(join(rootDir, "dx.yaml"), stringify(dxYaml), "utf8");
+  const compose = { services };
+  writeFileSync(join(rootDir, "docker-compose.yaml"), stringify(compose), "utf8");
 
   return {
     rootDir,

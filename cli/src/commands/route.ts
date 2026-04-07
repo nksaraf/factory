@@ -29,12 +29,12 @@ export function routeCommand(app: DxBase) {
     .sub("route")
     .meta({ description: "Gateway route management" })
 
-    // dx route list [--kind sandbox] [--site my-site]
+    // dx route list [--kind workspace] [--site my-site]
     .command("list", (c) =>
       c
         .meta({ description: "List routes" })
         .flags({
-          kind: { type: "string", description: "Filter by kind (sandbox, tunnel, preview, ingress, custom_domain)" },
+          kind: { type: "string", description: "Filter by kind (workspace, tunnel, preview, ingress, custom_domain)" },
           site: { type: "string", description: "Filter by site ID" },
           status: { type: "string", alias: "s", description: "Filter by status" },
           sort: { type: "string", description: "Sort by: domain, kind, status (default: domain)" },
@@ -44,16 +44,17 @@ export function routeCommand(app: DxBase) {
           const f = toDxFlags(flags);
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.factory.infra.gateway.routes.get({
+            api.api.v1.factory.infra.routes.get({
               query: {
                 kind: flags.kind as string | undefined,
                 siteId: flags.site as string | undefined,
                 status: flags.status as string | undefined,
               },
             })
-          ) as Record<string, unknown> | undefined;
+          );
 
-          const routes = (result?.data ?? []) as Record<string, unknown>[];
+          const resultObj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+          const routes = (Array.isArray(resultObj.data) ? resultObj.data : Array.isArray(result) ? result : []) as Record<string, unknown>[];
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: routes }, null, 2));
             return;
@@ -84,7 +85,7 @@ export function routeCommand(app: DxBase) {
           domain: { type: "string", description: "Route domain", required: true },
           target: { type: "string", description: "Target service name", required: true },
           port: { type: "number", description: "Target port" },
-          kind: { type: "string", description: "Route kind (ingress, sandbox, etc.)" },
+          kind: { type: "string", description: "Route kind (ingress, workspace, etc.)" },
           site: { type: "string", description: "Site ID" },
           path: { type: "string", description: "Path prefix" },
           protocol: { type: "string", description: "Protocol (http, grpc, tcp)" },
@@ -97,7 +98,7 @@ export function routeCommand(app: DxBase) {
 
           const api = await getGatewayApi();
           const result = await apiCall(flags, () =>
-            api.api.v1.factory.infra.gateway.routes.post({
+            api.api.v1.factory.infra.routes.post({
               kind: (flags.kind as string) ?? "ingress",
               domain: flags.domain as string,
               targetService: flags.target as string,
@@ -106,14 +107,16 @@ export function routeCommand(app: DxBase) {
               pathPrefix: flags.path as string | undefined,
               protocol: flags.protocol as string | undefined,
             })
-          ) as Record<string, unknown> | undefined;
+          );
 
+          const resultObj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+          const routeData = (resultObj.data && typeof resultObj.data === "object" ? resultObj.data : resultObj) as Record<string, unknown>;
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: result }, null, 2));
+            console.log(JSON.stringify({ success: true, data: routeData }, null, 2));
           } else {
-            console.log(styleSuccess(`Route created: ${result?.routeId}`));
-            console.log(`  Domain: ${result?.domain}`);
-            console.log(`  Target: ${result?.targetService}:${result?.targetPort ?? 80}`);
+            console.log(styleSuccess(`Route created: ${routeData.routeId}`));
+            console.log(`  Domain: ${routeData.domain}`);
+            console.log(`  Target: ${routeData.targetService}:${routeData.targetPort ?? 80}`);
           }
         })
     )
@@ -138,7 +141,7 @@ export function routeCommand(app: DxBase) {
 
           const api = await getGatewayApi();
           await apiCall(flags, () =>
-            api.api.v1.factory.infra.gateway.routes({ id }).delete()
+            api.api.v1.factory.infra.routes({ slugOrId: id }).delete.post()
           );
 
           actionResult(flags, { deleted: true, routeId: id }, styleSuccess(`Route ${id} deleted.`));

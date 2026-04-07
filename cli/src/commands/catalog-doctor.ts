@@ -299,17 +299,20 @@ function renderDiagnosis(d: ServiceDiagnosis): void {
 // ─── YAML mutation ───────────────────────────────────────────
 
 function setLabel(doc: Document, serviceName: string, key: string, value: string): void {
-  const services = doc.get("services") as any;
-  if (!services) return;
-  const svc = services.get(serviceName) as any;
-  if (!svc) return;
+  const services = doc.get("services");
+  if (!services || typeof services !== "object" || !("get" in services)) return;
+  const svc = (services as { get(k: string): unknown }).get(serviceName);
+  if (!svc || typeof svc !== "object" || !("get" in svc) || !("set" in svc)) return;
+  const svcMap = svc as { get(k: string): unknown; set(k: string, v: unknown): void };
 
-  let labels = svc.get("labels");
+  let labels = svcMap.get("labels");
   if (!labels) {
-    svc.set("labels", doc.createNode({}));
-    labels = svc.get("labels");
+    svcMap.set("labels", doc.createNode({}));
+    labels = svcMap.get("labels");
   }
-  labels.set(key, value);
+  if (labels && typeof labels === "object" && "set" in labels) {
+    (labels as { set(k: string, v: string): void }).set(key, value);
+  }
 }
 
 // ─── Handler ─────────────────────────────────────────────────

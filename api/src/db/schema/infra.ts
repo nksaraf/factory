@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { newId } from "../../lib/id";
 
@@ -24,18 +24,6 @@ export const provider = factoryInfra.table(
   },
   (t) => [
     uniqueIndex("provider_slug_unique").on(t.slug),
-    check(
-      "provider_type_valid",
-      sql`${t.providerType} IN ('proxmox', 'hetzner', 'aws', 'gcp')`
-    ),
-    check(
-      "provider_status_valid",
-      sql`${t.status} IN ('active', 'inactive')`
-    ),
-    check(
-      "provider_kind_valid",
-      sql`${t.providerKind} IN ('internal', 'cloud', 'partner')`
-    ),
   ]
 );
 
@@ -52,6 +40,7 @@ export const cluster = factoryInfra.table(
       .references(() => provider.providerId, { onDelete: "restrict" }),
     status: text("status").notNull().default("provisioning"),
     kubeconfigRef: text("kubeconfig_ref"),
+    endpoint: text("endpoint"), // where NodePorts are reachable (e.g. cluster IP/hostname)
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -156,12 +145,12 @@ export const host = factoryInfra.table(
   ]
 );
 
-export const proxmoxCluster = factoryInfra.table(
-  "proxmox_cluster",
+export const vmCluster = factoryInfra.table(
+  "vm_cluster",
   {
-    proxmoxClusterId: text("proxmox_cluster_id")
+    vmClusterId: text("vm_cluster_id")
       .primaryKey()
-      .$defaultFn(() => newId("pxc")),
+      .$defaultFn(() => newId("vmc")),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     providerId: text("provider_id")
@@ -180,8 +169,8 @@ export const proxmoxCluster = factoryInfra.table(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("proxmox_cluster_name_unique").on(t.name),
-    uniqueIndex("proxmox_cluster_slug_unique").on(t.slug),
+    uniqueIndex("vm_cluster_name_unique").on(t.name),
+    uniqueIndex("vm_cluster_slug_unique").on(t.slug),
     check(
       "sync_status_valid",
       sql`${t.syncStatus} IN ('idle', 'syncing', 'error')`
@@ -206,9 +195,9 @@ export const vm = factoryInfra.table(
       .references(() => host.hostId, { onDelete: "set null" }),
     clusterId: text("cluster_id")
       .references(() => cluster.clusterId, { onDelete: "set null" }),
-    proxmoxClusterId: text("proxmox_cluster_id")
-      .references(() => proxmoxCluster.proxmoxClusterId, { onDelete: "set null" }),
-    proxmoxVmid: integer("proxmox_vmid"),
+    vmClusterId: text("vm_cluster_id")
+      .references(() => vmCluster.vmClusterId, { onDelete: "set null" }),
+    externalVmid: integer("external_vmid"),
     vmType: text("vm_type").notNull().default("qemu"),
     status: text("status").notNull().default("provisioning"),
     osType: text("os_type").notNull().default("linux"),
@@ -331,6 +320,42 @@ export const ipAddress = factoryInfra.table(
     check(
       "ip_assigned_to_type_valid",
       sql`${t.assignedToType} IS NULL OR ${t.assignedToType} IN ('vm', 'host', 'kube_node', 'cluster', 'service')`
+    ),
+  ]
+);
+
+// ─── SSH Keys ───────────────────────────────────────────────
+// Developer SSH public keys registered with Factory.
+// Used for provisioning authorized_keys on VMs, sandboxes, and hosts.
+
+export const sshKey = factoryInfra.table(
+  "ssh_key",
+  {
+    sshKeyId: text("ssh_key_id")
+      .primaryKey()
+      .$defaultFn(() => newId("sshk")),
+    principalId: text("principal_id").notNull(),
+    name: text("name").notNull(),
+    publicKey: text("public_key").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    keyType: text("key_type").notNull().default("ed25519"),
+    status: text("status").notNull().default("active"),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("ssh_key_fingerprint_unique").on(t.fingerprint),
+    uniqueIndex("ssh_key_principal_name_unique").on(t.principalId, t.name),
+    index("ssh_key_principal_idx").on(t.principalId),
+    check(
+      "ssh_key_type_valid",
+      sql`${t.keyType} IN ('ed25519', 'rsa', 'ecdsa')`
+    ),
+    check(
+      "ssh_key_status_valid",
+      sql`${t.status} IN ('active', 'revoked')`
     ),
   ]
 );

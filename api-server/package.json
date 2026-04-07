@@ -1,0 +1,30 @@
+{
+  "name": "@smp/factory-api-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vinxi dev --port 4100",
+    "build": "vinxi build",
+    "start": "node .output/server/index.js"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "0.214.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.56.0",
+    "@opentelemetry/exporter-logs-otlp-http": "0.214.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.205.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-logs": "0.214.0",
+    "@opentelemetry/sdk-metrics": "^2.0.0",
+    "@opentelemetry/sdk-node": "^0.205.0",
+    "@rio.js/vinxi": "^0.0.39",
+    "@smp/factory-api": "workspace:*",
+    "dotenv": "^17.3.1",
+    "vinxi": "0.5.11"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

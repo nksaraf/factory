@@ -54,7 +54,7 @@ export function deployCommand(app: DxBase) {
           const result = await apiCall(flags, () =>
             api.api.v1.fleet.rollouts.post({
               releaseId: args["release-id"],
-              deploymentTargetId: flags.target as string,
+              systemDeploymentId: flags.target as string,
             })
           );
           actionResult(flags, result, styleSuccess(`Rollout created for release ${args["release-id"]}.`));
@@ -80,7 +80,7 @@ export function deployCommand(app: DxBase) {
           detailView(flags, result, [
             ["ID", (r) => styleMuted(String(r.rolloutId ?? ""))],
             ["Release", (r) => styleBold(String(r.releaseId ?? ""))],
-            ["Target", (r) => String(r.deploymentTargetId ?? "")],
+            ["Target", (r) => String(r.systemDeploymentId ?? "")],
             ["Status", (r) => colorStatus(String(r.status ?? ""))],
             ["Started", (r) => timeAgo(r.startedAt as string)],
             ["Completed", (r) => r.completedAt ? timeAgo(r.completedAt as string) : "-"],
@@ -107,7 +107,7 @@ export function deployCommand(app: DxBase) {
             (r) => [
               styleMuted(String(r.rolloutId ?? "")),
               styleBold(String(r.releaseId ?? "")),
-              String(r.deploymentTargetId ?? ""),
+              String(r.systemDeploymentId ?? ""),
               colorStatus(String(r.status ?? "")),
               timeAgo(r.startedAt as string),
               r.completedAt ? timeAgo(r.completedAt as string) : styleMuted("-"),

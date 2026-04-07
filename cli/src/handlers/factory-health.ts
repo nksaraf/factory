@@ -2,7 +2,7 @@ import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { styleBold, styleError, styleSuccess, styleWarn } from "../cli-style.js";
 import { getFactoryClient } from "../client.js";
-import { readConfig, resolveFactoryUrl } from "../config.js";
+import { readConfig, resolveFactoryUrl, resolveFactoryMode } from "../config.js";
 import type { DxFlags } from "../stub.js";
 
 type HealthBody = { status?: string; service?: string };
@@ -70,11 +70,22 @@ export async function runFactoryHealth(flags: DxFlags): Promise<void> {
     });
   }
 
-  // --- Cluster (if kubeconfig is set) ---
-  if (config.kubeconfig) {
+  // --- Cluster ---
+  // In local/dev mode, use the k3d kubeconfig for the appropriate cluster.
+  const modeInfo = resolveFactoryMode(config);
+  let clusterKubeconfig = config.kubeconfig;
+  if (modeInfo.mode === "local" || modeInfo.mode === "dev") {
+    const { join } = await import("node:path");
+    const { homedir } = await import("node:os");
+    const { existsSync } = await import("node:fs");
+    const clusterName = modeInfo.mode === "dev" ? "dx-dev" : "dx-local";
+    const k3dKubeconfig = join(homedir(), ".config", "dx", `kubeconfig-${clusterName}.yaml`);
+    if (existsSync(k3dKubeconfig)) clusterKubeconfig = k3dKubeconfig;
+  }
+  if (clusterKubeconfig) {
     try {
       const { spawnSync } = await import("node:child_process");
-      const proc = spawnSync("kubectl", ["get", "nodes", "--kubeconfig", config.kubeconfig, "-o", "name"], {
+      const proc = spawnSync("kubectl", ["get", "nodes", "--kubeconfig", clusterKubeconfig, "-o", "name"], {
         encoding: "utf8",
         timeout: 10000,
       });
@@ -109,7 +120,7 @@ export async function runFactoryHealth(flags: DxFlags): Promise<void> {
       JSON.stringify(
         {
           success: allOk,
-          data: { factoryUrl, checks },
+          data: { factoryUrl, factoryMode: modeInfo.mode, envOverride: modeInfo.envOverride, checks },
           exitCode: allOk ? 0 : ExitCodes.CONNECTION_FAILURE,
         },
         null,
@@ -120,7 +131,7 @@ export async function runFactoryHealth(flags: DxFlags): Promise<void> {
     return;
   }
 
-  console.log(styleBold(`Factory Health — ${factoryUrl}`));
+  console.log(styleBold(`Factory Health — ${modeInfo.label}`));
   console.log("");
 
   for (const check of checks) {

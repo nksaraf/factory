@@ -2,9 +2,9 @@ import ora, { type Ora } from "ora";
 import { styleSuccess, styleError, styleWarn, styleMuted } from "../cli-style.js";
 import type { ToolchainCheck } from "@smp/factory-shared/install-types";
 
-/** Print the dx install welcome banner. */
+/** Print the dx setup welcome banner. */
 export function banner(version: string): void {
-  console.log(`\n  dx platform installer v${version}\n`);
+  console.log(`\n  dx platform setup v${version}\n`);
 }
 
 /** Format a single preflight check result for one-line output. */

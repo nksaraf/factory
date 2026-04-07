@@ -47,7 +47,7 @@ export function alertCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
           const client = await getFactoryClient()
-          const alerts = await apiCall(flags, () =>
+          const alertsRaw = await apiCall(flags, () =>
             client.api.v1.factory.observability.alerts.get({
               query: cleanQuery({
                 site: flags.site,
@@ -58,11 +58,12 @@ export function alertCommand(app: DxBase) {
                 limit: flags.limit,
               }),
             })
-          ) as Alert[] | undefined
+          )
+          const alerts = Array.isArray(alertsRaw) ? alertsRaw : []
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: alerts }, null, 2))
           } else {
-            console.log(formatAlertTable(alerts ?? []))
+            console.log(formatAlertTable(alerts as Alert[]))
           }
         })
     )
@@ -73,9 +74,10 @@ export function alertCommand(app: DxBase) {
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags)
           const client = await getFactoryClient()
-          const alert = await apiCall(flags, () =>
+          const alert_ = await apiCall(flags, () =>
             client.api.v1.factory.observability.alerts({ id: args.id }).get()
-          ) as unknown as Record<string, unknown> | undefined
+          )
+          const alert = (alert_ && typeof alert_ === "object" && "data" in alert_ ? (alert_ as Record<string, unknown>).data : alert_) as Record<string, unknown> | undefined
 
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: alert }, null, 2))
@@ -154,8 +156,9 @@ export function alertCommand(app: DxBase) {
               duration: flags.duration as string,
               reason: flags.reason as string,
             })
-          ) as Record<string, unknown> | undefined
-          actionResult(flags, data, styleSuccess(`Alerts silenced. Silence ID: ${data?.silenceId}`))
+          )
+          const silenceData = (data && typeof data === "object" ? data : {}) as Record<string, unknown>
+          actionResult(flags, data, styleSuccess(`Alerts silenced. Silence ID: ${silenceData?.silenceId}`))
         })
     )
     .command("history", (c) =>
@@ -171,7 +174,7 @@ export function alertCommand(app: DxBase) {
         .run(async ({ flags }) => {
           const f = toDxFlags(flags)
           const client = await getFactoryClient()
-          const alerts = await apiCall(flags, () =>
+          const historyRaw = await apiCall(flags, () =>
             client.api.v1.factory.observability.alerts.get({
               query: cleanQuery({
                 site: flags.site,
@@ -182,11 +185,12 @@ export function alertCommand(app: DxBase) {
                 limit: flags.limit,
               }),
             })
-          ) as Alert[] | undefined
+          )
+          const historyAlerts = Array.isArray(historyRaw) ? historyRaw : []
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: alerts }, null, 2))
+            console.log(JSON.stringify({ success: true, data: historyAlerts }, null, 2))
           } else {
-            console.log(formatAlertTable(alerts ?? []))
+            console.log(formatAlertTable(historyAlerts as Alert[]))
           }
         })
     )
@@ -215,8 +219,9 @@ export function alertCommand(app: DxBase) {
               enabled: true,
               notify: flags.notify as string | undefined,
             })
-          ) as unknown as Record<string, unknown> | undefined
-          actionResult(flags, rule, styleSuccess(`Alert rule created: ${rule?.id}`))
+          )
+          const ruleData = (rule && typeof rule === "object" ? rule : {}) as Record<string, unknown>
+          actionResult(flags, rule, styleSuccess(`Alert rule created: ${ruleData?.id}`))
         })
     )
     .command("rule", (c) =>
@@ -235,7 +240,7 @@ export function alertCommand(app: DxBase) {
                 console.log(JSON.stringify({ success: true, data: rules }, null, 2))
               } else if (Array.isArray(rules) && rules.length > 0) {
                 for (const r of rules) {
-                  const rule = r as unknown as Record<string, unknown>
+                  const rule = (r && typeof r === "object" ? r : {}) as Record<string, unknown>
                   const state = rule.enabled ? styleSuccess("enabled") : styleMuted("disabled")
                   console.log(`  ${styleMuted(String(rule.id))}  ${styleBold(String(rule.name).padEnd(24))} ${rule.metric} ${rule.threshold}  [${rule.severity}] ${state}`)
                 }
@@ -251,9 +256,10 @@ export function alertCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const f = toDxFlags(flags)
               const client = await getFactoryClient()
-              const rule = await apiCall(flags, () =>
+              const ruleRaw = await apiCall(flags, () =>
                 client.api.v1.factory.observability.alerts.rules({ id: args.id }).get()
-              ) as unknown as Record<string, unknown> | undefined
+              )
+              const rule = (ruleRaw && typeof ruleRaw === "object" ? ruleRaw : undefined) as Record<string, unknown> | undefined
               if (f.json) {
                 console.log(JSON.stringify({ success: true, data: rule }, null, 2))
               } else if (rule) {
@@ -283,7 +289,7 @@ export function alertCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const client = await getFactoryClient()
               const result = await apiCall(flags, () =>
-                client.api.v1.factory.observability.alerts.rules({ id: args.id }).patch({
+                client.api.v1.factory.observability.alerts.rules({ id: args.id }).update.post({
                   enabled: false,
                 })
               )
@@ -297,7 +303,7 @@ export function alertCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const client = await getFactoryClient()
               const result = await apiCall(flags, () =>
-                client.api.v1.factory.observability.alerts.rules({ id: args.id }).patch({
+                client.api.v1.factory.observability.alerts.rules({ id: args.id }).update.post({
                   enabled: true,
                 })
               )

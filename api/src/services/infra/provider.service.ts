@@ -1,17 +1,17 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
-import { provider } from "../../db/schema/infra";
-import { getProviderAdapter } from "../../adapters/adapter-registry";
-import type { Provider, ProviderType } from "@smp/factory-shared/types";
+import { substrate } from "../../db/schema/infra-v2";
+import { getVMProviderAdapter } from "../../adapters/adapter-registry";
+import type { VmProviderType } from "../../adapters/vm-provider-adapter";
 
 export async function listProviders(
   db: Database,
-  filters?: { status?: string }
+  filters?: { lifecycle?: string }
 ) {
-  let query = db.select().from(provider);
-  if (filters?.status) {
-    query = query.where(eq(provider.status, filters.status)) as typeof query;
+  let query = db.select().from(substrate);
+  if (filters?.lifecycle) {
+    query = query.where(sql`${substrate.spec}->>'lifecycle' = ${filters.lifecycle}`) as typeof query;
   }
   return query;
 }
@@ -19,8 +19,8 @@ export async function listProviders(
 export async function getProvider(db: Database, id: string) {
   const rows = await db
     .select()
-    .from(provider)
-    .where(eq(provider.providerId, id));
+    .from(substrate)
+    .where(eq(substrate.id, id));
   return rows[0] ?? null;
 }
 
@@ -29,10 +29,9 @@ export async function createProvider(
   data: {
     name: string;
     slug?: string;
-    providerType: string;
-    url?: string;
-    credentialsRef?: string;
-    providerKind?: string;
+    type: string;
+    parentSubstrateId?: string;
+    spec?: Record<string, unknown>;
   }
 ) {
   const { slug: explicitSlug, ...rest } = data;
@@ -42,32 +41,24 @@ export async function createProvider(
     isTaken: async (s) => {
       const [r] = await db
         .select()
-        .from(provider)
-        .where(eq(provider.slug, s))
+        .from(substrate)
+        .where(eq(substrate.slug, s))
         .limit(1);
       return r != null;
     },
   });
-  const rows = await db.insert(provider).values({ ...rest, slug }).returning();
+  const rows = await db.insert(substrate).values({ ...rest, slug, spec: data.spec ?? {} } as any).returning();
   return rows[0];
-}
-
-export async function updateProvider(
-  db: Database,
-  id: string,
-  patch: { name?: string; status?: string; url?: string; credentialsRef?: string }
-) {
-  const rows = await db
-    .update(provider)
-    .set(patch)
-    .where(eq(provider.providerId, id))
-    .returning();
-  return rows[0] ?? null;
 }
 
 export async function syncProvider(db: Database, id: string) {
   const row = await getProvider(db, id);
-  if (!row) throw new Error(`Provider not found: ${id}`);
-  const adapter = getProviderAdapter(row.providerType as ProviderType, db);
-  return adapter.syncInventory(row as unknown as Provider, db);
+  if (!row) throw new Error(`Substrate not found: ${id}`);
+
+  const spec = (row.spec ?? {}) as Record<string, unknown>;
+  const providerKind = spec.providerKind as string | undefined;
+  if (!providerKind) throw new Error(`Substrate ${id} has no providerKind in spec`);
+
+  const adapter = getVMProviderAdapter(providerKind as VmProviderType, db);
+  return adapter.syncInventory(row);
 }

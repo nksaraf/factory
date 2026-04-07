@@ -129,7 +129,7 @@ export function validateCommitMessage(
       return {
         valid: false,
         violations: ["Conventions require a scope in parentheses, e.g. feat(api): ..."],
-        suggestions: ['Example: fix(cli): handle missing dx.yaml'],
+        suggestions: ['Example: fix(cli): handle missing docker-compose'],
       };
     }
   }

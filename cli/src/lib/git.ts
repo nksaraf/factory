@@ -1,5 +1,40 @@
 import { spawnSync } from "node:child_process";
 
+export function getGitCommonDir(cwd: string): string {
+  const proc = spawnSync("git", ["rev-parse", "--git-common-dir"], {
+    cwd,
+    encoding: "utf8",
+  });
+  if (proc.status !== 0) {
+    throw new Error(
+      (proc.stderr || "").trim() || "git rev-parse --git-common-dir failed"
+    );
+  }
+  return (proc.stdout || "").trim();
+}
+
+export function getGitDir(cwd: string): string {
+  const proc = spawnSync("git", ["rev-parse", "--git-dir"], {
+    cwd,
+    encoding: "utf8",
+  });
+  if (proc.status !== 0) {
+    throw new Error(
+      (proc.stderr || "").trim() || "git rev-parse --git-dir failed"
+    );
+  }
+  return (proc.stdout || "").trim();
+}
+
+export function getShortSha(cwd: string): string {
+  const proc = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+    cwd,
+    encoding: "utf8",
+  });
+  if (proc.status !== 0) return "";
+  return (proc.stdout || "").trim();
+}
+
 export function getCurrentBranch(cwd: string): string {
   const proc = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
     cwd,

@@ -6,7 +6,7 @@ export const GatewayModel = {
     siteId: t.Optional(t.String()),
     deploymentTargetId: t.Optional(t.String()),
     clusterId: t.Optional(t.String()),
-    kind: t.String(),
+    type: t.String(),
     domain: t.String(),
     pathPrefix: t.Optional(t.String()),
     targetService: t.String(),
@@ -32,7 +32,7 @@ export const GatewayModel = {
   }),
   routeIdParams: t.Object({ id: t.String() }),
   routeListQuery: t.Object({
-    kind: t.Optional(t.String()),
+    type: t.Optional(t.String()),
     siteId: t.Optional(t.String()),
     status: t.Optional(t.String()),
     deploymentTargetId: t.Optional(t.String()),
@@ -42,7 +42,7 @@ export const GatewayModel = {
   createDomainBody: t.Object({
     siteId: t.Optional(t.String()),
     fqdn: t.String(),
-    kind: t.String(),
+    type: t.String(),
   }),
   domainIdParams: t.Object({ id: t.String() }),
   domainListQuery: t.Object({

@@ -5,6 +5,8 @@
  * Stateless: receives connection details per call.
  */
 
+export type WorkTrackerType = "jira" | "linear" | "noop";
+
 export interface ExternalProject {
   id: string;
   key: string;
@@ -83,4 +85,14 @@ export interface WorkTrackerAdapter {
     projectId: string,
     specs: PushWorkItemSpec[]
   ): Promise<PushResult[]>;
+  updateIssueStatus(
+    apiUrl: string,
+    credentialsRef: string,
+    issueId: string,
+    transitionName: string,
+  ): Promise<void>;
+  verifyWebhook?(
+    headers: Record<string, string>,
+    body: string,
+  ): Promise<{ valid: boolean; eventType: string; payload: Record<string, unknown> }>;
 }

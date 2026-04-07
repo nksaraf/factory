@@ -38,10 +38,10 @@ import {
   listWorkloadOverrides as listWorkloadOverridesService,
   createIntervention as createInterventionService,
   listInterventions as listInterventionsService,
-  listSandboxes as listSandboxesService,
-  createSandbox as createSandboxService,
-  destroySandbox as destroySandboxService,
-  cleanupExpiredSandboxes as cleanupExpiredSandboxesService,
+  listWorkspaces as listWorkspacesService,
+  createWorkspace as createWorkspaceService,
+  destroyWorkspace as destroyWorkspaceService,
+  cleanupExpiredWorkspaces as cleanupExpiredWorkspacesService,
   createSnapshot as createSnapshotService,
   listSnapshots as listSnapshotsService,
   getSnapshot as getSnapshotService,
@@ -138,14 +138,14 @@ export class FleetPlaneService {
 
   // ---- Deployment Target lifecycle ----
 
-  listDeploymentTargets(opts?: { kind?: string; status?: string; siteId?: string; runtime?: string }) {
-    return listDeploymentTargetsService(this.db, opts)
+  listDeploymentTargets(opts?: { kind?: string; type?: string; status?: string; siteId?: string; runtime?: string }) {
+    return listDeploymentTargetsService(this.db, { ...opts, type: opts?.type ?? opts?.kind })
   }
 
   createDeploymentTarget(input: {
-    name: string; kind: string; siteId?: string; clusterId?: string;
+    name: string; type: string; systemId: string; siteId: string;
     namespace?: string; createdBy?: string; trigger?: string;
-    ttl?: string; tierPolicies?: Record<string, unknown>; labels?: Record<string, unknown>;
+    ttl?: string; labels?: Record<string, unknown>;
     runtime?: string; hostId?: string; vmId?: string;
   }) {
     return createDeploymentTargetService(this.db, {
@@ -174,8 +174,8 @@ export class FleetPlaneService {
   }
 
   createWorkload(input: {
-    deploymentTargetId: string; moduleVersionId: string; componentId: string;
-    artifactId: string; desiredImage: string; replicas?: number;
+    systemDeploymentId: string; componentId: string;
+    artifactId?: string; desiredImage?: string; replicas?: number;
     envOverrides?: Record<string, unknown>; resourceOverrides?: Record<string, unknown>
   }) {
     return createWorkloadService(this.db, input)
@@ -210,34 +210,34 @@ export class FleetPlaneService {
     return createDependencyWorkloadService(this.db, input)
   }
 
-  updateDependencyWorkloadStatus(id: string, status: string) {
-    return updateDependencyWorkloadStatusService(this.db, id, status)
+  updateDependencyWorkloadStatus(systemDeploymentId: string, depName: string, status: string) {
+    return updateDependencyWorkloadStatusService(this.db, systemDeploymentId, depName, status)
   }
 
-  // ---- Sandbox lifecycle ----
+  // ---- Workspace lifecycle ----
 
-  listSandboxes(opts?: { createdBy?: string; trigger?: string; all?: boolean }) {
-    return listSandboxesService(this.db, opts)
+  listWorkspaces(opts?: { createdBy?: string; trigger?: string; all?: boolean }) {
+    return listWorkspacesService(this.db, opts)
   }
 
-  createSandbox(body: FleetModels["createSandboxBody"] & {
-    createdBy?: string; clusterId?: string; ttl?: string; trigger?: string;
+  createWorkspace(body: {
+    name?: string; createdBy?: string; runtimeId?: string; ttl?: string; trigger?: string;
     labels?: Record<string, unknown>;
     dependencies?: Array<{ name: string; image: string; port: number; env?: Record<string, unknown> }>;
     publishPorts?: number[]; snapshotId?: string;
   }) {
-    return createSandboxService(this.db, this.sandboxAdapter, {
+    return createWorkspaceService(this.db, {
       ...body,
       createdBy: body.createdBy ?? "system",
     })
   }
 
-  destroySandbox(id: string) {
-    return destroySandboxService(this.db, this.sandboxAdapter, id)
+  destroyWorkspace(id: string) {
+    return destroyWorkspaceService(this.db, id)
   }
 
-  cleanupExpiredSandboxes() {
-    return cleanupExpiredSandboxesService(this.db, this.sandboxAdapter)
+  cleanupExpiredWorkspaces() {
+    return cleanupExpiredWorkspacesService(this.db)
   }
 
   // ---- Snapshot lifecycle ----
@@ -285,8 +285,8 @@ export class FleetPlaneService {
     return createWorkloadOverrideService(this.db, input)
   }
 
-  revertWorkloadOverride(overrideId: string, revertedBy: string) {
-    return revertWorkloadOverrideService(this.db, overrideId, revertedBy)
+  revertWorkloadOverride(componentDeploymentId: string, overrideId: string, revertedBy: string) {
+    return revertWorkloadOverrideService(this.db, componentDeploymentId, overrideId, revertedBy)
   }
 
   listWorkloadOverrides(workloadId: string) {
@@ -349,7 +349,7 @@ export class FleetPlaneService {
   // ---- Install Manifests ----
 
   listInstallManifests(opts?: { role?: string }) {
-    return listInstallManifestsService(this.db, opts)
+    return listInstallManifestsService(this.db)
   }
 
   getInstallManifestBySite(siteId: string) {

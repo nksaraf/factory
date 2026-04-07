@@ -56,7 +56,10 @@ export interface WorkspacePackage {
   manifest: PackageManifest;
 }
 
-export interface WorkspaceContext {
+/** Alias — new name for WorkspacePackage. */
+export type MonorepoPackage = WorkspacePackage;
+
+export interface MonorepoTopology {
   root: string;
   packages: WorkspacePackage[];
   pnpmOverrides: Record<string, string>;
@@ -346,7 +349,7 @@ function discoverJavaPackages(root: string): WorkspacePackage[] {
 }
 
 // ---------------------------------------------------------------------------
-// WorkspaceContext builder
+// MonorepoTopology builder
 // ---------------------------------------------------------------------------
 
 /**
@@ -355,7 +358,7 @@ function discoverJavaPackages(root: string): WorkspacePackage[] {
  * Workspace root is identified by pnpm-workspace.yaml or a parent pom.xml
  * with <modules>.
  */
-export function fromCwd(cwd?: string): WorkspaceContext {
+export function fromCwd(cwd?: string): MonorepoTopology {
   const start = cwd ?? process.cwd();
   const root = findWorkspaceRoot(start);
 
@@ -395,7 +398,7 @@ function findWorkspaceRoot(startDir: string): string {
  * Matches against package name or relative path.
  */
 export function filterPackages(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   filter?: string,
 ): WorkspacePackage[] {
   if (!filter) return ws.packages;

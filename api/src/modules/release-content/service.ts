@@ -2,7 +2,8 @@ import { Octokit } from "@octokit/rest";
 import type { Database } from "../../db/connection";
 import { gitHostProvider, gitRepoSync, repo } from "../../db/schema/build";
 import { eq } from "drizzle-orm";
-import { createGitHostAdapter } from "../../adapters/adapter-registry";
+import { getGitHostAdapter } from "../../adapters/adapter-registry";
+import type { GitHostType } from "../../adapters/git-host-adapter";
 import type {
   ReleaseContentConfig,
   ReleaseContentResult,
@@ -131,7 +132,7 @@ export class ReleaseContentService {
    */
   private async resolveGitHost(repoFullName: string): Promise<{
     octokit: Octokit;
-    adapter: ReturnType<typeof createGitHostAdapter>;
+    adapter: ReturnType<typeof getGitHostAdapter>;
     defaultBranch: string;
   }> {
     // Look up the repo via the git repo sync table (which stores externalFullName)
@@ -182,7 +183,7 @@ export class ReleaseContentService {
         : {}),
     });
 
-    const adapter = createGitHostAdapter(provider.hostType, {
+    const adapter = getGitHostAdapter(provider.hostType as GitHostType, {
       ...credentials,
       apiBaseUrl: provider.apiBaseUrl,
     });

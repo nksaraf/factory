@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeManifest } from "../lib/manifest";
 
+// v2: module → system, moduleVersionId → releaseId (in pins), moduleName → systemName
 describe("computeManifest", () => {
   const baseSite = { siteId: "site_1", name: "prod-us", product: "smp" };
 
@@ -11,7 +12,7 @@ describe("computeManifest", () => {
         releaseId: "rel_1",
         version: "1.0.0",
         pins: [
-          { moduleVersionId: "mv_1", moduleName: "core", version: "1.0.0" },
+          { moduleVersionId: "rel_core_1", moduleName: "core", version: "1.0.0" },
         ],
       },
     });
@@ -44,7 +45,7 @@ describe("computeManifest", () => {
         releaseId: "rel_1",
         version: "1.0.0",
         pins: [
-          { moduleVersionId: "mv_1", moduleName: "core", version: "1.0.0" },
+          { moduleVersionId: "rel_core_1", moduleName: "core", version: "1.0.0" },
         ],
       },
     };

@@ -57,17 +57,18 @@ describe("Runtime Strategy Registry", () => {
   });
 });
 
+// v2: workload → componentDeployment, target → systemDeployment, module → system
 describe("NoopStrategy", () => {
   it("returns running for server component", async () => {
     const strategy = new NoopStrategy();
     const result = await strategy.reconcile({
       workload: {
-        workloadId: "wl_test",
+        workloadId: "cdp_test",
         desiredImage: "img:v1",
         replicas: 1,
         envOverrides: {},
         resourceOverrides: {},
-        moduleVersionId: "mv_test",
+        moduleVersionId: "rel_test",
       },
       component: {
         name: "my-service",
@@ -81,16 +82,14 @@ describe("NoopStrategy", () => {
         defaultReplicas: 1,
       },
       target: {
-        deploymentTargetId: "dt_test",
+        deploymentTargetId: "sdp_test",
         name: "test-target",
         kind: "production",
         runtime: "process",
         hostId: "host_test",
-        vmId: null,
-        clusterId: null,
         namespace: null,
       },
-      moduleName: "test-module",
+      moduleName: "test-system",
     });
 
     expect(result.status).toBe("running");
@@ -101,12 +100,12 @@ describe("NoopStrategy", () => {
     const strategy = new NoopStrategy();
     const result = await strategy.reconcile({
       workload: {
-        workloadId: "wl_test",
+        workloadId: "cdp_test",
         desiredImage: "img:v1",
         replicas: 1,
         envOverrides: {},
         resourceOverrides: {},
-        moduleVersionId: "mv_test",
+        moduleVersionId: "rel_test",
       },
       component: {
         name: "my-task",
@@ -120,16 +119,14 @@ describe("NoopStrategy", () => {
         defaultReplicas: 1,
       },
       target: {
-        deploymentTargetId: "dt_test",
+        deploymentTargetId: "sdp_test",
         name: "test-target",
         kind: "dev",
         runtime: "process",
         hostId: null,
-        vmId: null,
-        clusterId: null,
         namespace: null,
       },
-      moduleName: "test-module",
+      moduleName: "test-system",
     });
 
     expect(result.status).toBe("completed");

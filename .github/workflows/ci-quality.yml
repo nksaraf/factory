@@ -1,0 +1,71 @@
+name: CI — Quality Gates
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ci-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_INSTALL_CACHE_DIR: ~/.bun/install/cache
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.dir }}
+            ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: deps-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: deps-
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+
+      - name: "Authenticate with Google Cloud"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+        run: npx get-artifactregistry-token
+
+      - name: Install dependencies
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+        run: pnpm install --frozen-lockfile
+
+      # - name: Lint
+      #   run: pnpm lint
+
+      # - name: Type check
+      #   run: pnpm typecheck
+
+      # - name: Format check
+      #   run: pnpm format:check
+
+      # - name: Test
+      #   run: pnpm test

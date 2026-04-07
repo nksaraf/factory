@@ -1,12 +1,10 @@
 import { logger } from "../logger";
 
 /**
- * Thin client for syncing factory resources with the auth-service
- * resource-permissions plugin.
- *
- * Factory-api calls these on resource create/delete/move to keep
- * the auth shadow in sync. Failures are logged but non-fatal — the
- * factory operation succeeds regardless.
+ * @deprecated Use {@link FactoryAuthzClient} from `./authz-client` instead.
+ * This client targets the old `/resource-permissions/*` endpoints.
+ * The new `FactoryAuthzClient` targets `/authz/*` with SpiceDB-backed
+ * ReBAC, scope-based access, and ABAC context policies.
  */
 export class FactoryAuthResourceClient {
   private baseUrl: string;

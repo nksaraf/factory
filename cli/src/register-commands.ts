@@ -1,54 +1,75 @@
 import type { DxBase } from "./dx-root.js";
 
+// ─── Active commands ────────────────────────────────────────
+import { addCommand } from "./commands/add.js";
 import { agentCommand } from "./commands/agent.js";
 import { alertCommand } from "./commands/alert.js";
 import { artifactCommand } from "./commands/artifact.js";
-import { authCommand } from "./commands/auth.js";
-import { branchCommand } from "./commands/branch.js";
 import { buildCommand } from "./commands/build.js";
-import { commitCommand } from "./commands/commit.js";
+import { checkCommand } from "./commands/check.js";
+import { ciCommand } from "./commands/ci.js";
 import { configCommand } from "./commands/config.js";
-import { connectCommand } from "./commands/connect.js";
 import { contextCommand } from "./commands/context.js";
 import { catalogCommand } from "./commands/catalog.js";
+import { clusterCommand } from "./commands/cluster.js";
 import { customerCommand } from "./commands/customer.js";
 import { dbCommand } from "./commands/db.js";
 import { deployCommand } from "./commands/deploy.js";
+import { dockerCommand } from "./commands/docker.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { domainCommand } from "./commands/domain.js";
 import { devCommand } from "./commands/dev.js";
 import { downCommand } from "./commands/down.js";
 import { entitlementCommand } from "./commands/entitlement.js";
 import { envCommand } from "./commands/env.js";
+import { execCommand } from "./commands/exec.js";
 import { factoryCommand } from "./commands/factory.js";
+import { fleetCommand } from "./commands/fleet.js";
 import { gitCommand } from "./commands/git.js";
 import { infraCommand } from "./commands/infra.js";
-import { installCommand } from "./commands/install.js";
+import { setupCommand } from "./commands/setup.js";
 import { kubeCommand } from "./commands/kube.js";
 import { initCommand } from "./commands/init.js";
 import { logsCommand } from "./commands/logs.js";
 import { metricsCommand } from "./commands/metrics.js";
 import { moduleCommand } from "./commands/module.js";
+import { openCommand } from "./commands/open.js";
 import { opsCommand } from "./commands/ops.js";
+import { orgCommand } from "./commands/org.js";
 import { pkgCommand } from "./commands/pkg.js";
 import { planCommand } from "./commands/plan.js";
-import { prCommand } from "./commands/pr.js";
-import { pushCommand } from "./commands/push.js";
+import { previewCommand } from "./commands/preview.js";
 import { releaseCommand } from "./commands/release.js";
 import { routeCommand } from "./commands/route.js";
-import { sandboxCommand } from "./commands/sandbox.js";
+import { runCommand } from "./commands/run.js";
+import { workspaceCommand } from "./commands/workspace.js";
+import { scriptCommand } from "./commands/script.js";
 import { secretCommand } from "./commands/secret.js";
-import { shipCommand } from "./commands/ship.js";
+import { varCommand } from "./commands/var.js";
+import { sshCommand } from "./commands/ssh.js";
 import { siteCommand } from "./commands/site.js";
 import { statusCommand } from "./commands/status.js";
 import { tenantCommand } from "./commands/tenant.js";
 import { testCommand } from "./commands/test.js";
 import { traceCommand } from "./commands/trace.js";
+import { tuiCommand } from "./commands/tui.js";
 import { tunnelCommand } from "./commands/tunnel.js";
+import { forwardCommand } from "./commands/forward.js";
 import { upCommand } from "./commands/up.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { workCommand } from "./commands/work.js";
-import { worktreeCommand } from "./commands/worktree.js";
+import { workflowCommand } from "./commands/workflow.js";
+
+// ─── New commands (dx CLI redesign) ─────────────────────────
+import { formatCommand } from "./commands/format.js";
+import { generateCommand } from "./commands/generate.js";
+import { gitHookCommand } from "./commands/git-hook.js";
+import { lintCommand } from "./commands/lint.js";
+import { selfUpdateCommand } from "./commands/self-update.js";
+import { syncCommand } from "./commands/sync.js";
+import { typecheckCommand } from "./commands/typecheck.js";
+import { upgradeCommand } from "./commands/upgrade.js";
+
 
 /**
  * Attach all top-level commands built with {@link DxBase.sub} (Crust file-splitting pattern).
@@ -56,53 +77,88 @@ import { worktreeCommand } from "./commands/worktree.js";
  */
 export function registerCommands(app: DxBase): DxBase {
   return app
+    // ── Setup ───────────────────────────────────────────
+    .command(setupCommand(app))
+    .command(selfUpdateCommand(app))
+
+    // ── Project lifecycle ───────────────────────────────
+    .command(initCommand(app))
+    .command(upgradeCommand(app))
+    .command(syncCommand(app))
+    .command(doctorCommand(app))
+
+    // ── Development ─────────────────────────────────────
+    .command(devCommand(app))
+    .command(upCommand(app))
+    .command(downCommand(app))
+    .command(statusCommand(app))
+    .command(logsCommand(app))
+
+    // ── Quality ─────────────────────────────────────────
+    .command(checkCommand(app))
+    .command(lintCommand(app))
+    .command(typecheckCommand(app))
+    .command(testCommand(app))
+    .command(formatCommand(app))
+    .command(generateCommand(app))
+
+    // ── Database ────────────────────────────────────────
+    .command(dbCommand(app))
+
+    // ── Deploy ──────────────────────────────────────────
+    .command(envCommand(app))
+    .command(deployCommand(app))
+    .command(releaseCommand(app))
+    .command(secretCommand(app))
+    .command(varCommand(app))
+    .command(previewCommand(app))
+
+    // ── Infrastructure ──────────────────────────────────
+    .command(tunnelCommand(app))
+    .command(forwardCommand(app))
+    .command(infraCommand(app))
+    .command(clusterCommand(app))
+    .command(kubeCommand(app))
+    .command(workspaceCommand(app))
+    .command(openCommand(app))
+    .command(siteCommand(app))
+
+    // ── Platform ────────────────────────────────────────
+    .command(addCommand(app))
     .command(agentCommand(app))
     .command(alertCommand(app))
     .command(artifactCommand(app))
-    .command(authCommand(app))
-    .command(branchCommand(app))
     .command(buildCommand(app))
     .command(catalogCommand(app))
-    .command(commitCommand(app))
+    .command(ciCommand(app))
     .command(configCommand(app))
-    .command(connectCommand(app))
     .command(contextCommand(app))
     .command(customerCommand(app))
-    .command(dbCommand(app))
-    .command(deployCommand(app))
-    .command(devCommand(app))
-    .command(doctorCommand(app))
+    .command(dockerCommand(app))
     .command(domainCommand(app))
     .command(downCommand(app))
     .command(entitlementCommand(app))
-    .command(envCommand(app))
+    .command(execCommand(app))
     .command(factoryCommand(app))
+    .command(fleetCommand(app))
     .command(gitCommand(app))
-    .command(infraCommand(app))
-    .command(installCommand(app))
-    .command(initCommand(app))
-    .command(kubeCommand(app))
-    .command(logsCommand(app))
     .command(metricsCommand(app))
     .command(moduleCommand(app))
     .command(opsCommand(app))
+    .command(orgCommand(app))
     .command(pkgCommand(app))
     .command(planCommand(app))
-    .command(prCommand(app))
-    .command(pushCommand(app))
-    .command(releaseCommand(app))
     .command(routeCommand(app))
-    .command(sandboxCommand(app))
-    .command(secretCommand(app))
-    .command(shipCommand(app))
-    .command(siteCommand(app))
-    .command(statusCommand(app))
+    .command(runCommand(app))
+    .command(scriptCommand(app))
+    .command(sshCommand(app))
     .command(tenantCommand(app))
-    .command(testCommand(app))
     .command(traceCommand(app))
-    .command(tunnelCommand(app))
-    .command(upCommand(app))
+    .command(tuiCommand(app))
     .command(whoamiCommand(app))
     .command(workCommand(app))
-    .command(worktreeCommand(app));
+    .command(workflowCommand(app))
+
+    // ── Internal (not shown in help) ────────────────────
+    .command(gitHookCommand(app));
 }

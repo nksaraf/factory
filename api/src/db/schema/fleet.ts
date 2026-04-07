@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -37,6 +38,14 @@ export const fleetSite = factoryFleet.table(
       .notNull(),
     lastCheckinAt: timestamp("last_checkin_at", { withTimezone: true }),
     currentManifestVersion: integer("current_manifest_version"),
+    previewConfig: jsonb("preview_config").$type<{
+      enabled: boolean;
+      registry?: string;
+      defaultAuthMode?: "public" | "team" | "private";
+      ttlDays?: number;
+      maxConcurrent?: number;
+      containerPort?: number;
+    }>().notNull().default({ enabled: false }),
   },
   (t) => [
     uniqueIndex("fleet_site_name_unique").on(t.name),
@@ -346,9 +355,14 @@ export const sandbox = factoryFleet.table(
     cpu: text("cpu"),
     memory: text("memory"),
     storageGb: integer("storage_gb").notNull().default(10),
+    ipAddress: text("ip_address"), // pod IP (container) or VM IP
+    authMode: text("auth_mode").notNull().default("private"), // public | team | private
     sshHost: text("ssh_host"),
     sshPort: integer("ssh_port"),
     webTerminalUrl: text("web_terminal_url"),
+    webIdeUrl: text("web_ide_url"),
+    healthStatus: text("health_status").default("unknown"),
+    healthCheckedAt: timestamp("health_checked_at", { withTimezone: true }),
     clonedFromSnapshotId: text("cloned_from_snapshot_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -359,6 +373,68 @@ export const sandbox = factoryFleet.table(
     index("sandbox_owner_idx").on(t.ownerType, t.ownerId),
     check("sandbox_runtime_type_valid", sql`${t.runtimeType} IN ('container', 'vm')`),
     check("sandbox_owner_type_valid", sql`${t.ownerType} IN ('user', 'agent')`),
+    check("sandbox_auth_mode_valid", sql`${t.authMode} IN ('public', 'team', 'private')`),
+  ]
+);
+
+export const preview = factoryFleet.table(
+  "preview",
+  {
+    previewId: text("preview_id")
+      .primaryKey()
+      .$defaultFn(() => newId("prev")),
+    deploymentTargetId: text("deployment_target_id")
+      .notNull()
+      .references(() => deploymentTarget.deploymentTargetId, {
+        onDelete: "cascade",
+      }),
+    siteId: text("site_id").references(() => fleetSite.siteId, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    sourceBranch: text("source_branch").notNull(),
+    commitSha: text("commit_sha").notNull(),
+    repo: text("repo").notNull(),
+    prNumber: integer("pr_number"),
+    ownerId: text("owner_id").notNull(),
+    authMode: text("auth_mode").notNull().default("team"),
+    runtimeClass: text("runtime_class").notNull().default("hot"),
+    status: text("status").notNull().default("building"),
+    sandboxId: text("sandbox_id").references(() => sandbox.sandboxId, {
+      onDelete: "set null",
+    }),
+    imageRef: text("image_ref"),
+    githubDeploymentId: bigint("github_deployment_id", { mode: "number" }),
+    githubCommentId: bigint("github_comment_id", { mode: "number" }),
+    statusMessage: text("status_message"),
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("preview_slug_unique").on(t.slug),
+    uniqueIndex("preview_deployment_target_unique").on(t.deploymentTargetId),
+    index("preview_site_idx").on(t.siteId),
+    index("preview_status_idx").on(t.status),
+    index("preview_branch_idx").on(t.sourceBranch),
+    check(
+      "preview_auth_mode_valid",
+      sql`${t.authMode} IN ('public', 'team', 'private')`
+    ),
+    check(
+      "preview_runtime_class_valid",
+      sql`${t.runtimeClass} IN ('hot', 'warm', 'cold')`
+    ),
+    check(
+      "preview_status_valid",
+      sql`${t.status} IN ('pending_image', 'building', 'deploying', 'active', 'inactive', 'expired', 'failed')`
+    ),
   ]
 );
 
@@ -453,7 +529,7 @@ export const sandboxSnapshot = factoryFleet.table(
     runtimeType: text("runtime_type").notNull(),
     volumeSnapshotName: text("volume_snapshot_name"),
     imageRef: text("image_ref"),
-    proxmoxSnapshotName: text("proxmox_snapshot_name"),
+    externalSnapshotName: text("external_snapshot_name"),
     vmId: text("vm_id"),
     snapshotMetadata: jsonb("snapshot_metadata").notNull().default({}),
     sizeBytes: text("size_bytes"),
@@ -464,6 +540,40 @@ export const sandboxSnapshot = factoryFleet.table(
     index("sandbox_snapshot_sandbox_idx").on(t.sandboxId),
     check("snapshot_status_valid", sql`${t.status} IN ('creating', 'ready', 'failed', 'deleted')`),
     check("snapshot_runtime_valid", sql`${t.runtimeType} IN ('container', 'vm')`),
+  ]
+);
+
+export const forwardedPort = factoryFleet.table(
+  "forwarded_port",
+  {
+    forwardedPortId: text("forwarded_port_id")
+      .primaryKey()
+      .$defaultFn(() => newId("fp")),
+    sandboxId: text("sandbox_id")
+      .notNull()
+      .references(() => sandbox.sandboxId, { onDelete: "cascade" }),
+    tunnelId: text("tunnel_id"),
+    port: integer("port").notNull(),
+    label: text("label"),
+    protocol: text("protocol").notNull().default("http"),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    status: text("status").notNull().default("active"),
+    detectedBy: text("detected_by").notNull(), // "config" | "runtime" | "manual"
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("forwarded_port_sandbox_port_unique").on(t.sandboxId, t.port),
+    index("forwarded_port_sandbox_idx").on(t.sandboxId),
+    check(
+      "forwarded_port_protocol_valid",
+      sql`${t.protocol} IN ('http', 'tcp')`
+    ),
+    check(
+      "forwarded_port_status_valid",
+      sql`${t.status} IN ('active', 'inactive')`
+    ),
   ]
 );
 

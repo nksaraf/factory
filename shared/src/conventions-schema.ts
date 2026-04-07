@@ -122,6 +122,150 @@ export const connectionConventionsSchema = z.object({
 
 export type ConnectionConventions = z.infer<typeof connectionConventionsSchema>;
 
+// ─── Quality Conventions ────────────────────────────────────
+
+export const qualityCheckSchema = z.object({
+  enabled: z.boolean().default(true),
+  block_pr: z.boolean().default(false),
+});
+
+export const qualityCoverageSchema = z.object({
+  enabled: z.boolean().default(false),
+  min_line: z.number().min(0).max(100).default(0),
+  min_branch: z.number().min(0).max(100).default(0),
+});
+
+export const qualityTestSchema = qualityCheckSchema.extend({
+  coverage: qualityCoverageSchema.optional(),
+});
+
+const qualityOverrideSchema = z.object({
+  lint: qualityCheckSchema.partial().optional(),
+  typecheck: qualityCheckSchema.partial().optional(),
+  test: qualityCheckSchema.partial().extend({ coverage: qualityCoverageSchema.partial().optional() }).optional(),
+  format: qualityCheckSchema.partial().optional(),
+});
+
+export const qualityConventionsSchema = z.object({
+  lint: qualityCheckSchema.default({ enabled: true, block_pr: true }),
+  typecheck: qualityCheckSchema.default({ enabled: true, block_pr: true }),
+  test: qualityTestSchema.default({ enabled: true, block_pr: true }),
+  format: qualityCheckSchema.default({ enabled: true, block_pr: false }),
+  overrides: z.record(qualityOverrideSchema).optional(),
+});
+
+export type QualityCheck = z.infer<typeof qualityCheckSchema>;
+export type QualityCoverage = z.infer<typeof qualityCoverageSchema>;
+export type QualityTest = z.infer<typeof qualityTestSchema>;
+export type QualityConventions = z.infer<typeof qualityConventionsSchema>;
+
+const qualityCheckYamlSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    block_pr: z.boolean().optional(),
+    "block-pr": z.boolean().optional(),
+  })
+  .transform((o) => ({
+    enabled: o.enabled,
+    block_pr: o.block_pr ?? o["block-pr"],
+  }));
+
+const qualityCoverageYamlSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    min_line: z.number().optional(),
+    "min-line": z.number().optional(),
+    min_branch: z.number().optional(),
+    "min-branch": z.number().optional(),
+  })
+  .transform((o) => ({
+    enabled: o.enabled,
+    min_line: o.min_line ?? o["min-line"],
+    min_branch: o.min_branch ?? o["min-branch"],
+  }));
+
+const qualityTestYamlSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    block_pr: z.boolean().optional(),
+    "block-pr": z.boolean().optional(),
+    coverage: qualityCoverageYamlSchema.optional(),
+  })
+  .transform((o) => ({
+    enabled: o.enabled,
+    block_pr: o.block_pr ?? o["block-pr"],
+    coverage: o.coverage,
+  }));
+
+const qualityOverrideYamlSchema = z.object({
+  lint: qualityCheckYamlSchema.optional(),
+  typecheck: qualityCheckYamlSchema.optional(),
+  test: qualityTestYamlSchema.optional(),
+  format: qualityCheckYamlSchema.optional(),
+});
+
+const qualityConventionsYamlSchema = z
+  .object({
+    lint: qualityCheckYamlSchema.optional(),
+    typecheck: qualityCheckYamlSchema.optional(),
+    test: qualityTestYamlSchema.optional(),
+    format: qualityCheckYamlSchema.optional(),
+    overrides: z.record(qualityOverrideYamlSchema).optional(),
+  })
+  .optional();
+
+/**
+ * Resolve quality settings for a specific component, merging global defaults
+ * with per-component overrides. Floor enforcement: when a check has block_pr: true
+ * at the top level, per-component overrides cannot set it to false.
+ */
+export function resolveComponentQuality(
+  quality: QualityConventions,
+  componentName: string,
+): QualityConventions {
+  const override = quality.overrides?.[componentName];
+  if (!override) return quality;
+
+  const mergeCheck = (
+    base: QualityCheck,
+    ov: Partial<QualityCheck> | undefined,
+  ): QualityCheck => {
+    if (!ov) return base;
+    return {
+      enabled: ov.enabled ?? base.enabled,
+      // Floor enforcement: cannot disable block_pr if base has it enabled
+      block_pr: base.block_pr ? true : (ov.block_pr ?? base.block_pr),
+    };
+  };
+
+  const mergeTest = (
+    base: QualityTest,
+    ov: typeof override.test,
+  ): QualityTest => {
+    if (!ov) return base;
+    const check = mergeCheck(base, ov as Partial<QualityCheck>);
+    const baseCov = base.coverage ?? { enabled: false, min_line: 0, min_branch: 0 };
+    const ovCov = ov.coverage;
+    return {
+      ...check,
+      coverage: ovCov
+        ? {
+            enabled: ovCov.enabled ?? baseCov.enabled,
+            min_line: ovCov.min_line ?? baseCov.min_line,
+            min_branch: ovCov.min_branch ?? baseCov.min_branch,
+          }
+        : base.coverage,
+    };
+  };
+
+  return {
+    lint: mergeCheck(quality.lint, override.lint as Partial<QualityCheck> | undefined),
+    typecheck: mergeCheck(quality.typecheck, override.typecheck as Partial<QualityCheck> | undefined),
+    test: mergeTest(quality.test, override.test),
+    format: mergeCheck(quality.format, override.format as Partial<QualityCheck> | undefined),
+  };
+}
+
 export const conventionsFileSchema = z.object({
   branches: branchConventionsYamlSchema.optional(),
   commits: commitConventionsYamlSchema.optional(),
@@ -132,6 +276,7 @@ export const conventionsFileSchema = z.object({
     })
     .optional(),
   connections: connectionConventionsYamlSchema.optional(),
+  quality: qualityConventionsYamlSchema,
 });
 
 export type BranchConventions = z.infer<typeof branchConventionsSchema>;
@@ -143,6 +288,7 @@ export type ConventionsConfig = {
   commits: CommitConventions;
   deploy: DeployConventions;
   connections: ConnectionConventions;
+  quality: QualityConventions;
 };
 
 export function defaultConventionsConfig(): ConventionsConfig {
@@ -151,6 +297,7 @@ export function defaultConventionsConfig(): ConventionsConfig {
     commits: commitConventionsSchema.parse({}),
     deploy: {},
     connections: connectionConventionsSchema.parse({}),
+    quality: qualityConventionsSchema.parse({}),
   };
 }
 
@@ -189,5 +336,12 @@ export function normalizeConventionsConfig(
     production_require_reason:
       raw.connections?.production_require_reason ?? true,
   });
-  return { branches, commits, deploy, connections };
+  const quality: QualityConventions = qualityConventionsSchema.parse({
+    lint: raw.quality?.lint ?? {},
+    typecheck: raw.quality?.typecheck ?? {},
+    test: raw.quality?.test ?? {},
+    format: raw.quality?.format ?? {},
+    overrides: raw.quality?.overrides,
+  });
+  return { branches, commits, deploy, connections, quality };
 }

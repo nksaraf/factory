@@ -22,8 +22,14 @@ import { spawn } from "node:child_process";
 import type { CatalogSystem } from "@smp/factory-shared/catalog";
 
 import { detectServiceType, type ServiceType } from "./detect-service-type.js";
-import { PortManager, isPortFree } from "./port-manager.js";
+import {
+  PortManager,
+  isPortFree,
+  catalogToPortRequests,
+  portEnvVars,
+} from "./port-manager.js";
 import { composeIsRunning, composeStop } from "./docker.js";
+import { openTunnel, type TunnelClientOptions } from "./tunnel-client.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +40,7 @@ export interface ResolvedComponent {
   absPath: string;
   type: ServiceType;
   preferredPort?: number;
+  devCommand?: string;
 }
 
 export interface StartResult {
@@ -119,7 +126,6 @@ function readPid(pidFile: string): number | null {
 }
 
 function killProcessTree(pid: number): void {
-  // Send SIGTERM to process group (negative PID)
   try {
     process.kill(-pid, "SIGTERM");
   } catch {
@@ -130,17 +136,15 @@ function killProcessTree(pid: number): void {
     }
   }
 
-  // Poll for exit up to ~2 seconds
   for (let i = 0; i < 40; i++) {
     try {
       process.kill(pid, 0);
     } catch {
-      return; // Process is gone
+      return;
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
   }
 
-  // Force kill
   try {
     process.kill(-pid, "SIGKILL");
   } catch {
@@ -160,6 +164,9 @@ export class DevController {
   private readonly stateDir: string;
   private readonly portManager: PortManager;
   private readonly projectName: string;
+  private readonly workspaceId: string | undefined;
+  private readonly workspaceSlug: string | undefined;
+  private readonly activeTunnels = new Map<string, { close: () => void }>();
 
   constructor(
     private readonly rootDir: string,
@@ -169,6 +176,13 @@ export class DevController {
     this.stateDir = join(rootDir, ".dx", "dev");
     this.portManager = new PortManager(join(rootDir, ".dx"));
     this.projectName = basename(rootDir);
+    this.workspaceId = process.env.DX_WORKSPACE_ID;
+    this.workspaceSlug = process.env.DX_WORKSPACE_SLUG;
+  }
+
+  /** Whether we're running inside a workspace environment */
+  get inSandbox(): boolean {
+    return !!this.workspaceId;
   }
 
   // ------------------------------------------------------------------
@@ -187,7 +201,6 @@ export class DevController {
     const buildContext = comp.spec.build?.context ?? ".";
     const absPath = resolve(this.rootDir, buildContext);
 
-    // Use explicit runtime from catalog, or auto-detect from filesystem
     const type: ServiceType | null =
       (comp.spec.runtime as ServiceType | undefined) ?? detectServiceType(absPath);
 
@@ -205,6 +218,7 @@ export class DevController {
       absPath,
       type,
       preferredPort,
+      devCommand: comp.spec.dev?.command,
     };
   }
 
@@ -212,23 +226,13 @@ export class DevController {
   // Port environment for sibling discovery
   // ------------------------------------------------------------------
 
-  private async allPortsEnv(): Promise<Record<string, string>> {
-    const requests = [
-      ...Object.entries(this.catalog.components).map(([name, comp]) => ({
-        name,
-        preferred: comp.spec.ports?.[0]?.port,
-      })),
-      ...Object.entries(this.catalog.resources).map(([name, res]) => ({
-        name,
-        preferred: res.spec.ports?.[0]?.port,
-      })),
-    ];
+  async allPortsEnv(): Promise<Record<string, string>> {
+    const requests = catalogToPortRequests(this.catalog);
+    const resolved = await this.portManager.resolveMulti(requests);
 
-    const ports = await this.portManager.resolve(requests);
     const env: Record<string, string> = {};
-    for (const [name, port] of Object.entries(ports)) {
-      const varName = name.toUpperCase().replace(/-/g, "_") + "_PORT";
-      env[varName] = String(port);
+    for (const [service, ports] of Object.entries(resolved)) {
+      Object.assign(env, portEnvVars(service, ports));
     }
     return env;
   }
@@ -239,7 +243,6 @@ export class DevController {
 
   private stopDockerContainer(componentName: string): boolean {
     if (this.composeFiles.length === 0) return false;
-    // The service name in compose is the component name itself
     const sn = componentName;
     if (!composeIsRunning(this.composeFiles[0], sn, { projectName: this.projectName })) {
       return false;
@@ -264,7 +267,6 @@ export class DevController {
     const portFile = join(this.stateDir, `${resolved.name}.port`);
     const logFile = join(this.stateDir, `${resolved.name}.log`);
 
-    // Already running?
     const existingPid = readPid(pidFile);
     if (existingPid !== null) {
       const existingPort = existsSync(portFile)
@@ -279,10 +281,8 @@ export class DevController {
       };
     }
 
-    // Stop Docker container for this service
     const stoppedDocker = this.stopDockerContainer(resolved.name);
 
-    // Allocate port
     let actualPort: number;
     if (opts?.port !== undefined) {
       if (!(await isPortFree(opts.port))) {
@@ -296,8 +296,13 @@ export class DevController {
       actualPort = assigned[resolved.name];
     }
 
-    // Build command and environment
-    const cmd = buildDevCmd(resolved.type, actualPort, resolved.absPath);
+    let cmd: string[];
+    if (resolved.devCommand) {
+      cmd = ["sh", "-c", `${resolved.devCommand} --port ${actualPort}`];
+    } else {
+      cmd = buildDevCmd(resolved.type, actualPort, resolved.absPath);
+    }
+
     const portEnv = await this.allPortsEnv();
     const procEnv = {
       ...process.env,
@@ -305,20 +310,24 @@ export class DevController {
       PORT: String(actualPort),
     };
 
-    // Spawn background process
+    const cwd = resolved.devCommand ? this.rootDir : resolved.absPath;
     const logFd = openSync(logFile, "w");
     const proc = spawn(cmd[0], cmd.slice(1), {
-      cwd: resolved.absPath,
+      cwd,
       detached: true,
       stdio: ["ignore", logFd, logFd],
       env: procEnv,
     });
     proc.unref();
 
-    // Write state files
     const pid = proc.pid!;
     writeFileSync(pidFile, String(pid));
     writeFileSync(portFile, String(actualPort));
+
+    // Create tunnel(s) when running inside a workspace
+    if (this.workspaceSlug) {
+      await this.createSandboxTunnels(resolved.name, actualPort);
+    }
 
     return {
       name: resolved.name,
@@ -327,6 +336,79 @@ export class DevController {
       alreadyRunning: false,
       stoppedDocker,
     };
+  }
+
+  // ------------------------------------------------------------------
+  // Sandbox tunnel management
+  // ------------------------------------------------------------------
+
+  private async createSandboxTunnels(
+    componentName: string,
+    port: number,
+  ): Promise<void> {
+    if (!this.workspaceSlug) return;
+
+    const slug = this.workspaceSlug;
+
+    // Port-based tunnel: {slug}-p{port}.workspace.dx.dev
+    const portSubdomain = `${slug}-p${port}`;
+    const portTunnel = await openTunnel(
+      { port, subdomain: portSubdomain, principalId: process.env.DX_PRINCIPAL_ID },
+      {
+        onRegistered: (info) => {
+          // Port tunnel registered at info.url
+        },
+        onError: () => {},
+        onClose: () => { this.activeTunnels.delete(`${componentName}:port`); },
+      },
+    );
+    this.activeTunnels.set(`${componentName}:port`, portTunnel);
+
+    // Check if this component has a named endpoint configured
+    const comp = this.catalog.components[componentName];
+    const dxConfig = comp?.spec as Record<string, unknown> | undefined;
+    const endpointName = (dxConfig?.endpointName as string) ?? undefined;
+    if (endpointName) {
+      const namedSubdomain = `${slug}--${endpointName}`;
+      const namedTunnel = await openTunnel(
+        { port, subdomain: namedSubdomain, principalId: process.env.DX_PRINCIPAL_ID },
+        {
+          onRegistered: () => {},
+          onError: () => {},
+          onClose: () => { this.activeTunnels.delete(`${componentName}:named`); },
+        },
+      );
+      this.activeTunnels.set(`${componentName}:named`, namedTunnel);
+    }
+
+    // If this is the primary port (port 80, 443, or configured as primary), tunnel bare domain too
+    const isPrimary = port === 80 || port === 443 || (dxConfig?.isPrimary === true);
+    if (isPrimary) {
+      const bareTunnel = await openTunnel(
+        { port, subdomain: slug, principalId: process.env.DX_PRINCIPAL_ID },
+        {
+          onRegistered: () => {},
+          onError: () => {},
+          onClose: () => { this.activeTunnels.delete(`${componentName}:bare`); },
+        },
+      );
+      this.activeTunnels.set(`${componentName}:bare`, bareTunnel);
+    }
+  }
+
+  private closeSandboxTunnels(componentName?: string): void {
+    if (componentName) {
+      for (const suffix of ["port", "named", "bare"]) {
+        const key = `${componentName}:${suffix}`;
+        this.activeTunnels.get(key)?.close();
+        this.activeTunnels.delete(key);
+      }
+    } else {
+      for (const [, tunnel] of this.activeTunnels) {
+        tunnel.close();
+      }
+      this.activeTunnels.clear();
+    }
   }
 
   // ------------------------------------------------------------------
@@ -339,7 +421,7 @@ export class DevController {
     if (!existsSync(this.stateDir)) return stopped;
 
     if (component === undefined) {
-      // Stop all
+      this.closeSandboxTunnels();
       for (const entry of readdirSync(this.stateDir)) {
         if (!entry.endsWith(".pid")) continue;
         const name = entry.replace(/\.pid$/, "");
@@ -350,17 +432,14 @@ export class DevController {
           killProcessTree(pid);
           stopped.push({ name, pid });
         }
-        try {
-          unlinkSync(pidFile);
-        } catch {}
-        try {
-          unlinkSync(portFile);
-        } catch {}
+        try { unlinkSync(pidFile); } catch {}
+        try { unlinkSync(portFile); } catch {}
       }
       return stopped;
     }
 
     const resolved = this.resolveComponent(component);
+    this.closeSandboxTunnels(resolved.name);
     const pidFile = join(this.stateDir, `${resolved.name}.pid`);
     const portFile = join(this.stateDir, `${resolved.name}.port`);
 
@@ -369,13 +448,8 @@ export class DevController {
       killProcessTree(pid);
       stopped.push({ name: resolved.name, pid });
     }
-    // Always clean up state files (handles stale PIDs too)
-    try {
-      unlinkSync(pidFile);
-    } catch {}
-    try {
-      unlinkSync(portFile);
-    } catch {}
+    try { unlinkSync(pidFile); } catch {}
+    try { unlinkSync(portFile); } catch {}
     return stopped;
   }
 

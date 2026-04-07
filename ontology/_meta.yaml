@@ -1,0 +1,109 @@
+# Factory Ontology — Meta
+# Machine-readable declaration of the Factory knowledge graph.
+# Inspired by Palantir Foundry's ontology model: Object Types, Links, Actions.
+
+ontology:
+  name: factory
+  version: "1.0"
+  description: >
+    Digital twin of a software company. Models everything from source code
+    to running infrastructure to customer billing as a unified knowledge graph.
+
+# Six semantic namespaces — each maps to a Postgres schema
+schemas:
+  software:
+    description: What's built — systems, components, APIs, artifacts, releases, products
+    table_prefix: software
+  org:
+    description: Who & what actors — teams, principals, agents, jobs, memory
+    table_prefix: org
+  infra:
+    description: Where things run — substrates, hosts, runtimes, networking
+    table_prefix: infra
+  ops:
+    description: What is running — sites, deployments, workspaces, previews, databases
+    table_prefix: ops
+  build:
+    description: How it's built — repos, pipelines, git providers, work tracking
+    table_prefix: build
+  commerce:
+    description: Customer state — customers, plans, subscriptions, billing
+    table_prefix: commerce
+
+# Conventions applied to all object types
+conventions:
+  # Every table gets these columns automatically
+  common_columns:
+    id:
+      type: string
+      description: Prefixed CUID (e.g., sys_clx123...). Primary key.
+    slug:
+      type: string
+      description: URL-safe unique name. Used for lookups (slug-first resolution).
+    name:
+      type: string
+      description: Human-readable display name.
+    created_at:
+      type: timestamp
+      description: Row creation time (DB default).
+    updated_at:
+      type: timestamp
+      description: Last modification time (DB trigger).
+    deleted_at:
+      type: timestamp
+      nullable: true
+      description: Soft-delete marker. Null = active.
+
+  # JSONB-first column policy
+  jsonb_policy:
+    spec:
+      description: >
+        Domain-specific properties. Typed via Drizzle .$type<T>() and
+        validated at API boundaries via Zod schemas.
+    metadata:
+      description: >
+        Labels, annotations, tags, links — Backstage-style extensibility bag.
+        Not all entities need this column.
+
+  # ID prefix system — each object type has a unique prefix
+  id_prefixes:
+    description: >
+      IDs are prefixed CUIDs generated via newId(prefix). The prefix makes
+      IDs self-describing (e.g., sys_clx... is a System, cmp_clx... is a Component).
+
+  # Slug-first resolution
+  slug_resolution:
+    description: >
+      All lookups try slug first, fall back to ID. Slugs are unique within
+      their scope (usually org-wide). This is the EntityFinder pattern.
+
+# Link type conventions
+link_types:
+  foreign_key:
+    description: >
+      Column on this table references another table's PK.
+      Represents many-to-one from this object to the target.
+  reverse_fk:
+    description: >
+      The target table has a FK column pointing back to this table's PK.
+      Represents one-to-many from this object to the target.
+  junction:
+    description: >
+      A separate join table holds both FKs. Represents many-to-many.
+      The junction table is itself an ObjectType (e.g., ProductSystem, Membership).
+  self_referential:
+    description: >
+      FK on this table references the same table's PK. Used for hierarchies
+      (Team → parent Team, Substrate → parent Substrate).
+
+# Shared enums referenced across multiple object types
+shared_enums:
+  lifecycle:
+    values: [experimental, production, deprecated]
+    used_by: [software.System, software.Component, software.Api]
+  status_active:
+    values: [active, inactive, suspended, archived]
+    description: Common status pattern for long-lived entities
+  status_operation:
+    values: [pending, in_progress, succeeded, failed]
+    description: Common status pattern for operations/jobs

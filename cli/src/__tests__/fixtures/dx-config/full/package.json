@@ -1,0 +1,22 @@
+{
+  "name": "@lepton/full-project",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "build": "tsc -b"
+  },
+  "dx": {
+    "version": "1.2.0",
+    "type": "monorepo",
+    "team": "platform-eng",
+    "conventions": {
+      "commits": "conventional",
+      "branching": "trunk"
+    },
+    "deploy": {
+      "preview": { "trigger": "pull-request", "ttl": "72h" },
+      "production": { "trigger": "release-tag", "approval": true }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+import { and, eq, isNull, or } from "drizzle-orm";
+import type { Database } from "../../db/connection";
+import type { HostSpec } from "@smp/factory-shared/schemas/infra";
+import { vm } from "../../db/schema/infra";
+import { host } from "../../db/schema/infra-v2";
+import { workspace } from "../../db/schema/ops";
+
+/**
+ * Unified SSH target resolved from a slug.
+ * Searched across workspaces, VMs, and hosts.
+ */
+export interface SshTarget {
+  kind: "workspace" | "vm" | "host";
+  id: string;
+  slug: string;
+  name: string;
+  host: string;
+  port: number;
+  user: string;
+  status: string;
+  jumpHost?: string;
+  jumpUser?: string;
+  jumpPort?: number;
+  identityFile?: string;
+}
+
+/**
+ * Resolve a slug to an SSH-connectable target.
+ * Search order: workspaces → VMs → hosts.
+ * Accepts either a slug or an ID.
+ */
+export async function resolveTarget(
+  db: Database,
+  slug: string
+): Promise<SshTarget | null> {
+  // 1. Workspaces (lifecycle + SSH config live in spec JSONB)
+  const wsRows = await db
+    .select()
+    .from(workspace)
+    .where(and(
+      or(eq(workspace.slug, slug), eq(workspace.id, slug)),
+      isNull(workspace.systemTo),
+      isNull(workspace.validTo),
+    ));
+  const wsRow = wsRows[0];
+  const wsSpec = wsRow?.spec;
+  if (wsRow && wsSpec?.sshHost && wsSpec?.sshPort) {
+    return {
+      kind: "workspace",
+      id: wsRow.id,
+      slug: wsRow.slug,
+      name: wsRow.name,
+      host: wsSpec.sshHost,
+      port: wsSpec.sshPort,
+      user: "root",
+      status: wsSpec.lifecycle ?? "unknown",
+    };
+  }
+
+  // 2. VMs — inherit SSH config from parent host when available
+  const vmRows = await db
+    .select()
+    .from(vm)
+    .where(or(eq(vm.slug, slug), eq(vm.vmId, slug)));
+  const vmRow = vmRows[0];
+  if (vmRow && vmRow.ipAddress) {
+    // If VM has a parent host, inherit SSH defaults from its spec
+    let parentSpec: HostSpec | undefined;
+    if (vmRow.hostId) {
+      const parentRows = await db
+        .select()
+        .from(host)
+        .where(eq(host.id, vmRow.hostId));
+      parentSpec = parentRows[0]?.spec as HostSpec | undefined;
+    }
+    return {
+      kind: "vm",
+      id: vmRow.vmId,
+      slug: vmRow.slug,
+      name: vmRow.name,
+      host: vmRow.ipAddress,
+      port: parentSpec?.sshPort ?? 22,
+      user: vmRow.accessUser ?? parentSpec?.accessUser ?? "root",
+      status: vmRow.status,
+      jumpHost: parentSpec?.jumpHost,
+      jumpUser: parentSpec?.jumpUser,
+      jumpPort: parentSpec?.jumpPort,
+      identityFile: parentSpec?.identityFile,
+    };
+  }
+
+  // 3. Hosts (v2 schema — SSH config lives in spec JSONB)
+  const hostRows = await db
+    .select()
+    .from(host)
+    .where(or(eq(host.slug, slug), eq(host.id, slug)));
+  const hostRow = hostRows[0];
+  const hostSpec = hostRow?.spec as HostSpec | undefined;
+  const hostIp = hostSpec?.ipAddress ?? hostSpec?.hostname;
+  if (hostRow && hostIp) {
+    return {
+      kind: "host",
+      id: hostRow.id,
+      slug: hostRow.slug,
+      name: hostRow.name,
+      host: hostIp,
+      port: hostSpec?.sshPort ?? 22,
+      user: hostSpec?.accessUser ?? "root",
+      status: hostSpec?.lifecycle ?? "active",
+      jumpHost: hostSpec?.jumpHost,
+      jumpUser: hostSpec?.jumpUser,
+      jumpPort: hostSpec?.jumpPort,
+      identityFile: hostSpec?.identityFile,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * List all SSH-connectable targets for SSH config generation.
+ */
+export async function listTargets(db: Database): Promise<SshTarget[]> {
+  const targets: SshTarget[] = [];
+
+  // Workspaces with SSH access (lifecycle + SSH config in spec JSONB)
+  const wsRows = await db.select().from(workspace).where(
+    and(isNull(workspace.systemTo), isNull(workspace.validTo))
+  );
+  for (const row of wsRows) {
+    const spec = row.spec;
+    if (spec.sshHost && spec.sshPort && spec.lifecycle === "active") {
+      targets.push({
+        kind: "workspace",
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        host: spec.sshHost,
+        port: spec.sshPort,
+        user: "root",
+        status: spec.lifecycle,
+      });
+    }
+  }
+
+  // VMs with IPs — inherit SSH config from parent host
+  const vmRows = await db.select().from(vm);
+  // Pre-fetch all hosts for parent lookups
+  const allHosts = await db.select().from(host);
+  const hostById = new Map(allHosts.map((h) => [h.id, h]));
+
+  for (const vmRow of vmRows) {
+    if (vmRow.ipAddress && vmRow.accessMethod === "ssh" && vmRow.status === "running") {
+      const parentSpec = vmRow.hostId
+        ? (hostById.get(vmRow.hostId)?.spec as HostSpec | undefined)
+        : undefined;
+      targets.push({
+        kind: "vm",
+        id: vmRow.vmId,
+        slug: vmRow.slug,
+        name: vmRow.name,
+        host: vmRow.ipAddress,
+        port: parentSpec?.sshPort ?? 22,
+        user: vmRow.accessUser ?? parentSpec?.accessUser ?? "root",
+        status: vmRow.status,
+        jumpHost: parentSpec?.jumpHost,
+        jumpUser: parentSpec?.jumpUser,
+        jumpPort: parentSpec?.jumpPort,
+        identityFile: parentSpec?.identityFile,
+      });
+    }
+  }
+
+  // Hosts — read SSH config from spec JSONB
+  for (const hostRow of allHosts) {
+    const spec = hostRow.spec as HostSpec | undefined;
+    const ip = spec?.ipAddress ?? spec?.hostname;
+    const accessMethod = spec?.accessMethod ?? "ssh";
+    const lifecycle = spec?.lifecycle ?? "active";
+    if (ip && accessMethod === "ssh" && lifecycle === "active") {
+      targets.push({
+        kind: "host",
+        id: hostRow.id,
+        slug: hostRow.slug,
+        name: hostRow.name,
+        host: ip,
+        port: spec?.sshPort ?? 22,
+        user: spec?.accessUser ?? "root",
+        status: lifecycle,
+        jumpHost: spec?.jumpHost,
+        jumpUser: spec?.jumpUser,
+        jumpPort: spec?.jumpPort,
+        identityFile: spec?.identityFile,
+      });
+    }
+  }
+
+  return targets;
+}

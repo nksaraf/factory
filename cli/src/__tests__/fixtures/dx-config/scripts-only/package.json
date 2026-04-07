@@ -1,0 +1,10 @@
+{
+  "name": "scripts-project",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "dev": "next dev",
+    "build": "next build"
+  }
+}

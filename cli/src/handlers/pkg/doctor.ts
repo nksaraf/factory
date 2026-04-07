@@ -12,7 +12,7 @@ import { readdirSync, statSync } from "node:fs";
 import { capture, exec } from "../../lib/subprocess.js";
 import {
   fromCwd,
-  type WorkspaceContext,
+  type MonorepoTopology,
   type WorkspacePackage,
   type NpmManifest,
 } from "../../lib/workspace-context.js";
@@ -35,11 +35,11 @@ export interface DoctorOptions {
 // ---------------------------------------------------------------------------
 
 type CheckFn = (
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ) => DiagnosticIssue[] | Promise<DiagnosticIssue[]>;
 
 /** Check that manifest files parse without errors. */
-function checkManifestValidity(ws: WorkspaceContext): DiagnosticIssue[] {
+function checkManifestValidity(ws: MonorepoTopology): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
 
   for (const pkg of ws.packages) {
@@ -89,7 +89,7 @@ function checkManifestValidity(ws: WorkspaceContext): DiagnosticIssue[] {
 }
 
 /** Check for shared deps with differing versions across npm packages. */
-function checkVersionMismatches(ws: WorkspaceContext): DiagnosticIssue[] {
+function checkVersionMismatches(ws: MonorepoTopology): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
   const npmPkgs = ws.packages.filter((p) => p.type === "npm");
 
@@ -135,7 +135,7 @@ function checkVersionMismatches(ws: WorkspaceContext): DiagnosticIssue[] {
 }
 
 /** Verify workspace:* references point to real workspace packages. */
-function checkWorkspaceRefs(ws: WorkspaceContext): DiagnosticIssue[] {
+function checkWorkspaceRefs(ws: MonorepoTopology): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
   const npmPkgs = ws.packages.filter((p) => p.type === "npm");
   const pkgNames = new Set(npmPkgs.map((p) => p.name));
@@ -164,7 +164,7 @@ function checkWorkspaceRefs(ws: WorkspaceContext): DiagnosticIssue[] {
 }
 
 /** Find directories with manifests not listed in pnpm-workspace.yaml. */
-function checkOrphanedPackages(ws: WorkspaceContext): DiagnosticIssue[] {
+function checkOrphanedPackages(ws: MonorepoTopology): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
   const wsFile = join(ws.root, "pnpm-workspace.yaml");
   if (!existsSync(wsFile)) return issues;
@@ -207,7 +207,7 @@ function checkOrphanedPackages(ws: WorkspaceContext): DiagnosticIssue[] {
 
 /** Use pnpm to detect unmet peer deps. */
 async function checkPeerDeps(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
   if (!existsSync(join(ws.root, "pnpm-workspace.yaml"))) return issues;
@@ -225,9 +225,9 @@ async function checkPeerDeps(
       const peerIssues = entry.peerDependencies;
       if (!peerIssues || typeof peerIssues !== "object") continue;
       for (const [dep, info] of Object.entries(
-        peerIssues as Record<string, any>,
+        peerIssues as Record<string, unknown>,
       )) {
-        if ((info as any)?.missing) {
+        if (info && typeof info === "object" && "missing" in info && (info as Record<string, unknown>).missing) {
           issues.push({
             check: "peer-deps",
             severity: "warning",
@@ -245,7 +245,7 @@ async function checkPeerDeps(
 }
 
 /** DFS cycle detection on workspace dependency graph. */
-function checkCircularRefs(ws: WorkspaceContext): DiagnosticIssue[] {
+function checkCircularRefs(ws: MonorepoTopology): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
   const npmPkgs = ws.packages.filter((p) => p.type === "npm");
   const pkgNames = new Set(npmPkgs.map((p) => p.name));
@@ -301,7 +301,7 @@ function checkCircularRefs(ws: WorkspaceContext): DiagnosticIssue[] {
 
 /** Check lockfile freshness. */
 async function checkLockfile(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
   if (!existsSync(join(ws.root, "pnpm-lock.yaml"))) {
@@ -333,7 +333,7 @@ async function checkLockfile(
 
 /** Check for duplicate packages. */
 async function checkDuplicates(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
   if (!existsSync(join(ws.root, "pnpm-workspace.yaml"))) return issues;
@@ -357,7 +357,7 @@ async function checkDuplicates(
 
 /** Run pnpm audit and summarize advisory severity counts. */
 async function checkSecurity(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
   if (!existsSync(join(ws.root, "pnpm-workspace.yaml"))) return issues;

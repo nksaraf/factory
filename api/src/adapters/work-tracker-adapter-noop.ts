@@ -40,7 +40,20 @@ export class NoopWorkTrackerAdapter implements WorkTrackerAdapter {
     _credentialsRef: string,
     issueId: string
   ): Promise<ExternalIssue> {
-    throw new Error(`noop work tracker: issue ${issueId} not found`);
+    logger.debug({ issueId }, "noop work tracker: getIssue (returning mock)");
+    const now = new Date().toISOString();
+    return {
+      id: issueId,
+      key: issueId,
+      title: `[Mock] ${issueId}`,
+      description: "Mock issue from noop work tracker",
+      status: "In Progress",
+      kind: "Task",
+      labels: [],
+      url: "",
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 
   async pushIssue(
@@ -65,5 +78,14 @@ export class NoopWorkTrackerAdapter implements WorkTrackerAdapter {
       externalKey: `NOOP-${i}`,
       externalUrl: "",
     }));
+  }
+
+  async updateIssueStatus(
+    _apiUrl: string,
+    _credentialsRef: string,
+    _issueId: string,
+    _transitionName: string,
+  ): Promise<void> {
+    logger.debug("noop work tracker: updateIssueStatus");
   }
 }

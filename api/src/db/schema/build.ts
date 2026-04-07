@@ -19,6 +19,7 @@ export const gitHostProvider = factoryBuild.table(
     apiBaseUrl: text("api_base_url").notNull(),
     authMode: text("auth_mode").notNull(),
     credentialsEnc: text("credentials_enc"),
+    spec: jsonb("spec").notNull().default({}),
     status: text("status").notNull().default("active"),
     teamId: text("team_id")
       .notNull()
@@ -177,6 +178,71 @@ export const webhookEvent = factoryBuild.table(
     uniqueIndex("webhook_event_delivery_unique").on(t.gitHostProviderId, t.deliveryId),
     check("webhook_event_status_valid", sql`${t.status} IN ('pending', 'processing', 'completed', 'failed')`),
   ]
+);
+
+export const pipelineRun = factoryBuild.table(
+  "pipeline_run",
+  {
+    pipelineRunId: text("pipeline_run_id")
+      .primaryKey()
+      .$defaultFn(() => newId("prun")),
+    repoId: text("repo_id").references(() => repo.repoId, { onDelete: "set null" }),
+    triggerEvent: text("trigger_event").notNull(),
+    triggerRef: text("trigger_ref").notNull(),
+    commitSha: text("commit_sha").notNull(),
+    workflowFile: text("workflow_file"),
+    status: text("status").notNull().default("pending"),
+    sandboxId: text("sandbox_id"),
+    webhookEventId: text("webhook_event_id").references(
+      () => webhookEvent.webhookEventId,
+      { onDelete: "set null" },
+    ),
+    triggerActor: text("trigger_actor"),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check(
+      "pipeline_run_trigger_event_valid",
+      sql`${t.triggerEvent} IN ('push', 'pull_request', 'manual', 'schedule')`,
+    ),
+    check(
+      "pipeline_run_status_valid",
+      sql`${t.status} IN ('pending', 'queued', 'running', 'success', 'failure', 'cancelled', 'timed_out')`,
+    ),
+  ],
+);
+
+export const pipelineStepRun = factoryBuild.table(
+  "pipeline_step_run",
+  {
+    pipelineStepRunId: text("pipeline_step_run_id")
+      .primaryKey()
+      .$defaultFn(() => newId("pstp")),
+    pipelineRunId: text("pipeline_run_id")
+      .notNull()
+      .references(() => pipelineRun.pipelineRunId, { onDelete: "cascade" }),
+    jobName: text("job_name").notNull(),
+    stepName: text("step_name"),
+    status: text("status").notNull().default("pending"),
+    exitCode: bigint("exit_code", { mode: "number" }),
+    logUrl: text("log_url"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check(
+      "pipeline_step_run_status_valid",
+      sql`${t.status} IN ('pending', 'running', 'success', 'failure', 'skipped', 'cancelled')`,
+    ),
+  ],
 );
 
 export const gitRepoSync = factoryBuild.table(

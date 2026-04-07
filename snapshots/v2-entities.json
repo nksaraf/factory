@@ -1,0 +1,5671 @@
+{
+  "version": "v2",
+  "capturedAt": "2026-04-03T09:15:29.540Z",
+  "tableCount": 72,
+  "tables": [
+    {
+      "schema": "build",
+      "tableName": "component_artifact",
+      "exportName": "componentArtifact",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "systemVersionId",
+          "sqlName": "system_version_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "componentId",
+          "sqlName": "component_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "artifactId",
+          "sqlName": "artifact_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "git_host_provider",
+      "exportName": "gitHostProvider",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "git_repo_sync",
+      "exportName": "gitRepoSync",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "repoId",
+          "sqlName": "repo_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "gitHostProviderId",
+          "sqlName": "git_host_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "externalRepoId",
+          "sqlName": "external_repo_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "git_user_sync",
+      "exportName": "gitUserSync",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "gitHostProviderId",
+          "sqlName": "git_host_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "externalUserId",
+          "sqlName": "external_user_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "github_app_installation",
+      "exportName": "githubAppInstallation",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "gitHostProviderId",
+          "sqlName": "git_host_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "pipeline_run",
+      "exportName": "pipelineRun",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "repoId",
+          "sqlName": "repo_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "webhookEventId",
+          "sqlName": "webhook_event_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "commitSha",
+          "sqlName": "commit_sha",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "pipeline_step",
+      "exportName": "pipelineStep",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "pipelineRunId",
+          "sqlName": "pipeline_run_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "repo",
+      "exportName": "repo",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "gitHostProviderId",
+          "sqlName": "git_host_provider_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "teamId",
+          "sqlName": "team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "system_version",
+      "exportName": "systemVersion",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "version",
+          "sqlName": "version",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "webhook_event",
+      "exportName": "webhookEvent",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "gitHostProviderId",
+          "sqlName": "git_host_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "deliveryId",
+          "sqlName": "delivery_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "work_item",
+      "exportName": "workItem",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "workTrackerProviderId",
+          "sqlName": "work_tracker_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "externalId",
+          "sqlName": "external_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "assignee",
+          "sqlName": "assignee",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "work_tracker_project_mapping",
+      "exportName": "workTrackerProjectMapping",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "workTrackerProviderId",
+          "sqlName": "work_tracker_provider_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "externalProjectId",
+          "sqlName": "external_project_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "build",
+      "tableName": "work_tracker_provider",
+      "exportName": "workTrackerProvider",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "teamId",
+          "sqlName": "team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "billable_metric",
+      "exportName": "billableMetric",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "capabilityId",
+          "sqlName": "capability_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "customer",
+      "exportName": "customer",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "entitlement_bundle",
+      "exportName": "entitlementBundle",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "customerId",
+          "sqlName": "customer_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "plan",
+      "exportName": "plan",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "subscription",
+      "exportName": "subscription",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "customerId",
+          "sqlName": "customer_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "planId",
+          "sqlName": "plan_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "commerce",
+      "tableName": "subscription_item",
+      "exportName": "subscriptionItem",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "subscriptionId",
+          "sqlName": "subscription_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "capabilityId",
+          "sqlName": "capability_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "dns_domain",
+      "exportName": "dnsDomain",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "fqdn",
+          "sqlName": "fqdn",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "host",
+      "exportName": "host",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "substrateId",
+          "sqlName": "substrate_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "ip_address",
+      "exportName": "ipAddress",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "address",
+          "sqlName": "address",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "subnetId",
+          "sqlName": "subnet_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "network_link",
+      "exportName": "networkLink",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "sourceKind",
+          "sqlName": "source_kind",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "sourceId",
+          "sqlName": "source_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "targetKind",
+          "sqlName": "target_kind",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "targetId",
+          "sqlName": "target_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "route",
+      "exportName": "route",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "domain",
+          "sqlName": "domain",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "runtimeId",
+          "sqlName": "runtime_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "runtime",
+      "exportName": "runtime",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "parentRuntimeId",
+          "sqlName": "parent_runtime_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "hostId",
+          "sqlName": "host_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "secret",
+      "exportName": "secret",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "substrate",
+      "exportName": "substrate",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "parentSubstrateId",
+          "sqlName": "parent_substrate_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "infra",
+      "tableName": "tunnel",
+      "exportName": "tunnel",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "routeId",
+          "sqlName": "route_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "subdomain",
+          "sqlName": "subdomain",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "phase",
+          "sqlName": "phase",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "anonymization_profile",
+      "exportName": "anonymizationProfile",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "component_deployment",
+      "exportName": "componentDeployment",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "deploymentSetId",
+          "sqlName": "deployment_set_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "componentId",
+          "sqlName": "component_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "artifactId",
+          "sqlName": "artifact_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "connection_audit_event",
+      "exportName": "connectionAuditEvent",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "database",
+      "exportName": "opsDatabase",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "componentId",
+          "sqlName": "component_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "database_operation",
+      "exportName": "databaseOperation",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "databaseId",
+          "sqlName": "database_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "deployment_set",
+      "exportName": "deploymentSet",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "runtimeId",
+          "sqlName": "runtime_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "forwarded_port",
+      "exportName": "forwardedPort",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "workspaceId",
+          "sqlName": "workspace_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "install_manifest",
+      "exportName": "installManifest",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "intervention",
+      "exportName": "intervention",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "componentDeploymentId",
+          "sqlName": "component_deployment_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "preview",
+      "exportName": "preview",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "ownerId",
+          "sqlName": "owner_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "phase",
+          "sqlName": "phase",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "sourceBranch",
+          "sqlName": "source_branch",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "prNumber",
+          "sqlName": "pr_number",
+          "type": "number",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "rollout",
+      "exportName": "rollout",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "releaseId",
+          "sqlName": "release_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemDeploymentId",
+          "sqlName": "system_deployment_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "site",
+      "exportName": "site",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "site_manifest",
+      "exportName": "siteManifest",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "releaseId",
+          "sqlName": "release_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "system_deployment",
+      "exportName": "systemDeployment",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "tenantId",
+          "sqlName": "tenant_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "runtimeId",
+          "sqlName": "runtime_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "tenant",
+      "exportName": "tenant",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "siteId",
+          "sqlName": "site_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "customerId",
+          "sqlName": "customer_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "workbench",
+      "exportName": "workbench",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "workspace",
+      "exportName": "workspace",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "hostId",
+          "sqlName": "host_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "runtimeId",
+          "sqlName": "runtime_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "templateId",
+          "sqlName": "template_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "ownerId",
+          "sqlName": "owner_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "generation",
+          "sqlName": "generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "observedGeneration",
+          "sqlName": "observed_generation",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "ops",
+      "tableName": "workspace_snapshot",
+      "exportName": "workspaceSnapshot",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "workspaceId",
+          "sqlName": "workspace_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "agent",
+      "exportName": "agent",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "reportsToAgentId",
+          "sqlName": "reports_to_agent_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "config_var",
+      "exportName": "configVar",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "scopeType",
+          "sqlName": "scope_type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "scopeId",
+          "sqlName": "scope_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "environment",
+          "sqlName": "environment",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "value",
+          "sqlName": "value",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "identity_link",
+      "exportName": "identityLink",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "externalId",
+          "sqlName": "external_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "job",
+      "exportName": "job",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "agentId",
+          "sqlName": "agent_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "delegatedByAgentId",
+          "sqlName": "delegated_by_agent_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "parentJobId",
+          "sqlName": "parent_job_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "mode",
+          "sqlName": "mode",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "trigger",
+          "sqlName": "trigger",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "membership",
+      "exportName": "membership",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "teamId",
+          "sqlName": "team_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "memory",
+      "exportName": "memory",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "layer",
+          "sqlName": "layer",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "sourceAgentId",
+          "sqlName": "source_agent_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "approvedByPrincipalId",
+          "sqlName": "approved_by_principal_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "messaging_provider",
+      "exportName": "messagingProvider",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "teamId",
+          "sqlName": "team_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "principal",
+      "exportName": "principal",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "primaryTeamId",
+          "sqlName": "primary_team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "role_preset",
+      "exportName": "rolePreset",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "orgId",
+          "sqlName": "org_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "scope",
+      "exportName": "scope",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "teamId",
+          "sqlName": "team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "secret",
+      "exportName": "secret",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "scopeType",
+          "sqlName": "scope_type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "scopeId",
+          "sqlName": "scope_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "environment",
+          "sqlName": "environment",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "encryptedValue",
+          "sqlName": "encrypted_value",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "iv",
+          "sqlName": "iv",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "authTag",
+          "sqlName": "auth_tag",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "keyVersion",
+          "sqlName": "key_version",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdBy",
+          "sqlName": "created_by",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "ssh_key",
+      "exportName": "sshKey",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "fingerprint",
+          "sqlName": "fingerprint",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "team",
+      "exportName": "team",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "parentTeamId",
+          "sqlName": "parent_team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "tool_credential",
+      "exportName": "toolCredential",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "org",
+      "tableName": "tool_usage",
+      "exportName": "toolUsage",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "principalId",
+          "sqlName": "principal_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "tool",
+          "sqlName": "tool",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "costMicrodollars",
+          "sqlName": "cost_microdollars",
+          "type": "number",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "api",
+      "exportName": "softwareApi",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "providedByComponentId",
+          "sqlName": "provided_by_component_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "artifact",
+      "exportName": "artifact",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "componentId",
+          "sqlName": "component_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "capability",
+      "exportName": "capability",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "productId",
+          "sqlName": "product_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "ownerTeamId",
+          "sqlName": "owner_team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "component",
+      "exportName": "component",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "ownerTeamId",
+          "sqlName": "owner_team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "status",
+          "sqlName": "status",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "lifecycle",
+          "sqlName": "lifecycle",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "entity_relationship",
+      "exportName": "entityRelationship",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "sourceKind",
+          "sqlName": "source_kind",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "sourceId",
+          "sqlName": "source_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "targetKind",
+          "sqlName": "target_kind",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "targetId",
+          "sqlName": "target_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "product",
+      "exportName": "product",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "product_system",
+      "exportName": "productSystem",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "productId",
+          "sqlName": "product_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "release",
+      "exportName": "release",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemId",
+          "sqlName": "system_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "release_artifact_pin",
+      "exportName": "releaseArtifactPin",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "releaseId",
+          "sqlName": "release_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "artifactId",
+          "sqlName": "artifact_id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "system",
+      "exportName": "system",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "ownerTeamId",
+          "sqlName": "owner_team_id",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validFrom",
+          "sqlName": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "validTo",
+          "sqlName": "valid_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "systemFrom",
+          "sqlName": "system_from",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "systemTo",
+          "sqlName": "system_to",
+          "type": "date",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "changedBy",
+          "sqlName": "changed_by",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "changeReason",
+          "sqlName": "change_reason",
+          "type": "string",
+          "nullable": true,
+          "primaryKey": false,
+          "hasDefault": false
+        }
+      ]
+    },
+    {
+      "schema": "software",
+      "tableName": "template",
+      "exportName": "template",
+      "columns": [
+        {
+          "name": "id",
+          "sqlName": "id",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": true,
+          "hasDefault": true
+        },
+        {
+          "name": "slug",
+          "sqlName": "slug",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "name",
+          "sqlName": "name",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "type",
+          "sqlName": "type",
+          "type": "string",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": false
+        },
+        {
+          "name": "spec",
+          "sqlName": "spec",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "metadata",
+          "sqlName": "metadata",
+          "type": "json",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "createdAt",
+          "sqlName": "created_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        },
+        {
+          "name": "updatedAt",
+          "sqlName": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "primaryKey": false,
+          "hasDefault": true
+        }
+      ]
+    }
+  ]
+}

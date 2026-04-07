@@ -7,7 +7,7 @@ export interface UninstallOptions {
   verbose?: boolean;
 }
 
-/** dx install uninstall — tear down dx platform and optionally k3s. */
+/** dx setup uninstall — tear down dx platform and optionally k3s. */
 export async function runUninstall(opts: UninstallOptions): Promise<void> {
   // 1. Helm uninstall
   console.log("Uninstalling dx-platform Helm release...");

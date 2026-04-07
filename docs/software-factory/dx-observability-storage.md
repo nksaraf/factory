@@ -593,7 +593,7 @@ dx store cp data/exports/report.pdf ./report.pdf \
 
 Same pattern as `dx db` and `dx dev`:
 
-1. No flags → local MinIO (from `dx.yaml` dependencies, if object storage is declared) or Factory MinIO
+1. No flags → local MinIO (from docker-compose resource definitions, if object storage is declared) or Factory MinIO
 2. `--site trafficure-staging` → that Site's MinIO instance
 3. `--site trafficure-prod-india --tenant samsung` → tenant-scoped prefix in production MinIO
 4. Factory-scope paths (`factory-artifacts/`, `factory-backups/`) → Factory MinIO directly
@@ -637,12 +637,11 @@ dx db backup create --target staging \
   --output store://site-backups/db/staging-20260324.sql.gz
 
 # Deploy a data asset alongside code (tile cache, ML model)
-# In dx.yaml:
-# components:
+# In docker-compose.yaml, assets are declared via labels:
 #   api:
-#     assets:
-#       - source: assets/coverage-model-v3.bin
-#         destination: assets/ml-models/coverage-v3.bin
+#     labels:
+#       catalog.asset.coverage-model.source: assets/coverage-model-v3.bin
+#       catalog.asset.coverage-model.destination: assets/ml-models/coverage-v3.bin
 # On dx deploy, the asset is synced to the Site's MinIO
 ```
 

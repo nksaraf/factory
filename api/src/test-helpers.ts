@@ -1,137 +1,69 @@
-import fs from "node:fs";
-import path from "node:path";
+import path from "node:path"
 
-import { cors } from "@elysiajs/cors";
-import { Elysia } from "elysia";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { cors } from "@elysiajs/cors"
+import { Elysia } from "elysia"
+import type { PGlite } from "@electric-sql/pglite"
 
-import type { Database } from "./db/connection";
-import * as schema from "./db/schema";
-import { agentController } from "./modules/agent/index";
-import { buildController } from "./modules/build/index";
-import { commerceController } from "./modules/commerce/index";
-import { fleetController } from "./modules/fleet/index";
-import { gatewayController } from "./modules/infra/gateway.controller";
-import { healthController } from "./modules/health/index";
-import { infraController } from "./modules/infra/index";
-import { productController } from "./modules/product/index";
-import { sandboxController } from "./modules/infra/sandbox.controller";
-
-/**
- * PGlite cannot handle multi-statement SQL in a single prepared statement.
- * This custom migrator reads SQL files from the drizzle folder and executes
- * each statement individually.
- */
-async function migrateWithPglite(client: PGlite, migrationsFolder: string) {
-  const journalPath = path.join(migrationsFolder, "meta", "_journal.json");
-  const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
-
-  // Ensure migration tracking table exists
-  await client.query(`CREATE SCHEMA IF NOT EXISTS public`);
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS public.factory_migrations (
-      id SERIAL PRIMARY KEY,
-      hash TEXT NOT NULL,
-      created_at BIGINT
-    )
-  `);
-
-  const applied = await client.query<{ hash: string }>(
-    `SELECT hash FROM public.factory_migrations`
-  );
-  const appliedHashes = new Set(applied.rows.map((r) => r.hash));
-
-  for (const entry of journal.entries) {
-    if (appliedHashes.has(entry.tag)) continue;
-
-    const sqlFile = path.join(migrationsFolder, `${entry.tag}.sql`);
-    if (!fs.existsSync(sqlFile)) continue;
-
-    const content = fs.readFileSync(sqlFile, "utf-8");
-    // Drizzle migrations use --> statement-breakpoint as delimiter;
-    // some hand-written migrations use plain semicolons instead.
-    const hasBreakpoints = content.includes("--> statement-breakpoint");
-    const raw = hasBreakpoints
-      ? content.split(/-->\s*statement-breakpoint/)
-      : content.split(/;\s*\n/);
-    const statements = raw
-      .map((s) =>
-        s
-          .split("\n")
-          .filter((line) => !line.trimStart().startsWith("--"))
-          .join("\n")
-          .trim()
-      )
-      .filter((s) => s.length > 0);
-
-    for (const stmt of statements) {
-      await client.query(stmt);
-    }
-
-    await client.query(
-      `INSERT INTO public.factory_migrations (hash, created_at) VALUES ($1, $2)`,
-      [entry.tag, Date.now()]
-    );
-  }
-}
+import type { Database } from "./db/connection"
+import { agentControllerV2 } from "./modules/agent/index.v2"
+import { buildControllerV2 } from "./modules/build/index.v2"
+import { commerceControllerV2 } from "./modules/commerce/index.v2"
+import { fleetControllerV2 } from "./modules/fleet/index.v2"
+import { identityControllerV2 } from "./modules/identity/index.v2"
+import { infraControllerV2 } from "./modules/infra/index.v2"
+import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { productControllerV2 } from "./modules/product/index.v2"
+import { healthController } from "./modules/health/index"
+import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
+import { createPgliteDb, migrateWithPglite } from "./factory-core"
 
 export async function createTestContext() {
-  const client = new PGlite();
-  const db = drizzlePglite(client, { schema });
+  const { client, db } = await createPgliteDb()
 
-  await migrateWithPglite(client, path.join(process.cwd(), "drizzle"));
+  await migrateWithPglite(client, path.join(process.cwd(), "drizzle"))
 
-  const database = db as unknown as Database;
-
-  const infraRoutes = new Elysia({ prefix: "/infra" })
-    .use(infraController(database))
-    .use(gatewayController(database))
-    .use(sandboxController(database));
+  const database = db as unknown as Database
 
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
+    .use(errorHandlerPlugin())
     .decorate("db", database)
-    .use(productController(database))
-    .use(buildController(database))
-    .use(agentController)
-    .use(commerceController(database))
-    .use(fleetController(database))
-    .use(infraRoutes)
+    .use(productControllerV2(database))
+    .use(buildControllerV2(database))
+    .use(agentControllerV2(database))
+    .use(commerceControllerV2(database))
+    .use(fleetControllerV2(database))
+    .use(infraControllerV2(database))
+    .use(identityControllerV2(database))
+    .use(messagingControllerV2(database))
 
   const app = new Elysia()
     .use(cors({ credentials: true, origin: true }))
     .use(healthController)
-    .use(factoryRoutes);
+    .use(factoryRoutes)
 
-  return { app, db, client };
+  return { app, db, client }
 }
 
-export type TestApp = Awaited<ReturnType<typeof createTestContext>>["app"];
+export type TestApp = Awaited<ReturnType<typeof createTestContext>>["app"]
 
 const TRUNCATE_STATEMENTS = [
-  `TRUNCATE TABLE factory_fleet.tunnel RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.route RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.domain RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.connection_audit_event RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.workload_override RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.intervention RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.rollout RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.dependency_workload RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.workload RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.sandbox_snapshot RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.sandbox RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.sandbox_template RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.deployment_target RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.release_module_pin RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.release RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.site_manifest RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_fleet.site RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_commerce.entitlement_bundle RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_commerce.entitlement RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_commerce.plan RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_commerce.customer_account RESTART IDENTITY CASCADE`,
+  // v1: factory_infra (children first)
+  `TRUNCATE TABLE factory_infra.ip_address RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.subnet RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.ssh_key RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.kube_node RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.vm RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.vm_cluster RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.host RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.cluster RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.datacenter RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.region RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_infra.provider RESTART IDENTITY CASCADE`,
+  // v1: factory_build (children first)
   `TRUNCATE TABLE factory_build.git_user_sync RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.git_repo_sync RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_build.pipeline_step_run RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_build.pipeline_run RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.webhook_event RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.github_app_installation RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.component_artifact RESTART IDENTITY CASCADE`,
@@ -139,25 +71,178 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE factory_build.module_version RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.repo RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE factory_build.git_host_provider RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_agent.agent_execution RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_agent.agent RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_product.work_item RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_product.component_spec RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_product.module RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.ip_address RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.subnet RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.kube_node RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.vm RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.proxmox_cluster RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.host RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.datacenter RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.cluster RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.region RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.provider RESTART IDENTITY CASCADE`,
-];
+  // v1: factory_org (children first)
+  `TRUNCATE TABLE factory_org.memory RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.message_thread RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.channel_mapping RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.messaging_provider RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.tool_usage RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.tool_credential RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.identity_link RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.secret RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.scope RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.principal_team_membership RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.principal RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE factory_org.team RESTART IDENTITY CASCADE`,
+  // ops (was factory_fleet)
+  `TRUNCATE TABLE ops.forwarded_port RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.connection_audit_event RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.intervention RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.rollout RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.component_deployment RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.preview RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.workspace_snapshot RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.workspace RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.deployment_set RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.system_deployment RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.install_manifest RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.site_manifest RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.site RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.tenant RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.workbench RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.database_operation RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.database RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.anonymization_profile RESTART IDENTITY CASCADE`,
+  // commerce (was factory_commerce)
+  `TRUNCATE TABLE commerce.subscription_item RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE commerce.subscription RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE commerce.entitlement_bundle RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE commerce.plan RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE commerce.billable_metric RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE commerce.customer RESTART IDENTITY CASCADE`,
+  // build (was factory_build)
+  `TRUNCATE TABLE build.work_tracker_project_mapping RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.work_tracker_provider RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.work_item RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.git_user_sync RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.git_repo_sync RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.pipeline_step RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.pipeline_run RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.webhook_event RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.github_app_installation RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.component_artifact RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.system_version RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.repo RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE build.git_host_provider RESTART IDENTITY CASCADE`,
+  // org (was factory_org + factory_agent)
+  `TRUNCATE TABLE org.event_subscription RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.workflow_run RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.tool_usage RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.tool_credential RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.memory RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.job RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.agent RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.role_preset RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.ssh_key RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.identity_link RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.messaging_provider RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.secret RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.config_var RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.membership RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.scope RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.principal RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.team RESTART IDENTITY CASCADE`,
+  // software (was factory_product + factory_catalog)
+  `TRUNCATE TABLE software.release_artifact_pin RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.release RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.entity_relationship RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.capability RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.api RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.artifact RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.template RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.product_system RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.component RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.system RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE software.product RESTART IDENTITY CASCADE`,
+  // infra (was factory_infra + factory_fleet.tunnel/route/domain)
+  `TRUNCATE TABLE infra.tunnel RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.route RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.dns_domain RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.network_link RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.ip_address RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.secret RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.host RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.runtime RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.substrate RESTART IDENTITY CASCADE`,
+]
+
+/**
+ * Insert seed parent rows that many tests need for FK constraints.
+ * Called automatically after truncateAllTables.
+ * Safe to call multiple times — uses ON CONFLICT DO NOTHING.
+ */
+export async function seedTestParents(client: PGlite) {
+  const teamIds = ["t1", "team_1", "platform"]
+  const principalIds = ["user_1"]
+  const repoIds = ["unknown"]
+
+  for (const id of teamIds) {
+    // v1: factory_org.team
+    try {
+      await client.query(
+        `INSERT INTO factory_org.team (team_id, slug, name)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (team_id) DO NOTHING`,
+        [id, id, `Team ${id}`]
+      )
+    } catch { /* table may not exist */ }
+    // v2: org.team
+    try {
+      await client.query(
+        `INSERT INTO org.team (id, slug, name, type, spec, metadata)
+         VALUES ($1, $2, $3, 'team', '{}', '{}')
+         ON CONFLICT (id) DO NOTHING`,
+        [id, id, `Team ${id}`]
+      )
+    } catch { /* table may not exist */ }
+  }
+
+  for (const id of principalIds) {
+    // v2: org.principal
+    try {
+      await client.query(
+        `INSERT INTO org.principal (id, slug, name, type, spec, metadata)
+         VALUES ($1, $2, $3, 'user', '{}', '{}')
+         ON CONFLICT (id) DO NOTHING`,
+        [id, id, `User ${id}`]
+      )
+    } catch { /* table may not exist */ }
+  }
+
+  for (const id of repoIds) {
+    // v2: build.repo
+    try {
+      await client.query(
+        `INSERT INTO build.repo (id, slug, name, spec)
+         VALUES ($1, $2, $3, '{}')
+         ON CONFLICT (id) DO NOTHING`,
+        [id, id, `Repo ${id}`]
+      )
+    } catch { /* table may not exist */ }
+  }
+
+  // Seed a default site for preview/webhook tests
+  try {
+    await client.query(
+      `INSERT INTO ops.site (id, slug, name, spec, metadata)
+       VALUES ('site_default', 'default', 'Default Site',
+               '{"previewConfig":{"enabled":true,"defaultAuthMode":"team","ttlDays":7}}',
+               '{}')
+       ON CONFLICT (id) DO NOTHING`,
+    )
+  } catch { /* table may not exist */ }
+}
 
 export async function truncateAllTables(client: PGlite) {
-  for (const sql of TRUNCATE_STATEMENTS) {
-    await client.query(sql);
+  for (const stmt of TRUNCATE_STATEMENTS) {
+    try {
+      await client.query(stmt)
+    } catch (err: any) {
+      // Skip tables that don't exist yet (migration may not have created them)
+      if (err?.code === "42P01") continue
+      throw err
+    }
   }
+  // Re-seed parent rows that FK constraints commonly reference
+  await seedTestParents(client)
 }

@@ -35,7 +35,7 @@ export async function runCustomerShow(
 ): Promise<void> {
   const api = await getFactoryClient()
   const data = await apiCall(flags, () =>
-    api.api.v1.factory.commerce.customers({ id }).get()
+    api.api.v1.factory.commerce.customers({ slugOrId: id }).get()
   )
   detailView(flags, data, [
     ["Name", (r) => styleBold(String(r.name ?? ""))],

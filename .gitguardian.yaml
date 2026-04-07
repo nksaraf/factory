@@ -1,0 +1,22 @@
+version: 2
+
+secret:
+  # Ignore template files that contain default/placeholder credentials
+  # These are scaffolding templates for `dx init`, not real secrets
+  ignored-paths:
+    - "cli/src/templates/**"
+    - "cli/src/handlers/add/add-handler.ts"
+
+  # Ignore test files with fake test credentials
+  ignored-matches:
+    - name: "Test fixture passwords"
+      match: "test-value-*"
+
+    - name: "Template default postgres password"
+      match: "POSTGRES_PASSWORD:-postgres"
+
+    - name: "Spring config template default"
+      match: "DATABASE_PASSWORD:postgres"
+
+    - name: "GCP credential env var names (not values)"
+      match: "GCP_*_SA_JSON_BASE64"

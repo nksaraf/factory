@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process";
 
-import { styleBold, styleInfo, styleMuted, styleSuccess, styleWarn } from "../cli-style.js";
+import { styleBold, styleInfo, styleMuted, styleSuccess, styleWarn, styleError } from "../cli-style.js";
 import { getCurrentBranch, getAheadBehind } from "../lib/git.js";
-import { ProjectContext } from "../lib/project.js";
+import { isDockerRunning } from "../lib/docker.js";
+import { resolveDxContext } from "../lib/dx-context.js";
 import type { DxFlags } from "../stub.js";
 
 interface GitStatus {
@@ -17,6 +18,13 @@ interface ProjectInfo {
   name: string;
   root: string;
   components: string[];
+  resources: string[];
+}
+
+interface ServiceStatus {
+  name: string;
+  status: string; // "running", "healthy", "unhealthy", "exited", "paused", etc.
+  ports: string;
 }
 
 function getGitFileStats(cwd: string): { modified: number; untracked: number } {
@@ -47,18 +55,79 @@ function formatChanges(modified: number, untracked: number): string {
   return parts.join(", ");
 }
 
-function tryLoadProject(cwd: string): ProjectInfo | undefined {
+interface ResolvedProject extends ProjectInfo {
+  composeFiles: string[];
+}
+
+async function tryLoadProject(cwd: string): Promise<ResolvedProject | undefined> {
   try {
-    const ctx = ProjectContext.fromCwd(cwd);
+    const ctx = await resolveDxContext({ need: "project", cwd });
+    const project = ctx.project;
     return {
-      name: ctx.systemName,
-      root: ctx.rootDir,
-      components: ctx.componentNames,
+      name: project.name,
+      root: project.rootDir,
+      components: Object.keys(project.catalog.components),
+      resources: Object.keys(project.catalog.resources),
+      composeFiles: project.composeFiles,
     };
   } catch {
     // No compose files found — not a dx project
     return undefined;
   }
+}
+
+/**
+ * Get running container statuses via `docker compose ps --format json`.
+ */
+function getComposeStatus(rootDir: string, composeFiles: string[]): ServiceStatus[] {
+  if (!isDockerRunning()) return [];
+
+  const args = ["compose"];
+  for (const f of composeFiles) {
+    args.push("-f", f);
+  }
+  args.push("ps", "--format", "json", "-a");
+
+  const proc = spawnSync("docker", args, {
+    cwd: rootDir,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  if (proc.status !== 0) return [];
+
+  const stdout = (proc.stdout || "").trim();
+  if (!stdout) return [];
+
+  const services: ServiceStatus[] = [];
+  // docker compose ps --format json outputs one JSON object per line
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line);
+      services.push({
+        name: obj.Service || obj.Name || "unknown",
+        status: obj.State || obj.Status || "unknown",
+        ports: obj.Publishers
+          ? (obj.Publishers as Array<{ PublishedPort: number; TargetPort: number }>)
+              .filter((p) => p.PublishedPort > 0)
+              .map((p) => `${p.PublishedPort}→${p.TargetPort}`)
+              .join(", ")
+          : "",
+      });
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return services;
+}
+
+function styleServiceStatus(status: string): string {
+  if (status === "running") return styleSuccess(status);
+  if (status.includes("healthy")) return styleSuccess(status);
+  if (status.includes("unhealthy")) return styleError(status);
+  if (status === "exited" || status === "dead") return styleError(status);
+  return styleWarn(status);
 }
 
 /** Context-local status: git + project info, no factory API required. */
@@ -87,7 +156,13 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
   }
 
   // --- Project context (docker-compose) ---
-  const project = tryLoadProject(cwd);
+  const project = await tryLoadProject(cwd);
+
+  // --- Compose service statuses ---
+  let composeStatus: ServiceStatus[] = [];
+  if (project) {
+    composeStatus = getComposeStatus(project.root, project.composeFiles);
+  }
 
   // --- Output ---
   if (flags.json) {
@@ -97,6 +172,7 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
         name: project.name,
         root: project.root,
         components: project.components,
+        resources: project.resources,
       };
     }
     if (gitStatus) {
@@ -108,6 +184,9 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
         behind: gitStatus.behind,
       };
     }
+    if (composeStatus.length > 0) {
+      result.services = composeStatus;
+    }
     result.cwd = cwd;
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -118,6 +197,9 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
     console.log(`${styleBold("Project:")}    ${styleInfo(project.name)}`);
     if (project.components.length > 0) {
       console.log(`${styleBold("Components:")} ${project.components.join(", ")}`);
+    }
+    if (project.resources.length > 0) {
+      console.log(`${styleBold("Resources:")}  ${project.resources.join(", ")}`);
     }
     console.log(`${styleBold("Root:")}       ${styleMuted(project.root)}`);
   } else {
@@ -133,5 +215,18 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
     console.log(
       `${styleBold("Remote:")}     ${gitStatus.ahead} ahead, ${gitStatus.behind} behind`
     );
+  }
+
+  // --- Compose services ---
+  if (composeStatus.length > 0) {
+    console.log("");
+    console.log(styleBold("Services:"));
+    for (const svc of composeStatus) {
+      const ports = svc.ports ? styleMuted(` (${svc.ports})`) : "";
+      console.log(`  ${svc.name.padEnd(24)} ${styleServiceStatus(svc.status)}${ports}`);
+    }
+  } else if (project) {
+    console.log("");
+    console.log(styleMuted("Services:    not running (use dx dev or docker compose up)"));
   }
 }

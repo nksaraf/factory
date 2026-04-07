@@ -68,4 +68,13 @@ export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
   ): Promise<PushResult[]> {
     throw new Error("Linear adapter not yet implemented");
   }
+
+  async updateIssueStatus(
+    _apiUrl: string,
+    _credentialsRef: string,
+    _issueId: string,
+    _transitionName: string,
+  ): Promise<void> {
+    throw new Error("Linear adapter not yet implemented");
+  }
 }

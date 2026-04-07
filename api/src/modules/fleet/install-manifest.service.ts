@@ -1,18 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 
 import type { Database } from "../../db/connection";
-import { installManifest, releaseBundle } from "../../db/schema/fleet";
+import { installManifest } from "../../db/schema/ops";
+import { releaseBundle } from "../../db/schema/fleet";
 import type { InstallManifest } from "@smp/factory-shared/install-types";
+import type { InstallManifestSpec } from "@smp/factory-shared/schemas/ops";
 
 // ---------------------------------------------------------------------------
-// Install Manifest CRUD
+// Install Manifest CRUD — v2: ops schema, spec JSONB
 // ---------------------------------------------------------------------------
 
-export async function listInstallManifests(db: Database, opts?: { role?: string }) {
-  const base = db.select().from(installManifest);
-  const rows = opts?.role
-    ? await base.where(eq(installManifest.role, opts.role)).orderBy(desc(installManifest.reportedAt))
-    : await base.orderBy(desc(installManifest.reportedAt));
+export async function listInstallManifests(db: Database) {
+  const rows = await db.select().from(installManifest).orderBy(desc(installManifest.updatedAt));
   return { data: rows, total: rows.length };
 }
 
@@ -28,29 +27,19 @@ export async function getInstallManifestBySite(db: Database, siteId: string) {
 export async function upsertInstallManifest(
   db: Database,
   siteId: string,
-  manifest: InstallManifest
+  manifest: InstallManifest,
 ) {
   const existing = await getInstallManifestBySite(db, siteId);
+  const specData: InstallManifestSpec = {
+    installState: manifest as unknown as Record<string, unknown>,
+    lastCheckinAt: new Date(),
+    currentVersion: manifest.version,
+  };
 
   if (existing) {
     const [row] = await db
       .update(installManifest)
-      .set({
-        manifestVersion: manifest.version,
-        role: manifest.role,
-        dxVersion: manifest.dxVersion,
-        installMode: manifest.installMode,
-        k3sVersion: manifest.k3sVersion,
-        helmChartVersion: manifest.helmChartVersion,
-        siteName: manifest.siteName,
-        domain: manifest.domain,
-        enabledPlanes: manifest.enabledPlanes,
-        nodes: manifest.nodes,
-        upgrades: manifest.upgrades,
-        rawManifest: manifest,
-        reportedAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .set({ spec: specData, updatedAt: new Date() })
       .where(eq(installManifest.siteId, siteId))
       .returning();
     return row;
@@ -58,55 +47,30 @@ export async function upsertInstallManifest(
 
   const [row] = await db
     .insert(installManifest)
-    .values({
-      siteId,
-      manifestVersion: manifest.version,
-      role: manifest.role,
-      dxVersion: manifest.dxVersion,
-      installMode: manifest.installMode,
-      k3sVersion: manifest.k3sVersion,
-      helmChartVersion: manifest.helmChartVersion,
-      siteName: manifest.siteName,
-      domain: manifest.domain,
-      enabledPlanes: manifest.enabledPlanes,
-      nodes: manifest.nodes,
-      upgrades: manifest.upgrades,
-      rawManifest: manifest,
-    })
+    .values({ siteId, spec: specData })
     .returning();
   return row;
 }
 
 // ---------------------------------------------------------------------------
-// Release Bundle CRUD
+// Release Bundle CRUD — v1 compat (still uses fleet.release_bundle table)
+// Will be migrated to v2 when release bundle concept is folded into release spec.
 // ---------------------------------------------------------------------------
 
 export async function listReleaseBundles(
   db: Database,
-  opts?: { releaseId?: string; status?: string; role?: string }
+  opts?: { releaseId?: string; status?: string; role?: string },
 ) {
   let query = db.select().from(releaseBundle).$dynamic();
-
-  if (opts?.releaseId) {
-    query = query.where(eq(releaseBundle.releaseId, opts.releaseId));
-  }
-  if (opts?.status) {
-    query = query.where(eq(releaseBundle.status, opts.status));
-  }
-  if (opts?.role) {
-    query = query.where(eq(releaseBundle.role, opts.role));
-  }
-
+  if (opts?.releaseId) query = query.where(eq(releaseBundle.releaseId, opts.releaseId));
+  if (opts?.status) query = query.where(eq(releaseBundle.status, opts.status));
+  if (opts?.role) query = query.where(eq(releaseBundle.role, opts.role));
   const rows = await query.orderBy(desc(releaseBundle.createdAt));
   return { data: rows, total: rows.length };
 }
 
 export async function getReleaseBundleById(db: Database, id: string) {
-  const [row] = await db
-    .select()
-    .from(releaseBundle)
-    .where(eq(releaseBundle.releaseBundleId, id))
-    .limit(1);
+  const [row] = await db.select().from(releaseBundle).where(eq(releaseBundle.releaseBundleId, id)).limit(1);
   return row ?? null;
 }
 
@@ -120,7 +84,7 @@ export async function createReleaseBundle(
     k3sVersion: string;
     helmChartVersion: string;
     createdBy: string;
-  }
+  },
 ) {
   const [row] = await db
     .insert(releaseBundle)
@@ -147,7 +111,7 @@ export async function updateReleaseBundleStatus(
     checksumSha256?: string;
     storagePath?: string;
     completedAt?: Date;
-  }
+  },
 ) {
   const setValues: Record<string, unknown> = { status: updates.status };
   if (updates.imageCount !== undefined) setValues.imageCount = updates.imageCount;

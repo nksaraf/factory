@@ -2,8 +2,8 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import { allocateSlug } from "../../lib/slug";
 import { gitHostProvider, gitRepoSync, gitUserSync, repo } from "../../db/schema/build";
-import { createGitHostAdapter, type GitHostAdapterConfig } from "../../adapters/adapter-registry";
-import type { GitHostAdapter, GitHostPullRequestCreate } from "../../adapters/git-host-adapter";
+import { getGitHostAdapter } from "../../adapters/adapter-registry";
+import type { GitHostAdapter, GitHostAdapterConfig, GitHostPullRequestCreate, GitHostType } from "../../adapters/git-host-adapter";
 import type { AuthAdminClient } from "../../lib/auth-admin-client";
 
 /**
@@ -129,7 +129,7 @@ export class GitHostService {
 
     const adapter =
       opts?.adapter ??
-      createGitHostAdapter(provider.hostType, {
+      getGitHostAdapter(provider.hostType as GitHostType, {
         ...parseCredentials(provider.credentialsEnc),
         apiBaseUrl: provider.apiBaseUrl,
       });
@@ -245,7 +245,7 @@ export class GitHostService {
 
     const adapter =
       opts?.adapter ??
-      createGitHostAdapter(provider.hostType, {
+      getGitHostAdapter(provider.hostType as GitHostType, {
         ...parseCredentials(provider.credentialsEnc),
         apiBaseUrl: provider.apiBaseUrl,
       });
@@ -337,7 +337,7 @@ export class GitHostService {
     const provider = await this.getProvider(sync.gitHostProviderId);
     if (!provider) return;
 
-    const adapter = createGitHostAdapter(provider.hostType, {
+    const adapter = getGitHostAdapter(provider.hostType as GitHostType, {
       ...parseCredentials(provider.credentialsEnc),
       apiBaseUrl: provider.apiBaseUrl,
     });
@@ -390,7 +390,7 @@ export class GitHostService {
 
     if (!sync) throw new Error(`Repo not synced with provider: ${repoSlug}`);
 
-    const adapter = createGitHostAdapter(provider.hostType, {
+    const adapter = getGitHostAdapter(provider.hostType as GitHostType, {
       ...parseCredentials(provider.credentialsEnc),
       apiBaseUrl: provider.apiBaseUrl,
     });

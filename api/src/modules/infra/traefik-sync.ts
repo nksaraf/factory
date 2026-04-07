@@ -31,6 +31,10 @@ export interface TraefikRoute {
   middlewares: unknown[];
   priority: number;
   status: string;
+  /** The proxy runtime this route is bound to (v2 routes). */
+  runtimeId?: string;
+  /** Resolved targets from the v2 route resolver (preferred over targetService/targetPort). */
+  resolvedTargets?: Array<{ address: string; port: number; weight: number }>;
 }
 
 function routerName(r: TraefikRoute): string {
@@ -46,6 +50,10 @@ function buildMatchRule(r: TraefikRoute): string {
 }
 
 function buildServiceUrl(r: TraefikRoute): string {
+  if (r.resolvedTargets && r.resolvedTargets.length > 0) {
+    const t = r.resolvedTargets[0];
+    return `http://${t.address}:${t.port}`;
+  }
   const port = r.targetPort ?? 80;
   return `http://${r.targetService}:${port}`;
 }
@@ -122,13 +130,21 @@ function atomicWrite(filePath: string, content: string): void {
  */
 export async function syncFactoryRoutes(
   db: Database,
-  outputDir: string
+  outputDir: string,
+  opts?: { runtimeId?: string },
 ): Promise<{ routeCount: number }> {
   // Get active factory-hosted routes (no siteId)
   const { data: allRoutes } = await listRoutes(db, { status: "active" });
-  const factoryRoutes = allRoutes.filter(
+  let factoryRoutes = allRoutes.filter(
     (r) => !r.siteId
   ) as TraefikRoute[];
+
+  // Optionally filter to routes bound to a specific proxy runtime
+  if (opts?.runtimeId) {
+    factoryRoutes = factoryRoutes.filter(
+      (r) => r.runtimeId === opts.runtimeId,
+    );
+  }
 
   // Group by kind for separate files
   const byKind = new Map<string, TraefikRoute[]>();

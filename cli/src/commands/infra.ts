@@ -1,6 +1,6 @@
 import type { DxBase } from "../dx-root.js";
 
-import { getFactoryClient } from "../client.js";
+import { getFactoryClient, getFactoryRestClient } from "../client.js";
 import { printTable } from "../output.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
@@ -16,14 +16,54 @@ import {
 } from "./list-helpers.js";
 import { setExamples } from "../plugins/examples-plugin.js";
 
+/**
+ * Shape of an infra entity row returned by the ontology API.
+ * Used as the generic parameter for tableOrJson / detailView to avoid `any`.
+ */
+interface InfraRow {
+  id?: string;
+  name?: string;
+  slug?: string;
+  type?: string;
+  status?: string;
+  createdAt?: string;
+  address?: string;
+  purpose?: string;
+  spec?: Record<string, unknown>;
+}
+
+/** Shape returned by the IPAM stats endpoint. */
+interface IpamStats {
+  total?: number;
+  available?: number;
+  assigned?: number;
+  reserved?: number;
+}
+
+/**
+ * Wrap a FactoryClient (REST) call into the { data, error } shape that apiCall expects.
+ * Used for endpoints Eden can't type: dynamic action paths and hyphenated entity CRUD.
+ */
+function restCall<T>(fn: () => Promise<T>): Promise<{ data: T; error: unknown }> {
+  return fn().then(
+    (data) => ({ data, error: null }),
+    (err) => ({ data: undefined as never, error: err }),
+  );
+}
+
 setExamples("infra", [
-  "$ dx infra provider list           List providers",
-  "$ dx infra region list             List regions",
-  "$ dx infra cluster list            List clusters",
+  "$ dx infra substrate list           List substrates (providers)",
+  "$ dx infra runtime list             List runtimes (clusters)",
+  "$ dx infra host list                List hosts",
 ]);
 
 async function getInfraApi() {
   return getFactoryClient();
+}
+
+/** REST client for action endpoints and ip-addresses (Eden can't type these). */
+async function getRestApi() {
+  return getFactoryRestClient();
 }
 
 export function infraCommand(app: DxBase) {
@@ -31,84 +71,84 @@ export function infraCommand(app: DxBase) {
     .sub("infra")
     .meta({ description: "Infrastructure management" })
 
-    // --- Providers ---
-    .command("provider", (c) =>
+    // --- Substrates (formerly Providers) ---
+    .command("substrate", (c) =>
       c
-        .meta({ description: "Manage infrastructure providers" })
+        .meta({ description: "Manage infrastructure substrates" })
         .command("list", (c) =>
           c
-            .meta({ description: "List providers" })
+            .meta({ description: "List substrates" })
             .flags({
               status: { type: "string", description: "Filter by status" },
             })
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.providers.get({
+                api.api.v1.factory.infra.substrates.get({
                   query: { status: flags.status as string | undefined },
                 })
               );
-              tableOrJson(flags, result, ["ID", "Name", "Type", "Kind", "Status"], (r) => [
-                styleMuted(String(r.providerId ?? "")),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "Type", "Kind", "Status"], (r) => [
+                styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
-                String(r.providerType ?? ""),
-                String(r.providerKind ?? ""),
-                colorStatus(String(r.status ?? "")),
+                String(r.spec?.type ?? ""),
+                String(r.spec?.kind ?? ""),
+                colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
               ]);
             })
         )
         .command("get", (c) =>
           c
-            .meta({ description: "Get provider by ID" })
-            .args([{ name: "id", type: "string", required: true, description: "Provider ID" }])
+            .meta({ description: "Get substrate by ID" })
+            .args([{ name: "id", type: "string", required: true, description: "Substrate ID" }])
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.providers({ id: args.id }).get()
+                api.api.v1.factory.infra.substrates({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.providerId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
-                ["Type", (r) => String(r.providerType ?? "")],
-                ["Kind", (r) => String(r.providerKind ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                ["Type", (r) => String(r.spec?.type ?? "")],
+                ["Kind", (r) => String(r.spec?.kind ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.lifecycle ?? r.status ?? ""))],
                 ["Created", (r) => String(r.createdAt ?? "")],
               ]);
             })
         )
         .command("create", (c) =>
           c
-            .meta({ description: "Create a provider" })
-            .args([{ name: "name", type: "string", required: true, description: "Provider name" }])
+            .meta({ description: "Create a substrate" })
+            .args([{ name: "name", type: "string", required: true, description: "Substrate name" }])
             .flags({
-              type: { type: "string", description: "Provider type (proxmox, hetzner, aws, gcp)" },
+              type: { type: "string", description: "Substrate type (proxmox, hetzner, aws, gcp)" },
             })
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.providers.post({
+                api.api.v1.factory.infra.substrates.post({
                   name: args.name,
-                  providerType: (flags.type as string) ?? "proxmox",
+                  spec: { type: (flags.type as string) ?? "proxmox" },
                 })
               );
-              actionResult(flags, result, styleSuccess(`Provider "${args.name}" created.`));
+              actionResult(flags, result, styleSuccess(`Substrate "${args.name}" created.`));
             })
         )
         .command("sync", (c) =>
           c
-            .meta({ description: "Sync provider inventory" })
-            .args([{ name: "id", type: "string", required: true, description: "Provider ID" }])
+            .meta({ description: "Sync substrate inventory" })
+            .args([{ name: "id", type: "string", required: true, description: "Substrate ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.providers({ id: args.id }).sync.post()
+                restCall(() => rest.infraAction("substrates", args.id, "sync"))
               );
-              actionResult(flags, result, styleSuccess(`Provider ${args.id} sync started.`));
+              actionResult(flags, result, styleSuccess(`Substrate ${args.id} sync started.`));
             })
         )
     )
 
-    // --- Regions ---
+    // --- Regions (now substrates with type=region) ---
     .command("region", (c) =>
       c
         .meta({ description: "Manage regions" })
@@ -121,16 +161,16 @@ export function infraCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.regions.get({
-                  query: { providerId: flags.providerId as string | undefined },
+                api.api.v1.factory.infra.substrates.get({
+                  query: { type: "region", providerId: flags.providerId as string | undefined },
                 })
               );
-              tableOrJson(flags, result, ["ID", "Name", "Slug", "Country", "City"], (r) => [
-                styleMuted(String(r.regionId ?? "")),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "Slug", "Country", "City"], (r) => [
+                styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
                 String(r.slug ?? ""),
-                String(r.country ?? ""),
-                String(r.city ?? ""),
+                String(r.spec?.country ?? ""),
+                String(r.spec?.city ?? ""),
               ]);
             })
         )
@@ -141,15 +181,15 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.regions({ id: args.id }).get()
+                api.api.v1.factory.infra.substrates({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.regionId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
                 ["Slug", (r) => String(r.slug ?? "")],
-                ["Country", (r) => String(r.country ?? "")],
-                ["City", (r) => String(r.city ?? "")],
-                ["Provider", (r) => String(r.providerId ?? "")],
+                ["Country", (r) => String(r.spec?.country ?? "")],
+                ["City", (r) => String(r.spec?.city ?? "")],
+                ["Provider", (r) => String(r.spec?.parentId ?? "")],
               ]);
             })
         )
@@ -167,13 +207,15 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.regions.post({
+                api.api.v1.factory.infra.substrates.post({
                   name: args.name,
-                  displayName: (flags.displayName as string) ?? args.name,
                   slug: flags.slug as string | undefined,
-                  country: flags.country as string | undefined,
-                  city: flags.city as string | undefined,
-                  providerId: flags.providerId as string | undefined,
+                  spec: {
+                    type: "region",
+                    country: flags.country as string | undefined,
+                    city: flags.city as string | undefined,
+                    parentId: flags.providerId as string | undefined,
+                  },
                 })
               );
               actionResult(flags, result, styleSuccess(`Region "${args.name}" created.`));
@@ -186,20 +228,20 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.regions({ id: args.id }).delete()
+                api.api.v1.factory.infra.substrates({ slugOrId: args.id }).delete.post({})
               );
               actionResult(flags, result, styleSuccess(`Region ${args.id} deleted.`));
             })
         )
     )
 
-    // --- Clusters ---
-    .command("cluster", (c) =>
+    // --- Runtimes (formerly Clusters) ---
+    .command("runtime", (c) =>
       c
-        .meta({ description: "Manage Kube clusters" })
+        .meta({ description: "Manage runtimes" })
         .command("list", (c) =>
           c
-            .meta({ description: "List clusters" })
+            .meta({ description: "List runtimes" })
             .flags({
               providerId: { type: "string", description: "Filter by provider" },
               status: { type: "string", description: "Filter by status" },
@@ -207,72 +249,72 @@ export function infraCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.clusters.get({
+                api.api.v1.factory.infra.runtimes.get({
                   query: {
                     providerId: flags.providerId as string | undefined,
                     status: flags.status as string | undefined,
                   },
                 })
               );
-              tableOrJson(flags, result, ["ID", "Name", "Provider", "Status"], (r) => [
-                styleMuted(String(r.clusterId ?? "")),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "Substrate", "Status"], (r) => [
+                styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
-                String(r.providerId ?? ""),
-                colorStatus(String(r.status ?? "")),
+                String(r.spec?.substrateId ?? ""),
+                colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
               ]);
             })
         )
         .command("get", (c) =>
           c
-            .meta({ description: "Get cluster by ID" })
-            .args([{ name: "id", type: "string", required: true, description: "Cluster ID" }])
+            .meta({ description: "Get runtime by ID" })
+            .args([{ name: "id", type: "string", required: true, description: "Runtime ID" }])
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.clusters({ id: args.id }).get()
+                api.api.v1.factory.infra.runtimes({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.clusterId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
-                ["Provider", (r) => String(r.providerId ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                ["Substrate", (r) => String(r.spec?.substrateId ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.lifecycle ?? r.status ?? ""))],
                 ["Created", (r) => String(r.createdAt ?? "")],
               ]);
             })
         )
         .command("create", (c) =>
           c
-            .meta({ description: "Create a cluster" })
-            .args([{ name: "name", type: "string", required: true, description: "Cluster name" }])
+            .meta({ description: "Create a runtime" })
+            .args([{ name: "name", type: "string", required: true, description: "Runtime name" }])
             .flags({
-              providerId: { type: "string", required: true, description: "Provider ID" },
+              providerId: { type: "string", required: true, description: "Substrate ID" },
             })
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.clusters.post({
+                api.api.v1.factory.infra.runtimes.post({
                   name: args.name,
-                  providerId: flags.providerId as string,
+                  spec: { substrateId: flags.providerId as string },
                 })
               );
-              actionResult(flags, result, styleSuccess(`Cluster "${args.name}" created.`));
+              actionResult(flags, result, styleSuccess(`Runtime "${args.name}" created.`));
             })
         )
         .command("destroy", (c) =>
           c
-            .meta({ description: "Destroy a cluster" })
-            .args([{ name: "id", type: "string", required: true, description: "Cluster ID" }])
+            .meta({ description: "Destroy a runtime" })
+            .args([{ name: "id", type: "string", required: true, description: "Runtime ID" }])
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.clusters({ id: args.id }).delete()
+                api.api.v1.factory.infra.runtimes({ slugOrId: args.id }).delete.post({})
               );
-              actionResult(flags, result, styleSuccess(`Cluster ${args.id} destroyed.`));
+              actionResult(flags, result, styleSuccess(`Runtime ${args.id} destroyed.`));
             })
         )
     )
 
-    // --- VMs ---
+    // --- VMs (now hosts with type=vm) ---
     .command("vm", (c) =>
       c
         .meta({ description: "Manage virtual machines" })
@@ -284,7 +326,7 @@ export function infraCommand(app: DxBase) {
               status: { type: "string", alias: "s", description: "Filter by status (running, stopped, provisioning, destroying)" },
               cluster: { type: "string", alias: "c", description: "Filter by cluster ID or slug" },
               host: { type: "string", description: "Filter by host ID or slug" },
-              provider: { type: "string", alias: "p", description: "Filter by provider ID or slug" },
+              substrate: { type: "string", alias: "p", description: "Filter by substrate ID or slug" },
               limit: { type: "number", alias: "n", description: "Limit number of results (default: 50)" },
               sort: { type: "string", description: "Sort by: name, ip, cpu, ram, disk, status (default: name)" },
             })
@@ -292,9 +334,10 @@ export function infraCommand(app: DxBase) {
               const api = await getInfraApi();
               const status = flags.all ? undefined : (flags.status as string | undefined) ?? "running";
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms.get({
+                api.api.v1.factory.infra.hosts.get({
                   query: {
-                    providerId: flags.provider as string | undefined,
+                    type: "vm",
+                    providerId: flags.substrate as string | undefined,
                     status,
                     hostId: flags.host as string | undefined,
                     clusterId: flags.cluster as string | undefined,
@@ -303,23 +346,25 @@ export function infraCommand(app: DxBase) {
               );
 
               const unwrapped = result && typeof result === "object" && "data" in result
-                ? (result as Record<string, unknown>).data
+                ? (result as { data: unknown }).data
                 : result;
-              let items = Array.isArray(unwrapped) ? unwrapped : [];
+              let items = Array.isArray(unwrapped) ? unwrapped as InfraRow[] : [] as InfraRow[];
 
               const sortKey = (flags.sort as string) ?? "name";
-              items.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+              items.sort((a, b) => {
+                const aSpec = a.spec ?? {};
+                const bSpec = b.spec ?? {};
                 switch (sortKey) {
                   case "ip":
-                    return String(a.ipAddress ?? "").localeCompare(String(b.ipAddress ?? ""));
+                    return String(aSpec.ipAddress ?? "").localeCompare(String(bSpec.ipAddress ?? ""));
                   case "cpu":
-                    return ((b.cpu as number) ?? 0) - ((a.cpu as number) ?? 0);
+                    return (Number(bSpec.cpu) || 0) - (Number(aSpec.cpu) || 0);
                   case "ram":
-                    return ((b.memoryMb as number) ?? 0) - ((a.memoryMb as number) ?? 0);
+                    return (Number(bSpec.memoryMb) || 0) - (Number(aSpec.memoryMb) || 0);
                   case "disk":
-                    return ((b.diskGb as number) ?? 0) - ((a.diskGb as number) ?? 0);
+                    return (Number(bSpec.diskGb) || 0) - (Number(aSpec.diskGb) || 0);
                   case "status":
-                    return String(a.status ?? "").localeCompare(String(b.status ?? ""));
+                    return String(aSpec.lifecycle ?? a.status ?? "").localeCompare(String(bSpec.lifecycle ?? b.status ?? ""));
                   default:
                     return String(a.name ?? "").localeCompare(String(b.name ?? ""));
                 }
@@ -348,15 +393,18 @@ export function infraCommand(app: DxBase) {
               ];
               console.log(printTable(
                 ["ID", "Name", "IP", "CPU", "RAM", "Disk", "Status"],
-                items.map((r: Record<string, unknown>) => [
-                  styleMuted(String(r.vmId ?? "")),
-                  String(r.name ?? ""),
-                  String(r.ipAddress ?? ""),
-                  String(r.cpu ?? ""),
-                  `${Math.round(((r.memoryMb as number) ?? 0) / 1024)}GB`,
-                  `${r.diskGb ?? ""}GB`,
-                  colorStatus(String(r.status ?? "")),
-                ]),
+                items.map((r) => {
+                  const spec = r.spec ?? {};
+                  return [
+                    styleMuted(String(r.id ?? "")),
+                    String(r.name ?? ""),
+                    String(spec.ipAddress ?? ""),
+                    String(spec.cpu ?? ""),
+                    `${Math.round((Number(spec.memoryMb) || 0) / 1024)}GB`,
+                    `${spec.diskGb ?? ""}GB`,
+                    colorStatus(String(spec.lifecycle ?? r.status ?? "")),
+                  ];
+                }),
                 vmColOpts,
               ));
             })
@@ -368,18 +416,18 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).get()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.vmId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
-                ["IP", (r) => String(r.ipAddress ?? "")],
-                ["CPU", (r) => String(r.cpu ?? "")],
-                ["RAM", (r) => `${Math.round(((r.memoryMb as number) ?? 0) / 1024)}GB`],
-                ["Disk", (r) => `${r.diskGb ?? ""}GB`],
-                ["Host", (r) => String(r.hostId ?? "")],
-                ["Cluster", (r) => String(r.clusterId ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                ["IP", (r) => String(r.spec?.ipAddress ?? "")],
+                ["CPU", (r) => String(r.spec?.cpu ?? "")],
+                ["RAM", (r) => `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`],
+                ["Disk", (r) => `${r.spec?.diskGb ?? ""}GB`],
+                ["Host", (r) => String(r.spec?.hostId ?? "")],
+                ["Runtime", (r) => String(r.spec?.runtimeId ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.lifecycle ?? r.status ?? ""))],
                 ["Created", (r) => String(r.createdAt ?? "")],
               ]);
             })
@@ -389,24 +437,27 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Create a VM" })
             .args([{ name: "name", type: "string", required: true, description: "VM name" }])
             .flags({
-              providerId: { type: "string", required: true, description: "Provider ID" },
+              providerId: { type: "string", required: true, description: "Substrate ID" },
               cpu: { type: "number", description: "CPU cores (default: 2)" },
               memoryMb: { type: "number", description: "Memory in MB (default: 4096)" },
               diskGb: { type: "number", description: "Disk in GB (default: 50)" },
               hostId: { type: "string", description: "Host ID" },
-              clusterId: { type: "string", description: "Cluster ID" },
+              clusterId: { type: "string", description: "Runtime ID" },
             })
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms.post({
+                api.api.v1.factory.infra.hosts.post({
                   name: args.name,
-                  providerId: flags.providerId as string,
-                  cpu: (flags.cpu as number) ?? 2,
-                  memoryMb: (flags.memoryMb as number) ?? 4096,
-                  diskGb: (flags.diskGb as number) ?? 50,
-                  hostId: flags.hostId as string | undefined,
-                  clusterId: flags.clusterId as string | undefined,
+                  spec: {
+                    type: "vm",
+                    substrateId: flags.providerId as string,
+                    cpu: (flags.cpu as number) ?? 2,
+                    memoryMb: (flags.memoryMb as number) ?? 4096,
+                    diskGb: (flags.diskGb as number) ?? 50,
+                    hostId: flags.hostId as string | undefined,
+                    runtimeId: flags.clusterId as string | undefined,
+                  },
                 })
               );
               actionResult(flags, result, styleSuccess(`VM "${args.name}" created.`));
@@ -417,9 +468,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Start a VM" })
             .args([{ name: "id", type: "string", required: true, description: "VM ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).start.post()
+                restCall(() => rest.infraAction("hosts", args.id, "start"))
               );
               actionResult(flags, result, styleSuccess(`VM ${args.id} started.`));
             })
@@ -429,9 +480,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Stop a VM" })
             .args([{ name: "id", type: "string", required: true, description: "VM ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).stop.post()
+                restCall(() => rest.infraAction("hosts", args.id, "stop"))
               );
               actionResult(flags, result, styleSuccess(`VM ${args.id} stopped.`));
             })
@@ -441,9 +492,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Restart a VM" })
             .args([{ name: "id", type: "string", required: true, description: "VM ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).restart.post()
+                restCall(() => rest.infraAction("hosts", args.id, "restart"))
               );
               actionResult(flags, result, styleSuccess(`VM ${args.id} restarted.`));
             })
@@ -453,9 +504,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Snapshot a VM" })
             .args([{ name: "id", type: "string", required: true, description: "VM ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).snapshot.post()
+                restCall(() => rest.infraAction("hosts", args.id, "snapshot"))
               );
               actionResult(flags, result, styleSuccess(`VM ${args.id} snapshot created.`));
             })
@@ -467,7 +518,7 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.vms({ id: args.id }).delete()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).delete.post({})
               );
               actionResult(flags, result, styleSuccess(`VM ${args.id} destroyed.`));
             })
@@ -497,14 +548,14 @@ export function infraCommand(app: DxBase) {
                   },
                 })
               );
-              tableOrJson(flags, result, ["ID", "Name", "CPU", "RAM", "Disk", "IP", "Status"], (r) => [
-                styleMuted(String(r.hostId ?? "")),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "CPU", "RAM", "Disk", "IP", "Status"], (r) => [
+                styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
-                String(r.cpuCores ?? ""),
-                `${Math.round(((r.memoryMb as number) ?? 0) / 1024)}GB`,
-                `${r.diskGb ?? ""}GB`,
-                String(r.ipAddress ?? ""),
-                colorStatus(String(r.status ?? "")),
+                String(r.spec?.cpuCores ?? ""),
+                `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`,
+                `${r.spec?.diskGb ?? ""}GB`,
+                String(r.spec?.ipAddress ?? ""),
+                colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
               ], [
                 {},                    // ID
                 {},                    // Name
@@ -523,18 +574,18 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.hosts({ id: args.id }).get()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.hostId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
-                ["CPU", (r) => String(r.cpuCores ?? "")],
-                ["RAM", (r) => `${Math.round(((r.memoryMb as number) ?? 0) / 1024)}GB`],
-                ["Disk", (r) => `${r.diskGb ?? ""}GB`],
-                ["IP", (r) => String(r.ipAddress ?? "")],
-                ["Provider", (r) => String(r.providerId ?? "")],
-                ["Datacenter", (r) => String(r.datacenterId ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                ["CPU", (r) => String(r.spec?.cpuCores ?? "")],
+                ["RAM", (r) => `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`],
+                ["Disk", (r) => `${r.spec?.diskGb ?? ""}GB`],
+                ["IP", (r) => String(r.spec?.ipAddress ?? "")],
+                ["Substrate", (r) => String(r.spec?.substrateId ?? "")],
+                ["Datacenter", (r) => String(r.spec?.datacenterId ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.lifecycle ?? r.status ?? ""))],
               ]);
             })
         )
@@ -543,7 +594,7 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Add a host" })
             .args([{ name: "name", type: "string", required: true, description: "Host name" }])
             .flags({
-              providerId: { type: "string", required: true, description: "Provider ID" },
+              providerId: { type: "string", required: true, description: "Substrate ID" },
               cpuCores: { type: "number", required: true, description: "CPU cores" },
               memoryMb: { type: "number", required: true, description: "Memory in MB" },
               diskGb: { type: "number", required: true, description: "Disk in GB" },
@@ -555,12 +606,14 @@ export function infraCommand(app: DxBase) {
               const result = await apiCall(flags, () =>
                 api.api.v1.factory.infra.hosts.post({
                   name: args.name,
-                  providerId: flags.providerId as string,
-                  cpuCores: flags.cpuCores as number,
-                  memoryMb: flags.memoryMb as number,
-                  diskGb: flags.diskGb as number,
-                  datacenterId: flags.datacenterId as string | undefined,
-                  ipAddress: flags.ipAddress as string | undefined,
+                  spec: {
+                    substrateId: flags.providerId as string,
+                    cpuCores: flags.cpuCores as number,
+                    memoryMb: flags.memoryMb as number,
+                    diskGb: flags.diskGb as number,
+                    datacenterId: flags.datacenterId as string | undefined,
+                    ipAddress: flags.ipAddress as string | undefined,
+                  },
                 })
               );
               actionResult(flags, result, styleSuccess(`Host "${args.name}" added.`));
@@ -573,14 +626,14 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.hosts({ id: args.id }).delete()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).delete.post({})
               );
               actionResult(flags, result, styleSuccess(`Host ${args.id} removed.`));
             })
         )
     )
 
-    // --- Kube Nodes ---
+    // --- Kube Nodes (now hosts with type=kube-node) ---
     .command("kube-node", (c) =>
       c
         .meta({ description: "Manage Kube cluster nodes" })
@@ -593,17 +646,17 @@ export function infraCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"].get({
-                  query: { clusterId: flags.clusterId as string },
+                api.api.v1.factory.infra.hosts.get({
+                  query: { type: "kube-node", clusterId: flags.clusterId as string },
                 })
               );
-              tableOrJson(flags, result, ["ID", "Name", "Role", "IP", "Cluster", "Status"], (r) => [
-                styleMuted(String(r.kubeNodeId ?? "")),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "Role", "IP", "Runtime", "Status"], (r) => [
+                styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
-                String(r.role ?? ""),
-                String(r.ipAddress ?? ""),
-                String(r.clusterId ?? ""),
-                colorStatus(String(r.status ?? "")),
+                String(r.spec?.role ?? ""),
+                String(r.spec?.ipAddress ?? ""),
+                String(r.spec?.runtimeId ?? ""),
+                colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
               ]);
             })
         )
@@ -614,16 +667,16 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"]({ id: args.id }).get()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.kubeNodeId ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
-                ["Role", (r) => String(r.role ?? "")],
-                ["IP", (r) => String(r.ipAddress ?? "")],
-                ["Cluster", (r) => String(r.clusterId ?? "")],
-                ["VM", (r) => String(r.vmId ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                ["Role", (r) => String(r.spec?.role ?? "")],
+                ["IP", (r) => String(r.spec?.ipAddress ?? "")],
+                ["Runtime", (r) => String(r.spec?.runtimeId ?? "")],
+                ["VM", (r) => String(r.spec?.vmId ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.lifecycle ?? r.status ?? ""))],
               ]);
             })
         )
@@ -632,7 +685,7 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Add a node to a cluster" })
             .args([{ name: "name", type: "string", required: true, description: "Node name" }])
             .flags({
-              clusterId: { type: "string", required: true, description: "Cluster ID" },
+              clusterId: { type: "string", required: true, description: "Runtime ID" },
               role: { type: "string", description: "Node role (server or agent, default: agent)" },
               ipAddress: { type: "string", required: true, description: "Node IP address" },
               vmId: { type: "string", description: "VM ID for this node" },
@@ -640,12 +693,15 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"].post({
+                api.api.v1.factory.infra.hosts.post({
                   name: args.name,
-                  clusterId: flags.clusterId as string,
-                  role: (flags.role as string) ?? "agent",
-                  ipAddress: flags.ipAddress as string,
-                  vmId: flags.vmId as string | undefined,
+                  spec: {
+                    type: "kube-node",
+                    runtimeId: flags.clusterId as string,
+                    role: (flags.role as string) ?? "agent",
+                    ipAddress: flags.ipAddress as string,
+                    vmId: flags.vmId as string | undefined,
+                  },
                 })
               );
               actionResult(flags, result, styleSuccess(`Node "${args.name}" added.`));
@@ -658,7 +714,7 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"]({ id: args.id }).delete()
+                api.api.v1.factory.infra.hosts({ slugOrId: args.id }).delete.post({})
               );
               actionResult(flags, result, styleSuccess(`Node ${args.id} removed.`));
             })
@@ -668,9 +724,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Pause scheduling on a node" })
             .args([{ name: "id", type: "string", required: true, description: "Node ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"]({ id: args.id }).pause.post()
+                restCall(() => rest.infraAction("hosts", args.id, "pause"))
               );
               actionResult(flags, result, styleSuccess(`Node ${args.id} paused.`));
             })
@@ -680,9 +736,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Resume scheduling on a node" })
             .args([{ name: "id", type: "string", required: true, description: "Node ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"]({ id: args.id }).resume.post()
+                restCall(() => rest.infraAction("hosts", args.id, "resume"))
               );
               actionResult(flags, result, styleSuccess(`Node ${args.id} resumed.`));
             })
@@ -692,16 +748,16 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Evacuate all work off a node" })
             .args([{ name: "id", type: "string", required: true, description: "Node ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra["kube-nodes"]({ id: args.id }).evacuate.post()
+                restCall(() => rest.infraAction("hosts", args.id, "evacuate"))
               );
               actionResult(flags, result, styleSuccess(`Node ${args.id} evacuated.`));
             })
         )
     )
 
-    // --- Subnets ---
+    // --- Subnets (now substrates with type=subnet) ---
     .command("subnet", (c) =>
       c
         .meta({ description: "Manage network subnets" })
@@ -715,19 +771,20 @@ export function infraCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.subnets.get({
+                api.api.v1.factory.infra.substrates.get({
                   query: {
+                    type: "subnet",
                     datacenterId: flags.datacenterId as string | undefined,
                     subnetType: flags.subnetType as string | undefined,
                   },
                 })
               );
-              tableOrJson(flags, result, ["ID", "CIDR", "Gateway", "Type", "VLAN"], (r) => [
-                styleMuted(String(r.subnetId ?? "")),
-                styleBold(String(r.cidr ?? "")),
-                String(r.gateway ?? ""),
-                String(r.subnetType ?? ""),
-                String(r.vlanId ?? ""),
+              tableOrJson<InfraRow>(flags, result, ["ID", "CIDR", "Gateway", "Type", "VLAN"], (r) => [
+                styleMuted(String(r.id ?? "")),
+                styleBold(String(r.spec?.cidr ?? "")),
+                String(r.spec?.gateway ?? ""),
+                String(r.spec?.subnetType ?? ""),
+                String(r.spec?.vlanId ?? ""),
               ]);
             })
         )
@@ -738,17 +795,17 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.subnets({ id: args.id }).get()
+                api.api.v1.factory.infra.substrates({ slugOrId: args.id }).get()
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.subnetId ?? ""))],
-                ["CIDR", (r) => styleBold(String(r.cidr ?? ""))],
-                ["Gateway", (r) => String(r.gateway ?? "")],
-                ["Netmask", (r) => String(r.netmask ?? "")],
-                ["Type", (r) => String(r.subnetType ?? "")],
-                ["VLAN", (r) => String(r.vlanId ?? "")],
-                ["Datacenter", (r) => String(r.datacenterId ?? "")],
-                ["Description", (r) => String(r.description ?? "")],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
+                ["CIDR", (r) => styleBold(String(r.spec?.cidr ?? ""))],
+                ["Gateway", (r) => String(r.spec?.gateway ?? "")],
+                ["Netmask", (r) => String(r.spec?.netmask ?? "")],
+                ["Type", (r) => String(r.spec?.subnetType ?? "")],
+                ["VLAN", (r) => String(r.spec?.vlanId ?? "")],
+                ["Datacenter", (r) => String(r.spec?.datacenterId ?? "")],
+                ["Description", (r) => String(r.spec?.description ?? "")],
               ]);
             })
         )
@@ -766,13 +823,17 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.subnets.post({
-                  cidr: args.cidr,
-                  gateway: flags.gateway as string | undefined,
-                  subnetType: (flags.subnetType as string) ?? "vm",
-                  vlanId: flags.vlanId as number | undefined,
-                  datacenterId: flags.datacenterId as string | undefined,
-                  description: flags.description as string | undefined,
+                api.api.v1.factory.infra.substrates.post({
+                  name: args.cidr,
+                  spec: {
+                    type: "subnet",
+                    cidr: args.cidr,
+                    gateway: flags.gateway as string | undefined,
+                    subnetType: (flags.subnetType as string) ?? "vm",
+                    vlanId: flags.vlanId as number | undefined,
+                    datacenterId: flags.datacenterId as string | undefined,
+                    description: flags.description as string | undefined,
+                  },
                 })
               );
               actionResult(flags, result, styleSuccess(`Subnet ${args.cidr} created.`));
@@ -785,7 +846,7 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.subnets({ id: args.id }).delete()
+                api.api.v1.factory.infra.substrates({ slugOrId: args.id }).delete.post({})
               );
               actionResult(flags, result, styleSuccess(`Subnet ${args.id} deleted.`));
             })
@@ -805,28 +866,26 @@ export function infraCommand(app: DxBase) {
               assignedToType: { type: "string", description: "Filter by assigned entity type" },
             })
             .run(async ({ flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips.get({
-                  query: {
-                    subnetId: flags.subnetId as string | undefined,
-                    status: flags.status as string | undefined,
-                    assignedToType: flags.assignedToType as string | undefined,
-                  },
-                })
+                restCall(() => rest.listIpAddresses({
+                  subnetId: flags.subnetId as string | undefined,
+                  status: flags.status as string | undefined,
+                  assignedToType: flags.assignedToType as string | undefined,
+                }))
               );
-              tableOrJson(flags, result, ["ID", "Address", "Status", "Assigned To", "Hostname"], (r) => {
+              tableOrJson<InfraRow>(flags, result, ["ID", "Address", "Status", "Assigned To", "Hostname"], (r) => {
                 let assigned = "";
-                if (r.assignedToType && r.assignedToId) {
-                  const label = r.assignedName ?? r.assignedToId;
-                  assigned = `${r.assignedToType}:${label}`;
+                if (r.spec?.assignedToType && r.spec?.assignedToId) {
+                  const label = r.spec?.assignedName ?? r.spec?.assignedToId;
+                  assigned = `${r.spec.assignedToType}:${label}`;
                 }
                 return [
-                  styleMuted(String(r.ipAddressId ?? "")),
-                  styleBold(String(r.address ?? "")),
-                  colorStatus(String(r.status ?? "")),
+                  styleMuted(String(r.id ?? "")),
+                  styleBold(String(r.spec?.address ?? r.address ?? "")),
+                  colorStatus(String(r.spec?.status ?? r.status ?? "")),
                   assigned,
-                  String(r.hostname ?? ""),
+                  String(r.spec?.hostname ?? ""),
                 ];
               });
             })
@@ -840,17 +899,17 @@ export function infraCommand(app: DxBase) {
               sort: { type: "string", description: "Sort by: address, subnet (default: address)" },
             })
             .run(async ({ flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips.available.get({
-                  query: { subnetId: flags.subnetId as string | undefined },
-                })
+                restCall(() => rest.listAvailableIps({
+                  subnetId: flags.subnetId as string | undefined,
+                }))
               );
-              tableOrJson(flags, result, ["ID", "Address", "Subnet", "Hostname"], (r) => [
-                styleMuted(String(r.ipAddressId ?? "")),
-                styleBold(String(r.address ?? "")),
-                String(r.subnetId ?? ""),
-                String(r.hostname ?? ""),
+              tableOrJson<InfraRow>(flags, result, ["ID", "Address", "Subnet", "Hostname"], (r) => [
+                styleMuted(String(r.id ?? "")),
+                styleBold(String(r.spec?.address ?? r.address ?? "")),
+                String(r.spec?.subnetId ?? ""),
+                String(r.spec?.hostname ?? ""),
               ], undefined, { emptyMessage: "No available IPs." });
             })
         )
@@ -863,11 +922,11 @@ export function infraCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips.stats.get({
+                api.api.v1.factory.infra["ip-addresses"].stats.get({
                   query: { subnetId: flags.subnetId as string | undefined },
                 })
               );
-              detailView(flags, result, [
+              detailView<IpamStats>(flags, result, [
                 ["Total", (r) => styleBold(String(r.total ?? 0))],
                 ["Available", (r) => styleSuccess(String(r.available ?? 0))],
                 ["Assigned", (r) => String(r.assigned ?? 0)],
@@ -883,12 +942,12 @@ export function infraCommand(app: DxBase) {
               subnetId: { type: "string", description: "Subnet ID" },
             })
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips.register.post({
+                restCall(() => rest.registerIpAddress({
                   address: args.address,
                   subnetId: flags.subnetId as string | undefined,
-                })
+                }))
               );
               actionResult(flags, result, styleSuccess(`IP ${args.address} registered.`));
             })
@@ -904,14 +963,14 @@ export function infraCommand(app: DxBase) {
               purpose: { type: "string", description: "Purpose (management, storage, application)" },
             })
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips({ id: args.id }).assign.post({
+                restCall(() => rest.ipAddressAction(args.id, "assign", {
                   assignedToType: flags.toType as string,
                   assignedToId: flags.toId as string,
                   hostname: flags.hostname as string | undefined,
                   purpose: flags.purpose as string | undefined,
-                })
+                }))
               );
               actionResult(flags, result, styleSuccess(`IP ${args.id} assigned to ${flags.toType}:${flags.toId}.`));
             })
@@ -921,9 +980,9 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Release an IP back to available" })
             .args([{ name: "id", type: "string", required: true, description: "IP address ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips({ id: args.id }).release.post()
+                restCall(() => rest.ipAddressAction(args.id, "release"))
               );
               actionResult(flags, result, styleSuccess(`IP ${args.id} released.`));
             })
@@ -935,22 +994,22 @@ export function infraCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const api = await getInfraApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.ips.lookup.post({
+                api.api.v1.factory.infra["ip-addresses"].lookup.post({
                   address: args.address,
                 })
               );
-              detailView(flags, result, [
-                ["ID", (r) => styleMuted(String(r.ipAddressId ?? ""))],
-                ["Address", (r) => styleBold(String(r.address ?? ""))],
-                ["Subnet", (r) => String(r.subnetId ?? "")],
-                ["Status", (r) => colorStatus(String(r.status ?? ""))],
+              detailView<InfraRow>(flags, result, [
+                ["ID", (r) => styleMuted(String(r.id ?? ""))],
+                ["Address", (r) => styleBold(String(r.spec?.address ?? r.address ?? ""))],
+                ["Subnet", (r) => String(r.spec?.subnetId ?? "")],
+                ["Status", (r) => colorStatus(String(r.spec?.status ?? r.status ?? ""))],
                 ["Assigned To", (r) => {
-                  if (r.assignedToType && r.assignedToId) {
-                    return `${r.assignedToType}:${r.assignedName ?? r.assignedToId}`;
+                  if (r.spec?.assignedToType && r.spec?.assignedToId) {
+                    return `${r.spec.assignedToType}:${r.spec.assignedName ?? r.spec.assignedToId}`;
                   }
                   return "";
                 }],
-                ["Hostname", (r) => String(r.hostname ?? "")],
+                ["Hostname", (r) => String(r.spec?.hostname ?? "")],
                 ["Purpose", (r) => String(r.purpose ?? "")],
               ]);
             })
@@ -969,7 +1028,7 @@ export function infraCommand(app: DxBase) {
               const result = await apiCall(flags, () =>
                 api.api.v1.factory.infra.assets.get()
               );
-              tableOrJson(flags, result, ["ID", "Name", "Type", "Status"], (r) => [
+              tableOrJson<InfraRow>(flags, result, ["ID", "Name", "Type", "Status"], (r) => [
                 styleMuted(String(r.id ?? "")),
                 styleBold(String(r.name ?? "")),
                 String(r.type ?? ""),
@@ -982,11 +1041,13 @@ export function infraCommand(app: DxBase) {
             .meta({ description: "Get asset by ID" })
             .args([{ name: "id", type: "string", required: true, description: "Asset ID" }])
             .run(async ({ args, flags }) => {
-              const api = await getInfraApi();
+              const rest = await getRestApi();
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.infra.assets({ id: args.id }).get()
+                restCall(() => rest.infraAction("assets", args.id, "get").then(
+                  () => { throw new Error("Asset per-ID lookup not yet supported"); }
+                ))
               );
-              detailView(flags, result, [
+              detailView<InfraRow>(flags, result, [
                 ["ID", (r) => styleMuted(String(r.id ?? ""))],
                 ["Name", (r) => styleBold(String(r.name ?? ""))],
                 ["Type", (r) => String(r.type ?? "")],

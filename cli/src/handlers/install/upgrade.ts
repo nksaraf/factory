@@ -29,7 +29,7 @@ function readCurrentManifest(): InstallManifest {
   return JSON.parse(proc.stdout) as InstallManifest;
 }
 
-/** dx install upgrade — orchestrates phases 3-6 with role awareness. */
+/** dx setup upgrade — orchestrates phases 3-6 with role awareness. */
 export async function runUpgrade(opts: UpgradeOptions): Promise<void> {
   // 1. Read current manifest to get role and version
   const manifest = readCurrentManifest();

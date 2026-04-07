@@ -1,0 +1,3 @@
+[project]
+name = "myapi"
+dependencies = ["fastapi>=0.100.0"]

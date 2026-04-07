@@ -167,6 +167,18 @@ export async function loadSaJson(
     if (decoded) return decoded;
   }
 
+  // 3.5. dx secret local store (~/.config/dx/secrets.json)
+  try {
+    const { localSecretGet } = await import("../secret-local-store.js");
+    const secretB64 = localSecretGet(reg.envVar) ?? localSecretGet(LEGACY_ENV_VAR);
+    if (secretB64) {
+      const decoded = decodeSaBase64(secretB64);
+      if (decoded) return decoded;
+    }
+  } catch {
+    // Local secret store unavailable — fall through
+  }
+
   // 4. Global store (~/.config/dx/registry-auth.json)
   try {
     const { registryAuthStore } = await import("./registry-auth-store.js");

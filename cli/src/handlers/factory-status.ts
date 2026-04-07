@@ -3,8 +3,8 @@ import { spawnSync } from "node:child_process";
 import { ExitCodes } from "@smp/factory-shared/exit-codes";
 
 import { styleBold, styleError, styleInfo, styleSuccess, styleWarn } from "../cli-style.js";
-import { getFactoryClient } from "../client.js";
-import { readConfig, resolveFactoryUrl } from "../config.js";
+import { getFactoryClient, getFactoryRestClient } from "../client.js";
+import { readConfig, resolveFactoryUrl, resolveFactoryMode } from "../config.js";
 import { ErrorRegistry } from "../errors.js";
 import { getCurrentBranch, getAheadBehind } from "../lib/git.js";
 import { resolveRepoContext } from "../lib/repo-context.js";
@@ -155,32 +155,36 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
   if (gitStatus) {
     try {
       const ctx = await resolveRepoContext(cwd);
-      const api = await getFactoryClient();
+      const rest = await getFactoryRestClient();
 
-      const pullsRes = await (api as any).api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.get({
-        query: { state: "open" },
-      });
+      const pullsRes = await rest.request<{ data: Record<string, unknown>[] }>(
+        "GET",
+        `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls?state=open`,
+      );
 
-      const pulls: any[] = pullsRes.data?.data ?? pullsRes.data ?? [];
+      const pulls = pullsRes?.data ?? [];
       const pr = pulls.find(
-        (p: any) => p.head === gitStatus.branch
+        (p) => p.head === gitStatus.branch
       );
 
       if (pr) {
-        const prNumber = pr.number;
+        const prNumber = pr.number as number;
         let checksPassing = 0;
         let checksTotal = 0;
         const failedChecks: string[] = [];
 
         try {
-          const checksRes = await (api as any).api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].checks.get();
-          const checks: any[] = checksRes.data?.data ?? checksRes.data ?? [];
+          const checksRes = await rest.request<{ data: Record<string, unknown>[] }>(
+            "GET",
+            `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls/${prNumber}/checks`,
+          );
+          const checks = checksRes?.data ?? [];
           checksTotal = checks.length;
           for (const check of checks) {
             if (check.conclusion === "success" || (check.status === "completed" && check.conclusion === "success")) {
               checksPassing++;
             } else if (check.conclusion && check.conclusion !== "success") {
-              failedChecks.push(check.name ?? "unknown");
+              failedChecks.push((check.name as string) ?? "unknown");
             }
           }
         } catch {
@@ -189,9 +193,9 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
 
         prStatus = {
           number: prNumber,
-          state: pr.state ?? "open",
-          draft: pr.draft ?? false,
-          title: pr.title ?? "",
+          state: (pr.state as string) ?? "open",
+          draft: (pr.draft as boolean) ?? false,
+          title: (pr.title as string) ?? "",
           checksPassing,
           checksTotal,
           failedChecks,
@@ -203,9 +207,14 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
   }
 
   // --- Output ---
+  const modeInfo = resolveFactoryMode(config);
+
   if (flags.json) {
     const result: Record<string, unknown> = {
       success: true,
+      factoryMode: modeInfo.mode,
+      factoryUrl: modeInfo.url,
+      envOverride: modeInfo.envOverride,
       api: apiStatus
         ? { status: apiStatus.status, service: apiStatus.service }
         : undefined,
@@ -234,11 +243,10 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
   }
 
   // Human-readable output
+  console.log(`${styleBold("Factory:")}    ${modeInfo.mode === "local" ? styleSuccess(modeInfo.label) : styleInfo(modeInfo.label)}`);
   if (apiStatus) {
     console.log(
-      styleSuccess(
-        `Factory API: ${apiStatus.status} (${apiStatus.service})`
-      )
+      `${styleBold("API:")}        ${styleSuccess(`${apiStatus.status} (${apiStatus.service})`)}`
     );
   }
 

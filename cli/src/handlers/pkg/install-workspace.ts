@@ -16,7 +16,7 @@ import { exec, capture } from "../../lib/subprocess.js";
 import {
   fromCwd,
   filterPackages,
-  type WorkspaceContext,
+  type MonorepoTopology,
   type WorkspacePackage,
 } from "../../lib/workspace-context.js";
 import { styleSuccess, styleMuted } from "../../cli-style.js";
@@ -37,7 +37,7 @@ export interface InstallWorkspaceOptions {
 // ---------------------------------------------------------------------------
 
 async function installNpm(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   pkgs: WorkspacePackage[],
   opts: InstallWorkspaceOptions,
 ): Promise<void> {
@@ -57,7 +57,7 @@ async function installNpm(
 }
 
 async function installPython(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   pkgs: WorkspacePackage[],
   opts: InstallWorkspaceOptions,
 ): Promise<void> {
@@ -73,7 +73,7 @@ async function installPython(
 }
 
 async function installJava(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   pkgs: WorkspacePackage[],
   opts: InstallWorkspaceOptions,
 ): Promise<void> {

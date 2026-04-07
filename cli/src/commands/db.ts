@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 import { exitWithError } from "../lib/cli-exit.js";
-import type { DbClient, DbDriver } from "../lib/db-driver.js";
-import { resolveDbTarget } from "../lib/db-driver.js";
+import type { BackupMetadata, DbClient, DbDriver } from "../lib/db-driver.js";
+import { DB_BACKUP_DIR, backupFilePath, resolveDbTarget } from "../lib/db-driver.js";
 // Register postgres driver (side-effect import)
 import "../lib/db-driver-postgres.js";
-import { ProjectContext } from "../lib/project.js";
+import { resolveDxContext, type ProjectContextData } from "../lib/dx-context.js";
 import type { DxBase } from "../dx-root.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
@@ -20,6 +20,10 @@ setExamples("db", [
   '$ dx db query --sql "SELECT 1"     Run a query',
   "$ dx db migrate status             Check migration status",
   "$ dx db migrate up                 Run pending migrations",
+  "$ dx db backup create                     Create a database backup",
+  "$ dx db backup create --name my-snap       Create a named backup",
+  "$ dx db backup list                        List available backups",
+  "$ dx db restore --name my-snap --force     Restore from a backup",
 ]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,14 +46,15 @@ async function withDb(
   fn: (ctx: DbContext) => Promise<void>
 ): Promise<void> {
   const f = toDxFlags(flags);
-  let project: ProjectContext;
+  let project: ProjectContextData;
   try {
-    project = ProjectContext.fromCwd();
+    const ctx = await resolveDxContext({ need: "project" });
+    project = ctx.project;
   } catch {
     exitWithError(f, "No docker-compose found. Run this command from a project directory.");
   }
 
-  const { name, driver, url } = resolveDbTarget(project, flags.db as string | undefined);
+  const { name, driver, url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
 
   if (flags.target && flags.target !== "local") {
     exitWithError(f, "Remote targets (--target) are not yet supported. Use local dev database.");
@@ -72,7 +77,7 @@ async function withDb(
 
 function tableOut(
   flags: Record<string, unknown>,
-  rows: Record<string, unknown>[],
+  rows: object[],
   columns?: string[]
 ): void {
   const f = toDxFlags(flags);
@@ -84,13 +89,14 @@ function tableOut(
     console.log("No results.");
     return;
   }
-  const cols = columns ?? Object.keys(rows[0]);
+  const cols = columns ?? Object.keys(rows[0]!);
   // Header
   console.log(cols.join("\t"));
   console.log(cols.map((c) => "-".repeat(c.length)).join("\t"));
   // Rows
   for (const row of rows) {
-    console.log(cols.map((c) => String(row[c] ?? "")).join("\t"));
+    const r = row as Record<string, unknown>;
+    console.log(cols.map((c) => String(r[c] ?? "")).join("\t"));
   }
 }
 
@@ -106,16 +112,17 @@ export function dbCommand(app: DxBase) {
       c
         .meta({ description: "Open an interactive database shell (psql, mysql, etc.)" })
         .flags(dbFlags)
-        .run(({ flags }) => {
+        .run(async ({ flags }) => {
           const f = toDxFlags(flags);
-          let project: ProjectContext;
+          let project: ProjectContextData;
           try {
-            project = ProjectContext.fromCwd();
+            const ctx = await resolveDxContext({ need: "project" });
+            project = ctx.project;
           } catch {
             exitWithError(f, "No docker-compose found. Run this command from a project directory.");
           }
 
-          const { name, driver, url } = resolveDbTarget(project, flags.db as string | undefined);
+          const { name, driver, url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
 
           if (f.verbose) {
             console.log(`Connecting to ${name} (${driver.type})…`);
@@ -199,7 +206,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const tables = await driver.listTables(client, flags.filter as string | undefined);
-            tableOut(flags, tables as unknown as Record<string, unknown>[], [
+            tableOut(flags, tables, [
               "schema", "name", "rowEstimate", "totalSize",
             ]);
           });
@@ -218,13 +225,13 @@ export function dbCommand(app: DxBase) {
           await withDb(flags, async ({ driver, client }) => {
             if (flags.table) {
               const cols = await driver.describeTable(client, flags.table as string);
-              tableOut(flags, cols as unknown as Record<string, unknown>[], [
+              tableOut(flags, cols, [
                 "column", "type", "nullable", "defaultValue",
               ]);
             } else {
               // No table specified — show all tables
               const tables = await driver.listTables(client);
-              tableOut(flags, tables as unknown as Record<string, unknown>[], [
+              tableOut(flags, tables, [
                 "schema", "name", "rowEstimate", "totalSize",
               ]);
             }
@@ -243,7 +250,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const indexes = await driver.listIndexes(client, flags.unused as boolean | undefined);
-            tableOut(flags, indexes as unknown as Record<string, unknown>[], [
+            tableOut(flags, indexes, [
               "schema", "table", "name", "columns", "unique", "scans",
             ]);
           });
@@ -258,7 +265,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const constraints = await driver.listConstraints(client);
-            tableOut(flags, constraints as unknown as Record<string, unknown>[], [
+            tableOut(flags, constraints, [
               "schema", "table", "name", "type", "definition",
             ]);
           });
@@ -273,7 +280,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const seqs = await driver.listSequences(client);
-            tableOut(flags, seqs as unknown as Record<string, unknown>[], [
+            tableOut(flags, seqs, [
               "schema", "name", "lastValue",
             ]);
           });
@@ -288,7 +295,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const exts = await driver.listExtensions(client);
-            tableOut(flags, exts as unknown as Record<string, unknown>[], [
+            tableOut(flags, exts, [
               "name", "version", "schema", "comment",
             ]);
           });
@@ -303,7 +310,7 @@ export function dbCommand(app: DxBase) {
         .run(async ({ flags }) => {
           await withDb(flags, async ({ driver, client }) => {
             const activity = await driver.listActivity(client);
-            tableOut(flags, activity as unknown as Record<string, unknown>[], [
+            tableOut(flags, activity, [
               "pid", "state", "duration", "user", "database", "query",
             ]);
           });
@@ -327,7 +334,7 @@ export function dbCommand(app: DxBase) {
               }
               return;
             }
-            tableOut(flags, locks as unknown as Record<string, unknown>[], [
+            tableOut(flags, locks, [
               "blockedPid", "blockedQuery", "blockingPid", "blockingQuery", "lockType",
             ]);
           });
@@ -369,7 +376,7 @@ export function dbCommand(app: DxBase) {
               }
               return;
             }
-            tableOut(flags, queries as unknown as Record<string, unknown>[], [
+            tableOut(flags, queries, [
               "pid", "duration", "user", "database", "query",
             ]);
           });
@@ -419,14 +426,15 @@ export function dbCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const f = toDxFlags(flags);
 
-              let project: ProjectContext;
+              let project: ProjectContextData;
               try {
-                project = ProjectContext.fromCwd();
+                const ctx = await resolveDxContext({ need: "project" });
+                project = ctx.project;
               } catch {
                 exitWithError(f, "No docker-compose found.");
               }
 
-              const { url } = resolveDbTarget(project, flags.db as string | undefined);
+              const { url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
 
               const result = spawnSync("bunx", ["drizzle-kit", "migrate"], {
                 stdio: "inherit",
@@ -450,9 +458,10 @@ export function dbCommand(app: DxBase) {
             .run(async ({ args, flags }) => {
               const f = toDxFlags(flags);
 
-              let project: ProjectContext;
+              let project: ProjectContextData;
               try {
-                project = ProjectContext.fromCwd();
+                const ctx = await resolveDxContext({ need: "project" });
+                project = ctx.project;
               } catch {
                 exitWithError(f, "No docker-compose found.");
               }
@@ -475,14 +484,15 @@ export function dbCommand(app: DxBase) {
             .run(async ({ flags }) => {
               const f = toDxFlags(flags);
 
-              let project: ProjectContext;
+              let project: ProjectContextData;
               try {
-                project = ProjectContext.fromCwd();
+                const ctx = await resolveDxContext({ need: "project" });
+                project = ctx.project;
               } catch {
                 exitWithError(f, "No docker-compose found.");
               }
 
-              const { url } = resolveDbTarget(project, flags.db as string | undefined);
+              const { url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
 
               const result = spawnSync("bunx", ["drizzle-kit", "check"], {
                 stdio: "inherit",
@@ -544,14 +554,14 @@ export function dbCommand(app: DxBase) {
         })
         .run(async ({ flags }) => {
           const f = toDxFlags(flags);
-          let project: ProjectContext;
+          let project: ProjectContextData;
           try {
-            project = ProjectContext.fromCwd();
+            const ctx = await resolveDxContext({ need: "project" });
+            project = ctx.project;
           } catch {
             exitWithError(f, "No docker-compose found.");
           }
 
-          const { existsSync } = await import("node:fs");
           const { join } = await import("node:path");
 
           const fixture = (flags.fixture as string) ?? "default";
@@ -576,6 +586,223 @@ export function dbCommand(app: DxBase) {
             }
             actionResult(flags, { seeded: true, fixture }, styleSuccess(`Seed "${fixture}" applied successfully.`));
           });
+        })
+    )
+
+    // ── backup ────────────────────────────────────────────────────────────
+    .command("backup", (c) =>
+      c
+        .meta({ description: "Create, list, or delete database backups" })
+
+        .command("create", (s) =>
+          s
+            .meta({ description: "Create a database backup" })
+            .flags({
+              ...dbFlags,
+              name: { type: "string", short: "n", description: "Backup name (defaults to <db>-<timestamp>)" },
+            })
+            .run(async ({ flags }) => {
+              const f = toDxFlags(flags);
+              let project: ProjectContextData;
+              try {
+                const ctx = await resolveDxContext({ need: "project" });
+                project = ctx.project;
+              } catch {
+                exitWithError(f, "No docker-compose found.");
+              }
+
+              const { name: dbName, driver, url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
+              const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+              const backupName = (flags.name as string) || `${dbName}-${stamp}`;
+              const dumpPath = backupFilePath(backupName, "dump");
+
+              mkdirSync(DB_BACKUP_DIR, { recursive: true });
+
+              if (existsSync(dumpPath)) {
+                exitWithError(f, `Backup "${backupName}" already exists. Choose a different name or delete it first.`);
+              }
+
+              if (f.verbose) {
+                console.log(`Backing up ${dbName} (${driver.type}) → ${dumpPath}`);
+              }
+
+              try {
+                await driver.backup(url, dumpPath);
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                exitWithError(f, msg);
+              }
+
+              const sizeBytes = statSync(dumpPath).size;
+              const meta: BackupMetadata = {
+                name: backupName,
+                dbType: driver.type,
+                createdAt: new Date().toISOString(),
+                sizeBytes,
+              };
+              writeFileSync(backupFilePath(backupName, "json"), JSON.stringify(meta, null, 2) + "\n");
+
+              const sizeStr = sizeBytes < 1024 * 1024
+                ? `${(sizeBytes / 1024).toFixed(1)} KB`
+                : `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+
+              actionResult(flags, meta, styleSuccess(`Backup created: ${backupName} (${sizeStr})`));
+            })
+        )
+
+        .command("list", (s) =>
+          s
+            .meta({ description: "List available backups" })
+            .flags({})
+            .run(({ flags }) => {
+              const f = toDxFlags(flags);
+              if (!existsSync(DB_BACKUP_DIR)) {
+                if (f.json) {
+                  console.log(JSON.stringify({ success: true, data: [] }, null, 2));
+                } else {
+                  console.log("No backups found.");
+                }
+                return;
+              }
+
+              const metaFiles = readdirSync(DB_BACKUP_DIR).filter((fname) => fname.endsWith(".json"));
+              const backups: BackupMetadata[] = metaFiles.map((file) => {
+                try {
+                  return JSON.parse(readFileSync(`${DB_BACKUP_DIR}/${file}`, "utf8")) as BackupMetadata;
+                } catch {
+                  return null;
+                }
+              }).filter((b): b is BackupMetadata => b !== null);
+
+              backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+              if (backups.length === 0) {
+                if (f.json) {
+                  console.log(JSON.stringify({ success: true, data: [] }, null, 2));
+                } else {
+                  console.log("No backups found.");
+                }
+                return;
+              }
+
+              tableOut(flags, backups.map((b) => ({
+                name: b.name,
+                dbType: b.dbType,
+                created: b.createdAt,
+                size: b.sizeBytes < 1024 * 1024
+                  ? `${(b.sizeBytes / 1024).toFixed(1)} KB`
+                  : `${(b.sizeBytes / (1024 * 1024)).toFixed(1)} MB`,
+              })), ["name", "dbType", "created", "size"]);
+            })
+        )
+
+        .command("delete", (s) =>
+          s
+            .meta({ description: "Delete a backup" })
+            .args([{ name: "name", type: "string", required: true, description: "Backup name to delete" }])
+            .flags({
+              force: { type: "boolean", description: "Skip confirmation" },
+            })
+            .run(({ args, flags }) => {
+              const f = toDxFlags(flags);
+              const name = args.name as string;
+              const dumpPath = backupFilePath(name, "dump");
+              const metaPath = backupFilePath(name, "json");
+
+              if (!existsSync(dumpPath) && !existsSync(metaPath)) {
+                exitWithError(f, `Backup "${name}" not found.`);
+              }
+
+              if (!flags.force) {
+                exitWithError(f, `This will permanently delete backup "${name}". Use --force to confirm.`);
+              }
+
+              if (existsSync(dumpPath)) unlinkSync(dumpPath);
+              if (existsSync(metaPath)) unlinkSync(metaPath);
+
+              actionResult(flags, { deleted: true, name }, styleSuccess(`Backup "${name}" deleted.`));
+            })
+        )
+    )
+
+    // ── restore ───────────────────────────────────────────────────────────
+    .command("restore", (c) =>
+      c
+        .meta({ description: "Restore database from a backup" })
+        .flags({
+          ...dbFlags,
+          name: { type: "string", short: "n", description: "Backup name to restore" },
+          file: { type: "string", short: "f", description: "Restore from an arbitrary dump file path" },
+          clean: { type: "boolean", description: "Drop all schemas before restoring (avoids FK conflicts)" },
+          force: { type: "boolean", description: "Confirm destructive restore" },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+
+          if (!flags.force) {
+            exitWithError(f, "Restore will overwrite the target database. Use --force to confirm.");
+          }
+
+          const name = flags.name as string | undefined;
+          const filePath = flags.file as string | undefined;
+
+          if (!name && !filePath) {
+            exitWithError(f, "Provide a backup name or use --file <path>.");
+          }
+
+          const dumpPath = filePath ?? backupFilePath(name!, "dump");
+
+          if (!existsSync(dumpPath)) {
+            exitWithError(f, filePath
+              ? `File not found: ${filePath}`
+              : `Backup "${name}" not found. Run 'dx db backup list' to see available backups.`);
+          }
+
+          let project: ProjectContextData;
+          try {
+            const ctx = await resolveDxContext({ need: "project" });
+            project = ctx.project;
+          } catch {
+            exitWithError(f, "No docker-compose found.");
+          }
+
+          const { name: dbName, driver, url } = resolveDbTarget(project.catalog, project.name, flags.db as string | undefined);
+
+          if (f.verbose) {
+            console.log(`Restoring ${dumpPath} → ${dbName} (${driver.type})`);
+          }
+
+          // Drop all user schemas first to avoid FK dependency conflicts
+          if (flags.clean) {
+            if (f.verbose) {
+              console.log("Dropping all user schemas…");
+            }
+            const client = await driver.connect(url);
+            try {
+              const schemas = await client.query(
+                "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'public')"
+              );
+              for (const row of schemas) {
+                await client.query(`DROP SCHEMA "${String(row.schema_name)}" CASCADE`);
+              }
+              // Recreate public schema clean
+              await client.query("DROP SCHEMA IF EXISTS public CASCADE");
+              await client.query("CREATE SCHEMA public");
+              await client.query("GRANT ALL ON SCHEMA public TO PUBLIC");
+            } finally {
+              await client.close();
+            }
+          }
+
+          try {
+            await driver.restore(url, dumpPath);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            exitWithError(f, msg);
+          }
+
+          const label = name ?? filePath!;
+          actionResult(flags, { restored: true, from: label, to: dbName }, styleSuccess(`Restored from: ${label}`));
         })
     );
 }

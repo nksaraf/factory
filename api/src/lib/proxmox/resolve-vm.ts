@@ -1,33 +1,38 @@
 /**
- * VM Resolver — resolves a flexible identifier to a VM record
- * Ported from lepton-cloud's resolveVmId() pattern
+ * VM Resolver — resolves a flexible identifier to a host record (type='vm')
+ * Accepts: host id, slug, name, ipAddress (from spec), or externalId (numeric)
  */
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { vm, host, proxmoxCluster } from "../../db/schema/infra";
+import { host, substrate } from "../../db/schema/infra-v2";
 import { createProxmoxClientFromCluster } from "./client";
 import type { ProxmoxClient } from "./client";
 
 /**
- * Resolve a VM by any identifier: vmId, slug, name, ipAddress, or proxmoxVmid.
+ * Resolve a VM host by any identifier: id, slug, name, ipAddress (from spec), or externalId.
  * All string matches are case-insensitive.
- * Throws if not found or if multiple VMs match (ambiguous).
+ * Throws if not found or if multiple hosts match (ambiguous).
  */
-export async function resolveVm(db: Database, identifier: string) {
+export async function resolveVmHost(db: Database, identifier: string) {
   const targetLower = identifier.toLowerCase();
-  const vmid = parseInt(identifier, 10);
 
-  const allVms = await db.select().from(vm);
+  // Query all VM-type hosts
+  const allVmHosts = await db
+    .select()
+    .from(host)
+    .where(eq(host.type, "vm"));
 
-  const matches = allVms.filter(
-    (v) =>
-      v.vmId === identifier ||
-      v.slug.toLowerCase() === targetLower ||
-      v.name.toLowerCase() === targetLower ||
-      v.ipAddress?.toLowerCase() === targetLower ||
-      (!isNaN(vmid) && v.proxmoxVmid === vmid)
-  );
+  const matches = allVmHosts.filter((h) => {
+    const spec = (h.spec ?? {}) as Record<string, unknown>;
+    return (
+      h.id === identifier ||
+      h.slug.toLowerCase() === targetLower ||
+      h.name.toLowerCase() === targetLower ||
+      (spec.ipAddress as string)?.toLowerCase() === targetLower ||
+      (spec.externalId as string) === identifier
+    );
+  });
 
   if (matches.length === 0) {
     throw new Error(`VM not found: ${identifier}`);
@@ -35,10 +40,13 @@ export async function resolveVm(db: Database, identifier: string) {
 
   if (matches.length > 1) {
     const descriptions = matches.map(
-      (v) => `  ${v.vmId} (name=${v.name}, slug=${v.slug}, vmid=${v.proxmoxVmid})`
+      (h) => {
+        const spec = (h.spec ?? {}) as Record<string, unknown>;
+        return `  ${h.id} (name=${h.name}, slug=${h.slug}, externalId=${spec.externalId})`;
+      }
     );
     throw new Error(
-      `Ambiguous VM identifier "${identifier}" matches ${matches.length} VMs:\n${descriptions.join("\n")}`
+      `Ambiguous VM identifier "${identifier}" matches ${matches.length} hosts:\n${descriptions.join("\n")}`
     );
   }
 
@@ -53,64 +61,79 @@ export interface VmContext {
   nodeName: string;
   vmid: number;
   vmType: "qemu" | "lxc";
-  vm: Awaited<ReturnType<typeof resolveVm>>;
+  vmHost: Awaited<ReturnType<typeof resolveVmHost>>;
 }
 
 /**
  * Resolve a VM identifier and build context for Proxmox API calls.
- * Looks up the VM, its host (for node name), and proxmoxCluster (for credentials).
+ * Looks up the VM host, finds its bare-metal host (for node name),
+ * and the hypervisor substrate (for Proxmox credentials).
  */
 export async function getVmContext(
   db: Database,
   identifier: string
 ): Promise<VmContext> {
-  const vmRecord = await resolveVm(db, identifier);
+  const vmHost = await resolveVmHost(db, identifier);
+  const spec = (vmHost.spec ?? {}) as Record<string, unknown>;
 
-  if (!vmRecord.proxmoxClusterId) {
-    throw new Error(`VM ${vmRecord.vmId} is not linked to a Proxmox cluster`);
-  }
-  if (vmRecord.proxmoxVmid == null) {
-    throw new Error(`VM ${vmRecord.vmId} has no Proxmox VMID`);
-  }
-
-  // Get the host to determine the Proxmox node name
-  let nodeName: string | undefined;
-  if (vmRecord.hostId) {
-    const [hostRecord] = await db
-      .select()
-      .from(host)
-      .where(eq(host.hostId, vmRecord.hostId))
-      .limit(1);
-    nodeName = hostRecord?.name;
-  }
-  if (!nodeName) {
-    throw new Error(`Cannot determine Proxmox node for VM ${vmRecord.vmId}`);
+  const externalId = spec.externalId as string | undefined;
+  if (!externalId) {
+    throw new Error(`VM host ${vmHost.id} has no external ID in spec`);
   }
 
-  // Get the proxmoxCluster for credentials
-  const [clusterRecord] = await db
+  const vmid = parseInt(externalId, 10);
+  if (isNaN(vmid)) {
+    throw new Error(`VM host ${vmHost.id} has non-numeric external ID: ${externalId}`);
+  }
+
+  // The VM's substrateId points to the hypervisor substrate
+  if (!vmHost.substrateId) {
+    throw new Error(`VM host ${vmHost.id} is not linked to a substrate`);
+  }
+
+  // Find the hypervisor substrate for credentials
+  const [hypervisor] = await db
     .select()
-    .from(proxmoxCluster)
-    .where(eq(proxmoxCluster.proxmoxClusterId, vmRecord.proxmoxClusterId))
+    .from(substrate)
+    .where(eq(substrate.id, vmHost.substrateId))
     .limit(1);
 
-  if (!clusterRecord) {
-    throw new Error(`Proxmox cluster not found: ${vmRecord.proxmoxClusterId}`);
+  if (!hypervisor) {
+    throw new Error(`Substrate not found: ${vmHost.substrateId}`);
   }
 
+  const hypervisorSpec = (hypervisor.spec ?? {}) as Record<string, unknown>;
+
+  // Build client from substrate spec
   const client = createProxmoxClientFromCluster({
-    host: clusterRecord.apiHost,
-    port: clusterRecord.apiPort,
-    tokenId: clusterRecord.tokenId,
-    tokenSecret: clusterRecord.tokenSecret,
-    fingerprint: clusterRecord.sslFingerprint,
+    host: hypervisorSpec.apiHost as string,
+    port: hypervisorSpec.apiPort as number,
+    tokenId: hypervisorSpec.tokenId as string,
+    tokenSecret: hypervisorSpec.tokenSecret as string,
+    fingerprint: hypervisorSpec.sslFingerprint as string | undefined,
   });
+
+  // Determine node name — find a bare-metal host that matches
+  // We need to figure out which Proxmox node this VM runs on.
+  // In v2, the bare-metal hosts and VMs both link to the same hypervisor substrate.
+  // The node name is the bare-metal host's name. We'll use a simple approach:
+  // if the VM was synced, the Proxmox node info may be in metadata or we need
+  // to query the Proxmox API directly.
+  // For now, query the Proxmox API for this VMID's location.
+  const allVms = await client.getAllVms();
+  const pvmEntry = allVms.find((v) => v.vmid === vmid);
+
+  if (!pvmEntry?.node) {
+    throw new Error(`Cannot determine Proxmox node for VMID ${vmid}`);
+  }
+
+  const vmType = vmHost.type === "lxc" ? "lxc" : "qemu";
 
   return {
     client,
-    nodeName,
-    vmid: vmRecord.proxmoxVmid,
-    vmType: (vmRecord.vmType === "lxc" ? "lxc" : "qemu") as "qemu" | "lxc",
-    vm: vmRecord,
+    nodeName: pvmEntry.node,
+    vmid,
+    vmType: vmType as "qemu" | "lxc",
+    vmHost,
   };
 }

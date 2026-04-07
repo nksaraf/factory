@@ -62,7 +62,7 @@ function checkNoExistingK3s(force: boolean, resumeClusterInstall?: boolean): Pre
   return check(
     "k3s",
     !exists,
-    exists ? "k3s exists (use --force, or dx install reset-progress if reinstalling)" : "no k3s"
+    exists ? "k3s exists (use --force, or dx setup reset-progress if reinstalling)" : "no k3s"
   );
 }
 
@@ -147,6 +147,26 @@ function ensureKubectl(verbose?: boolean): PreflightCheck {
   return check("kubectl", false, "kubectl install failed");
 }
 
+/** Check for psql, auto-install if missing. */
+function ensurePsql(verbose?: boolean): PreflightCheck {
+  if (run("psql", ["--version"]).status === 0) {
+    return check("psql", true, "psql available");
+  }
+
+  console.log("  psql not found, installing...");
+  const installed = autoInstall("psql", {
+    brewPkg: "libpq",
+    aptPkg: "postgresql-client",
+    verbose,
+  });
+
+  if (installed && run("psql", ["--version"]).status === 0) {
+    return check("psql", true, "psql installed");
+  }
+
+  return check("psql", false, "psql install failed");
+}
+
 /** Check for helm, auto-install if missing. */
 function ensureHelm(verbose?: boolean): PreflightCheck {
   if (run("helm", ["version", "--short"]).status === 0) {
@@ -181,7 +201,7 @@ export function runPreflight(opts: {
 
   // Workbench: light checks only
   if (opts.role === "workbench") {
-    checks.push(checkOs(opts.role), checkArch(), checkDisk(opts.role));
+    checks.push(checkOs(opts.role), checkArch(), checkDisk(opts.role), ensurePsql(opts.verbose));
     const passed = checks.filter((c) => c.required).every((c) => c.passed);
     return { passed, checks, role: opts.role };
   }
@@ -189,12 +209,13 @@ export function runPreflight(opts: {
   const resume = opts.resumeClusterInstall ?? false;
 
   if (opts.remoteCluster) {
-    // Remote cluster: check arch, disk, and ensure kubectl + helm are available (auto-install if needed)
+    // Remote cluster: check arch, disk, and ensure kubectl + helm + psql are available (auto-install if needed)
     checks.push(
       checkArch(),
       checkDisk("workbench"),
       ensureKubectl(opts.verbose),
       ensureHelm(opts.verbose),
+      ensurePsql(opts.verbose),
     );
   } else {
     // Local install: full checks (omit port checks on resume — k3s already bound 6443 / 10250 etc.)

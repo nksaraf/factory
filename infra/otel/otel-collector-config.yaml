@@ -1,0 +1,67 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins: ["*"]
+
+  # Scrape Docker container logs from the host filesystem
+  filelog/docker:
+    include:
+      - /var/lib/docker/containers/*/*.log
+    include_file_name: false
+    include_file_path: true
+    operators:
+      # Docker wraps each log line in JSON: {"log":"...","stream":"stdout","time":"..."}
+      - type: json_parser
+        id: docker_parser
+        timestamp:
+          parse_from: attributes.time
+          layout: "%Y-%m-%dT%H:%M:%S.%fZ"
+      # Extract container ID from file path
+      - type: regex_parser
+        id: extract_container_id
+        parse_from: attributes["log.file.path"]
+        regex: "/var/lib/docker/containers/(?P<container_id>[a-f0-9]+)/"
+      # Move the actual log line to body
+      - type: move
+        from: attributes.log
+        to: body
+
+processors:
+  batch:
+    timeout: 1s
+  resource:
+    attributes:
+      - key: service_name
+        from_attribute: service.name
+        action: upsert
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp/loki:
+    endpoint: http://infra-loki:3100/otlp
+
+extensions:
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp, filelog/docker]
+      processors: [batch, resource]
+      exporters: [otlphttp/loki, debug]

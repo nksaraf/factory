@@ -727,6 +727,109 @@ function normalizeServices(
   return result;
 }
 
+// ─── Deep merge for compose services ─────────────────────────
+
+/**
+ * Keys in a compose service whose values are arrays and should be
+ * concatenated (with deduplication) rather than replaced.
+ */
+const COMPOSE_ARRAY_KEYS = new Set([
+  "ports", "volumes", "expose", "dns", "dns_search", "extra_hosts",
+  "external_links", "security_opt", "cap_add", "cap_drop", "devices",
+  "tmpfs", "sysctls", "configs", "secrets", "networks",
+]);
+
+/**
+ * Keys in a compose service whose values are objects and should be
+ * recursively merged (key-by-key, last wins per key).
+ */
+const COMPOSE_OBJECT_KEYS = new Set([
+  "environment", "labels", "build", "healthcheck", "logging",
+  "deploy", "ulimits",
+]);
+
+/**
+ * Deep-merge two compose service definitions following Docker Compose semantics:
+ * - Scalars: override wins
+ * - Objects (environment, labels, build, etc.): merge keys recursively
+ * - Arrays (ports, volumes, etc.): concatenate and deduplicate
+ * - depends_on: merge (supports both array and object forms)
+ */
+function deepMergeComposeService(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+
+  for (const [key, overrideVal] of Object.entries(override)) {
+    const baseVal = result[key];
+
+    // No base value — just take override
+    if (baseVal === undefined || baseVal === null) {
+      result[key] = overrideVal;
+      continue;
+    }
+
+    // Both are arrays — concatenate and deduplicate
+    if (Array.isArray(baseVal) && Array.isArray(overrideVal)) {
+      const seen = new Set(baseVal.map((v) => JSON.stringify(v)));
+      const merged = [...baseVal];
+      for (const item of overrideVal) {
+        const key = JSON.stringify(item);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(item);
+        }
+      }
+      result[key] = merged;
+      continue;
+    }
+
+    // Both are plain objects — recursive merge
+    if (
+      isPlainObject(baseVal) && isPlainObject(overrideVal)
+    ) {
+      result[key] = deepMergeComposeService(
+        baseVal as Record<string, unknown>,
+        overrideVal as Record<string, unknown>,
+      );
+      continue;
+    }
+
+    // Known array key but base isn't array yet (e.g., base had scalar) — override wins
+    // Known object key but types mismatch — override wins
+    // All other cases — override wins (scalar replacement)
+    result[key] = overrideVal;
+  }
+
+  return result;
+}
+
+function isPlainObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+/**
+ * Merge multiple compose service maps with deep-merge semantics.
+ * For each service that appears in multiple files, fields are deep-merged
+ * following Docker Compose override rules.
+ */
+function mergeComposeServiceMaps(
+  ...maps: Record<string, Record<string, unknown>>[]
+): Record<string, Record<string, unknown>> {
+  const result: Record<string, Record<string, unknown>> = {};
+  for (const map of maps) {
+    for (const [name, service] of Object.entries(map)) {
+      if (result[name]) {
+        result[name] = deepMergeComposeService(result[name], service) as Record<string, unknown>;
+      } else {
+        result[name] = { ...service };
+      }
+    }
+  }
+  return result;
+}
+
 // ─── Compose file discovery ──────────────────────────────────
 
 const COMPOSE_FILE_NAMES = [
@@ -736,12 +839,69 @@ const COMPOSE_FILE_NAMES = [
   "compose.yml",
 ];
 
+/** Matches docker-compose*.yaml, docker-compose*.yml, compose*.yaml, compose*.yml */
+const COMPOSE_GLOB_RE = /^(docker-)?compose([.-].*)?\.ya?ml$/;
+
+export interface ComposeDiscoveryOptions {
+  /** Explicit file list from package.json#dx.compose — overrides all auto-discovery */
+  explicitFiles?: string[];
+  /** Current environment name (defaults to "local"). Filters x-dx.environment annotations. */
+  environment?: string;
+}
+
+/**
+ * Check whether a compose file should be included based on its x-dx annotation.
+ * Files with `x-dx.overlay: true` or a non-matching `x-dx.environment` are excluded.
+ */
+function shouldIncludeComposeFile(filePath: string, environment: string): boolean {
+  try {
+    const raw = readFileSync(filePath, "utf-8");
+    const data = parseYaml(raw) as Record<string, unknown>;
+    if (!data || typeof data !== "object") return true;
+
+    const xDx = data["x-dx"] as Record<string, unknown> | undefined;
+    if (!xDx || typeof xDx !== "object") return true;
+
+    if (xDx.overlay === true) return false;
+    if (typeof xDx.environment === "string" && xDx.environment !== environment) return false;
+
+    return true;
+  } catch {
+    // If we can't parse, include it — let the main parse() report the error
+    return true;
+  }
+}
+
 /**
  * Discover compose files in a directory.
- * Priority: compose/ folder (globbed, sorted alphabetically) > single file at root.
+ *
+ * Precedence:
+ * 1. options.explicitFiles (from package.json#dx.compose) — use exactly those
+ * 2. compose/ folder (globbed, sorted alphabetically)
+ * 3. Auto-glob at root: all docker-compose*.yaml / compose*.yaml files,
+ *    filtered by x-dx annotations (overlay, environment)
  */
-export function discoverComposeFiles(rootDir: string): string[] {
-  // 1. Check for compose/ directory
+export function discoverComposeFiles(
+  rootDir: string,
+  options?: ComposeDiscoveryOptions,
+): string[] {
+  const environment = options?.environment ?? "local";
+
+  // 1. Explicit file list from dx config — overrides all auto-discovery
+  if (options?.explicitFiles && options.explicitFiles.length > 0) {
+    const resolved: string[] = [];
+    for (const f of options.explicitFiles) {
+      const candidate = join(rootDir, f);
+      if (existsSync(candidate)) {
+        resolved.push(candidate);
+      } else {
+        console.warn(`[dx] compose file not found: ${f} (listed in package.json#dx.compose)`);
+      }
+    }
+    return resolved;
+  }
+
+  // 2. Check for compose/ directory
   const composeDir = join(rootDir, "compose");
   if (existsSync(composeDir)) {
     try {
@@ -752,29 +912,73 @@ export function discoverComposeFiles(rootDir: string): string[] {
         return entries.map((f) => join(composeDir, f));
       }
     } catch {
-      // Fall through to single-file check
+      // Fall through to auto-glob
     }
   }
 
-  // 2. Check for single compose file at root
-  for (const f of COMPOSE_FILE_NAMES) {
-    const candidate = join(rootDir, f);
-    if (existsSync(candidate)) {
-      return [candidate];
-    }
+  // 3. Auto-glob: discover all compose files at root
+  try {
+    const entries = readdirSync(rootDir)
+      .filter((f) => COMPOSE_GLOB_RE.test(f))
+      .sort();
+    return entries
+      .map((f) => join(rootDir, f))
+      .filter((f) => shouldIncludeComposeFile(f, environment));
+  } catch {
+    return [];
   }
+}
 
-  return [];
+/**
+ * Lightweight check: does a directory contain any compose files?
+ * Unlike discoverComposeFiles, this does NOT parse YAML to check x-dx annotations.
+ * Used by findComposeRoot to avoid reading files at every directory level.
+ */
+function hasComposeFiles(rootDir: string): boolean {
+  // Check compose/ directory
+  const composeDir = join(rootDir, "compose");
+  if (existsSync(composeDir)) {
+    try {
+      if (readdirSync(composeDir).some((f) => /\.ya?ml$/.test(f))) return true;
+    } catch { /* fall through */ }
+  }
+  // Check root for any matching compose filenames
+  try {
+    return readdirSync(rootDir).some((f) => COMPOSE_GLOB_RE.test(f));
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Walk up from startDir to find a directory containing compose files.
  * Returns the root directory or null.
+ *
+ * Uses a fast existence check while walking, then validates with full
+ * discovery (including x-dx annotation filtering) only at the candidate.
  */
-export function findComposeRoot(startDir: string): string | null {
+export function findComposeRoot(
+  startDir: string,
+  options?: ComposeDiscoveryOptions,
+): string | null {
+  // When explicit files are provided, walk up and check those specific files
+  if (options?.explicitFiles && options.explicitFiles.length > 0) {
+    let dir = startDir;
+    for (;;) {
+      if (options.explicitFiles.some((f) => existsSync(join(dir, f)))) return dir;
+      const parent = dirname(dir);
+      if (parent === dir) return null;
+      dir = parent;
+    }
+  }
+
+  // Walk up using lightweight check, then validate with full discovery
   let dir = startDir;
   for (;;) {
-    if (discoverComposeFiles(dir).length > 0) return dir;
+    if (hasComposeFiles(dir)) {
+      // Validate: after annotation filtering, are there actually files?
+      if (discoverComposeFiles(dir, options).length > 0) return dir;
+    }
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -786,12 +990,12 @@ export function findComposeRoot(startDir: string): string | null {
 export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
   readonly format = "docker-compose" as const;
 
-  detect(rootDir: string): boolean {
-    return discoverComposeFiles(rootDir).length > 0;
+  detect(rootDir: string, options?: ComposeDiscoveryOptions): boolean {
+    return discoverComposeFiles(rootDir, options).length > 0;
   }
 
-  parse(rootDir: string, options?: { env?: Record<string, string | undefined> }): CatalogParseResult {
-    const composeFiles = discoverComposeFiles(rootDir);
+  parse(rootDir: string, options?: { env?: Record<string, string | undefined>; compose?: ComposeDiscoveryOptions }): CatalogParseResult {
+    const composeFiles = discoverComposeFiles(rootDir, options?.compose);
     if (composeFiles.length === 0) {
       throw new Error(`No docker-compose file found in ${rootDir}`);
     }
@@ -799,7 +1003,7 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
     const processEnv = options?.env ?? (process.env as Record<string, string | undefined>);
     const warnings: string[] = [];
 
-    // Merge services and extensions from all compose files
+    // Merge services and extensions from all compose files (deep merge)
     let mergedRawServices: Record<string, Record<string, unknown>> = {};
     let xCatalog: Record<string, unknown> | undefined;
     let xConnections: Record<string, Record<string, unknown>> | undefined;
@@ -810,7 +1014,7 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       if (!data) continue;
 
       const rawServices = (data.services ?? {}) as Record<string, Record<string, unknown>>;
-      mergedRawServices = { ...mergedRawServices, ...rawServices };
+      mergedRawServices = mergeComposeServiceMaps(mergedRawServices, rawServices);
 
       // x-catalog: first file that has it wins
       if (!xCatalog && data["x-catalog"] && typeof data["x-catalog"] === "object") {

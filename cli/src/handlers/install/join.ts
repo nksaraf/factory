@@ -13,7 +13,7 @@ export interface JoinOptions {
   verbose?: boolean;
 }
 
-/** dx install join — join this node to an existing cluster as an agent. */
+/** dx setup join — join this node to an existing cluster as an agent. */
 export async function runJoin(opts: JoinOptions): Promise<void> {
   // 1. Preflight: basic checks
   console.log("--- Preflight ---");

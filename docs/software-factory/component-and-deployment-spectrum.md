@@ -61,7 +61,7 @@ Infrastructure:    K8s resources          (Deployment, Service, IngressRoute, Cr
 
 This is crucial: the same component entity appears at every layer, with different data at each. The `api` component is:
 
-- A spec in `dx.yaml` (Product definition)
+- A spec in `docker-compose.yaml` (Product definition)
 - A Dockerfile in `./services/api/` (Build input)
 - A container image `billing-api:1.3.0` in the registry (Build output)
 - A desired deployment with 3 replicas on Site trafficure-us-east (Fleet desired state)
@@ -71,7 +71,7 @@ This is crucial: the same component entity appears at every layer, with differen
 ### 2.4 The Component Data Model
 
 ```
-component_spec (Product Plane — lives in dx.yaml, synced to Factory DB)
+component_spec (Product Plane — lives in docker-compose.yaml, synced to Factory DB)
 ──────────────
 component_id            PK
 module_id               FK → module
@@ -83,7 +83,7 @@ public                  bool (needs external ingress?)
 description             text
 created_at              timestamp
 
-component_build (Build Plane — lives in dx-component.yaml, synced to Factory DB)
+component_build (Build Plane — lives in docker-compose service labels, synced to Factory DB)
 ───────────────
 component_id            FK → component_spec
 dockerfile              path relative to component
@@ -317,10 +317,10 @@ This is where it gets real. A sandbox for the `billing` module needs postgres an
 
 **Production snapshot:** `dx sandbox create --snapshot-db` clones the production DB (sanitized), gives the sandbox its own copy. Expensive but accurate.
 
-The dependency containers are also components — but they're **infrastructure components**, not module components. They belong to Infrastructure Plane, not to the module. In `dx.yaml`, they're declared under `dependencies`, not `components`.
+The dependency containers are also components — but they're **infrastructure components**, not module components. They belong to Infrastructure Plane, not to the module. In `docker-compose.yaml`, they're declared under `dependencies`, not `components`.
 
 ```yaml
-# dx.yaml
+# docker-compose.yaml
 module: billing
 components:           # Module components — your code
   api:
@@ -363,7 +363,7 @@ connection_url          string (resolved at deploy time)
 status                  running | pending | failed
 ```
 
-For production Sites, dependencies are managed differently — they're Data Plane resources (managed postgres, managed redis), not ephemeral containers. The `dependency_spec` in `dx.yaml` is for local dev and sandboxes. Production Sites get their dependency configuration from Fleet Plane's site_configuration, which points to Data Plane managed resources.
+For production Sites, dependencies are managed differently — they're Data Plane resources (managed postgres, managed redis), not ephemeral containers. The `dependency_spec` in `docker-compose.yaml` is for local dev and sandboxes. Production Sites get their dependency configuration from Fleet Plane's site_configuration, which points to Data Plane managed resources.
 
 ---
 
@@ -625,10 +625,10 @@ When a release is assembled, the release pins module versions. Each module versi
 
 The component_deploy is the mutable, per-target deployment record. The release is the immutable, per-version intent.
 
-### 7.2 How dx.yaml Maps to the Data Model
+### 7.2 How docker-compose.yaml Maps to the Data Model
 
 ```yaml
-# dx.yaml
+# docker-compose.yaml
 module: billing                    → module (Product Plane)
 team: platform-eng
 product: trafficure
@@ -657,7 +657,7 @@ dependencies:                      → dependency_spec[] (Module definition)
 ```
 
 ```yaml
-# services/api/dx-component.yaml  → component_build
+# services/api/docker-compose service labels  → component_build
 build:
   dockerfile: Dockerfile
   args:
@@ -712,8 +712,8 @@ Local dev is the one case that doesn't go through Fleet or Infrastructure Plane.
 dx dev
 ```
 
-1. Read `dx.yaml` — get component_specs and dependency_specs
-2. Read each component's `dx-component.yaml` — get dev commands and sync paths
+1. Read `docker-compose.yaml` — get component_specs and dependency_specs
+2. Read each component's `docker-compose service labels` — get dev commands and sync paths
 3. Generate `docker-compose.yaml`:
    - Each component → a Docker Compose service with `dev.command`, file sync, port mapping
    - Each dependency → a Docker Compose service with the specified image

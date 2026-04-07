@@ -1,79 +1,60 @@
 /**
  * Periodic Proxmox inventory sync loop
- * Syncs all active Proxmox providers on a timer + on startup
+ * Syncs all active Proxmox hypervisor substrates on a timer + on startup
  */
 
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { provider } from "../../db/schema/infra";
-import { syncProvider } from "../../services/infra/provider.service";
-import { logger } from "../../logger";
+import { substrate } from "../../db/schema/infra-v2";
+import { getVMProviderAdapter } from "../../adapters/adapter-registry";
+import { createOperationRunner, type OperationRunner } from "../operations";
 
 const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Run a single sync pass across all active Proxmox providers
- */
-async function syncAllProxmoxProviders(db: Database): Promise<void> {
-  const providers = await db
-    .select()
-    .from(provider)
-    .where(eq(provider.providerType, "proxmox"));
-
-  const activeProviders = providers.filter((p) => p.status === "active");
-
-  if (activeProviders.length === 0) return;
-
-  logger.info(
-    { count: activeProviders.length },
-    "syncing Proxmox providers"
-  );
-
-  for (const prov of activeProviders) {
-    try {
-      const result = await syncProvider(db, prov.providerId);
-      logger.info(
-        {
-          providerId: prov.providerId,
-          name: prov.name,
-          hosts: result.hostsDiscovered,
-          vms: result.vmsDiscovered,
-        },
-        "Proxmox provider sync complete"
-      );
-    } catch (err) {
-      logger.error(
-        { err, providerId: prov.providerId, name: prov.name },
-        "Proxmox provider sync failed"
-      );
-    }
-  }
-}
-
-/**
  * Start the periodic Proxmox sync loop.
- * Runs an initial sync in the background on startup, then repeats on interval.
- * Returns a cleanup function to stop the loop.
+ * Returns an OperationRunner with DB-tracked runs and manual trigger support.
  */
 export function startProxmoxSyncLoop(
   db: Database,
-  opts?: { intervalMs?: number }
-): () => void {
-  const interval = opts?.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS;
+  opts?: { intervalMs?: number },
+): OperationRunner {
+  return createOperationRunner(db, {
+    name: "proxmox",
+    intervalMs: opts?.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
+    async execute(log) {
+      const hypervisors = await db
+        .select()
+        .from(substrate)
+        .where(
+          and(
+            eq(substrate.type, "hypervisor"),
+            sql`${substrate.spec}->>'providerKind' = 'proxmox'`,
+            sql`${substrate.spec}->>'lifecycle' = 'active'`,
+          ),
+        );
 
-  // Sync on startup (background, don't block)
-  syncAllProxmoxProviders(db).catch((err) => {
-    logger.error({ err }, "Proxmox startup sync failed");
+      if (hypervisors.length === 0) return { hypervisors: 0, hostsDiscovered: 0, vmsDiscovered: 0 };
+
+      const adapter = getVMProviderAdapter("proxmox", db);
+      let totalHosts = 0;
+      let totalVms = 0;
+
+      for (const hyp of hypervisors) {
+        try {
+          const result = await adapter.syncInventory(hyp);
+          log.info(
+            { substrateId: hyp.id, name: hyp.name, hosts: result.hostsDiscovered, vms: result.vmsDiscovered },
+            "Proxmox hypervisor sync complete",
+          );
+          totalHosts += result.hostsDiscovered;
+          totalVms += result.vmsDiscovered;
+        } catch (err) {
+          log.error({ err, substrateId: hyp.id, name: hyp.name }, "Proxmox hypervisor sync failed");
+        }
+      }
+
+      return { hypervisors: hypervisors.length, hostsDiscovered: totalHosts, vmsDiscovered: totalVms };
+    },
   });
-
-  // Periodic sync
-  const timer = setInterval(async () => {
-    try {
-      await syncAllProxmoxProviders(db);
-    } catch (err) {
-      logger.error({ err }, "Proxmox periodic sync failed");
-    }
-  }, interval);
-
-  return () => clearInterval(timer);
 }

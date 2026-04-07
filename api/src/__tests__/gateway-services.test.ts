@@ -4,8 +4,12 @@ import * as gw from "../modules/infra/gateway.service";
 import * as previewSvc from "../services/preview/preview.service";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
-import { preview } from "../db/schema/fleet";
+import { preview, site } from "../db/schema/ops";
+import { principal } from "../db/schema/org-v2";
 import { eq } from "drizzle-orm";
+import type { PrincipalSpec } from "@smp/factory-shared/schemas/org";
+import type { SiteSpec, PreviewSpec } from "@smp/factory-shared/schemas/ops";
+import type { RouteSpec } from "@smp/factory-shared/schemas/infra";
 
 describe("Gateway Services", () => {
   let db: Database;
@@ -28,7 +32,7 @@ describe("Gateway Services", () => {
   describe("lookupRouteByDomain", () => {
     it("finds an active route by domain", async () => {
       await gw.createRoute(db, {
-        kind: "tunnel",
+        type: "tunnel",
         domain: "happy-fox-42.tunnel.dx.dev",
         targetService: "tunnel-broker",
         status: "active",
@@ -37,7 +41,7 @@ describe("Gateway Services", () => {
 
       const found = await gw.lookupRouteByDomain(db, "happy-fox-42.tunnel.dx.dev");
       expect(found).not.toBeNull();
-      expect(found!.kind).toBe("tunnel");
+      expect(found!.type).toBe("tunnel");
       expect(found!.domain).toBe("happy-fox-42.tunnel.dx.dev");
     });
 
@@ -48,7 +52,7 @@ describe("Gateway Services", () => {
 
     it("returns null for inactive routes", async () => {
       await gw.createRoute(db, {
-        kind: "tunnel",
+        type: "tunnel",
         domain: "stale.tunnel.dx.dev",
         targetService: "tunnel-broker",
         status: "expired",
@@ -60,9 +64,33 @@ describe("Gateway Services", () => {
     });
   });
 
+  async function ensurePrincipal(id = "user_1") {
+    const [existing] = await db.select().from(principal).where(eq(principal.id, id)).limit(1);
+    if (existing) return existing;
+    const [p] = await db.insert(principal).values({ id, name: id, slug: id, type: "human", spec: {} satisfies PrincipalSpec }).returning();
+    return p;
+  }
+
+  async function createTestSite() {
+    const [s] = await db
+      .insert(site)
+      .values({
+        name: "test-site",
+        slug: `test-site-${Date.now()}`,
+        spec: { type: "shared", status: "provisioning", product: "test-product" } satisfies SiteSpec,
+      })
+      .returning();
+    return s;
+  }
+
   describe("Preview Service", () => {
+    beforeEach(async () => {
+      await ensurePrincipal("user_1");
+    });
+
     describe("createPreview", () => {
-      it("creates preview with deploymentTarget and route", async () => {
+      it("creates preview with route", async () => {
+        const s = await createTestSite();
         const result = await previewSvc.createPreview(db, {
           name: "PR #42 - fix-auth-bug",
           sourceBranch: "fix-auth-bug",
@@ -70,49 +98,53 @@ describe("Gateway Services", () => {
           repo: "github.com/org/myapp",
           prNumber: 42,
           siteName: "myapp",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
 
-        expect(result.preview.previewId).toBeTruthy();
-        expect(result.preview.slug).toBe("pr-42--fix-auth-bug--myapp");
-        expect(result.preview.status).toBe("building");
-        expect(result.deploymentTarget.kind).toBe("preview");
+        expect(result.preview.id).toBeTruthy();
+        expect(result.preview.spec.slug ?? result.preview.slug).toBe("pr-42--fix-auth-bug--myapp");
+        expect(result.preview.phase).toBe("building");
         expect(result.route.domain).toBe("pr-42--fix-auth-bug--myapp.preview.dx.dev");
       });
 
       it("creates branch-only preview (no PR number)", async () => {
+        const s = await createTestSite();
         const result = await previewSvc.createPreview(db, {
           name: "feat-dashboard",
           sourceBranch: "feat-dashboard",
           commitSha: "b24f000000000000000000000000000000000000",
           repo: "github.com/org/myapp",
           siteName: "myapp",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
 
-        expect(result.preview.slug).toBe("feat-dashboard--myapp");
+        expect(result.preview.spec.slug ?? result.preview.slug).toBe("feat-dashboard--myapp");
         expect(result.preview.prNumber).toBeNull();
       });
     });
 
     describe("getPreview", () => {
       it("returns preview by id", async () => {
-        const { preview } = await previewSvc.createPreview(db, {
+        const s = await createTestSite();
+        const { preview: p } = await previewSvc.createPreview(db, {
           name: "PR #1",
           sourceBranch: "main",
           commitSha: "abc",
           repo: "github.com/org/app",
           prNumber: 1,
           siteName: "app",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
 
-        const found = await previewSvc.getPreview(db, preview.previewId);
+        const found = await previewSvc.getPreview(db, p.id);
         expect(found).not.toBeNull();
-        expect(found!.previewId).toBe(preview.previewId);
+        expect(found!.id).toBe(p.id);
       });
 
       it("returns null for non-existent id", async () => {
@@ -123,49 +155,54 @@ describe("Gateway Services", () => {
 
     describe("updatePreviewStatus", () => {
       it("transitions preview to active", async () => {
-        const { preview } = await previewSvc.createPreview(db, {
+        const s = await createTestSite();
+        const { preview: p } = await previewSvc.createPreview(db, {
           name: "PR #5",
           sourceBranch: "fix",
           commitSha: "def",
           repo: "github.com/org/app",
           prNumber: 5,
           siteName: "app",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
 
-        const updated = await previewSvc.updatePreviewStatus(db, preview.previewId, {
+        const updated = await previewSvc.updatePreviewStatus(db, p.id, {
           status: "active",
           runtimeClass: "hot",
         });
-        expect(updated!.status).toBe("active");
-        expect(updated!.runtimeClass).toBe("hot");
+        expect(updated!.phase).toBe("active");
+        expect(updated!.spec.runtimeClass).toBe("hot");
       });
     });
 
     describe("expirePreview", () => {
       it("marks preview as expired and updates route", async () => {
-        const { preview } = await previewSvc.createPreview(db, {
+        const s = await createTestSite();
+        const { preview: p } = await previewSvc.createPreview(db, {
           name: "PR #10",
           sourceBranch: "old",
           commitSha: "ghi",
           repo: "github.com/org/app",
           prNumber: 10,
           siteName: "app",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
 
-        await previewSvc.updatePreviewStatus(db, preview.previewId, { status: "active" });
-        await previewSvc.expirePreview(db, preview.previewId);
+        await previewSvc.updatePreviewStatus(db, p.id, { status: "active" });
+        await previewSvc.expirePreview(db, p.id);
 
-        const expired = await previewSvc.getPreview(db, preview.previewId);
-        expect(expired!.status).toBe("expired");
+        const expired = await previewSvc.getPreview(db, p.id);
+        expect(expired!.phase).toBe("expired");
       });
     });
 
     describe("runPreviewCleanup", () => {
       it("marks expired previews based on expiresAt", async () => {
+        const s = await createTestSite();
         const { preview: p } = await previewSvc.createPreview(db, {
           name: "PR #20",
           sourceBranch: "old-branch",
@@ -173,21 +210,26 @@ describe("Gateway Services", () => {
           repo: "github.com/org/app",
           prNumber: 20,
           siteName: "app",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
           expiresAt: new Date(Date.now() - 60_000),
         });
-        await previewSvc.updatePreviewStatus(db, p.previewId, { status: "active" });
-        await db.update(preview).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(preview.previewId, p.previewId));
+        await previewSvc.updatePreviewStatus(db, p.id, { status: "active" });
+        // Set expiresAt in spec
+        await db.update(preview)
+          .set({ spec: { ...p.spec, expiresAt: new Date(Date.now() - 60_000).toISOString() } satisfies PreviewSpec })
+          .where(eq(preview.id, p.id));
 
         const result = await previewSvc.runPreviewCleanup(db);
         expect(result.expired).toBeGreaterThanOrEqual(1);
 
-        const updated = await previewSvc.getPreview(db, p.previewId);
-        expect(updated!.status).toBe("expired");
+        const updated = await previewSvc.getPreview(db, p.id);
+        expect(updated!.phase).toBe("expired");
       });
 
       it("transitions hot previews to warm after idle period", async () => {
+        const s = await createTestSite();
         const { preview: p } = await previewSvc.createPreview(db, {
           name: "PR #21",
           sourceBranch: "idle-branch",
@@ -195,10 +237,11 @@ describe("Gateway Services", () => {
           repo: "github.com/org/app",
           prNumber: 21,
           siteName: "app",
+          siteId: s.id,
           ownerId: "user_1",
           createdBy: "system",
         });
-        await previewSvc.updatePreviewStatus(db, p.previewId, {
+        await previewSvc.updatePreviewStatus(db, p.id, {
           status: "active",
           runtimeClass: "hot",
           lastAccessedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
@@ -207,14 +250,16 @@ describe("Gateway Services", () => {
         const result = await previewSvc.runPreviewCleanup(db);
         expect(result.scaledToWarm).toBeGreaterThanOrEqual(1);
 
-        const updated = await previewSvc.getPreview(db, p.previewId);
-        expect(updated!.runtimeClass).toBe("warm");
+        const updated = await previewSvc.getPreview(db, p.id);
+        expect(updated!.spec.runtimeClass).toBe("warm");
       });
     });
   });
 
   describe("Full Gateway Flow", () => {
     it("creates preview → resolves via gateway lookup → transitions to active", async () => {
+      await ensurePrincipal("user_1");
+      const s = await createTestSite();
       // 1. Create preview
       const { preview: p, route: r } = await previewSvc.createPreview(db, {
         name: "PR #99 - e2e-test",
@@ -223,6 +268,7 @@ describe("Gateway Services", () => {
         repo: "github.com/org/app",
         prNumber: 99,
         siteName: "app",
+        siteId: s.id,
         ownerId: "user_1",
         createdBy: "system",
       });
@@ -232,18 +278,18 @@ describe("Gateway Services", () => {
       // 2. Route should be resolvable
       const found = await gw.lookupRouteByDomain(db, "pr-99--e2e-test--app.preview.dx.dev");
       expect(found).not.toBeNull();
-      expect(found!.kind).toBe("preview");
+      expect(found!.type).toBe("preview");
 
       // 3. Transition to active
-      await previewSvc.updatePreviewStatus(db, p.previewId, {
+      await previewSvc.updatePreviewStatus(db, p.id, {
         status: "active",
         runtimeClass: "hot",
         lastAccessedAt: new Date(),
       });
 
-      const active = await previewSvc.getPreview(db, p.previewId);
-      expect(active!.status).toBe("active");
-      expect(active!.runtimeClass).toBe("hot");
+      const active = await previewSvc.getPreview(db, p.id);
+      expect(active!.phase).toBe("active");
+      expect(active!.spec.runtimeClass).toBe("hot");
     });
   });
 });

@@ -12,13 +12,24 @@ export interface Module {
 }
 
 export type ComponentKind =
-  | "server"
+  | "server"     // legacy — use "service" in v2
+  | "service"    // v2 name for long-running server components
   | "worker"
   | "task"
-  | "scheduled"
-  | "site"
+  | "scheduled"  // legacy — use "cronjob" in v2
+  | "cronjob"    // v2 cron job type
+  | "site"       // legacy — use "website" in v2
+  | "website"    // v2 static/frontend site
   | "database"
-  | "gateway";
+  | "cache"
+  | "queue"
+  | "storage"
+  | "search"
+  | "gateway"
+  | "agent"
+  | "cli"
+  | "library"
+  | "ml-model";
 
 export type PortProtocol = "http" | "https" | "grpc" | "tcp" | "udp";
 
@@ -467,21 +478,6 @@ export interface Provider {
   createdAt: string;
 }
 
-export type ClusterStatus =
-  | "provisioning"
-  | "ready"
-  | "degraded"
-  | "destroying";
-
-export interface Cluster {
-  clusterId: string;
-  name: string;
-  providerId: string;
-  status: ClusterStatus;
-  kubeconfigRef?: string | null;
-  createdAt: string;
-}
-
 export type VmStatus =
   | "provisioning"
   | "running"
@@ -496,8 +492,8 @@ export interface Vm {
   datacenterId?: string | null;
   hostId?: string | null;
   clusterId?: string | null;
-  proxmoxClusterId?: string | null;
-  proxmoxVmid?: number | null;
+  vmClusterId?: string | null;
+  externalVmid?: number | null;
   vmType: string;
   status: VmStatus;
   osType: OsType;
@@ -557,15 +553,15 @@ export interface Datacenter {
   createdAt: string;
 }
 
-export type ProxmoxSyncStatus = "idle" | "syncing" | "error";
+export type VmClusterSyncStatus = "idle" | "syncing" | "error";
 
-export interface ProxmoxCluster {
-  proxmoxClusterId: string;
+export interface VmCluster {
+  vmClusterId: string;
   name: string;
   providerId: string;
   apiHost: string;
   apiPort: number;
-  syncStatus: ProxmoxSyncStatus;
+  syncStatus: VmClusterSyncStatus;
   lastSyncAt?: string | null;
   syncError?: string | null;
   createdAt: string;
@@ -616,84 +612,6 @@ export interface IpAddress {
   createdAt: string;
 }
 
-/** Sandbox */
-export type SandboxRuntimeType = "container" | "vm";
-export type SandboxOwnerType = "user" | "agent";
-export type SandboxAccessRole = "owner" | "editor" | "viewer";
-export type SandboxSnapshotStatus = "creating" | "ready" | "failed" | "deleted";
-
-export interface SandboxRepo { url: string; branch: string; clonePath?: string; }
-
-export interface Sandbox {
-  sandboxId: string;
-  deploymentTargetId: string;
-  name: string;
-  slug: string;
-  runtimeType: SandboxRuntimeType;
-  vmId?: string | null;
-  podName?: string | null;
-  devcontainerConfig: Record<string, unknown>;
-  devcontainerImage?: string | null;
-  ownerId: string;
-  ownerType: SandboxOwnerType;
-  setupProgress: Record<string, boolean>;
-  statusMessage?: string | null;
-  repos: SandboxRepo[];
-  dockerCacheGb: number;
-  cpu?: string | null;
-  memory?: string | null;
-  storageGb: number;
-  sshHost?: string | null;
-  sshPort?: number | null;
-  webTerminalUrl?: string | null;
-  clonedFromSnapshotId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface SandboxTemplate {
-  sandboxTemplateId: string;
-  name: string;
-  slug: string;
-  runtimeType: SandboxRuntimeType;
-  image?: string | null;
-  defaultCpu?: string | null;
-  defaultMemory?: string | null;
-  defaultStorageGb?: number | null;
-  defaultDockerCacheGb?: number | null;
-  vmTemplateRef?: string | null;
-  defaultTtlMinutes?: number | null;
-  preInstalledTools: string[];
-  description?: string | null;
-  isDefault: boolean;
-  createdAt: string;
-}
-
-export interface SandboxSnapshot {
-  sandboxSnapshotId: string;
-  sandboxId: string;
-  name: string;
-  description?: string | null;
-  runtimeType: SandboxRuntimeType;
-  volumeSnapshotName?: string | null;
-  imageRef?: string | null;
-  proxmoxSnapshotName?: string | null;
-  vmId?: string | null;
-  snapshotMetadata: Record<string, unknown>;
-  sizeBytes?: string | null;
-  status: SandboxSnapshotStatus;
-  createdAt: string;
-}
-
-export interface SandboxAccess {
-  sandboxAccessId: string;
-  sandboxId: string;
-  principalId: string;
-  principalType: SandboxOwnerType;
-  role: SandboxAccessRole;
-  grantedBy: string;
-  createdAt: string;
-}
 
 /** Git Host Provider */
 export type GitHostType = "github" | "gitlab" | "gitea" | "bitbucket";

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { NoopGitHostAdapter } from "../adapters/git-host-adapter-noop";
 import type { GitHostAdapter } from "../adapters/git-host-adapter";
-import { createGitHostAdapter } from "../adapters/adapter-registry";
+import { getGitHostAdapter } from "../adapters/adapter-registry";
 
 describe("NoopGitHostAdapter", () => {
   const adapter: GitHostAdapter = new NoopGitHostAdapter();
 
-  it("has hostType 'noop'", () => {
-    expect(adapter.hostType).toBe("noop");
+  it("has type 'noop'", () => {
+    expect(adapter.type).toBe("noop");
   });
 
   it("listRepos returns empty array", async () => {
@@ -44,14 +44,14 @@ describe("NoopGitHostAdapter", () => {
   });
 });
 
-describe("createGitHostAdapter", () => {
+describe("getGitHostAdapter", () => {
   it("creates noop adapter", () => {
-    const adapter = createGitHostAdapter("noop");
-    expect(adapter.hostType).toBe("noop");
+    const adapter = getGitHostAdapter("noop");
+    expect(adapter.type).toBe("noop");
   });
 
   it("throws for unknown type", () => {
-    expect(() => createGitHostAdapter("unknown")).toThrow(
+    expect(() => getGitHostAdapter("unknown" as any)).toThrow(
       "No git host adapter for type: unknown",
     );
   });

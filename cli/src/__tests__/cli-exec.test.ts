@@ -51,17 +51,17 @@ describe("dx CLI (subprocess)", () => {
     expect(body.error?.code).toBe("NYI");
   });
 
-  it("auth logout with no session", () => {
+  it("factory logout with no session", () => {
     const home = isolatedHome();
-    const { status, stdout, stderr } = runDx(["auth", "logout"], { home });
+    const { status, stdout, stderr } = runDx(["factory", "logout"], { home });
     expect(status).toBe(0);
     expect(stderr).toBe("");
     expect(stdout).toContain("No local session was stored.");
   });
 
-  it("auth logout --json with no session", () => {
+  it("factory logout --json with no session", () => {
     const home = isolatedHome();
-    const { status, stdout, stderr } = runDx(["auth", "logout", "--json"], {
+    const { status, stdout, stderr } = runDx(["factory", "logout", "--json"], {
       home,
     });
     expect(status).toBe(0);

@@ -8,7 +8,7 @@ import {
 } from "./conventions";
 import {
   defaultConventionsConfig,
-  normalizeConventionsConfig,
+  parseConventionsInput,
 } from "./conventions-schema";
 
 describe("default conventions", () => {
@@ -21,7 +21,7 @@ describe("default conventions", () => {
 
 describe("validateBranchName", () => {
   it("accepts feature/BILL-123-test when configured", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       branches: {
         pattern: "{type}/{ticket}-{slug}",
         types: ["feature", "hotfix"],
@@ -35,7 +35,7 @@ describe("validateBranchName", () => {
 
 describe("validateCommitMessage", () => {
   it("enforces conventional commits when format is conventional", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       commits: { format: "conventional", require_scope: false },
     });
     expect(validateCommitMessage("feat: ok", c).valid).toBe(true);
@@ -43,7 +43,7 @@ describe("validateCommitMessage", () => {
   });
 
   it("requires scope when require_scope", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       commits: { format: "conventional", require_scope: true },
     });
     expect(validateCommitMessage("feat(api): ok", c).valid).toBe(true);
@@ -60,7 +60,7 @@ describe("checkConnectionPolicy", () => {
   });
 
   it("allows matching kind", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       connections: {
         allow: [{ kind: "sandbox" }, { kind: "staging" }],
       },
@@ -70,7 +70,7 @@ describe("checkConnectionPolicy", () => {
   });
 
   it("denies unmatched kind", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       connections: {
         allow: [{ kind: "sandbox" }],
       },
@@ -81,7 +81,7 @@ describe("checkConnectionPolicy", () => {
   });
 
   it("forces readonly on production when configured", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       connections: {
         allow: [
           { kind: "staging" },
@@ -118,7 +118,7 @@ describe("checkDeployGates", () => {
   });
 
   it("flags missing tests when configured", () => {
-    const c = normalizeConventionsConfig({
+    const c = parseConventionsInput({
       deploy: {
         production: { require_passing_tests: true },
       },

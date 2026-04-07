@@ -6,27 +6,40 @@ describe("parseHostname", () => {
     expect(parseHostname("happy-fox-42.tunnel.dx.dev")).toEqual({
       family: "tunnel",
       slug: "happy-fox-42",
+      fullSubdomain: "happy-fox-42",
     });
   });
 
-  it("parses preview hostname", () => {
+  it("parses preview hostname with endpoint suffix", () => {
     expect(parseHostname("pr-42--fix-auth--myapp.preview.dx.dev")).toEqual({
       family: "preview",
-      slug: "pr-42--fix-auth--myapp",
+      slug: "pr-42--fix-auth",
+      endpointName: "myapp",
+      fullSubdomain: "pr-42--fix-auth--myapp",
     });
   });
 
-  it("parses sandbox hostname", () => {
+  it("parses preview hostname (bare)", () => {
+    expect(parseHostname("pr-42-fix-auth.preview.dx.dev")).toEqual({
+      family: "preview",
+      slug: "pr-42-fix-auth",
+      fullSubdomain: "pr-42-fix-auth",
+    });
+  });
+
+  it("parses workspace hostname", () => {
+    expect(parseHostname("dev-nikhil-abc.workspace.dx.dev")).toEqual({
+      family: "workspace",
+      slug: "dev-nikhil-abc",
+      fullSubdomain: "dev-nikhil-abc",
+    });
+  });
+
+  it("parses sandbox hostname (legacy)", () => {
     expect(parseHostname("dev-nikhil-abc.sandbox.dx.dev")).toEqual({
       family: "sandbox",
       slug: "dev-nikhil-abc",
-    });
-  });
-
-  it("parses sandbox with port suffix", () => {
-    expect(parseHostname("dev-nikhil-abc-8080.sandbox.dx.dev")).toEqual({
-      family: "sandbox",
-      slug: "dev-nikhil-abc-8080",
+      fullSubdomain: "dev-nikhil-abc",
     });
   });
 
@@ -80,18 +93,21 @@ describe("RouteCache", () => {
     expect(mockLookup).toHaveBeenCalledTimes(2);
   });
 
-  it("caches null results (negative cache)", async () => {
+  it("does not cache null results so new routes are discovered immediately", async () => {
     mockLookup.mockResolvedValueOnce(null);
+    mockLookup.mockResolvedValueOnce({ domain: "missing.tunnel.dx.dev", targetService: "svc", status: "active" });
 
     const r1 = await cache.get("missing.tunnel.dx.dev");
-    const r2 = await cache.get("missing.tunnel.dx.dev");
     expect(r1).toBeNull();
-    expect(r2).toBeNull();
-    expect(mockLookup).toHaveBeenCalledTimes(1);
+    // Second call should hit the DB again (miss not cached) and find the newly created route
+    const r2 = await cache.get("missing.tunnel.dx.dev");
+    expect(r2).not.toBeNull();
+    expect(r2.targetService).toBe("svc");
+    expect(mockLookup).toHaveBeenCalledTimes(2);
   });
 });
 
-describe("createGatewayServer", () => {
+describe.skipIf(typeof globalThis.Bun === "undefined")("createGatewayServer", () => {
   let targetServer: ReturnType<typeof Bun.serve> | null = null;
   let gateway: { server: ReturnType<typeof Bun.serve>; stop: () => void } | null = null;
 
@@ -112,11 +128,11 @@ describe("createGatewayServer", () => {
 
     const cache = new RouteCache({
       lookup: async (domain) => {
-        if (domain === "test-slug.sandbox.dx.dev") {
+        if (domain === "test-slug.workspace.dx.dev") {
           return {
             routeId: "rte_1",
-            kind: "sandbox",
-            domain: "test-slug.sandbox.dx.dev",
+            kind: "workspace",
+            domain: "test-slug.workspace.dx.dev",
             targetService: "localhost",
             targetPort: targetServer!.port,
             status: "active",
@@ -129,7 +145,7 @@ describe("createGatewayServer", () => {
     gateway = createGatewayServer({ cache, port: 0 });
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-      headers: { Host: "test-slug.sandbox.dx.dev" },
+      headers: { Host: "test-slug.workspace.dx.dev" },
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("hello from target");
@@ -140,7 +156,7 @@ describe("createGatewayServer", () => {
     gateway = createGatewayServer({ cache, port: 0 });
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-      headers: { Host: "nope.sandbox.dx.dev" },
+      headers: { Host: "nope.workspace.dx.dev" },
     });
     expect(res.status).toBe(404);
   });
@@ -159,8 +175,8 @@ describe("createGatewayServer", () => {
     const cache = new RouteCache({
       lookup: async () => ({
         routeId: "rte_1",
-        kind: "sandbox",
-        domain: "dead.sandbox.dx.dev",
+        kind: "workspace",
+        domain: "dead.workspace.dx.dev",
         targetService: "localhost",
         targetPort: 1,
         status: "active",
@@ -169,7 +185,7 @@ describe("createGatewayServer", () => {
     gateway = createGatewayServer({ cache, port: 0 });
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-      headers: { Host: "dead.sandbox.dx.dev" },
+      headers: { Host: "dead.workspace.dx.dev" },
     });
     expect(res.status).toBe(502);
   });

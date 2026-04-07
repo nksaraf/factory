@@ -1,4 +1,4 @@
-# Build from monorepo root (see factory/dx.yaml api.build.context).
+# Build from monorepo root (see docker-compose.yaml api.build.context).
 # Example: docker build -f factory/api/Dockerfile .
 
 FROM node:22-alpine AS builder
@@ -38,7 +38,7 @@ COPY --from=builder /repo/api/.output ./.output
 COPY --from=builder /repo/api/drizzle ./drizzle
 
 ENV NODE_ENV=production
-ENV PORT=3000
-EXPOSE 3000
+ENV PORT=4100
+EXPOSE 4100
 
 CMD ["node", ".output/server/index.mjs"]

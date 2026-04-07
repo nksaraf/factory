@@ -99,9 +99,10 @@ export function tunnelCommand(app: DxBase) {
           const f = toDxFlags(flags);
           const api = await getFactoryClient();
           const result = await apiCall(flags, () =>
-            api.api.v1.factory.infra.gateway.tunnels.get()
-          ) as Record<string, unknown> | undefined;
-          const tunnels = ((result?.data ?? []) as Record<string, unknown>[]);
+            api.api.v1.factory.infra.tunnels.get()
+          );
+          const resultObj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+          const tunnels = (Array.isArray(resultObj.data) ? resultObj.data : []) as Record<string, unknown>[];
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: tunnels }, null, 2));
             return;
@@ -137,10 +138,9 @@ export function tunnelCommand(app: DxBase) {
           if (!id) {
             exitWithError(f, "Usage: dx tunnel close <tunnelId>");
           }
-          const api = await getFactoryClient();
-          await apiCall(flags, () =>
-            api.api.v1.factory.infra.gateway.tunnels({ id }).delete()
-          );
+          const { getFactoryRestClient } = await import("../client.js");
+          const rest = await getFactoryRestClient();
+          await rest.request("POST", `/api/v1/factory/infra/tunnels/${id}/close`, {});
           actionResult(flags, { closed: true, tunnelId: id }, styleSuccess(`Tunnel ${id} closed.`));
         })
     );

@@ -18,13 +18,13 @@ export function kubeCommand(app: DxBase) {
       const kubeconfig = config.kubeconfig;
 
       if (!kubeconfig) {
-        console.error("No cluster configured. Run `dx install` first.");
+        console.error("No cluster configured. Run `dx setup` first.");
         process.exit(1);
       }
 
       const { existsSync } = await import("node:fs");
       if (!existsSync(kubeconfig)) {
-        console.error(`Kubeconfig not found at ${kubeconfig}. Re-run \`dx install\` to reconfigure.`);
+        console.error(`Kubeconfig not found at ${kubeconfig}. Re-run \`dx setup\` to reconfigure.`);
         process.exit(1);
       }
 

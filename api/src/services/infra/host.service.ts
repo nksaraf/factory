@@ -5,9 +5,12 @@ import { host, vm } from "../../db/schema/infra";
 
 export async function listHosts(
   db: Database,
-  filters?: { providerId?: string; datacenterId?: string; status?: string; osType?: string }
+  filters?: { slug?: string; providerId?: string; datacenterId?: string; status?: string; osType?: string }
 ) {
   let query = db.select().from(host);
+  if (filters?.slug) {
+    query = query.where(eq(host.slug, filters.slug)) as typeof query;
+  }
   if (filters?.providerId) {
     query = query.where(eq(host.providerId, filters.providerId)) as typeof query;
   }

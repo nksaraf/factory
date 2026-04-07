@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { composeDown, isDockerRunning } from "../lib/docker.js";
-import { ProjectContext } from "../lib/project.js";
+import { resolveDxContext } from "../lib/dx-context.js";
 
 import { toDxFlags } from "./dx-flags.js";
 import { setExamples } from "../plugins/examples-plugin.js";
@@ -24,19 +24,20 @@ export function downCommand(app: DxBase) {
         description: "Remove named volumes declared in the compose file",
       },
     })
-    .run(({ flags }) => {
+    .run(async ({ flags }) => {
       const f = toDxFlags(flags);
       try {
         if (!isDockerRunning()) {
           exitWithError(f, "Docker does not appear to be running.");
         }
 
-        const project = ProjectContext.fromCwd();
+        const ctx = await resolveDxContext({ need: "project" });
+        const project = ctx.project;
         if (project.composeFiles.length === 0) {
           exitWithError(f, "No docker-compose files found.");
         }
 
-        const allProfiles = [...new Set(project.allProfiles)];
+        const allProfiles = project.allProfiles;
 
         if (f.verbose) {
           if (allProfiles.length > 0) {

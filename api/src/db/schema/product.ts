@@ -102,6 +102,7 @@ export const workTrackerProvider = factoryProduct.table(
     apiUrl: text("api_url").notNull(),
     credentialsRef: text("credentials_ref"),
     defaultProjectKey: text("default_project_key"),
+    spec: jsonb("spec").notNull().default({}),
     status: text("status").notNull().default("active"),
     syncEnabled: boolean("sync_enabled").notNull().default(true),
     syncIntervalMinutes: integer("sync_interval_minutes").notNull().default(5),

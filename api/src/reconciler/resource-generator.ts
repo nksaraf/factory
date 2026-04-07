@@ -42,9 +42,11 @@ export function generateResources(
   };
 
   switch (component.kind) {
-    case "server":
+    case "service": // v2 name for long-running server components
+    case "server":  // legacy alias
     case "worker":
     case "gateway":
+    case "agent":
       if (component.stateful) {
         resources.push(makeStatefulSet(workload, component, ns, labels, resourceLimits));
       } else {
@@ -52,15 +54,23 @@ export function generateResources(
       }
       break;
     case "database":
+    case "cache":
+    case "queue":
+    case "storage":
+    case "search":
       resources.push(makeStatefulSet(workload, component, ns, labels, resourceLimits));
       break;
     case "task":
       resources.push(makeJob(workload, component, ns, labels, resourceLimits));
       break;
-    case "scheduled":
+    case "cronjob":  // v2 name
+    case "scheduled": // legacy alias
       resources.push(makeCronJob(workload, component, ns, labels, resourceLimits));
       break;
-    case "site":
+    case "website": // v2 name for frontend/static sites
+    case "site":    // legacy alias
+    case "cli":
+    case "library":
       resources.push(makeDeployment(workload, component, ns, labels, resourceLimits));
       break;
   }

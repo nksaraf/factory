@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import type { DxBase } from "../dx-root.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { dockerBuild } from "../lib/docker.js";
-import { ProjectContext } from "../lib/project.js";
+import { resolveDxContext } from "../lib/dx-context.js";
 
 import { toDxFlags } from "./dx-flags.js";
 import { setExamples } from "../plugins/examples-plugin.js";
@@ -30,16 +30,18 @@ export function buildCommand(app: DxBase) {
         description: "Component names to build (default: all)",
       },
     ])
-    .run(({ args, flags }) => {
+    .run(async ({ args, flags }) => {
       const f = toDxFlags(flags);
       try {
-        const project = ProjectContext.fromCwd();
+        const ctx = await resolveDxContext({ need: "project" });
+        const project = ctx.project;
+        const componentNames = Object.keys(project.catalog.components);
         const names =
           args.components?.length && args.components.length > 0
             ? args.components
-            : project.componentNames;
+            : componentNames;
         for (const name of names) {
-          const comp = project.getComponent(name);
+          const comp = project.catalog.components[name];
           if (!comp) {
             exitWithError(f, `Unknown component "${name}"`);
           }
@@ -50,7 +52,7 @@ export function buildCommand(app: DxBase) {
           const context = resolve(project.rootDir, build!.context);
           const dockerfileName = build!.dockerfile ?? "Dockerfile";
           const dockerfilePath = join(context, dockerfileName);
-          const tag = imageTag(project.systemName, name);
+          const tag = imageTag(project.name, name);
           if (f.verbose) {
             console.log(`docker build -t ${tag} -f ${dockerfilePath} ${context}`);
           }

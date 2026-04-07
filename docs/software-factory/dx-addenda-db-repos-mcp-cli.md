@@ -10,7 +10,7 @@
 
 Database work is the most error-prone part of the development lifecycle. Migrations fail halfway. Production data diverges from what tests expect. Debugging a customer issue means staring at raw SQL against a schema you half-remember. Backup restores are an art practiced by one person on the team who's always on vacation when you need them.
 
-`dx db` is the database companion for every phase: local dev, debugging, migration authoring, production ops. It works against the module's declared postgres dependency (from `dx.yaml`), resolving the target via the same connection context system as `dx dev`.
+`dx db` is the database companion for every phase: local dev, debugging, migration authoring, production ops. It works against the module's declared postgres dependency (from `docker-compose.yaml`), resolving the target via the same connection context system as `dx dev`.
 
 ## 1.2 Command Surface
 
@@ -89,7 +89,7 @@ services/api/
 │   ├── 20260322_002_add_rate_limiting.up.sql
 │   ├── 20260322_002_add_rate_limiting.down.sql
 │   └── ...
-├── dx-component.yaml
+├── docker-compose.yml
 └── ...
 ```
 
@@ -208,7 +208,7 @@ dx db query "SELECT count(*) FROM orders" --tenant acme --target staging
 
 `dx db` uses the same connection context system as `dx dev`:
 
-1. No flag → connects to local dev database (from `dx.yaml` dependencies block)
+1. No flag → connects to local dev database (from `docker-compose.yaml` dependencies block)
 2. `--target staging` → resolves staging database via connection context (tunnel or direct)
 3. `--target production --readonly` → production with read-only enforcement
 4. `--target sandbox-pr-42` → sandbox database
@@ -233,9 +233,9 @@ Not everything in the Factory is a product module. The company has:
 
 These have different lifecycles, different CI pipelines, different ownership models, and different release paths. The Factory needs to handle all of them without requiring a separate workflow for each.
 
-## 2.2 Repo Classification in `dx.yaml`
+## 2.2 Repo Classification in `docker-compose.yaml`
 
-Every repo gets a `dx.yaml` with a `kind` field that tells the Factory what type of codebase this is:
+Every repo gets a `docker-compose.yaml` with a `kind` field that tells the Factory what type of codebase this is:
 
 ```yaml
 # Kind determines: CI pipeline, release path, versioning, who owns it, what conventions apply
@@ -328,7 +328,7 @@ Release path: Same as product module, but with additional gates:
 - Vendor cannot merge directly — PRs from vendor forks go through internal review
 - License compliance check runs on every build
 
-The `vendor` field in dx.yaml triggers these additional gates automatically. The vendor's engineers get contributor access (can push branches, open PRs) but not merge access.
+The `vendor` field in docker-compose.yaml triggers these additional gates automatically. The vendor's engineers get contributor access (can push branches, open PRs) but not merge access.
 
 ### Client Project (kind: client-project)
 
@@ -358,7 +358,7 @@ Deployment path: Build artifacts → deploy directly to `site-samsung-dedicated`
 
 ```bash
 dx deploy samsung-custom-dashboard --site site-samsung-dedicated
-# This works because dx.yaml declares site: site-samsung-dedicated
+# This works because docker-compose.yaml declares site: site-samsung-dedicated
 # dx refuses to deploy to any other site
 ```
 
@@ -1011,7 +1011,7 @@ $ dx deploy --enviroment staging
 $ dx status
   No target specified. Showing current module status.
 
-  geoanalytics (from dx.yaml)
+  geoanalytics (from docker-compose.yaml)
   ...
 
   Tip: dx status <target> for specific targets (module, site, vm, ip)
@@ -1036,7 +1036,7 @@ $ dx deploy api --verbose
 
 $ dx deploy api --debug
 
-  [10:30:00.001] context: detected dx.yaml at /home/nikhil/geoanalytics/dx.yaml
+  [10:30:00.001] context: detected docker-compose.yaml at /home/nikhil/geoanalytics/docker-compose.yaml
   [10:30:00.003] context: module=geoanalytics kind=product-module
   [10:30:00.005] auth: loading token from ~/.config/dx/config.yaml
   [10:30:00.008] api: POST https://dx.platform.lepton.io/build/builds

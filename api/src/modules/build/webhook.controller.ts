@@ -3,7 +3,8 @@ import type { Database } from "../../db/connection";
 import { GitHostService } from "./git-host.service";
 import { WebhookService } from "./webhook.service";
 import { NoopGitHostAdapter } from "../../adapters/git-host-adapter-noop";
-import { createGitHostAdapter } from "../../adapters/adapter-registry";
+import { getGitHostAdapter } from "../../adapters/adapter-registry";
+import type { GitHostType } from "../../adapters/git-host-adapter";
 
 export function webhookController(db: Database) {
   const gitHostService = new GitHostService(db);
@@ -20,7 +21,7 @@ export function webhookController(db: Database) {
 
       let adapter;
       try {
-        adapter = createGitHostAdapter(provider.hostType, {
+        adapter = getGitHostAdapter(provider.hostType as GitHostType, {
           webhookSecret: provider.credentialsEnc ?? undefined,
         });
       } catch {

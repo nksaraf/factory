@@ -10,7 +10,7 @@ describe("FactoryAuthResourceClient", () => {
 
   it("createResource calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
-    globalThis.fetch = fetchSpy;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -30,7 +30,7 @@ describe("FactoryAuthResourceClient", () => {
 
   it("deleteResource calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
-    globalThis.fetch = fetchSpy;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -45,7 +45,7 @@ describe("FactoryAuthResourceClient", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
-    });
+    }) as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -61,7 +61,7 @@ describe("FactoryAuthResourceClient", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: false }),
-    });
+    }) as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -74,7 +74,7 @@ describe("FactoryAuthResourceClient", () => {
   });
 
   it("swallows errors on createResource (fire-and-forget)", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network"));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network")) as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -82,7 +82,7 @@ describe("FactoryAuthResourceClient", () => {
   });
 
   it("checkPermission returns false on network error", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network"));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network")) as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );
@@ -96,7 +96,7 @@ describe("FactoryAuthResourceClient", () => {
 
   it("createResourceType calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
-    globalThis.fetch = fetchSpy;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
     const client = new FactoryAuthResourceClient(
       "http://auth:3000/api/v1/auth",
     );

@@ -8,7 +8,8 @@ import {
   styleSuccess,
   styleWarn,
 } from "../cli-style.js"
-import { exitWithError } from "../lib/cli-exit.js"
+import { exitWithError, exitWithDxError } from "../lib/cli-exit.js"
+import { DxError } from "../lib/dx-error.js"
 import { type ColumnOpt, printTable } from "../output.js"
 import { toDxFlags } from "./dx-flags.js"
 
@@ -76,12 +77,30 @@ export async function apiCall<T>(
   try {
     const res = await fn()
     if (res.error) {
-      exitWithError(f, formatApiError(res.error))
+      const err = res.error as Record<string, unknown>
+      const status = (err.status ?? err.statusCode) as number | undefined
+      exitWithDxError(f, new DxError(formatApiError(res.error), {
+        operation: "API call",
+        metadata: { ...(status ? { status } : {}), error: res.error },
+        suggestions: [
+          { action: "dx factory health", description: "Check API server status" },
+        ],
+        code: "API_ERROR",
+      }))
     }
     return res.data
   } catch (err) {
+    if (err instanceof DxError) exitWithDxError(f, err)
     if (err instanceof TypeError && err.message.includes("fetch")) {
-      exitWithError(f, "Cannot connect to the API server. Is it running?")
+      exitWithDxError(f, new DxError("Cannot connect to the API server. Is it running?", {
+        operation: "API call",
+        code: "API_UNREACHABLE",
+        suggestions: [
+          { action: "dx status", description: "Check if the environment is healthy" },
+          { action: "dx up", description: "Start local infrastructure" },
+        ],
+        cause: err,
+      }))
     }
     const msg = err instanceof Error ? err.message : String(err)
     exitWithError(f, msg)
@@ -115,15 +134,19 @@ export function colorStatus(status: string): string {
     case "verified":
     case "connected":
     case "completed":
+    case "success":
     case "idle":
-      return styleSuccess(status)
+      return styleSuccess("● " + status)
     case "stopped":
     case "disabled":
     case "destroying":
     case "destroyed":
+    case "failure":
     case "failed":
+    case "cancelled":
+    case "timed_out":
     case "error":
-      return styleError(status)
+      return styleError("● " + status)
     case "provisioning":
     case "pending":
     case "draining":
@@ -132,10 +155,13 @@ export function colorStatus(status: string): string {
     case "staging":
     case "creating":
     case "connecting":
+    case "queued":
     case "syncing":
-      return styleWarn(status)
+    case "deploying":
+    case "suspended":
+      return styleWarn("● " + status)
     default:
-      return status
+      return styleMuted("● " + status)
   }
 }
 
@@ -143,7 +169,7 @@ export function colorStatus(status: string): string {
 // Unwrap API response (Eden returns { data: { success, data: [...] } })
 // ---------------------------------------------------------------------------
 
-export function unwrapList(data: unknown): Record<string, unknown>[] {
+export function unwrapList<T = Record<string, unknown>>(data: unknown): T[] {
   const inner =
     data && typeof data === "object" && "data" in data
       ? (data as Record<string, unknown>).data
@@ -155,11 +181,11 @@ export function unwrapList(data: unknown): Record<string, unknown>[] {
 // Table-or-JSON output for list commands
 // ---------------------------------------------------------------------------
 
-export function tableOrJson(
+export function tableOrJson<T = Record<string, unknown>>(
   flags: Record<string, unknown>,
   data: unknown,
   headers: string[],
-  rowMapper: (item: Record<string, unknown>) => string[],
+  rowMapper: (item: T) => string[],
   colOpts?: ColumnOpt[],
   opts?: { emptyMessage?: string }
 ) {
@@ -168,7 +194,7 @@ export function tableOrJson(
     console.log(JSON.stringify({ success: true, data }, null, 2))
     return
   }
-  const items = unwrapList(data)
+  const items = unwrapList<T>(data)
   if (items.length === 0) {
     console.log(opts?.emptyMessage ?? "No results.")
     return
@@ -225,10 +251,10 @@ export function timeAgo(dateStr: string | null | undefined): string {
 // Detail view for single-object "get" commands (key-value pairs)
 // ---------------------------------------------------------------------------
 
-export function detailView(
+export function detailView<T = Record<string, unknown>>(
   flags: Record<string, unknown>,
   data: unknown,
-  fieldMap: [label: string, getter: (r: Record<string, unknown>) => string][]
+  fieldMap: [label: string, getter: (r: T) => string][]
 ) {
   const f = toDxFlags(flags)
   if (f.json) {
@@ -237,8 +263,8 @@ export function detailView(
   }
   const obj =
     data && typeof data === "object" && "data" in data
-      ? ((data as Record<string, unknown>).data as Record<string, unknown>)
-      : (data as Record<string, unknown>)
+      ? ((data as Record<string, unknown>).data as T)
+      : (data as T)
   if (!obj) {
     console.log("Not found.")
     return

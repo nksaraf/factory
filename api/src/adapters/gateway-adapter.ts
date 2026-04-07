@@ -14,6 +14,8 @@ export interface ApplyResult {
   errors: Array<{ name: string; error: string }>
 }
 
+export type GatewayType = "file" | "kubernetes" | "noop";
+
 export interface GatewayAdapter {
   readonly type: string
   apply(crds: GatewayCRD[]): Promise<ApplyResult>

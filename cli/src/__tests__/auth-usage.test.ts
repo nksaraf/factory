@@ -30,11 +30,11 @@ const clearAuthEnv = {
 };
 
 describe("dx CLI auth usage errors", () => {
-  it("auth login --json exits USAGE_ERROR when email is empty after prompt", () => {
+  it("factory login --json exits USAGE_ERROR when email is empty after prompt", () => {
     const home = isolatedHome();
     writeMinimalConfig(home);
 
-    const { status, stdout, stderr } = runDx(["auth", "login", "--json"], {
+    const { status, stdout, stderr } = runDx(["factory", "login", "--json"], {
       home,
       env: clearAuthEnv,
       input: "\n",

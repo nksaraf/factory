@@ -35,7 +35,7 @@ A **connection context** is a resolved mapping from dependency names to connecti
 Environment variables are how components discover their dependencies. The code reads `DATABASE_URL`, `AUTH_API_URL`, `REDIS_URL`, etc. dx resolves these through a layered stack:
 
 ```
-Layer 1: Component defaults (from dx.yaml dependencies block)
+Layer 1: Component defaults (from docker-compose.yaml dependencies block)
          DATABASE_URL=postgresql://dev:dev@localhost:5432/geoanalytics
          REDIS_URL=redis://localhost:6379
 
@@ -66,10 +66,10 @@ LOG_LEVEL=debug                                                   # ← from .dx
 
 ### 2.2 How connections are declared
 
-**In dx.yaml** — the module declares what it connects to. Not just infrastructure dependencies (postgres, redis) but also module dependencies (other modules' APIs it calls).
+**In docker-compose.yaml** — the module declares what it connects to. Not just infrastructure dependencies (postgres, redis) but also module dependencies (other modules' APIs it calls).
 
 ```yaml
-# dx.yaml
+# docker-compose.yaml
 module: geoanalytics
 team: analytics-eng
 
@@ -400,7 +400,7 @@ Connection contexts are ephemeral, session-scoped, and local to the developer's 
 - **Workloads** (what's running in each target)
 - **Connection audit events** (who connected to what, when)
 
-The connection context itself is computed at `dx dev` time from the `dx.yaml` connections/dependencies block + the `--connect-to` / `--connect` flags + the tier overlay files. It's a resolved env var set + a set of tunnel specifications. It lives in `.dx/.connection-context.yaml` on the developer's machine for the duration of the session.
+The connection context itself is computed at `dx dev` time from the `docker-compose.yaml` connections/dependencies block + the `--connect-to` / `--connect` flags + the tier overlay files. It's a resolved env var set + a set of tunnel specifications. It lives in `.dx/.connection-context.yaml` on the developer's machine for the duration of the session.
 
 ### 6.2 Connection profiles are a Build Plane artifact
 
@@ -440,8 +440,8 @@ Putting it all together, here's what happens when a developer runs `dx dev api -
 
 ```
 1. PARSE CONTEXT
-   - Read dx.yaml (module: geoanalytics, components, dependencies, connections)
-   - Read dx-component.yaml for api (dev command, build config)
+   - Read docker-compose.yaml (module: geoanalytics, components, dependencies, connections)
+   - Read docker-compose service labels for api (dev command, build config)
    - Determine target: "staging" → resolve to deployment_target: trafficure-staging
 
 2. AUTHORIZE
@@ -450,14 +450,14 @@ Putting it all together, here's what happens when a developer runs `dx dev api -
    - If production: check explicit grant, require --readonly, prompt for confirmation
 
 3. RESOLVE DEPENDENCIES
-   For each dependency in dx.yaml:
+   For each dependency in docker-compose.yaml:
      - Look up the equivalent in the staging target
      - postgres → find postgres workload in trafficure-staging
        (or: find the external managed DB connection string from tier overlay)
      - redis → same
 
 4. RESOLVE CONNECTIONS
-   For each connection in dx.yaml:
+   For each connection in docker-compose.yaml:
      - auth → find auth module's api component workload in trafficure-staging
      - analytics → find analytics module's api component workload in trafficure-staging
      - If a connected module isn't running in the target → warn, use local_default or skip if optional
@@ -469,7 +469,7 @@ Putting it all together, here's what happens when a developer runs `dx dev api -
      - Verify tunnel is healthy
 
 6. COMPUTE ENV VARS
-   Layer 1: dx.yaml defaults (local URLs)
+   Layer 1: docker-compose.yaml defaults (local URLs)
    Layer 2: .dx/tiers/staging.yaml overrides
    Layer 3: Connection context overrides (tunneled localhost ports)
    Layer 4: Any explicit --env flags
@@ -635,7 +635,7 @@ The new things are:
 
 | Concept | What it is | Where it lives |
 |---|---|---|
-| `connections` block in dx.yaml | Declares which other modules this module talks to | Build Plane (source code) |
+| `connections` block in docker-compose.yaml | Declares which other modules this module talks to | Build Plane (source code) |
 | Connection profiles | Named, reusable connection configurations | Build Plane (`.dx/profiles/`, checked into git) |
 | `dx connect` command | Bare tunnel manager | CLI tool |
 | `dx dev --connect-to` | Hybrid dev with remote deps | CLI tool, uses above |

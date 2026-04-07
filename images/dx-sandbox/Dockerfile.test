@@ -1,0 +1,26 @@
+# Minimal test image — just ttyd + openvscode-server
+FROM ubuntu:24.04
+
+ARG TARGETARCH
+ARG OPENVSCODE_VERSION=1.109.5
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates bash && rm -rf /var/lib/apt/lists/*
+
+# ttyd
+RUN if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
+      curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64" -o /usr/local/bin/ttyd; \
+    else \
+      curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64" -o /usr/local/bin/ttyd; \
+    fi && chmod +x /usr/local/bin/ttyd
+
+# openvscode-server
+RUN if [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then ARCH="arm64"; else ARCH="x64"; fi && \
+    curl -fsSL "https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v${OPENVSCODE_VERSION}/openvscode-server-v${OPENVSCODE_VERSION}-linux-${ARCH}.tar.gz" \
+      | tar xz -C /opt && \
+    ln -s "/opt/openvscode-server-v${OPENVSCODE_VERSION}-linux-${ARCH}/bin/openvscode-server" /usr/local/bin/openvscode-server
+
+COPY entrypoint.sh /usr/local/bin/dx-entrypoint.sh
+RUN chmod +x /usr/local/bin/dx-entrypoint.sh
+
+EXPOSE 8080 8081
+CMD ["/usr/local/bin/dx-entrypoint.sh"]

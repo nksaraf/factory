@@ -4,8 +4,8 @@
 # Uses catalog.* labels to declare APIs, ownership, documentation,
 # named ports, and component types for the Software Catalog.
 #
-# This file is equivalent to our dx.yaml and catalog-info.yaml —
-# all three formats parse into the same CatalogSystem.
+# This is the canonical project definition — docker-compose is the single
+# source of truth, parsed into a CatalogSystem for the Software Catalog.
 
 services:
   # ─── Components (things we build) ────────────────────────────
@@ -15,12 +15,15 @@ services:
     platform: linux/amd64
     build:
       context: ./
-      dockerfile: ./api/Dockerfile
+      dockerfile: ./api-server/Dockerfile
       args:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     ports:
-      - "${INFRA_FACTORY_PORT:-8181}:3000"
+      - "${INFRA_FACTORY_PORT:-4100}:4100"
+      - "${INFRA_GATEWAY_PROXY_PORT:-9090}:9090"
     depends_on:
       infra-postgres:
         condition: service_healthy
@@ -29,10 +32,19 @@ services:
     volumes:
       - ./infra/factory/application.yml:/app/config/application.yml:ro
     environment:
-      FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      PORT: 4100
+      FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+      DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
+      LOKI_URL: ${LOKI_URL:-http://infra-loki:3100}
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/factory/openapi').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://localhost:4100/api/v1/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,8 +54,8 @@ services:
       catalog.owner: platform
       catalog.tags: "api,rest,elysia"
       catalog.lifecycle: production
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      catalog.port.4100.name: http
+      catalog.port.4100.protocol: http
       catalog.api.provides: "factory-api"
       catalog.api.type: openapi
       catalog.api.consumes: "auth-api"
@@ -61,7 +73,7 @@ services:
       - "${INFRA_POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -77,6 +89,34 @@ services:
       catalog.port.5432.name: postgres
       catalog.port.5432.protocol: tcp
 
+  infra-spicedb:
+    image: authzed/spicedb:latest
+    command: serve
+    restart: unless-stopped
+    ports:
+      - "${INFRA_SPICEDB_PORT:-50051}:50051"
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/spicedb?sslmode=disable
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      catalog.kind: Resource
+      catalog.description: "SpiceDB — Zanzibar-style authorization (ReBAC)"
+      catalog.owner: platform
+      catalog.type: auth-provider
+      catalog.tags: "authz,spicedb,rebac"
+      catalog.port.50051.name: grpc
+      catalog.port.50051.protocol: grpc
+
   infra-auth:
     image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
     platform: linux/amd64
@@ -89,10 +129,18 @@ services:
     volumes:
       - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
     environment:
-      AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
+      AUTH_SPICEDB_ENABLED: "true"
+      AUTH_SPICEDB_ENDPOINT: infra-spicedb:50051
+      AUTH_SPICEDB_TOKEN: ${SPICEDB_PRESHARED_KEY:-dev-key}
+      AUTH_SPICEDB_INSECURE: "true"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/v1/auth/reference').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -112,7 +160,7 @@ services:
   infra-gateway:
     image: apache/apisix:3.11.0-debian
     ports:
-      - "${INFRA_GATEWAY_PORT:-8005}:8005"
+      - "${INFRA_GATEWAY_PORT:-9000}:9000"
     environment:
       CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY}
     volumes:
@@ -120,7 +168,7 @@ services:
       - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -130,8 +178,8 @@ services:
       catalog.owner: platform
       catalog.type: gateway
       catalog.tags: "gateway,apisix,routing"
-      catalog.port.8005.name: http
-      catalog.port.8005.protocol: http
+      catalog.port.9000.name: http
+      catalog.port.9000.protocol: http
 
   infra-reverse-proxy:
     image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}
@@ -149,8 +197,7 @@ services:
       - --tracing=true
       - --tracing.otlp=true
       - --tracing.otlp.http=true
-      - --tracing.otlp.http.endpoint=http://infra-clickstack-otel:4318/v1/traces
-      - --tracing.otlp.http.headers.authorization=${CLICKSTACK_API_KEY}
+      - --tracing.otlp.http.endpoint=http://infra-otel-collector:4318/v1/traces
       - --tracing.serviceName=infra-reverse-proxy
     ports:
       - "${INFRA_REVERSE_PROXY_PORT:-3001}:80"
@@ -230,7 +277,60 @@ services:
       timeout: 5s
       retries: 5
 
+  # ---------------------------------------------------------------------------
+  # Loki — log aggregation backend
+  # ---------------------------------------------------------------------------
+  infra-loki:
+    image: grafana/loki:3.4.2
+    command: -config.file=/etc/loki/config.yaml
+    ports:
+      - "${INFRA_LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki-data:/loki
+      - ./infra/loki/config.yaml:/etc/loki/config.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      dx.role: infra
+      catalog.description: "Log aggregation (Loki)"
+      catalog.owner: platform
+      catalog.type: observability
+      catalog.tags: "loki,logs,observability"
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector — exports logs to Loki, traces/metrics to debug
+  # ---------------------------------------------------------------------------
+  infra-otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    user: "0:0"
+    depends_on:
+      infra-loki:
+        condition: service_healthy
+    ports:
+      - "${INFRA_OTEL_COLLECTOR_PORT:-4318}:4318"
+      - "4317:4317"
+      - "55679:55679"
+    volumes:
+      - ./infra/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    labels:
+      catalog.description: "OpenTelemetry Collector — exports logs to Loki"
+      catalog.owner: platform
+      catalog.type: observability
+      catalog.tags: "otel,tracing,observability"
+
 volumes:
   postgres-data:
   powersync-mongo-data:
   redis-data:
+  loki-data:

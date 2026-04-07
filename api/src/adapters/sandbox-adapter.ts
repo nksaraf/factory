@@ -1,4 +1,8 @@
+export type SandboxType = "docker" | "firecracker" | "noop";
+
 export interface SandboxAdapter {
+  readonly type: string;
+
   provision(
     sandbox: {
       deploymentTargetId: string

@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { generateTraefikYaml, KINDS_WITH_TRAEFIK_ROUTES, type TraefikRoute } from "../modules/infra/traefik-sync";
 
 describe("generateTraefikYaml", () => {
+  // v2: sandbox → workspace
   const baseRoute: TraefikRoute = {
     routeId: "rte_abc123",
-    kind: "sandbox",
-    domain: "my-sandbox.preview.dx.dev",
+    kind: "workspace",
+    domain: "my-workspace.preview.dx.dev",
     pathPrefix: null,
-    targetService: "sandbox-svc",
+    targetService: "workspace-svc",
     targetPort: 3000,
     protocol: "http",
     tlsMode: "auto",
@@ -25,17 +26,17 @@ describe("generateTraefikYaml", () => {
   it("generates router and service for a single route", () => {
     const yaml = generateTraefikYaml([baseRoute]);
     expect(yaml).toContain("rte_abc123:");
-    expect(yaml).toContain('rule: "Host(`my-sandbox.preview.dx.dev`)"');
+    expect(yaml).toContain('rule: "Host(`my-workspace.preview.dx.dev`)"');
     expect(yaml).toContain("service: rte_abc123");
     expect(yaml).toContain("priority: 100");
-    expect(yaml).toContain('url: "http://sandbox-svc:3000"');
+    expect(yaml).toContain('url: "http://workspace-svc:3000"');
     expect(yaml).toContain("tls: {}");
   });
 
   it("includes path prefix in match rule", () => {
     const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api/v1" };
     const yaml = generateTraefikYaml([r]);
-    expect(yaml).toContain('Host(`my-sandbox.preview.dx.dev`) && PathPrefix(`/api/v1`)');
+    expect(yaml).toContain('Host(`my-workspace.preview.dx.dev`) && PathPrefix(`/api/v1`)');
   });
 
   it("skips tls when tlsMode is none", () => {
@@ -47,7 +48,7 @@ describe("generateTraefikYaml", () => {
   it("defaults to port 80 when no targetPort", () => {
     const r: TraefikRoute = { ...baseRoute, targetPort: null };
     const yaml = generateTraefikYaml([r]);
-    expect(yaml).toContain('url: "http://sandbox-svc:80"');
+    expect(yaml).toContain('url: "http://workspace-svc:80"');
   });
 
   it("generates multiple routes", () => {

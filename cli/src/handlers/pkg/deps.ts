@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { capture } from "../../lib/subprocess.js";
 import {
   fromCwd,
-  type WorkspaceContext,
+  type MonorepoTopology,
   type WorkspacePackage,
   type NpmManifest,
   type PythonManifest,
@@ -44,7 +44,7 @@ interface DepEdge {
 }
 
 function buildWorkspaceGraph(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): { adjacency: Map<string, string[]>; edges: DepEdge[] } {
   const pkgNames = new Set(ws.packages.map((p) => p.name));
   const adjacency = new Map<string, string[]>();
@@ -101,7 +101,7 @@ function buildWorkspaceGraph(
 
 function renderTree(
   adjacency: Map<string, string[]>,
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
 ): string {
   const lines: string[] = [];
   const roots = [...adjacency.keys()].filter((name) => {
@@ -151,7 +151,7 @@ function renderTree(
 // ---------------------------------------------------------------------------
 
 async function whyPackage(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   target: string,
   opts: DepsOptions,
 ): Promise<void> {
@@ -187,7 +187,7 @@ async function whyPackage(
 // --external
 // ---------------------------------------------------------------------------
 
-function showExternalDeps(ws: WorkspaceContext, opts: DepsOptions): void {
+function showExternalDeps(ws: MonorepoTopology, opts: DepsOptions): void {
   const pkgNames = new Set(ws.packages.map((p) => p.name));
   const rows: string[][] = [];
 

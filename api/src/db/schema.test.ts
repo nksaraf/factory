@@ -30,7 +30,7 @@ describe("factory drizzle schemas", () => {
     expect(keys).toContain("factory_infra.region");
     expect(keys).toContain("factory_infra.datacenter");
     expect(keys).toContain("factory_infra.host");
-    expect(keys).toContain("factory_infra.proxmox_cluster");
+    expect(keys).toContain("factory_infra.vm_cluster");
     expect(keys).toContain("factory_infra.kube_node");
     expect(keys).toContain("factory_infra.subnet");
     expect(keys).toContain("factory_infra.ip_address");

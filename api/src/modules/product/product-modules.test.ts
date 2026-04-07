@@ -13,13 +13,13 @@ describe("product plane (mounted with health)", () => {
     await ctx.client.close();
   });
 
-  it("GET /api/v1/factory/product/modules returns list payload", async () => {
+  it("GET /api/v1/factory/product/systems returns list payload", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/factory/product/modules")
+      new Request("http://localhost/api/v1/factory/product/systems")
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: unknown[]; total: number };
+    const body = (await res.json()) as { data: unknown[]; meta: { total: number } };
     expect(Array.isArray(body.data)).toBe(true);
-    expect(body.total).toBe(0);
+    expect(body.meta.total).toBe(0);
   });
 });

@@ -1,14 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { generateResources } from "../reconciler/resource-generator";
 import type {
-  ComponentSpec,
   Workload,
+  ComponentSpec,
   DeploymentTarget,
 } from "@smp/factory-shared/types";
 
+// K8s resource shape interfaces for typed spec access
+interface K8sContainer {
+  name: string;
+  image: string;
+  ports?: Array<{ name: string; containerPort: number }>;
+  resources: { limits: { cpu: string; memory: string } };
+  livenessProbe?: { httpGet: { path: string; port: number } };
+  readinessProbe?: { httpGet: { path: string; port: number } };
+}
+
+interface K8sDeploymentSpec {
+  replicas: number;
+  template: { spec: { containers: K8sContainer[] } };
+}
+
+// The generator uses v1 flat types from @smp/factory-shared/types.
+// These helpers build data matching that shape (flat fields, not nested spec).
+
 function makeWorkload(overrides?: Partial<Workload>): Workload {
   return {
-    workloadId: "wl_test1",
+    workloadId: "wkl_test1",
     deploymentTargetId: "dt_test1",
     moduleVersionId: "mv_test1",
     componentId: "cmp_test1",
@@ -16,14 +34,11 @@ function makeWorkload(overrides?: Partial<Workload>): Workload {
     replicas: 2,
     envOverrides: {},
     resourceOverrides: {},
-    status: "provisioning",
     desiredImage: "registry.dx.dev/api:v1.0.0",
-    desiredArtifactUri: null,
-    actualImage: null,
+    status: "provisioning",
     driftDetected: false,
-    lastReconciledAt: null,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     ...overrides,
   };
 }
@@ -35,6 +50,7 @@ function makeComponent(overrides?: Partial<ComponentSpec>): ComponentSpec {
     name: "api-server",
     slug: "api-server",
     kind: "server",
+    entityKind: "Component",
     ports: [{ name: "http", port: 8080, protocol: "http" }],
     healthcheck: { path: "/health", portName: "http", protocol: "http" },
     isPublic: true,
@@ -43,7 +59,7 @@ function makeComponent(overrides?: Partial<ComponentSpec>): ComponentSpec {
     defaultReplicas: 2,
     defaultCpu: "500m",
     defaultMemory: "512Mi",
-    createdAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date().toISOString(),
     ...overrides,
   };
 }
@@ -54,20 +70,14 @@ function makeTarget(overrides?: Partial<DeploymentTarget>): DeploymentTarget {
     name: "staging-01",
     kind: "staging",
     runtime: "kubernetes",
-    siteId: null,
     clusterId: "cls_test1",
-    hostId: null,
-    vmId: null,
     namespace: "staging-01",
-    createdBy: "user1",
+    createdBy: "test",
     trigger: "manual",
-    ttl: null,
-    expiresAt: null,
     tierPolicies: {},
     status: "active",
     labels: {},
-    createdAt: "2024-01-01T00:00:00Z",
-    destroyedAt: null,
+    createdAt: new Date().toISOString(),
     ...overrides,
   };
 }
@@ -78,7 +88,7 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent(),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     expect(resources).toHaveLength(4);
@@ -95,7 +105,7 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent({ ports: [], isPublic: false, healthcheck: null }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     expect(resources).toHaveLength(2);
@@ -107,7 +117,7 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent({ kind: "scheduled", ports: [], healthcheck: null, isPublic: false }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     expect(resources).toHaveLength(2);
@@ -119,19 +129,19 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent({ kind: "task", ports: [], healthcheck: null, isPublic: false }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     expect(resources).toHaveLength(2);
     expect(resources.map((r) => r.kind)).toEqual(["Namespace", "Job"]);
   });
 
-  it("generates Namespace + StatefulSet for statefulset component", () => {
+  it("generates Namespace + StatefulSet for stateful component", () => {
     const resources = generateResources(
       makeWorkload(),
-      makeComponent({ kind: "server", stateful: true }),
+      makeComponent({ stateful: true }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     expect(resources).toHaveLength(4);
@@ -143,12 +153,12 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent({ kind: "database" }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
     expect(resources[1].kind).toBe("StatefulSet");
   });
 
-  it("applies dx.dev labels including module-version", () => {
+  it("applies dx.dev labels including module and version", () => {
     const resources = generateResources(
       makeWorkload(),
       makeComponent(),
@@ -158,9 +168,7 @@ describe("generateResources", () => {
 
     const deployment = resources[1];
     expect(deployment.metadata.labels?.["dx.dev/module"]).toBe("billing");
-    expect(deployment.metadata.labels?.["dx.dev/module-version"]).toBe(
-      "mv_test1"
-    );
+    expect(deployment.metadata.labels?.["dx.dev/module-version"]).toBe("mv_test1");
     expect(deployment.metadata.labels?.["dx.dev/managed-by"]).toBe(
       "factory-reconciler"
     );
@@ -171,11 +179,11 @@ describe("generateResources", () => {
       makeWorkload({ resourceOverrides: { cpu: "1000m", memory: "1Gi" } }),
       makeComponent(),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     const deployment = resources[1];
-    const container = (deployment.spec as any).template.spec.containers[0];
+    const container = (deployment.spec as unknown as K8sDeploymentSpec).template.spec.containers[0];
     expect(container.resources.limits.cpu).toBe("1000m");
     expect(container.resources.limits.memory).toBe("1Gi");
   });
@@ -185,25 +193,27 @@ describe("generateResources", () => {
       makeWorkload({ replicas: 5 }),
       makeComponent(),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     const deployment = resources[1];
-    expect((deployment.spec as any).replicas).toBe(5);
+    expect((deployment.spec as unknown as K8sDeploymentSpec).replicas).toBe(5);
   });
 
   it("sets health check probe from component", () => {
     const resources = generateResources(
       makeWorkload(),
-      makeComponent({ healthcheck: { path: "/ready", portName: "http", protocol: "http" } }),
+      makeComponent({
+        healthcheck: { path: "/ready", portName: "http", protocol: "http" },
+      }),
       makeTarget(),
-      "my-module"
+      "my-system"
     );
 
     const deployment = resources[1];
-    const container = (deployment.spec as any).template.spec.containers[0];
-    expect(container.livenessProbe.httpGet.path).toBe("/ready");
-    expect(container.readinessProbe.httpGet.path).toBe("/ready");
+    const container = (deployment.spec as unknown as K8sDeploymentSpec).template.spec.containers[0];
+    expect(container.livenessProbe!.httpGet.path).toBe("/ready");
+    expect(container.readinessProbe!.httpGet.path).toBe("/ready");
   });
 
   it("uses target namespace for all resources", () => {
@@ -211,7 +221,7 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent(),
       makeTarget({ namespace: "custom-ns" }),
-      "my-module"
+      "my-system"
     );
 
     const ns = resources[0];
@@ -227,7 +237,7 @@ describe("generateResources", () => {
       makeWorkload(),
       makeComponent(),
       makeTarget({ namespace: null }),
-      "my-module"
+      "my-system"
     );
 
     expect(resources[0].metadata.name).toBe("staging-01");

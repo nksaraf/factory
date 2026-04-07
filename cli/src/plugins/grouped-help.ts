@@ -14,35 +14,47 @@ import { examplesFor } from "./examples-plugin.js";
 
 const CATEGORIES: [category: string, commands: string[]][] = [
   [
-    "Getting Started",
-    ["status", "catalog", "auth", "config", "whoami", "init", "factory"],
+    "Setup",
+    ["install", "auth", "self-update", "whoami"],
+  ],
+  [
+    "Project Lifecycle",
+    ["init", "upgrade", "sync", "doctor"],
   ],
   [
     "Development",
-    ["dev", "build", "test", "logs", "trace", "metrics"],
+    ["dev", "up", "down", "status", "logs"],
   ],
   [
-    "Source Control",
-    ["commit", "branch", "pr", "push", "ship", "worktree", "git"],
+    "Quality",
+    ["check", "lint", "typecheck", "test", "format", "generate"],
+  ],
+  [
+    "Database",
+    ["db"],
+  ],
+  [
+    "Deploy",
+    ["env", "deploy", "release", "secret", "preview"],
+  ],
+  [
+    "Infrastructure",
+    ["tunnel", "connect", "infra", "cluster", "kube", "workspace", "site"],
   ],
   [
     "Platform",
     [
-      "customer", "tenant", "module", "entitlement", "plan",
-      "site", "domain", "route", "release", "deploy",
+      "add", "agent", "catalog", "customer", "tenant", "module",
+      "entitlement", "plan", "domain", "route", "fleet",
+      "work", "alert", "artifact", "ops", "pkg", "build",
     ],
   ],
   [
-    "Infrastructure",
+    "Other",
     [
-      "sandbox", "infra", "kube", "db", "env", "secret",
-      "tunnel", "connect",
-    ],
-  ],
-  [
-    "Workflow",
-    [
-      "work", "agent", "alert", "artifact", "ops", "pkg", "install",
+      "config", "context", "factory", "docker", "exec",
+      "git", "ci", "metrics", "trace", "run", "script",
+      "setup", "ssh", "tui",
     ],
   ],
 ];

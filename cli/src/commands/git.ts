@@ -351,23 +351,14 @@ export function gitCommand(app: DxBase) {
                   exitWithError(f, "No repos found");
                   return;
                 }
-                const { search } = await import("@inquirer/prompts");
-                const choices = repos.map((r) => ({
-                  name: `${r.name} (${r.kind ?? "repo"})`,
-                  value: r.gitUrl ?? "",
-                  description: r.gitUrl ?? undefined,
-                }));
-                gitUrl = await search({
+                const { filter } = await import("@crustjs/prompts");
+                gitUrl = await filter({
                   message: "Search for a repo to clone",
-                  source: (input) => {
-                    if (!input) return choices;
-                    const term = input.toLowerCase();
-                    return choices.filter(
-                      (c) =>
-                        c.name.toLowerCase().includes(term) ||
-                        (c.description?.toLowerCase().includes(term) ?? false),
-                    );
-                  },
+                  choices: repos.map((r) => ({
+                    label: `${r.name} (${r.kind ?? "repo"})`,
+                    value: r.gitUrl ?? "",
+                    hint: r.gitUrl ?? undefined,
+                  })),
                 });
               } else {
                 const res = await api.api.v1.factory.build.repos[

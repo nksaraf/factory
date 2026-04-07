@@ -1,13 +1,13 @@
 import type { DxBase } from "../dx-root.js";
 
-import { getFactoryClient } from "../client.js";
+import { getFactoryRestClient } from "../client.js";
+import type { FactoryClient } from "../lib/api-client.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { getCurrentBranch } from "../lib/git.js";
 import { gitPushAuto } from "../lib/git-push.js";
 import { resolveRepoContext } from "../lib/repo-context.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
-  apiCall,
   tableOrJson,
   actionResult,
   detailView,
@@ -25,9 +25,8 @@ setExamples("pr", [
   "$ dx pr merge 42               Merge a PR",
 ]);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getApi(): Promise<any> {
-  return getFactoryClient();
+function pullsPath(ctx: { providerId: string; repoSlug: string }): string {
+  return `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`;
 }
 
 /**
@@ -36,24 +35,30 @@ async function getApi(): Promise<any> {
  */
 async function detectPrNumber(
   flags: Record<string, unknown>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  api: any,
+  rest: FactoryClient,
   ctx: { providerId: string; repoSlug: string },
   cwd: string,
 ): Promise<number> {
   const f = toDxFlags(flags);
   const branch = getCurrentBranch(cwd);
-  const result = await apiCall(flags, () =>
-    api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.get({
-      query: { state: "open" },
-    }),
+  const result = await rest.request<{ data?: Record<string, unknown>[] }>(
+    "GET",
+    `${pullsPath(ctx)}?state=open`
   );
-  const pulls = Array.isArray((result as any)?.data) ? (result as any).data : Array.isArray(result) ? result : [];
-  const match = pulls.find((pr: any) => pr.head === branch);
+  const pulls = Array.isArray(result?.data) ? result.data : [];
+  const match = pulls.find((pr) => pr.head === branch);
   if (!match) {
     exitWithError(f, `No open PR found for branch "${branch}"`);
   }
-  return match.number;
+  return match.number as number;
+}
+
+function extractAuthorLogin(pr: Record<string, unknown>): string {
+  const author = pr.author;
+  if (author && typeof author === "object" && "login" in author) {
+    return String((author as Record<string, unknown>).login ?? "");
+  }
+  return "";
 }
 
 export function prCommand(app: DxBase) {
@@ -76,20 +81,21 @@ export function prCommand(app: DxBase) {
           try {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
-            const api = await getApi();
-            const result = await apiCall(flags, () =>
-              api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.get({
-                query: { state: (flags.status as string) ?? "open" },
-              }),
+            const rest = await getFactoryRestClient();
+            const state = (flags.status as string) ?? "open";
+            const result = await rest.request<{ data?: Record<string, unknown>[] }>(
+              "GET",
+              `${pullsPath(ctx)}?state=${state}`
             );
+            const data = Array.isArray(result?.data) ? result.data : [];
             tableOrJson(
               flags,
-              result,
+              { data },
               ["#", "Title", "Author", "Status", "Branch"],
               (pr) => [
                 String(pr.number ?? ""),
                 styleBold(String(pr.title ?? "")),
-                String((pr.author as any)?.login ?? ""),
+                extractAuthorLogin(pr),
                 colorStatus(String(pr.state ?? "")),
                 styleMuted(String(pr.head ?? "")),
               ],
@@ -118,18 +124,20 @@ export function prCommand(app: DxBase) {
           try {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
-            const api = await getApi();
-            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
-            const result = await apiCall(flags, () =>
-              api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].get(),
+            const rest = await getFactoryRestClient();
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, rest, ctx, cwd);
+            const result = await rest.request<{ data?: Record<string, unknown> }>(
+              "GET",
+              `${pullsPath(ctx)}/${prNumber}`
             );
-            detailView(flags, result, [
+            const pr = result?.data ?? result;
+            detailView(flags, { data: pr }, [
               ["Number", (r) => String(r.number ?? "")],
               ["Title", (r) => styleBold(String(r.title ?? ""))],
               ["State", (r) => colorStatus(String(r.state ?? ""))],
               ["Draft", (r) => String(r.draft ?? false)],
               ["Branch", (r) => `${styleMuted(String(r.head ?? ""))} -> ${String(r.base ?? "")}`],
-              ["Author", (r) => String((r.author as any)?.login ?? "")],
+              ["Author", (r) => extractAuthorLogin(r)],
               ["URL", (r) => styleMuted(String(r.url ?? r.htmlUrl ?? ""))],
               ["Body", (r) => String(r.body ?? "")],
             ]);
@@ -178,26 +186,27 @@ export function prCommand(app: DxBase) {
             // Push first
             gitPushAuto(cwd);
 
-            const api = await getApi();
-            const result = await apiCall(flags, () =>
-              api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls.post({
+            const rest = await getFactoryRestClient();
+            const result = await rest.request<{ data?: Record<string, unknown> }>(
+              "POST",
+              pullsPath(ctx),
+              {
                 title,
                 body: (flags.body as string) ?? "",
                 head,
                 base,
                 draft: (flags.draft as boolean) ?? false,
-              }),
+              },
             );
+            const pr = result?.data ?? (result as Record<string, unknown>);
 
             if (f.json) {
-              const pr = (result as any)?.data ?? result;
               console.log(JSON.stringify({
                 success: true,
                 number: pr.number,
                 url: pr.url ?? pr.htmlUrl ?? "",
               }, null, 2));
             } else {
-              const pr = (result as any)?.data ?? result;
               console.log(styleSuccess(`PR #${pr.number} created: ${pr.url ?? pr.htmlUrl ?? ""}`));
             }
           } catch (err) {
@@ -222,14 +231,16 @@ export function prCommand(app: DxBase) {
           try {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
-            const api = await getApi();
-            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
-            const result = await apiCall(flags, () =>
-              api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].checks.get(),
+            const rest = await getFactoryRestClient();
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, rest, ctx, cwd);
+            const result = await rest.request<{ data?: Record<string, unknown>[] }>(
+              "GET",
+              `${pullsPath(ctx)}/${prNumber}/checks`
             );
+            const data = Array.isArray(result?.data) ? result.data : [];
             tableOrJson(
               flags,
-              result,
+              { data },
               ["Name", "Status", "Conclusion", "URL"],
               (check) => [
                 styleBold(String(check.name ?? "")),
@@ -276,17 +287,17 @@ export function prCommand(app: DxBase) {
           try {
             const cwd = process.cwd();
             const ctx = await resolveRepoContext(cwd);
-            const api = await getApi();
-            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, api, ctx, cwd);
+            const rest = await getFactoryRestClient();
+            const prNumber = (args.number as number | undefined) || await detectPrNumber(flags, rest, ctx, cwd);
 
             let method = "squash";
             if (flags.rebase) method = "rebase";
             else if (flags.merge) method = "merge";
 
-            const result = await apiCall(flags, () =>
-              api.api.v1.factory.build["git-host-provider"][ctx.providerId].repos[ctx.repoSlug].pulls[prNumber].merge.post({
-                method,
-              }),
+            const result = await rest.request<Record<string, unknown>>(
+              "POST",
+              `${pullsPath(ctx)}/${prNumber}/merge`,
+              { method },
             );
             actionResult(flags, result, styleSuccess(`PR #${prNumber} merged (${method}).`));
           } catch (err) {

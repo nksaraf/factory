@@ -2,6 +2,8 @@ import { logger } from "../logger"
 import type { SandboxAdapter } from "./sandbox-adapter"
 
 export class NoopSandboxAdapter implements SandboxAdapter {
+  readonly type = "noop";
+
   async provision(
     sandbox: { deploymentTargetId: string; name: string; namespace?: string },
     opts: {

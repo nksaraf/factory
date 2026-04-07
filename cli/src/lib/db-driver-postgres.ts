@@ -340,6 +340,51 @@ const postgresDriver: DbDriver = {
     );
     return Boolean(rows[0]?.terminated);
   },
+
+  async backup(url: string, outputPath: string): Promise<void> {
+    const result = spawnSync("pg_dump", [
+      "--format=custom", "--file", outputPath, url,
+    ], { stdio: ["ignore", "pipe", "pipe"] });
+    if (result.error) {
+      if ((result.error as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new Error(
+          "pg_dump not found. Install PostgreSQL client tools:\n" +
+            "  macOS: brew install libpq\n" +
+            "  Ubuntu/Debian: sudo apt install postgresql-client\n" +
+            "  Fedora/RHEL: sudo dnf install postgresql"
+        );
+      }
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      const stderr = result.stderr?.toString().trim() ?? "";
+      throw new Error(`pg_dump failed (exit ${result.status}): ${stderr}`);
+    }
+  },
+
+  async restore(url: string, inputPath: string): Promise<void> {
+    const result = spawnSync("pg_restore", [
+      "--clean", "--if-exists", "--dbname", url, inputPath,
+    ], { stdio: ["ignore", "pipe", "pipe"] });
+    if (result.error) {
+      if ((result.error as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new Error(
+          "pg_restore not found. Install PostgreSQL client tools:\n" +
+            "  macOS: brew install libpq\n" +
+            "  Ubuntu/Debian: sudo apt install postgresql-client\n" +
+            "  Fedora/RHEL: sudo dnf install postgresql"
+        );
+      }
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      const stderr = result.stderr?.toString().trim() ?? "";
+      // pg_restore exits 1 for warnings (e.g. "role does not exist") — only fail on real errors
+      if ((result.status ?? 0) > 1 || /\bERROR\b/.test(stderr)) {
+        throw new Error(`pg_restore failed (exit ${result.status}): ${stderr}`);
+      }
+    }
+  },
 };
 
 function rowToTableInfo(r: Row): TableInfo {

@@ -1,0 +1,12 @@
+{
+  "name": "@lepton/my-product",
+  "private": true,
+  "packageManager": "pnpm@9.1.0",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.5.0",
+    "drizzle-kit": "^0.30.0"
+  }
+}

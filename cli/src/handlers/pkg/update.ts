@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { exec, capture } from "../../lib/subprocess.js";
 import {
   fromCwd,
-  type WorkspaceContext,
+  type MonorepoTopology,
 } from "../../lib/workspace-context.js";
 import { printTable } from "../../output.js";
 import { styleSuccess, styleWarn, styleMuted } from "../../cli-style.js";
@@ -42,7 +42,7 @@ interface OutdatedEntry {
 }
 
 async function updateNpm(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   opts: UpdateOptions,
 ): Promise<void> {
   if (!existsSync(join(ws.root, "pnpm-workspace.yaml"))) return;
@@ -143,13 +143,13 @@ async function updateNpm(
 
       // Interactive update if not --latest and not dry-run
       if (rows.length > 0 && !opts.latest) {
-        const { checkbox } = await import("@inquirer/prompts");
+        const { multiselect } = await import("@crustjs/prompts");
         const choices = rows.map((r) => ({
-          name: `${r[0]} ${styleMuted(r[1])} → ${styleSuccess(r[3])}`,
+          label: `${r[0]} ${styleMuted(r[1])} → ${styleSuccess(r[3])}`,
           value: r[0],
         }));
 
-        const selected = await checkbox({
+        const selected = await multiselect({
           message: "Select dependencies to update:",
           choices,
         });
@@ -177,7 +177,7 @@ async function updateNpm(
 // ---------------------------------------------------------------------------
 
 async function updatePython(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   opts: UpdateOptions,
 ): Promise<void> {
   const pythonPkgs = ws.packages.filter((p) => p.type === "python");
@@ -214,7 +214,7 @@ async function updatePython(
 // ---------------------------------------------------------------------------
 
 async function updateJava(
-  ws: WorkspaceContext,
+  ws: MonorepoTopology,
   opts: UpdateOptions,
 ): Promise<void> {
   const javaPkgs = ws.packages.filter((p) => p.type === "java");

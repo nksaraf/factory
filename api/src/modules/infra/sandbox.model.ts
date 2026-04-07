@@ -25,8 +25,10 @@ export const SandboxModel = {
     devcontainerConfig: t.Optional(t.Record(t.String(), t.Unknown())),
     devcontainerImage: t.Optional(t.String()),
     gpu: t.Optional(t.Boolean()),
+    clusterId: t.Optional(t.String()),
   }),
   listSandboxesQuery: t.Object({
+    slug: t.Optional(t.String()),
     ownerId: t.Optional(t.String()),
     ownerType: t.Optional(t.String()),
     runtimeType: t.Optional(t.String()),

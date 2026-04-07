@@ -6,11 +6,16 @@ import { toDxFlags } from "./dx-flags.js";
 import { stubRun } from "./stub-run.js";
 
 setExamples("factory", [
-  "$ dx factory status                Factory API and service status",
-  "$ dx factory health                Deep health check",
+  "$ dx factory login                 Sign in to Factory",
+  "$ dx factory login --ci            Non-interactive sign-in for CI",
+  "$ dx factory logout                Sign out",
+  "$ dx factory status                Auth + API status",
+  "$ dx factory ops                   View all background operation status",
+  "$ dx factory ops proxmox           Detail view for a specific operation",
+  "$ dx factory ops proxmox --trigger Manually trigger an operation run",
+  "$ dx factory sync hosts            Re-fetch host inventory",
+  "$ dx factory hosts list            List managed hosts",
   "$ dx factory connect <url>         Point CLI at a factory instance",
-  "$ dx factory config                View factory configuration",
-  "$ dx factory auth login            Sign in to factory",
   "$ dx factory install               Install the factory platform",
 ]);
 
@@ -68,49 +73,44 @@ export function factoryCommand(app: DxBase) {
         })
     )
 
-    // ── auth ──
-    .command("auth", (c) =>
+    // ── login (direct — replaces dx auth login) ──
+    .command("login", (c) =>
       c
-        .meta({ description: "Factory authentication" })
-        .command("login", (sub) =>
-          sub
-            .meta({ description: "Sign in with email and password" })
-            .flags({
-              email: {
-                type: "string",
-                short: "e",
-                description: "Account email",
-              },
-              password: {
-                type: "string",
-                description: "Password (visible in shell history; omit for a hidden TTY prompt)",
-              },
-            })
-            .run(async ({ flags }) => {
-              const f = toDxFlags(flags);
-              const { runAuthLogin } = await import("../handlers/auth-login.js");
-              await runAuthLogin(f, {
-                email: f.email as string | undefined,
-                password: f.password as string | undefined,
-              });
-            })
-        )
-        .command("logout", (sub) =>
-          sub
-            .meta({ description: "Sign out and remove local session" })
-            .run(async ({ flags }) => {
-              const { runAuthLogout } = await import("../handlers/auth-logout.js");
-              await runAuthLogout(toDxFlags(flags));
-            })
-        )
-        .command("whoami", (sub) =>
-          sub
-            .meta({ description: "Print the current signed-in user" })
-            .run(async ({ flags }) => {
-              const { runWhoami } = await import("../handlers/whoami.js");
-              await runWhoami(toDxFlags(flags));
-            })
-        )
+        .meta({ description: "Sign in to Factory (configure registries + SSH hosts)" })
+        .flags({
+          email: { type: "string", short: "e", description: "Account email" },
+          password: { type: "string", description: "Password (omit for hidden prompt)" },
+          ci: { type: "boolean", description: "Non-interactive mode for CI (uses env vars)" },
+        })
+        .run(async ({ flags }) => {
+          const f = toDxFlags(flags);
+          const { runAuthLogin } = await import("../handlers/auth-login.js");
+          await runAuthLogin(f, {
+            email: f.email as string | undefined,
+            password: f.password as string | undefined,
+            ci: !!flags.ci,
+          });
+        })
+    )
+
+    // ── logout (direct — replaces dx auth logout) ──
+    .command("logout", (c) =>
+      c
+        .meta({ description: "Sign out and remove local session" })
+        .run(async ({ flags }) => {
+          const { runAuthLogout } = await import("../handlers/auth-logout.js");
+          await runAuthLogout(toDxFlags(flags));
+        })
+    )
+
+    // ── whoami ──
+    .command("whoami", (c) =>
+      c
+        .meta({ description: "Print the current signed-in user" })
+        .run(async ({ flags }) => {
+          const { runWhoami } = await import("../handlers/whoami.js");
+          await runWhoami(toDxFlags(flags));
+        })
     )
 
     // ── install ──
@@ -206,11 +206,54 @@ export function factoryCommand(app: DxBase) {
         })
     )
 
+    // ── ops ──
+    .command("ops", (c) =>
+      c
+        .meta({ description: "View background operation status and trigger runs" })
+        .args([
+          {
+            name: "name",
+            type: "string",
+            description: "Operation name (e.g. reconciler, proxmox, identity)",
+          },
+        ])
+        .flags({
+          trigger: { type: "boolean", short: "t", description: "Trigger a manual run" },
+        })
+        .run(async ({ args, flags }) => {
+          const { runFactoryOps } = await import("../handlers/factory-ops.js");
+          await runFactoryOps(toDxFlags(flags), {
+            name: args.name as string | undefined,
+            trigger: !!flags.trigger,
+          });
+        })
+    )
+
     // ── logs ──
     .command("logs", (c) =>
       c
-        .meta({ description: "Factory platform logs" })
-        .run(stubRun)
+        .meta({ description: "Query factory platform logs" })
+        .flags({
+          op: { type: "string", description: "Filter by operation name (e.g. reconciler, proxmox)" },
+          run: { type: "string", description: "Filter by operation run ID" },
+          since: { type: "string", description: "Time window (e.g. 1h, 30m, 2d)" },
+          level: { type: "string", short: "l", description: "Log level filter (debug, info, warn, error)" },
+          grep: { type: "string", short: "g", description: "Text filter (regex)" },
+          follow: { type: "boolean", short: "f", description: "Stream logs in real-time" },
+          limit: { type: "number", short: "n", description: "Max entries to return (default 100)" },
+        })
+        .run(async ({ flags }) => {
+          const { runFactoryLogs } = await import("../handlers/factory-logs.js");
+          await runFactoryLogs(toDxFlags(flags), {
+            op: flags.op as string | undefined,
+            run: flags.run as string | undefined,
+            since: flags.since as string | undefined,
+            level: flags.level as string | undefined,
+            grep: flags.grep as string | undefined,
+            follow: !!flags.follow,
+            limit: flags.limit as number | undefined,
+          });
+        })
     )
 
     // ── events ──
@@ -218,5 +261,36 @@ export function factoryCommand(app: DxBase) {
       c
         .meta({ description: "Factory audit log and platform events" })
         .run(stubRun)
+    )
+
+    // ── sync ──
+    .command("sync", (c) =>
+      c
+        .meta({ description: "Sync factory state" })
+        .command("hosts", (sub) =>
+          sub
+            .meta({ description: "Re-fetch host inventory, update SSH config, clear stale host keys" })
+            .run(stubRun)
+        )
+    )
+
+    // ── hosts ──
+    .command("hosts", (c) =>
+      c
+        .meta({ description: "Factory host management" })
+        .command("list", (sub) =>
+          sub
+            .meta({ description: "List all managed hosts with status" })
+            .run(stubRun)
+        )
+        .command("update", (sub) =>
+          sub
+            .meta({ description: "Update host IP address" })
+            .args([{ name: "name", type: "string", description: "Host name" }])
+            .flags({
+              ip: { type: "string", description: "New IP address" },
+            })
+            .run(stubRun)
+        )
     );
 }

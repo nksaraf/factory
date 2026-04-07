@@ -21,7 +21,7 @@ describe("observabilityController", () => {
 
   it("GET /api/v1/factory/observability/logs with query params", async () => {
     const res = await app.handle(
-      new Request("http://localhost/api/v1/factory/observability/logs?module=core&level=error&limit=10")
+      new Request("http://localhost/api/v1/factory/observability/logs?system=core&level=error&limit=10")
     )
     expect(res.status).toBe(200)
     const body = await res.json()

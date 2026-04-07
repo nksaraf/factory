@@ -6,7 +6,7 @@
  */
 
 import { capture } from "../../lib/subprocess.js";
-import type { ToolchainCheck, ToolchainResult } from "@smp/factory-shared/install-types";
+import type { ToolchainCheck, ToolchainResult, InstallRole } from "@smp/factory-shared/install-types";
 
 type Platform = "darwin" | "linux" | "win32";
 
@@ -24,6 +24,10 @@ interface ToolDef {
   minVersion?: string;
   required: boolean;
   install?: InstallInstructions;
+  /** Commands to run after successful install (e.g. brew link for keg-only formulas). */
+  postInstall?: InstallInstructions;
+  /** Which roles need this tool. If omitted, applies to all roles. */
+  roles?: InstallRole[];
 }
 
 const WORKBENCH_TOOLS: ToolDef[] = [
@@ -34,6 +38,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     versionExtract: (stdout) => stdout.trim().replace(/^v/, ""),
     minVersion: "20",
     required: true,
+    roles: ["workbench"],
     install: {
       darwin: "brew install node",
       linux: "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs",
@@ -52,10 +57,15 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     },
     minVersion: "21",
     required: true,
+    roles: ["workbench"],
     install: {
       darwin: "brew install openjdk@21",
-      linux: "sudo apt-get install -y openjdk-21-jdk",
+      linux: "sudo apt-get update -qq && sudo apt-get install -y -qq openjdk-21-jdk",
       win32: "winget install EclipseAdoptium.Temurin.21.JDK",
+    },
+    postInstall: {
+      darwin: "brew link --force openjdk@21",
+      linux: "sudo update-alternatives --set java $(update-alternatives --list java 2>/dev/null | grep java-21 | head -1) 2>/dev/null || true",
     },
   },
   {
@@ -68,9 +78,10 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     },
     minVersion: "3.11",
     required: true,
+    roles: ["workbench"],
     install: {
       darwin: "brew install python@3.12",
-      linux: "sudo apt-get install -y python3",
+      linux: "sudo apt-get update -qq && sudo apt-get install -y -qq python3",
       win32: "winget install Python.Python.3.12",
     },
   },
@@ -102,7 +113,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     required: true,
     install: {
       darwin: "brew install git",
-      linux: "sudo apt-get install -y git",
+      linux: "sudo apt-get update -qq && sudo apt-get install -y -qq git",
       win32: "winget install Git.Git",
     },
   },
@@ -112,6 +123,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     args: ["--version"],
     versionExtract: (stdout) => stdout.trim(),
     required: true,
+    roles: ["workbench"],
     install: {
       darwin: "curl -fsSL https://bun.sh/install | bash",
       linux: "curl -fsSL https://bun.sh/install | bash",
@@ -125,6 +137,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     versionExtract: (stdout) => stdout.trim(),
     minVersion: "9",
     required: true,
+    roles: ["workbench"],
     install: {
       darwin: "npm install -g pnpm",
       linux: "npm install -g pnpm",
@@ -137,6 +150,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     args: ["--version"],
     versionExtract: (stdout) => stdout.trim(),
     required: false,
+    roles: ["workbench"],
     install: {
       darwin: "npm install -g corepack",
       linux: "npm install -g corepack",
@@ -154,7 +168,8 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     required: true,
     install: {
       darwin: "brew install --cask google-cloud-sdk",
-      linux: "curl https://sdk.cloud.google.com | bash",
+      linux:
+        "curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt 2>/dev/null && ln -sf /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud",
       win32: "winget install Google.CloudSDK",
     },
   },
@@ -169,7 +184,7 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     required: false,
     install: {
       darwin: "brew install curl",
-      linux: "sudo apt-get install -y curl",
+      linux: "sudo apt-get update -qq && sudo apt-get install -y -qq curl",
       win32: "winget install cURL.cURL",
     },
   },
@@ -179,10 +194,27 @@ const WORKBENCH_TOOLS: ToolDef[] = [
     args: ["--version"],
     versionExtract: (stdout) => stdout.trim(),
     required: false,
+    roles: ["workbench"],
     install: {
       darwin: "npm install -g @anthropic-ai/claude-code",
       linux: "npm install -g @anthropic-ai/claude-code",
       win32: "npm install -g @anthropic-ai/claude-code",
+    },
+  },
+  {
+    name: "k3d",
+    cmd: "k3d",
+    args: ["version"],
+    versionExtract: (stdout) => {
+      const m = stdout.match(/k3d version\s+v?(\d[\d.]*)/);
+      return m?.[1] ?? stdout.trim();
+    },
+    required: false,
+    roles: ["workbench"],
+    install: {
+      darwin: "brew install k3d",
+      linux: "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash",
+      win32: "choco install k3d",
     },
   },
 ];
@@ -258,9 +290,11 @@ async function checkTool(tool: ToolDef): Promise<ToolchainCheck> {
   }
 }
 
-/** Run all toolchain checks in parallel. */
-export async function runToolchainChecks(): Promise<ToolchainResult> {
-  const checks = await Promise.all(WORKBENCH_TOOLS.map(checkTool));
+/** Run all toolchain checks in parallel, optionally filtered by role. */
+export async function runToolchainChecks(opts?: { role?: InstallRole }): Promise<ToolchainResult> {
+  const role = opts?.role ?? "workbench";
+  const tools = WORKBENCH_TOOLS.filter((t) => !t.roles || t.roles.includes(role));
+  const checks = await Promise.all(tools.map(checkTool));
   const passed = checks.filter((c) => c.required).every((c) => c.passed);
   return { passed, checks };
 }
@@ -285,14 +319,93 @@ export function getMissingToolInstallCommands(checks: ToolchainCheck[]): Array<{
   return results;
 }
 
+/** Strip sudo prefix when already running as root or on Windows. */
+function adaptCommand(cmd: string): string {
+  if (process.platform === "win32" || process.getuid?.() === 0) {
+    return cmd.replace(/\bsudo\s+(-E\s+)?/g, "");
+  }
+  return cmd;
+}
+
+/** Build shell command args for the current platform. */
+function shellExec(cmd: string): string[] {
+  if (process.platform === "win32") {
+    // Commands starting with "powershell" are already shell-wrapped
+    if (cmd.startsWith("powershell ")) {
+      return ["powershell", "-Command", cmd.replace(/^powershell\s+(-\w+\s+)?/, "")];
+    }
+    return ["powershell", "-Command", cmd];
+  }
+  return ["sh", "-c", cmd];
+}
+
 /** Attempt to install a tool using the platform-specific command. */
 export async function installTool(toolName: string): Promise<boolean> {
+  const tool = WORKBENCH_TOOLS.find((t) => t.name === toolName);
   const cmd = getInstallCommand(toolName);
-  if (!cmd) return false;
+  if (!cmd || !tool) return false;
   try {
-    const result = await capture(["sh", "-c", cmd]);
-    return result.exitCode === 0;
+    const result = await capture(shellExec(adaptCommand(cmd)));
+    if (result.exitCode !== 0) return false;
+    // Run post-install if defined (e.g. brew link for keg-only formulas)
+    const postCmd = tool.postInstall?.[process.platform as Platform];
+    if (postCmd) {
+      await capture(shellExec(adaptCommand(postCmd)));
+    }
+    return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Re-evaluate the user's shell PATH so newly installed tools are visible.
+ * Call this after installs and before re-checking toolchain versions.
+ */
+export async function refreshPath(): Promise<void> {
+  try {
+    const shell = process.env.SHELL ?? "/bin/sh";
+    const result = await capture([shell, "-ilc", "echo $PATH"]);
+    if (result.exitCode === 0 && result.stdout.trim()) {
+      process.env.PATH = result.stdout.trim();
+    }
+  } catch { /* keep existing PATH */ }
+}
+
+/**
+ * Ensure a tool is available, attempting installation if missing.
+ * Throws with manual install instructions if all else fails.
+ */
+export async function ensureTool(toolName: string): Promise<void> {
+  const tool = WORKBENCH_TOOLS.find((t) => t.name === toolName);
+  if (!tool) throw new Error(`Unknown tool: ${toolName}`);
+
+  // Check if already available
+  const check = await checkTool(tool);
+  if (check.passed) return;
+
+  // Try to install
+  const platform = process.platform as Platform;
+  const installCmd = tool.install?.[platform];
+
+  if (installCmd) {
+    const adapted = adaptCommand(installCmd);
+    console.log(`${toolName} not found. Installing: ${adapted}`);
+    const result = await capture(shellExec(adapted));
+    if (result.exitCode === 0) {
+      // Verify installation
+      const recheck = await checkTool(tool);
+      if (recheck.passed) {
+        console.log(`${toolName} installed successfully.`);
+        return;
+      }
+    }
+  }
+
+  // Build multi-platform instructions
+  const lines = [`${toolName} is required but could not be installed automatically.`];
+  if (tool.install?.darwin) lines.push(`  macOS:   ${tool.install.darwin}`);
+  if (tool.install?.linux) lines.push(`  Linux:   ${tool.install.linux}`);
+  if (tool.install?.win32) lines.push(`  Windows: ${tool.install.win32}`);
+  throw new Error(lines.join("\n"));
 }

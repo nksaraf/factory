@@ -64,12 +64,12 @@ Without the component entity, the reconciler can't answer basic questions:
 
 Component is defined in two places and tracked in a third:
 
-**1. Declared in code (dx.yaml) — Build Plane concern**
+**1. Declared in code (docker-compose.yaml) — Build Plane concern**
 
 The module author declares what the module ships. This is checked into git and is the source of truth for what a module version contains.
 
 ```yaml
-# dx.yaml
+# docker-compose.yaml
 module: geoanalytics
 team: analytics-eng
 
@@ -158,7 +158,7 @@ The `desired_image` vs `actual_image` distinction is critical. In the clean worl
 
 ```
 DEFINE (code)
-  dx.yaml → components: [api, worker, scheduler, migrator]
+  docker-compose.yaml → components: [api, worker, scheduler, migrator]
 
 BUILD (Build Plane)
   module_version 1 ── N component_artifact
@@ -395,7 +395,7 @@ A module doesn't run alone. The geoanalytics api needs PostgreSQL, Redis, maybe 
 ### Dependency declaration
 
 ```yaml
-# dx.yaml
+# docker-compose.yaml
 module: geoanalytics
 
 components:
@@ -691,9 +691,9 @@ module
 
 ---
 
-## 8. How `dx.yaml` Evolves
+## 8. How `docker-compose.yaml` Evolves
 
-The `dx.yaml` at a repo root is the canonical declaration of what a module contains. Here's the full schema:
+The `docker-compose.yaml` at a repo root is the canonical declaration of what a module contains. Here's the full schema:
 
 ```yaml
 module: geoanalytics                # Module name (Factory-registered)
@@ -763,7 +763,7 @@ dependencies:
 
 ### What `dx dev` does with this
 
-Reads `dx.yaml`, generates a Docker Compose file with:
+Reads `docker-compose.yaml`, generates a Docker Compose file with:
 - One service per component (using the `dev.command` for each)
 - One service per dependency (using the images directly)
 - File sync mounts for hot reload

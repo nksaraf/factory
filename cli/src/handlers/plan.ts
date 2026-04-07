@@ -11,14 +11,15 @@ export async function runPlanList(flags: DxFlags): Promise<void> {
       console.log(JSON.stringify(res.data, null, 2))
       return
     }
-    const body = res.data as {
-      data: { planId: string; name: string; includedModules: string[] }[]
-    }
-    if (!body.data.length) {
+    const resRaw = res.data
+    const resData = (resRaw && typeof resRaw === "object" ? resRaw : undefined) as Record<string, unknown> | undefined
+    const plansRaw = (resData && "data" in resData ? resData.data : resData)
+    const plans = (Array.isArray(plansRaw) ? plansRaw : undefined) as Array<{ planId: string; name: string; includedModules: string[] }> | undefined
+    if (!plans?.length) {
       console.log(styleMuted("No plans found."))
       return
     }
-    for (const p of body.data) {
+    for (const p of plans) {
       console.log(styleSuccess(`${p.planId}  ${p.name}  modules=${(p.includedModules ?? []).join(",")}`))
     }
   } catch (err) {

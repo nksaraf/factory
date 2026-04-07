@@ -1,5 +1,5 @@
 import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { configDir, createStore } from "@crustjs/store";
 import type { InstallRole } from "@smp/factory-shared/install-types";
 
@@ -28,8 +28,14 @@ export const DX_CONFIG_FIELDS = {
   installMode: { type: "string", default: "connected" },
   /** Last successfully finished cluster install phase (1–6); "0" = none / finished. Used to resume after partial install. */
   installLastCompletedPhase: { type: "string", default: "0" },
+  /** Factory run mode set by dx setup: "local" (embedded daemon), "dev" (docker-compose), "prod", or "" (unset). */
+  factoryMode: { type: "string", default: "" },
   /** Path to kubeconfig file for the cluster (set during install, used by dx kube and internal commands). */
   kubeconfig: { type: "string", default: "" },
+  /** Base directory for main repo checkouts (e.g., ~/conductor/repos). Auto-detected from Conductor layout if empty. */
+  workspaceReposDir: { type: "string", default: "" },
+  /** Base directory for worktree workspaces (e.g., ~/conductor/workspaces). Auto-detected from Conductor layout if empty. */
+  workspaceWorktreesDir: { type: "string", default: "" },
 } as const;
 
 /** Global DX config store at ~/.config/dx/config.json. */
@@ -88,52 +94,75 @@ export async function readConfig(): Promise<DxConfig> {
   return merged;
 }
 
-/** Resolve the factory API URL from config. */
+/** The default local daemon URL used when factoryUrl is "local". */
+export const LOCAL_FACTORY_URL = "http://localhost:4100";
+
+/** Resolve the factory API URL from config (env DX_FACTORY_URL overrides). */
 export function resolveFactoryUrl(config: DxConfig): string {
-  return config.factoryUrl.replace(/\/$/, "");
+  const envUrl = process.env.DX_FACTORY_URL;
+  const raw = envUrl ?? config.factoryUrl;
+  if (raw === "local") return LOCAL_FACTORY_URL;
+  return raw.replace(/\/$/, "");
+}
+
+/** Check if a URL points to localhost. */
+export function isLocalFactoryUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+export type FactoryMode = "local" | "dev" | "cloud";
+
+export interface FactoryModeInfo {
+  mode: FactoryMode;
+  url: string;
+  /** Human-readable label for CLI display. */
+  label: string;
+  /** Whether DX_FACTORY_URL env var is overriding config. */
+  envOverride: boolean;
+}
+
+/**
+ * Determine factory mode from config + env.
+ * "local" = embedded PGlite daemon + k3d (factoryUrl === "local").
+ * "dev" = docker-compose factory + k3d (factoryUrl is localhost + factoryMode === "dev").
+ * "cloud" = external factory instance.
+ *
+ * factoryMode is only trusted when consistent with factoryUrl:
+ *   factoryMode "local"  requires factoryUrl === "local"
+ *   factoryMode "dev"    requires factoryUrl pointing at localhost
+ */
+export function resolveFactoryMode(config: DxConfig): FactoryModeInfo {
+  const envUrl = process.env.DX_FACTORY_URL;
+  const url = resolveFactoryUrl(config);
+  const raw = envUrl ?? config.factoryUrl;
+  const urlIsLocal = isLocalFactoryUrl(url);
+
+  // Dev mode: explicit factoryMode + localhost URL
+  if (config.factoryMode === "dev" && urlIsLocal) {
+    return { mode: "dev", url, label: "Dev (docker-compose)", envOverride: !!envUrl };
+  }
+
+  // Local mode: factoryUrl === "local" (canonical) or localhost without env override
+  const isLocal = raw === "local" || (urlIsLocal && !envUrl);
+
+  return {
+    mode: isLocal ? "local" : "cloud",
+    url,
+    label: isLocal
+      ? "Local (embedded)"
+      : envUrl
+        ? `${url} (via DX_FACTORY_URL)`
+        : url,
+    envOverride: !!envUrl,
+  };
 }
 
 /** Resolve the site API URL from config. Returns empty string if not set. */
 export function resolveSiteUrl(config: DxConfig): string {
   return config.siteUrl.replace(/\/$/, "");
-}
-
-// --- Legacy compatibility shim ---
-
-export interface LegacyDxConfig {
-  apiUrl: string;
-  authUrl: string;
-  authBasePath: string;
-  token?: string;
-  defaultSite?: string;
-  mode?: "factory" | "site" | "dev";
-  siteUrl?: string;
-}
-
-/** @deprecated Use readConfig() instead. Sync shim for unmigrated callers. */
-export function loadConfig(): LegacyDxConfig {
-  const file = configPath();
-  let parsed: Record<string, string> = {};
-  try {
-    const raw = readFileSync(file, "utf8");
-    parsed = JSON.parse(raw);
-  } catch {
-    // No config file — use defaults
-  }
-  const factoryUrl = (parsed.factoryUrl || "https://factory.rio.software").replace(/\/$/, "");
-  const role = parsed.role || "workbench";
-  return {
-    apiUrl: factoryUrl,
-    authUrl: factoryUrl,
-    authBasePath: parsed.authBasePath || "/api/v1/auth",
-    token: undefined,
-    defaultSite: parsed.siteName || undefined,
-    mode: role === "factory" ? "factory" : role === "site" ? "site" : "dev",
-    siteUrl: parsed.siteUrl || undefined,
-  };
-}
-
-/** @deprecated Use dxConfigStore.write() instead. */
-export function saveConfig(_config: LegacyDxConfig): void {
-  // No-op during migration
 }

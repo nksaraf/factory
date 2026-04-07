@@ -1,8 +1,23 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { webhookEvent } from "../../db/schema/build";
+import { webhookEvent } from "../../db/schema/build-v2";
+import { site } from "../../db/schema/ops";
 import type { GitHostAdapter } from "../../adapters/git-host-adapter";
 import type { GitHostService } from "./git-host.service";
+import * as previewSvc from "../../services/preview/preview.service";
+import * as pipelineRunSvc from "../../services/build/pipeline-run.service";
+import { logger } from "../../logger";
+import { emitEvent } from "../../lib/workflow-events";
+import type { WebhookEventSpec } from "@smp/factory-shared/schemas/build";
+import type { SiteSpec } from "@smp/factory-shared/schemas/ops";
+
+// TODO: fix type — WebhookEventSpec does not yet include processedAt; add when schema is updated
+type WebhookEventSpecStored = WebhookEventSpec & { processedAt?: string };
+
+// Bridge: safely convert WebhookEventSpecStored to WebhookEventSpec for Drizzle column writes.
+function toWebhookEventSpec(stored: WebhookEventSpecStored): WebhookEventSpec {
+  return stored as unknown as WebhookEventSpec;
+}
 
 export class WebhookService {
   constructor(
@@ -38,16 +53,17 @@ export class WebhookService {
       return { accepted: false, reason: "duplicate" };
     }
 
-    // 3. Insert webhook event
+    // 3. Insert webhook event — v2: eventType, action, payload, status → spec JSONB
     const [event] = await this.db
       .insert(webhookEvent)
       .values({
         gitHostProviderId: providerId,
         deliveryId: verification.deliveryId,
-        eventType: verification.eventType,
-        action: verification.action ?? null,
-        payload: verification.payload,
-        status: "processing",
+        spec: toWebhookEventSpec({
+          eventType: verification.eventType,
+          payload: verification.payload,
+          status: "processing",
+        }),
       })
       .returning();
 
@@ -58,16 +74,28 @@ export class WebhookService {
         verification.action,
         verification.payload,
       );
+      // v2: status and processedAt in spec JSONB
+      const updatedSpec: WebhookEventSpecStored = {
+        ...(event.spec as WebhookEventSpecStored),
+        status: "processed",
+        processedAt: new Date().toISOString(),
+      };
       await this.db
         .update(webhookEvent)
-        .set({ status: "completed", processedAt: new Date() })
-        .where(eq(webhookEvent.webhookEventId, event.webhookEventId));
+        .set({ spec: toWebhookEventSpec(updatedSpec) })
+        .where(eq(webhookEvent.id, event.id));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const updatedSpec: WebhookEventSpecStored = {
+        ...(event.spec as WebhookEventSpecStored),
+        status: "failed",
+        error: errorMessage,
+        processedAt: new Date().toISOString(),
+      };
       await this.db
         .update(webhookEvent)
-        .set({ status: "failed", errorMessage, processedAt: new Date() })
-        .where(eq(webhookEvent.webhookEventId, event.webhookEventId));
+        .set({ spec: toWebhookEventSpec(updatedSpec) })
+        .where(eq(webhookEvent.id, event.id));
     }
 
     return { accepted: true };
@@ -75,11 +103,18 @@ export class WebhookService {
 
   private async dispatchEvent(
     eventType: string,
-    _action: string | undefined,
-    _payload: Record<string, unknown>,
+    action: string | undefined,
+    payload: Record<string, unknown>,
   ): Promise<void> {
     switch (eventType) {
+      case "pull_request":
+        await this.handlePullRequestEvent(action, payload);
+        break;
       case "push":
+        await this.handlePushEvent(payload);
+        break;
+      case "issue_comment":
+        await this.handleIssueCommentEvent(action, payload);
         break;
       case "repository":
         break;
@@ -89,5 +124,275 @@ export class WebhookService {
       default:
         break;
     }
+  }
+
+  /**
+   * Find a site with preview deployments enabled.
+   * v2: site uses spec JSONB, no separate previewConfig/clusterId columns.
+   */
+  private async findPreviewSite(repoFullName: string): Promise<{
+    siteId: string;
+    previewConfig: { enabled: boolean; defaultAuthMode?: string; ttlDays?: number; maxConcurrent?: number };
+  } | null> {
+    // v2: preview config is in site spec JSONB
+    const sites = await this.db.select().from(site);
+
+    // TODO: fix type — previewConfig is not yet in SiteSpec (belongs in TenantSpec);
+    // access via intersection until the schema is updated.
+    type SiteSpecWithPreviewConfig = SiteSpec & {
+      previewConfig?: { enabled: boolean; defaultAuthMode?: string; ttlDays?: number; maxConcurrent?: number };
+    };
+    const enabled = sites.find((s) => {
+      const spec = s.spec as SiteSpecWithPreviewConfig;
+      return spec?.previewConfig?.enabled === true;
+    });
+
+    if (!enabled) return null;
+
+    return {
+      siteId: enabled.id,
+      previewConfig: (enabled.spec as SiteSpecWithPreviewConfig).previewConfig!,
+    };
+  }
+
+  /**
+   * Handle pull_request webhook events for preview deployments.
+   *
+   * - opened/reopened → create preview (if site has previews enabled)
+   * - synchronize → update preview commit SHA, reset to building
+   * - closed → expire preview
+   */
+  private async handlePullRequestEvent(
+    action: string | undefined,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const pr = payload.pull_request as Record<string, unknown> | undefined;
+    if (!pr) return;
+
+    const repo = payload.repository as Record<string, unknown> | undefined;
+    const repoFullName = (repo?.full_name as string) ?? "";
+    const prNumber = pr.number as number;
+    const headBranch = (pr.head as Record<string, unknown>)?.ref as string ?? "";
+    const headSha = (pr.head as Record<string, unknown>)?.sha as string ?? "";
+    const senderLogin = ((payload.sender as Record<string, unknown>)?.login as string) ?? "unknown";
+
+    switch (action) {
+      case "opened":
+      case "reopened": {
+        // Always create pipeline run for CI tracking
+        await pipelineRunSvc.createPipelineRun(this.db, {
+          triggerEvent: "pull_request",
+          triggerRef: `refs/pull/${prNumber}/head`,
+          commitSha: headSha,
+          triggerActor: senderLogin,
+        });
+
+        // Emit workflow event for PR opened
+        const prUrl = (pr.html_url as string) ?? "";
+        await emitEvent(this.db, "pr.opened", {
+          repoFullName,
+          branchName: headBranch,
+          prNumber: String(prNumber),
+          prUrl,
+        }).catch((err) => {
+          logger.warn({ repo: repoFullName, pr: prNumber, error: err }, "Failed to emit pr.opened event");
+        });
+
+        // Gate preview creation on site previewConfig
+        const siteResult = await this.findPreviewSite(repoFullName);
+        if (!siteResult) {
+          logger.info(
+            { repo: repoFullName, pr: prNumber },
+            "No site with previews enabled, skipping preview creation",
+          );
+          break;
+        }
+
+        const ttlDays = siteResult.previewConfig.ttlDays ?? 7;
+
+        // Check for existing preview to handle PR reopen without duplicate slug crash
+        const slug = previewSvc.buildPreviewSlug({ prNumber, sourceBranch: headBranch, siteName: "default" });
+        const existing = await previewSvc.getPreviewBySlug(this.db, slug);
+        if (existing) {
+          logger.info(
+            { repo: repoFullName, pr: prNumber, slug, prevPhase: existing.phase },
+            "Resetting existing preview for reopened PR",
+          );
+          await previewSvc.updatePreviewStatus(this.db, existing.id, {
+            status: "pending_image",
+            commitSha: headSha,
+            imageRef: null,
+          });
+          break;
+        }
+
+        logger.info(
+          { repo: repoFullName, pr: prNumber, branch: headBranch, siteId: siteResult.siteId },
+          "Creating preview for PR",
+        );
+        await previewSvc.createPreview(this.db, {
+          name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
+          sourceBranch: headBranch,
+          commitSha: headSha,
+          repo: repoFullName,
+          prNumber,
+          siteName: "default",
+          siteId: siteResult.siteId,
+          ownerId: senderLogin,
+          createdBy: senderLogin,
+          authMode: siteResult.previewConfig.defaultAuthMode ?? "team",
+          expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+        });
+        break;
+      }
+
+      case "synchronize": {
+        // PR was pushed to — update commit SHA and reset to pending_image
+        const syncPreviews = await previewSvc.listPreviews(this.db, {
+          repo: repoFullName,
+          sourceBranch: headBranch,
+        });
+        const activeSyncPreviews = syncPreviews.filter(
+          (p) => p.prNumber === prNumber && p.phase !== "expired" && p.phase !== "inactive",
+        );
+        if (activeSyncPreviews.length > 0) {
+          for (const p of activeSyncPreviews) {
+            logger.info(
+              { previewId: p.id, newSha: headSha },
+              "Resetting preview for new commit",
+            );
+            await previewSvc.updatePreviewStatus(this.db, p.id, {
+              commitSha: headSha,
+              status: "pending_image",
+              imageRef: null,
+            });
+          }
+        } else {
+          // No preview exists — bootstrap one (handles missed "opened" events)
+          const syncSite = await this.findPreviewSite(repoFullName);
+          if (syncSite) {
+            const syncSlug = previewSvc.buildPreviewSlug({ prNumber, sourceBranch: headBranch, siteName: "default" });
+            const existingSync = await previewSvc.getPreviewBySlug(this.db, syncSlug);
+            if (existingSync) {
+              logger.info(
+                { repo: repoFullName, pr: prNumber, slug: syncSlug, prevPhase: existingSync.phase },
+                "Resetting existing preview on synchronize bootstrap",
+              );
+              await previewSvc.updatePreviewStatus(this.db, existingSync.id, {
+                status: "pending_image",
+                commitSha: headSha,
+                imageRef: null,
+              });
+            } else {
+              const syncTtlDays = syncSite.previewConfig.ttlDays ?? 7;
+              logger.info(
+                { repo: repoFullName, pr: prNumber, branch: headBranch },
+                "Creating preview on synchronize (no existing preview found)",
+              );
+              await previewSvc.createPreview(this.db, {
+                name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
+                sourceBranch: headBranch,
+                commitSha: headSha,
+                repo: repoFullName,
+                prNumber,
+                siteName: "default",
+                siteId: syncSite.siteId,
+                ownerId: senderLogin,
+                createdBy: senderLogin,
+                authMode: syncSite.previewConfig.defaultAuthMode ?? "team",
+                expiresAt: new Date(Date.now() + syncTtlDays * 24 * 60 * 60 * 1000),
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "closed": {
+        // PR closed or merged — expire all previews for this PR
+        const previews = await previewSvc.listPreviews(this.db, {
+          repo: repoFullName,
+          sourceBranch: headBranch,
+        });
+        const activePreviews = previews.filter(
+          (p) => p.prNumber === prNumber && p.phase !== "expired" && p.phase !== "inactive",
+        );
+        for (const p of activePreviews) {
+          logger.info(
+            { previewId: p.id, pr: prNumber },
+            "Expiring preview for closed PR",
+          );
+          await previewSvc.expirePreview(this.db, p.id);
+        }
+        break;
+      }
+
+      default:
+        // Other PR actions (labeled, assigned, etc.) — no-op for now
+        break;
+    }
+  }
+
+  /**
+   * Handle push events — create a pipeline run to track CI execution.
+   */
+  private async handlePushEvent(
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const ref = payload.ref as string | undefined;
+    const commitSha = (payload.after as string) ?? "";
+    const repo = payload.repository as Record<string, unknown> | undefined;
+    const repoFullName = (repo?.full_name as string) ?? "";
+    const senderLogin = ((payload.sender as Record<string, unknown>)?.login as string) ?? "unknown";
+
+    if (!ref || !commitSha || commitSha === "0000000000000000000000000000000000000000") {
+      // Branch deletion or empty push — skip
+      return;
+    }
+
+    logger.info(
+      { repo: repoFullName, ref, sha: commitSha },
+      "Creating pipeline run for push event",
+    );
+
+    await pipelineRunSvc.createPipelineRun(this.db, {
+      triggerEvent: "push",
+      triggerRef: ref,
+      commitSha,
+      triggerActor: senderLogin,
+    });
+  }
+
+  /**
+   * Handle issue_comment events — emit pr.comment workflow events.
+   * GitHub sends issue_comment for PR comments (PRs are issues).
+   */
+  private async handleIssueCommentEvent(
+    action: string | undefined,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    if (action !== "created") return;
+
+    const issue = payload.issue as Record<string, unknown> | undefined;
+    const comment = payload.comment as Record<string, unknown> | undefined;
+    if (!issue || !comment) return;
+
+    // Only handle comments on pull requests (issue has pull_request key)
+    if (!issue.pull_request) return;
+
+    const repo = payload.repository as Record<string, unknown> | undefined;
+    const repoFullName = (repo?.full_name as string) ?? "";
+    const prNumber = issue.number as number;
+    const commentBody = (comment.body as string) ?? "";
+    const author = ((comment.user as Record<string, unknown>)?.login as string) ?? "unknown";
+
+    await emitEvent(this.db, "pr.comment", {
+      repoFullName,
+      prNumber: String(prNumber),
+      comment: commentBody,
+      author,
+    }).catch((err) => {
+      logger.warn({ repo: repoFullName, pr: prNumber, error: err }, "Failed to emit pr.comment event");
+    });
   }
 }

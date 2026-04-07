@@ -114,7 +114,7 @@ Every term used across the company maps to exactly one definition. Previous docu
 
 | Old Term | Was Used In | Replaced By | Why |
 |---|---|---|---|
-| **Project** (as deployable unit) | dx PRD | **Module** | A "project" is what a developer has checked out locally — the repo directory context. The deployable unit is the module. `dx.yaml` still lives in a project directory, but it declares which module(s) the repo builds. |
+| **Project** (as deployable unit) | dx PRD | **Module** | A "project" is what a developer has checked out locally — the repo directory context. The deployable unit is the module. `docker-compose.yaml` still lives in a project directory, and components are declared as services with `catalog.*` / `dx.*` labels. |
 | **Service** (as single container) | dx PRD | **Artifact** (built output) / **Component** (running process within a module) | "Service" was overloaded. In K8s it means a network endpoint. In dx it meant "one container." We use "artifact" for the built thing and "component" for the running thing. |
 | **Deployment** (as immutable snapshot) | dx PRD | **Build Artifact + Rollout** | The immutable-snapshot-with-permanent-URL pattern is retained but split: the artifact is immutable (Build Plane), the act of placing it on a Site is a rollout (Fleet Plane). |
 | **Alias** (mutable DNS pointer) | dx PRD | **Route** (Infrastructure Plane traffic routing) | Aliases were a clever Vercel-style pattern. We keep the concept but call it what it is — a traffic route. "Production" is a route that points to the current rollout. |
@@ -266,45 +266,60 @@ GET    /build/pipelines/{id}/runs         List pipeline runs
 
 #### Local Development Engine
 
-`dx dev` generates a `docker-compose.yaml` from `dx.yaml` and runs it. The escape hatch is always there — `docker ps`, `docker compose up`, and all native Docker commands work. If Docker is unavailable, dx falls back to direct process management.
+`dx dev` reads `docker-compose.yaml` and starts the local development stack. The escape hatch is always there — `docker ps`, `docker compose up`, and all native Docker commands work. If Docker is unavailable, dx falls back to direct process management.
 
 ```yaml
-# dx.yaml — lives at repo root, declares what this repo builds
-module: billing
-team: platform-eng
-
-components:
+# docker-compose.yaml — lives at repo root, declares what this repo builds
+# Components are services with a build: block and catalog/dx labels
+# Resources are services with just an image (no build block)
+services:
   api:
-    path: ./services/api
-    port: 8080
-    healthcheck: /health
-  worker:
-    path: ./services/worker
-    worker: true
-  frontend:
-    path: ./services/frontend
-    port: 3000
+    build:
+      context: ./services/api
+    ports:
+      - "8080:8080"
+    labels:
+      catalog.type: service
+      catalog.owner: platform-eng
+      dx.runtime: node
+      dx.dev.command: "uvicorn main:app --reload --port 8080"
+      dx.dev.sync: "./services/api:/app"
+      dx.test: "pytest"
+      dx.lint: "ruff check ."
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
 
-dependencies:                         # Local dev only — shared infrastructure
+  worker:
+    build:
+      context: ./services/worker
+    labels:
+      catalog.type: worker
+      catalog.owner: platform-eng
+      dx.runtime: node
+
+  frontend:
+    build:
+      context: ./services/frontend
+    ports:
+      - "3000:3000"
+    labels:
+      catalog.type: website
+      catalog.owner: platform-eng
+      dx.runtime: node
+      dx.dev.command: "pnpm dev"
+
   postgres:
     image: postgres:16-alpine
-    port: 5432
+    ports:
+      - "5432:5432"
+
   redis:
     image: redis:7-alpine
-    port: 6379
+    ports:
+      - "6379:6379"
 ```
 
-```yaml
-# services/api/dx-component.yaml — per-component build/dev config
-build:
-  dockerfile: Dockerfile
-dev:
-  command: uvicorn main:app --reload --port 8080
-  sync:
-    - ./:/app
-test: pytest
-lint: ruff check .
-```
+Per-component config (build, dev commands, test, lint) is specified via `dx.*` labels on each service — no separate per-component file needed.
 
 ---
 
@@ -900,45 +915,63 @@ Agents authenticate with `DX_TOKEN`, have their own identity in Agent Plane, and
 
 ## 8. Configuration Files
 
-### 8.1 Module Definition: `dx.yaml` (repo root)
+### 8.1 Module Definition: `docker-compose.yaml` (repo root)
+
+The project is defined entirely through `docker-compose.yaml` (or a `compose/` directory of per-service `.yml` files). Components and resources are distinguished by docker-compose labels:
 
 ```yaml
-module: billing
-team: platform-eng
-product: trafficure
-
-components:
+# docker-compose.yaml
+services:
   api:
-    path: ./services/api
-    port: 8080
-    healthcheck: /health
-  worker:
-    path: ./services/worker
-    worker: true
-  frontend:
-    path: ./services/frontend
-    port: 3000
+    build:
+      context: ./services/api
+    ports:
+      - "8080:8080"
+    labels:
+      catalog.type: service
+      catalog.owner: platform-eng
+      dx.runtime: node
+      dx.dev.command: "uvicorn main:app --reload --port 8080"
+      dx.dev.sync: "./services/api:/app"
+      dx.test: "pytest"
+      dx.lint: "ruff check ."
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
 
-dependencies:
+  worker:
+    build:
+      context: ./services/worker
+    labels:
+      catalog.type: worker
+      catalog.owner: platform-eng
+
+  frontend:
+    build:
+      context: ./services/frontend
+    ports:
+      - "3000:3000"
+    labels:
+      catalog.type: website
+      catalog.owner: platform-eng
+      dx.dev.command: "pnpm dev"
+
   postgres:
     image: postgres:16-alpine
-    port: 5432
+    ports:
+      - "5432:5432"
+
   redis:
     image: redis:7-alpine
-    port: 6379
+    ports:
+      - "6379:6379"
 ```
 
-### 8.2 Component Config: `dx-component.yaml` (per component directory)
+### 8.2 Component Classification (from labels)
 
-```yaml
-build:
-  dockerfile: Dockerfile
-dev:
-  command: uvicorn main:app --reload --port 8080
-  sync: [./:/app]
-test: pytest
-lint: ruff check .
-```
+Components vs resources are classified automatically:
+- **Component**: service with a `build:` block, or explicit `catalog.kind: Component` label
+- **Resource**: service with just an `image:` (postgres, redis, etc.), or explicit `catalog.kind: Resource` label
+- Per-component build/dev/test/lint config is specified via `dx.*` labels on each service
 
 ### 8.3 Tier Overrides: `.dx/tiers/`
 
@@ -1041,7 +1074,7 @@ clusters:
 1. **One tool to learn.** Every worker uses `dx`. The interface adapts, but the tool is singular.
 2. **Progressive disclosure.** 6 commands day one, everything else discoverable when needed.
 3. **The escape hatch guarantee.** Every dx action produces standard artifacts that native tools can read. `kubectl`, `docker`, `git`, `ssh` always work.
-4. **Convention over configuration.** Sensible defaults everywhere. A developer should be able to run `dx dev` and `dx deploy` without configuring anything beyond `dx.yaml`.
+4. **Convention over configuration.** Sensible defaults everywhere. A developer should be able to run `dx dev` and `dx deploy` without configuring anything beyond `docker-compose.yaml`.
 5. **Idempotency.** Every command that modifies state is idempotent. Agents don't need to check before acting.
 6. **Fault tolerance.** dx degrades gracefully. If the platform is down, local dev still works. If Jira is down, work items still exist locally. If the cluster is unreachable, deployments queue.
 7. **Agent-native.** `--json`, `--wait`, `--dry-run` on every command. AI agents are first-class users.
@@ -1187,7 +1220,7 @@ The previous dx PRD and Platform Fabric overview each had concepts that the othe
 | Loki/Prometheus vs SigNoz | **SigNoz** — OTel-native, single stack. `dx logs` queries SigNoz. |
 | Simple RBAC vs SpiceDB | **SpiceDB** — dx's viewer/deployer/admin/platform-admin are roles in the SpiceDB model. Simple CLI experience, full authorization engine underneath. |
 | Password/OIDC vs Better-Auth | **Better-Auth** — dx delegates identity to Better-Auth. OAuth, SAML, SCIM, passkeys, agent auth all handled. |
-| Project vs Module | **Module** — the deployable unit is a module. "Project" is the local directory context where a developer works. `dx.yaml` declares which module the project builds. |
+| Project vs Module | **Module** — the deployable unit is a module. "Project" is the local directory context where a developer works. `docker-compose.yaml` declares the module's components via labeled services. |
 | Environment vs Site | **Both, at different levels** — "tier" (staging/production) is the deployment category. "Site" is the actual running instance. `dx deploy --tier staging` hits all staging Sites. `dx deploy --site trafficure-us-east` hits one. |
 | Shell workflows vs Temporal | **Both, at different levels** — Shell scripts for developer-facing shortcuts (`dx start`, `dx submit`, `dx ship`). Temporal for platform orchestration (site provisioning, release rollouts, tenant migration). |
 
@@ -1236,7 +1269,7 @@ The previous dx PRD and Platform Fabric overview each had concepts that the othe
 
 2. **dx UI: single app or per-plane apps?** One dashboard with plane-based navigation sections, or separate micro-frontends per plane?
 
-3. **Module granularity:** Can a single repo produce multiple modules? If so, what does `dx.yaml` look like? The current model assumes one module per repo for simplicity.
+3. **Module granularity:** Can a single repo produce multiple modules? If so, how is this declared in `docker-compose.yaml`? The current model assumes one module per repo for simplicity.
 
 4. **Cross-plane event bus:** The planes need to communicate (Commerce → Fleet → Site). What is the eventing mechanism? PostgreSQL LISTEN/NOTIFY for Phase 1, dedicated event bus (NATS, Kafka) for Phase 2?
 

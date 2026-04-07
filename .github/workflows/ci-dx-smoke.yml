@@ -5,6 +5,8 @@ on:
     paths:
       - "cli/**"
       - "shared/**"
+      - "api/**"
+      - "api-server/**"
       - "pnpm-lock.yaml"
   workflow_dispatch:
 
@@ -20,7 +22,7 @@ env:
   BUN_INSTALL_CACHE_DIR: ~/.bun/install/cache
 
 jobs:
-  # ─── Stage 1: Build CLI binaries for all platforms ───────────────────
+  # ─── Stage 1: Build CLI + API Docker image ──────────────────────────
   build:
     runs-on: ubuntu-latest
     steps:
@@ -50,31 +52,29 @@ jobs:
           restore-keys: deps-
 
       # Authenticate to Google Artifact Registry for @rio.js/* deps
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v2"
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: "Use gcloud CLI"
-        run: "gcloud info"
-
-      - name: "Authenticate with Google Cloud"
+      - name: Authenticate with Google Cloud
         env:
-          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
         run: npx get-artifactregistry-token
 
       - name: Install dependencies
         env:
-          GOOGLE_APPLICATION_CREDENTIALS_BASE64: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}"
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
         run: pnpm install --frozen-lockfile --filter lepton-dx
 
-      - name: Build — linux-x64
+      # ── CLI binaries ──
+      - name: Build CLI — linux-x64
         working-directory: cli
         run: pnpm exec crust build --name dx --target linux-x64 --outfile dist/dx-linux-x64
 
-      - name: Build — darwin-arm64
+      - name: Build CLI — darwin-arm64
         working-directory: cli
         run: pnpm exec crust build --name dx --target darwin-arm64 --outfile dist/dx-darwin-arm64
 
-      - name: Build — windows-x64
+      - name: Build CLI — windows-x64
         working-directory: cli
         run: pnpm exec crust build --name dx --target windows-x64 --outfile dist/dx-windows-x64.exe
 
@@ -99,8 +99,42 @@ jobs:
           path: cli/dist/dx-windows-x64.exe
           retention-days: 1
 
-  # ─── Stage 2: Fresh machine — install dx & run a real dev workflow ──
-  smoke-test:
+      # ── Docker images for cloud mode ──
+      - name: Build API Docker image
+        env:
+          GCP_CREDS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+        run: |
+          docker build -f api-server/Dockerfile \
+            --build-arg GOOGLE_APPLICATION_CREDENTIALS_BASE64="$GCP_CREDS" \
+            -t factory-api:ci .
+          docker save factory-api:ci | gzip > factory-api-ci.tar.gz
+
+      - name: Pull auth-service image
+        env:
+          GCP_CREDS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+        run: |
+          echo "$GCP_CREDS" | base64 -d > /tmp/gcp-key.json
+          cat /tmp/gcp-key.json | docker login -u _json_key --password-stdin asia-south2-docker.pkg.dev
+          docker pull asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
+          docker save asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest | gzip > auth-service.tar.gz
+          rm /tmp/gcp-key.json
+
+      - name: Upload API image
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-api-image
+          path: factory-api-ci.tar.gz
+          retention-days: 1
+
+      - name: Upload auth-service image
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-image
+          path: auth-service.tar.gz
+          retention-days: 1
+
+  # ─── Stage 2: Basic smoke — binary works on all platforms ───────────
+  smoke-test-basic:
     needs: build
     strategy:
       fail-fast: false
@@ -117,7 +151,6 @@ jobs:
             binary: dx-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      # ── 1. Download & install the dx binary ──────────────────────────
       - name: Download dx binary
         uses: actions/download-artifact@v4
         with:
@@ -125,17 +158,18 @@ jobs:
 
       - name: Install dx on PATH
         shell: bash
+        env:
+          BINARY_NAME: ${{ matrix.binary }}
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             mkdir -p "$USERPROFILE/bin"
-            mv "${{ matrix.binary }}" "$USERPROFILE/bin/dx.exe"
+            mv "$BINARY_NAME" "$USERPROFILE/bin/dx.exe"
             echo "$USERPROFILE/bin" >> "$GITHUB_PATH"
           else
-            chmod +x "${{ matrix.binary }}"
-            sudo mv "${{ matrix.binary }}" /usr/local/bin/dx
+            chmod +x "$BINARY_NAME"
+            sudo mv "$BINARY_NAME" /usr/local/bin/dx
           fi
 
-      # ── 2. Verify the binary works ──────────────────────────────────
       - name: dx --help
         shell: bash
         run: dx --help
@@ -144,24 +178,152 @@ jobs:
         shell: bash
         run: dx --version
 
-      # ── 3. Set up dx as a workbench (real developer flow) ───────────
-      - name: dx install --type ci
+      - name: dx setup --type ci
         shell: bash
-        run: dx install --type ci -y
+        run: dx setup --type ci -y
 
-      # ── 4. Clone a repo & work inside it ─────────────────────────────
-      - name: dx git clone
+  # ─── Stage 3: Local mode — full developer workflow ──────────────────
+  # Requires Docker + k3d — only ubuntu runners have Docker pre-installed.
+  smoke-test-local:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download dx binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dx-linux-x64
+
+      - name: Install dx on PATH
         shell: bash
-        run: dx git clone https://x-access-token:${GH_TOKEN}@github.com/nksaraf/factory.git
+        run: |
+          chmod +x dx-linux-x64
+          sudo mv dx-linux-x64 /usr/local/bin/dx
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.dir }}
+            ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: deps-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: deps-
+
+      # Authenticate to Google Artifact Registry for @rio.js/* deps
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate with Google Cloud
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+        run: npx get-artifactregistry-token
 
-      - name: dx pkg install
-        shell: bash
-        working-directory: factory
-        run: dx pkg install
+      # Install deps — the local daemon runs as `bun server.ts` (not bundled
+      # into the compiled binary) and needs node_modules on disk.
+      - name: Install dependencies
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+        run: pnpm install --frozen-lockfile
 
-      - name: dx status
+      - name: dx setup --type ci
         shell: bash
-        working-directory: factory
-        run: dx status
+        run: dx setup --type ci -y
+
+      - name: Local mode smoke tests
+        shell: bash
+        run: ./scripts/smoke-test-platform.sh local
+
+      - name: Daemon logs (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          LOG_PATH="${HOME}/.config/dx/daemon.log"
+          if [ -f "$LOG_PATH" ]; then
+            echo "=== Last 100 lines of daemon.log ==="
+            tail -100 "$LOG_PATH"
+          else
+            echo "No daemon log found at $LOG_PATH"
+          fi
+
+  # ─── Stage 4: Cloud mode — docker-compose stack ─────────────────────
+  # Requires Docker — only ubuntu runners have Docker pre-installed.
+  smoke-test-cloud:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download dx binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dx-linux-x64
+
+      - name: Install dx on PATH
+        shell: bash
+        run: |
+          chmod +x dx-linux-x64
+          sudo mv dx-linux-x64 /usr/local/bin/dx
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: dx setup --type ci
+        shell: bash
+        run: dx setup --type ci -y
+
+      # Load pre-built Docker images (CI optimization — avoids GCP auth on test runners)
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-image"
+
+      - name: Load Docker images
+        run: |
+          gunzip -c factory-api-image/factory-api-ci.tar.gz | docker load
+          docker tag factory-api:ci asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+          gunzip -c auth-service-image/auth-service.tar.gz | docker load
+
+      # Run smoke test in dev mode — images are pre-loaded, skip docker build
+      - name: Cloud mode smoke tests
+        env:
+          POSTGRES_PASSWORD: ci-test-password
+          DX_NO_BUILD: "1"
+        run: ./scripts/smoke-test-platform.sh dev
+
+      - name: Docker compose logs (on failure)
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Daemon logs (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          LOG_PATH="${HOME}/.config/dx/daemon.log"
+          if [ -f "$LOG_PATH" ]; then
+            echo "=== Last 100 lines of daemon.log ==="
+            tail -100 "$LOG_PATH"
+          else
+            echo "No daemon log found at $LOG_PATH"
+          fi
+
+      - name: Teardown
+        if: always()
+        run: docker compose down --volumes 2>/dev/null || true
