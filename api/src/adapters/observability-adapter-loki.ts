@@ -112,22 +112,21 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
   // -- LogQL builder ---------------------------------------------------------
 
   private buildLogQL(query: LogQuery): string {
-    const selectors: string[] = []
+    // Docker container logs are scraped by filelog receiver with
+    // service_name="unknown_service". Filter by "factory-api" in body.
+    let logql = `{service_name=~".+"} |~ "factory-api" | json`
 
-    // Always select factory-api service
-    selectors.push(`service_name="factory-api"`)
-
-    if (query.module) selectors.push(`module="${query.module}"`)
-    if (query.component) selectors.push(`component="${query.component}"`)
-    if (query.host) selectors.push(`host="${query.host}"`)
-
-    let logql = `{${selectors.join(", ")}}`
-
-    // Filter by log level
+    // Filter by log level (Pino numeric levels mapped via json parser)
     if (query.level) {
-      logql += ` | json | level="${query.level}"`
-    } else {
-      logql += ` | json`
+      const pinoLevel = this.levelToNumber(query.level)
+      if (pinoLevel !== undefined) {
+        logql += ` | level >= ${pinoLevel}`
+      }
+    }
+
+    // Operation filter
+    if (query.sandbox) {
+      logql += ` | op="${query.sandbox}"`
     }
 
     // Grep filter
@@ -135,12 +134,12 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
       logql += ` |~ \`${query.grep}\``
     }
 
-    // Operation-specific filters via labels
-    if (query.sandbox) {
-      logql += ` | op="${query.sandbox}"`
-    }
-
     return logql
+  }
+
+  private levelToNumber(level: string): number | undefined {
+    const map: Record<string, number> = { debug: 20, info: 30, warn: 40, error: 50, fatal: 60 }
+    return map[level]
   }
 
   // -- Response parsing ------------------------------------------------------
