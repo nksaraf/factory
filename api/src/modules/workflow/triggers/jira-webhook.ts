@@ -49,8 +49,6 @@ export function jiraWebhookTrigger(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
     "/jira/:providerId",
     async ({ params, headers, body, set }) => {
-      wlog.info({ source: "jira", providerId: params.providerId }, "webhook received");
-
       // Record every inbound webhook in org.webhook_event
       const jiraPayload = typeof body === "string" ? JSON.parse(body) : body;
       const jiraEventType = (jiraPayload as any)?.webhookEvent ?? "unknown";
@@ -61,6 +59,13 @@ export function jiraWebhookTrigger(db: Database) {
       // Extract actor from Jira payload
       const jiraUser = (jiraPayload as any)?.user as Record<string, unknown> | undefined;
       const jiraAccountId = jiraUser?.accountId as string | undefined;
+      const jiraDisplayName = (jiraUser?.displayName as string) ?? undefined;
+      const jiraIssueKey = ((jiraPayload as any)?.issue?.key as string) ?? undefined;
+
+      wlog.info(
+        { source: "jira", providerId: params.providerId, event: jiraEventType, issue: jiraIssueKey, actor: jiraDisplayName },
+        `jira ${jiraEventType.replace("jira:", "")}${jiraIssueKey ? ` ${jiraIssueKey}` : ""}${jiraDisplayName ? ` by ${jiraDisplayName}` : ""}`,
+      );
       let jiraActorPrincipalId: string | null = null;
       if (jiraAccountId) {
         jiraActorPrincipalId = await resolveActorPrincipal(db, "jira", jiraAccountId).catch(() => null);
@@ -72,8 +77,6 @@ export function jiraWebhookTrigger(db: Database) {
       } : undefined;
 
       // Extract entity (issue)
-      const jiraIssue = (jiraPayload as any)?.issue as Record<string, unknown> | undefined;
-      const jiraIssueKey = jiraIssue?.key as string | undefined;
       const jiraEntity: WebhookEventEntity | undefined = jiraIssueKey ? {
         externalRef: jiraIssueKey,
         kind: "ticket",
@@ -118,7 +121,7 @@ export function jiraWebhookTrigger(db: Database) {
       if (adapter.verifyWebhook) {
         const verification = await adapter.verifyWebhook(headerRecord, rawBody);
         if (!verification.valid) {
-          wlog.warn({ source: "jira", providerId: params.providerId }, "webhook signature invalid");
+          wlog.warn({ source: "jira", providerId: params.providerId, event: jiraEventType, issue: jiraIssueKey }, `jira webhook signature invalid (${jiraEventType.replace("jira:", "")}${jiraIssueKey ? ` ${jiraIssueKey}` : ""})`);
           if (eventId) await updateWebhookEventStatus(db, eventId, { status: "failed", reason: "invalid_signature" });
           set.status = 401;
           return { success: false, error: "webhook_verification_failed" };
@@ -131,7 +134,7 @@ export function jiraWebhookTrigger(db: Database) {
 
       // Only trigger on issue_updated with status change to "In Progress"
       if (webhookEvent !== "jira:issue_updated") {
-        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "not_a_status_transition" }, "webhook ignored");
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, issue: jiraIssueKey, reason: "not_a_status_transition" }, `jira ${webhookEvent.replace("jira:", "")} ignored — not a status transition${jiraIssueKey ? ` (${jiraIssueKey})` : ""}`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "not_a_status_transition" });
         return { success: true, action: "ignored", reason: "not_a_status_transition" };
       }
@@ -142,7 +145,7 @@ export function jiraWebhookTrigger(db: Database) {
       );
 
       if (!statusChange) {
-        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_status_change" }, "webhook ignored");
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, issue: jiraIssueKey, reason: "no_status_change" }, `jira issue_updated ignored — no status change${jiraIssueKey ? ` (${jiraIssueKey})` : ""}`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "no_status_change" });
         return { success: true, action: "ignored", reason: "no_status_change" };
       }
@@ -151,7 +154,7 @@ export function jiraWebhookTrigger(db: Database) {
       // which is shadowed by JS Object.prototype.toString — use bracket notation.
       const toStatus = ((statusChange as Record<string, unknown>)["toString"] as string ?? "").toLowerCase();
       if (toStatus !== "in progress") {
-        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: `status_changed_to_${toStatus}` }, "webhook ignored");
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, issue: jiraIssueKey, reason: `status_changed_to_${toStatus}` }, `jira status → ${toStatus} ignored — not "in progress"${jiraIssueKey ? ` (${jiraIssueKey})` : ""}`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: `status_changed_to_${toStatus}` });
         return { success: true, action: "ignored", reason: `status_changed_to_${toStatus}` };
       }
@@ -171,7 +174,7 @@ export function jiraWebhookTrigger(db: Database) {
       const agentId = (spec?.defaultAgentId as string) ?? null;
 
       if (!repoFullName) {
-        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, reason: "no_repo_mapping" }, "webhook ignored");
+        wlog.info({ source: "jira", providerId: params.providerId, event: webhookEvent, issue: jiraIssueKey, reason: "no_repo_mapping" }, `jira ${issueKey} ignored — no repo mapping configured`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "no_repo_mapping" });
         return { success: true, action: "ignored", reason: "no_repo_mapping" };
       }
@@ -210,8 +213,8 @@ export function jiraWebhookTrigger(db: Database) {
       if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });
 
       wlog.info(
-        { source: "jira", providerId: params.providerId, event: webhookEvent, issueKey, workflowRunId },
-        "webhook processed",
+        { source: "jira", providerId: params.providerId, event: webhookEvent, issue: issueKey, workflowRunId, repo: repoFullName },
+        `jira ${issueKey} → workflow started (${workflowRunId})`,
       );
 
       return { success: true, action: "workflow_started", workflowRunId };

@@ -35,8 +35,6 @@ export function messagingWebhookController(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
     "/messaging/:providerId",
     async ({ params, headers, body, set }) => {
-      wlog.info({ source: "slack", providerId: params.providerId }, "webhook received");
-
       // Record every inbound webhook in org.webhook_event
       const slackPayload = typeof body === "string" ? JSON.parse(body) : body;
       const slackDeliveryId = (slackPayload as any)?.event_id ?? (slackPayload as any)?.event?.event_ts ?? crypto.randomUUID();
@@ -44,6 +42,12 @@ export function messagingWebhookController(db: Database) {
 
       // Extract actor from Slack payload
       const slackUserId = (slackPayload as any)?.event?.user as string | undefined;
+      const slackChannelId = (slackPayload as any)?.event?.channel as string | undefined;
+
+      wlog.info(
+        { source: "slack", providerId: params.providerId, event: slackEventType, channel: slackChannelId, user: slackUserId },
+        `slack ${slackEventType}${slackChannelId ? ` in ${slackChannelId}` : ""}${slackUserId ? ` from ${slackUserId}` : ""}`,
+      );
       let slackActorPrincipalId: string | null = null;
       if (slackUserId) {
         slackActorPrincipalId = await resolveActorPrincipal(db, "slack", slackUserId).catch(() => null);
@@ -54,7 +58,6 @@ export function messagingWebhookController(db: Database) {
       } : undefined;
 
       // Extract entity (channel)
-      const slackChannelId = (slackPayload as any)?.event?.channel as string | undefined;
       const slackEntity: WebhookEventEntity | undefined = slackChannelId ? {
         externalRef: slackChannelId,
         kind: "channel",
@@ -105,7 +108,7 @@ export function messagingWebhookController(db: Database) {
       }
 
       if (!verification.valid) {
-        wlog.warn({ source: "slack", providerId: params.providerId }, "webhook signature invalid");
+        wlog.warn({ source: "slack", providerId: params.providerId, event: slackEventType, channel: slackChannelId }, `slack webhook signature invalid (${slackEventType})`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "failed", reason: "invalid_signature" });
         set.status = 401;
         return { success: false, error: "invalid_signature" };
@@ -165,7 +168,10 @@ export function messagingWebhookController(db: Database) {
 
       if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });
 
-      wlog.info({ source: "slack", providerId: params.providerId, event: verification.eventType, userId: verification.userId }, "webhook processed");
+      wlog.info(
+        { source: "slack", providerId: params.providerId, event: verification.eventType, channel: verification.channelId, user: verification.userId },
+        `slack ${verification.eventType ?? slackEventType} processed${verification.channelId ? ` in ${verification.channelId}` : ""}${verification.text ? `: "${verification.text.slice(0, 60)}"` : ""}`,
+      );
 
       return { success: true };
     },

@@ -47,16 +47,18 @@ export function webhookController(db: Database) {
       const event = headers["x-github-event"] as string | undefined;
       const deliveryId = headers["x-github-delivery"] as string | undefined;
 
-      wlog.info(
-        { source: "github", providerId: params.providerId, event, deliveryId },
-        "webhook received",
-      );
-
       // Record every inbound webhook in org.webhook_event
       const payload = typeof body === "string" ? JSON.parse(body) : body;
       const action = (payload as any)?.action as string | undefined;
       const sender = (payload as any)?.sender as Record<string, unknown> | undefined;
       const repo = (payload as any)?.repository as Record<string, unknown> | undefined;
+      const repoName = (repo?.full_name as string) ?? undefined;
+      const senderLogin = (sender?.login as string) ?? undefined;
+
+      wlog.info(
+        { source: "github", providerId: params.providerId, event, action, deliveryId, repo: repoName, actor: senderLogin },
+        `github ${event ?? "unknown"}${action ? `.${action}` : ""} from ${repoName ?? "unknown"}`,
+      );
 
       // Resolve actor
       const senderIdStr = sender?.id != null ? String(sender.id) : undefined;
@@ -94,7 +96,7 @@ export function webhookController(db: Database) {
 
       const provider = await gitHostService.getProvider(params.providerId);
       if (!provider) {
-        wlog.warn({ source: "github", providerId: params.providerId }, "webhook provider not found");
+        wlog.warn({ source: "github", providerId: params.providerId, event, repo: repoName }, `github webhook provider not found: ${params.providerId}`);
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "ignored", reason: "provider_not_found" });
         set.status = 404;
         return { success: false, error: "provider_not_found" };
@@ -128,7 +130,9 @@ export function webhookController(db: Database) {
 
       if (!result.accepted) {
         if (result.reason === "invalid_signature") {
-          wlog.warn({ source: "github", providerId: params.providerId, event, deliveryId }, "webhook signature invalid");
+          wlog.warn({ source: "github", providerId: params.providerId, event, deliveryId, repo: repoName }, `github webhook signature invalid (${event ?? "unknown"} from ${repoName ?? "unknown"})`);
+        } else {
+          wlog.info({ source: "github", providerId: params.providerId, event, deliveryId, repo: repoName, reason: result.reason }, `github webhook rejected: ${result.reason}`);
         }
         if (eventId) await updateWebhookEventStatus(db, eventId, { status: "failed", reason: result.reason });
         set.status = result.reason === "duplicate" ? 200 : 400;
@@ -138,8 +142,8 @@ export function webhookController(db: Database) {
       if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });
 
       wlog.info(
-        { source: "github", providerId: params.providerId, event, deliveryId },
-        "webhook processed",
+        { source: "github", providerId: params.providerId, event, deliveryId, repo: repoName, actor: senderLogin, normalizedEvent: normalizedEventType },
+        `github ${event ?? "unknown"} processed → ${normalizedEventType}${repoName ? ` (${repoName})` : ""}`,
       );
 
       return { success: true };
