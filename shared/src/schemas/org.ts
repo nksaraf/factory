@@ -430,9 +430,25 @@ export const WebhookEventSourceSchema = z.enum([
 ]);
 export type WebhookEventSource = z.infer<typeof WebhookEventSourceSchema>;
 
+export const WebhookEventActorSchema = z.object({
+  externalId: z.string(),
+  externalUsername: z.string().optional(),
+  principalId: z.string().optional(),
+});
+export type WebhookEventActor = z.infer<typeof WebhookEventActorSchema>;
+
+export const WebhookEventEntitySchema = z.object({
+  externalRef: z.string(),
+  kind: z.string().optional(),
+  entityId: z.string().optional(),
+});
+export type WebhookEventEntity = z.infer<typeof WebhookEventEntitySchema>;
+
 export const WebhookEventSpecSchema = z.object({
   eventType: z.string(),
   action: z.string().optional(),
+  actor: WebhookEventActorSchema.optional(),
+  entity: WebhookEventEntitySchema.optional(),
   payload: z.unknown(),
   status: z.enum(["received", "processing", "processed", "ignored", "failed"]).default("received"),
   reason: z.string().optional(),
@@ -446,6 +462,9 @@ export const WebhookEventSchema = z.object({
   source: WebhookEventSourceSchema,
   providerId: z.string(),
   deliveryId: z.string(),
+  actorId: z.string().nullable(),
+  eventType: z.string().nullable(),
+  entityId: z.string().nullable(),
   spec: WebhookEventSpecSchema,
   createdAt: z.coerce.date(),
 });

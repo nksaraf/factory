@@ -12,9 +12,24 @@ import {
 } from "./messaging.service";
 import { dispatchAgentJob } from "../agent/dispatch";
 import { logger } from "../../logger";
-import { recordWebhookEvent, updateWebhookEventStatus } from "../../lib/webhook-events";
+import { recordWebhookEvent, updateWebhookEventStatus, resolveActorPrincipal } from "../../lib/webhook-events";
+import type { WebhookEventActor, WebhookEventEntity } from "@smp/factory-shared/schemas/org";
 
 const wlog = logger.child({ module: "webhook" });
+
+/**
+ * Map Slack event type to normalized event type.
+ */
+function normalizeSlackEventType(eventType: string): string {
+  switch (eventType) {
+    case "message": return "chat.message";
+    case "app_mention": return "chat.mention";
+    case "reaction_added": return "chat.reaction.added";
+    case "reaction_removed": return "chat.reaction.removed";
+    case "url_verification": return "system.ping";
+    default: return `chat.${eventType}`;
+  }
+}
 
 export function messagingWebhookController(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
@@ -25,13 +40,38 @@ export function messagingWebhookController(db: Database) {
       // Record every inbound webhook in org.webhook_event
       const slackPayload = typeof body === "string" ? JSON.parse(body) : body;
       const slackDeliveryId = (slackPayload as any)?.event_id ?? (slackPayload as any)?.event?.event_ts ?? crypto.randomUUID();
-      const slackEventType = (slackPayload as any)?.type ?? (slackPayload as any)?.event?.type ?? "unknown";
+      const slackEventType = (slackPayload as any)?.event?.type ?? (slackPayload as any)?.type ?? "unknown";
+
+      // Extract actor from Slack payload
+      const slackUserId = (slackPayload as any)?.event?.user as string | undefined;
+      let slackActorPrincipalId: string | null = null;
+      if (slackUserId) {
+        slackActorPrincipalId = await resolveActorPrincipal(db, "slack", slackUserId).catch(() => null);
+      }
+      const slackActor: WebhookEventActor | undefined = slackUserId ? {
+        externalId: slackUserId,
+        principalId: slackActorPrincipalId ?? undefined,
+      } : undefined;
+
+      // Extract entity (channel)
+      const slackChannelId = (slackPayload as any)?.event?.channel as string | undefined;
+      const slackEntity: WebhookEventEntity | undefined = slackChannelId ? {
+        externalRef: slackChannelId,
+        kind: "channel",
+      } : undefined;
+
+      const normalizedEventType = normalizeSlackEventType(slackEventType);
+
       const eventId = await recordWebhookEvent(db, {
         source: "slack",
         providerId: params.providerId,
         deliveryId: String(slackDeliveryId),
         eventType: slackEventType,
+        normalizedEventType,
         payload: slackPayload,
+        actor: slackActor,
+        entity: slackEntity,
+        actorId: slackActorPrincipalId,
       });
 
       const provider = await getMessagingProvider(db, params.providerId);

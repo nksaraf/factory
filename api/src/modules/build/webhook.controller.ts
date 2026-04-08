@@ -7,9 +7,35 @@ import { getGitHostAdapter } from "../../adapters/adapter-registry";
 import type { GitHostType } from "../../adapters/git-host-adapter";
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import { logger } from "../../logger";
-import { recordWebhookEvent, updateWebhookEventStatus } from "../../lib/webhook-events";
+import { recordWebhookEvent, updateWebhookEventStatus, resolveActorPrincipal } from "../../lib/webhook-events";
+import type { WebhookEventActor, WebhookEventEntity } from "@smp/factory-shared/schemas/org";
 
 const wlog = logger.child({ module: "webhook" });
+
+/**
+ * Map GitHub event+action to normalized event type.
+ */
+function normalizeGitHubEventType(event: string, action?: string, payload?: any): string {
+  switch (event) {
+    case "push":
+      return "code.push";
+    case "pull_request":
+      switch (action) {
+        case "opened": return "code.pr.opened";
+        case "reopened": return "code.pr.reopened";
+        case "synchronize": return "code.pr.updated";
+        case "closed":
+          return payload?.pull_request?.merged ? "code.pr.merged" : "code.pr.closed";
+        default: return `code.pr.${action ?? "unknown"}`;
+      }
+    case "issue_comment":
+      return action === "created" ? "code.pr.commented" : `code.comment.${action ?? "unknown"}`;
+    case "ping":
+      return "system.ping";
+    default:
+      return `code.${event}`;
+  }
+}
 
 export function webhookController(db: Database) {
   const gitHostService = new GitHostService(db);
@@ -28,13 +54,42 @@ export function webhookController(db: Database) {
 
       // Record every inbound webhook in org.webhook_event
       const payload = typeof body === "string" ? JSON.parse(body) : body;
+      const action = (payload as any)?.action as string | undefined;
+      const sender = (payload as any)?.sender as Record<string, unknown> | undefined;
+      const repo = (payload as any)?.repository as Record<string, unknown> | undefined;
+
+      // Resolve actor
+      const senderIdStr = sender?.id != null ? String(sender.id) : undefined;
+      let actorPrincipalId: string | null = null;
+      if (senderIdStr) {
+        actorPrincipalId = await resolveActorPrincipal(db, "github", senderIdStr).catch(() => null);
+      }
+      const actor: WebhookEventActor | undefined = senderIdStr ? {
+        externalId: senderIdStr,
+        externalUsername: (sender?.login as string) ?? undefined,
+        principalId: actorPrincipalId ?? undefined,
+      } : undefined;
+
+      // Resolve entity (repo)
+      const repoFullName = repo?.full_name as string | undefined;
+      const entity: WebhookEventEntity | undefined = repoFullName ? {
+        externalRef: repoFullName,
+        kind: "repo",
+      } : undefined;
+
+      const normalizedEventType = normalizeGitHubEventType(event ?? "unknown", action, payload);
+
       const eventId = await recordWebhookEvent(db, {
         source: "github",
         providerId: params.providerId,
         deliveryId: deliveryId ?? crypto.randomUUID(),
         eventType: event ?? "unknown",
-        action: (payload as any)?.action,
+        normalizedEventType,
+        action,
         payload,
+        actor,
+        entity,
+        actorId: actorPrincipalId,
       });
 
       const provider = await gitHostService.getProvider(params.providerId);

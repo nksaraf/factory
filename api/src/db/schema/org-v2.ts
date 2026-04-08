@@ -535,6 +535,9 @@ export const webhookEvent = orgSchema.table(
     source: text("source").notNull(),
     providerId: text("provider_id").notNull(),
     deliveryId: text("delivery_id").notNull(),
+    actorId: text("actor_id"),
+    eventType: text("event_type"),
+    entityId: text("entity_id"),
     spec: specCol<WebhookEventSpec>(),
     createdAt: createdAt(),
   },
@@ -547,6 +550,11 @@ export const webhookEvent = orgSchema.table(
     index("org_webhook_event_source_idx").on(t.source),
     index("org_webhook_event_provider_idx").on(t.providerId),
     index("org_webhook_event_created_idx").on(t.createdAt),
+    index("org_webhook_event_actor_idx").on(t.actorId),
+    index("org_webhook_event_event_type_idx").on(t.eventType),
+    index("org_webhook_event_entity_idx").on(t.entityId),
+    index("org_webhook_event_actor_created_idx").on(t.actorId, t.createdAt),
+    index("org_webhook_event_event_type_created_idx").on(t.eventType, t.createdAt),
   ],
 );
 

@@ -13,12 +13,37 @@ import { getWorkTrackerAdapter } from "../../../adapters/adapter-registry";
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter";
 import { newId } from "../../../lib/id";
 import { logger } from "../../../logger";
-import { recordWebhookEvent, updateWebhookEventStatus } from "../../../lib/webhook-events";
+import { recordWebhookEvent, updateWebhookEventStatus, resolveActorPrincipal } from "../../../lib/webhook-events";
 import { startWorkflow } from "../../../lib/workflow-engine";
 import { createWorkflowRun } from "../../../lib/workflow-helpers";
 import { godWorkflow, type GodWorkflowInput } from "../workflows/god-workflow";
+import type { WebhookEventActor, WebhookEventEntity } from "@smp/factory-shared/schemas/org";
 
 const wlog = logger.child({ module: "webhook" });
+
+/**
+ * Map Jira webhook event to normalized event type.
+ */
+function normalizeJiraEventType(webhookEvent: string, changelog?: any): string {
+  switch (webhookEvent) {
+    case "jira:issue_created":
+      return "task.created";
+    case "jira:issue_updated": {
+      if (!changelog?.items) return "task.updated";
+      const hasStatus = changelog.items.some((i: any) => i.field === "status");
+      const hasAssignee = changelog.items.some((i: any) => i.field === "assignee");
+      if (hasStatus) return "task.status_changed";
+      if (hasAssignee) return "task.assigned";
+      return "task.updated";
+    }
+    case "jira:issue_deleted":
+      return "task.deleted";
+    case "issue_property_set":
+      return "task.updated";
+    default:
+      return `task.${webhookEvent.replace("jira:", "")}`;
+  }
+}
 
 export function jiraWebhookTrigger(db: Database) {
   return new Elysia({ prefix: "/webhooks" }).post(
@@ -32,12 +57,40 @@ export function jiraWebhookTrigger(db: Database) {
       const jiraDeliveryId = (jiraPayload as any)?.timestamp
         ? `${jiraEventType}-${(jiraPayload as any).timestamp}`
         : crypto.randomUUID();
+
+      // Extract actor from Jira payload
+      const jiraUser = (jiraPayload as any)?.user as Record<string, unknown> | undefined;
+      const jiraAccountId = jiraUser?.accountId as string | undefined;
+      let jiraActorPrincipalId: string | null = null;
+      if (jiraAccountId) {
+        jiraActorPrincipalId = await resolveActorPrincipal(db, "jira", jiraAccountId).catch(() => null);
+      }
+      const jiraActor: WebhookEventActor | undefined = jiraAccountId ? {
+        externalId: jiraAccountId,
+        externalUsername: (jiraUser?.displayName as string) ?? undefined,
+        principalId: jiraActorPrincipalId ?? undefined,
+      } : undefined;
+
+      // Extract entity (issue)
+      const jiraIssue = (jiraPayload as any)?.issue as Record<string, unknown> | undefined;
+      const jiraIssueKey = jiraIssue?.key as string | undefined;
+      const jiraEntity: WebhookEventEntity | undefined = jiraIssueKey ? {
+        externalRef: jiraIssueKey,
+        kind: "ticket",
+      } : undefined;
+
+      const normalizedEventType = normalizeJiraEventType(jiraEventType, (jiraPayload as any)?.changelog);
+
       const eventId = await recordWebhookEvent(db, {
         source: "jira",
         providerId: params.providerId,
         deliveryId: jiraDeliveryId,
         eventType: jiraEventType,
+        normalizedEventType,
         payload: jiraPayload,
+        actor: jiraActor,
+        entity: jiraEntity,
+        actorId: jiraActorPrincipalId,
       });
 
       // 1. Look up provider
