@@ -8,17 +8,17 @@ import { createHash } from "node:crypto";
 const HOOKS = {
   "commit-msg": `#!/bin/sh
 # dx git-hook: validate commit message conventions
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
 exec dx git-hook commit-msg "$1"
 `,
   "pre-commit": `#!/bin/sh
 # dx git-hook: lint staged files
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
 exec dx git-hook pre-commit
 `,
   "pre-push": `#!/bin/sh
 # dx git-hook: run quality checks before push
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
 exec dx git-hook pre-push
 `,
   "post-merge": `#!/bin/sh

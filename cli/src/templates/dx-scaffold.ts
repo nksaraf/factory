@@ -10,7 +10,7 @@ import type { GeneratedFile } from "./types.js";
 function hookScript(hookName: string, dxSubcommand: string): string {
   return `#!/bin/sh
 # dx git-hook: ${hookName}
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
 exec dx git-hook ${dxSubcommand}
 `;
 }
@@ -21,7 +21,7 @@ export function dxHookFiles(): GeneratedFile[] {
       path: ".dx/hooks/commit-msg",
       content: `#!/bin/sh
 # dx git-hook: validate commit message conventions
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
 exec dx git-hook commit-msg "$1"
 `,
     },

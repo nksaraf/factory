@@ -2,7 +2,7 @@ import { Elysia } from "elysia"
 
 const installScript = `#!/bin/sh
 # Install script for dx CLI (lepton-dx)
-# Usage: curl -fsSL https://factory.lepton.software/install | bash
+# Usage: curl -fsSL https://factory.lepton.software/api/v1/factory/install | bash
 set -e
 
 PACKAGE_NAME="lepton-dx"
@@ -92,7 +92,7 @@ resolve_version
 install
 `
 
-export const installController = new Elysia().get("/install", () => {
+export const installController = new Elysia().get("/api/v1/factory/install", () => {
   return new Response(installScript, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   })
