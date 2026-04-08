@@ -138,8 +138,7 @@ export function sshCommand(app: DxBase) {
               const api = await getApi();
               const result = await A(api).access.targets.get({ query: { limit: "200" } });
               const raw: any[] = result?.data?.data ?? [];
-              // Filter out targets without a host, and localhost entries (local workspaces)
-              const targets = raw.filter((t: any) => t.host && t.host !== "localhost" && t.host !== "127.0.0.1");
+              const targets = raw.filter((t: any) => t.host);
 
               if (raw.length > 0 && targets.length < raw.length) {
                 console.log(styleWarn(`${raw.length - targets.length} target(s) skipped (missing host/IP).`));

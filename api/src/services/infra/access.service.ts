@@ -2,7 +2,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import type { Database } from "../../db/connection";
 import type { HostSpec } from "@smp/factory-shared/schemas/infra";
 import { vm } from "../../db/schema/infra";
-import { host } from "../../db/schema/infra-v2";
+import { host, runtime } from "../../db/schema/infra-v2";
 import { workspace } from "../../db/schema/ops";
 
 /**
@@ -45,12 +45,17 @@ export async function resolveTarget(
   const wsRow = wsRows[0];
   const wsSpec = wsRow?.spec;
   if (wsRow && wsSpec?.sshHost && wsSpec?.sshPort) {
+    let sshHost = wsSpec.sshHost;
+    if (isLoopback(sshHost) && wsRow.runtimeId) {
+      const [rt] = await db.select().from(runtime).where(eq(runtime.id, wsRow.runtimeId));
+      sshHost = rt?.spec?.endpoint ?? endpointFromKubeconfig(rt?.spec?.kubeconfigRef) ?? sshHost;
+    }
     return {
       kind: "workspace",
       id: wsRow.id,
       slug: wsRow.slug,
       name: wsRow.name,
-      host: wsSpec.sshHost,
+      host: sshHost,
       port: wsSpec.sshPort,
       user: "root",
       status: wsSpec.lifecycle ?? "unknown",
@@ -127,15 +132,35 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
   const wsRows = await db.select().from(workspace).where(
     and(isNull(workspace.systemTo), isNull(workspace.validTo))
   );
+
+  // Pre-fetch runtimes to resolve localhost sshHost → actual runtime endpoint
+  const runtimeIds = [...new Set(wsRows.map((r) => r.runtimeId).filter(Boolean))] as string[];
+  const runtimeById = new Map<string, string>();
+  if (runtimeIds.length > 0) {
+    const runtimes = await db.select().from(runtime).where(
+      or(...runtimeIds.map((id) => eq(runtime.id, id)))!
+    );
+    for (const rt of runtimes) {
+      const endpoint = rt.spec?.endpoint ?? endpointFromKubeconfig(rt.spec?.kubeconfigRef);
+      if (endpoint) runtimeById.set(rt.id, endpoint);
+    }
+  }
+
   for (const row of wsRows) {
     const spec = row.spec;
     if (spec.sshHost && spec.sshPort && spec.lifecycle === "active") {
+      let sshHost = spec.sshHost;
+      // Resolve localhost/loopback to the runtime's actual endpoint
+      if (isLoopback(sshHost) && row.runtimeId) {
+        sshHost = runtimeById.get(row.runtimeId) ?? sshHost;
+      }
+      if (isLoopback(sshHost)) continue; // skip unresolvable localhost targets
       targets.push({
         kind: "workspace",
         id: row.id,
         slug: row.slug,
         name: row.name,
-        host: spec.sshHost,
+        host: sshHost,
         port: spec.sshPort,
         user: "root",
         status: spec.lifecycle,
@@ -196,4 +221,19 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
   }
 
   return targets;
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function isLoopback(host: string): boolean {
+  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+}
+
+function endpointFromKubeconfig(kubeconfig: string | undefined): string | null {
+  if (!kubeconfig) return null;
+  const match = kubeconfig.match(/server:\s*https?:\/\/([^:/\s]+)/);
+  if (!match) return null;
+  const h = match[1];
+  if (isLoopback(h) || h === "host.docker.internal") return null;
+  return h;
 }
