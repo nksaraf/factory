@@ -9,6 +9,7 @@ import type {
   MessageResult,
   MessagingWebhookVerification,
 } from "./messaging-adapter";
+import { slackClient } from "./slack-client";
 
 /**
  * Slack messaging adapter using @slack/web-api
@@ -25,7 +26,7 @@ export class SlackMessagingAdapter implements MessagingAdapter {
   readonly type = "slack";
 
   private client(token: string): WebClient {
-    return new WebClient(token);
+    return slackClient(token);
   }
 
   async testConnection(

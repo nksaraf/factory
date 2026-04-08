@@ -4,6 +4,7 @@ import type {
   IdentityProviderConfig,
   ExternalIdentityUser,
 } from "./identity-provider-adapter";
+import { slackClient } from "./slack-client";
 
 /**
  * Slack identity provider adapter.
@@ -19,7 +20,7 @@ export class SlackIdentityProviderAdapter implements IdentityProviderAdapter {
   readonly provider = "slack" as const;
 
   private client(token: string): WebClient {
-    return new WebClient(token);
+    return slackClient(token);
   }
 
   async fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]> {
