@@ -6,6 +6,7 @@
  */
 
 import { capture } from "../../lib/subprocess.js";
+import { shellCapture } from "../../lib/shell.js";
 import type { ToolchainCheck, ToolchainResult, InstallRole } from "@smp/factory-shared/install-types";
 
 type Platform = "darwin" | "linux" | "win32";
@@ -237,9 +238,22 @@ export function compareVersions(actual: string, minimum: string): boolean {
   return true; // equal
 }
 
+/** Run a command with a timeout (default 15s). Rejects on timeout. */
+function captureWithTimeout(
+  cmd: string[],
+  timeoutMs = 15_000,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return Promise.race([
+    shellCapture(cmd, { noSecrets: true }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms: ${cmd.join(" ")}`)), timeoutMs),
+    ),
+  ]);
+}
+
 async function checkTool(tool: ToolDef): Promise<ToolchainCheck> {
   try {
-    const result = await capture([tool.cmd, ...tool.args]);
+    const result = await captureWithTimeout([tool.cmd, ...tool.args]);
 
     if (result.exitCode !== 0) {
       return {

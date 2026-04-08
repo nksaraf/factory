@@ -8,7 +8,7 @@ const DX_CONFIG_DIR = configDir("dx");
 /** Shared field definitions — used by both global and project-local stores. */
 export const DX_CONFIG_FIELDS = {
   role: { type: "string", default: "workbench" },
-  factoryUrl: { type: "string", default: "https://factory.rio.software" },
+  factoryUrl: { type: "string", default: "https://factory.lepton.software" },
   siteUrl: { type: "string", default: "" },
   context: { type: "string", default: "" },
   authBasePath: { type: "string", default: "/api/v1/auth" },

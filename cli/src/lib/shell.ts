@@ -101,17 +101,20 @@ async function loadSecretEnv(
           Authorization: `Bearer ${token}`,
         };
 
-        // Fetch vars and secrets in parallel
+        // Fetch vars and secrets in parallel (5s timeout to avoid hanging)
+        const signal = AbortSignal.timeout(5_000);
         const [varsRes, secretsRes] = await Promise.all([
           fetch(`${factoryUrl}/api/v1/factory/vars/resolve`, {
             method: "POST",
             headers,
             body: resolveBody,
+            signal,
           }),
           fetch(`${factoryUrl}/api/v1/factory/secrets/resolve`, {
             method: "POST",
             headers,
             body: resolveBody,
+            signal,
           }),
         ]);
 

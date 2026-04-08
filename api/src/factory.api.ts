@@ -29,6 +29,7 @@ import { seedPlatformPresets } from "./modules/agent/preset.service"
 import { webhookController } from "./modules/build/webhook.controller"
 import { messagingWebhookController } from "./modules/messaging/index"
 import { healthController } from "./modules/health/index"
+import { installController } from "./modules/install/index"
 import { observabilityController } from "./modules/observability/index"
 import { productControllerV2 } from "./modules/product/index.v2"
 import { buildControllerV2 } from "./modules/build/index.v2"
@@ -43,6 +44,7 @@ import { messagingControllerV2 } from "./modules/messaging/index.v2"
 import { previewCiController } from "./modules/infra/preview-ci.controller"
 import { jiraWebhookTrigger } from "./modules/workflow/triggers/jira-webhook"
 import { workflowController } from "./modules/workflow/triggers/rest"
+import { ideHookController } from "./modules/ide-hooks/index"
 // Import workflows so they self-register in the workflow registry
 import "./modules/workflow/workflows/god-workflow"
 import "./modules/workflow/workflows/echo-workflow"
@@ -125,6 +127,7 @@ export class FactoryAPI {
       .use(observabilityController(this.observabilityAdapter))
       .use(operationsController())
       .use(workflowController(db))
+      .use(ideHookController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
@@ -184,6 +187,7 @@ export class FactoryAPI {
         logger.error({ method: request.method, path: url.pathname, code, err: error }, "request error")
       })
       .use(healthController)
+      .use(installController)
       .use(presenceController(() => this.redis))
       .use(webhookController(db))
       .use(messagingWebhookController(db))

@@ -257,7 +257,7 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
       message: "How would you like to use dx?",
       choices: [
         { value: "local", label: "Local factory (default) — runs a local API on this machine" },
-        { value: "cloud", label: "Cloud factory — connect to factory.rio.software" },
+        { value: "cloud", label: "Cloud factory — connect to factory.lepton.software" },
         { value: "custom", label: "Other factory — enter a custom factory URL" },
       ],
       default: "local",
@@ -273,7 +273,7 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
         console.log(`  ${styleSuccess("✔")} Docker available — run ${styleMuted("dx cluster create --local")} to create a local k3d cluster`);
       }
     } else if (factoryMode === "cloud") {
-      config.factoryUrl = "https://factory.rio.software";
+      config.factoryUrl = "https://factory.lepton.software";
     } else {
       const url = await input({
         message: "Factory URL:",
