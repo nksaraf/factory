@@ -80,6 +80,13 @@ export class EntityFinder {
             entity.clusterEndpoint = access.endpoint;
           }
         }
+        // Resolve loopback sshHost via runtime endpoint
+        if (entity && isLoopback(entity.sshHost) && match.runtimeId) {
+          const access = await this.resolveRuntimeAccess(api, match.runtimeId as string);
+          if (access.endpoint && !isLoopback(access.endpoint)) {
+            entity.sshHost = access.endpoint;
+          }
+        }
         return entity;
       }
     } catch { /* endpoint may not exist or error */ }
@@ -242,6 +249,10 @@ function workspaceToEntity(wks: Record<string, unknown>): ResolvedEntity | null 
     container: isContainer ? 'workspace' : undefined,
     systemDeploymentId: wks.systemDeploymentId as string | undefined,
   };
+}
+
+function isLoopback(host: string | undefined): boolean {
+  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
 }
 
 function hostToEntity(host: Record<string, unknown>): ResolvedEntity | null {
