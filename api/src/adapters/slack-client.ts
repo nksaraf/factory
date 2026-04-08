@@ -1,18 +1,17 @@
 /**
- * Lightweight Slack Web API client using direct HTTP calls.
+ * Lightweight Slack Web API client using curl subprocess.
  *
- * Replaces @slack/web-api SDK which uses axios, and axios under Bun
- * uses Bun's fetch — which drops keep-alive sockets causing persistent
- * "socket connection was closed unexpectedly" errors.
- *
- * All Slack Web API methods are POST https://slack.com/api/<method>
- * with Authorization: Bearer <token> and JSON body.
+ * Bun polyfills node:https with its own socket layer which drops
+ * connections to Slack's API. curl works fine from the same container,
+ * so we shell out to curl for reliability.
  */
 
-import { request as httpsRequest } from "node:https";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { logger } from "../logger";
 
 const log = logger.child({ module: "slack-client" });
+const execFileAsync = promisify(execFile);
 
 const SLACK_API = "https://slack.com/api";
 
@@ -24,43 +23,18 @@ interface SlackResponse {
 }
 
 /**
- * Call a Slack Web API method using Node's https module directly.
+ * Call a Slack Web API method via curl subprocess.
  */
-function slackApiCall(method: string, token: string, body: Record<string, unknown> = {}): Promise<SlackResponse> {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify(body);
-    const req = httpsRequest(
-      `${SLACK_API}/${method}`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json; charset=utf-8",
-          "Content-Length": Buffer.byteLength(payload),
-        },
-        timeout: 30_000,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          try {
-            const data = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as SlackResponse;
-            resolve(data);
-          } catch (err) {
-            reject(new Error(`Failed to parse Slack API response for ${method}`));
-          }
-        });
-      },
-    );
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error(`Slack API call ${method} timed out`));
-    });
-    req.write(payload);
-    req.end();
-  });
+async function slackApiCall(method: string, token: string, body: Record<string, unknown> = {}): Promise<SlackResponse> {
+  const { stdout } = await execFileAsync("curl", [
+    "-s", "--max-time", "30",
+    "-X", "POST",
+    "-H", `Authorization: Bearer ${token}`,
+    "-H", "Content-Type: application/json; charset=utf-8",
+    "-d", JSON.stringify(body),
+    `${SLACK_API}/${method}`,
+  ]);
+  return JSON.parse(stdout) as SlackResponse;
 }
 
 /**
