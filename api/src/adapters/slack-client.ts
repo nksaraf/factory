@@ -29,7 +29,7 @@ export function slackClient(token: string): WebClient {
 export async function withSocketRetry<T>(
   label: string,
   fn: () => Promise<T>,
-  maxRetries = 2,
+  maxRetries = 4,
 ): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -38,7 +38,7 @@ export async function withSocketRetry<T>(
       const msg = err?.message ?? String(err);
       const isSocketError = msg.includes("socket connection was closed unexpectedly");
       if (isSocketError && attempt < maxRetries) {
-        const delay = 1000 * (attempt + 1);
+        const delay = 2000 * (attempt + 1);
         log.warn({ attempt: attempt + 1, maxRetries, label }, `slack socket error, retrying in ${delay}ms`);
         await new Promise((r) => setTimeout(r, delay));
         continue;
