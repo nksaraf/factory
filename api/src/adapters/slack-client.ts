@@ -1,22 +1,12 @@
 import { WebClient, LogLevel } from "@slack/web-api";
-import { Agent } from "node:http";
-import { Agent as HttpsAgent } from "node:https";
 
-/**
- * Shared Slack WebClient factory — reuses clients per token with:
- * - Node HTTP agent (bypasses Bun's fetch keep-alive socket issues)
- * - 30s timeout
- * - 3 retries with exponential backoff
- */
+// Force Node's HTTP adapter instead of Bun's fetch adapter.
+// Bun's fetch drops keep-alive sockets causing "socket connection was
+// closed unexpectedly" errors on every identity sync cycle.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const httpAdapter = require("axios/unsafe/adapters/http.js");
 
 const clients = new Map<string, WebClient>();
-
-const agent = new HttpsAgent({
-  keepAlive: true,
-  keepAliveMsecs: 10_000,
-  maxSockets: 5,
-  timeout: 30_000,
-});
 
 export function slackClient(token: string): WebClient {
   let client = clients.get(token);
@@ -24,7 +14,7 @@ export function slackClient(token: string): WebClient {
     client = new WebClient(token, {
       logLevel: LogLevel.WARN,
       timeout: 30_000,
-      agent,
+      adapter: httpAdapter,
       retryConfig: {
         retries: 3,
         factor: 2,
