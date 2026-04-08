@@ -19,7 +19,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
             success: false,
             error: {
               code: "AUTH_DENIED",
-              message: "Not signed in. Run `dx auth login`.",
+              message: "Not signed in. Run `dx factory login`.",
             },
             exitCode: ExitCodes.AUTH_FAILURE,
           },
@@ -29,7 +29,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
       );
       process.exit(ExitCodes.AUTH_FAILURE);
     }
-    console.error(styleError("Not signed in. Run `dx auth login`."));
+    console.error(styleError("Not signed in. Run `dx factory login`."));
     process.exit(ExitCodes.AUTH_FAILURE);
   }
 
@@ -79,7 +79,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
             success: false,
             error: {
               code: "AUTH_DENIED",
-              message: "Session invalid or expired. Run `dx auth login`.",
+              message: "Session invalid or expired. Run `dx factory login`.",
               details: { reason: detail },
             },
             exitCode: ExitCodes.AUTH_FAILURE,
@@ -90,7 +90,7 @@ export async function runWhoami(flags: DxFlags): Promise<void> {
       );
     } else {
       console.error(
-        styleError("Session invalid or expired. Run `dx auth login`.")
+        styleError("Session invalid or expired. Run `dx factory login`.")
       );
       if (flags.debug) {
         console.error(styleError(detail));

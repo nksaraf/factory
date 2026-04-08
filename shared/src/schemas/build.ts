@@ -177,7 +177,7 @@ export const GithubAppInstallationSchema = z.object({
 export type GithubAppInstallation = z.infer<typeof GithubAppInstallationSchema>;
 
 // ── Webhook Event ───────────────────────────────────────────
-// Canonical definition lives in org.ts — re-exported via barrel.
+// Canonical definition lives in org.ts — import from there directly.
 
 // ── Git Sync ────────────────────────────────────────────────
 

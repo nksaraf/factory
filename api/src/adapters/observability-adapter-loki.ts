@@ -41,6 +41,7 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
 
     if (query.since) params.set("start", this.toNanos(query.since))
     if (query.until) params.set("end", this.toNanos(query.until))
+    // Cursor takes precedence over since for pagination
     if (query.cursor) params.set("start", query.cursor)
 
     const url = `${this.baseUrl}/loki/api/v1/query_range?${params}`
@@ -129,9 +130,10 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
       logql += ` | op="${query.sandbox}"`
     }
 
-    // Grep filter
+    // Grep filter — sanitize backticks to prevent LogQL injection
     if (query.grep) {
-      logql += ` |~ \`${query.grep}\``
+      const safeGrep = query.grep.replace(/`/g, "")
+      logql += ` |~ \`${safeGrep}\``
     }
 
     return logql
@@ -174,16 +176,22 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
     val: string,
     labels: Record<string, string>
   ): LogEntry {
+    // Strip "Body: Str(...)" wrapping from historical OTel debug exporter output
+    let cleaned = val
+    while (cleaned.startsWith("Body: Str(") && cleaned.endsWith(")")) {
+      cleaned = cleaned.slice("Body: Str(".length, -1)
+    }
+
     // Try to parse as structured JSON log (Pino output)
     let parsed: Record<string, any> = {}
     try {
-      parsed = JSON.parse(val)
+      parsed = JSON.parse(cleaned)
     } catch {
       // Plain text log line
       return {
         timestamp: this.fromNanos(ts),
         level: (labels.level as LogLevel) ?? "info",
-        message: val,
+        message: cleaned,
         source: labels.service_name ?? "factory-api",
         attributes: labels,
       }
@@ -192,7 +200,7 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
     return {
       timestamp: parsed.time ?? this.fromNanos(ts),
       level: this.mapPinoLevel(parsed.level) ?? (labels.level as LogLevel) ?? "info",
-      message: parsed.msg ?? val,
+      message: parsed.msg ?? cleaned,
       source: parsed.service ?? labels.service_name ?? "factory-api",
       attributes: {
         ...labels,

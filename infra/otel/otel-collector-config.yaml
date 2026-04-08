@@ -8,28 +8,33 @@ receivers:
         cors:
           allowed_origins: ["*"]
 
-  # Scrape Docker container logs from the host filesystem
+  # Scrape Docker container logs from the host filesystem.
+  # Docker wraps each log line in JSON: {"log":"...","stream":"stdout","time":"..."}
+  # Some containers may produce non-JSON output so we parse leniently.
   filelog/docker:
     include:
       - /var/lib/docker/containers/*/*.log
     include_file_name: false
     include_file_path: true
     operators:
-      # Docker wraps each log line in JSON: {"log":"...","stream":"stdout","time":"..."}
-      - type: json_parser
-        id: docker_parser
-        timestamp:
-          parse_from: attributes.time
-          layout: "%Y-%m-%dT%H:%M:%S.%fZ"
-      # Extract container ID from file path
+      # Extract container ID from file path (always succeeds)
       - type: regex_parser
         id: extract_container_id
         parse_from: attributes["log.file.path"]
         regex: "/var/lib/docker/containers/(?P<container_id>[a-f0-9]+)/"
-      # Move the actual log line to body
+      # Parse Docker JSON wrapper — on failure, body stays as-is
+      - type: json_parser
+        id: docker_parser
+        on_error: send
+        timestamp:
+          parse_from: attributes.time
+          layout: "%Y-%m-%dT%H:%M:%S.%fZ"
+      # Move the actual log line to body (only exists if json_parser succeeded)
       - type: move
+        id: move_log
         from: attributes.log
         to: body
+        on_error: send
 
 processors:
   batch:
@@ -39,19 +44,28 @@ processors:
       - key: service_name
         from_attribute: service.name
         action: upsert
+  # Drop OTel collector's own debug/internal output that gets scraped by filelog
+  filter/drop-otel-noise:
+    error_mode: ignore
+    logs:
+      log_record:
+        - 'IsMatch(body, "^(LogRecord|ObservedTimestamp|Timestamp:|Body:|Trace ID:|Span ID:|Severity|Attributes:|Resource |ScopeLogs|InstrumentationScope|StartTimestamp|EndTimestamp)")'
+        - 'IsMatch(body, "^\\d{4}-\\d{2}-\\d{2}T.*otelcol")'
 
 exporters:
   debug:
-    verbosity: detailed
+    verbosity: basic
   otlphttp/loki:
     endpoint: http://infra-loki:3100/otlp
 
 extensions:
   zpages:
     endpoint: 0.0.0.0:55679
+  health_check:
+    endpoint: 0.0.0.0:13133
 
 service:
-  extensions: [zpages]
+  extensions: [zpages, health_check]
   pipelines:
     traces:
       receivers: [otlp]
@@ -63,5 +77,5 @@ service:
       exporters: [debug]
     logs:
       receivers: [otlp, filelog/docker]
-      processors: [batch, resource]
+      processors: [batch, resource, filter/drop-otel-noise]
       exporters: [otlphttp/loki]

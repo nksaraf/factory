@@ -66,7 +66,7 @@ async function checkAuth(): Promise<DoctorResult> {
   if (token) {
     console.log(`  ${styleSuccess("✔")} Factory auth${profile !== "default" ? ` (profile: ${profile})` : ""}`);
   } else {
-    console.log(`  ${styleWarn("⚠")} Factory auth — not authenticated (run dx auth login)`);
+    console.log(`  ${styleWarn("⚠")} Factory auth — not authenticated (run dx factory login)`);
   }
 
   // Registry auth

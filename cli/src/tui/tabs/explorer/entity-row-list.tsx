@@ -13,6 +13,7 @@ interface EntityRowListProps {
   onSelect: (row: Record<string, unknown>) => void
   onConfirm: (row: Record<string, unknown>) => void
   onCreate: () => void
+  onBack: () => void
 }
 
 const ROW_MAX_WIDTH = 38
@@ -53,7 +54,7 @@ function matchesFilter(row: Record<string, unknown>, filter: string): boolean {
 
 export function EntityRowList({
   entity, rows: allRows, loading, error,
-  focused, selectedRow, onSelect, onConfirm, onCreate,
+  focused, selectedRow, onSelect, onConfirm, onCreate, onBack,
 }: EntityRowListProps) {
   const [filter, setFilter] = useState("")
   const [filtering, setFiltering] = useState(false)
@@ -116,6 +117,10 @@ export function EntityRowList({
       }
 
       // Not filtering
+      if (key.escape) {
+        onBack()
+        return
+      }
       if (key.upArrow) {
         const next = Math.max(0, cursorPos - 1)
         setCursorPos(next)

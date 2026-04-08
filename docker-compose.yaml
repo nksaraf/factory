@@ -318,11 +318,10 @@ services:
       - ./infra/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     restart: unless-stopped
+    # otel-contrib is a distroless image — no wget/curl available
+    # Use NONE to disable built-in healthcheck; zpages at :55679 can be probed externally
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: ["NONE"]
     labels:
       catalog.description: "OpenTelemetry Collector — exports logs to Loki"
       catalog.owner: platform

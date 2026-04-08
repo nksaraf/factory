@@ -12,7 +12,7 @@ export const ErrorRegistry: Record<
   AUTH_DENIED: {
     message: "Authentication failed",
     suggestions: [
-      { action: "dx auth login", description: "Sign in with email/password; session stored in ~/.config/dx/session.json" },
+      { action: "dx factory login", description: "Sign in with email/password; session stored in ~/.config/dx/session.json" },
       { action: "dx whoami", description: "Verify stored session against the auth service" },
       { action: "config", description: "Set authUrl and authBasePath in ~/.config/dx/config.yaml" },
     ],

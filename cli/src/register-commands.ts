@@ -136,7 +136,6 @@ export function registerCommands(app: DxBase): DxBase {
     .command(customerCommand(app))
     .command(dockerCommand(app))
     .command(domainCommand(app))
-    .command(downCommand(app))
     .command(entitlementCommand(app))
     .command(execCommand(app))
     .command(factoryCommand(app))

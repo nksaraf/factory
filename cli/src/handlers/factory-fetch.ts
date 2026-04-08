@@ -17,7 +17,7 @@ export async function getFactoryFetchClient(): Promise<FactoryFetchClient> {
 
   if (!token) {
     throw new Error(
-      "Not authenticated. Run `dx auth login` first.",
+      "Not authenticated. Run `dx factory login` first.",
     );
   }
 

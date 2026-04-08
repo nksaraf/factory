@@ -135,7 +135,7 @@ export function ciCommand(app: DxBase) {
           query.offset = 0;
 
           const data = await apiCall(flags, () =>
-            api.api.v1.factory.build.runs.get({ query })
+            api.api.v1.factory.build["pipeline-runs"].get({ query })
           );
 
           tableOrJson(

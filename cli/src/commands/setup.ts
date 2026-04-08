@@ -91,44 +91,14 @@ export function setupCommand(app: DxBase) {
             await dxConfigStore.update((prev) => ({ ...prev, role: roleOverride }));
             config = await readConfig();
           }
-        } else if (hasExistingConfig && (config.role === "site" || config.role === "factory")) {
-          // Existing site/factory config — use that role
-          role = config.role as InstallRole;
-          console.log(`  Config found: ${config.role} (${config.context || config.siteName || new URL(config.factoryUrl).hostname})\n`);
-        } else if (roleOverride === "site" || roleOverride === "factory") {
-          // Site/Factory needs the wizard
-          role = roleOverride;
-          const { runWizard } = await import("../handlers/install/interactive-setup.js");
-          const wizard = await runWizard(config);
-          await dxConfigStore.write({
-            role: wizard.role,
-            factoryUrl: wizard.factoryUrl,
-            factoryMode: config.factoryMode,
-            siteUrl: wizard.siteUrl,
-            context: config.context,
-            authBasePath: config.authBasePath,
-            siteName: wizard.siteName,
-            domain: wizard.domain,
-            adminEmail: wizard.adminEmail,
-            tlsMode: wizard.tlsMode,
-            tlsCertPath: wizard.tlsCertPath,
-            tlsKeyPath: wizard.tlsKeyPath,
-            databaseMode: wizard.databaseMode,
-            databaseUrl: wizard.databaseUrl,
-            registryMode: wizard.registryMode,
-            registryUrl: wizard.registryUrl,
-            resourceProfile: wizard.resourceProfile,
-            networkPodCidr: config.networkPodCidr,
-            networkServiceCidr: config.networkServiceCidr,
-            installMode: config.installMode,
-            installLastCompletedPhase: config.installLastCompletedPhase,
-            kubeconfig: config.kubeconfig,
-            workspaceReposDir: config.workspaceReposDir,
-            workspaceWorktreesDir: config.workspaceWorktreesDir,
-          });
-          config = await readConfig();
+          if (role === "site" || role === "factory") {
+            // Show existing config context for explicit site/factory role
+            if (hasExistingConfig && config.role === role) {
+              console.log(`  Config found: ${config.role} (${config.context || config.siteName || new URL(config.factoryUrl).hostname})\n`);
+            }
+          }
         } else {
-          // Default to workbench
+          // Default to workbench — require explicit --role for site/factory
           role = "workbench";
         }
 

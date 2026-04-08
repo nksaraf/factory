@@ -413,7 +413,7 @@ export const SshKeySchema = z.object({
 export type SshKey = z.infer<typeof SshKeySchema>;
 
 // ── Webhook Event ────────────────────────────────────────────
-// Universal webhook event log — all external integrations.
+// Universal webhook event log — all external integrations (GitHub, Slack, Jira, Cursor, Claude Code, etc.)
 
 export const WebhookEventSourceSchema = z.enum([
   "github",

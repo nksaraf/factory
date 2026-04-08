@@ -29,7 +29,7 @@ function formatApiError(error: unknown): string {
   // Human-friendly messages for common HTTP errors
   if (status === 404) return "Resource not found."
   if (status === 401 || status === 403)
-    return "Authentication failed. Run 'dx auth login' to sign in."
+    return "Authentication failed. Run 'dx factory login' to sign in."
   if (status === 409) return "Conflict — the resource already exists or was modified."
   if (status === 429) return "Rate limit exceeded. Please wait and try again."
   if (status && status >= 500) return `Server error (${status}). The API may be experiencing issues.`

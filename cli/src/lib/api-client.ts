@@ -1,13 +1,24 @@
 export class FactoryClient {
+  readonly url: string
+  private token?: string
+
   constructor(
-    private baseUrl: string = process.env.DX_API_URL ?? "http://localhost:3000",
-    private token?: string
-  ) {}
+    baseUrl: string = process.env.DX_API_URL ?? "http://localhost:3000",
+    token?: string
+  ) {
+    this.url = baseUrl
+    this.token = token
+  }
+
+  /** Build auth headers for raw fetch calls (e.g. SSE streaming). */
+  authHeaders(): Record<string, string> {
+    return this.token ? { Authorization: `Bearer ${this.token}` } : {}
+  }
 
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" }
     if (this.token) headers["Authorization"] = `Bearer ${this.token}`
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(`${this.url}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,

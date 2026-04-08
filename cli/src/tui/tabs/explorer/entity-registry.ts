@@ -95,3 +95,74 @@ export const MODULE_GROUPS: ModuleGroup[] = [
 ]
 
 export const ALL_ENTITIES: EntityDef[] = MODULE_GROUPS.flatMap((g) => g.entities)
+
+/**
+ * Map ID prefixes (e.g. "subs" from "subs_xxx") to their entity definition.
+ * Used to resolve foreign key references in the explorer.
+ */
+const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
+  // infra
+  subs: { module: "infra", entity: "substrates", label: "Substrates" },
+  host: { module: "infra", entity: "hosts", label: "Hosts" },
+  rt: { module: "infra", entity: "runtimes", label: "Runtimes" },
+  rte: { module: "infra", entity: "routes", label: "Routes" },
+  dom: { module: "infra", entity: "dns-domains", label: "DNS Domains" },
+  tnl: { module: "infra", entity: "tunnels", label: "Tunnels" },
+  ipa: { module: "infra", entity: "ip-addresses", label: "IP Addresses" },
+  sec: { module: "infra", entity: "secrets", label: "Secrets" },
+  nlnk: { module: "infra", entity: "network-links", label: "Network Links" },
+  // org
+  team: { module: "org", entity: "teams", label: "Teams" },
+  prin: { module: "org", entity: "principals", label: "Principals" },
+  scope: { module: "org", entity: "scopes", label: "Scopes" },
+  agt: { module: "agent", entity: "agents", label: "Agents" },
+  rpre: { module: "agent", entity: "presets", label: "Role Presets" },
+  job: { module: "agent", entity: "jobs", label: "Jobs" },
+  mem: { module: "agent", entity: "memories", label: "Memories" },
+  msgp: { module: "messaging", entity: "providers", label: "Providers" },
+  // software / product
+  sys: { module: "product", entity: "systems", label: "Systems" },
+  cmp: { module: "product", entity: "components", label: "Components" },
+  api: { module: "product", entity: "apis", label: "APIs" },
+  art: { module: "product", entity: "artifacts", label: "Artifacts" },
+  rel: { module: "product", entity: "releases", label: "Releases" },
+  tmpl: { module: "product", entity: "templates", label: "Templates" },
+  prod: { module: "product", entity: "products", label: "Products" },
+  cap: { module: "product", entity: "capabilities", label: "Capabilities" },
+  // fleet / ops
+  site: { module: "fleet", entity: "sites", label: "Sites" },
+  tnt: { module: "fleet", entity: "tenants", label: "Tenants" },
+  sdp: { module: "fleet", entity: "system-deployments", label: "System Deployments" },
+  cdp: { module: "fleet", entity: "component-deployments", label: "Component Deployments" },
+  dset: { module: "fleet", entity: "deployment-sets", label: "Deployment Sets" },
+  rout: { module: "fleet", entity: "rollouts", label: "Rollouts" },
+  wks: { module: "fleet", entity: "workspaces", label: "Workspaces" },
+  wbnch: { module: "fleet", entity: "workbenches", label: "Workbenches" },
+  prev: { module: "fleet", entity: "previews", label: "Previews" },
+  intv: { module: "fleet", entity: "interventions", label: "Interventions" },
+  db: { module: "fleet", entity: "databases", label: "Databases" },
+  aprf: { module: "fleet", entity: "anonymization-profiles", label: "Anonymization Profiles" },
+  fp: { module: "fleet", entity: "forwarded-ports", label: "Forwarded Ports" },
+  // build
+  repo: { module: "build", entity: "repos", label: "Repos" },
+  ghp: { module: "build", entity: "git-host-providers", label: "Git Host Providers" },
+  wtp: { module: "build", entity: "work-tracker-providers", label: "Work Tracker Providers" },
+  prun: { module: "build", entity: "pipeline-runs", label: "Pipeline Runs" },
+  // commerce
+  cust: { module: "commerce", entity: "customers", label: "Customers" },
+  pln: { module: "commerce", entity: "plans", label: "Plans" },
+  csub: { module: "commerce", entity: "subscriptions", label: "Subscriptions" },
+  bmet: { module: "commerce", entity: "billable-metrics", label: "Billable Metrics" },
+}
+
+/** Extract the prefix from an entity ID like "subs_cmnmcgq0f..." → "subs" */
+export function extractIdPrefix(id: string): string | null {
+  const idx = id.indexOf("_")
+  return idx > 0 ? id.slice(0, idx) : null
+}
+
+/** Resolve an entity ID to its entity definition via prefix */
+export function resolveEntityById(id: string): EntityDef | null {
+  const prefix = extractIdPrefix(id)
+  return prefix ? PREFIX_TO_ENTITY[prefix] ?? null : null
+}

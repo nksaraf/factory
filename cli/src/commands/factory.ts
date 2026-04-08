@@ -239,7 +239,7 @@ export function factoryCommand(app: DxBase) {
           since: { type: "string", description: "Time window (e.g. 1h, 30m, 2d)" },
           level: { type: "string", short: "l", description: "Log level filter (debug, info, warn, error)" },
           grep: { type: "string", short: "g", description: "Text filter (regex)" },
-          follow: { type: "boolean", short: "f", description: "Stream logs in real-time" },
+          follow: { type: "boolean", short: "f", description: "Stream logs in real-time (SSE)" },
           limit: { type: "number", short: "n", description: "Max entries to return (default 100)" },
         })
         .run(async ({ flags }) => {

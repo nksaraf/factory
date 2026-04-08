@@ -49,6 +49,43 @@ export function observabilityController(adapter: ObservabilityAdapter) {
       query: ObservabilityModel.logQueryParams,
       detail: { tags: ["Observability"], summary: "Query logs" },
     })
+    .get("/logs/stream", ({ query }) => {
+      const logQuery = toLogQuery(query)
+      const ac = new AbortController()
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder()
+            controller.enqueue(encoder.encode(": connected\n\n"))
+
+            const send = (entry: import("@smp/factory-shared/observability-types").LogEntry) => {
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(entry)}\n\n`))
+              } catch { /* stream closed */ }
+            }
+
+            adapter.streamLogs(logQuery, send, ac.signal).then(() => {
+              try { controller.close() } catch { /* already closed */ }
+            }).catch(() => {
+              try { controller.close() } catch { /* already closed */ }
+            })
+          },
+          cancel() {
+            ac.abort()
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+          },
+        }
+      )
+    }, {
+      query: ObservabilityModel.logQueryParams,
+      detail: { tags: ["Observability"], summary: "Stream logs (SSE)" },
+    })
 
     // ---- Traces ----
     .get(

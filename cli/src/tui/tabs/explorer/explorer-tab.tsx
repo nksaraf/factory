@@ -5,6 +5,7 @@ import { EntityRowList } from "./entity-row-list.js"
 import { EntityDetail } from "./entity-detail.js"
 import { EntityEditor } from "./entity-editor.js"
 import { useEntityData } from "../../hooks/use-entity-data.js"
+import { getFactoryRestClient } from "../../../client.js"
 import type { EntityDef } from "./entity-registry.js"
 
 interface ExplorerTabProps {
@@ -15,7 +16,7 @@ type Pane = "types" | "rows" | "detail"
 
 type DetailView =
   | { mode: "detail" }
-  | { mode: "edit"; row?: Record<string, unknown> }
+  | { mode: "create" }
 
 export function ExplorerTab({ focused }: ExplorerTabProps) {
   const [activePane, setActivePane] = useState<Pane>("types")
@@ -23,7 +24,6 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null)
   const [detailView, setDetailView] = useState<DetailView>({ mode: "detail" })
 
-  // Lift data fetching here so row list + editor share it
   const entityData = useEntityData(
     selectedEntity?.module ?? "",
     selectedEntity?.entity ?? "",
@@ -44,10 +44,8 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
           return "types"
         })
       }
-      if (key.escape) {
-        if (activePane === "detail") setActivePane("rows")
-        else if (activePane === "rows") setActivePane("types")
-      }
+      // Escape is handled by each pane's onBack callback, not here,
+      // to avoid conflicting with pane-internal escape actions (close dropdown, cancel edit, etc.)
     },
     { isActive: focused }
   )
@@ -73,7 +71,24 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
   async function handleSaved() {
     await entityData.refresh()
     setDetailView({ mode: "detail" })
-    setActivePane("rows")
+  }
+
+  async function handleNavigate(targetEntity: EntityDef, id: string) {
+    // Switch to the target entity and load the specific row
+    setSelectedEntity(targetEntity)
+    setDetailView({ mode: "detail" })
+    setActivePane("detail")
+    try {
+      const client = await getFactoryRestClient()
+      const res = await client.getEntity(targetEntity.module, targetEntity.entity, id)
+      if (res.data) {
+        setSelectedRow(res.data)
+      }
+    } catch {
+      // If we can't fetch it, just switch to the entity list
+      setSelectedRow(null)
+      setActivePane("rows")
+    }
   }
 
   return (
@@ -119,9 +134,10 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
             onConfirm={handleRowConfirm}
             onCreate={() => {
               setSelectedRow(null)
-              setDetailView({ mode: "edit" })
+              setDetailView({ mode: "create" })
               setActivePane("detail")
             }}
+            onBack={() => setActivePane("types")}
           />
         ) : (
           <Text dimColor>← select entity</Text>
@@ -134,30 +150,30 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
           <Box padding={1}>
             <Text dimColor>tab to switch panes</Text>
           </Box>
-        ) : !selectedRow && detailView.mode === "detail" ? (
-          <Box padding={1}>
-            <Text dimColor>← select a record</Text>
-          </Box>
-        ) : detailView.mode === "edit" ? (
+        ) : detailView.mode === "create" ? (
           <EntityEditor
             entity={selectedEntity}
-            row={detailView.row}
             focused={detailFocused}
             onBack={() => {
               setDetailView({ mode: "detail" })
-              if (!selectedRow) setActivePane("rows")
+              setActivePane("rows")
             }}
             onSaved={handleSaved}
           />
-        ) : selectedRow ? (
+        ) : !selectedRow ? (
+          <Box padding={1}>
+            <Text dimColor>← select a record</Text>
+          </Box>
+        ) : (
           <EntityDetail
             entity={selectedEntity}
             row={selectedRow}
             focused={detailFocused}
             onBack={() => setActivePane("rows")}
-            onEdit={() => setDetailView({ mode: "edit", row: selectedRow })}
+            onNavigate={handleNavigate}
+            onSaved={handleSaved}
           />
-        ) : null}
+        )}
       </Box>
     </Box>
   )

@@ -351,6 +351,18 @@ Spec: `docs/reference/dx-cli-design-handoff-addendum.md` §3-6
 
 ---
 
+## V1 → V2 API Migration
+
+V1 controllers deleted from `createLocalApp` (2026-04-07). These CLI commands still call v1-only routes that have no v2 equivalent yet:
+
+- [ ] `dx module` — `build/modules/:name`, `build/modules/:name/versions` → add v2 ontology routes or migrate to `product/systems`
+- [ ] `dx artifact` — `build/artifacts`, `build/component-artifacts` → add v2 routes (note: `product/artifacts` exists in v2 but under different prefix)
+- [ ] `dx bundle generate` — `commerce/bundles`, `commerce/bundles/verify` → add v2 routes on commerce controller
+- [ ] PR listing/checks — `build/git-host-provider/:id/repos/:repoSlug/pulls[/:number/checks]` (used in `factory-status.ts`, `pr.ts`, `ship.ts`) → add v2 routes on repos or git-host-providers
+- [ ] Delete v1 schema files once all services are migrated to v2 schemas (currently 50+ files still import v1 schemas)
+
+---
+
 ## Build Plane — Quality Gates (`dx check`)
 
 Design spec: `plans/immutable-prancing-crown.md`

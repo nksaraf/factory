@@ -5,7 +5,7 @@
  *   1. Identity — generate workbenchId, detect type
  *   2. Defaults — scan & apply machine-level configs (git, npm, ssh, etc.)
  *   3. Toolchain — parallel checks for required dev tools + corepack + docker
- *   4. Factory auth — check / prompt for dx auth login
+ *   4. Factory auth — check / prompt for dx factory login
  *   5. Pkg auth — check / prompt for registry credentials
  *   6. Save — persist .dx/workbench.json + global config
  *   7. Register — POST to factory if authenticated
@@ -297,23 +297,38 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
   const isLocalMode = config.factoryUrl === "http://localhost:4100";
 
   if (isLocalMode) {
-    console.log(`  ${styleSuccess("✔")} Local factory mode — no authentication required`);
+    console.log(`  ${styleSuccess("✔")} Factory: local mode — no authentication required`);
     authenticated = true;
   } else {
-    const authSpinner = ora({ text: "Checking authentication...", prefixText: " " }).start();
+    const factoryHost = new URL(config.factoryUrl!).hostname;
+    const authSpinner = ora({ text: `Connecting to ${factoryHost}...`, prefixText: " " }).start();
     try {
       const token = await getStoredBearerToken();
       if (token) {
-        authSpinner.succeed("Authenticated");
-        authenticated = true;
+        // Validate the token is actually alive by hitting the Factory health endpoint
+        let userEmail: string | undefined;
+        try {
+          const { createFactoryAuthClient } = await import("../../auth-factory.js");
+          const client = await createFactoryAuthClient({});
+          const { data } = await client.getSession();
+          userEmail = data?.user?.email;
+        } catch {
+          // Session validation failed — token may be stale
+        }
+        if (userEmail) {
+          authSpinner.succeed(`Factory: ${factoryHost} — ${userEmail}`);
+          authenticated = true;
+        } else {
+          authSpinner.warn(`Factory: ${factoryHost} — session expired`);
+        }
       } else {
         authSpinner.warn("Not authenticated");
         if (!opts.yes) {
           const doAuth = await select({
             message: "Set up factory authentication?",
             choices: [
-              { value: true, label: "Yes, run dx auth login" },
-              { value: false, label: "Skip (can run dx auth login later)" },
+              { value: true, label: "Yes, run dx factory login" },
+              { value: false, label: "Skip (can run dx factory login later)" },
             ],
             default: true,
           });
@@ -324,13 +339,13 @@ export async function runWorkbenchSetup(opts: WorkbenchSetupOpts): Promise<Workb
               const postToken = await getStoredBearerToken();
               authenticated = !!postToken;
             } catch {
-              console.log(`  ${styleMuted("Auth setup failed — run dx auth login later")}`);
+              console.log(`  ${styleMuted("Auth setup failed — run dx factory login later")}`);
             }
           }
         }
       }
     } catch {
-      authSpinner.warn("Auth check failed — run dx auth login later");
+      authSpinner.warn("Auth check failed — run dx factory login later");
     }
   }
 

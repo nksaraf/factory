@@ -14,9 +14,10 @@ import type {
   Alert,
   AlertRule,
   SilenceSpec,
+  ObservabilityBackendType,
 } from "@smp/factory-shared/observability-types"
 
-export type ObservabilityType = "clickstack" | "signoz" | "loki" | "noop" | "demo";
+export type ObservabilityType = ObservabilityBackendType
 
 export interface ObservabilityAdapter {
   readonly type: string

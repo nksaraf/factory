@@ -37,6 +37,19 @@ const ENVBUILDER_IMAGE = process.env.ENVBUILDER_IMAGE || undefined;
 // Which service the bare workspace domain serves: "ide" (8081) or "terminal" (8080).
 const WORKSPACE_PRIMARY_ENDPOINT = process.env.WORKSPACE_PRIMARY_ENDPOINT ?? "ide";
 
+/**
+ * Extract the server host from inline kubeconfig YAML.
+ * Parses the `server:` field (e.g. "https://192.168.2.88:6443") and returns the hostname.
+ */
+function endpointFromKubeconfig(kubeconfig: string): string | null {
+  const match = kubeconfig.match(/server:\s*https?:\/\/([^:/\s]+)/);
+  if (!match) return null;
+  const host = match[1];
+  // Don't return loopback — that's what we're trying to avoid
+  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") return null;
+  return host;
+}
+
 /** Sanitize an ID for use in k8s resource names (RFC 1123). */
 function k8sName(id: string): string {
   return id.replace(/_/g, "-").toLowerCase();
@@ -317,7 +330,7 @@ export class Reconciler {
     const svcResource = await this.kube.get(kubeconfig, "Service", ns, serviceName);
     let sshPort: number | null = null;
     let sshHost: string | null = null;
-    const runtimeEndpoint = rtSpec.endpoint ?? "localhost";
+    const runtimeEndpoint = rtSpec.endpoint ?? endpointFromKubeconfig(kubeconfig) ?? "localhost";
     if (svcResource?.spec) {
       const ports = (svcResource.spec as Record<string, unknown>).ports as
         | Array<{ name: string; nodePort?: number }>

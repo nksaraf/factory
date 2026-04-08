@@ -30,11 +30,16 @@ import { startGateway } from "./modules/infra/gateway-proxy"
 import { secretController } from "./modules/identity/secret.controller"
 import { configVarController } from "./modules/identity/config-var.controller"
 import { Reconciler } from "./reconciler/reconciler"
-import { productController } from "./modules/product/index"
-import { buildController } from "./modules/build/index"
-import { commerceController } from "./modules/commerce/index"
+import { productControllerV2 } from "./modules/product/index.v2"
+import { buildControllerV2 } from "./modules/build/index.v2"
+import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
 import { infraControllerV2 } from "./modules/infra/index.v2"
+import { agentControllerV2 } from "./modules/agent/index.v2"
+import { identityControllerV2 } from "./modules/identity/index.v2"
+import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { operationsController } from "./modules/system/operations.controller"
+import { workflowController } from "./modules/workflow/triggers/rest"
 import { observabilityController } from "./modules/observability/index"
 import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
 import { DemoObservabilityAdapter } from "./adapters/observability-adapter-demo"
@@ -226,17 +231,21 @@ export async function seedLocalInfra(
 export function createLocalApp(db: Database, reconciler: Reconciler | null, opts?: { full?: boolean; demo?: boolean }) {
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", db)
-    .use(infraControllerV2(db))
+    .use(productControllerV2(db))
+    .use(buildControllerV2(db))
+    .use(commerceControllerV2(db))
     .use(fleetControllerV2(db))
+    .use(infraControllerV2(db))
+    .use(agentControllerV2(db))
+    .use(identityControllerV2(db))
     .use(secretController(db))
     .use(configVarController(db))
+    .use(messagingControllerV2(db))
+    .use(operationsController())
+    .use(workflowController(db))
 
-  // Full mode: mount all controllers for TUI/dashboard use
   if (opts?.full) {
     factoryRoutes
-      .use(productController(db))
-      .use(buildController(db))
-      .use(commerceController(db))
       .use(observabilityController(opts?.demo ? new DemoObservabilityAdapter() : new NoopObservabilityAdapter()))
   }
 

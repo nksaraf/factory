@@ -29,7 +29,7 @@ export function useModules() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.product.module.get()
+      const res = await api.api.v1.factory.product.systems.get()
       return unwrap(res)
     },
     [],
@@ -41,7 +41,7 @@ export function useBuildRuns() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.build.runs.get({ query: {} })
+      const res = await api.api.v1.factory.build["pipeline-runs"].get({ query: {} })
       return unwrap(res)
     },
     [],
