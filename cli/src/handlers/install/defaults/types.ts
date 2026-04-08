@@ -1,7 +1,7 @@
 import type { InstallRole } from "@smp/factory-shared/install-types";
 
 /** Categories of machine-level defaults that dx setup configures. */
-export type Category = "git" | "npm" | "curl" | "psql" | "docker" | "ssh" | "system" | "shell";
+export type Category = "git" | "npm" | "curl" | "psql" | "docker" | "ssh" | "system" | "shell" | "ide-hooks";
 
 /** A single proposed change to the developer environment. */
 export interface ConfigChange {

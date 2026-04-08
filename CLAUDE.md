@@ -30,3 +30,8 @@ At the end of any session where work was discussed but not completed, prompt the
 - **Database:** `postgresql://postgres:postgres@192.168.2.88:54111/postgres` (Docker-mapped port)
 - **Deploy:** Same `docker-compose.yaml` + `dx up` as local. Migrations auto-apply on API startup via `setupDb()`
 - **CLI on prod:** Build with `pnpm --filter lepton-dx run build:crust:local`, or run directly via `bun run cli/src/cli.ts`
+
+To deploy new version of CLI: 
+Bump version (usually patch) in cli/package.json
+Build cross-platform binaries: pnpm build:crust (in cli/)
+Publish: pnpm release:publish (in cli/)

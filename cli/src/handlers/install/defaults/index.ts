@@ -10,6 +10,7 @@ import { dockerDefaultsProvider } from "./docker-defaults.js";
 import { sshDefaultsProvider } from "./ssh-defaults.js";
 import { systemDefaultsProvider } from "./system-defaults.js";
 import { shellDefaultsProvider } from "./shell-defaults.js";
+import { ideHooksDefaultsProvider } from "./ide-hooks-defaults.js";
 
 const ALL_PROVIDERS: ConfigProvider[] = [
   gitDefaultsProvider,
@@ -20,6 +21,7 @@ const ALL_PROVIDERS: ConfigProvider[] = [
   sshDefaultsProvider,
   systemDefaultsProvider,
   shellDefaultsProvider,
+  ideHooksDefaultsProvider,
 ];
 
 /**

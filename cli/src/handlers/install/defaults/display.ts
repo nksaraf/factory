@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
   ssh: "SSH (~/.ssh/config)",
   system: "System limits",
   shell: "Shell",
+  "ide-hooks": "IDE hooks (Claude Code + Cursor)",
 };
 
 /** Display a scan result — what will be changed. */
