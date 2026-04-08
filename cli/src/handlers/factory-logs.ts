@@ -22,8 +22,7 @@ function formatLevel(level: string): string {
 
 function formatTimestamp(ts: string): string {
   try {
-    const d = new Date(ts);
-    return d.toLocaleTimeString("en-US", { hour12: false, fractionalSecondDigits: 3 });
+    return new Date(ts).toISOString().slice(11, 23);
   } catch {
     return ts;
   }

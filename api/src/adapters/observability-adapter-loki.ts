@@ -116,9 +116,9 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
   // -- LogQL builder ---------------------------------------------------------
 
   private buildLogQL(query: LogQuery): string {
-    // Docker container logs are scraped by filelog receiver with
-    // service_name="unknown_service". Filter by "factory-api" in body.
-    let logql = `{service_name=~".+"} |~ "factory-api" | json`
+    // Docker container logs scraped by filelog receiver. Parse JSON first,
+    // then filter on the extracted "service" label to exclude non-factory logs.
+    let logql = `{service_name=~".+"} | json | service="factory-api"`
 
     // Filter by log level (Pino numeric levels mapped via json parser)
     if (query.level) {
