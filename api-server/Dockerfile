@@ -33,6 +33,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY ./api ./api
 COPY ./api-server ./api-server
 COPY ./shared ./shared
+COPY ./scripts ./scripts
 # Migrations: generate in api (`pnpm --filter @smp/factory-api run db:generate`).
 COPY ./api/drizzle ./drizzle
 
