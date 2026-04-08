@@ -69,28 +69,23 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
     const params = new URLSearchParams({ query: logql, limit: String(limit) })
     if (query.since) params.set("start", this.toNanos(query.since))
 
-    const url = `${this.baseUrl}/loki/api/v1/tail?${params}`
-    try {
-      const res = await fetch(url, { signal })
-      if (!res.ok || !res.body) return
+    // Loki tail is a WebSocket endpoint — reconnect on drop until signal aborts
+    const wsUrl = this.baseUrl.replace(/^http/, "ws") + `/loki/api/v1/tail?${params}`
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
+    while (!signal.aborted) {
+      await new Promise<void>((resolve) => {
+        const ws = new WebSocket(wsUrl)
 
-      while (!signal.aborted) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
+        const cleanup = () => {
+          try { ws.close() } catch { /* already closed */ }
+          resolve()
+        }
 
-        // Loki tail returns newline-delimited JSON
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
+        signal.addEventListener("abort", cleanup, { once: true })
 
-        for (const line of lines) {
-          if (!line.trim()) continue
+        ws.onmessage = (event) => {
           try {
-            const msg = JSON.parse(line)
+            const msg = JSON.parse(String(event.data))
             if (msg.streams) {
               for (const stream of msg.streams) {
                 for (const [ts, val] of stream.values) {
@@ -99,13 +94,21 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
               }
             }
           } catch {
-            // skip unparseable lines
+            // skip unparseable messages
           }
         }
-      }
-    } catch (err) {
+
+        ws.onerror = () => { cleanup() }
+
+        ws.onclose = () => {
+          signal.removeEventListener("abort", cleanup)
+          resolve()
+        }
+      })
+
+      // Brief delay before reconnecting (unless aborted)
       if (!signal.aborted) {
-        logger.error({ err }, "Loki stream error")
+        await new Promise((r) => setTimeout(r, 1000))
       }
     }
   }
