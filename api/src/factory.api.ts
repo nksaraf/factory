@@ -180,11 +180,11 @@ export class FactoryAPI {
         const url = new URL(request.url)
         // Skip health checks to reduce noise
         if (url.pathname === "/health") return
-        logger.info({ method: request.method, path: url.pathname, host: request.headers.get("host") }, "request")
+        logger.info({ method: request.method, path: url.pathname, host: request.headers.get("host") }, `${request.method} ${url.pathname}`)
       })
       .onError(({ request, error, code }) => {
         const url = new URL(request.url)
-        logger.error({ method: request.method, path: url.pathname, code, err: error }, "request error")
+        logger.error({ method: request.method, path: url.pathname, code, err: error }, `${request.method} ${url.pathname} failed (${code})`)
       })
       .use(healthController)
       .use(installController)
