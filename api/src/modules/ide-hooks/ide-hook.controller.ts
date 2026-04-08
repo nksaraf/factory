@@ -49,6 +49,8 @@ export function ideHookController(db: Database) {
           providerId: principalId,
           deliveryId: body.deliveryId,
           eventType: body.eventType,
+          normalizedEventType: body.eventType,
+          actorId: principalId,
           action: body.action,
           payload: {
             sessionId: body.sessionId,
@@ -86,13 +88,15 @@ export function ideHookController(db: Database) {
         const principalId = (ctx as unknown as { principalId: string }).principalId
         const conditions = [
           inArray(webhookEvent.source, [...VALID_SOURCES]),
+          // Default scope: own events only. Pass ?principalId=* for all (future: admin check).
+          eq(webhookEvent.providerId, query.principalId ?? principalId),
         ]
 
         if (query.source) {
           conditions.push(eq(webhookEvent.source, query.source))
         }
-        if (query.principalId) {
-          conditions.push(eq(webhookEvent.providerId, query.principalId))
+        if (query.eventType) {
+          conditions.push(eq(webhookEvent.eventType, query.eventType))
         }
         if (query.from) {
           conditions.push(gte(webhookEvent.createdAt, new Date(query.from)))
@@ -112,12 +116,7 @@ export function ideHookController(db: Database) {
           .limit(limit)
           .offset(offset)
 
-        // Post-filter by eventType (stored inside spec JSONB)
-        const filtered = query.eventType
-          ? rows.filter((r) => (r.spec as any)?.eventType === query.eventType)
-          : rows
-
-        return { events: filtered, count: filtered.length }
+        return { events: rows, count: rows.length }
       },
       {
         query: t.Object({

@@ -38,9 +38,7 @@ function readJsonFile(path: string): Record<string, unknown> | null {
 }
 
 function getDxConfigDir(): string {
-  const platform = process.platform
-  if (platform === "darwin") return join(homedir(), "Library", "Preferences", "dx")
-  if (platform === "win32") return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "dx")
+  // @crustjs/store uses XDG convention on all platforms (including macOS)
   return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "dx")
 }
 

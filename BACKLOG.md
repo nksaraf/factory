@@ -909,5 +909,9 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 
 ## Operations / Tunnel
 
-- [ ] **Remaining operations plan: Steps 5-7** — Log Pipeline (Loki + OTel + adapter), CLI `dx factory logs`, Edge Deployment + Cloud Smoke Test. Planned but not implemented.
+- [x] **Remaining operations plan: Steps 5-7** — Log Pipeline (Loki + OTel + adapter), CLI `dx factory logs`, Edge Deployment + Cloud Smoke Test. Done: Loki adapter with WebSocket streaming, `/logs` + `/logs/stream` SSE endpoints, `dx factory logs` with `--follow`, OTel filelog receiver, enriched webhook/request log messages.
 - [x] **Tunnel: disable auto-decompression** — Done: uses `decompress: false` on fetch to preserve original compressed bytes through the tunnel. (c95c74d)
+- [ ] **Production deploy pipeline** — Currently manual (`git push` → SSH pull → `docker compose build` → `docker compose up -d`). Automate with a `dx factory deploy` command or CI-triggered deploy.
+- [ ] **`dx factory logs` level filtering** — `--level warn` flag exists in CLI but Loki adapter's `level >= N` filter depends on Pino numeric levels being extracted as labels. Verify end-to-end and add tests.
+- [ ] **`dx factory logs` grep/sandbox filtering** — `--grep` and `--sandbox` flags exist but need end-to-end verification with Loki label-based filtering.
+- [ ] **Slack sync timeout investigation** — Recurring `web-api:WebClient:0 http request failed The socket connection was closed unexpectedly` warnings in production logs. Investigate Slack API client connection handling / retry config.
