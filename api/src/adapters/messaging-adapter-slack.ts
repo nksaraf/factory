@@ -9,7 +9,7 @@ import type {
   MessageResult,
   MessagingWebhookVerification,
 } from "./messaging-adapter";
-import { slackClient } from "./slack-client";
+import { slackClient, withSocketRetry } from "./slack-client";
 
 /**
  * Slack messaging adapter using @slack/web-api
@@ -45,61 +45,65 @@ export class SlackMessagingAdapter implements MessagingAdapter {
   }
 
   async listChannels(config: MessagingConfig): Promise<ExternalChannel[]> {
-    const client = this.client(config.botToken);
-    const channels: ExternalChannel[] = [];
-    let cursor: string | undefined;
+    return withSocketRetry("slack.conversations.list", async () => {
+      const client = this.client(config.botToken);
+      const channels: ExternalChannel[] = [];
+      let cursor: string | undefined;
 
-    do {
-      const result = await client.conversations.list({
-        types: "public_channel,private_channel",
-        limit: 200,
-        cursor,
-      });
-
-      for (const ch of result.channels ?? []) {
-        channels.push({
-          id: ch.id!,
-          name: ch.name ?? "",
-          isPrivate: ch.is_private ?? false,
-          topic: ch.topic?.value ?? undefined,
-          purpose: ch.purpose?.value ?? undefined,
-          memberCount: ch.num_members ?? undefined,
+      do {
+        const result = await client.conversations.list({
+          types: "public_channel,private_channel",
+          limit: 200,
+          cursor,
         });
-      }
 
-      cursor = result.response_metadata?.next_cursor || undefined;
-    } while (cursor);
+        for (const ch of result.channels ?? []) {
+          channels.push({
+            id: ch.id!,
+            name: ch.name ?? "",
+            isPrivate: ch.is_private ?? false,
+            topic: ch.topic?.value ?? undefined,
+            purpose: ch.purpose?.value ?? undefined,
+            memberCount: ch.num_members ?? undefined,
+          });
+        }
 
-    return channels;
+        cursor = result.response_metadata?.next_cursor || undefined;
+      } while (cursor);
+
+      return channels;
+    });
   }
 
   async listUsers(
     config: MessagingConfig,
   ): Promise<ExternalMessagingUser[]> {
-    const client = this.client(config.botToken);
-    const users: ExternalMessagingUser[] = [];
-    let cursor: string | undefined;
+    return withSocketRetry("slack.users.list", async () => {
+      const client = this.client(config.botToken);
+      const users: ExternalMessagingUser[] = [];
+      let cursor: string | undefined;
 
-    do {
-      const result = await client.users.list({ limit: 200, cursor });
+      do {
+        const result = await client.users.list({ limit: 200, cursor });
 
-      for (const member of result.members ?? []) {
-        users.push({
-          id: member.id!,
-          email: member.profile?.email ?? null,
-          displayName:
-            member.profile?.display_name || member.name || member.id!,
-          realName: member.real_name ?? null,
-          avatarUrl: member.profile?.image_72 ?? null,
-          isBot: member.is_bot ?? false,
-          deleted: member.deleted ?? false,
-        });
-      }
+        for (const member of result.members ?? []) {
+          users.push({
+            id: member.id!,
+            email: member.profile?.email ?? null,
+            displayName:
+              member.profile?.display_name || member.name || member.id!,
+            realName: member.real_name ?? null,
+            avatarUrl: member.profile?.image_72 ?? null,
+            isBot: member.is_bot ?? false,
+            deleted: member.deleted ?? false,
+          });
+        }
 
-      cursor = result.response_metadata?.next_cursor || undefined;
-    } while (cursor);
+        cursor = result.response_metadata?.next_cursor || undefined;
+      } while (cursor);
 
-    return users;
+      return users;
+    });
   }
 
   async sendMessage(

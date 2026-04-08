@@ -4,7 +4,7 @@ import type {
   IdentityProviderConfig,
   ExternalIdentityUser,
 } from "./identity-provider-adapter";
-import { slackClient } from "./slack-client";
+import { slackClient, withSocketRetry } from "./slack-client";
 
 /**
  * Slack identity provider adapter.
@@ -24,6 +24,7 @@ export class SlackIdentityProviderAdapter implements IdentityProviderAdapter {
   }
 
   async fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]> {
+    return withSocketRetry("slack.users.list", async () => {
     const client = this.client(config.token);
     const users: ExternalIdentityUser[] = [];
     let cursor: string | undefined;
@@ -58,6 +59,7 @@ export class SlackIdentityProviderAdapter implements IdentityProviderAdapter {
     } while (cursor);
 
     return users;
+    }); // withSocketRetry
   }
 
   async fetchUserProfile(

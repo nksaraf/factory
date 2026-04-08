@@ -1,67 +1,7 @@
 import { WebClient, LogLevel } from "@slack/web-api";
-import { request as httpsRequest } from "node:https";
-import { request as httpRequest } from "node:http";
-import { URL } from "node:url";
+import { logger } from "../logger";
 
-/**
- * Custom axios adapter that uses Node's http/https modules directly,
- * bypassing Bun's fetch which drops keep-alive sockets causing
- * "socket connection was closed unexpectedly" errors.
- */
-function nodeHttpAdapter(config: any): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const url = new URL(config.url, config.baseURL);
-    const isHttps = url.protocol === "https:";
-    const reqFn = isHttps ? httpsRequest : httpRequest;
-
-    const headers: Record<string, string> = {};
-    if (config.headers) {
-      for (const [key, value] of Object.entries(config.headers)) {
-        if (value != null && typeof value !== "function" && typeof value !== "object") {
-          headers[key] = String(value);
-        }
-      }
-    }
-
-    const req = reqFn(
-      url,
-      {
-        method: (config.method ?? "GET").toUpperCase(),
-        headers,
-        timeout: config.timeout ?? 30_000,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          const body = Buffer.concat(chunks).toString("utf-8");
-          let data: any = body;
-          try { data = JSON.parse(body); } catch {}
-          resolve({
-            data,
-            status: res.statusCode,
-            statusText: res.statusMessage,
-            headers: res.headers,
-            config,
-            request: req,
-          });
-        });
-      },
-    );
-
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Request timed out"));
-    });
-
-    if (config.data) {
-      const body = typeof config.data === "string" ? config.data : JSON.stringify(config.data);
-      req.write(body);
-    }
-    req.end();
-  });
-}
+const log = logger.child({ module: "slack-client" });
 
 const clients = new Map<string, WebClient>();
 
@@ -71,7 +11,6 @@ export function slackClient(token: string): WebClient {
     client = new WebClient(token, {
       logLevel: LogLevel.WARN,
       timeout: 30_000,
-      adapter: nodeHttpAdapter,
       retryConfig: {
         retries: 3,
         factor: 2,
@@ -81,4 +20,31 @@ export function slackClient(token: string): WebClient {
     clients.set(token, client);
   }
   return client;
+}
+
+/**
+ * Retry wrapper for Slack API calls that fail with Bun socket errors.
+ * Bun's fetch drops keep-alive connections causing transient failures.
+ */
+export async function withSocketRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  maxRetries = 2,
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      const isSocketError = msg.includes("socket connection was closed unexpectedly");
+      if (isSocketError && attempt < maxRetries) {
+        const delay = 1000 * (attempt + 1);
+        log.warn({ attempt: attempt + 1, maxRetries, label }, `slack socket error, retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
 }
