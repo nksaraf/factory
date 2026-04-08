@@ -40,7 +40,22 @@ function formatLogLine(entry: LogEntry): string {
   if (entry.attributes.durationMs) attrs.push(styleMuted(`${entry.attributes.durationMs}ms`));
 
   const suffix = attrs.length > 0 ? `  ${attrs.join(" ")}` : "";
-  return `${ts}  ${level}  ${msg}${suffix}`;
+  let line = `${ts}  ${level}  ${msg}${suffix}`;
+
+  // Show error details (Pino serializes err as err_type/err_message/err_stack via json stage)
+  const errMsg = entry.attributes.err_message;
+  const errStack = entry.attributes.err_stack;
+  if (errMsg) {
+    line += `\n         ${styleError(errMsg)}`;
+    if (errStack) {
+      const frames = errStack.split("\n").slice(1, 4); // first 3 stack frames
+      for (const frame of frames) {
+        line += `\n         ${styleMuted(frame.trim())}`;
+      }
+    }
+  }
+
+  return line;
 }
 
 export async function runFactoryLogs(
