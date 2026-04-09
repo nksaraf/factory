@@ -259,7 +259,7 @@ SELECT
   p."slug"                                                AS "principal_slug",
   th."repo_slug",
   tt."role",
-  tt."ordinal",
+  tt."turn_index",
   tt."created_at",
   date_trunc('day', tt."created_at")                      AS "day",
   -- Turn-level metadata from spec
