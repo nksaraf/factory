@@ -84,6 +84,19 @@ function providerSpec(provider: { spec: unknown }): WorkTrackerProviderSpec {
   return (provider.spec ?? {}) as WorkTrackerProviderSpec
 }
 
+/** Resolve the credentials string the adapter expects (e.g. base64 for Jira Basic auth). */
+function resolveCredentials(
+  type: string,
+  spec: WorkTrackerProviderSpec
+): string {
+  const token = spec.credentialsRef ?? ""
+  if (type === "jira" && (spec as Record<string, unknown>).adminEmail) {
+    const email = (spec as Record<string, unknown>).adminEmail as string
+    return Buffer.from(`${email}:${token}`).toString("base64")
+  }
+  return token
+}
+
 async function projectSlug(
   db: Database,
   providerSlug: string,
@@ -139,10 +152,8 @@ export async function syncProjects(
   const spec = providerSpec(provider)
   const adapter =
     opts?.adapter ?? getWorkTrackerAdapter(provider.type as WorkTrackerType)
-  const projects = await adapter.listProjects(
-    spec.apiUrl,
-    spec.credentialsRef ?? ""
-  )
+  const creds = resolveCredentials(provider.type, spec)
+  const projects = await adapter.listProjects(spec.apiUrl, creds)
 
   let created = 0
   let updated = 0
@@ -225,9 +236,10 @@ export async function syncWorkTracker(
     let total = 0
 
     for (const mapping of mappings) {
+      const creds = resolveCredentials(provider.type, spec)
       const issues = await adapter.fetchIssues(
         spec.apiUrl,
-        spec.credentialsRef ?? "",
+        creds,
         mapping.externalProjectId
       )
 
