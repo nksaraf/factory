@@ -250,6 +250,7 @@ export const JobTriggerSchema = z.enum([
   "schedule",
   "delegation",
   "manual",
+  "workflow",
 ])
 export type JobTrigger = z.infer<typeof JobTriggerSchema>
 
@@ -506,6 +507,7 @@ export const WebhookEventSourceSchema = z.enum([
   "linear",
   "cursor",
   "claude-code",
+  "conductor",
   "windsurf",
   "custom",
 ])
@@ -552,6 +554,257 @@ export const WebhookEventSchema = z.object({
   createdAt: z.coerce.date(),
 })
 export type WebhookEvent = z.infer<typeof WebhookEventSchema>
+
+// ── Channel ────────────────────────────────────────────────
+
+export const ChannelKindSchema = z.enum([
+  "ide",
+  "conductor-workspace",
+  "slack",
+  "terminal",
+  "github-pr",
+  "github-issue",
+  "web-ui",
+])
+export type ChannelKind = z.infer<typeof ChannelKindSchema>
+
+export const ChannelStatusSchema = z.enum(["active", "archived"])
+export type ChannelStatus = z.infer<typeof ChannelStatusSchema>
+
+export const ChannelSpecSchema = z.object({
+  description: z.string().optional(),
+  // slack
+  slackTeamId: z.string().optional(),
+  topic: z.string().optional(),
+  members: z.array(z.string()).optional(),
+  defaultAgentId: z.string().optional(),
+  notificationRules: z.record(z.unknown()).optional(),
+  // ide / conductor workspace
+  cwd: z.string().optional(),
+  branch: z.string().optional(),
+  gitRemoteUrl: z.string().optional(),
+  agentPermissions: z.record(z.unknown()).optional(),
+  // terminal
+  hostname: z.string().optional(),
+  user: z.string().optional(),
+  shell: z.string().optional(),
+  // github pr/issue
+  prNumber: z.number().optional(),
+  prUrl: z.string().optional(),
+  author: z.string().optional(),
+  // activity
+  lastActiveAt: z.coerce.date().optional(),
+  threadCount: z.number().optional(),
+})
+export type ChannelSpec = z.infer<typeof ChannelSpecSchema>
+
+export const ChannelSchema = z.object({
+  id: z.string(),
+  kind: ChannelKindSchema,
+  externalId: z.string().nullable(),
+  name: z.string().nullable(),
+  repoSlug: z.string().nullable(),
+  status: ChannelStatusSchema.default("active"),
+  spec: ChannelSpecSchema,
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+export type Channel = z.infer<typeof ChannelSchema>
+
+// ── Thread ─────────────────────────────────────────────────
+
+export const ThreadTypeSchema = z.enum([
+  "ide-session",
+  "chat",
+  "terminal",
+  "review",
+  "autonomous",
+])
+export type ThreadType = z.infer<typeof ThreadTypeSchema>
+
+export const ThreadSourceSchema = z.enum([
+  "claude-code",
+  "conductor",
+  "cursor",
+  "slack",
+  "terminal",
+  "web",
+])
+export type ThreadSource = z.infer<typeof ThreadSourceSchema>
+
+export const ThreadStatusSchema = z.enum([
+  "active",
+  "completed",
+  "failed",
+  "abandoned",
+])
+export type ThreadStatus = z.infer<typeof ThreadStatusSchema>
+
+export const ThreadSpecSchema = z.object({
+  // common
+  title: z.string().optional(),
+  model: z.string().optional(),
+  cwd: z.string().optional(),
+  gitRemoteUrl: z.string().optional(),
+  repoName: z.string().optional(),
+  // metrics
+  durationMinutes: z.number().optional(),
+  turnCount: z.number().optional(),
+  tokenUsage: z
+    .object({
+      input: z.number().default(0),
+      output: z.number().default(0),
+      cacheRead: z.number().default(0),
+      cacheWrite: z.number().default(0),
+    })
+    .optional(),
+  toolsUsed: z.array(z.string()).optional(),
+  toolCallCount: z.number().optional(),
+  toolErrorCount: z.number().optional(),
+  toolErrorsByTool: z.record(z.number()).optional(),
+  toolErrorsByClass: z.record(z.number()).optional(),
+  // ide-specific
+  version: z.string().optional(),
+  permissionMode: z.string().optional(),
+  // conductor-specific
+  workspaceId: z.string().optional(),
+  directoryName: z.string().optional(),
+  targetBranch: z.string().optional(),
+  prTitle: z.string().optional(),
+  workspaceState: z.string().optional(),
+  agentType: z.string().optional(),
+  // cursor-specific
+  cursorSources: z.array(z.string()).optional(),
+  fileExtensions: z.array(z.string()).optional(),
+  filesModified: z.array(z.string()).optional(),
+  codeHashCount: z.number().optional(),
+  // chat-specific
+  externalChannelName: z.string().optional(),
+  participants: z.array(z.string()).optional(),
+  // terminal-specific
+  hostname: z.string().optional(),
+  shell: z.string().optional(),
+  // continuation
+  continuationNote: z.string().optional(),
+  // result
+  result: z
+    .object({
+      summary: z.string().optional(),
+      artifacts: z.array(z.string()).optional(),
+      commitRange: z.string().optional(),
+    })
+    .optional(),
+  // provenance
+  webhookEventId: z.string().optional(),
+  backfilledAt: z.coerce.date().optional(),
+})
+export type ThreadSpec = z.infer<typeof ThreadSpecSchema>
+
+export const ThreadSchema = z.object({
+  id: z.string(),
+  type: ThreadTypeSchema,
+  source: ThreadSourceSchema,
+  externalId: z.string().nullable(),
+  principalId: z.string().nullable(),
+  agentId: z.string().nullable(),
+  jobId: z.string().nullable(),
+  status: ThreadStatusSchema.default("active"),
+  channelId: z.string().nullable(),
+  repoSlug: z.string().nullable(),
+  branch: z.string().nullable(),
+  startedAt: z.coerce.date(),
+  endedAt: z.coerce.date().nullable(),
+  parentThreadId: z.string().nullable(),
+  spec: ThreadSpecSchema,
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+export type Thread = z.infer<typeof ThreadSchema>
+
+// ── Thread Turn ────────────────────────────────────────────
+
+export const ThreadTurnRoleSchema = z.enum([
+  "user",
+  "assistant",
+  "system",
+  "tool",
+])
+export type ThreadTurnRole = z.infer<typeof ThreadTurnRoleSchema>
+
+export const ThreadTurnSpecSchema = z.object({
+  // ai turns
+  prompt: z.string().optional(),
+  responseSummary: z.string().optional(),
+  model: z.string().optional(),
+  tokenUsage: z
+    .object({
+      input: z.number().default(0),
+      output: z.number().default(0),
+      cacheRead: z.number().default(0),
+      cacheWrite: z.number().default(0),
+    })
+    .optional(),
+  toolCalls: z
+    .array(
+      z.object({
+        name: z.string(),
+        input: z.string().optional(),
+      }),
+    )
+    .optional(),
+  toolErrors: z
+    .array(
+      z.object({
+        toolName: z.string(),
+        error: z.string(),
+        errorClass: z.string(),
+      }),
+    )
+    .optional(),
+  // terminal turns
+  command: z.string().optional(),
+  output: z.string().optional(),
+  exitCode: z.number().optional(),
+  // chat turns
+  message: z.string().optional(),
+  // common
+  timestamp: z.string().optional(),
+})
+export type ThreadTurnSpec = z.infer<typeof ThreadTurnSpecSchema>
+
+export const ThreadTurnSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  turnIndex: z.number().int(),
+  role: ThreadTurnRoleSchema,
+  spec: ThreadTurnSpecSchema,
+  createdAt: z.coerce.date(),
+})
+export type ThreadTurn = z.infer<typeof ThreadTurnSchema>
+
+// ── Thread Participant ─────────────────────────────────────
+
+export const ThreadParticipantRoleSchema = z.enum([
+  "initiator",
+  "collaborator",
+  "observer",
+  "delegator",
+  "delegate",
+])
+export type ThreadParticipantRole = z.infer<
+  typeof ThreadParticipantRoleSchema
+>
+
+export const ThreadParticipantSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  principalId: z.string(),
+  role: ThreadParticipantRoleSchema,
+  joinedAt: z.coerce.date(),
+  leftAt: z.coerce.date().nullable(),
+  spec: z.record(z.unknown()).default({}),
+})
+export type ThreadParticipant = z.infer<typeof ThreadParticipantSchema>
 
 // ── Input Schemas (CREATE / UPDATE) ────────────────────────
 
@@ -609,6 +862,38 @@ export const CreateMessagingProviderSchema = z.object({
 })
 export const UpdateMessagingProviderSchema =
   CreateMessagingProviderSchema.partial()
+
+export const CreateChannelSchema = z.object({
+  kind: ChannelKindSchema,
+  externalId: z.string().optional(),
+  name: z.string().optional(),
+  repoSlug: z.string().optional(),
+  spec: ChannelSpecSchema.default({}),
+})
+export const UpdateChannelSchema = CreateChannelSchema.partial()
+
+export const CreateThreadSchema = z.object({
+  type: ThreadTypeSchema,
+  source: ThreadSourceSchema,
+  externalId: z.string().optional(),
+  principalId: z.string().optional(),
+  agentId: z.string().optional(),
+  jobId: z.string().optional(),
+  channelId: z.string().optional(),
+  repoSlug: z.string().optional(),
+  branch: z.string().optional(),
+  startedAt: z.coerce.date(),
+  parentThreadId: z.string().optional(),
+  spec: ThreadSpecSchema.default({}),
+})
+export const UpdateThreadSchema = CreateThreadSchema.partial()
+
+export const CreateThreadTurnSchema = z.object({
+  threadId: z.string(),
+  turnIndex: z.number().int(),
+  role: ThreadTurnRoleSchema,
+  spec: ThreadTurnSpecSchema.default({}),
+})
 
 // ── Config Var (plain-text) ──────────────────────────────────
 

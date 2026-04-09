@@ -121,6 +121,11 @@ export type EntityPrefix =
   | "esub" // event_subscription
   // operations
   | "opr" // operation_run
+  // interaction
+  | "chan" // channel
+  | "thrd" // thread
+  | "turn" // thread_turn
+  | "tprt" // thread_participant
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`

@@ -112,6 +112,8 @@ export async function migrateWithPglite(
         if (err?.code === "0A000" && stmt.includes("CREATE EXTENSION")) continue
         // PGlite lacks gist operator classes needed for EXCLUDE constraints — skip
         if (err?.code === "42704" && stmt.includes("EXCLUDE USING gist")) continue
+        // PGlite may not support materialized views or PL/pgSQL functions — skip gracefully
+        if (stmt.includes("MATERIALIZED VIEW") || stmt.includes("LANGUAGE plpgsql")) continue
         throw err
       }
     }

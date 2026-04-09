@@ -36,6 +36,13 @@
       "when": 1775844300000,
       "tag": "0004_sync-associations",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775932800000,
+      "tag": "0005_analytics-views",
+      "breakpoints": true
     }
   ]
 }

@@ -16,10 +16,10 @@ import { logger } from "../../logger"
 
 const log = logger.child({ module: "ide-hooks" })
 
-const VALID_SOURCES = ["claude-code", "cursor"] as const
+const VALID_SOURCES = ["claude-code", "cursor", "conductor"] as const
 
 const IngestBody = t.Object({
-  source: t.Union([t.Literal("claude-code"), t.Literal("cursor")]),
+  source: t.Union([t.Literal("claude-code"), t.Literal("cursor"), t.Literal("conductor")]),
   deliveryId: t.String(),
   eventType: t.String(),
   action: t.Optional(t.String()),

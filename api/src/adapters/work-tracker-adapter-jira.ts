@@ -63,17 +63,13 @@ export class JiraWorkTrackerAdapter implements WorkTrackerAdapter {
     filterQuery?: string,
   ): Promise<ExternalIssue[]> {
     const jql = filterQuery ?? `project = ${projectId} ORDER BY updated DESC`;
-    const res = await fetch(`${apiUrl}/rest/api/3/search`, {
-      method: "POST",
+    const fields = [
+      "summary", "description", "status", "issuetype",
+      "priority", "assignee", "labels", "parent", "created", "updated",
+    ].join(",");
+    const params = new URLSearchParams({ jql, maxResults: "100", fields });
+    const res = await fetch(`${apiUrl}/rest/api/3/search/jql?${params}`, {
       headers: this.headers(credentialsRef),
-      body: JSON.stringify({
-        jql,
-        maxResults: 100,
-        fields: [
-          "summary", "description", "status", "issuetype",
-          "priority", "assignee", "labels", "parent", "created", "updated",
-        ],
-      }),
     });
     if (!res.ok) throw new Error(`Jira fetchIssues failed: ${res.status}`);
     const data = (await res.json()) as { issues: JiraIssueRaw[] };

@@ -1,5 +1,6 @@
 import type {
   AgentSpec,
+  ChannelSpec,
   ConfigVarSpec,
   EntityRelationshipSpec,
   IdentityLinkSpec,
@@ -13,6 +14,8 @@ import type {
   ScopeSpec,
   SshKeySpec,
   TeamSpec,
+  ThreadSpec,
+  ThreadTurnSpec,
   ToolCredentialSpec,
   ToolUsageSpec,
   WebhookEventSpec,
@@ -275,6 +278,10 @@ export const job = orgSchema.table(
       { onDelete: "set null" }
     ),
     parentJobId: text("parent_job_id"),
+    workflowRunId: text("workflow_run_id"),
+    channelId: text("channel_id"),
+    entityKind: text("entity_kind"),
+    entityId: text("entity_id"),
     status: text("status").notNull().default("pending"),
     mode: text("mode").notNull().default("conversational"),
     trigger: text("trigger").notNull().default("manual"),
@@ -286,6 +293,9 @@ export const job = orgSchema.table(
     index("org_job_agent_idx").on(t.agentId),
     index("org_job_delegated_by_idx").on(t.delegatedByAgentId),
     index("org_job_parent_idx").on(t.parentJobId),
+    index("org_job_workflow_run_idx").on(t.workflowRunId),
+    index("org_job_channel_idx").on(t.channelId),
+    index("org_job_entity_idx").on(t.entityKind, t.entityId),
     index("org_job_status_idx").on(t.status),
     index("org_job_mode_idx").on(t.mode),
     check(
@@ -298,7 +308,7 @@ export const job = orgSchema.table(
     ),
     check(
       "org_job_trigger_valid",
-      sql`${t.trigger} IN ('mention', 'event', 'schedule', 'delegation', 'manual')`
+      sql`${t.trigger} IN ('mention', 'event', 'schedule', 'delegation', 'manual', 'workflow')`
     ),
   ]
 )
@@ -560,6 +570,170 @@ export const secret = orgSchema.table(
     check(
       "org_secret_scope_type_valid",
       sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`
+    ),
+  ]
+)
+
+// ─── Channel ─────────────────────────────────────────────
+// Persistent surface where threads live (IDE, Slack, terminal, PR, etc).
+
+export const channel = orgSchema.table(
+  "channel",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("chan")),
+    kind: text("kind").notNull(),
+    externalId: text("external_id"),
+    name: text("name"),
+    repoSlug: text("repo_slug"),
+    status: text("status").notNull().default("active"),
+    spec: specCol<ChannelSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("org_channel_kind_external_unique").on(t.kind, t.externalId),
+    index("org_channel_kind_idx").on(t.kind),
+    index("org_channel_repo_slug_idx").on(t.repoSlug),
+    index("org_channel_status_idx").on(t.status),
+    check(
+      "org_channel_kind_valid",
+      sql`${t.kind} IN ('ide', 'conductor-workspace', 'slack', 'terminal', 'github-pr', 'github-issue', 'web-ui')`
+    ),
+    check(
+      "org_channel_status_valid",
+      sql`${t.status} IN ('active', 'archived')`
+    ),
+  ]
+)
+
+// ─── Thread ──────────────────────────────────────────────
+// Universal conversation primitive: IDE sessions, chats, terminal sessions, reviews, autonomous work.
+
+export const thread = orgSchema.table(
+  "thread",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("thrd")),
+    type: text("type").notNull(),
+    source: text("source").notNull(),
+    externalId: text("external_id"),
+    principalId: text("principal_id").references(() => principal.id, {
+      onDelete: "set null",
+    }),
+    agentId: text("agent_id").references(() => agent.id, {
+      onDelete: "set null",
+    }),
+    jobId: text("job_id").references(() => job.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("active"),
+    channelId: text("channel_id").references(() => channel.id, {
+      onDelete: "set null",
+    }),
+    repoSlug: text("repo_slug"),
+    branch: text("branch"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    parentThreadId: text("parent_thread_id"),
+    spec: specCol<ThreadSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("org_thread_source_external_unique").on(t.source, t.externalId),
+    index("org_thread_type_idx").on(t.type),
+    index("org_thread_source_idx").on(t.source),
+    index("org_thread_principal_idx").on(t.principalId),
+    index("org_thread_agent_idx").on(t.agentId),
+    index("org_thread_job_idx").on(t.jobId),
+    index("org_thread_status_idx").on(t.status),
+    index("org_thread_channel_idx").on(t.channelId),
+    index("org_thread_repo_slug_idx").on(t.repoSlug),
+    index("org_thread_started_at_idx").on(t.startedAt),
+    index("org_thread_parent_idx").on(t.parentThreadId),
+    check(
+      "org_thread_type_valid",
+      sql`${t.type} IN ('ide-session', 'chat', 'terminal', 'review', 'autonomous')`
+    ),
+    check(
+      "org_thread_source_valid",
+      sql`${t.source} IN ('claude-code', 'conductor', 'cursor', 'slack', 'terminal', 'web')`
+    ),
+    check(
+      "org_thread_status_valid",
+      sql`${t.status} IN ('active', 'completed', 'failed', 'abandoned')`
+    ),
+  ]
+)
+
+// ─── Thread Turn ─────────────────────────────────────────
+// Single exchange within a thread (prompt/response, command/output, message).
+
+export const threadTurn = orgSchema.table(
+  "thread_turn",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("turn")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    turnIndex: integer("turn_index").notNull(),
+    role: text("role").notNull(),
+    spec: specCol<ThreadTurnSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_thread_turn_thread_index_unique").on(
+      t.threadId,
+      t.turnIndex
+    ),
+    index("org_thread_turn_thread_idx").on(t.threadId),
+    check(
+      "org_thread_turn_role_valid",
+      sql`${t.role} IN ('user', 'assistant', 'system', 'tool')`
+    ),
+  ]
+)
+
+// ─── Thread Participant ──────────────────────────────────
+// Multi-participant join table for threads.
+
+export const threadParticipant = orgSchema.table(
+  "thread_participant",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("tprt")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principal.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+    spec: specCol<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_thread_participant_unique").on(
+      t.threadId,
+      t.principalId,
+      t.role
+    ),
+    index("org_thread_participant_thread_idx").on(t.threadId),
+    index("org_thread_participant_principal_idx").on(t.principalId),
+    index("org_thread_participant_role_idx").on(t.role),
+    check(
+      "org_thread_participant_role_valid",
+      sql`${t.role} IN ('initiator', 'collaborator', 'observer', 'delegator', 'delegate')`
     ),
   ]
 )
