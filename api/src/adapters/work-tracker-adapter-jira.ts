@@ -11,8 +11,8 @@ import type {
  *
  * API endpoints used:
  * - testConnection: GET /rest/api/3/myself
- * - listProjects: GET /rest/api/3/project
- * - fetchIssues: POST /rest/api/3/search (JQL)
+ * - listProjects: GET /rest/api/3/project/search (paginated)
+ * - fetchIssues: GET /rest/api/3/search/jql (paginated via nextPageToken)
  * - getIssue: GET /rest/api/3/issue/{issueId}
  * - pushIssue: POST /rest/api/3/issue
  * - pushIssues: POST /rest/api/3/issue/bulk
@@ -48,12 +48,27 @@ export class JiraWorkTrackerAdapter implements WorkTrackerAdapter {
     apiUrl: string,
     credentialsRef: string,
   ): Promise<ExternalProject[]> {
-    const res = await fetch(`${apiUrl}/rest/api/3/project`, {
-      headers: this.headers(credentialsRef),
-    });
-    if (!res.ok) throw new Error(`Jira listProjects failed: ${res.status}`);
-    const data = (await res.json()) as Array<{ id: string; key: string; name: string }>;
-    return data.map((p) => ({ id: p.id, key: p.key, name: p.name }));
+    const all: ExternalProject[] = [];
+    let startAt = 0;
+    const pageSize = 50;
+    while (true) {
+      const params = new URLSearchParams({
+        startAt: String(startAt),
+        maxResults: String(pageSize),
+      });
+      const res = await fetch(`${apiUrl}/rest/api/3/project/search?${params}`, {
+        headers: this.headers(credentialsRef),
+      });
+      if (!res.ok) throw new Error(`Jira listProjects failed: ${res.status}`);
+      const data = (await res.json()) as {
+        values: Array<{ id: string; key: string; name: string }>;
+        isLast: boolean;
+      };
+      all.push(...data.values.map((p) => ({ id: p.id, key: p.key, name: p.name })));
+      if (data.isLast || data.values.length === 0) break;
+      startAt += data.values.length;
+    }
+    return all;
   }
 
   async fetchIssues(
@@ -67,13 +82,25 @@ export class JiraWorkTrackerAdapter implements WorkTrackerAdapter {
       "summary", "description", "status", "issuetype",
       "priority", "assignee", "labels", "parent", "created", "updated",
     ].join(",");
-    const params = new URLSearchParams({ jql, maxResults: "100", fields });
-    const res = await fetch(`${apiUrl}/rest/api/3/search/jql?${params}`, {
-      headers: this.headers(credentialsRef),
-    });
-    if (!res.ok) throw new Error(`Jira fetchIssues failed: ${res.status}`);
-    const data = (await res.json()) as { issues: JiraIssueRaw[] };
-    return data.issues.map((i) => this.mapIssue(apiUrl, i));
+    const all: ExternalIssue[] = [];
+    let nextPageToken: string | undefined;
+    while (true) {
+      const params = new URLSearchParams({ jql, maxResults: "100", fields });
+      if (nextPageToken) params.set("nextPageToken", nextPageToken);
+      const res = await fetch(`${apiUrl}/rest/api/3/search/jql?${params}`, {
+        headers: this.headers(credentialsRef),
+      });
+      if (!res.ok) throw new Error(`Jira fetchIssues failed: ${res.status}`);
+      const data = (await res.json()) as {
+        issues: JiraIssueRaw[];
+        nextPageToken?: string;
+        isLast?: boolean;
+      };
+      all.push(...data.issues.map((i) => this.mapIssue(apiUrl, i)));
+      if (data.isLast || !data.nextPageToken || data.issues.length === 0) break;
+      nextPageToken = data.nextPageToken;
+    }
+    return all;
   }
 
   async getIssue(
