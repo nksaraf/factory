@@ -19,7 +19,7 @@ import type { ConfigChange, ConfigProvider } from "./types.js"
 function resolveScriptsDir(): string {
   // Default to a well-known relative path from the CLI source
   // The scripts live at <repo>/scripts/ide-hooks/
-  let dir = resolve(import.meta.dir, "../../../../../..")
+  let dir = resolve(import.meta.dir, "../../../../..")
   const candidate = join(dir, "scripts", "ide-hooks")
   if (existsSync(join(candidate, "claude-code-hook.ts"))) return candidate
 
@@ -72,8 +72,7 @@ function detectClaudeCode(): ConfigChange {
           if (!innerHooks) return false
           return innerHooks.some(
             (h) =>
-              typeof h.command === "string" &&
-              h.command.includes("claude-code-hook.ts")
+              typeof h.command === "string" && h.command.includes(hookScript)
           )
         })
       })
@@ -187,7 +186,7 @@ function detectCursor(): ConfigChange {
         return entries.some(
           (entry) =>
             typeof entry.command === "string" &&
-            entry.command.includes("cursor-hook.ts")
+            entry.command.includes(hookScript)
         )
       })
       alreadyApplied = registered.length === CURSOR_HOOK_EVENTS.length

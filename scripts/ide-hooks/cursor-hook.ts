@@ -12,7 +12,6 @@
  *
  * Receives hook payload as JSON on stdin. Event type comes from CLI arg.
  */
-
 import { sendHookEvent } from "./lib/send-event"
 
 const EVENT_TYPE_MAP: Record<string, string> = {
@@ -56,7 +55,10 @@ async function main() {
     // No stdin or invalid JSON — proceed with empty payload
   }
 
-  const sessionId = (input.session_id as string) ?? (input.sessionId as string) ?? crypto.randomUUID()
+  const sessionId =
+    (input.session_id as string) ??
+    (input.sessionId as string) ??
+    crypto.randomUUID()
 
   await sendHookEvent({
     source: "cursor",
@@ -72,11 +74,25 @@ async function main() {
 
 function buildPayload(
   hookEvent: string,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ): Record<string, unknown> {
+  // Capture model and usage on every event where available
+  const base: Record<string, unknown> = {}
+  const model = input.model ?? input.modelName
+  if (model) base.model = model
+  const usage = input.usage ?? input.tokenUsage ?? input.token_usage
+  if (usage) base.tokenUsage = usage
+
   switch (hookEvent) {
+    case "sessionStart":
+      return {
+        ...base,
+        source: input.source,
+      }
+
     case "beforeSubmitPrompt":
       return {
+        ...base,
         prompt: input.prompt ?? input.message ?? input.content,
       }
 
@@ -84,6 +100,7 @@ function buildPayload(
     case "postToolUse":
     case "postToolUseFailure":
       return {
+        ...base,
         tool_name: input.tool_name ?? input.toolName,
         tool_input: input.tool_input ?? input.toolInput ?? input.input,
         tool_output: input.tool_output ?? input.toolOutput ?? input.output,
@@ -93,6 +110,7 @@ function buildPayload(
     case "beforeShellExecution":
     case "afterShellExecution":
       return {
+        ...base,
         command: input.command,
         output: input.output,
         exitCode: input.exitCode ?? input.exit_code,
@@ -101,6 +119,7 @@ function buildPayload(
     case "beforeMCPExecution":
     case "afterMCPExecution":
       return {
+        ...base,
         tool_name: input.tool_name ?? input.toolName,
         server: input.server ?? input.serverName,
         input: input.input ?? input.tool_input,
@@ -112,18 +131,37 @@ function buildPayload(
     case "beforeTabFileRead":
     case "afterTabFileEdit":
       return {
+        ...base,
         filePath: input.filePath ?? input.file_path ?? input.path,
         changes: input.changes ?? input.diff,
       }
 
     case "afterAgentResponse":
-    case "afterAgentThought":
       return {
+        ...base,
         content: input.content ?? input.text ?? input.message,
       }
 
+    case "afterAgentThought":
+      return {
+        ...base,
+        content: input.content ?? input.text ?? input.message,
+      }
+
+    case "stop":
+      return {
+        ...base,
+        stop_reason: input.stop_reason ?? input.stopReason,
+      }
+
+    case "sessionEnd":
+      return {
+        ...base,
+        end_reason: input.end_reason ?? input.endReason,
+      }
+
     default:
-      return {}
+      return base
   }
 }
 
