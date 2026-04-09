@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 WS_NAME="smoke-test-ci"
-WS_SLUG="wks-smoke-test-ci"
+WS_SLUG="smoke-test-ci"
 K8S_NS="workspace-$WS_SLUG"
 
 # Mode-specific k8s context and cluster name
