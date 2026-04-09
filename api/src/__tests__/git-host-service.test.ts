@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestContext, truncateAllTables } from "../test-helpers";
-import { GitHostService } from "../modules/build/git-host.service";
+import { GitHostService, resolveGitHostAdapterConfig } from "../modules/build/git-host.service";
 import { NoopGitHostAdapter } from "../adapters/git-host-adapter-noop";
 import type { GitHostRepoInfo } from "../adapters/git-host-adapter";
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import type { Database } from "../db/connection";
 import type { PGlite } from "@electric-sql/pglite";
+import { configVar } from "../db/schema/org-v2";
 
 describe("GitHostService", () => {
   let db: Database;
@@ -44,6 +45,21 @@ describe("GitHostService", () => {
       const spec = p.spec as GitHostProviderSpec;
       expect(spec.status).toBe("active");
       expect(spec.syncStatus).toBe("idle");
+    });
+
+    it("includes org in provider spec", async () => {
+      const p = await service.createProvider({
+        name: "my-github",
+        type: "github",
+        spec: {
+          apiUrl: "https://api.github.com",
+          authMode: "token",
+          credentialsRef: "ghp_encrypted_token",
+          org: "LeptonSoftware",
+        },
+      });
+      const spec = p.spec as GitHostProviderSpec;
+      expect(spec.org).toBe("LeptonSoftware");
     });
 
     it("lists providers", async () => {
@@ -128,7 +144,7 @@ describe("GitHostService", () => {
       expect(result.removed).toBe(0);
     });
 
-    it("does not duplicate repos on re-sync", async () => {
+    it("does not duplicate repos on re-sync and counts refreshed sync rows as updates", async () => {
       const provider = await service.createProvider({
         name: "test-gh",
         type: "github",
@@ -145,7 +161,7 @@ describe("GitHostService", () => {
       );
 
       expect(result.created).toBe(0);
-      expect(result.updated).toBe(0);
+      expect(result.updated).toBe(2);
       expect(result.removed).toBe(0);
     });
 
@@ -185,6 +201,29 @@ describe("GitHostService", () => {
       const spec = (updated?.spec ?? {}) as GitHostProviderSpec;
       expect(spec.syncStatus).toBe("idle");
       expect(spec.lastSyncAt).not.toBeNull();
+    });
+
+    it("resolves provider org from config vars before building adapter config", async () => {
+      await db.insert(configVar).values({
+        slug: "github-org",
+        name: "GitHub Org",
+        scopeType: "org",
+        scopeId: "default",
+        value: "LeptonSoftware",
+      });
+
+      const config = await resolveGitHostAdapterConfig(db, {
+        apiUrl: "https://api.github.com",
+        authMode: "token",
+        credentialsRef: "ghp_inline_token",
+        org: "$var(github-org)",
+      });
+
+      expect(config).toEqual({
+        apiBaseUrl: "https://api.github.com",
+        token: "ghp_inline_token",
+        org: "LeptonSoftware",
+      });
     });
 
     it("infers repo kind from topics", async () => {

@@ -23,6 +23,7 @@ import { setExamples } from "../plugins/examples-plugin.js";
 import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js";
 import { exitWithError } from "../lib/cli-exit.js";
 import { printTable } from "../output.js";
+import { getRepoDisplayName } from "../lib/repo-picker.js";
 import {
   createLocalWorkspace,
   listLocalWorkspaces,
@@ -387,7 +388,7 @@ export function workspaceCommand(app: DxBase) {
               if (repos.length > 0) {
                 const repoChoices = [
                   ...repos.map((r) => ({
-                    label: `${r.name} ${styleMuted(`(${r.kind ?? "repo"})`)}`,
+                    label: `${getRepoDisplayName(r)} ${styleMuted(`(${r.kind ?? "repo"})`)}`,
                     value: r,
                     hint: r.gitUrl,
                   })),
@@ -400,7 +401,7 @@ export function workspaceCommand(app: DxBase) {
                 if (chosen) {
                   overrides.repo = chosen.gitUrl;
                   overrides.branch = await input({
-                    message: `Branch for ${chosen.name}`,
+                    message: `Branch for ${getRepoDisplayName(chosen)}`,
                     default: chosen.defaultBranch ?? "main",
                   });
                 }

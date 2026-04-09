@@ -261,6 +261,7 @@ async function seedProviders(rootTeamId: string) {
       apiUrl: "https://api.github.com",
       authMode: "token",
       credentialsRef: "$secret(github-pat)",
+      org: process.env.GITHUB_ORG ?? "LeptonSoftware",
       status: "active",
       syncStatus: "idle",
     },

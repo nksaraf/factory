@@ -49,6 +49,7 @@ export const BuildModel = {
       apiUrl: t.String(),
       authMode: t.Optional(t.String()),
       credentialsRef: t.Optional(t.String()),
+      org: t.Optional(t.String()),
     }),
   }),
   updateGitHostProviderBody: t.Object({
@@ -57,6 +58,7 @@ export const BuildModel = {
       apiUrl: t.Optional(t.String()),
       authMode: t.Optional(t.String()),
       credentialsRef: t.Optional(t.String()),
+      org: t.Optional(t.String()),
     })),
   }),
   listGitHostProvidersQuery: t.Object({

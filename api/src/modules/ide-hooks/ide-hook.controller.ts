@@ -36,8 +36,9 @@ export function ideHookController(db: Database) {
     // --- Ingest hook event ---
     .post(
       "/events",
-      async ({ body, set, ...ctx }) => {
-        const principalId = (ctx as unknown as { principalId: string }).principalId
+      async (ctx) => {
+        const { body, set } = ctx
+        const principalId = (ctx as any).principalId as string
 
         if (!principalId) {
           set.status = 401
@@ -84,8 +85,9 @@ export function ideHookController(db: Database) {
     // --- Query hook events ---
     .get(
       "/events",
-      async ({ query, ...ctx }) => {
-        const principalId = (ctx as unknown as { principalId: string }).principalId
+      async (ctx) => {
+        const { query } = ctx
+        const principalId = (ctx as any).principalId as string
         const conditions = [
           inArray(webhookEvent.source, [...VALID_SOURCES]),
           // Default scope: own events only. Pass ?principalId=* for all (future: admin check).

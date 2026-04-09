@@ -1,29 +1,30 @@
-import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
-
-import { newId } from "../../lib/id";
-import { bitemporalCols, buildSchema, createdAt, updatedAt, specCol } from "./helpers";
-import { system, component, artifact } from "./software-v2";
-import { team } from "./org-v2";
-
 import type {
-  RepoSpec,
-  SystemVersionSpec,
-  PipelineRunSpec,
-  PipelineStepSpec,
   GitHostProviderSpec,
-  GithubAppInstallationSpec,
   GitRepoSyncSpec,
   GitUserSyncSpec,
-  WorkTrackerProviderSpec,
+  GithubAppInstallationSpec,
+  PipelineRunSpec,
+  PipelineStepSpec,
+  RepoSpec,
+  SystemVersionSpec,
   WorkItemSpec,
-} from "@smp/factory-shared/schemas/build";
-import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org";
+  WorkTrackerProjectSpec,
+  WorkTrackerProviderSpec,
+} from "@smp/factory-shared/schemas/build"
+import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org"
+import { sql } from "drizzle-orm"
+import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+
+import { newId } from "../../lib/id"
+import {
+  bitemporalCols,
+  buildSchema,
+  createdAt,
+  specCol,
+  updatedAt,
+} from "./helpers"
+import { team } from "./org-v2"
+import { artifact, component, system } from "./software-v2"
 
 // ─── Git Host Provider ──────────────────────────────────────
 
@@ -48,7 +49,7 @@ export const gitHostProvider = buildSchema.table(
       sql`${t.type} IN ('github', 'gitlab', 'gitea', 'bitbucket')`
     ),
   ]
-);
+)
 
 // ─── Repo ───────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ export const repo = buildSchema.table(
     index("build_repo_git_host_provider_idx").on(t.gitHostProviderId),
     index("build_repo_team_idx").on(t.teamId),
   ]
-);
+)
 
 // ─── System Version ─────────────────────────────────────────
 
@@ -87,16 +88,21 @@ export const systemVersion = buildSchema.table(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => newId("sver")),
-    systemId: text("system_id").notNull().references(() => system.id),
+    systemId: text("system_id")
+      .notNull()
+      .references(() => system.id),
     version: text("version").notNull(),
     spec: specCol<SystemVersionSpec>(),
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("build_system_version_system_version_unique").on(t.systemId, t.version),
+    uniqueIndex("build_system_version_system_version_unique").on(
+      t.systemId,
+      t.version
+    ),
     index("build_system_version_system_idx").on(t.systemId),
   ]
-);
+)
 
 // ─── Webhook Event ──────────────────────────────────────────
 
@@ -116,11 +122,11 @@ export const webhookEvent = buildSchema.table(
   (t) => [
     uniqueIndex("build_webhook_event_provider_delivery_unique").on(
       t.gitHostProviderId,
-      t.deliveryId,
+      t.deliveryId
     ),
     index("build_webhook_event_provider_idx").on(t.gitHostProviderId),
-  ],
-);
+  ]
+)
 
 // ─── Pipeline Run ───────────────────────────────────────────
 
@@ -133,9 +139,7 @@ export const pipelineRun = buildSchema.table(
     repoId: text("repo_id")
       .notNull()
       .references(() => repo.id, { onDelete: "cascade" }),
-    webhookEventId: text("webhook_event_id").references(
-      () => webhookEvent.id
-    ),
+    webhookEventId: text("webhook_event_id").references(() => webhookEvent.id),
     status: text("status").notNull().default("pending"),
     commitSha: text("commit_sha"),
     spec: specCol<PipelineRunSpec>(),
@@ -149,10 +153,10 @@ export const pipelineRun = buildSchema.table(
     index("build_pipeline_run_commit_idx").on(t.commitSha),
     check(
       "build_pipeline_run_status_valid",
-      sql`${t.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`,
+      sql`${t.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`
     ),
   ]
-);
+)
 
 // ─── Pipeline Step ──────────────────────────────────────────
 
@@ -169,7 +173,7 @@ export const pipelineStep = buildSchema.table(
     createdAt: createdAt(),
   },
   (t) => [index("build_pipeline_step_pipeline_run_idx").on(t.pipelineRunId)]
-);
+)
 
 // ─── Github App Installation ────────────────────────────────
 
@@ -191,7 +195,7 @@ export const githubAppInstallation = buildSchema.table(
       t.gitHostProviderId
     ),
   ]
-);
+)
 
 // ─── Git Repo Sync ──────────────────────────────────────────
 
@@ -215,14 +219,12 @@ export const gitRepoSync = buildSchema.table(
   (t) => [
     uniqueIndex("build_git_repo_sync_provider_external_unique").on(
       t.gitHostProviderId,
-      t.externalRepoId,
+      t.externalRepoId
     ),
     index("build_git_repo_sync_repo_idx").on(t.repoId),
-    index("build_git_repo_sync_git_host_provider_idx").on(
-      t.gitHostProviderId
-    ),
+    index("build_git_repo_sync_git_host_provider_idx").on(t.gitHostProviderId),
   ]
-);
+)
 
 // ─── Git User Sync ──────────────────────────────────────────
 
@@ -243,13 +245,11 @@ export const gitUserSync = buildSchema.table(
   (t) => [
     uniqueIndex("build_git_user_sync_provider_user_unique").on(
       t.gitHostProviderId,
-      t.externalUserId,
+      t.externalUserId
     ),
-    index("build_git_user_sync_git_host_provider_idx").on(
-      t.gitHostProviderId
-    ),
+    index("build_git_user_sync_git_host_provider_idx").on(t.gitHostProviderId),
   ]
-);
+)
 
 // ─── Work Tracker Provider ──────────────────────────────────
 
@@ -276,7 +276,7 @@ export const workTrackerProvider = buildSchema.table(
       sql`${t.type} IN ('jira', 'linear')`
     ),
   ]
-);
+)
 
 // ─── Work Tracker Project Mapping ───────────────────────────
 
@@ -289,7 +289,9 @@ export const workTrackerProjectMapping = buildSchema.table(
     workTrackerProviderId: text("work_tracker_provider_id")
       .notNull()
       .references(() => workTrackerProvider.id, { onDelete: "cascade" }),
-    systemId: text("system_id").notNull().references(() => system.id),
+    systemId: text("system_id")
+      .notNull()
+      .references(() => system.id),
     externalProjectId: text("external_project_id").notNull(),
     createdAt: createdAt(),
   },
@@ -300,7 +302,37 @@ export const workTrackerProjectMapping = buildSchema.table(
     ),
     index("build_work_tracker_project_mapping_system_idx").on(t.systemId),
   ]
-);
+)
+
+// ─── Work Tracker Project ───────────────────────────────────
+
+export const workTrackerProject = buildSchema.table(
+  "work_tracker_project",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("wtpj")),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    workTrackerProviderId: text("work_tracker_provider_id")
+      .notNull()
+      .references(() => workTrackerProvider.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    spec: specCol<WorkTrackerProjectSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("build_work_tracker_project_slug_unique").on(t.slug),
+    uniqueIndex("build_work_tracker_project_provider_external_unique").on(
+      t.workTrackerProviderId,
+      t.externalId
+    ),
+    index("build_work_tracker_project_provider_idx").on(
+      t.workTrackerProviderId
+    ),
+  ]
+)
 
 // ─── Work Item ──────────────────────────────────────────────
 
@@ -325,7 +357,7 @@ export const workItem = buildSchema.table(
   (t) => [
     uniqueIndex("build_work_item_provider_external_unique").on(
       t.workTrackerProviderId,
-      t.externalId,
+      t.externalId
     ),
     index("build_work_item_type_idx").on(t.type),
     index("build_work_item_system_idx").on(t.systemId),
@@ -339,7 +371,7 @@ export const workItem = buildSchema.table(
       sql`${t.type} IN ('epic', 'story', 'task', 'bug')`
     ),
   ]
-);
+)
 
 // ─── Component Artifact (junction) ─────────────────────
 // Links a system version's component to a specific artifact build.
@@ -353,8 +385,12 @@ export const componentArtifact = buildSchema.table(
     systemVersionId: text("system_version_id")
       .notNull()
       .references(() => systemVersion.id, { onDelete: "cascade" }),
-    componentId: text("component_id").notNull().references(() => component.id),
-    artifactId: text("artifact_id").notNull().references(() => artifact.id),
+    componentId: text("component_id")
+      .notNull()
+      .references(() => component.id),
+    artifactId: text("artifact_id")
+      .notNull()
+      .references(() => artifact.id),
     createdAt: createdAt(),
   },
   (t) => [
@@ -366,4 +402,4 @@ export const componentArtifact = buildSchema.table(
     index("build_component_artifact_version_idx").on(t.systemVersionId),
     index("build_component_artifact_component_idx").on(t.componentId),
   ]
-);
+)

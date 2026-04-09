@@ -1,3 +1,5 @@
+import type { EntityKind } from "@smp/factory-shared/schemas/org"
+
 export interface EntityDef {
   module: string
   entity: string
@@ -13,8 +15,16 @@ export interface ModuleGroup {
 const fleet: EntityDef[] = [
   { module: "fleet", entity: "sites", label: "Sites" },
   { module: "fleet", entity: "tenants", label: "Tenants" },
-  { module: "fleet", entity: "system-deployments", label: "System Deployments" },
-  { module: "fleet", entity: "component-deployments", label: "Component Deployments" },
+  {
+    module: "fleet",
+    entity: "system-deployments",
+    label: "System Deployments",
+  },
+  {
+    module: "fleet",
+    entity: "component-deployments",
+    label: "Component Deployments",
+  },
   { module: "fleet", entity: "deployment-sets", label: "Deployment Sets" },
   { module: "fleet", entity: "rollouts", label: "Rollouts" },
   { module: "fleet", entity: "workspaces", label: "Workspaces" },
@@ -24,7 +34,11 @@ const fleet: EntityDef[] = [
   { module: "fleet", entity: "databases", label: "Databases" },
   { module: "fleet", entity: "install-manifests", label: "Install Manifests" },
   { module: "fleet", entity: "site-manifests", label: "Site Manifests" },
-  { module: "fleet", entity: "anonymization-profiles", label: "Anonymization Profiles" },
+  {
+    module: "fleet",
+    entity: "anonymization-profiles",
+    label: "Anonymization Profiles",
+  },
   { module: "fleet", entity: "forwarded-ports", label: "Forwarded Ports" },
   { module: "fleet", entity: "connection-audit", label: "Connection Audit" },
 ]
@@ -45,12 +59,30 @@ const org: EntityDef[] = [
   { module: "org", entity: "teams", label: "Teams" },
   { module: "org", entity: "principals", label: "Principals" },
   { module: "org", entity: "scopes", label: "Scopes" },
+  {
+    module: "org",
+    entity: "entity-relationships",
+    label: "Entity Relationships",
+  },
 ]
 
 const build: EntityDef[] = [
   { module: "build", entity: "repos", label: "Repos" },
-  { module: "build", entity: "git-host-providers", label: "Git Host Providers" },
-  { module: "build", entity: "work-tracker-providers", label: "Work Tracker Providers" },
+  {
+    module: "build",
+    entity: "git-host-providers",
+    label: "Git Host Providers",
+  },
+  {
+    module: "build",
+    entity: "work-tracker-providers",
+    label: "Work Tracker Providers",
+  },
+  {
+    module: "build",
+    entity: "work-tracker-projects",
+    label: "Work Tracker Projects",
+  },
   { module: "build", entity: "pipeline-runs", label: "Pipeline Runs" },
 ]
 
@@ -94,7 +126,9 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   { module: "commerce", label: "Commerce", entities: commerce },
 ]
 
-export const ALL_ENTITIES: EntityDef[] = MODULE_GROUPS.flatMap((g) => g.entities)
+export const ALL_ENTITIES: EntityDef[] = MODULE_GROUPS.flatMap(
+  (g) => g.entities
+)
 
 /**
  * Map ID prefixes (e.g. "subs" from "subs_xxx") to their entity definition.
@@ -115,6 +149,11 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   team: { module: "org", entity: "teams", label: "Teams" },
   prin: { module: "org", entity: "principals", label: "Principals" },
   scope: { module: "org", entity: "scopes", label: "Scopes" },
+  erel: {
+    module: "org",
+    entity: "entity-relationships",
+    label: "Entity Relationships",
+  },
   agt: { module: "agent", entity: "agents", label: "Agents" },
   rpre: { module: "agent", entity: "presets", label: "Role Presets" },
   job: { module: "agent", entity: "jobs", label: "Jobs" },
@@ -132,27 +171,60 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   // fleet / ops
   site: { module: "fleet", entity: "sites", label: "Sites" },
   tnt: { module: "fleet", entity: "tenants", label: "Tenants" },
-  sdp: { module: "fleet", entity: "system-deployments", label: "System Deployments" },
-  cdp: { module: "fleet", entity: "component-deployments", label: "Component Deployments" },
-  dset: { module: "fleet", entity: "deployment-sets", label: "Deployment Sets" },
+  sdp: {
+    module: "fleet",
+    entity: "system-deployments",
+    label: "System Deployments",
+  },
+  cdp: {
+    module: "fleet",
+    entity: "component-deployments",
+    label: "Component Deployments",
+  },
+  dset: {
+    module: "fleet",
+    entity: "deployment-sets",
+    label: "Deployment Sets",
+  },
   rout: { module: "fleet", entity: "rollouts", label: "Rollouts" },
   wks: { module: "fleet", entity: "workspaces", label: "Workspaces" },
   wbnch: { module: "fleet", entity: "workbenches", label: "Workbenches" },
   prev: { module: "fleet", entity: "previews", label: "Previews" },
   intv: { module: "fleet", entity: "interventions", label: "Interventions" },
   db: { module: "fleet", entity: "databases", label: "Databases" },
-  aprf: { module: "fleet", entity: "anonymization-profiles", label: "Anonymization Profiles" },
+  aprf: {
+    module: "fleet",
+    entity: "anonymization-profiles",
+    label: "Anonymization Profiles",
+  },
   fp: { module: "fleet", entity: "forwarded-ports", label: "Forwarded Ports" },
   // build
   repo: { module: "build", entity: "repos", label: "Repos" },
-  ghp: { module: "build", entity: "git-host-providers", label: "Git Host Providers" },
-  wtp: { module: "build", entity: "work-tracker-providers", label: "Work Tracker Providers" },
+  ghp: {
+    module: "build",
+    entity: "git-host-providers",
+    label: "Git Host Providers",
+  },
+  wtp: {
+    module: "build",
+    entity: "work-tracker-providers",
+    label: "Work Tracker Providers",
+  },
+  wtpj: {
+    module: "build",
+    entity: "work-tracker-projects",
+    label: "Work Tracker Projects",
+  },
   prun: { module: "build", entity: "pipeline-runs", label: "Pipeline Runs" },
   // commerce
   cust: { module: "commerce", entity: "customers", label: "Customers" },
   pln: { module: "commerce", entity: "plans", label: "Plans" },
   csub: { module: "commerce", entity: "subscriptions", label: "Subscriptions" },
-  bmet: { module: "commerce", entity: "billable-metrics", label: "Billable Metrics" },
+  bmet: {
+    module: "commerce",
+    entity: "billable-metrics",
+    label: "Billable Metrics",
+  },
 }
 
 /** Extract the prefix from an entity ID like "subs_cmnmcgq0f..." → "subs" */
@@ -164,5 +236,29 @@ export function extractIdPrefix(id: string): string | null {
 /** Resolve an entity ID to its entity definition via prefix */
 export function resolveEntityById(id: string): EntityDef | null {
   const prefix = extractIdPrefix(id)
-  return prefix ? PREFIX_TO_ENTITY[prefix] ?? null : null
+  return prefix ? (PREFIX_TO_ENTITY[prefix] ?? null) : null
+}
+
+const ENTITY_KIND_BY_PATH: Record<string, EntityKind> = {
+  "product/systems": "system",
+  "product/components": "component",
+  "product/apis": "api",
+  "product/artifacts": "artifact",
+  "product/releases": "release",
+  "product/products": "product",
+  "product/capabilities": "capability",
+  "org/teams": "team",
+  "agent/agents": "agent",
+  "infra/hosts": "host",
+  "infra/runtimes": "runtime",
+  "infra/routes": "route",
+  "build/repos": "repo",
+  "build/work-tracker-projects": "work-tracker-project",
+  "build/work-items": "work-item",
+  "build/git-host-providers": "git-host-provider",
+  "build/work-tracker-providers": "work-tracker-provider",
+}
+
+export function entityToKind(entity: EntityDef): EntityKind | null {
+  return ENTITY_KIND_BY_PATH[`${entity.module}/${entity.entity}`] ?? null
 }

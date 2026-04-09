@@ -96,21 +96,18 @@ function detectClaudeCode(): ConfigChange {
           const command = `bun run ${hookScript} ${event}`;
           if (!hooks[event]) hooks[event] = [];
 
-          const existing = hooks[event] as Array<Record<string, unknown>>;
-          const alreadyRegistered = existing.some((entry) => {
+          // Remove stale entries, then add current
+          hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter((entry) => {
             const innerHooks = entry.hooks as Array<Record<string, unknown>> | undefined;
-            if (!innerHooks) return false;
-            return innerHooks.some(
+            if (!innerHooks) return true;
+            return !innerHooks.some(
               (h) => typeof h.command === "string" && h.command.includes("claude-code-hook.ts"),
             );
           });
-
-          if (!alreadyRegistered) {
-            existing.push({
-              matcher: "*",
-              hooks: [{ type: "command", command }],
-            });
-          }
+          (hooks[event] as Array<Record<string, unknown>>).push({
+            matcher: "*",
+            hooks: [{ type: "command", command }],
+          });
         }
 
         settings.hooks = hooks;
@@ -199,14 +196,11 @@ function detectCursor(): ConfigChange {
           const command = `bun run ${hookScript} ${event}`;
           if (!hooks[event]) hooks[event] = [];
 
-          const existing = hooks[event] as Array<Record<string, unknown>>;
-          const alreadyRegistered = existing.some(
-            (entry) => typeof entry.command === "string" && entry.command.includes("cursor-hook.ts"),
+          // Remove stale entries, then add current
+          hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter(
+            (entry) => !(typeof entry.command === "string" && entry.command.includes("cursor-hook.ts")),
           );
-
-          if (!alreadyRegistered) {
-            existing.push({ command });
-          }
+          (hooks[event] as Array<Record<string, unknown>>).push({ command });
         }
 
         config.hooks = hooks;

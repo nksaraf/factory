@@ -1,4 +1,23 @@
-import { sql } from "drizzle-orm";
+import type {
+  AgentSpec,
+  ConfigVarSpec,
+  EntityRelationshipSpec,
+  IdentityLinkSpec,
+  JobSpec,
+  MembershipSpec,
+  MemorySpec,
+  MessagingProviderSpec,
+  OrgSecretSpec,
+  PrincipalSpec,
+  RolePresetSpec,
+  ScopeSpec,
+  SshKeySpec,
+  TeamSpec,
+  ToolCredentialSpec,
+  ToolUsageSpec,
+  WebhookEventSpec,
+} from "@smp/factory-shared/schemas/org"
+import { sql } from "drizzle-orm"
 import {
   check,
   index,
@@ -7,36 +26,17 @@ import {
   text,
   timestamp,
   uniqueIndex,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/pg-core"
 
-import { newId } from "../../lib/id";
+import { newId } from "../../lib/id"
 import {
-  orgSchema,
-  createdAt,
-  updatedAt,
-  metadataCol,
-  specCol,
   bitemporalCols,
-} from "./helpers";
-
-import type {
-  TeamSpec,
-  PrincipalSpec,
-  MembershipSpec,
-  ScopeSpec,
-  IdentityLinkSpec,
-  AgentSpec,
-  RolePresetSpec,
-  JobSpec,
-  MemorySpec,
-  ToolCredentialSpec,
-  ToolUsageSpec,
-  MessagingProviderSpec,
-  SshKeySpec,
-  ConfigVarSpec,
-  OrgSecretSpec,
-  WebhookEventSpec,
-} from "@smp/factory-shared/schemas/org";
+  createdAt,
+  metadataCol,
+  orgSchema,
+  specCol,
+  updatedAt,
+} from "./helpers"
 
 // ─── Team ────────────────────────────────────────────────────
 // Hierarchical org unit: team, business-unit, or product-area.
@@ -50,13 +50,14 @@ export const team = orgSchema.table(
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull().default("team"),
-    parentTeamId: text("parent_team_id").references((): any => team.id, { onDelete: "set null" }),
+    parentTeamId: text("parent_team_id").references((): any => team.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<TeamSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
-
   },
   (t) => [
     // Partial unique indexes (WHERE valid_to IS NULL AND system_to IS NULL) in migration;
@@ -67,10 +68,10 @@ export const team = orgSchema.table(
     index("org_team_type_idx").on(t.type),
     check(
       "org_team_type_valid",
-      sql`${t.type} IN ('team', 'business-unit', 'product-area')`,
+      sql`${t.type} IN ('team', 'business-unit', 'product-area')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Principal ───────────────────────────────────────────────
 // Unifies all actors: human users, agents, service accounts.
@@ -92,7 +93,6 @@ export const principal = orgSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
-
   },
   (t) => [
     // Partial unique index in migration (bitemporal)
@@ -101,10 +101,10 @@ export const principal = orgSchema.table(
     index("org_principal_primary_team_idx").on(t.primaryTeamId),
     check(
       "org_principal_type_valid",
-      sql`${t.type} IN ('human', 'agent', 'service-account')`,
+      sql`${t.type} IN ('human', 'agent', 'service-account')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Membership ──────────────────────────────────────────────
 // Multi-team membership join table.
@@ -127,11 +127,11 @@ export const membership = orgSchema.table(
   (t) => [
     uniqueIndex("org_membership_principal_team_unique").on(
       t.principalId,
-      t.teamId,
+      t.teamId
     ),
     index("org_membership_team_idx").on(t.teamId),
-  ],
-);
+  ]
+)
 
 // ─── Scope ───────────────────────────────────────────────────
 // Authorization scopes: team-derived, resource-level, or custom.
@@ -158,10 +158,10 @@ export const scope = orgSchema.table(
     index("org_scope_team_idx").on(t.teamId),
     check(
       "org_scope_type_valid",
-      sql`${t.type} IN ('team', 'resource', 'custom')`,
+      sql`${t.type} IN ('team', 'resource', 'custom')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Identity Link ──────────────────────────────────────────
 // Multi-provider identity linking for principals.
@@ -182,16 +182,22 @@ export const identityLink = orgSchema.table(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("org_identity_link_type_external_unique").on(t.type, t.externalId),
-    uniqueIndex("org_identity_link_principal_type_unique").on(t.principalId, t.type),
+    uniqueIndex("org_identity_link_type_external_unique").on(
+      t.type,
+      t.externalId
+    ),
+    uniqueIndex("org_identity_link_principal_type_unique").on(
+      t.principalId,
+      t.type
+    ),
     index("org_identity_link_type_idx").on(t.type),
     index("org_identity_link_principal_idx").on(t.principalId),
     check(
       "org_identity_link_type_valid",
-      sql`${t.type} IN ('github', 'google', 'slack', 'jira', 'claude', 'cursor')`,
+      sql`${t.type} IN ('github', 'google', 'slack', 'jira', 'claude', 'cursor')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Agent ──────────────────────────────────────────────────
 // Persistent AI actor identity with role type and reporting hierarchy.
@@ -222,16 +228,13 @@ export const agent = orgSchema.table(
     index("org_agent_principal_idx").on(t.principalId),
     index("org_agent_reports_to_idx").on(t.reportsToAgentId),
     index("org_agent_status_idx").on(t.status),
-    check(
-      "org_agent_status_valid",
-      sql`${t.status} IN ('active', 'disabled')`,
-    ),
+    check("org_agent_status_valid", sql`${t.status} IN ('active', 'disabled')`),
     check(
       "org_agent_type_valid",
-      sql`${t.type} IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')`,
+      sql`${t.type} IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Role Preset ────────────────────────────────────────────
 // Named convenience configurations for agents. System presets have orgId=null.
@@ -252,8 +255,8 @@ export const rolePreset = orgSchema.table(
   (t) => [
     uniqueIndex("org_role_preset_slug_unique").on(t.slug),
     index("org_role_preset_org_idx").on(t.orgId),
-  ],
-);
+  ]
+)
 
 // ─── Job ────────────────────────────────────────────────────
 // Discrete unit of work assigned to an agent.
@@ -269,7 +272,7 @@ export const job = orgSchema.table(
       .references(() => agent.id, { onDelete: "cascade" }),
     delegatedByAgentId: text("delegated_by_agent_id").references(
       () => agent.id,
-      { onDelete: "set null" },
+      { onDelete: "set null" }
     ),
     parentJobId: text("parent_job_id"),
     status: text("status").notNull().default("pending"),
@@ -287,18 +290,18 @@ export const job = orgSchema.table(
     index("org_job_mode_idx").on(t.mode),
     check(
       "org_job_status_valid",
-      sql`${t.status} IN ('pending', 'running', 'completed', 'failed', 'cancelled')`,
+      sql`${t.status} IN ('pending', 'running', 'completed', 'failed', 'cancelled')`
     ),
     check(
       "org_job_mode_valid",
-      sql`${t.mode} IN ('conversational', 'autonomous', 'observation')`,
+      sql`${t.mode} IN ('conversational', 'autonomous', 'observation')`
     ),
     check(
       "org_job_trigger_valid",
-      sql`${t.trigger} IN ('mention', 'event', 'schedule', 'delegation', 'manual')`,
+      sql`${t.trigger} IN ('mention', 'event', 'schedule', 'delegation', 'manual')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Memory ────────────────────────────────────────────────
 // Layered knowledge system for agents.
@@ -312,10 +315,12 @@ export const memory = orgSchema.table(
     type: text("type").notNull(),
     layer: text("layer").notNull().default("session"),
     status: text("status").notNull().default("proposed"),
-    sourceAgentId: text("source_agent_id").references(() => agent.id, { onDelete: "set null" }),
+    sourceAgentId: text("source_agent_id").references(() => agent.id, {
+      onDelete: "set null",
+    }),
     approvedByPrincipalId: text("approved_by_principal_id").references(
       () => principal.id,
-      { onDelete: "set null" },
+      { onDelete: "set null" }
     ),
     spec: specCol<MemorySpec>(),
     createdAt: createdAt(),
@@ -329,18 +334,18 @@ export const memory = orgSchema.table(
     index("org_memory_approved_by_idx").on(t.approvedByPrincipalId),
     check(
       "org_memory_type_valid",
-      sql`${t.type} IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')`,
+      sql`${t.type} IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')`
     ),
     check(
       "org_memory_layer_valid",
-      sql`${t.layer} IN ('session', 'team', 'org')`,
+      sql`${t.layer} IN ('session', 'team', 'org')`
     ),
     check(
       "org_memory_status_valid",
-      sql`${t.status} IN ('proposed', 'approved', 'superseded', 'archived')`,
+      sql`${t.status} IN ('proposed', 'approved', 'superseded', 'archived')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Tool Credential ────────────────────────────────────────
 // API keys / credentials for developer tools.
@@ -358,10 +363,8 @@ export const toolCredential = orgSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    index("org_tool_credential_principal_idx").on(t.principalId),
-  ],
-);
+  (t) => [index("org_tool_credential_principal_idx").on(t.principalId)]
+)
 
 // ─── Tool Usage ─────────────────────────────────────────────
 // Usage tracking for any tool by any principal.
@@ -383,9 +386,12 @@ export const toolUsage = orgSchema.table(
   (t) => [
     index("org_tool_usage_principal_idx").on(t.principalId),
     index("org_tool_usage_tool_created_idx").on(t.tool, t.createdAt),
-    index("org_tool_usage_principal_created_idx").on(t.principalId, t.createdAt),
-  ],
-);
+    index("org_tool_usage_principal_created_idx").on(
+      t.principalId,
+      t.createdAt
+    ),
+  ]
+)
 
 // ─── Messaging Provider ─────────────────────────────────────
 // Connected messaging workspaces (Slack, Teams, Google Chat).
@@ -412,10 +418,10 @@ export const messagingProvider = orgSchema.table(
     index("org_messaging_provider_team_idx").on(t.teamId),
     check(
       "org_messaging_provider_type_valid",
-      sql`${t.type} IN ('slack', 'teams', 'google-chat')`,
+      sql`${t.type} IN ('slack', 'teams', 'google-chat')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── SSH Key ────────────────────────────────────────────────
 // SSH keys belonging to principals.
@@ -440,10 +446,10 @@ export const sshKey = orgSchema.table(
     index("org_ssh_key_principal_idx").on(t.principalId),
     check(
       "org_ssh_key_type_valid",
-      sql`${t.type} IN ('ed25519', 'rsa', 'ecdsa')`,
+      sql`${t.type} IN ('ed25519', 'rsa', 'ecdsa')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Config Var ─────────────────────────────────────────────
 // Plain-text configuration variables. Readable by anyone with scope access.
@@ -469,16 +475,51 @@ export const configVar = orgSchema.table(
       t.slug,
       t.scopeType,
       t.scopeId,
-      t.environment,
+      t.environment
     ),
     index("org_config_var_scope_idx").on(t.scopeType, t.scopeId),
     index("org_config_var_env_idx").on(t.environment),
     check(
       "org_config_var_scope_type_valid",
-      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`,
+      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`
     ),
-  ],
-);
+  ]
+)
+
+// ─── Entity Relationship ────────────────────────────────────
+// Cross-entity graph edges for dependency graphs, ownership, and topology.
+
+export const entityRelationship = orgSchema.table(
+  "entity_relationship",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("erel")),
+    type: text("type").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceId: text("source_id").notNull(),
+    targetKind: text("target_kind").notNull(),
+    targetId: text("target_id").notNull(),
+    spec: specCol<EntityRelationshipSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_entity_rel_unique").on(
+      t.type,
+      t.sourceKind,
+      t.sourceId,
+      t.targetKind,
+      t.targetId
+    ),
+    index("org_entity_rel_type_idx").on(t.type),
+    index("org_entity_rel_source_idx").on(t.sourceKind, t.sourceId),
+    index("org_entity_rel_target_idx").on(t.targetKind, t.targetId),
+    check(
+      "org_entity_rel_type_valid",
+      sql`${t.type} IN ('consumes-api', 'depends-on', 'provides', 'owned-by', 'deployed-alongside', 'triggers', 'tracks', 'maps-to')`
+    ),
+  ]
+)
 
 // ─── Secret ─────────────────────────────────────────────────
 // Encrypted secrets stored directly in the database using envelope encryption.
@@ -511,17 +552,17 @@ export const secret = orgSchema.table(
       t.slug,
       t.scopeType,
       t.scopeId,
-      t.environment,
+      t.environment
     ),
     index("org_secret_scope_idx").on(t.scopeType, t.scopeId),
     index("org_secret_env_idx").on(t.environment),
     index("org_secret_key_version_idx").on(t.keyVersion),
     check(
       "org_secret_scope_type_valid",
-      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`,
+      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`
     ),
-  ],
-);
+  ]
+)
 
 // ─── Webhook Event ────────────────────────────────────────
 // Universal webhook event log for all external integrations.
@@ -545,7 +586,7 @@ export const webhookEvent = orgSchema.table(
     uniqueIndex("org_webhook_event_source_provider_delivery_unique").on(
       t.source,
       t.providerId,
-      t.deliveryId,
+      t.deliveryId
     ),
     index("org_webhook_event_source_idx").on(t.source),
     index("org_webhook_event_provider_idx").on(t.providerId),
@@ -554,9 +595,12 @@ export const webhookEvent = orgSchema.table(
     index("org_webhook_event_event_type_idx").on(t.eventType),
     index("org_webhook_event_entity_idx").on(t.entityId),
     index("org_webhook_event_actor_created_idx").on(t.actorId, t.createdAt),
-    index("org_webhook_event_event_type_created_idx").on(t.eventType, t.createdAt),
-  ],
-);
+    index("org_webhook_event_event_type_created_idx").on(
+      t.eventType,
+      t.createdAt
+    ),
+  ]
+)
 
 // ─── Workflow Run ─────────────────────────────────────────
 // Tracks each workflow execution with JSONB state.
@@ -587,7 +631,9 @@ export const workflowRun = orgSchema.table(
      * Mutable scratch pad — each workflow writes its own shape here.
      * E.g. god-workflow stores { branchName, workspaceId, jobId, prNumber, prUrl, previewUrl }.
      */
-    state: jsonb("state").notNull().default(sql`'{}'`),
+    state: jsonb("state")
+      .notNull()
+      .default(sql`'{}'`),
 
     /** Workflow-defined phase label for display/API. */
     phase: text("phase").notNull().default("started"),
@@ -602,7 +648,9 @@ export const workflowRun = orgSchema.table(
     parentWorkflowRunId: text("parent_workflow_run_id"),
 
     /** Workflow-specific configuration. */
-    config: jsonb("config").notNull().default(sql`'{}'`),
+    config: jsonb("config")
+      .notNull()
+      .default(sql`'{}'`),
 
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -612,8 +660,8 @@ export const workflowRun = orgSchema.table(
     index("org_wf_run_workflow_name_idx").on(t.workflowName),
     index("org_wf_run_status_idx").on(t.status),
     index("org_wf_run_parent_idx").on(t.parentWorkflowRunId),
-  ],
-);
+  ]
+)
 
 // ─── Event Subscription ──────────────────────────────────
 // Inngest-style event subscriptions for content-based routing.
@@ -648,5 +696,5 @@ export const eventSubscription = orgSchema.table(
     index("org_esub_workflow_run_idx").on(t.workflowRunId),
     // GIN index for JSONB containment queries on matchFields
     index("org_esub_match_fields_gin_idx").using("gin", t.matchFields),
-  ],
-);
+  ]
+)

@@ -33,6 +33,7 @@ import { installController } from "./modules/install/index"
 import { observabilityController } from "./modules/observability/index"
 import { productControllerV2 } from "./modules/product/index.v2"
 import { buildControllerV2 } from "./modules/build/index.v2"
+import { resolveGitHostAdapterConfig } from "./modules/build/git-host.service"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
 import { infraControllerV2 } from "./modules/infra/index.v2"
@@ -239,12 +240,10 @@ export class FactoryAPI {
       if (ghProvider) {
         const spec = (ghProvider.spec ?? {}) as GitHostProviderSpec;
         if (spec.status === "active" || !spec.status) {
-          const ref = spec.credentialsRef?.trim() ?? "";
-          const creds = ref.startsWith("{") ? (() => { try { return JSON.parse(ref); } catch { return { token: ref }; } })() : { token: ref };
-          gitHost = createGitHostAdapter("github", {
-            ...creds,
-            apiBaseUrl: spec.apiUrl ?? undefined,
-          });
+          gitHost = createGitHostAdapter(
+            "github",
+            await resolveGitHostAdapterConfig(this.db, spec),
+          );
           logger.info({ provider: ghProvider.name }, "Loaded GitHub adapter for preview reconciler");
         }
       } else {

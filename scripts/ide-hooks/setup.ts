@@ -54,24 +54,22 @@ function setupClaudeCode() {
       hooks[event] = []
     }
 
-    const existing = hooks[event] as Array<Record<string, unknown>>
-
-    // Check if our hook is already registered (by matching the script path)
-    const alreadyRegistered = existing.some((entry) => {
+    // Remove any stale entries for our hook (matching by script name)
+    hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter((entry) => {
       if (entry.hooks) {
-        return (entry.hooks as Array<Record<string, unknown>>).some(
+        const innerHooks = entry.hooks as Array<Record<string, unknown>>
+        return !innerHooks.some(
           (h) => typeof h.command === "string" && h.command.includes("claude-code-hook.ts"),
         )
       }
-      return typeof entry.command === "string" && entry.command.includes("claude-code-hook.ts")
+      return !(typeof entry.command === "string" && entry.command.includes("claude-code-hook.ts"))
     })
 
-    if (!alreadyRegistered) {
-      existing.push({
-        matcher: "*",
-        hooks: [hookEntry],
-      })
-    }
+    // Add the current entry
+    ;(hooks[event] as Array<Record<string, unknown>>).push({
+      matcher: "*",
+      hooks: [hookEntry],
+    })
   }
 
   settings.hooks = hooks
@@ -129,15 +127,13 @@ function setupCursor() {
       hooks[event] = []
     }
 
-    const existing = hooks[event] as Array<Record<string, unknown>>
-
-    const alreadyRegistered = existing.some(
-      (entry) => typeof entry.command === "string" && entry.command.includes("cursor-hook.ts"),
+    // Remove stale entries for our hook
+    hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter(
+      (entry) => !(typeof entry.command === "string" && entry.command.includes("cursor-hook.ts")),
     )
 
-    if (!alreadyRegistered) {
-      existing.push({ command })
-    }
+    // Add the current entry
+    ;(hooks[event] as Array<Record<string, unknown>>).push({ command })
   }
 
   config.hooks = hooks

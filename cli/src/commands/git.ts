@@ -2,6 +2,7 @@ import type { DxBase } from "../dx-root.js";
 
 import { getFactoryClient } from "../client.js";
 import { exitWithError } from "../lib/cli-exit.js";
+import { getRepoDisplayName } from "../lib/repo-picker.js";
 import { toDxFlags } from "./dx-flags.js";
 import {
   apiCall,
@@ -355,7 +356,7 @@ export function gitCommand(app: DxBase) {
                 gitUrl = await filter({
                   message: "Search for a repo to clone",
                   choices: repos.map((r) => ({
-                    label: `${r.name} (${r.kind ?? "repo"})`,
+                    label: `${getRepoDisplayName(r)} (${r.kind ?? "repo"})`,
                     value: r.gitUrl ?? "",
                     hint: r.gitUrl ?? undefined,
                   })),

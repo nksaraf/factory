@@ -2,14 +2,14 @@
  * Periodic work tracker sync loop
  * Syncs all active work tracker providers on a timer + on startup
  */
+import type { WorkTrackerProviderSpec } from "@smp/factory-shared/schemas/build"
 
-import { eq, and } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { workTrackerProvider } from "../../db/schema/product";
-import { syncWorkTracker } from "../../services/product/work-tracker.service";
-import { createOperationRunner, type OperationRunner } from "../operations";
+import type { Database } from "../../db/connection"
+import { workTrackerProvider } from "../../db/schema/build-v2"
+import { syncWorkTracker } from "../../modules/build/work-tracker.service"
+import { type OperationRunner, createOperationRunner } from "../operations"
 
-const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
 /**
  * Start the periodic work tracker sync loop.
@@ -17,44 +17,40 @@ const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
  */
 export function startWorkTrackerSyncLoop(
   db: Database,
-  opts?: { intervalMs?: number },
+  opts?: { intervalMs?: number }
 ): OperationRunner {
   return createOperationRunner(db, {
     name: "work-tracker",
     intervalMs: opts?.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
     async execute(log) {
-      const syncable = await db
-        .select()
-        .from(workTrackerProvider)
-        .where(
-          and(
-            eq(workTrackerProvider.status, "active"),
-            eq(workTrackerProvider.syncEnabled, true),
-          ),
-        );
+      const allProviders = await db.select().from(workTrackerProvider)
+      const providers = allProviders.filter((provider) => {
+        const spec = (provider.spec ?? {}) as WorkTrackerProviderSpec
+        return spec.status === "active" || !spec.status
+      })
 
-      if (syncable.length === 0) return { providers: 0 };
+      if (providers.length === 0) return { providers: 0 }
 
-      let synced = 0;
-      let errors = 0;
-      for (const prov of syncable) {
+      let synced = 0
+      let errors = 0
+      for (const prov of providers) {
         try {
-          const result = await syncWorkTracker(db, prov.workTrackerProviderId);
+          const result = await syncWorkTracker(db, prov.id)
           log.info(
-            { providerId: prov.workTrackerProviderId, name: prov.name, ...result },
-            "work tracker sync complete",
-          );
-          synced++;
+            { providerId: prov.id, name: prov.name, ...result },
+            "work tracker sync complete"
+          )
+          synced++
         } catch (err) {
           log.error(
-            { err, providerId: prov.workTrackerProviderId, name: prov.name },
-            "work tracker sync failed",
-          );
-          errors++;
+            { err, providerId: prov.id, name: prov.name },
+            "work tracker sync failed"
+          )
+          errors++
         }
       }
 
-      return { providers: syncable.length, synced, errors };
+      return { providers: providers.length, synced, errors }
     },
-  });
+  })
 }

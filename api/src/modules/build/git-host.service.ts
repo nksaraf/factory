@@ -6,6 +6,8 @@ import { getGitHostAdapter } from "../../adapters/adapter-registry";
 import type { GitHostAdapter, GitHostAdapterConfig, GitHostPullRequestCreate, GitHostType } from "../../adapters/git-host-adapter";
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
 import type { AuthAdminClient } from "../../lib/auth-admin-client";
+import { createSpecRefResolver } from "../../lib/spec-ref-resolver";
+import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend";
 
 // ---------------------------------------------------------------------------
 // Spec helpers — v2 stores credentials & config in the JSONB `spec` column
@@ -19,18 +21,30 @@ function providerSpec(provider: { spec: unknown }): GitHostProviderSpec {
  * Build adapter config from v2 provider spec.
  * Supports credentialsRef as plain token, JSON object, or $secret() reference.
  */
-function adapterConfigFromSpec(spec: GitHostProviderSpec): Partial<GitHostAdapterConfig> {
+function adapterConfigFromResolvedSpec(spec: GitHostProviderSpec): Partial<GitHostAdapterConfig> {
   const ref = spec.credentialsRef;
-  if (!ref) return {};
+  const config: Partial<GitHostAdapterConfig> = {};
+  if (spec.apiUrl) config.apiBaseUrl = spec.apiUrl;
+  config.org = spec.org ?? process.env.GITHUB_ORG;
+  if (!ref) return config;
   const trimmed = ref.trim();
   if (trimmed.startsWith("{")) {
     try {
-      return JSON.parse(trimmed);
+      return { ...config, ...JSON.parse(trimmed) };
     } catch {
-      return { token: trimmed };
+      return { ...config, token: trimmed };
     }
   }
-  return { token: trimmed };
+  return { ...config, token: trimmed };
+}
+
+export async function resolveGitHostAdapterConfig(
+  db: Database,
+  spec: GitHostProviderSpec,
+): Promise<Partial<GitHostAdapterConfig>> {
+  const resolver = createSpecRefResolver(db, new PostgresSecretBackend(db));
+  const resolvedSpec = await resolver.resolve(spec as Record<string, unknown>);
+  return adapterConfigFromResolvedSpec(resolvedSpec as GitHostProviderSpec);
 }
 
 export type CreateProviderBody = {
@@ -40,6 +54,7 @@ export type CreateProviderBody = {
     apiUrl: string;
     authMode?: string;
     credentialsRef?: string;
+    org?: string;
   };
 };
 
@@ -69,6 +84,7 @@ export class GitHostService {
           apiUrl: body.spec.apiUrl,
           authMode: body.spec.authMode as any,
           credentialsRef: body.spec.credentialsRef,
+          org: body.spec.org,
           status: "active",
           syncStatus: "idle",
         } satisfies GitHostProviderSpec,
@@ -143,10 +159,10 @@ export class GitHostService {
 
     const adapter =
       opts?.adapter ??
-      getGitHostAdapter(provider.type as GitHostType, {
-        ...adapterConfigFromSpec(spec),
-        apiBaseUrl: spec.apiUrl,
-      });
+      getGitHostAdapter(
+        provider.type as GitHostType,
+        await resolveGitHostAdapterConfig(this.db, spec),
+      );
 
     try {
       const remoteRepos = await adapter.listRepos();
@@ -267,10 +283,10 @@ export class GitHostService {
     const spec = providerSpec(provider);
     const adapter =
       opts?.adapter ??
-      getGitHostAdapter(provider.type as GitHostType, {
-        ...adapterConfigFromSpec(spec),
-        apiBaseUrl: spec.apiUrl,
-      });
+      getGitHostAdapter(
+        provider.type as GitHostType,
+        await resolveGitHostAdapterConfig(this.db, spec),
+      );
 
     const authClient = opts?.authClient;
     const members = await adapter.listOrgMembers();
@@ -360,10 +376,10 @@ export class GitHostService {
     if (!provider) return;
 
     const spec = providerSpec(provider);
-    const adapter = getGitHostAdapter(provider.type as GitHostType, {
-      ...adapterConfigFromSpec(spec),
-      apiBaseUrl: spec.apiUrl,
-    });
+    const adapter = getGitHostAdapter(
+      provider.type as GitHostType,
+      await resolveGitHostAdapterConfig(this.db, spec),
+    );
 
     // v2: externalFullName is no longer a column — resolve from repo
     const [repoRow] = await this.db
@@ -426,10 +442,10 @@ export class GitHostService {
     if (!sync) throw new Error(`Repo not synced with provider: ${repoSlug}`);
 
     const spec = providerSpec(provider);
-    const adapter = getGitHostAdapter(provider.type as GitHostType, {
-      ...adapterConfigFromSpec(spec),
-      apiBaseUrl: spec.apiUrl,
-    });
+    const adapter = getGitHostAdapter(
+      provider.type as GitHostType,
+      await resolveGitHostAdapterConfig(this.db, spec),
+    );
 
     // v2: externalFullName stored in sync externalRepoId (the external identifier)
     return { adapter, externalFullName: sync.externalRepoId };

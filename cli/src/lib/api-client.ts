@@ -16,7 +16,9 @@ export class FactoryClient {
   }
 
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
     if (this.token) headers["Authorization"] = `Bearer ${this.token}`
     const res = await fetch(`${this.url}${path}`, {
       method,
@@ -29,7 +31,10 @@ export class FactoryClient {
 
   // Fleet API methods — releases
   async listReleases(opts?: { status?: string }) {
-    return this.request("GET", `/api/v1/factory/fleet/releases${opts?.status ? `?status=${opts.status}` : ""}`)
+    return this.request(
+      "GET",
+      `/api/v1/factory/fleet/releases${opts?.status ? `?status=${opts.status}` : ""}`
+    )
   }
   async createRelease(body: { version: string }) {
     return this.request("POST", "/api/v1/factory/fleet/releases", body)
@@ -38,7 +43,11 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/releases/${version}`)
   }
   async promoteRelease(version: string, body: { target?: string }) {
-    return this.request("POST", `/api/v1/factory/fleet/releases/${version}/promote`, body)
+    return this.request(
+      "POST",
+      `/api/v1/factory/fleet/releases/${version}/promote`,
+      body
+    )
   }
 
   // Fleet API methods — sites
@@ -55,10 +64,18 @@ export class FactoryClient {
     return this.request("POST", `/api/v1/factory/fleet/sites/${name}/delete`)
   }
   async assignReleaseToSite(name: string, body: { releaseVersion: string }) {
-    return this.request("POST", `/api/v1/factory/fleet/sites/${name}/assign-release`, body)
+    return this.request(
+      "POST",
+      `/api/v1/factory/fleet/sites/${name}/assign-release`,
+      body
+    )
   }
   async siteCheckin(name: string, body: Record<string, unknown>) {
-    return this.request("POST", `/api/v1/factory/fleet/sites/${name}/checkin`, body)
+    return this.request(
+      "POST",
+      `/api/v1/factory/fleet/sites/${name}/checkin`,
+      body
+    )
   }
   async getSiteManifest(name: string) {
     return this.request("GET", `/api/v1/factory/fleet/sites/${name}/manifest`)
@@ -66,7 +83,10 @@ export class FactoryClient {
 
   // Fleet API methods — workspaces (was sandboxes)
   async listWorkspaces(opts?: { all?: boolean }) {
-    return this.request("GET", `/api/v1/factory/fleet/workspaces${opts?.all ? "?all=true" : ""}`)
+    return this.request(
+      "GET",
+      `/api/v1/factory/fleet/workspaces${opts?.all ? "?all=true" : ""}`
+    )
   }
   async createWorkspace(body: Record<string, unknown>) {
     return this.request("POST", "/api/v1/factory/fleet/workspaces", body)
@@ -99,48 +119,123 @@ export class FactoryClient {
     return this.request("GET", "/api/v1/factory/fleet/workspace-snapshots")
   }
   async getWorkspaceSnapshot(id: string) {
-    return this.request("GET", `/api/v1/factory/fleet/workspace-snapshots/${id}`)
+    return this.request(
+      "GET",
+      `/api/v1/factory/fleet/workspace-snapshots/${id}`
+    )
   }
   async deleteWorkspaceSnapshot(id: string) {
-    return this.request("POST", `/api/v1/factory/fleet/workspace-snapshots/${id}/delete`)
+    return this.request(
+      "POST",
+      `/api/v1/factory/fleet/workspace-snapshots/${id}/delete`
+    )
   }
 
   // Generic CRUD for dynamic module/entity paths (Eden can't type runtime-variable paths)
-  async getEntity(module: string, entity: string, slugOrId: string): Promise<{ data: Record<string, unknown> | null }> {
-    return this.request("GET", `/api/v1/factory/${module}/${entity}/${slugOrId}`)
+  async getEntity(
+    module: string,
+    entity: string,
+    slugOrId: string
+  ): Promise<{ data: Record<string, unknown> | null }> {
+    return this.request(
+      "GET",
+      `/api/v1/factory/${module}/${entity}/${slugOrId}`
+    )
   }
-  async listEntities(module: string, entity: string): Promise<{ data: Record<string, unknown>[] }> {
+  async listEntities(
+    module: string,
+    entity: string
+  ): Promise<{ data: Record<string, unknown>[] }> {
     return this.request("GET", `/api/v1/factory/${module}/${entity}`)
   }
-  async createEntity(module: string, entity: string, body: Record<string, unknown>): Promise<{ data: unknown }> {
+  async createEntity(
+    module: string,
+    entity: string,
+    body: Record<string, unknown>
+  ): Promise<{ data: unknown }> {
     return this.request("POST", `/api/v1/factory/${module}/${entity}`, body)
   }
-  async updateEntity(module: string, entity: string, slugOrId: string, body: Record<string, unknown>): Promise<{ data: unknown }> {
-    return this.request("POST", `/api/v1/factory/${module}/${entity}/${slugOrId}/update`, body)
+  async updateEntity(
+    module: string,
+    entity: string,
+    slugOrId: string,
+    body: Record<string, unknown>
+  ): Promise<{ data: unknown }> {
+    return this.request(
+      "POST",
+      `/api/v1/factory/${module}/${entity}/${slugOrId}/update`,
+      body
+    )
+  }
+  async entityAction(
+    module: string,
+    entity: string,
+    slugOrId: string,
+    action: string,
+    body?: Record<string, unknown>
+  ): Promise<{ data: unknown; action: string }> {
+    return this.request(
+      "POST",
+      `/api/v1/factory/${module}/${entity}/${slugOrId}/${action}`,
+      body ?? {}
+    )
   }
 
   // Infra API — generic action on an entity (Eden can't type dynamic action paths)
-  async infraAction(entity: string, slugOrId: string, action: string, body?: Record<string, unknown>) {
-    return this.request<{ data: unknown }>("POST", `/api/v1/factory/infra/${entity}/${slugOrId}/${action}`, body ?? {})
+  async infraAction(
+    entity: string,
+    slugOrId: string,
+    action: string,
+    body?: Record<string, unknown>
+  ) {
+    return this.request<{ data: unknown }>(
+      "POST",
+      `/api/v1/factory/infra/${entity}/${slugOrId}/${action}`,
+      body ?? {}
+    )
   }
 
   // Infra API — ip-addresses (hyphenated path, Eden can't see ontologyRoutes CRUD)
   async listIpAddresses(query?: Record<string, string | undefined>) {
     const params = new URLSearchParams()
-    if (query) for (const [k, v] of Object.entries(query)) { if (v) params.set(k, v) }
+    if (query)
+      for (const [k, v] of Object.entries(query)) {
+        if (v) params.set(k, v)
+      }
     const qs = params.toString()
-    return this.request<{ data: unknown[] }>("GET", `/api/v1/factory/infra/ip-addresses${qs ? `?${qs}` : ""}`)
+    return this.request<{ data: unknown[] }>(
+      "GET",
+      `/api/v1/factory/infra/ip-addresses${qs ? `?${qs}` : ""}`
+    )
   }
   async listAvailableIps(query?: Record<string, string | undefined>) {
     const params = new URLSearchParams()
-    if (query) for (const [k, v] of Object.entries(query)) { if (v) params.set(k, v) }
+    if (query)
+      for (const [k, v] of Object.entries(query)) {
+        if (v) params.set(k, v)
+      }
     const qs = params.toString()
-    return this.request<{ data: unknown[] }>("GET", `/api/v1/factory/infra/ip-addresses/available${qs ? `?${qs}` : ""}`)
+    return this.request<{ data: unknown[] }>(
+      "GET",
+      `/api/v1/factory/infra/ip-addresses/available${qs ? `?${qs}` : ""}`
+    )
   }
   async registerIpAddress(body: Record<string, unknown>) {
-    return this.request<{ data: unknown }>("POST", "/api/v1/factory/infra/ip-addresses", body)
+    return this.request<{ data: unknown }>(
+      "POST",
+      "/api/v1/factory/infra/ip-addresses",
+      body
+    )
   }
-  async ipAddressAction(slugOrId: string, action: string, body?: Record<string, unknown>) {
-    return this.request<{ data: unknown }>("POST", `/api/v1/factory/infra/ip-addresses/${slugOrId}/${action}`, body ?? {})
+  async ipAddressAction(
+    slugOrId: string,
+    action: string,
+    body?: Record<string, unknown>
+  ) {
+    return this.request<{ data: unknown }>(
+      "POST",
+      `/api/v1/factory/infra/ip-addresses/${slugOrId}/${action}`,
+      body ?? {}
+    )
   }
 }

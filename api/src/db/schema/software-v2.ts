@@ -1,33 +1,26 @@
-import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
-
-import { newId } from "../../lib/id";
-import {
-  softwareSchema,
-  createdAt,
-  updatedAt,
-  metadataCol,
-  specCol,
-  bitemporalCols,
-} from "./helpers";
-import { team } from "./org-v2";
-
 import type {
-  SystemSpec,
-  ComponentSpec,
   ApiSpec,
   ArtifactSpec,
-  ReleaseSpec,
-  TemplateSpec,
-  ProductSpec,
   CapabilitySpec,
-  EntityRelationshipSpec,
-} from "@smp/factory-shared/schemas/software";
+  ComponentSpec,
+  ProductSpec,
+  ReleaseSpec,
+  SystemSpec,
+  TemplateSpec,
+} from "@smp/factory-shared/schemas/software"
+import { sql } from "drizzle-orm"
+import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+
+import { newId } from "../../lib/id"
+import {
+  bitemporalCols,
+  createdAt,
+  metadataCol,
+  softwareSchema,
+  specCol,
+  updatedAt,
+} from "./helpers"
+import { team } from "./org-v2"
 
 // ─── System ──────────────────────────────────────────────────
 
@@ -39,13 +32,14 @@ export const system = softwareSchema.table(
       .$defaultFn(() => newId("sys")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
-    ownerTeamId: text("owner_team_id").references(() => team.id, { onDelete: "set null" }),
+    ownerTeamId: text("owner_team_id").references(() => team.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<SystemSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
-
   },
   (t) => [
     // Partial unique indexes in migration (bitemporal)
@@ -53,7 +47,7 @@ export const system = softwareSchema.table(
     index("software_system_name_idx").on(t.name),
     index("software_system_owner_team_idx").on(t.ownerTeamId),
   ]
-);
+)
 
 // ─── Component ───────────────────────────────────────────────
 
@@ -69,7 +63,9 @@ export const component = softwareSchema.table(
     systemId: text("system_id")
       .notNull()
       .references(() => system.id, { onDelete: "cascade" }),
-    ownerTeamId: text("owner_team_id").references(() => team.id, { onDelete: "set null" }),
+    ownerTeamId: text("owner_team_id").references(() => team.id, {
+      onDelete: "set null",
+    }),
     status: text("status").notNull().default("active"),
     lifecycle: text("lifecycle").default("production"),
     spec: specCol<ComponentSpec>(),
@@ -77,7 +73,6 @@ export const component = softwareSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
-
   },
   (t) => [
     // Partial unique indexes in migration (bitemporal)
@@ -90,7 +85,7 @@ export const component = softwareSchema.table(
       sql`${t.type} IN ('service', 'worker', 'task', 'cronjob', 'website', 'library', 'cli', 'agent', 'gateway', 'ml-model', 'database', 'cache', 'queue', 'storage', 'search')`
     ),
   ]
-);
+)
 
 // ─── API ─────────────────────────────────────────────────────
 
@@ -122,7 +117,7 @@ export const softwareApi = softwareSchema.table(
       sql`${t.type} IN ('openapi', 'grpc', 'graphql', 'asyncapi', 'webhook')`
     ),
   ]
-);
+)
 
 // ─── Artifact ────────────────────────────────────────────────
 
@@ -148,7 +143,7 @@ export const artifact = softwareSchema.table(
       sql`${t.type} IN ('container_image', 'binary', 'archive', 'package', 'bundle')`
     ),
   ]
-);
+)
 
 // ─── Release ─────────────────────────────────────────────────
 
@@ -170,7 +165,7 @@ export const release = softwareSchema.table(
   (t) => [
     uniqueIndex("software_release_system_slug_unique").on(t.systemId, t.slug),
   ]
-);
+)
 
 // ─── Release–Artifact Pin (junction) ─────────────────────────
 
@@ -194,7 +189,7 @@ export const releaseArtifactPin = softwareSchema.table(
       t.artifactId
     ),
   ]
-);
+)
 
 // ─── Template ────────────────────────────────────────────────
 
@@ -220,7 +215,7 @@ export const template = softwareSchema.table(
       sql`${t.type} IN ('component', 'system', 'workspace')`
     ),
   ]
-);
+)
 
 // ─── Product ─────────────────────────────────────────────────
 
@@ -241,7 +236,7 @@ export const product = softwareSchema.table(
     uniqueIndex("software_product_slug_unique").on(t.slug),
     uniqueIndex("software_product_name_unique").on(t.name),
   ]
-);
+)
 
 // ─── Product–System (junction) ───────────────────────────────
 
@@ -262,7 +257,7 @@ export const productSystem = softwareSchema.table(
   (t) => [
     uniqueIndex("software_product_system_unique").on(t.productId, t.systemId),
   ]
-);
+)
 
 // ─── Capability ──────────────────────────────────────────────
 
@@ -278,7 +273,9 @@ export const capability = softwareSchema.table(
     productId: text("product_id").references(() => product.id, {
       onDelete: "set null",
     }),
-    ownerTeamId: text("owner_team_id").references(() => team.id, { onDelete: "set null" }),
+    ownerTeamId: text("owner_team_id").references(() => team.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<CapabilitySpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
@@ -291,39 +288,4 @@ export const capability = softwareSchema.table(
       sql`${t.type} IN ('feature', 'integration', 'compute', 'data', 'support')`
     ),
   ]
-);
-
-// ─── Entity Relationship ────────────────────────────────────
-// Cross-entity graph edges for dependency graphs, ownership, and topology.
-
-export const entityRelationship = softwareSchema.table(
-  "entity_relationship",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => newId("erel")),
-    type: text("type").notNull(),
-    sourceKind: text("source_kind").notNull(),
-    sourceId: text("source_id").notNull(),
-    targetKind: text("target_kind").notNull(),
-    targetId: text("target_id").notNull(),
-    spec: specCol<EntityRelationshipSpec>(),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    uniqueIndex("software_entity_rel_unique").on(
-      t.type,
-      t.sourceKind,
-      t.sourceId,
-      t.targetKind,
-      t.targetId,
-    ),
-    index("software_entity_rel_type_idx").on(t.type),
-    index("software_entity_rel_source_idx").on(t.sourceKind, t.sourceId),
-    index("software_entity_rel_target_idx").on(t.targetKind, t.targetId),
-    check(
-      "software_entity_rel_type_valid",
-      sql`${t.type} IN ('consumes-api', 'depends-on', 'provides', 'owned-by', 'deployed-alongside', 'triggers')`
-    ),
-  ]
-);
+)

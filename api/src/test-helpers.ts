@@ -1,21 +1,20 @@
-import path from "node:path"
-
+import type { PGlite } from "@electric-sql/pglite"
 import { cors } from "@elysiajs/cors"
 import { Elysia } from "elysia"
-import type { PGlite } from "@electric-sql/pglite"
+import path from "node:path"
 
 import type { Database } from "./db/connection"
+import { createPgliteDb, migrateWithPglite } from "./factory-core"
 import { agentControllerV2 } from "./modules/agent/index.v2"
 import { buildControllerV2 } from "./modules/build/index.v2"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
+import { healthController } from "./modules/health/index"
 import { identityControllerV2 } from "./modules/identity/index.v2"
 import { infraControllerV2 } from "./modules/infra/index.v2"
 import { messagingControllerV2 } from "./modules/messaging/index.v2"
 import { productControllerV2 } from "./modules/product/index.v2"
-import { healthController } from "./modules/health/index"
 import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
-import { createPgliteDb, migrateWithPglite } from "./factory-core"
 
 export async function createTestContext() {
   const { client, db } = await createPgliteDb()
@@ -111,6 +110,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE commerce.billable_metric RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.customer RESTART IDENTITY CASCADE`,
   // build (was factory_build)
+  `TRUNCATE TABLE build.work_tracker_project RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.work_tracker_project_mapping RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.work_tracker_provider RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.work_item RESTART IDENTITY CASCADE`,
@@ -138,6 +138,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE org.messaging_provider RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.secret RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.config_var RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.entity_relationship RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.membership RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.scope RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.principal RESTART IDENTITY CASCADE`,
@@ -145,7 +146,6 @@ const TRUNCATE_STATEMENTS = [
   // software (was factory_product + factory_catalog)
   `TRUNCATE TABLE software.release_artifact_pin RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.release RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE software.entity_relationship RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.capability RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.api RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.artifact RESTART IDENTITY CASCADE`,
@@ -185,7 +185,9 @@ export async function seedTestParents(client: PGlite) {
          ON CONFLICT (team_id) DO NOTHING`,
         [id, id, `Team ${id}`]
       )
-    } catch { /* table may not exist */ }
+    } catch {
+      /* table may not exist */
+    }
     // v2: org.team
     try {
       await client.query(
@@ -194,7 +196,9 @@ export async function seedTestParents(client: PGlite) {
          ON CONFLICT (id) DO NOTHING`,
         [id, id, `Team ${id}`]
       )
-    } catch { /* table may not exist */ }
+    } catch {
+      /* table may not exist */
+    }
   }
 
   for (const id of principalIds) {
@@ -206,7 +210,9 @@ export async function seedTestParents(client: PGlite) {
          ON CONFLICT (id) DO NOTHING`,
         [id, id, `User ${id}`]
       )
-    } catch { /* table may not exist */ }
+    } catch {
+      /* table may not exist */
+    }
   }
 
   for (const id of repoIds) {
@@ -218,7 +224,9 @@ export async function seedTestParents(client: PGlite) {
          ON CONFLICT (id) DO NOTHING`,
         [id, id, `Repo ${id}`]
       )
-    } catch { /* table may not exist */ }
+    } catch {
+      /* table may not exist */
+    }
   }
 
   // Seed a default site for preview/webhook tests
@@ -228,9 +236,11 @@ export async function seedTestParents(client: PGlite) {
        VALUES ('site_default', 'default', 'Default Site',
                '{"previewConfig":{"enabled":true,"defaultAuthMode":"team","ttlDays":7}}',
                '{}')
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT (id) DO NOTHING`
     )
-  } catch { /* table may not exist */ }
+  } catch {
+    /* table may not exist */
+  }
 }
 
 export async function truncateAllTables(client: PGlite) {
