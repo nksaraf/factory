@@ -1,15 +1,16 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { messagingProvider } from "../../db/schema/org-v2";
 import {
-  channelMapping,
-  messageThread,
+  messagingProvider,
+  channel,
+  thread,
+  threadTurn,
   identityLink,
-  orgPrincipal,
-} from "../../db/schema/org";
+  principal,
+} from "../../db/schema/org-v2";
 import { getMessagingAdapter } from "../../adapters/adapter-registry";
 import type { MessagingConfig, MessagingType } from "../../adapters/messaging-adapter";
-import type { MessagingProviderSpec } from "@smp/factory-shared/schemas/org";
+import type { MessagingProviderSpec, ChannelSpec, ThreadSpec, IdentityLinkSpec } from "@smp/factory-shared/schemas/org";
 import { allocateSlug } from "../../lib/slug";
 import { logger } from "../../logger";
 
@@ -51,7 +52,6 @@ export async function listMessagingProviders(
 }
 
 export async function getMessagingProvider(db: Database, idOrSlug: string) {
-  // Try by ID first, then by slug
   let rows = await db
     .select()
     .from(messagingProvider)
@@ -116,7 +116,7 @@ export async function testMessagingProviderConnection(
 }
 
 // ---------------------------------------------------------------------------
-// Channel Mapping
+// Channel Mapping (uses v2 channel table with kind='slack')
 // ---------------------------------------------------------------------------
 
 export async function mapChannel(
@@ -131,23 +131,26 @@ export async function mapChannel(
   },
 ) {
   const rows = await db
-    .insert(channelMapping)
+    .insert(channel)
     .values({
-      messagingProviderId: data.messagingProviderId,
-      externalChannelId: data.externalChannelId,
-      externalChannelName: data.externalChannelName,
-      entityKind: data.entityKind,
-      entityId: data.entityId,
-      isDefault: data.isDefault ?? false,
+      kind: "slack",
+      externalId: data.externalChannelId,
+      name: data.externalChannelName ?? null,
+      spec: {
+        messagingProviderId: data.messagingProviderId,
+        entityKind: data.entityKind,
+        entityId: data.entityId,
+        isDefault: data.isDefault ?? false,
+      } satisfies ChannelSpec,
     })
     .returning();
   return rows[0];
 }
 
-export async function unmapChannel(db: Database, channelMappingId: string) {
+export async function unmapChannel(db: Database, channelId: string) {
   await db
-    .delete(channelMapping)
-    .where(eq(channelMapping.channelMappingId, channelMappingId));
+    .delete(channel)
+    .where(eq(channel.id, channelId));
 }
 
 export async function listChannelMappings(
@@ -156,8 +159,13 @@ export async function listChannelMappings(
 ) {
   const rows = await db
     .select()
-    .from(channelMapping)
-    .where(eq(channelMapping.messagingProviderId, providerId));
+    .from(channel)
+    .where(
+      and(
+        eq(channel.kind, "slack"),
+        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`,
+      ),
+    );
   return { data: rows, total: rows.length };
 }
 
@@ -168,20 +176,22 @@ export async function resolveChannelContext(
 ) {
   const rows = await db
     .select()
-    .from(channelMapping)
+    .from(channel)
     .where(
       and(
-        eq(channelMapping.messagingProviderId, providerId),
-        eq(channelMapping.externalChannelId, externalChannelId),
+        eq(channel.kind, "slack"),
+        eq(channel.externalId, externalChannelId),
+        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`,
       ),
     )
     .limit(1);
   if (rows.length === 0) return null;
-  return { entityKind: rows[0].entityKind, entityId: rows[0].entityId };
+  const spec = rows[0].spec as ChannelSpec;
+  return { entityKind: spec.entityKind ?? "", entityId: spec.entityId ?? "" };
 }
 
 // ---------------------------------------------------------------------------
-// Identity Resolution (uses existing identityLink table)
+// Identity Resolution (uses v2 identityLink table)
 // ---------------------------------------------------------------------------
 
 export async function resolveMessagingUser(
@@ -194,8 +204,8 @@ export async function resolveMessagingUser(
     .from(identityLink)
     .where(
       and(
-        eq(identityLink.provider, providerKind),
-        eq(identityLink.externalUserId, externalUserId),
+        eq(identityLink.type, providerKind),
+        eq(identityLink.externalId, externalUserId),
       ),
     )
     .limit(1);
@@ -220,11 +230,11 @@ export async function syncProviderUsers(
       continue;
     }
 
-    // Find a principal by email
+    // Find a principal by email in spec JSONB
     const principals = await db
       .select()
-      .from(orgPrincipal)
-      .where(eq(orgPrincipal.email, extUser.email))
+      .from(principal)
+      .where(sql`${principal.spec}->>'email' = ${extUser.email}`)
       .limit(1);
 
     if (principals.length === 0) {
@@ -232,7 +242,7 @@ export async function syncProviderUsers(
       continue;
     }
 
-    const principal = principals[0];
+    const prin = principals[0];
 
     // Check if link already exists
     const existingLinks = await db
@@ -240,30 +250,30 @@ export async function syncProviderUsers(
       .from(identityLink)
       .where(
         and(
-          eq(identityLink.provider, provider.type),
-          eq(identityLink.externalUserId, extUser.id),
+          eq(identityLink.type, provider.type),
+          eq(identityLink.externalId, extUser.id),
         ),
       )
       .limit(1);
 
     if (existingLinks.length > 0) {
       // Update if principal changed
-      if (existingLinks[0].principalId !== principal.principalId) {
+      if (existingLinks[0].principalId !== prin.id) {
         await db
           .update(identityLink)
           .set({
-            principalId: principal.principalId,
-            email: extUser.email,
-            externalLogin: extUser.displayName,
-            profileData: {
-              realName: extUser.realName,
-              avatarUrl: extUser.avatarUrl,
-            },
+            principalId: prin.id,
+            spec: {
+              email: extUser.email,
+              externalUsername: extUser.displayName,
+              profileData: {
+                realName: extUser.realName,
+                avatarUrl: extUser.avatarUrl,
+              },
+            } as IdentityLinkSpec,
             updatedAt: new Date(),
           })
-          .where(
-            eq(identityLink.identityLinkId, existingLinks[0].identityLinkId),
-          );
+          .where(eq(identityLink.id, existingLinks[0].id));
       }
       linked++;
       continue;
@@ -271,15 +281,17 @@ export async function syncProviderUsers(
 
     // Create new identity link
     await db.insert(identityLink).values({
-      principalId: principal.principalId,
-      provider: provider.type,
-      externalUserId: extUser.id,
-      externalLogin: extUser.displayName,
-      email: extUser.email,
-      profileData: {
-        realName: extUser.realName,
-        avatarUrl: extUser.avatarUrl,
-      },
+      principalId: prin.id,
+      type: provider.type,
+      externalId: extUser.id,
+      spec: {
+        externalUsername: extUser.displayName,
+        email: extUser.email,
+        profileData: {
+          realName: extUser.realName,
+          avatarUrl: extUser.avatarUrl,
+        },
+      } as IdentityLinkSpec,
     });
     linked++;
   }
@@ -302,11 +314,11 @@ export async function linkMessagingUser(
     .insert(identityLink)
     .values({
       principalId,
-      provider: providerKind,
-      externalUserId,
+      type: providerKind,
+      externalId: externalUserId,
     })
     .onConflictDoUpdate({
-      target: [identityLink.provider, identityLink.externalUserId],
+      target: [identityLink.type, identityLink.externalId],
       set: { principalId, updatedAt: new Date() },
     });
 }
@@ -320,14 +332,14 @@ export async function unlinkMessagingUser(
     .delete(identityLink)
     .where(
       and(
-        eq(identityLink.provider, providerKind),
-        eq(identityLink.externalUserId, externalUserId),
+        eq(identityLink.type, providerKind),
+        eq(identityLink.externalId, externalUserId),
       ),
     );
 }
 
 // ---------------------------------------------------------------------------
-// Message Threads
+// Message Threads (uses v2 thread table with type='chat', source='slack')
 // ---------------------------------------------------------------------------
 
 export async function getOrCreateThread(
@@ -340,29 +352,46 @@ export async function getOrCreateThread(
     subject?: string;
   },
 ) {
-  // Try to find existing thread
+  // Try to find existing thread by source + external ID
   const existing = await db
     .select()
-    .from(messageThread)
+    .from(thread)
     .where(
       and(
-        eq(messageThread.messagingProviderId, data.messagingProviderId),
-        eq(messageThread.externalThreadId, data.externalThreadId),
+        eq(thread.source, "slack"),
+        eq(thread.externalId, data.externalThreadId),
       ),
     )
     .limit(1);
 
   if (existing.length > 0) return existing[0];
 
-  // Create new thread
+  // Resolve the channel to link the thread
+  const channelRows = await db
+    .select()
+    .from(channel)
+    .where(
+      and(
+        eq(channel.kind, "slack"),
+        eq(channel.externalId, data.externalChannelId),
+      ),
+    )
+    .limit(1);
+
   const rows = await db
-    .insert(messageThread)
+    .insert(thread)
     .values({
-      messagingProviderId: data.messagingProviderId,
-      externalChannelId: data.externalChannelId,
-      externalThreadId: data.externalThreadId,
-      initiatorPrincipalId: data.initiatorPrincipalId,
-      subject: data.subject,
+      type: "chat",
+      source: "slack",
+      externalId: data.externalThreadId,
+      principalId: data.initiatorPrincipalId ?? null,
+      channelId: channelRows[0]?.id ?? null,
+      status: "active",
+      startedAt: new Date(),
+      spec: {
+        title: data.subject,
+        messagingProviderId: data.messagingProviderId,
+      } satisfies ThreadSpec,
     })
     .returning();
   return rows[0];
@@ -379,28 +408,27 @@ export async function appendMessage(
     timestamp: string;
   },
 ) {
-  const thread = await db
-    .select()
-    .from(messageThread)
-    .where(eq(messageThread.messageThreadId, threadId))
-    .limit(1);
-
-  if (thread.length === 0) throw new Error("thread_not_found");
-
-  const messages = (thread[0].messages as unknown[]) ?? [];
-  messages.push(message);
+  await db.execute(sql`
+    INSERT INTO org.thread_turn (thread_id, turn_index, role, spec)
+    VALUES (
+      ${threadId},
+      (SELECT COALESCE(MAX(turn_index), -1) + 1 FROM org.thread_turn WHERE thread_id = ${threadId}),
+      ${message.role},
+      ${JSON.stringify({ message: message.text, timestamp: message.timestamp })}::jsonb
+    )
+  `);
 
   await db
-    .update(messageThread)
-    .set({ messages, updatedAt: new Date() })
-    .where(eq(messageThread.messageThreadId, threadId));
+    .update(thread)
+    .set({ updatedAt: new Date() })
+    .where(eq(thread.id, threadId));
 }
 
 export async function resolveThread(db: Database, threadId: string) {
   await db
-    .update(messageThread)
-    .set({ status: "resolved", updatedAt: new Date() })
-    .where(eq(messageThread.messageThreadId, threadId));
+    .update(thread)
+    .set({ status: "completed", updatedAt: new Date() })
+    .where(eq(thread.id, threadId));
 }
 
 export async function listThreads(
@@ -410,14 +438,14 @@ export async function listThreads(
 ) {
   const condition = filters?.status
     ? and(
-        eq(messageThread.messagingProviderId, providerId),
-        eq(messageThread.status, filters.status),
+        sql`${thread.spec}->>'messagingProviderId' = ${providerId}`,
+        eq(thread.status, filters.status),
       )
-    : eq(messageThread.messagingProviderId, providerId);
+    : sql`${thread.spec}->>'messagingProviderId' = ${providerId}`;
 
   const rows = await db
     .select()
-    .from(messageThread)
+    .from(thread)
     .where(condition);
   return { data: rows, total: rows.length };
 }
@@ -425,8 +453,8 @@ export async function listThreads(
 export async function getThread(db: Database, threadId: string) {
   const rows = await db
     .select()
-    .from(messageThread)
-    .where(eq(messageThread.messageThreadId, threadId))
+    .from(thread)
+    .where(eq(thread.id, threadId))
     .limit(1);
   return rows[0] ?? null;
 }

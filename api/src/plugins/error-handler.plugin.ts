@@ -62,6 +62,17 @@ export function errorHandlerPlugin() {
           },
         };
       }
+
+      // Catch-all for unhandled errors → 500 JSON
+      if (error instanceof Error) {
+        set.status = (error as any).status ?? 500;
+        return {
+          error: {
+            code: "internal_error",
+            message: error.message,
+          },
+        };
+      }
     },
   );
 }

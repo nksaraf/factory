@@ -173,7 +173,7 @@ const TRUNCATE_STATEMENTS = [
  */
 export async function seedTestParents(client: PGlite) {
   const teamIds = ["t1", "team_1", "platform"]
-  const principalIds = ["user_1"]
+  const principalIds = ["user_1", "testuser"]
   const repoIds = ["unknown"]
 
   for (const id of teamIds) {
@@ -206,7 +206,7 @@ export async function seedTestParents(client: PGlite) {
     try {
       await client.query(
         `INSERT INTO org.principal (id, slug, name, type, spec, metadata)
-         VALUES ($1, $2, $3, 'user', '{}', '{}')
+         VALUES ($1, $2, $3, 'human', '{}', '{}')
          ON CONFLICT (id) DO NOTHING`,
         [id, id, `User ${id}`]
       )
@@ -236,6 +236,18 @@ export async function seedTestParents(client: PGlite) {
        VALUES ('site_default', 'default', 'Default Site',
                '{"previewConfig":{"enabled":true,"defaultAuthMode":"team","ttlDays":7}}',
                '{}')
+       ON CONFLICT (id) DO NOTHING`
+    )
+  } catch {
+    /* table may not exist */
+  }
+
+  // Seed a default runtime for workspace creation (fleet beforeCreate hook requires it)
+  try {
+    await client.query(
+      `INSERT INTO infra.runtime (id, slug, name, type, spec)
+       VALUES ('rt_seed', '_seed-runtime', 'Seed Runtime', 'k8s-cluster',
+               '{"status":"ready","isDefault":true}')
        ON CONFLICT (id) DO NOTHING`
     )
   } catch {

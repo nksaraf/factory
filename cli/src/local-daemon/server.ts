@@ -20,7 +20,6 @@ import {
   createPgliteDb,
   migrateWithPglite,
   seedLocalInfra,
-  seedDemoData,
   createLocalApp,
   startGateway,
   Reconciler,
@@ -95,19 +94,10 @@ async function main() {
 
   // Build Elysia app — use --full to mount all controllers (for TUI dashboard)
   const fullMode = process.argv.includes("--full")
-  const demoMode = process.argv.includes("--seed-demo")
 
-  // Seed demo data if requested (before starting the app)
-  if (demoMode) {
-    await seedDemoData(db)
-  }
-
-  const app = createLocalApp(db, reconciler, { full: fullMode, demo: demoMode })
+  const app = createLocalApp(db, reconciler, { full: fullMode })
   if (fullMode) {
     console.log("[local-factory] Full mode: all controllers mounted")
-  }
-  if (demoMode) {
-    console.log("[local-factory] Demo mode: demo data seeded + demo observability")
   }
 
   // Write PID file

@@ -118,7 +118,7 @@ export const godWorkflow = createWorkflow({
         repoFullName: input.repoFullName,
       },
     });
-    await updateRun(db, wfId, { state: { jobId: job.jobId } });
+    await updateRun(db, wfId, { state: { jobId: job.id } });
 
     const prEvent = await waitForEvent<{ prNumber: number; prUrl: string; branchName: string }>(
       "pr.opened", { repoFullName: input.repoFullName, branchName }, 3600,
@@ -175,7 +175,7 @@ export const godWorkflow = createWorkflow({
       await updateRun(db, wfId, { phase: "agent_iterating" });
       await routeCommentToAgent({
         agentId: input.agentId,
-        parentJobId: job.jobId,
+        parentJobId: job.id,
         comment: comment.comment,
       });
       await updateRun(db, wfId, { phase: "awaiting_review" });

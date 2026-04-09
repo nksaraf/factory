@@ -6,10 +6,10 @@
  * with environment-specific secrets overriding non-environment ones.
  */
 
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 
 import type { Database } from "../../db/connection";
-import { orgSecret } from "../../db/schema/org";
+import { secret } from "../../db/schema/org-v2";
 import { encrypt, decrypt } from "./crypto";
 import type {
   SecretBackend,
@@ -26,17 +26,11 @@ function scopeCondition(
   scopeId: string | null | undefined,
   environment: string | null | undefined,
 ) {
-  const conditions = [eq(orgSecret.scopeType, scopeType)];
-  if (scopeId) {
-    conditions.push(eq(orgSecret.scopeId, scopeId));
-  } else {
-    conditions.push(isNull(orgSecret.scopeId));
-  }
-  if (environment) {
-    conditions.push(eq(orgSecret.environment, environment));
-  } else {
-    conditions.push(isNull(orgSecret.environment));
-  }
+  const conditions = [
+    eq(secret.scopeType, scopeType),
+    eq(secret.scopeId, scopeId ?? ""),
+    eq(secret.environment, environment ?? "all"),
+  ];
   return and(...conditions);
 }
 
@@ -47,11 +41,11 @@ export class PostgresSecretBackend implements SecretBackend {
     const enc = encrypt(params.value);
 
     const existing = await this.db
-      .select({ secretId: orgSecret.secretId })
-      .from(orgSecret)
+      .select({ id: secret.id })
+      .from(secret)
       .where(
         and(
-          eq(orgSecret.key, params.key),
+          eq(secret.slug, params.key),
           scopeCondition(params.scopeType, params.scopeId, params.environment),
         ),
       )
@@ -59,23 +53,24 @@ export class PostgresSecretBackend implements SecretBackend {
 
     if (existing.length > 0) {
       await this.db
-        .update(orgSecret)
+        .update(secret)
         .set({
           encryptedValue: enc.ciphertext,
           iv: enc.iv,
           authTag: enc.authTag,
           updatedAt: new Date(),
         })
-        .where(eq(orgSecret.secretId, existing[0]!.secretId));
+        .where(eq(secret.id, existing[0]!.id));
     } else {
-      await this.db.insert(orgSecret).values({
-        key: params.key,
+      await this.db.insert(secret).values({
+        slug: params.key,
+        name: params.key,
         encryptedValue: enc.ciphertext,
         iv: enc.iv,
         authTag: enc.authTag,
         scopeType: params.scopeType,
-        scopeId: params.scopeId ?? null,
-        environment: params.environment ?? null,
+        scopeId: params.scopeId ?? "",
+        environment: params.environment ?? "all",
         createdBy: params.createdBy ?? null,
       });
     }
@@ -84,10 +79,10 @@ export class PostgresSecretBackend implements SecretBackend {
   async get(params: GetSecretParams): Promise<string | null> {
     const rows = await this.db
       .select()
-      .from(orgSecret)
+      .from(secret)
       .where(
         and(
-          eq(orgSecret.key, params.key),
+          eq(secret.slug, params.key),
           scopeCondition(params.scopeType, params.scopeId, params.environment),
         ),
       )
@@ -104,62 +99,62 @@ export class PostgresSecretBackend implements SecretBackend {
   }
 
   async list(params: ListSecretsParams): Promise<ListSecretEntry[]> {
-    const conditions = [eq(orgSecret.scopeType, params.scopeType)];
+    const conditions = [eq(secret.scopeType, params.scopeType)];
     if (params.scopeId) {
-      conditions.push(eq(orgSecret.scopeId, params.scopeId));
+      conditions.push(eq(secret.scopeId, params.scopeId));
     }
     if (params.environment) {
-      conditions.push(eq(orgSecret.environment, params.environment));
+      conditions.push(eq(secret.environment, params.environment));
     }
 
     return this.db
       .select({
-        key: orgSecret.key,
-        scopeType: orgSecret.scopeType,
-        scopeId: orgSecret.scopeId,
-        environment: orgSecret.environment,
-        updatedAt: orgSecret.updatedAt,
+        key: secret.slug,
+        scopeType: secret.scopeType,
+        scopeId: secret.scopeId,
+        environment: secret.environment,
+        updatedAt: secret.updatedAt,
       })
-      .from(orgSecret)
+      .from(secret)
       .where(and(...conditions));
   }
 
   async remove(params: GetSecretParams): Promise<boolean> {
     const rows = await this.db
-      .delete(orgSecret)
+      .delete(secret)
       .where(
         and(
-          eq(orgSecret.key, params.key),
+          eq(secret.slug, params.key),
           scopeCondition(params.scopeType, params.scopeId, params.environment),
         ),
       )
-      .returning({ secretId: orgSecret.secretId });
+      .returning({ id: secret.id });
 
     return rows.length > 0;
   }
 
   async resolve(params: ResolveSecretsParams): Promise<SecretEntry[]> {
     const scopeConditions = [
-      and(eq(orgSecret.scopeType, "org"), isNull(orgSecret.scopeId)),
+      and(eq(secret.scopeType, "org"), eq(secret.scopeId, "")),
     ];
 
     if (params.teamId) {
       scopeConditions.push(
-        and(eq(orgSecret.scopeType, "team"), eq(orgSecret.scopeId, params.teamId)),
+        and(eq(secret.scopeType, "team"), eq(secret.scopeId, params.teamId)),
       );
     }
     if (params.projectId) {
       scopeConditions.push(
-        and(eq(orgSecret.scopeType, "project"), eq(orgSecret.scopeId, params.projectId)),
+        and(eq(secret.scopeType, "project"), eq(secret.scopeId, params.projectId)),
       );
     }
     if (params.environment) {
-      scopeConditions.push(eq(orgSecret.environment, params.environment));
+      scopeConditions.push(eq(secret.environment, params.environment));
     }
 
     const rows = await this.db
       .select()
-      .from(orgSecret)
+      .from(secret)
       .where(or(...scopeConditions));
 
     // Merge with precedence: org < team < project; non-env < env
@@ -184,9 +179,9 @@ export class PostgresSecretBackend implements SecretBackend {
         priority += 10;
       }
 
-      const existing = merged.get(row.key);
+      const existing = merged.get(row.slug);
       if (!existing || priority > existing.priority) {
-        merged.set(row.key, { value, priority });
+        merged.set(row.slug, { value, priority });
       }
     }
 

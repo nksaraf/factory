@@ -63,9 +63,10 @@ function createMockDb(providerRow: Record<string, unknown> | null) {
 const DEFAULT_PROVIDER = {
   workTrackerProviderId: "prov_1",
   kind: "jira",
-  apiUrl: "https://jira.example.com",
-  credentialsRef: "cred_jira",
+  type: "jira",
   spec: {
+    apiUrl: "https://jira.example.com",
+    credentialsRef: "cred_jira",
     defaultRepoFullName: "org/myrepo",
     defaultAgentId: "agent_1",
     gitHost: {

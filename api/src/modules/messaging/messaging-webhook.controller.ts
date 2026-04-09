@@ -10,7 +10,6 @@ import {
   getOrCreateThread,
   appendMessage,
 } from "./messaging.service";
-import { dispatchAgentJob } from "../agent/dispatch";
 import { logger } from "../../logger";
 import { recordWebhookEvent, updateWebhookEventStatus, resolveActorPrincipal } from "../../lib/webhook-events";
 import type { WebhookEventActor, WebhookEventEntity } from "@smp/factory-shared/schemas/org";
@@ -144,26 +143,13 @@ export function messagingWebhookController(db: Database) {
           subject: verification.text?.slice(0, 100),
         });
 
-        await appendMessage(db, thread.messageThreadId, {
+        await appendMessage(db, thread.id, {
           role: "user",
           text: verification.text ?? "",
           externalUserId: verification.userId,
           principalId: principalId ?? undefined,
           timestamp: new Date().toISOString(),
         });
-
-        // Dispatch to agent for processing
-        if (verification.text) {
-          await dispatchAgentJob(db, {
-            providerId: params.providerId,
-            channelId: verification.channelId!,
-            threadId: verification.threadId!,
-            messageThreadId: thread.messageThreadId,
-            text: verification.text,
-            principalId,
-            entityContext,
-          });
-        }
       }
 
       if (eventId) await updateWebhookEventStatus(db, eventId, { status: "processed" });

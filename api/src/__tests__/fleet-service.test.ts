@@ -48,6 +48,9 @@ describe("Fleet Service (v2)", () => {
 
   // Helper: create a principal (for workspace ownerId FK)
   async function createPrincipal(id = "user_1") {
+    // Check if already seeded by seedTestParents
+    const existing = await db.select().from(principal).where(eq(principal.id, id)).limit(1);
+    if (existing.length > 0) return existing[0];
     const spec: PrincipalSpec = {};
     const [p] = await db
       .insert(principal)
@@ -247,7 +250,7 @@ describe("Fleet Service (v2)", () => {
       expect(s.name).toBe("prod-us");
       expect(s.spec.status).toBe("provisioning");
 
-      const all = await db.select().from(site);
+      const all = await db.select().from(site).where(eq(site.slug, "prod-us"));
       expect(all).toHaveLength(1);
     });
 
