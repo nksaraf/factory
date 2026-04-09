@@ -15,6 +15,9 @@ import { drizzle as drizzlePglite } from "drizzle-orm/pglite"
 import { eq } from "drizzle-orm"
 import { Elysia } from "elysia"
 
+import type { SubstrateSpec, RuntimeSpec } from "@smp/factory-shared/schemas/infra"
+import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
+
 import type { Database } from "./db/connection"
 import * as schema from "./db/schema"
 import { substrate, runtime } from "./db/schema/infra-v2"
