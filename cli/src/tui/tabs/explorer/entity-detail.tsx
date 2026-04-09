@@ -353,9 +353,7 @@ export function EntityDetail({
       onSaved()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setError(
-        `${msg}\n[debug] body.spec keys: ${body.spec ? Object.keys(body.spec as object).join(", ") : "none"} | row.spec type: ${typeof row.spec} | row.spec keys: ${row.spec && typeof row.spec === "object" ? Object.keys(row.spec as object).join(", ") : String(row.spec)}`
-      )
+      setError(msg)
     } finally {
       setSaving(false)
     }
