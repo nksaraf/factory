@@ -154,6 +154,16 @@ export function infraControllerV2(db: Database) {
         createSchema: CreateHostSchema,
         updateSchema: UpdateHostSchema,
         deletable: true,
+        hooks: {
+          beforeUpdate: async ({ entity, parsed }) => {
+            if (parsed.spec) {
+              const currentSpec = (entity.spec ?? {}) as Record<string, unknown>;
+              const parsedSpec = parsed.spec as Record<string, unknown>;
+              return { ...parsed, spec: { ...currentSpec, ...parsedSpec } };
+            }
+            return parsed;
+          },
+        },
         relations: {
           runtimes: {
             path: "runtimes",

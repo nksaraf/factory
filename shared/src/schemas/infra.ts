@@ -460,7 +460,9 @@ export const CreateHostSchema = z.object({
   substrateId: z.string().optional(),
   spec: HostSpecSchema,
 });
-export const UpdateHostSchema = CreateHostSchema.partial();
+export const UpdateHostSchema = CreateHostSchema.partial().extend({
+  spec: HostSpecSchema.partial().optional(),
+});
 
 export const CreateRuntimeSchema = z.object({
   slug: z.string().min(1).max(100),
