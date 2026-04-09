@@ -13,6 +13,7 @@ import { AppError } from "../lib/errors";
 
 export function errorHandlerPlugin() {
   return new Elysia({ name: "error-handler" }).onError(
+    { as: "scoped" },
     ({ error, set }) => {
       // AppError hierarchy → structured { error: { code, message, details? } }
       if (error instanceof AppError) {
