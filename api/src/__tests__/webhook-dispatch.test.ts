@@ -100,14 +100,15 @@ describe("Webhook Dispatch — Preview Lifecycle", () => {
       const previews = await previewSvc.listPreviews(db);
       expect(previews).toHaveLength(1);
       expect(previews[0].spec.commitSha).toBe("newsha789");
-      expect(previews[0].phase).toBe("building");
+      expect(previews[0].phase).toBe("pending_image");
     });
 
-    it("does nothing if no matching preview exists", async () => {
-      // No error expected — just a no-op
+    it("bootstraps a preview if none exists on synchronize", async () => {
+      // synchronize with no prior preview bootstraps one (handles missed "opened" events)
       await dispatchPREvent("synchronize");
       const previews = await previewSvc.listPreviews(db);
-      expect(previews).toHaveLength(0);
+      expect(previews).toHaveLength(1);
+      expect(previews[0].phase).toBe("building");
     });
   });
 

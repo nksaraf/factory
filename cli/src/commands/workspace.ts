@@ -476,7 +476,7 @@ export function workspaceCommand(app: DxBase) {
           }
           if (flags.cluster) spec.clusterId = flags.cluster;
           spec.ownerType = (flags["owner-type"] as string) || "user";
-          const slug = `wks-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+          const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
           const ownerId = (flags["owner-id"] as string) || `local:${userInfo().username}`;
           const type = (flags.type as string) || "developer";
           const body: Record<string, unknown> = { name, slug, type, ownerId, spec };

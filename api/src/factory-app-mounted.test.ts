@@ -1,20 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { FactoryAPI } from "./factory.api";
+import { createTestContext, type TestApp } from "./test-helpers";
+import type { PGlite } from "@electric-sql/pglite";
 
 describe("FactoryAPI mounted app", () => {
-  let api: FactoryAPI;
+  let app: TestApp;
+  let client: PGlite;
 
   beforeAll(async () => {
-    api = await FactoryAPI.create();
+    const ctx = await createTestContext();
+    app = ctx.app;
+    client = ctx.client;
   });
 
   afterAll(async () => {
-    await api.close();
+    await client.close();
   });
 
-  it("GET /health on createApp() returns ok", async () => {
-    const app = api.createApp();
+  it("GET /health returns ok", async () => {
     const res = await app.handle(new Request("http://localhost/health"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { status: string; service: string };

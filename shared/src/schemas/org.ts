@@ -388,6 +388,8 @@ export const MessagingProviderSpecSchema = z.object({
   workspaceId: z.string().optional(), // Slack workspace ID
   tenantId: z.string().optional(), // Teams tenant ID
   status: z.enum(["active", "inactive", "error"]).default("active"),
+  lastSyncAt: z.string().optional(),
+  syncError: z.string().optional(),
 })
 export type MessagingProviderSpec = z.infer<typeof MessagingProviderSpecSchema>
 
@@ -592,6 +594,11 @@ export const ChannelSpecSchema = z.object({
   prNumber: z.number().optional(),
   prUrl: z.string().optional(),
   author: z.string().optional(),
+  // messaging integration
+  messagingProviderId: z.string().optional(),
+  entityKind: z.string().optional(),
+  entityId: z.string().optional(),
+  isDefault: z.boolean().optional(),
   // activity
   lastActiveAt: z.coerce.date().optional(),
   threadCount: z.number().optional(),
@@ -679,6 +686,7 @@ export const ThreadSpecSchema = z.object({
   filesModified: z.array(z.string()).optional(),
   codeHashCount: z.number().optional(),
   // chat-specific
+  messagingProviderId: z.string().optional(),
   externalChannelName: z.string().optional(),
   participants: z.array(z.string()).optional(),
   // terminal-specific

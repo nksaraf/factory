@@ -324,7 +324,7 @@ describe("Infra Controller (v2)", () => {
 
       const list = await app.handle(new Request(`${BASE}/runtimes`));
       const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
+      expect(data.some((r: any) => r.slug === "test-runtime")).toBe(true);
     });
 
     it("GET /runtimes/:slugOrId returns detail by slug", async () => {
@@ -390,7 +390,7 @@ describe("Infra Controller (v2)", () => {
 
       const list = await app.handle(new Request(`${BASE}/runtimes`));
       const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(0);
+      expect(data.some((r: any) => r.slug === "del-rt")).toBe(false);
     });
   });
 

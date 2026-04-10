@@ -5,71 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775424634658,
-      "tag": "0000_flashy_james_howlett",
+      "when": 1775816790019,
+      "tag": "0000_skinny_union_jack",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1775556941066,
-      "tag": "0001_giant_thundra",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1775566675190,
-      "tag": "0002_add-operation-run",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1775775600000,
-      "tag": "0003_webhook-event-normalize",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1775844300000,
-      "tag": "0004_sync-associations",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1775932800000,
-      "tag": "0005_analytics-views",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1776019200000,
-      "tag": "0006_thread-analytics-views",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1776105600000,
-      "tag": "0007_scan-runtime-types",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1776192000000,
-      "tag": "0008_adoption-analytics-views",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1776278400000,
-      "tag": "0009_document-store",
+      "when": 1775816790020,
+      "tag": "0001_analytics-custom",
       "breakpoints": true
     }
   ]

@@ -4,7 +4,8 @@
 
 import { createStep } from "../../../lib/workflow-engine";
 import { getWorkflowDb } from "../../../lib/workflow-helpers";
-import { createJob } from "../../agent/job.model";
+import { job } from "../../../db/schema/org-v2";
+import type { JobSpec } from "@smp/factory-shared/schemas/org";
 
 export const createAgentJob = createStep({
   name: "agent.createJob",
@@ -16,15 +17,18 @@ export const createAgentJob = createStep({
     metadata?: Record<string, unknown>;
   }) => {
     const db = getWorkflowDb();
-    return createJob(db, {
+    const [row] = await db.insert(job).values({
       agentId: input.agentId,
       mode: "autonomous",
       trigger: "workflow",
-      task: input.task,
       entityKind: input.entityKind,
       entityId: input.entityId,
-      metadata: input.metadata,
-    });
+      spec: {
+        title: input.task,
+        metadata: input.metadata ?? {},
+      } satisfies JobSpec,
+    }).returning();
+    return row;
   },
 });
 
@@ -36,12 +40,16 @@ export const routeCommentToAgent = createStep({
     comment: string;
   }) => {
     const db = getWorkflowDb();
-    return createJob(db, {
+    const [row] = await db.insert(job).values({
       agentId: input.agentId,
       mode: "autonomous",
       trigger: "workflow",
-      task: input.comment,
       parentJobId: input.parentJobId,
-    });
+      spec: {
+        title: input.comment,
+        metadata: {},
+      } satisfies JobSpec,
+    }).returning();
+    return row;
   },
 });

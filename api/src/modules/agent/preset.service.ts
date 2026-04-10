@@ -1,6 +1,7 @@
 import { eq, and, isNull } from "drizzle-orm";
 import type { Database } from "../../db/connection";
-import { rolePreset } from "../../db/schema/agent";
+import { rolePreset } from "../../db/schema/org-v2";
+import type { RolePresetSpec } from "@smp/factory-shared/schemas/org";
 import { allocateSlug } from "../../lib/slug";
 
 // ---------------------------------------------------------------------------
@@ -11,14 +12,11 @@ export async function listRolePresets(
   db: Database,
   filters?: { orgId?: string },
 ) {
-  // Return platform defaults + org-specific presets
   const rows = filters?.orgId
     ? await db
         .select()
         .from(rolePreset)
-        .where(
-          eq(rolePreset.orgId, filters.orgId),
-        )
+        .where(eq(rolePreset.orgId, filters.orgId))
     : await db.select().from(rolePreset);
   return { data: rows, total: rows.length };
 }
@@ -27,7 +25,7 @@ export async function getRolePreset(db: Database, idOrSlug: string) {
   let rows = await db
     .select()
     .from(rolePreset)
-    .where(eq(rolePreset.rolePresetId, idOrSlug));
+    .where(eq(rolePreset.id, idOrSlug));
   if (rows.length === 0) {
     rows = await db
       .select()
@@ -65,8 +63,10 @@ export async function createRolePreset(
       name: data.name,
       slug,
       orgId: data.orgId ?? null,
-      description: data.description,
-      defaults: data.defaults,
+      spec: {
+        description: data.description,
+        defaults: data.defaults,
+      } as RolePresetSpec,
     })
     .returning();
   return rows[0];
@@ -81,16 +81,29 @@ export async function updateRolePreset(
     defaults?: Record<string, unknown>;
   },
 ) {
+  const existing = await getRolePreset(db, id);
+  if (!existing) return null;
+
+  const currentSpec = (existing.spec ?? {}) as RolePresetSpec;
+  const updatedSpec: RolePresetSpec = {
+    ...currentSpec,
+    ...(data.description !== undefined && { description: data.description }),
+    ...(data.defaults !== undefined && { defaults: data.defaults }),
+  };
+
   const rows = await db
     .update(rolePreset)
-    .set(data)
-    .where(eq(rolePreset.rolePresetId, id))
+    .set({
+      ...(data.name !== undefined && { name: data.name }),
+      spec: updatedSpec,
+    })
+    .where(eq(rolePreset.id, id))
     .returning();
   return rows[0] ?? null;
 }
 
 export async function deleteRolePreset(db: Database, id: string) {
-  await db.delete(rolePreset).where(eq(rolePreset.rolePresetId, id));
+  await db.delete(rolePreset).where(eq(rolePreset.id, id));
 }
 
 // ---------------------------------------------------------------------------
@@ -101,101 +114,121 @@ const PLATFORM_PRESETS = [
   {
     name: "Engineer",
     slug: "engineer",
-    description: "Writes code, fixes bugs",
-    defaults: {
-      autonomyLevel: "executor",
-      collaborationMode: "solo",
-      capabilities: { tools: ["github", "sandbox"] },
+    spec: {
+      description: "Writes code, fixes bugs",
+      defaults: {
+        autonomyLevel: "executor",
+        collaborationMode: "solo",
+        capabilities: { tools: ["github", "sandbox"] },
+      },
     },
   },
   {
     name: "Reviewer",
     slug: "reviewer",
-    description: "Reviews PRs, suggests changes",
-    defaults: {
-      autonomyLevel: "advisor",
-      collaborationMode: "pair",
-      capabilities: { tools: ["github"] },
+    spec: {
+      description: "Reviews PRs, suggests changes",
+      defaults: {
+        autonomyLevel: "advisor",
+        collaborationMode: "pair",
+        capabilities: { tools: ["github"] },
+      },
     },
   },
   {
     name: "PM",
     slug: "pm",
-    description: "Requirements → PRDs → plans",
-    defaults: {
-      autonomyLevel: "advisor",
-      collaborationMode: "solo",
-      capabilities: { tools: ["jira", "docs"] },
+    spec: {
+      description: "Requirements → PRDs → plans",
+      defaults: {
+        autonomyLevel: "advisor",
+        collaborationMode: "solo",
+        capabilities: { tools: ["jira", "docs"] },
+      },
     },
   },
   {
     name: "QA",
     slug: "qa",
-    description: "Writes and runs tests",
-    defaults: {
-      autonomyLevel: "executor",
-      collaborationMode: "solo",
-      capabilities: { tools: ["sandbox", "test"] },
+    spec: {
+      description: "Writes and runs tests",
+      defaults: {
+        autonomyLevel: "executor",
+        collaborationMode: "solo",
+        capabilities: { tools: ["sandbox", "test"] },
+      },
     },
   },
   {
     name: "Ops",
     slug: "ops",
-    description: "Infra, deploys, monitoring",
-    defaults: {
-      autonomyLevel: "operator",
-      collaborationMode: "solo",
-      capabilities: { tools: ["k8s", "deploy"] },
+    spec: {
+      description: "Infra, deploys, monitoring",
+      defaults: {
+        autonomyLevel: "operator",
+        collaborationMode: "solo",
+        capabilities: { tools: ["k8s", "deploy"] },
+      },
     },
   },
   {
     name: "Observer",
     slug: "observer",
-    description: "Watches, reports, never acts",
-    defaults: {
-      autonomyLevel: "observer",
-      collaborationMode: "solo",
-      capabilities: { tools: [] },
+    spec: {
+      description: "Watches, reports, never acts",
+      defaults: {
+        autonomyLevel: "observer",
+        collaborationMode: "solo",
+        capabilities: { tools: [] },
+      },
     },
   },
   {
     name: "Supervisor",
     slug: "supervisor",
-    description: "Decomposes, delegates, reviews",
-    defaults: {
-      autonomyLevel: "supervisor",
-      collaborationMode: "hierarchy",
-      capabilities: { tools: ["github", "jira", "sandbox"] },
+    spec: {
+      description: "Decomposes, delegates, reviews",
+      defaults: {
+        autonomyLevel: "supervisor",
+        collaborationMode: "hierarchy",
+        capabilities: { tools: ["github", "jira", "sandbox"] },
+      },
     },
   },
   {
     name: "Standup",
     slug: "standup",
-    description: "Collects standups, summarizes",
-    defaults: {
-      autonomyLevel: "operator",
-      collaborationMode: "crew",
-      capabilities: { tools: ["slack", "jira"] },
+    spec: {
+      description: "Collects standups, summarizes",
+      defaults: {
+        autonomyLevel: "operator",
+        collaborationMode: "crew",
+        capabilities: { tools: ["slack", "jira"] },
+      },
     },
   },
   {
     name: "Taskmaster",
     slug: "taskmaster",
-    description: "Manages tasks, tracks progress",
-    defaults: {
-      autonomyLevel: "operator",
-      collaborationMode: "hierarchy",
-      capabilities: { tools: ["jira", "github"] },
+    spec: {
+      description: "Manages tasks, tracks progress",
+      defaults: {
+        autonomyLevel: "operator",
+        collaborationMode: "hierarchy",
+        capabilities: { tools: ["jira", "github"] },
+      },
     },
   },
   {
     name: "Marketing",
     slug: "marketing",
-    description: "Content, messaging, campaigns",
-    defaults: {
-      autonomyLevel: "advisor",
-      collaborationMode: "solo",
-      capabilities: { tools: ["docs"] },
+    spec: {
+      description: "Content, messaging, campaigns",
+      defaults: {
+        autonomyLevel: "advisor",
+        collaborationMode: "solo",
+        capabilities: { tools: ["docs"] },
+      },
     },
   },
 ];
@@ -215,8 +248,7 @@ export async function seedPlatformPresets(db: Database) {
         name: preset.name,
         slug: preset.slug,
         orgId: null,
-        description: preset.description,
-        defaults: preset.defaults,
+        spec: preset.spec as unknown as RolePresetSpec,
       });
     }
   }

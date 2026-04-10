@@ -80,6 +80,11 @@ export class EntityFinder {
             entity.clusterEndpoint = access.endpoint;
           }
         }
+        // Rewrite Docker-internal hostnames (factory reconciler runs in Docker,
+        // but the CLI runs on the host where host.docker.internal doesn't resolve)
+        if (entity) {
+          entity.sshHost = rewriteDockerHost(entity.sshHost);
+        }
         // Resolve loopback sshHost via runtime endpoint
         if (entity && isLoopback(entity.sshHost) && match.runtimeId) {
           const access = await this.resolveRuntimeAccess(api, match.runtimeId as string);
@@ -253,6 +258,12 @@ function workspaceToEntity(wks: Record<string, unknown>): ResolvedEntity | null 
 
 function isLoopback(host: string | undefined): boolean {
   return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+}
+
+/** Rewrite Docker-internal hostnames to localhost for CLI running on the host. */
+function rewriteDockerHost(host: string | undefined): string | undefined {
+  if (host === "host.docker.internal") return "localhost";
+  return host;
 }
 
 function hostToEntity(host: Record<string, unknown>): ResolvedEntity | null {

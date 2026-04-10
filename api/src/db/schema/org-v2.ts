@@ -655,6 +655,7 @@ export const thread = orgSchema.table(
     index("org_thread_repo_slug_idx").on(t.repoSlug),
     index("org_thread_started_at_idx").on(t.startedAt),
     index("org_thread_parent_idx").on(t.parentThreadId),
+    index("org_thread_spec_gin_idx").using("gin", t.spec),
     check(
       "org_thread_type_valid",
       sql`${t.type} IN ('ide-session', 'chat', 'terminal', 'review', 'autonomous')`
@@ -693,6 +694,7 @@ export const threadTurn = orgSchema.table(
       t.turnIndex
     ),
     index("org_thread_turn_thread_idx").on(t.threadId),
+    index("org_thread_turn_spec_gin_idx").using("gin", t.spec),
     check(
       "org_thread_turn_role_valid",
       sql`${t.role} IN ('user', 'assistant', 'system', 'tool')`
@@ -774,6 +776,7 @@ export const webhookEvent = orgSchema.table(
       t.eventType,
       t.createdAt
     ),
+    index("org_webhook_event_spec_gin_idx").using("gin", t.spec),
   ]
 )
 

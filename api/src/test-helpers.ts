@@ -46,44 +46,7 @@ export async function createTestContext() {
 export type TestApp = Awaited<ReturnType<typeof createTestContext>>["app"]
 
 const TRUNCATE_STATEMENTS = [
-  // v1: factory_infra (children first)
-  `TRUNCATE TABLE factory_infra.ip_address RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.subnet RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.ssh_key RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.kube_node RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.vm RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.vm_cluster RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.host RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.cluster RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.datacenter RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.region RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_infra.provider RESTART IDENTITY CASCADE`,
-  // v1: factory_build (children first)
-  `TRUNCATE TABLE factory_build.git_user_sync RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.git_repo_sync RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.pipeline_step_run RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.pipeline_run RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.webhook_event RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.github_app_installation RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.component_artifact RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.artifact RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.module_version RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.repo RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_build.git_host_provider RESTART IDENTITY CASCADE`,
-  // v1: factory_org (children first)
-  `TRUNCATE TABLE factory_org.memory RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.message_thread RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.channel_mapping RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.messaging_provider RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.tool_usage RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.tool_credential RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.identity_link RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.secret RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.scope RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.principal_team_membership RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.principal RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE factory_org.team RESTART IDENTITY CASCADE`,
-  // ops (was factory_fleet)
+  // ops
   `TRUNCATE TABLE ops.forwarded_port RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.connection_audit_event RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.intervention RESTART IDENTITY CASCADE`,
@@ -102,14 +65,14 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE ops.database_operation RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.database RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.anonymization_profile RESTART IDENTITY CASCADE`,
-  // commerce (was factory_commerce)
+  // commerce
   `TRUNCATE TABLE commerce.subscription_item RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.subscription RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.entitlement_bundle RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.plan RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.billable_metric RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE commerce.customer RESTART IDENTITY CASCADE`,
-  // build (was factory_build)
+  // build
   `TRUNCATE TABLE build.work_tracker_project RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.work_tracker_project_mapping RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.work_tracker_provider RESTART IDENTITY CASCADE`,
@@ -124,7 +87,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE build.system_version RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.repo RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.git_host_provider RESTART IDENTITY CASCADE`,
-  // org (was factory_org + factory_agent)
+  // org
   `TRUNCATE TABLE org.event_subscription RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.workflow_run RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.tool_usage RESTART IDENTITY CASCADE`,
@@ -143,7 +106,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE org.scope RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.principal RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.team RESTART IDENTITY CASCADE`,
-  // software (was factory_product + factory_catalog)
+  // software
   `TRUNCATE TABLE software.release_artifact_pin RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.release RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.capability RESTART IDENTITY CASCADE`,
@@ -154,7 +117,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE software.component RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.system RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE software.product RESTART IDENTITY CASCADE`,
-  // infra (was factory_infra + factory_fleet.tunnel/route/domain)
+  // infra
   `TRUNCATE TABLE infra.tunnel RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE infra.route RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE infra.dns_domain RESTART IDENTITY CASCADE`,
@@ -173,22 +136,10 @@ const TRUNCATE_STATEMENTS = [
  */
 export async function seedTestParents(client: PGlite) {
   const teamIds = ["t1", "team_1", "platform"]
-  const principalIds = ["user_1"]
+  const principalIds = ["user_1", "testuser"]
   const repoIds = ["unknown"]
 
   for (const id of teamIds) {
-    // v1: factory_org.team
-    try {
-      await client.query(
-        `INSERT INTO factory_org.team (team_id, slug, name)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (team_id) DO NOTHING`,
-        [id, id, `Team ${id}`]
-      )
-    } catch {
-      /* table may not exist */
-    }
-    // v2: org.team
     try {
       await client.query(
         `INSERT INTO org.team (id, slug, name, type, spec, metadata)
@@ -206,7 +157,7 @@ export async function seedTestParents(client: PGlite) {
     try {
       await client.query(
         `INSERT INTO org.principal (id, slug, name, type, spec, metadata)
-         VALUES ($1, $2, $3, 'user', '{}', '{}')
+         VALUES ($1, $2, $3, 'human', '{}', '{}')
          ON CONFLICT (id) DO NOTHING`,
         [id, id, `User ${id}`]
       )
@@ -236,6 +187,18 @@ export async function seedTestParents(client: PGlite) {
        VALUES ('site_default', 'default', 'Default Site',
                '{"previewConfig":{"enabled":true,"defaultAuthMode":"team","ttlDays":7}}',
                '{}')
+       ON CONFLICT (id) DO NOTHING`
+    )
+  } catch {
+    /* table may not exist */
+  }
+
+  // Seed a default runtime for workspace creation (fleet beforeCreate hook requires it)
+  try {
+    await client.query(
+      `INSERT INTO infra.runtime (id, slug, name, type, spec)
+       VALUES ('rt_seed', '_seed-runtime', 'Seed Runtime', 'k8s-cluster',
+               '{"status":"ready","isDefault":true}')
        ON CONFLICT (id) DO NOTHING`
     )
   } catch {

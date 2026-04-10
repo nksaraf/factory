@@ -13,6 +13,7 @@ import { AppError } from "../lib/errors";
 
 export function errorHandlerPlugin() {
   return new Elysia({ name: "error-handler" }).onError(
+    { as: "scoped" },
     ({ error, set }) => {
       // AppError hierarchy → structured { error: { code, message, details? } }
       if (error instanceof AppError) {
@@ -59,6 +60,17 @@ export function errorHandlerPlugin() {
           error: {
             code: "foreign_key_violation",
             message: error.detail ?? "Referenced entity does not exist",
+          },
+        };
+      }
+
+      // Catch-all for unhandled errors → 500 JSON
+      if (error instanceof Error) {
+        set.status = (error as any).status ?? 500;
+        return {
+          error: {
+            code: "internal_error",
+            message: error.message,
           },
         };
       }

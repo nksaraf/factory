@@ -76,8 +76,8 @@ describe("Workspace Controller (v2 — was Sandbox Controller)", () => {
     });
 
     it("GET /workspaces lists workspaces", async () => {
-      await createWorkspace({ slug: "wks-1", name: "wks-1" });
-      await createWorkspace({ slug: "wks-2", name: "wks-2" });
+      await createWorkspace({ slug: "ws-1", name: "ws-1" });
+      await createWorkspace({ slug: "ws-2", name: "ws-2" });
 
       const res = await app.handle(new Request(`${BASE}`));
       expect(res.status).toBe(200);

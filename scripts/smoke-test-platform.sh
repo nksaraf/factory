@@ -15,7 +15,7 @@
 #   - Docker running (for workspace provisioning)
 #
 # Guarantees:
-#   - Creates only one workspace with a deterministic slug (wks-smoke-test-ci)
+#   - Creates only one workspace with a deterministic slug (smoke-test-ci)
 #   - Always cleans up k8s resources, even on failure or ctrl-C
 #   - Idempotent: safe to re-run after a failed run
 #
@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 WS_NAME="smoke-test-ci"
-WS_SLUG="wks-smoke-test-ci"
+WS_SLUG="smoke-test-ci"
 K8S_NS="workspace-$WS_SLUG"
 
 # Mode-specific k8s context and cluster name
@@ -159,6 +159,81 @@ if [ "$MODE" = "local" ]; then
     exit 1
   fi
 elif [ "$MODE" = "dev" ]; then
+  # Dev mode auth: the factory API requires JWT auth (JWKS).  dx setup's
+  # cluster registration step calls the factory REST API, so we need a valid
+  # JWT *before* setup runs.  Start the compose stack (auth + postgres),
+  # sign up a CI user, sign in to obtain a JWT, then let dx setup proceed.
+  echo "  Pre-starting docker-compose for auth bootstrap..."
+  COMPOSE_ARGS="-d"
+  if [ -n "${DX_NO_BUILD:-}" ]; then COMPOSE_ARGS="$COMPOSE_ARGS --no-build"; fi
+  (cd "$REPO_ROOT" && docker compose up $COMPOSE_ARGS)
+
+  AUTH_PORT="${INFRA_AUTH_PORT:-8180}"
+  AUTH_URL="http://localhost:$AUTH_PORT"
+  echo "  Waiting for auth service at $AUTH_URL ..."
+  for _i in $(seq 1 45); do
+    if curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then break; fi
+    sleep 2
+  done
+  if ! curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then
+    fail "auth: service at $AUTH_URL did not become ready within 90s"
+    (cd "$REPO_ROOT" && docker compose logs infra-auth --tail=30 2>/dev/null) || true
+    echo ""
+    echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
+    exit 1
+  fi
+
+  CI_EMAIL="ci-smoke@factory.test"
+  CI_PASSWORD="CiSmoke2026-xZ"
+
+  # Sign up (ignore error if user already exists from a previous run)
+  curl -s -X POST "$AUTH_URL/api/v1/auth/sign-up/email" \
+    -H "Content-Type: application/json" \
+    -H "Origin: $AUTH_URL" \
+    -d "{\"name\":\"CI Smoke\",\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}" \
+    >/dev/null 2>&1 || true
+
+  # Sign in — capture response headers + body
+  SIGNIN_RESP=$(curl -s -i -X POST "$AUTH_URL/api/v1/auth/sign-in/email" \
+    -H "Content-Type: application/json" \
+    -H "Origin: $AUTH_URL" \
+    -d "{\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}")
+
+  # Extract bearer token from set-auth-token header (Better Auth's bearer plugin)
+  BEARER=$(echo "$SIGNIN_RESP" | grep -i '^set-auth-token:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+  # Extract JWT if returned directly in sign-in response header
+  JWT=$(echo "$SIGNIN_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+
+  # If no JWT yet, fetch it via /get-session using the bearer token
+  if [ -z "$JWT" ] && [ -n "$BEARER" ]; then
+    SESSION_RESP=$(curl -s -i "$AUTH_URL/api/v1/auth/get-session" \
+      -H "Authorization: Bearer $BEARER" \
+      -H "Origin: $AUTH_URL")
+    JWT=$(echo "$SESSION_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+  fi
+
+  # Persist tokens in the dx session file so the CLI picks them up.
+  # Derive path from the same config dir the CLI uses (platform-aware).
+  DX_SESSION_DIR="$(dirname "$DX_CONFIG_FILE")"
+  mkdir -p "$DX_SESSION_DIR"
+  jq -n --arg b "${BEARER:-}" --arg j "${JWT:-}" '{bearerToken: $b, jwt: $j}' > "$DX_SESSION_DIR/session.json"
+
+  if [ -n "$JWT" ]; then
+    pass "auth: CI user JWT obtained"
+  elif [ -n "$BEARER" ]; then
+    pass "auth: CI user bearer token obtained (JWT will be refreshed)"
+  else
+    fail "auth: could not obtain tokens from auth service"
+    echo "  Sign-in response (last 10 lines):"
+    echo "$SIGNIN_RESP" | tail -10 | sed 's/^/    /'
+    echo ""
+    echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
+    exit 1
+  fi
+
+  # Now run setup — docker-compose up is idempotent, so the already-running
+  # services won't be restarted.  Setup will create k3d, health-check, and
+  # register the cluster using the JWT we just stored.
   if (cd "$REPO_ROOT" && $DX setup --role factory --mode dev --yes); then
     pass "dx setup --role factory --mode dev"
   else
@@ -245,7 +320,7 @@ SANDBOX_IMAGE="ghcr.io/nksaraf/dx-sandbox:latest"
 
 if ! docker image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1; then
   echo "  Building sandbox image..."
-  docker build -t "$SANDBOX_IMAGE" "$REPO_ROOT/images/dx-sandbox/" >/dev/null 2>&1
+  docker build -t "$SANDBOX_IMAGE" "$REPO_ROOT/images/dx-sandbox/"
 fi
 
 if k3d cluster list "$K3D_CLUSTER" >/dev/null 2>&1; then
@@ -317,10 +392,15 @@ if [ "${STATE:-}" = "active" ]; then
   echo ""
   echo "--- Step 10: SSH tests ---"
 
+  # Debug: show pod status before SSH tests
+  echo "  Pod status:"
+  kubectl --context "$K8S_CTX" get pods -n "$K8S_NS" -o wide 2>&1 | sed 's/^/    /' || true
+
   if RESULT=$($DX ssh "$WS_SLUG" -- "echo hello" 2>&1) && echo "$RESULT" | grep -q "hello"; then
     pass "ssh: echo hello"
   else
     fail "ssh: echo hello"
+    echo "    output: $RESULT" | head -5
   fi
 
   if RESULT=$($DX ssh "$WS_SLUG" -- "echo 'single quotes'" 2>&1) && echo "$RESULT" | grep -q "single quotes"; then
@@ -341,10 +421,13 @@ if [ "${STATE:-}" = "active" ]; then
     fail "ssh: chained commands"
   fi
 
-  # SSH config sync
+  # SSH config sync — local mode uses loopback SSH so workspaces won't appear
+  # in config sync targets (by design). Only test in cloud/dev modes.
   echo ""
   echo "--- Step 10b: SSH config sync ---"
-  if SSH_CONFIG_OUTPUT=$($DX ssh config sync --dry-run 2>/dev/null); then
+  if [ "$MODE" = "local" ]; then
+    skip "ssh config sync (local mode uses loopback — targets excluded by design)"
+  elif SSH_CONFIG_OUTPUT=$($DX ssh config sync --dry-run 2>/dev/null); then
     if echo "$SSH_CONFIG_OUTPUT" | grep -q "Host.*$WS_SLUG"; then
       pass "ssh config sync: workspace entry generated"
 
@@ -414,6 +497,9 @@ echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
 
 # Dump compose logs before exit (cleanup trap will tear down containers)
 if [ "$MODE" = "dev" ] && [ "$FAIL" -gt 0 ]; then
+  echo ""
+  echo "--- Auth service logs (last 30 lines) ---"
+  (cd "$REPO_ROOT" && docker compose logs infra-auth --tail=30 2>/dev/null) || true
   echo ""
   echo "--- Factory container logs (last 50 lines) ---"
   (cd "$REPO_ROOT" && docker compose logs infra-factory --tail=50 2>/dev/null) || true
