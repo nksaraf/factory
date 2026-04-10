@@ -15,7 +15,7 @@
 #   - Docker running (for workspace provisioning)
 #
 # Guarantees:
-#   - Creates only one workspace with a deterministic slug (wks-smoke-test-ci)
+#   - Creates only one workspace with a deterministic slug (smoke-test-ci)
 #   - Always cleans up k8s resources, even on failure or ctrl-C
 #   - Idempotent: safe to re-run after a failed run
 #
@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 WS_NAME="smoke-test-ci"
-WS_SLUG="wks-smoke-test-ci"
+WS_SLUG="smoke-test-ci"
 K8S_NS="workspace-$WS_SLUG"
 
 # Mode-specific k8s context and cluster name
