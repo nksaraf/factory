@@ -392,10 +392,15 @@ if [ "${STATE:-}" = "active" ]; then
   echo ""
   echo "--- Step 10: SSH tests ---"
 
+  # Debug: show pod status before SSH tests
+  echo "  Pod status:"
+  kubectl --context "$K8S_CTX" get pods -n "$K8S_NS" -o wide 2>&1 | sed 's/^/    /' || true
+
   if RESULT=$($DX ssh "$WS_SLUG" -- "echo hello" 2>&1) && echo "$RESULT" | grep -q "hello"; then
     pass "ssh: echo hello"
   else
     fail "ssh: echo hello"
+    echo "    output: $RESULT" | head -5
   fi
 
   if RESULT=$($DX ssh "$WS_SLUG" -- "echo 'single quotes'" 2>&1) && echo "$RESULT" | grep -q "single quotes"; then
