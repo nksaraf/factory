@@ -22,9 +22,14 @@ const execFileAsync = promisify(execFile)
  * Returns a proper axios-compatible response object.
  */
 async function curlAdapter(config: any): Promise<any> {
-  const url = config.baseURL
-    ? `${config.baseURL.replace(/\/$/, "")}/${(config.url ?? "").replace(/^\//, "")}`
-    : config.url
+  const rawUrl = config.url ?? ""
+  // If url is already absolute, use it directly; otherwise prepend baseURL
+  const url =
+    rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
+      ? rawUrl
+      : config.baseURL
+        ? `${config.baseURL.replace(/\/$/, "")}/${rawUrl.replace(/^\//, "")}`
+        : rawUrl
 
   const args = [
     "-s",
@@ -78,8 +83,6 @@ async function curlAdapter(config: any): Promise<any> {
 try {
   const { WebClient } = await import("@slack/web-api")
   const OriginalConstructor = WebClient as any
-
-  const originalInit = OriginalConstructor.prototype.constructor
 
   // Patch the prototype's constructor behavior by wrapping the axios instance
   // after construction. We use a post-construction hook via a patched method.
