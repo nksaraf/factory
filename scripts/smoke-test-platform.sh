@@ -199,9 +199,9 @@ elif [ "$MODE" = "dev" ]; then
     -H "Origin: $AUTH_URL" \
     -d "{\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}")
 
-  # Extract bearer token (Better Auth set-authorization header)
-  BEARER=$(echo "$SIGNIN_RESP" | grep -i '^set-authorization:' | sed 's/^[^:]*:[[:space:]]*Bearer[[:space:]]*//' | tr -d '\r\n' || true)
-  # Extract JWT if returned directly in sign-in response
+  # Extract bearer token from set-auth-token header (Better Auth's bearer plugin)
+  BEARER=$(echo "$SIGNIN_RESP" | grep -i '^set-auth-token:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+  # Extract JWT if returned directly in sign-in response header
   JWT=$(echo "$SIGNIN_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
 
   # If no JWT yet, fetch it via /get-session using the bearer token
