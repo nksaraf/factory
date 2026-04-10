@@ -31,7 +31,7 @@ import {
   extractPlansFromTranscript,
   groupPlanSnapshots,
 } from "./plan-extractor.js"
-import { sendBatch, uploadDocument } from "./send.js"
+import { sendBatch, uploadDocument, uploadDocumentVersion } from "./send.js"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -501,21 +501,18 @@ async function uploadPlans(
   let errors = 0
 
   for (const plan of plans) {
-    const latestVersion = plan.versions[plan.versions.length - 1]
-
-    // Upload the parent document (current/latest version)
+    // Upsert the document identity (no content — content lives in versions)
     try {
       const result = await uploadDocument({
-        path: `plan/${plan.slug}/current.md`,
-        content: latestVersion.content,
+        slug: plan.slug,
         type: "plan",
         source: "claude-code",
         title: plan.title,
-        contentHash: latestVersion.contentHash,
+        contentHash: plan.versions[plan.versions.length - 1]?.contentHash,
         spec: {
           title: plan.title,
           slug: plan.slug,
-          project: latestVersion.project,
+          project: plan.versions[plan.versions.length - 1]?.project,
           titleHistory: plan.titleHistory,
           editCount: plan.totalEdits,
           sessionsInvolved: plan.sessionsInvolved,
@@ -531,17 +528,12 @@ async function uploadPlans(
       // Upload each version snapshot
       for (const version of plan.versions) {
         try {
-          await uploadDocument({
-            path: `plan/${plan.slug}/versions/v${version.version}.md`,
+          await uploadDocumentVersion({
+            slug: plan.slug,
             content: version.content,
-            type: "plan",
             source: "claude-code",
-            title: version.title,
-            version: version.version,
-            contentHash: version.contentHash,
             spec: {
               title: version.title,
-              slug: plan.slug,
               project: version.project,
             },
             dryRun: opts.dryRun,

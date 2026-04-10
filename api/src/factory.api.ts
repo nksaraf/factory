@@ -32,6 +32,7 @@ import { resolveGitHostAdapterConfig } from "./modules/build/git-host.service"
 import { buildControllerV2 } from "./modules/build/index.v2"
 import { webhookController } from "./modules/build/webhook.controller"
 import { catalogController } from "./modules/catalog/catalog.controller"
+import { setChatDb } from "./modules/chat/db"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { documentsController } from "./modules/documents/index"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
@@ -315,6 +316,7 @@ export class FactoryAPI {
 
     // Initialize durable workflow engine (DBOS)
     setWorkflowDb(this.db)
+    setChatDb(this.db)
     if (url) {
       initWorkflowEngine(url).catch((err) =>
         logger.warn(

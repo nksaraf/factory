@@ -218,7 +218,7 @@ async function uploadCursorPlans(opts: {
       const totalTodos = plan.todos.length
 
       const result = await uploadDocument({
-        path: `plan/${plan.slug}/current.md`,
+        slug: plan.slug,
         content: plan.content,
         type: "plan",
         source: "cursor",

@@ -19,7 +19,7 @@ import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
 export async function createTestContext() {
   const { client, db } = await createPgliteDb()
 
-  await migrateWithPglite(client, path.join(process.cwd(), "drizzle"))
+  await migrateWithPglite(client, path.join(import.meta.dir, "..", "drizzle"))
 
   const database = db as unknown as Database
 

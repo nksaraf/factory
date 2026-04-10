@@ -18,8 +18,35 @@ if (process.env.SLACK_SIGNING_SECRET) {
   log.warn("SLACK_SIGNING_SECRET not set — Slack adapter disabled")
 }
 
+// Use Postgres-backed state for production persistence, fall back to in-memory
+let state: any
+const dbUrl = (
+  process.env.FACTORY_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  ""
+).trim()
+if (dbUrl) {
+  try {
+    const { createPostgresState } = await import("@chat-adapter/state-pg")
+    state = createPostgresState({
+      url: dbUrl,
+      keyPrefix: "factory-bot",
+    })
+    log.info("Chat SDK using Postgres state adapter")
+  } catch (err) {
+    log.warn(
+      { err },
+      "Postgres state adapter failed — falling back to in-memory"
+    )
+    state = createMemoryState()
+  }
+} else {
+  log.info("No DATABASE_URL — Chat SDK using in-memory state")
+  state = createMemoryState()
+}
+
 export const bot = new Chat({
   userName: "factory-bot",
   adapters,
-  state: createMemoryState(),
+  state,
 })

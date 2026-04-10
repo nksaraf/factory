@@ -388,13 +388,55 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
 
   // ── Step 4b: Network crawl (recursive host scanning) ───────
   if (scanResult.reverseProxies && scanResult.reverseProxies.length > 0) {
+    const allHostEntries: {
+      ip: string
+      hostname?: string
+      reachable: boolean
+      error?: string
+      resolvedServices: {
+        port: number
+        domains: string[]
+        routerName: string
+        service?: {
+          name: string
+          displayName?: string
+          composeProject?: string
+          image?: string
+          runtime: string
+        }
+      }[]
+    }[] = []
+
     for (const proxy of scanResult.reverseProxies) {
       const backendHosts = extractBackendHosts(proxy)
-      if (backendHosts.size > 0 && !json) {
+      if (backendHosts.size > 0) {
         const hostScans = await crawlBackendHosts(backendHosts, {
           verbose: !json,
         })
-        printNetworkCrawlSummary(proxy, hostScans)
+        if (!json) printNetworkCrawlSummary(proxy, hostScans)
+
+        // Collect crawl results for API payload
+        for (const entry of hostScans) {
+          allHostEntries.push({
+            ip: entry.ip,
+            hostname: entry.scanResult?.hostname,
+            reachable: !!entry.scanResult,
+            error: entry.error,
+            resolvedServices: entry.resolvedServices.map((rs) => ({
+              port: rs.port,
+              domains: rs.domains,
+              routerName: rs.routerName,
+              service: rs.service,
+            })),
+          })
+        }
+      }
+    }
+
+    if (allHostEntries.length > 0) {
+      scanResult.networkCrawl = {
+        crawledAt: new Date(),
+        hostEntries: allHostEntries,
       }
     }
   }
@@ -684,12 +726,16 @@ function printReconciliationSummary(recon: {
   site?: { created: boolean; siteId: string }
   systemDeployments?: { created: number; updated: number }
   componentDeployments?: { created: number; updated: number }
+  routes?: { created: number; updated: number; stale: number }
+  networkLinks?: { created: number; updated: number; stale: number }
 }): void {
   const sys = recon.systems ?? { created: 0, updated: 0 }
   const rt = recon.runtimes ?? { created: 0, updated: 0 }
   const cmp = recon.components ?? { created: 0, updated: 0, decommissioned: 0 }
   const sdp = recon.systemDeployments ?? { created: 0, updated: 0 }
   const cdp = recon.componentDeployments ?? { created: 0, updated: 0 }
+  const rte = recon.routes ?? { created: 0, updated: 0, stale: 0 }
+  const lnk = recon.networkLinks ?? { created: 0, updated: 0, stale: 0 }
   const siteCreated = recon.site?.created ? 1 : 0
 
   const totalCreated =
@@ -698,9 +744,17 @@ function printReconciliationSummary(recon: {
     cmp.created +
     sdp.created +
     cdp.created +
+    rte.created +
+    lnk.created +
     siteCreated
   const totalUpdated =
-    sys.updated + rt.updated + cmp.updated + sdp.updated + cdp.updated
+    sys.updated +
+    rt.updated +
+    cmp.updated +
+    sdp.updated +
+    cdp.updated +
+    rte.updated +
+    lnk.updated
 
   const parts: string[] = []
   if (siteCreated > 0) parts.push("1 site")
@@ -715,12 +769,17 @@ function printReconciliationSummary(recon: {
     parts.push(`${sdp.created + sdp.updated} system deployments`)
   if (cdp.created + cdp.updated > 0)
     parts.push(`${cdp.created + cdp.updated} component deployments`)
+  if (rte.created + rte.updated + rte.stale > 0)
+    parts.push(`${rte.created + rte.updated} routes`)
+  if (lnk.created + lnk.updated > 0)
+    parts.push(`${lnk.created + lnk.updated} links`)
 
   const actions: string[] = []
   if (totalCreated > 0) actions.push(`${totalCreated} created`)
   if (totalUpdated > 0) actions.push(`${totalUpdated} updated`)
   if (cmp.decommissioned > 0)
     actions.push(`${cmp.decommissioned} decommissioned`)
+  if (rte.stale > 0) actions.push(`${rte.stale} stale routes`)
 
   console.log(
     styleBold(`  Summary: ${parts.join(", ")} | ${actions.join(", ")}\n`)

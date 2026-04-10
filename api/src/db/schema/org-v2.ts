@@ -3,6 +3,7 @@ import type {
   ChannelSpec,
   ConfigVarSpec,
   DocumentSpec,
+  DocumentVersionSpec,
   EntityRelationshipSpec,
   IdentityLinkSpec,
   JobSpec,
@@ -887,30 +888,53 @@ export const document = orgSchema.table(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => newId("doc")),
-    path: text("path").notNull(),
+    slug: text("slug").notNull(),
+    title: text("title"),
     type: text("type").notNull(),
     source: text("source"),
-    title: text("title"),
+    contentPath: text("content_path"),
+    contentHash: text("content_hash"),
+    sizeBytes: integer("size_bytes"),
     threadId: text("thread_id").references(() => thread.id, {
       onDelete: "set null",
     }),
     channelId: text("channel_id").references(() => channel.id, {
       onDelete: "set null",
     }),
-    version: integer("version"),
-    parentId: text("parent_id").references((): any => document.id, {
-      onDelete: "set null",
-    }),
+    spec: specCol<DocumentSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("org_document_slug_unique").on(t.slug),
+    index("org_document_type_idx").on(t.type),
+    index("org_document_source_idx").on(t.source),
+    index("org_document_thread_idx").on(t.threadId),
+  ]
+)
+
+export const documentVersion = orgSchema.table(
+  "document_version",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("docv")),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    contentPath: text("content_path").notNull(),
     contentHash: text("content_hash"),
     sizeBytes: integer("size_bytes"),
-    spec: specCol<DocumentSpec>(),
+    source: text("source"),
+    threadId: text("thread_id").references(() => thread.id, {
+      onDelete: "set null",
+    }),
+    spec: specCol<DocumentVersionSpec>(),
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("org_document_path_unique").on(t.path),
-    index("org_document_thread_idx").on(t.threadId),
-    index("org_document_type_idx").on(t.type),
-    index("org_document_parent_idx").on(t.parentId),
-    index("org_document_source_idx").on(t.source),
+    uniqueIndex("org_docver_doc_version_unique").on(t.documentId, t.version),
+    index("org_docver_document_idx").on(t.documentId),
   ]
 )

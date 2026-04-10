@@ -15,6 +15,13 @@
       "when": 1775816790020,
       "tag": "0001_analytics-custom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775843295341,
+      "tag": "0002_long_aqueduct",
+      "breakpoints": true
     }
   ]
 }

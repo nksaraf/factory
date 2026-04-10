@@ -180,15 +180,13 @@ export async function sendEvent(
 }
 
 export async function uploadDocument(opts: {
-  path: string
-  content: string
+  slug: string
+  content?: string
   type: string
   source?: string
   title?: string
   threadId?: string
   channelId?: string
-  version?: number
-  parentId?: string
   contentHash?: string
   spec: Record<string, unknown>
   dryRun?: boolean
@@ -198,10 +196,9 @@ export async function uploadDocument(opts: {
       JSON.stringify(
         {
           action: "upload-document",
-          path: opts.path,
+          slug: opts.slug,
           type: opts.type,
           title: opts.title,
-          version: opts.version,
         },
         null,
         2
@@ -213,7 +210,7 @@ export async function uploadDocument(opts: {
   const auth = await ensureAuth()
 
   const body: Record<string, unknown> = {
-    path: opts.path,
+    slug: opts.slug,
     type: opts.type,
     spec: opts.spec,
   }
@@ -221,8 +218,6 @@ export async function uploadDocument(opts: {
   if (opts.title) body.title = opts.title
   if (opts.threadId) body.threadId = opts.threadId
   if (opts.channelId) body.channelId = opts.channelId
-  if (opts.version != null) body.version = opts.version
-  if (opts.parentId) body.parentId = opts.parentId
   if (opts.contentHash) body.contentHash = opts.contentHash
   if (opts.content) {
     body.content = opts.content
@@ -241,7 +236,6 @@ export async function uploadDocument(opts: {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "")
-    // Duplicate path → treat as success
     if (res.status === 409 || text.includes("unique")) {
       return { success: true, duplicate: true }
     }
@@ -252,6 +246,62 @@ export async function uploadDocument(opts: {
 
   const data = (await res.json()) as any
   return { success: true, id: data?.id, duplicate: !!data?.upserted }
+}
+
+export async function uploadDocumentVersion(opts: {
+  slug: string
+  content: string
+  source?: string
+  threadId?: string
+  spec?: Record<string, unknown>
+  dryRun?: boolean
+}): Promise<{ success: boolean; id?: string; version?: number }> {
+  if (opts.dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          action: "upload-document-version",
+          slug: opts.slug,
+          source: opts.source,
+        },
+        null,
+        2
+      )
+    )
+    return { success: true }
+  }
+
+  const auth = await ensureAuth()
+
+  const body: Record<string, unknown> = {
+    content: opts.content,
+  }
+  if (opts.source) body.source = opts.source
+  if (opts.threadId) body.threadId = opts.threadId
+  if (opts.spec) body.spec = opts.spec
+
+  const res = await fetch(
+    `${auth.url}/api/v1/factory/documents/documents/${encodeURIComponent(opts.slug)}/versions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    }
+  )
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    throw new Error(
+      `Upload version failed: ${res.status} ${text.slice(0, 200)}`
+    )
+  }
+
+  const data = (await res.json()) as any
+  return { success: true, id: data?.id, version: data?.version }
 }
 
 export async function sendBatch(

@@ -54,7 +54,7 @@ export const substrate = infraSchema.table(
     index("infra_substrate_parent_idx").on(t.parentSubstrateId),
     check(
       "infra_substrate_type_valid",
-      sql`${t.type} IN ('cloud-account', 'region', 'datacenter', 'vpc', 'subnet', 'hypervisor', 'rack')`
+      sql`${t.type} IN ('cloud-account', 'region', 'datacenter', 'vpc', 'subnet', 'hypervisor', 'rack', 'dns-zone', 'wan')`
     ),
   ]
 )
@@ -86,7 +86,7 @@ export const host = infraSchema.table(
     index("infra_host_substrate_idx").on(t.substrateId),
     check(
       "infra_host_type_valid",
-      sql`${t.type} IN ('bare-metal', 'vm', 'lxc', 'cloud-instance')`
+      sql`${t.type} IN ('bare-metal', 'vm', 'lxc', 'cloud-instance', 'network-appliance')`
     ),
   ]
 )
@@ -124,7 +124,7 @@ export const runtime = infraSchema.table(
     index("infra_runtime_host_idx").on(t.hostId),
     check(
       "infra_runtime_type_valid",
-      sql`${t.type} IN ('k8s-cluster', 'k8s-namespace', 'docker-engine', 'compose-project', 'systemd', 'reverse-proxy', 'iis', 'windows-service', 'process')`
+      sql`${t.type} IN ('k8s-cluster', 'k8s-namespace', 'docker-engine', 'compose-project', 'systemd', 'reverse-proxy', 'iis', 'windows-service', 'process', 'firewall', 'router')`
     ),
   ]
 )
@@ -304,11 +304,11 @@ export const networkLink = infraSchema.table(
     index("infra_network_link_edge_idx").on(t.sourceId, t.targetId),
     check(
       "infra_network_link_type_valid",
-      sql`${t.type} IN ('proxy', 'direct', 'tunnel', 'nat', 'firewall', 'mesh', 'peering')`
+      sql`${t.type} IN ('proxy', 'direct', 'tunnel', 'nat', 'firewall', 'mesh', 'peering', 'dns-resolution', 'port-forward', 'host-local', 'container-bridge', 'socket')`
     ),
     check(
       "infra_network_link_endpoint_kind_valid",
-      sql`${t.sourceKind} IN ('substrate', 'host', 'runtime') AND ${t.targetKind} IN ('substrate', 'host', 'runtime')`
+      sql`${t.sourceKind} IN ('substrate', 'host', 'runtime', 'dns-domain', 'ip-address', 'route', 'component-deployment') AND ${t.targetKind} IN ('substrate', 'host', 'runtime', 'dns-domain', 'ip-address', 'route', 'component-deployment')`
     ),
   ]
 )

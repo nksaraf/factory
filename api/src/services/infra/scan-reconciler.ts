@@ -9,16 +9,19 @@ import type { EntityMetadata } from "@smp/factory-shared/schemas/common"
 import type {
   HostScanResult,
   HostSpec,
+  NetworkLinkSpec,
+  RouteSpec,
+  RouteStatus,
   RuntimeSpec,
 } from "@smp/factory-shared/schemas/infra"
 import type {
   ComponentDeploymentSpec,
   SystemDeploymentSpec,
 } from "@smp/factory-shared/schemas/ops"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { host, runtime } from "../../db/schema/infra-v2"
+import { host, networkLink, route, runtime } from "../../db/schema/infra-v2"
 import {
   componentDeployment,
   site,
@@ -26,6 +29,7 @@ import {
 } from "../../db/schema/ops"
 import { component, system } from "../../db/schema/software-v2"
 import { newId } from "../../lib/id"
+import { extractHost, extractPort } from "../../lib/url-utils"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -36,6 +40,8 @@ export interface ReconciliationSummary {
   site: { created: boolean; siteId: string }
   systemDeployments: { created: number; updated: number }
   componentDeployments: { created: number; updated: number }
+  routes: { created: number; updated: number; stale: number }
+  networkLinks: { created: number; updated: number; stale: number }
 }
 
 interface HostEntity {
@@ -97,6 +103,8 @@ export async function reconcileHostScan(
     site: { created: false, siteId: "" },
     systemDeployments: { created: 0, updated: 0 },
     componentDeployments: { created: 0, updated: 0 },
+    routes: { created: 0, updated: 0, stale: 0 },
+    networkLinks: { created: 0, updated: 0, stale: 0 },
   }
 
   await db.transaction(async (tx) => {
@@ -490,6 +498,335 @@ export async function reconcileHostScan(
           spec: cdpSpec,
         })
         summary.componentDeployments.created++
+      }
+    }
+
+    // ── 8b. Upsert reverse-proxy Runtimes ───────────────────
+    // For each discovered reverse proxy, ensure a runtime entity exists.
+
+    const proxyRuntimeIdMap = new Map<string, string>() // proxy.name → runtimeId
+
+    for (const proxy of scanResult.reverseProxies ?? []) {
+      const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
+      const proxyName = `${hostName} ${proxy.engine}`
+
+      const [existingProxy] = await tx
+        .select({ id: runtime.id })
+        .from(runtime)
+        .where(eq(runtime.slug, proxySlug))
+        .limit(1)
+
+      const proxySpec: RuntimeSpec = {
+        status: "ready",
+        endpoint: proxy.apiUrl,
+        version: proxy.version,
+      }
+
+      if (existingProxy) {
+        await tx
+          .update(runtime)
+          .set({
+            spec: proxySpec,
+            metadata: scanMetadata({ hostSlug }),
+            updatedAt: new Date(),
+          })
+          .where(eq(runtime.id, existingProxy.id))
+        proxyRuntimeIdMap.set(proxy.name, existingProxy.id)
+        summary.runtimes.updated++
+      } else {
+        const proxyRuntimeId = newId("rt")
+        await tx.insert(runtime).values({
+          id: proxyRuntimeId,
+          slug: proxySlug,
+          name: proxyName,
+          type: "reverse-proxy",
+          hostId: hostEntity.id,
+          spec: proxySpec,
+          metadata: scanMetadata({ hostSlug }),
+        })
+        proxyRuntimeIdMap.set(proxy.name, proxyRuntimeId)
+        summary.runtimes.created++
+      }
+    }
+
+    // ── 8c. Upsert Route entities from proxy routers ─────────
+    // Each router with domains becomes an ingress Route entity.
+
+    const currentRouterSlugs = new Set<string>()
+
+    for (const proxy of scanResult.reverseProxies ?? []) {
+      const proxyRuntimeId = proxyRuntimeIdMap.get(proxy.name)
+      if (!proxyRuntimeId) continue
+
+      for (const router of proxy.routers) {
+        if (router.domains.length === 0) continue
+
+        const domain = router.domains[0]
+        const routeSlug = slugify(domain)
+        currentRouterSlugs.add(routeSlug)
+
+        // Determine resolution status from crawl data
+        let phase: RouteStatus["phase"] = "stale"
+        const resolvedTargets: RouteStatus["resolvedTargets"] = []
+
+        // Check if backend was resolved on proxy host (container match)
+        for (const backend of router.backends) {
+          if (backend.container) {
+            phase = "resolved"
+            resolvedTargets.push({
+              systemDeploymentSlug: backend.container.composeProject,
+              componentSlug: backend.container.composeService,
+              address: backend.url,
+              port: extractPort(backend.url) ?? 80,
+              weight: 100,
+              runtimeType: "docker",
+            })
+          }
+        }
+
+        // Check network crawl data for remote resolution
+        if (phase === "stale" && scanResult.networkCrawl) {
+          for (const hostEntry of scanResult.networkCrawl.hostEntries) {
+            if (!hostEntry.reachable) continue
+            for (const rs of hostEntry.resolvedServices) {
+              if (rs.routerName === router.name && rs.service) {
+                phase = "resolved"
+                resolvedTargets.push({
+                  systemDeploymentSlug:
+                    rs.service.composeProject ?? rs.service.name,
+                  componentSlug: rs.service.name,
+                  address: `${hostEntry.ip}:${rs.port}`,
+                  port: rs.port,
+                  weight: 100,
+                  runtimeType: rs.service.runtime,
+                })
+              }
+            }
+          }
+        }
+
+        const routeSpec: RouteSpec = {
+          targetService: router.service,
+          targetPort: extractPort(router.backends[0]?.url),
+          pathPrefix: router.pathPrefixes[0],
+          protocol: router.tls ? "https" : "http",
+          status: phase === "resolved" ? "active" : "pending",
+          createdBy: "reconciler",
+          tlsMode: router.tls?.certResolver,
+          middlewares: router.middlewares.map((m) => ({ name: m })),
+        }
+
+        const routeStatus: RouteStatus = {
+          phase,
+          resolvedTargets,
+          resolvedAt: new Date(),
+        }
+
+        const [existingRoute] = await tx
+          .select({ id: route.id })
+          .from(route)
+          .where(eq(route.slug, routeSlug))
+          .limit(1)
+
+        if (existingRoute) {
+          await tx
+            .update(route)
+            .set({
+              spec: routeSpec,
+              status: routeStatus as unknown as Record<string, unknown>,
+              runtimeId: proxyRuntimeId,
+              metadata: scanMetadata({ hostSlug }),
+              updatedAt: new Date(),
+            })
+            .where(eq(route.id, existingRoute.id))
+          summary.routes.updated++
+        } else {
+          await tx.insert(route).values({
+            id: newId("rte"),
+            slug: routeSlug,
+            name: domain,
+            type: "ingress",
+            domain,
+            runtimeId: proxyRuntimeId,
+            spec: routeSpec,
+            status: routeStatus as unknown as Record<string, unknown>,
+            metadata: scanMetadata({ hostSlug }),
+          })
+          summary.routes.created++
+        }
+      }
+    }
+
+    // Mark stale routes (previously scan-discovered, no longer present)
+    const staleRouteCondition = and(
+      sql`${route.metadata}->'annotations'->>'discoveredBy' = 'scan'`,
+      sql`${route.metadata}->'annotations'->>'hostSlug' = ${hostSlug}`,
+      currentRouterSlugs.size > 0
+        ? sql`${route.slug} NOT IN (${sql.join(
+            [...currentRouterSlugs].map((s) => sql`${s}`),
+            sql`, `
+          )})`
+        : sql`true`
+    )
+
+    const staleRouteRows = await tx
+      .update(route)
+      .set({
+        spec: sql`${route.spec} || '{"status": "expired"}'::jsonb`,
+        status: sql`${route.status} || '{"phase": "stale"}'::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(staleRouteCondition)
+      .returning({ id: route.id })
+
+    summary.routes.stale = staleRouteRows.length
+
+    // ── 8d. Upsert NetworkLink entities for proxy edges ──────
+    // Create directed links from reverse-proxy runtime to backend hosts.
+
+    const currentLinkSlugs = new Set<string>()
+
+    for (const proxy of scanResult.reverseProxies ?? []) {
+      const proxyRuntimeId = proxyRuntimeIdMap.get(proxy.name)
+      if (!proxyRuntimeId) continue
+
+      // Group routers by backend host IP
+      const hostIpToDomains = new Map<string, string[]>()
+      const hostIpToPort = new Map<string, number>()
+
+      for (const router of proxy.routers) {
+        for (const backend of router.backends) {
+          const hostIp = backend.hostIp ?? extractHost(backend.url)
+          if (!hostIp) continue
+
+          const domains = hostIpToDomains.get(hostIp) ?? []
+          domains.push(...router.domains)
+          hostIpToDomains.set(hostIp, domains)
+
+          const port = extractPort(backend.url)
+          if (port) hostIpToPort.set(hostIp, port)
+        }
+      }
+
+      const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
+      const hostIpAddress = (hostEntity.spec as HostSpec).ipAddress
+
+      // Create a proxy link for each unique backend host IP
+      for (const [backendIp, domains] of hostIpToDomains) {
+        const isLocalBackend = hostIpAddress && backendIp === hostIpAddress
+
+        // For same-host backends, create a host-local link to docker-engine runtime
+        if (isLocalBackend && primaryRuntimeId) {
+          const linkSlug = slugify(`${proxySlug}-to-${hostSlug}-docker`)
+          currentLinkSlugs.add(linkSlug)
+
+          const linkSpec: NetworkLinkSpec = {
+            egressPort: hostIpToPort.get(backendIp),
+            egressProtocol: "http",
+            match: {
+              hosts: [...new Set(domains)],
+              pathPrefixes: [],
+              headers: {},
+              sni: [],
+            },
+            enabled: true,
+            priority: 0,
+            middlewares: [],
+          }
+
+          const [existingLink] = await tx
+            .select({ id: networkLink.id })
+            .from(networkLink)
+            .where(eq(networkLink.slug, linkSlug))
+            .limit(1)
+
+          if (existingLink) {
+            await tx
+              .update(networkLink)
+              .set({
+                spec: linkSpec,
+                metadata: scanMetadata({ hostSlug }),
+                updatedAt: new Date(),
+              })
+              .where(eq(networkLink.id, existingLink.id))
+            summary.networkLinks.updated++
+          } else {
+            await tx.insert(networkLink).values({
+              id: newId("nlnk"),
+              slug: linkSlug,
+              name: `${proxySlug} → ${hostSlug}-docker`,
+              type: "host-local",
+              sourceKind: "runtime",
+              sourceId: proxyRuntimeId,
+              targetKind: "runtime",
+              targetId: primaryRuntimeId,
+              spec: linkSpec,
+              metadata: scanMetadata({ hostSlug }),
+            })
+            summary.networkLinks.created++
+          }
+          continue
+        }
+
+        // For remote backends, resolve the target host entity by IP
+        // TODO: Add GIN index on host.spec->>'ipAddress' when host count grows large
+        const [targetHost] = await tx
+          .select({ id: host.id, slug: host.slug })
+          .from(host)
+          .where(sql`${host.spec}->>'ipAddress' = ${backendIp}`)
+          .limit(1)
+
+        // Skip links where target host can't be resolved — we can't create a meaningful edge
+        if (!targetHost) continue
+
+        const linkSlug = slugify(`${proxySlug}-to-${targetHost.slug}`)
+        currentLinkSlugs.add(linkSlug)
+
+        const linkSpec: NetworkLinkSpec = {
+          egressPort: hostIpToPort.get(backendIp),
+          egressProtocol: "http",
+          match: {
+            hosts: [...new Set(domains)],
+            pathPrefixes: [],
+            headers: {},
+            sni: [],
+          },
+          enabled: true,
+          priority: 0,
+          middlewares: [],
+        }
+
+        const [existingLink] = await tx
+          .select({ id: networkLink.id })
+          .from(networkLink)
+          .where(eq(networkLink.slug, linkSlug))
+          .limit(1)
+
+        if (existingLink) {
+          await tx
+            .update(networkLink)
+            .set({
+              spec: linkSpec,
+              metadata: scanMetadata({ hostSlug }),
+              updatedAt: new Date(),
+            })
+            .where(eq(networkLink.id, existingLink.id))
+          summary.networkLinks.updated++
+        } else {
+          await tx.insert(networkLink).values({
+            id: newId("nlnk"),
+            slug: linkSlug,
+            name: `${proxySlug} → ${targetHost.slug}`,
+            type: "proxy",
+            sourceKind: "runtime",
+            sourceId: proxyRuntimeId,
+            targetKind: "host",
+            targetId: targetHost.id,
+            spec: linkSpec,
+            metadata: scanMetadata({ hostSlug }),
+          })
+          summary.networkLinks.created++
+        }
       }
     }
 

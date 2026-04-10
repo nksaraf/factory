@@ -1,3 +1,5 @@
+import type { NetworkCrawlResult } from "@smp/factory-shared/schemas/infra"
+
 /**
  * Types for infra scan collectors.
  * Mirrors HostScanResultSchema from shared/src/schemas/infra.ts for CLI use.
@@ -101,6 +103,12 @@ export type ContainerIpEntry = {
   composeService: string
 }
 
+export type {
+  NetworkCrawlResolvedService,
+  NetworkCrawlHostEntry,
+  NetworkCrawlResult,
+} from "@smp/factory-shared/schemas/infra"
+
 export type ScanResult = {
   scannedAt: string
   scanDurationMs?: number
@@ -116,4 +124,6 @@ export type ScanResult = {
   reverseProxies?: ScanReverseProxy[]
   /** Container IP→name mapping for resolving proxy backends to containers */
   containerIpMap?: ContainerIpEntry[]
+  /** Network crawl results from recursive host scanning */
+  networkCrawl?: NetworkCrawlResult
 }

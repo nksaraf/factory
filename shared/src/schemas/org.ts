@@ -989,49 +989,70 @@ export const UpdateOrgSecretSchema = CreateOrgSecretSchema.partial()
 // ── Document ─────────────────────────────────────────────────
 
 export const DocumentSpecSchema = z.object({
-  title: z.string().optional(),
-  slug: z.string().optional(),
-  project: z.string().optional(),
+  // Common
   tags: z.array(z.string()).optional(),
+  project: z.string().optional(),
   sourceRef: z.string().optional(),
   sourceUrl: z.string().optional(),
   syncedAt: z.string().optional(),
-  // Plan-specific extensions
+  description: z.string().optional(),
+  // Plan-specific
   titleHistory: z.array(z.string()).optional(),
   editCount: z.number().int().optional(),
   sessionsInvolved: z.array(z.string()).optional(),
+  // Cursor plan-specific
+  overview: z.string().optional(),
+  isProject: z.boolean().optional(),
+  todosTotal: z.number().int().optional(),
+  todosCompleted: z.number().int().optional(),
+  todoItems: z.array(z.any()).optional(),
 })
 export type DocumentSpec = z.infer<typeof DocumentSpecSchema>
 
 export const DocumentSchema = z.object({
   id: z.string(),
-  path: z.string(),
+  slug: z.string(),
+  title: z.string().nullable(),
   type: z.string(),
   source: z.string().nullable(),
-  title: z.string().nullable(),
-  threadId: z.string().nullable(),
-  channelId: z.string().nullable(),
-  version: z.number().int().nullable(),
-  parentId: z.string().nullable(),
+  contentPath: z.string().nullable(),
   contentHash: z.string().nullable(),
   sizeBytes: z.number().int().nullable(),
+  threadId: z.string().nullable(),
+  channelId: z.string().nullable(),
   spec: DocumentSpecSchema,
   createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
 })
 export type Document = z.infer<typeof DocumentSchema>
 
 export const CreateDocumentSchema = z.object({
-  path: z.string().min(1),
+  slug: z.string().min(1),
+  title: z.string().optional(),
   type: z.string().min(1),
   source: z.string().optional(),
-  title: z.string().optional(),
-  threadId: z.string().optional(),
-  channelId: z.string().optional(),
-  version: z.number().int().optional(),
-  parentId: z.string().optional(),
+  contentPath: z.string().optional(),
   contentHash: z.string().optional(),
   sizeBytes: z.number().int().optional(),
+  threadId: z.string().optional(),
+  channelId: z.string().optional(),
   spec: DocumentSpecSchema.default({}),
   content: z.string().optional(),
 })
 export const UpdateDocumentSchema = CreateDocumentSchema.partial()
+
+// ── Document Version ─────────────────────────────────────────
+
+export const DocumentVersionSpecSchema = z.object({
+  title: z.string().optional(),
+  project: z.string().optional(),
+})
+export type DocumentVersionSpec = z.infer<typeof DocumentVersionSpecSchema>
+
+export const CreateDocumentVersionSchema = z.object({
+  content: z.string().min(1),
+  source: z.string().optional(),
+  threadId: z.string().optional(),
+  spec: DocumentVersionSpecSchema.default({}),
+})
+export const UpdateDocumentVersionSchema = CreateDocumentVersionSchema.partial()

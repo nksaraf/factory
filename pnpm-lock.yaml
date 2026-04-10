@@ -89,6 +89,9 @@ importers:
 
   api:
     dependencies:
+      "@ai-sdk/anthropic":
+        specifier: ^3.0.47
+        version: 3.0.63(zod@3.25.76)
       "@anthropic-ai/sdk":
         specifier: ^0.80.0
         version: 0.80.0(zod@3.25.76)
@@ -97,6 +100,9 @@ importers:
         version: 4.20.2
       "@chat-adapter/state-memory":
         specifier: latest
+        version: 4.24.0
+      "@chat-adapter/state-pg":
+        specifier: 4.24.0
         version: 4.24.0
       "@corsinvest/cv4pve-api-javascript":
         specifier: ^9.1.0
@@ -134,9 +140,12 @@ importers:
       "@smp/factory-shared":
         specifier: workspace:*
         version: link:../shared
+      ai:
+        specifier: ^6.0.101
+        version: 6.0.142(zod@3.25.76)
       chat:
         specifier: latest
-        version: 4.20.2
+        version: 4.24.0
       cuid:
         specifier: ^3.0.0
         version: 3.0.0
@@ -586,6 +595,15 @@ packages:
     resolution:
       {
         integrity: sha512-XedtHVHX6UOlR/aa8bDmlsDc/e+kjC+l6qBeqnZPF05np6Xs7YR8tfH7yARq0LDq3m+ysw7Qoy9M5KRL+1C8qA==,
+      }
+    engines: { node: ">=18" }
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  "@ai-sdk/anthropic@3.0.63":
+    resolution:
+      {
+        integrity: sha512-SiLosFr0FfKfrNpAAj8mD/i3S5YBB/z5orb1DH3pN1yATuBNjjPMLnRE4P3Dn7Y5cQsro0uzw5g5117hkShWoQ==,
       }
     engines: { node: ">=18" }
     peerDependencies:
@@ -2036,6 +2054,12 @@ packages:
     resolution:
       {
         integrity: sha512-K/o1KfZ7DH0Y7wcn8aCxD+QmfGaZ4yj5Qyk4VdvLGcUZTUkgS1how8DkcYBDcX3NoKv9DsqM+joQnWc3Pe8dbA==,
+      }
+
+  "@chat-adapter/state-pg@4.24.0":
+    resolution:
+      {
+        integrity: sha512-5262lFupg3h2bqcJlOqSUO1Uy4Yj5ukCT+TV3oEli63LfzrOtNfvFP46jH0o0anVfxJ6IYMsb5mnsKp/u9YJsA==,
       }
 
   "@cloudflare/kv-asset-handler@0.4.2":
@@ -22008,6 +22032,12 @@ snapshots:
       "@ai-sdk/provider-utils": 3.0.17(zod@4.1.11)
       zod: 4.1.11
 
+  "@ai-sdk/anthropic@3.0.63(zod@3.25.76)":
+    dependencies:
+      "@ai-sdk/provider": 3.0.8
+      "@ai-sdk/provider-utils": 4.0.21(zod@3.25.76)
+      zod: 3.25.76
+
   "@ai-sdk/gateway@2.0.15(zod@4.1.11)":
     dependencies:
       "@ai-sdk/provider": 2.0.0
@@ -22021,6 +22051,13 @@ snapshots:
       "@ai-sdk/provider-utils": 3.0.19(zod@4.3.6)
       "@vercel/oidc": 3.0.5
       zod: 4.3.6
+
+  "@ai-sdk/gateway@3.0.84(zod@3.25.76)":
+    dependencies:
+      "@ai-sdk/provider": 3.0.8
+      "@ai-sdk/provider-utils": 4.0.21(zod@3.25.76)
+      "@vercel/oidc": 3.1.0
+      zod: 3.25.76
 
   "@ai-sdk/gateway@3.0.84(zod@4.3.6)":
     dependencies:
@@ -22066,6 +22103,13 @@ snapshots:
       "@standard-schema/spec": 1.1.0
       eventsource-parser: 3.0.6
       zod: 4.3.6
+
+  "@ai-sdk/provider-utils@4.0.21(zod@3.25.76)":
+    dependencies:
+      "@ai-sdk/provider": 3.0.8
+      "@standard-schema/spec": 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 3.25.76
 
   "@ai-sdk/provider-utils@4.0.21(zod@4.3.6)":
     dependencies:
@@ -23219,6 +23263,14 @@ snapshots:
     dependencies:
       chat: 4.24.0
     transitivePeerDependencies:
+      - supports-color
+
+  "@chat-adapter/state-pg@4.24.0":
+    dependencies:
+      chat: 4.24.0
+      pg: 8.20.0
+    transitivePeerDependencies:
+      - pg-native
       - supports-color
 
   "@cloudflare/kv-asset-handler@0.4.2": {}
@@ -32530,6 +32582,14 @@ snapshots:
       "@ai-sdk/provider-utils": 3.0.19(zod@4.3.6)
       "@opentelemetry/api": 1.9.0
       zod: 4.3.6
+
+  ai@6.0.142(zod@3.25.76):
+    dependencies:
+      "@ai-sdk/gateway": 3.0.84(zod@3.25.76)
+      "@ai-sdk/provider": 3.0.8
+      "@ai-sdk/provider-utils": 4.0.21(zod@3.25.76)
+      "@opentelemetry/api": 1.9.0
+      zod: 3.25.76
 
   ai@6.0.142(zod@4.3.6):
     dependencies:

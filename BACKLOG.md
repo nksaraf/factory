@@ -426,10 +426,10 @@ Spec: `docs/superpowers/specs/2026-03-28-chat-sdk-agent-layer-design.md`
   - Chat SDK integrated into Elysia API server (not separate app), echo bot working
   - Curl-based axios adapter for Bun HTTPS compat (`bun-https-fix.ts`)
   - In-memory state adapter (`@chat-adapter/state-memory`)
-- [ ] Replace in-memory state with persistent state adapter (Redis or custom DB-backed)
-- [ ] Extract shared curl HTTP utility from `bun-https-fix.ts` and `slack-client.ts`
-- [ ] Capture Slack rate-limit response headers (`Retry-After`) in curl adapter for proper backoff
-- [ ] Custom state adapter: Chat SDK state → `factory_org.message_thread` + Redis locks
+- [x] Replace in-memory state with `@chat-adapter/state-pg` for subscription persistence; thread/channel/turn data stored in `org` tables via handlers
+- [x] Extract shared curl HTTP utility (`api/src/lib/curl-http.ts`) from `bun-https-fix.ts` and `slack-client.ts`
+- [x] Capture Slack rate-limit response headers (`Retry-After`) in curl adapter via `curl -i` header parsing
+- [x] ~~Custom state adapter~~ — Superseded: using `@chat-adapter/state-pg` + handler-level DB writes to `org.thread`/`thread_turn`
 - [ ] Factory API client (typed HTTP client for bot → Factory API communication)
 - [ ] Durable conversation workflow (Vercel Workflow: start on @mention, resume on messages/actions)
 - [ ] Agent tools: bash (dx CLI), read/write/edit files, grep, glob, ask_user, web_fetch

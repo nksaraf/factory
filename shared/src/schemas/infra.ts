@@ -16,6 +16,8 @@ export const SubstrateTypeSchema = z.enum([
   "subnet",
   "hypervisor",
   "rack",
+  "dns-zone",
+  "wan",
 ])
 export type SubstrateType = z.infer<typeof SubstrateTypeSchema>
 
@@ -48,6 +50,13 @@ export const SubstrateSpecSchema = z.object({
   syncStatus: z.enum(["idle", "syncing", "error"]).optional(),
   lastSyncAt: z.coerce.date().optional(),
   syncError: z.string().optional(),
+  // Subnet-specific
+  cidr: z.string().optional(),
+  gatewayIp: z.string().optional(),
+  // DNS zone-specific
+  dnsProvider: z.string().optional(),
+  registrar: z.string().optional(),
+  zone: z.string().optional(),
 })
 export type SubstrateSpec = z.infer<typeof SubstrateSpecSchema>
 
@@ -72,6 +81,7 @@ export const HostTypeSchema = z.enum([
   "vm",
   "lxc",
   "cloud-instance",
+  "network-appliance",
 ])
 export type HostType = z.infer<typeof HostTypeSchema>
 
@@ -104,6 +114,9 @@ export const HostSpecSchema = z.object({
   jumpUser: z.string().optional(),
   jumpPort: z.number().int().min(1).max(65535).optional(),
   identityFile: z.string().optional(),
+  // Network-appliance-specific
+  model: z.string().optional(),
+  managementUrl: z.string().optional(),
 })
 export type HostSpec = z.infer<typeof HostSpecSchema>
 
@@ -133,6 +146,8 @@ export const RuntimeTypeSchema = z.enum([
   "iis",
   "windows-service",
   "process",
+  "firewall",
+  "router",
 ])
 export type RuntimeType = z.infer<typeof RuntimeTypeSchema>
 
@@ -349,6 +364,13 @@ export const IpAddressSpecSchema = z.object({
   assignedToId: z.string().optional(),
   gateway: z.string().optional(),
   cidr: z.number().int().optional(),
+  scope: z
+    .enum(["public", "private", "management", "vpn", "virtual", "loopback"])
+    .optional(),
+  purpose: z.string().optional(), // freeform: "web", "ssh", "management", "api"
+  hostname: z.string().optional(), // reverse DNS / FQDN
+  interface: z.string().optional(), // "eth0", "en0", "wan1", "lan2"
+  primary: z.boolean().optional(), // preferred IP for this entity
 })
 export type IpAddressSpec = z.infer<typeof IpAddressSpecSchema>
 
@@ -396,6 +418,11 @@ export const NetworkLinkTypeSchema = z.enum([
   "firewall",
   "mesh",
   "peering",
+  "dns-resolution",
+  "port-forward",
+  "host-local",
+  "container-bridge",
+  "socket",
 ])
 export type NetworkLinkType = z.infer<typeof NetworkLinkTypeSchema>
 
@@ -403,6 +430,10 @@ export const NetworkLinkEndpointKindSchema = z.enum([
   "substrate",
   "host",
   "runtime",
+  "dns-domain",
+  "ip-address",
+  "route",
+  "component-deployment",
 ])
 export type NetworkLinkEndpointKind = z.infer<
   typeof NetworkLinkEndpointKindSchema
@@ -705,5 +736,41 @@ export const HostScanResultSchema = z.object({
   collectors: z.array(HostScanCollectorStatusSchema).default([]),
   reverseProxies: z.array(ScanReverseProxySchema).default([]),
   containerIpMap: z.array(ContainerIpEntrySchema).default([]),
+  networkCrawl: z.lazy(() => NetworkCrawlResultSchema).optional(),
 })
 export type HostScanResult = z.infer<typeof HostScanResultSchema>
+
+// ── Network Crawl Result ─────────────────────────────────
+
+export const NetworkCrawlResolvedServiceSchema = z.object({
+  port: z.number().int(),
+  domains: z.array(z.string()),
+  routerName: z.string(),
+  service: z
+    .object({
+      name: z.string(),
+      displayName: z.string().optional(),
+      composeProject: z.string().optional(),
+      image: z.string().optional(),
+      runtime: z.string(),
+    })
+    .optional(),
+})
+export type NetworkCrawlResolvedService = z.infer<
+  typeof NetworkCrawlResolvedServiceSchema
+>
+
+export const NetworkCrawlHostEntrySchema = z.object({
+  ip: z.string(),
+  hostname: z.string().optional(),
+  reachable: z.boolean(),
+  error: z.string().optional(),
+  resolvedServices: z.array(NetworkCrawlResolvedServiceSchema).default([]),
+})
+export type NetworkCrawlHostEntry = z.infer<typeof NetworkCrawlHostEntrySchema>
+
+export const NetworkCrawlResultSchema = z.object({
+  crawledAt: z.coerce.date(),
+  hostEntries: z.array(NetworkCrawlHostEntrySchema).default([]),
+})
+export type NetworkCrawlResult = z.infer<typeof NetworkCrawlResultSchema>
