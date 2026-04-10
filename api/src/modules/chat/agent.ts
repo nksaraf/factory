@@ -231,34 +231,80 @@ const listTablesTool = tool({
   },
 })
 
+const requestWorkTool = tool({
+  description:
+    "Capture a work request from the user — feature requests, bug reports, code changes, investigations, or any task that requires implementation. This routes the request to the appropriate team or agent.",
+  inputSchema: z.object({
+    title: z.string().describe("Short title for the work request"),
+    description: z
+      .string()
+      .describe(
+        "Detailed description of what the user wants, including any context from the conversation"
+      ),
+    type: z
+      .enum(["feature", "bug", "task", "investigation"])
+      .describe("Type of work request"),
+    priority: z
+      .enum(["low", "medium", "high", "urgent"])
+      .optional()
+      .describe("Priority if mentioned or implied by the user"),
+  }),
+  execute: async ({ title, description, type, priority }) => {
+    log.info(
+      { title, type, priority },
+      "Work request captured"
+    )
+    // TODO: Create a job/ticket in the system, dispatch to coding agent
+    return {
+      status: "captured",
+      title,
+      type,
+      priority: priority ?? "medium",
+      message:
+        "Work request has been captured. A coding agent will be dispatched to handle this.",
+    }
+  },
+})
+
 // ── Agent ─────────────────────────────────────────────────────
 
 function buildSystemPrompt(): string {
   const schemaContext = getSchemaContext()
 
-  return `You are Factory Bot, an assistant for a software company's internal platform called Factory.
+  return `You are Factory Bot, the AI assistant for Lepton Software's internal developer platform called Factory.
 
-You can query the company's PostgreSQL database to answer questions about teams, software systems, components, releases, agents, infrastructure, customers, and more.
+You serve two roles:
 
-## Available tools
+## Role 1: Data & Knowledge Agent
+Answer questions about the company by querying the PostgreSQL database — teams, people, software systems, components, releases, agents, infrastructure, customers, deployments, and more.
 
-1. **executeQuery** — Run a read-only SQL query. Only SELECT statements are allowed.
-2. **listTables** — Discover tables and columns from information_schema.
+## Role 2: Work Router
+When the user asks for a feature, code change, bug fix, investigation, or any work that requires coding/implementation — use the \`requestWork\` tool to capture their request. Do NOT try to make code changes yourself. Instead, summarize what they want and route it as a work request.
+
+## Database tools
+
+- **executeQuery** — Run a read-only SQL query (SELECT only).
+- **listTables** — Discover tables and columns from information_schema.
+
+## Work tools
+
+- **requestWork** — Capture a feature request, bug report, or task that requires coding/implementation.
 
 ## Database schema summary
 
 The database uses named schemas: org, software, infra, commerce, build.
 Many tables have JSONB columns named \`spec\` and \`metadata\` — use \`->\` and \`->>\` operators to access nested fields.
-Many tables use bitemporal columns (valid_from, valid_to, system_from, system_to). Current/active rows typically have \`valid_to IS NULL\`.
+
+**CRITICAL: Bitemporal filtering.** Many tables use bitemporal columns (valid_from, valid_to, system_from, system_to). You MUST filter for current/active rows by adding \`WHERE valid_to IS NULL AND system_to IS NULL\` to your queries. Without this filter, you will count historical/superseded rows and get wrong results.
 
 ${schemaContext}
 
 ## How to work
 
-1. Review the schema summary above to understand available tables and columns.
-2. If you need more detail, use \`listTables\` to get exact column types.
-3. Write and execute SQL queries to answer the user's question.
-4. If a query fails, read the error, check the schema, and retry with a corrected query.
+1. Determine if the user is asking a question (→ query the DB) or requesting work (→ use requestWork).
+2. For questions: review the schema, write a SQL query with proper bitemporal filtering, execute it, and answer.
+3. If a query fails, read the error, fix the query, and retry.
+4. For work requests: summarize the request clearly and use requestWork.
 
 ## Response style
 
@@ -285,7 +331,7 @@ export function getAgent() {
 
       const google = createGoogleGenerativeAI({ apiKey })
       const model = google(
-        process.env.LLM_MODEL ?? "gemini-2.0-flash-lite"
+        process.env.LLM_MODEL ?? "gemini-2.5-flash"
       )
 
       return new ToolLoopAgent({
@@ -294,6 +340,7 @@ export function getAgent() {
         tools: {
           executeQuery: executeQueryTool,
           listTables: listTablesTool,
+          requestWork: requestWorkTool,
         },
         stopWhen: stepCountIs(10),
       })
