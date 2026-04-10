@@ -93,8 +93,14 @@ export async function openTunnel(
 ): Promise<{ close: () => void }> {
   const config = await readConfig()
   const base = resolveFactoryUrl(config)
+  // WS clients can't send Authorization headers — pass JWT as query param
+  const { getStoredJwt } = await import("../session-token")
+  const jwt = await getStoredJwt()
+  const tokenParam = jwt ? `?token=${encodeURIComponent(jwt)}` : ""
   const wsUrl =
-    base.replace(/^http/, "ws") + "/api/v1/factory/infra/tunnel-broker"
+    base.replace(/^http/, "ws") +
+    "/api/v1/factory/infra/tunnel-broker" +
+    tokenParam
   const rc = { ...DEFAULT_RECONNECT, ...reconnectConfig }
 
   let intentionalClose = false

@@ -23,17 +23,26 @@ export function authPlugin(jwksUrl: string) {
     async ({
       headers,
       set,
+      request,
     }): Promise<{ user: AuthUser; principal: string }> => {
       const authorization = headers["authorization"]
 
-      if (!authorization) {
+      // WebSocket clients cannot send Authorization headers — accept token
+      // from query param as fallback (standard pattern for WS auth).
+      let token: string | undefined
+      if (authorization) {
+        token = authorization.startsWith("Bearer ")
+          ? authorization.slice(7)
+          : authorization
+      } else if (request?.url) {
+        const url = new URL(request.url)
+        token = url.searchParams.get("token") ?? undefined
+      }
+
+      if (!token) {
         set.status = 401
         throw new Error("Missing Authorization header")
       }
-
-      const token = authorization.startsWith("Bearer ")
-        ? authorization.slice(7)
-        : authorization
 
       if (!token) {
         set.status = 401

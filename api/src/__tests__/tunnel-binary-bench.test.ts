@@ -387,10 +387,37 @@ describe.skipIf(skipBench)(
 
       if (IS_PROD) {
         // Connect real tunnel to production
+        // Read JWT from DX session file for auth (WS clients can't send headers)
+        let authToken = process.env.DX_AUTH_TOKEN ?? ""
+        if (!authToken) {
+          try {
+            const os = await import("node:os")
+            const fs = await import("node:fs")
+            const path = await import("node:path")
+            const sessionPath = path.join(
+              os.platform() === "darwin"
+                ? path.join(
+                    os.homedir(),
+                    "Library",
+                    "Application Support",
+                    "dx"
+                  )
+                : path.join(os.homedir(), ".config", "dx"),
+              "session.json"
+            )
+            const session = JSON.parse(fs.readFileSync(sessionPath, "utf-8"))
+            authToken = session.jwt ?? ""
+          } catch {}
+        }
+        const tokenParam = authToken ? `?token=${authToken}` : ""
         const wsUrl =
           FACTORY_URL!.replace(/^http/, "ws") +
-          "/api/v1/factory/infra/tunnel-broker"
-        console.log(`\n  Connecting tunnel to ${wsUrl}`)
+          "/api/v1/factory/infra/tunnel-broker" +
+          tokenParam
+        console.log(
+          `\n  Connecting tunnel to ${FACTORY_URL}/api/v1/factory/infra/tunnel-broker`
+        )
+        console.log(`  Auth: ${authToken ? "JWT from session" : "none"}`)
         console.log(`  Subdomain: ${SUBDOMAIN}`)
         console.log(`  Local origin: http://localhost:${LOCAL_PORT}\n`)
 
