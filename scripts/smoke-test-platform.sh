@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 WS_NAME="smoke-test-ci"
-WS_SLUG="smoke-test-ci"
+WS_SLUG="wks-smoke-test-ci"
 K8S_NS="workspace-$WS_SLUG"
 
 # Mode-specific k8s context and cluster name
@@ -245,7 +245,7 @@ SANDBOX_IMAGE="ghcr.io/nksaraf/dx-sandbox:latest"
 
 if ! docker image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1; then
   echo "  Building sandbox image..."
-  docker build -t "$SANDBOX_IMAGE" "$REPO_ROOT/images/dx-sandbox/" >/dev/null 2>&1
+  docker build -t "$SANDBOX_IMAGE" "$REPO_ROOT/images/dx-sandbox/"
 fi
 
 if k3d cluster list "$K3D_CLUSTER" >/dev/null 2>&1; then
