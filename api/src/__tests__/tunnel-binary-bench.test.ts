@@ -59,6 +59,89 @@ function generatePayload(sizeBytes: number): Uint8Array {
   return buf
 }
 
+/** Generate realistic JSON API response (highly compressible) */
+function generateJsonPayload(targetBytes: number): string {
+  const items: object[] = []
+  const template = {
+    id: 0,
+    name: "John Doe",
+    email: "john.doe@example.com",
+    role: "developer",
+    department: "engineering",
+    status: "active",
+    createdAt: "2026-01-15T10:30:00Z",
+    updatedAt: "2026-04-10T08:00:00Z",
+    metadata: {
+      lastLogin: "2026-04-09T22:00:00Z",
+      preferences: { theme: "dark", language: "en", notifications: true },
+    },
+  }
+  while (JSON.stringify(items).length < targetBytes) {
+    items.push({ ...template, id: items.length, name: `User ${items.length}` })
+  }
+  return JSON.stringify({ data: items, total: items.length, page: 1 })
+}
+
+/** Generate realistic HTML page (highly compressible) */
+function generateHtmlPayload(targetBytes: number): string {
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Dashboard</title>
+<style>body{font-family:system-ui,sans-serif;margin:0;padding:20px;background:#f5f5f5}
+.card{background:white;border-radius:8px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #eee}
+th{font-weight:600;color:#666;font-size:0.875rem}</style></head><body><div class="header"><h1>Dashboard</h1></div>`
+  let i = 0
+  while (html.length < targetBytes) {
+    html += `<div class="card"><h3>Item ${i}</h3><p>Description for item ${i}. This is a typical content block in a web application dashboard.</p>
+<table><tr><th>Property</th><th>Value</th></tr><tr><td>Status</td><td>Active</td></tr>
+<tr><td>Created</td><td>2026-01-15</td></tr><tr><td>Owner</td><td>user-${i}</td></tr></table></div>`
+    i++
+  }
+  html += "</body></html>"
+  return html
+}
+
+/** Generate realistic JavaScript bundle (highly compressible) */
+function generateJsPayload(targetBytes: number): string {
+  let js = `"use strict";
+const __modules = {};
+function __require(id) { if (__modules[id]) return __modules[id].exports; const module = __modules[id] = { exports: {} }; return module.exports; }
+`
+  let i = 0
+  while (js.length < targetBytes) {
+    js += `
+__modules["module_${i}"] = { exports: {} };
+(function(module, exports) {
+  class Component${i} {
+    constructor(props) {
+      this.props = props;
+      this.state = { loading: false, data: null, error: null };
+    }
+    async fetchData(endpoint) {
+      this.state.loading = true;
+      try {
+        const response = await fetch(endpoint);
+        this.state.data = await response.json();
+      } catch (error) {
+        this.state.error = error.message;
+      } finally {
+        this.state.loading = false;
+      }
+    }
+    render() {
+      if (this.state.loading) return '<div class="spinner">Loading...</div>';
+      if (this.state.error) return '<div class="error">' + this.state.error + '</div>';
+      return '<div class="component-${i}">' + JSON.stringify(this.state.data) + '</div>';
+    }
+  }
+  module.exports = { Component${i} };
+})(__modules["module_${i}"], __modules["module_${i}"].exports);
+`
+    i++
+  }
+  return js
+}
+
 // ---------------------------------------------------------------------------
 // In-process tunnel stack (local mode)
 // ---------------------------------------------------------------------------
@@ -263,6 +346,28 @@ describe.skipIf(skipBench)(
 
           if (url.pathname === "/echo") {
             return new Response("ok")
+          }
+
+          // Compressible content endpoints — realistic dev traffic
+          if (url.pathname === "/json") {
+            const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
+            return new Response(generateJsonPayload(size), {
+              headers: { "content-type": "application/json" },
+            })
+          }
+
+          if (url.pathname === "/html") {
+            const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
+            return new Response(generateHtmlPayload(size), {
+              headers: { "content-type": "text/html" },
+            })
+          }
+
+          if (url.pathname === "/js") {
+            const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
+            return new Response(generateJsPayload(size), {
+              headers: { "content-type": "application/javascript" },
+            })
           }
 
           return new Response("not found", { status: 404 })
@@ -710,5 +815,89 @@ describe.skipIf(skipBench)(
       expect(errors).toBe(0)
       cleanup()
     }, 120_000)
+
+    // =========================================================================
+    // 7. Compressible content — realistic dev traffic (JSON, HTML, JS)
+    //    This is the test that shows the impact of WS compression.
+    // =========================================================================
+
+    it("compressible content throughput (JSON, HTML, JS)", async () => {
+      const endpoints = [
+        { path: "/json", type: "JSON API" },
+        { path: "/html", type: "HTML page" },
+        { path: "/js", type: "JS bundle" },
+        { path: "/binary", type: "Binary (control)" },
+      ]
+      const sizes = IS_PROD
+        ? [
+            { label: "64KB", bytes: 64 * 1024 },
+            { label: "256KB", bytes: 256 * 1024 },
+            { label: "1MB", bytes: 1024 * 1024 },
+          ]
+        : [
+            { label: "64KB", bytes: 64 * 1024 },
+            { label: "256KB", bytes: 256 * 1024 },
+            { label: "1MB", bytes: 1024 * 1024 },
+          ]
+
+      const results: {
+        type: string
+        label: string
+        bytes: number
+        ms: number
+        rate: string
+        received: number
+        ok: boolean
+      }[] = []
+
+      for (const ep of endpoints) {
+        for (const { label, bytes } of sizes) {
+          const { sm, prod, cleanup } = getStack()
+
+          const start = performance.now()
+          const res = await benchGet(
+            sm,
+            prod,
+            `${ep.path}?size=${bytes}`,
+            60_000
+          )
+          const elapsed = performance.now() - start
+
+          const ok = res.status === 200 && res.bodyLength >= bytes * 0.9 // allow slight size variance from generators
+          results.push({
+            type: ep.type,
+            label,
+            bytes,
+            ms: elapsed,
+            rate: formatRate((res.bodyLength / elapsed) * 1000),
+            received: res.bodyLength,
+            ok,
+          })
+          cleanup()
+        }
+      }
+
+      console.log(
+        "\n┌──────────────────┬─────────┬──────────┬──────────────┬────────────┬────┐"
+      )
+      console.log(
+        "│ Content Type     │ Size    │ Time(ms) │ Throughput   │ Received   │ OK │"
+      )
+      console.log(
+        "├──────────────────┼─────────┼──────────┼──────────────┼────────────┼────┤"
+      )
+      for (const r of results) {
+        console.log(
+          `│ ${r.type.padEnd(16)} │ ${r.label.padEnd(7)} │ ${r.ms.toFixed(0).padStart(8)} │ ${r.rate.padStart(12)} │ ${formatSize(r.received).padStart(10)} │ ${r.ok ? " ✓" : " ✗"} │`
+        )
+      }
+      console.log(
+        "└──────────────────┴─────────┴──────────┴──────────────┴────────────┴────┘\n"
+      )
+
+      for (const r of results) {
+        expect(r.ok).toBe(true)
+      }
+    }, 300_000)
   }
 )
