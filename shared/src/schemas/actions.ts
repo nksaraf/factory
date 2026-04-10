@@ -4,43 +4,44 @@
  * These validate the request body for `POST /:entity/:slugOrId/:action` routes
  * wired through the `ontologyRoutes()` `actions` config.
  */
+import { z } from "zod"
 
-import { z } from "zod";
+import { HostScanResultSchema } from "./infra"
 
 // ── Agent: Job actions ──────────────────────────────────────
 
 export const CompleteJobBody = z.object({
   outcome: z.record(z.unknown()).optional(),
   costCents: z.number().int().optional(),
-});
-export type CompleteJobBody = z.infer<typeof CompleteJobBody>;
+})
+export type CompleteJobBody = z.infer<typeof CompleteJobBody>
 
 export const FailJobBody = z.object({
   outcome: z.record(z.unknown()).optional(),
-});
-export type FailJobBody = z.infer<typeof FailJobBody>;
+})
+export type FailJobBody = z.infer<typeof FailJobBody>
 
 export const OverrideJobBody = z.object({
   note: z.string().min(1),
-});
-export type OverrideJobBody = z.infer<typeof OverrideJobBody>;
+})
+export type OverrideJobBody = z.infer<typeof OverrideJobBody>
 
 // ── Agent: Memory actions ───────────────────────────────────
 
 export const ApproveMemoryBody = z.object({
   approvedByPrincipalId: z.string().min(1),
-});
-export type ApproveMemoryBody = z.infer<typeof ApproveMemoryBody>;
+})
+export type ApproveMemoryBody = z.infer<typeof ApproveMemoryBody>
 
 export const SupersedeMemoryBody = z.object({
   replacementId: z.string().optional(),
-});
-export type SupersedeMemoryBody = z.infer<typeof SupersedeMemoryBody>;
+})
+export type SupersedeMemoryBody = z.infer<typeof SupersedeMemoryBody>
 
 export const PromoteMemoryBody = z.object({
   targetOrgId: z.string().min(1),
-});
-export type PromoteMemoryBody = z.infer<typeof PromoteMemoryBody>;
+})
+export type PromoteMemoryBody = z.infer<typeof PromoteMemoryBody>
 
 // ── Fleet: Site actions ─────────────────────────────────────
 
@@ -49,64 +50,74 @@ export const SiteCheckinBody = z.object({
   manifest: z.record(z.unknown()).optional(),
   installState: z.record(z.unknown()).optional(),
   currentVersion: z.number().int().optional(),
-});
-export type SiteCheckinBody = z.infer<typeof SiteCheckinBody>;
+})
+export type SiteCheckinBody = z.infer<typeof SiteCheckinBody>
 
 export const AssignReleaseBody = z.object({
   releaseVersion: z.string().min(1),
-});
-export type AssignReleaseBody = z.infer<typeof AssignReleaseBody>;
+})
+export type AssignReleaseBody = z.infer<typeof AssignReleaseBody>
 
 // ── Fleet: Rollout actions ──────────────────────────────────
 
 export const UpdateRolloutStatusBody = z.object({
-  status: z.enum(["pending", "in_progress", "succeeded", "failed", "rolled_back"]),
-});
-export type UpdateRolloutStatusBody = z.infer<typeof UpdateRolloutStatusBody>;
+  status: z.enum([
+    "pending",
+    "in_progress",
+    "succeeded",
+    "failed",
+    "rolled_back",
+  ]),
+})
+export type UpdateRolloutStatusBody = z.infer<typeof UpdateRolloutStatusBody>
 
 // ── Fleet: Workspace actions ────────────────────────────────
 
 export const ExtendWorkspaceBody = z.object({
   minutes: z.number().int().min(1),
-});
-export type ExtendWorkspaceBody = z.infer<typeof ExtendWorkspaceBody>;
+})
+export type ExtendWorkspaceBody = z.infer<typeof ExtendWorkspaceBody>
 
 export const SnapshotWorkspaceBody = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
-});
-export type SnapshotWorkspaceBody = z.infer<typeof SnapshotWorkspaceBody>;
+})
+export type SnapshotWorkspaceBody = z.infer<typeof SnapshotWorkspaceBody>
 
 export const ResizeWorkspaceBody = z.object({
   cpu: z.string().optional(),
   memory: z.string().optional(),
   storageGb: z.number().int().optional(),
-});
-export type ResizeWorkspaceBody = z.infer<typeof ResizeWorkspaceBody>;
+})
+export type ResizeWorkspaceBody = z.infer<typeof ResizeWorkspaceBody>
 
 export const RestoreSnapshotBody = z.object({
   workspaceId: z.string().min(1),
-});
-export type RestoreSnapshotBody = z.infer<typeof RestoreSnapshotBody>;
+})
+export type RestoreSnapshotBody = z.infer<typeof RestoreSnapshotBody>
 
 export const CloneSnapshotBody = z.object({
   name: z.string().min(1),
   ownerId: z.string().min(1),
   ownerType: z.enum(["user", "agent"]).default("user"),
-});
-export type CloneSnapshotBody = z.infer<typeof CloneSnapshotBody>;
+})
+export type CloneSnapshotBody = z.infer<typeof CloneSnapshotBody>
 
 // ── Fleet: Component Deployment actions ─────────────────────
 
 export const ScaleComponentDeploymentBody = z.object({
   replicas: z.number().int().min(0),
-});
-export type ScaleComponentDeploymentBody = z.infer<typeof ScaleComponentDeploymentBody>;
+})
+export type ScaleComponentDeploymentBody = z.infer<
+  typeof ScaleComponentDeploymentBody
+>
 
 export const RestartComponentDeploymentBody = z.object({
   reason: z.string().optional(),
-});
-export type RestartComponentDeploymentBody = z.infer<typeof RestartComponentDeploymentBody>;
+})
+export type RestartComponentDeploymentBody = z.infer<
+  typeof RestartComponentDeploymentBody
+>
 
 // ── Fleet: Workbench actions ────────────────────────────────
 
@@ -116,34 +127,42 @@ export const WorkbenchPingBody = z.object({
   arch: z.string().optional(),
   nodes: z.array(z.record(z.unknown())).optional(),
   connectedResources: z.record(z.unknown()).optional(),
-});
-export type WorkbenchPingBody = z.infer<typeof WorkbenchPingBody>;
+})
+export type WorkbenchPingBody = z.infer<typeof WorkbenchPingBody>
 
 // ── Fleet: Preview actions ─────────────────────────────────
 
 export const UpdatePreviewStatusBody = z.object({
-  phase: z.enum(["pending_image", "building", "deploying", "active", "inactive", "expired", "failed"]),
+  phase: z.enum([
+    "pending_image",
+    "building",
+    "deploying",
+    "active",
+    "inactive",
+    "expired",
+    "failed",
+  ]),
   statusMessage: z.string().optional(),
-});
-export type UpdatePreviewStatusBody = z.infer<typeof UpdatePreviewStatusBody>;
+})
+export type UpdatePreviewStatusBody = z.infer<typeof UpdatePreviewStatusBody>
 
 export const DeliverPreviewImageBody = z.object({
   imageRef: z.string().min(1),
   commitSha: z.string().optional(),
-});
-export type DeliverPreviewImageBody = z.infer<typeof DeliverPreviewImageBody>;
+})
+export type DeliverPreviewImageBody = z.infer<typeof DeliverPreviewImageBody>
 
 export const ExtendPreviewBody = z.object({
   minutes: z.number().int().min(1).max(43200),
-});
-export type ExtendPreviewBody = z.infer<typeof ExtendPreviewBody>;
+})
+export type ExtendPreviewBody = z.infer<typeof ExtendPreviewBody>
 
 // ── Fleet: Database actions ───────────────────────────────
 
 export const DatabaseOperationBody = z.object({
   spec: z.record(z.unknown()).default({}),
-});
-export type DatabaseOperationBody = z.infer<typeof DatabaseOperationBody>;
+})
+export type DatabaseOperationBody = z.infer<typeof DatabaseOperationBody>
 
 // ── Build: Git Host Provider actions ────────────────────────
 
@@ -154,16 +173,20 @@ export const CreatePullRequestBodyLegacy = z.object({
   body: z.string().optional(),
   head: z.string().min(1),
   base: z.string().min(1),
-});
-export type CreatePullRequestBodyLegacy = z.infer<typeof CreatePullRequestBodyLegacy>;
+})
+export type CreatePullRequestBodyLegacy = z.infer<
+  typeof CreatePullRequestBodyLegacy
+>
 
 /** @deprecated Use MergePullRequestBody on repos instead */
 export const MergePullRequestBodyLegacy = z.object({
   repoSlug: z.string().min(1),
   prNumber: z.number().int(),
   mergeMethod: z.enum(["merge", "squash", "rebase"]).optional(),
-});
-export type MergePullRequestBodyLegacy = z.infer<typeof MergePullRequestBodyLegacy>;
+})
+export type MergePullRequestBodyLegacy = z.infer<
+  typeof MergePullRequestBodyLegacy
+>
 
 /** Create a PR on this repo — no repoSlug needed, the repo IS the entity */
 export const CreatePullRequestBody = z.object({
@@ -171,15 +194,15 @@ export const CreatePullRequestBody = z.object({
   body: z.string().optional(),
   head: z.string().min(1),
   base: z.string().min(1),
-});
-export type CreatePullRequestBody = z.infer<typeof CreatePullRequestBody>;
+})
+export type CreatePullRequestBody = z.infer<typeof CreatePullRequestBody>
 
 /** Merge a PR on this repo — no repoSlug needed, the repo IS the entity */
 export const MergePullRequestBody = z.object({
   prNumber: z.number().int(),
   mergeMethod: z.enum(["merge", "squash", "rebase"]).optional(),
-});
-export type MergePullRequestBody = z.infer<typeof MergePullRequestBody>;
+})
+export type MergePullRequestBody = z.infer<typeof MergePullRequestBody>
 
 // ── Build: Pipeline Run actions ─────────────────────────────
 
@@ -187,15 +210,15 @@ export const TriggerBuildBody = z.object({
   repoId: z.string().min(1),
   branch: z.string().optional(),
   commitSha: z.string().optional(),
-});
-export type TriggerBuildBody = z.infer<typeof TriggerBuildBody>;
+})
+export type TriggerBuildBody = z.infer<typeof TriggerBuildBody>
 
 // ── Product: Work item actions ──────────────────────────────
 
 export const PushWorkItemBody = z.object({
   workTrackerProviderId: z.string().min(1),
-});
-export type PushWorkItemBody = z.infer<typeof PushWorkItemBody>;
+})
+export type PushWorkItemBody = z.infer<typeof PushWorkItemBody>
 
 // ── Messaging: Channel mapping ──────────────────────────────
 
@@ -203,101 +226,128 @@ export const MapChannelBody = z.object({
   externalChannelId: z.string().min(1),
   externalChannelName: z.string().optional(),
   teamId: z.string().optional(),
-});
-export type MapChannelBody = z.infer<typeof MapChannelBody>;
+})
+export type MapChannelBody = z.infer<typeof MapChannelBody>
 
 export const LinkMessagingUserBody = z.object({
   externalUserId: z.string().min(1),
   principalId: z.string().min(1),
-});
-export type LinkMessagingUserBody = z.infer<typeof LinkMessagingUserBody>;
+})
+export type LinkMessagingUserBody = z.infer<typeof LinkMessagingUserBody>
+
+// ── Thread actions ──────────────────────────────────────────
+
+export const CompleteThreadBody = z.object({
+  result: z
+    .object({
+      summary: z.string().optional(),
+      artifacts: z.array(z.string()).optional(),
+      commitRange: z.string().optional(),
+    })
+    .optional(),
+})
+export type CompleteThreadBody = z.infer<typeof CompleteThreadBody>
+
+export const ForkThreadBody = z.object({
+  source: z.string().optional(),
+  spec: z.record(z.unknown()).optional(),
+  continuationNote: z.string().optional(),
+})
+export type ForkThreadBody = z.infer<typeof ForkThreadBody>
 
 // ── Fleet: Release actions ──────────────────────────────────
 
 export const PromoteReleaseBody = z.object({
   targetSites: z.array(z.string()).optional(),
   strategy: z.enum(["rolling", "blue-green", "canary"]).optional(),
-});
-export type PromoteReleaseBody = z.infer<typeof PromoteReleaseBody>;
+})
+export type PromoteReleaseBody = z.infer<typeof PromoteReleaseBody>
 
 // ── Infra: Substrate actions ────────────────────────────────
 
 export const SyncSubstrateBody = z.object({
   force: z.boolean().default(false),
-});
-export type SyncSubstrateBody = z.infer<typeof SyncSubstrateBody>;
+})
+export type SyncSubstrateBody = z.infer<typeof SyncSubstrateBody>
 
 // ── Infra: Runtime actions ──────────────────────────────────
 
 export const UpgradeRuntimeBody = z.object({
   targetVersion: z.string().min(1),
   strategy: z.enum(["in-place", "rolling", "blue-green"]).default("rolling"),
-});
-export type UpgradeRuntimeBody = z.infer<typeof UpgradeRuntimeBody>;
+})
+export type UpgradeRuntimeBody = z.infer<typeof UpgradeRuntimeBody>
 
 // ── Infra: Host actions ─────────────────────────────────────
 
 export const HostLifecycleBody = z.object({
   reason: z.string().optional(),
-});
-export type HostLifecycleBody = z.infer<typeof HostLifecycleBody>;
+})
+export type HostLifecycleBody = z.infer<typeof HostLifecycleBody>
 
 export const ResizeHostBody = z.object({
   cpu: z.number().int().optional(),
   memoryMb: z.number().int().optional(),
   diskGb: z.number().int().optional(),
-});
-export type ResizeHostBody = z.infer<typeof ResizeHostBody>;
+})
+export type ResizeHostBody = z.infer<typeof ResizeHostBody>
 
 export const MigrateHostBody = z.object({
   targetSubstrateId: z.string().min(1),
   reason: z.string().optional(),
-});
-export type MigrateHostBody = z.infer<typeof MigrateHostBody>;
+})
+export type MigrateHostBody = z.infer<typeof MigrateHostBody>
 
 export const CloneHostBody = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-});
-export type CloneHostBody = z.infer<typeof CloneHostBody>;
+})
+export type CloneHostBody = z.infer<typeof CloneHostBody>
 
 export const SnapshotHostBody = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
-});
-export type SnapshotHostBody = z.infer<typeof SnapshotHostBody>;
+})
+export type SnapshotHostBody = z.infer<typeof SnapshotHostBody>
 
 export const RestoreHostSnapshotBody = z.object({
   snapshotId: z.string().min(1),
-});
-export type RestoreHostSnapshotBody = z.infer<typeof RestoreHostSnapshotBody>;
+})
+export type RestoreHostSnapshotBody = z.infer<typeof RestoreHostSnapshotBody>
+
+export { HostScanResultSchema } from "./infra"
+
+export const ScanHostBody = z.object({
+  scanResult: HostScanResultSchema,
+})
+export type ScanHostBody = z.infer<typeof ScanHostBody>
 
 // ── Infra: Tunnel actions ───────────────────────────────────
 
 export const CloseTunnelBody = z.object({
   reason: z.string().optional(),
-});
-export type CloseTunnelBody = z.infer<typeof CloseTunnelBody>;
+})
+export type CloseTunnelBody = z.infer<typeof CloseTunnelBody>
 
 // ── Infra: Secret actions ───────────────────────────────────
 
 export const RevokeSecretBody = z.object({
   reason: z.string().optional(),
-});
-export type RevokeSecretBody = z.infer<typeof RevokeSecretBody>;
+})
+export type RevokeSecretBody = z.infer<typeof RevokeSecretBody>
 
 // ── Infra: IP Address actions ───────────────────────────────
 
 export const AssignIpBody = z.object({
   assignedToType: z.string().min(1),
   assignedToId: z.string().min(1),
-});
-export type AssignIpBody = z.infer<typeof AssignIpBody>;
+})
+export type AssignIpBody = z.infer<typeof AssignIpBody>
 
 export const AllocateIpBody = z.object({
   subnetId: z.string().min(1),
   assignedToType: z.string().optional(),
   assignedToId: z.string().optional(),
   strategy: z.enum(["sequential", "random"]).default("sequential"),
-});
-export type AllocateIpBody = z.infer<typeof AllocateIpBody>;
+})
+export type AllocateIpBody = z.infer<typeof AllocateIpBody>
