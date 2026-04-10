@@ -406,6 +406,7 @@ Design spec: `plans/immutable-prancing-crown.md`
 
 ### Deferred
 
+- [ ] `dx check` tool resolution: oxlint/prettier not found when not installed globally — pre-push hook fails on machines without global installs
 - [ ] SonarQube integration — hooks designed (`dx check --report sonar`), needs SonarQube instance + token config
 - [ ] Coverage enforcement — schema supports `min-line`/`min-branch` but not wired to actual coverage collection yet
 - [ ] `dx check --ci` in CI workflow — currently CI uses raw `pnpm lint`/`pnpm typecheck`; switch to `dx check --ci` once dx binary is available in CI
@@ -421,7 +422,13 @@ Design spec: `plans/immutable-prancing-crown.md`
 Spec: `docs/superpowers/specs/2026-03-28-chat-sdk-agent-layer-design.md`
 
 - [ ] Scaffold `agent-chat/` Next.js app in monorepo (Chat SDK + Vercel Workflow + AI SDK)
-- [ ] Chat SDK Slack adapter setup + webhook route
+- [x] Chat SDK Slack adapter setup + webhook route
+  - Chat SDK integrated into Elysia API server (not separate app), echo bot working
+  - Curl-based axios adapter for Bun HTTPS compat (`bun-https-fix.ts`)
+  - In-memory state adapter (`@chat-adapter/state-memory`)
+- [ ] Replace in-memory state with persistent state adapter (Redis or custom DB-backed)
+- [ ] Extract shared curl HTTP utility from `bun-https-fix.ts` and `slack-client.ts`
+- [ ] Capture Slack rate-limit response headers (`Retry-After`) in curl adapter for proper backoff
 - [ ] Custom state adapter: Chat SDK state → `factory_org.message_thread` + Redis locks
 - [ ] Factory API client (typed HTTP client for bot → Factory API communication)
 - [ ] Durable conversation workflow (Vercel Workflow: start on @mention, resume on messages/actions)
