@@ -16,6 +16,7 @@ import type {
   ScopeSpec,
   SshKeySpec,
   TeamSpec,
+  ThreadChannelSpec,
   ThreadSpec,
   ThreadTurnSpec,
   ToolCredentialSpec,
@@ -738,6 +739,44 @@ export const threadParticipant = orgSchema.table(
     check(
       "org_thread_participant_role_valid",
       sql`${t.role} IN ('initiator', 'collaborator', 'observer', 'delegator', 'delegate')`
+    ),
+  ]
+)
+
+// ─── Thread Channel (surface) ────────────────────────────
+// Links a thread to additional channels (surfaces) beyond its origin channelId.
+// E.g. mirror a Claude Code session to a Slack thread.
+
+export const threadChannel = orgSchema.table(
+  "thread_channel",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("tc")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => channel.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    status: text("status").notNull().default("connected"),
+    spec: specCol<ThreadChannelSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("org_thread_channel_unique").on(t.threadId, t.channelId),
+    index("org_thread_channel_thread_idx").on(t.threadId),
+    index("org_thread_channel_channel_idx").on(t.channelId),
+    index("org_thread_channel_status_idx").on(t.status),
+    check(
+      "org_thread_channel_role_valid",
+      sql`${t.role} IN ('mirror', 'subscriber', 'active')`
+    ),
+    check(
+      "org_thread_channel_status_valid",
+      sql`${t.status} IN ('connected', 'detached', 'paused')`
     ),
   ]
 )

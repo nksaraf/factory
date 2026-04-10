@@ -812,6 +812,45 @@ export const ThreadParticipantSchema = z.object({
 })
 export type ThreadParticipant = z.infer<typeof ThreadParticipantSchema>
 
+// ── Thread Channel (surface) ───────────────────────────────
+
+export const ThreadChannelRoleSchema = z.enum([
+  "mirror",
+  "subscriber",
+  "active",
+])
+export type ThreadChannelRole = z.infer<typeof ThreadChannelRoleSchema>
+
+export const ThreadChannelStatusSchema = z.enum([
+  "connected",
+  "detached",
+  "paused",
+])
+export type ThreadChannelStatus = z.infer<typeof ThreadChannelStatusSchema>
+
+export const ThreadChannelSpecSchema = z.object({
+  slackThreadTs: z.string().optional(),
+  chatSdkThreadId: z.string().optional(),
+  slackChannelName: z.string().optional(),
+  lastSyncedTurnIndex: z.number().optional(),
+  relayPolicy: z.enum(["all", "summaries-only", "none"]).optional(),
+  connectedAt: z.string().optional(),
+  detachedAt: z.string().optional(),
+})
+export type ThreadChannelSpec = z.infer<typeof ThreadChannelSpecSchema>
+
+export const ThreadChannelSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  channelId: z.string(),
+  role: ThreadChannelRoleSchema,
+  status: ThreadChannelStatusSchema.default("connected"),
+  spec: ThreadChannelSpecSchema.default({}),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+export type ThreadChannel = z.infer<typeof ThreadChannelSchema>
+
 // ── Input Schemas (CREATE / UPDATE) ────────────────────────
 
 export const CreateTeamSchema = z.object({

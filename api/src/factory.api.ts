@@ -49,6 +49,7 @@ import { messagingControllerV2 } from "./modules/messaging/index.v2"
 import { observabilityController } from "./modules/observability/index"
 import { presenceController } from "./modules/presence/index"
 import { productControllerV2 } from "./modules/product/index.v2"
+import { threadSurfacesController } from "./modules/thread-surfaces/thread-surfaces.controller"
 import { threadsControllerV2 } from "./modules/threads/index.v2"
 import { jiraWebhookTrigger } from "./modules/workflow/triggers/jira-webhook"
 import { workflowController } from "./modules/workflow/triggers/rest"
@@ -143,6 +144,7 @@ export class FactoryAPI {
       .use(workflowController(db))
       .use(ideHookController(db))
       .use(threadsControllerV2(db))
+      .use(threadSurfacesController(db))
       .use(documentsController(db))
       .use(catalogController(db))
 

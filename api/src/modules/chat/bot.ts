@@ -8,7 +8,7 @@ import { logger } from "../../logger"
 
 const log = logger.child({ module: "chat-sdk" })
 
-const adapters: Record<string, any> = {}
+export const adapters: Record<string, any> = {}
 
 if (process.env.SLACK_SIGNING_SECRET) {
   const { createSlackAdapter } = await import("@chat-adapter/slack")

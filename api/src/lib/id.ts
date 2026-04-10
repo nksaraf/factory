@@ -126,6 +126,7 @@ export type EntityPrefix =
   | "thrd" // thread
   | "turn" // thread_turn
   | "tprt" // thread_participant
+  | "tc" // thread_channel (surface)
   | "doc" // document
   | "docv" // document_version
 

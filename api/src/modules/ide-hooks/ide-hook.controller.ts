@@ -18,6 +18,12 @@ import {
 } from "../../db/schema/org-v2"
 import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
+import {
+  autoAttachSlackSurface,
+  detachSurfaces,
+  findThreadBySessionId,
+  postToSurface,
+} from "../thread-surfaces/slack-surface"
 
 const log = logger.child({ module: "ide-hooks" })
 
@@ -707,16 +713,16 @@ export function ideHookController(db: Database) {
             "ide hook event recorded"
           )
 
+          const payload = {
+            sessionId: body.sessionId,
+            timestamp: body.timestamp,
+            cwd: body.cwd,
+            project: body.project,
+            ...((body.payload as Record<string, unknown>) ?? {}),
+          }
+
           // Dual-write to thread entities (best-effort, don't fail the event)
           try {
-            const payload = {
-              sessionId: body.sessionId,
-              timestamp: body.timestamp,
-              cwd: body.cwd,
-              project: body.project,
-              ...((body.payload as Record<string, unknown>) ?? {}),
-            }
-
             if (body.eventType === "thread.summary") {
               const channelId = await upsertChannel(db, body.source, payload)
               await upsertThread(
@@ -741,6 +747,51 @@ export function ideHookController(db: Database) {
             }
           } catch (err) {
             log.warn({ err, eventId }, "dual-write to thread entities failed")
+          }
+
+          // Slack surface mirroring (best-effort, non-blocking)
+          try {
+            if (body.eventType === "session.start") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                await autoAttachSlackSurface(
+                  db,
+                  thrd.id,
+                  principalId,
+                  body.source,
+                  payload
+                )
+              }
+            } else if (body.eventType === "prompt.submit") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const p = payload as Record<string, any>
+                const prompt = typeof p.prompt === "string" ? p.prompt : ""
+                await postToSurface(db, thrd.id, prompt, "user")
+              }
+            } else if (body.eventType === "agent.stop") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const p = payload as Record<string, any>
+                await postToSurface(
+                  db,
+                  thrd.id,
+                  p.responseSummary ?? "",
+                  "assistant",
+                  { source: body.source }
+                )
+              }
+            } else if (body.eventType === "session.end") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                await postToSurface(db, thrd.id, "", "end", {
+                  threadSpec: thrd.spec,
+                })
+                await detachSurfaces(db, thrd.id)
+              }
+            }
+          } catch (err) {
+            log.warn({ err, eventId }, "slack surface posting failed")
           }
 
           set.status = 202
