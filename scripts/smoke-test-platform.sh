@@ -341,10 +341,13 @@ if [ "${STATE:-}" = "active" ]; then
     fail "ssh: chained commands"
   fi
 
-  # SSH config sync
+  # SSH config sync — local mode uses loopback SSH so workspaces won't appear
+  # in config sync targets (by design). Only test in cloud/dev modes.
   echo ""
   echo "--- Step 10b: SSH config sync ---"
-  if SSH_CONFIG_OUTPUT=$($DX ssh config sync --dry-run 2>/dev/null); then
+  if [ "$MODE" = "local" ]; then
+    skip "ssh config sync (local mode uses loopback — targets excluded by design)"
+  elif SSH_CONFIG_OUTPUT=$($DX ssh config sync --dry-run 2>/dev/null); then
     if echo "$SSH_CONFIG_OUTPUT" | grep -q "Host.*$WS_SLUG"; then
       pass "ssh config sync: workspace entry generated"
 
