@@ -31,10 +31,13 @@ async function curlAdapter(config: any): Promise<any> {
         ? `${config.baseURL.replace(/\/$/, "")}/${rawUrl.replace(/^\//, "")}`
         : rawUrl
 
+  // -w appends HTTP status code after response body, separated by newline
   const args = [
     "-s",
     "--max-time",
     "30",
+    "-w",
+    "\n%{http_code}",
     "-X",
     config.method?.toUpperCase() ?? "POST",
   ]
@@ -56,21 +59,24 @@ async function curlAdapter(config: any): Promise<any> {
     args.push("-d", body)
   }
 
-  // Include response headers for completeness
-  args.push("-D", "/dev/stderr", url)
+  args.push(url)
 
   try {
-    const { stdout, stderr } = await execFileAsync("curl", args)
+    const { stdout } = await execFileAsync("curl", args)
 
-    // Parse response headers from stderr
-    const statusMatch = stderr.match(/HTTP\/[\d.]+ (\d+)/)
-    const status = statusMatch ? parseInt(statusMatch[1], 10) : 200
+    // Split response body from status code (last line)
+    const lastNewline = stdout.lastIndexOf("\n")
+    const responseBody =
+      lastNewline >= 0 ? stdout.slice(0, lastNewline) : stdout
+    const statusStr =
+      lastNewline >= 0 ? stdout.slice(lastNewline + 1).trim() : "200"
+    const status = parseInt(statusStr, 10) || 200
 
     let data: any
     try {
-      data = JSON.parse(stdout)
+      data = JSON.parse(responseBody)
     } catch {
-      data = stdout
+      data = responseBody
     }
 
     return { data, status, statusText: "OK", headers: {}, config }
