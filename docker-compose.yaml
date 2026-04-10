@@ -39,6 +39,7 @@ services:
         condition: service_healthy
     volumes:
       - ./infra/factory/application.yml:/app/config/application.yml:ro
+      - factory-documents:/data/documents
     environment:
       PORT: 4100
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
@@ -403,3 +404,4 @@ volumes:
   powersync-mongo-data:
   redis-data:
   loki-data:
+  factory-documents:

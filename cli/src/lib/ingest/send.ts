@@ -179,6 +179,81 @@ export async function sendEvent(
   return { success: data.success, duplicate: data.duplicate }
 }
 
+export async function uploadDocument(opts: {
+  path: string
+  content: string
+  type: string
+  source?: string
+  title?: string
+  threadId?: string
+  channelId?: string
+  version?: number
+  parentId?: string
+  contentHash?: string
+  spec: Record<string, unknown>
+  dryRun?: boolean
+}): Promise<{ success: boolean; id?: string; duplicate?: boolean }> {
+  if (opts.dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          action: "upload-document",
+          path: opts.path,
+          type: opts.type,
+          title: opts.title,
+          version: opts.version,
+        },
+        null,
+        2
+      )
+    )
+    return { success: true }
+  }
+
+  const auth = await ensureAuth()
+
+  const body: Record<string, unknown> = {
+    path: opts.path,
+    type: opts.type,
+    spec: opts.spec,
+  }
+  if (opts.source) body.source = opts.source
+  if (opts.title) body.title = opts.title
+  if (opts.threadId) body.threadId = opts.threadId
+  if (opts.channelId) body.channelId = opts.channelId
+  if (opts.version != null) body.version = opts.version
+  if (opts.parentId) body.parentId = opts.parentId
+  if (opts.contentHash) body.contentHash = opts.contentHash
+  if (opts.content) {
+    body.content = opts.content
+    body.sizeBytes = Buffer.byteLength(opts.content, "utf-8")
+  }
+
+  const res = await fetch(`${auth.url}/api/v1/factory/documents/documents`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${auth.token}`,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    // Duplicate path → treat as success
+    if (res.status === 409 || text.includes("unique")) {
+      return { success: true, duplicate: true }
+    }
+    throw new Error(
+      `Upload document failed: ${res.status} ${text.slice(0, 200)}`
+    )
+  }
+
+  const data = (await res.json()) as any
+  return { success: true, id: data?.id }
+}
+
 export async function sendBatch(
   events: IngestEvent[],
   opts: { dryRun: boolean; verbose: boolean }

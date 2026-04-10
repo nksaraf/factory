@@ -749,7 +749,7 @@ export const ThreadTurnSpecSchema = z.object({
       z.object({
         name: z.string(),
         input: z.string().optional(),
-      }),
+      })
     )
     .optional(),
   toolErrors: z
@@ -758,7 +758,7 @@ export const ThreadTurnSpecSchema = z.object({
         toolName: z.string(),
         error: z.string(),
         errorClass: z.string(),
-      }),
+      })
     )
     .optional(),
   // terminal turns
@@ -791,9 +791,7 @@ export const ThreadParticipantRoleSchema = z.enum([
   "delegator",
   "delegate",
 ])
-export type ThreadParticipantRole = z.infer<
-  typeof ThreadParticipantRoleSchema
->
+export type ThreadParticipantRole = z.infer<typeof ThreadParticipantRoleSchema>
 
 export const ThreadParticipantSchema = z.object({
   id: z.string(),
@@ -979,3 +977,53 @@ export const CreateOrgSecretSchema = z.object({
   spec: OrgSecretSpecSchema.default({}),
 })
 export const UpdateOrgSecretSchema = CreateOrgSecretSchema.partial()
+
+// ── Document ─────────────────────────────────────────────────
+
+export const DocumentSpecSchema = z.object({
+  title: z.string().optional(),
+  slug: z.string().optional(),
+  project: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  sourceRef: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  syncedAt: z.string().optional(),
+  // Plan-specific extensions
+  titleHistory: z.array(z.string()).optional(),
+  editCount: z.number().int().optional(),
+  sessionsInvolved: z.array(z.string()).optional(),
+})
+export type DocumentSpec = z.infer<typeof DocumentSpecSchema>
+
+export const DocumentSchema = z.object({
+  id: z.string(),
+  path: z.string(),
+  type: z.string(),
+  source: z.string().nullable(),
+  title: z.string().nullable(),
+  threadId: z.string().nullable(),
+  channelId: z.string().nullable(),
+  version: z.number().int().nullable(),
+  parentId: z.string().nullable(),
+  contentHash: z.string().nullable(),
+  sizeBytes: z.number().int().nullable(),
+  spec: DocumentSpecSchema,
+  createdAt: z.coerce.date(),
+})
+export type Document = z.infer<typeof DocumentSchema>
+
+export const CreateDocumentSchema = z.object({
+  path: z.string().min(1),
+  type: z.string().min(1),
+  source: z.string().optional(),
+  title: z.string().optional(),
+  threadId: z.string().optional(),
+  channelId: z.string().optional(),
+  version: z.number().int().optional(),
+  parentId: z.string().optional(),
+  contentHash: z.string().optional(),
+  sizeBytes: z.number().int().optional(),
+  spec: DocumentSpecSchema.default({}),
+  content: z.string().optional(),
+})
+export const UpdateDocumentSchema = CreateDocumentSchema.partial()

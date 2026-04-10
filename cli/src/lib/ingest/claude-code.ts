@@ -24,7 +24,14 @@ import {
   truncSummary,
   truncText,
 } from "./common.js"
-import { sendBatch } from "./send.js"
+import {
+  type GroupedPlan,
+  type PlanEditSummary,
+  type PlanSnapshot,
+  extractPlansFromTranscript,
+  groupPlanSnapshots,
+} from "./plan-extractor.js"
+import { sendBatch, uploadDocument } from "./send.js"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -483,6 +490,79 @@ function parseSession(
   return { events, sessionId }
 }
 
+// ── Plan upload ──────────────────────────────────────────────
+
+async function uploadPlans(
+  plans: GroupedPlan[],
+  opts: { dryRun: boolean; verbose: boolean }
+): Promise<{ uploaded: number; duplicates: number; errors: number }> {
+  let uploaded = 0
+  let duplicates = 0
+  let errors = 0
+
+  for (const plan of plans) {
+    const latestVersion = plan.versions[plan.versions.length - 1]
+
+    // Upload the parent document (current/latest version)
+    try {
+      const result = await uploadDocument({
+        path: `plan/${plan.slug}/current.md`,
+        content: latestVersion.content,
+        type: "plan",
+        source: "claude-code",
+        title: plan.title,
+        contentHash: latestVersion.contentHash,
+        spec: {
+          title: plan.title,
+          slug: plan.slug,
+          project: latestVersion.project,
+          titleHistory: plan.titleHistory,
+          editCount: plan.totalEdits,
+          sessionsInvolved: plan.sessionsInvolved,
+        },
+        dryRun: opts.dryRun,
+      })
+      if (result.duplicate) {
+        duplicates++
+      } else {
+        uploaded++
+      }
+
+      // Upload each version snapshot
+      for (const version of plan.versions) {
+        try {
+          await uploadDocument({
+            path: `plan/${plan.slug}/versions/v${version.version}.md`,
+            content: version.content,
+            type: "plan",
+            source: "claude-code",
+            title: version.title,
+            version: version.version,
+            contentHash: version.contentHash,
+            spec: {
+              title: version.title,
+              slug: plan.slug,
+              project: version.project,
+            },
+            dryRun: opts.dryRun,
+          })
+        } catch (err) {
+          if (opts.verbose)
+            console.error(
+              `  [plan-err] ${plan.slug} v${version.version}: ${err}`
+            )
+          errors++
+        }
+      }
+    } catch (err) {
+      if (opts.verbose) console.error(`  [plan-err] ${plan.slug}: ${err}`)
+      errors++
+    }
+  }
+
+  return { uploaded, duplicates, errors }
+}
+
 // ── Public API ───────────────────────────────────────────────
 
 export function countSessions(): number {
@@ -505,10 +585,16 @@ export async function ingestClaudeCode(
   console.error(`  Found ${files.length} session files`)
 
   const allEvents: IngestEvent[] = []
+  const allPlanSnapshots: PlanSnapshot[] = []
+  const allPlanEdits: PlanEditSummary[] = []
   let processed = 0
 
   for (const file of files) {
     if (allEvents.length >= opts.limit) break
+
+    const sessionId = basename(file, ".jsonl")
+    // Derive project from directory structure: ~/.claude/projects/{projectDir}/{sessionId}.jsonl
+    const projectDir = basename(join(file, ".."))
 
     try {
       const result = parseSession(file)
@@ -520,6 +606,15 @@ export async function ingestClaudeCode(
       if (opts.verbose) console.error(`  [skip] ${basename(file)}: ${err}`)
     }
 
+    // Extract plans from this session
+    try {
+      const planResult = extractPlansFromTranscript(file, sessionId, projectDir)
+      allPlanSnapshots.push(...planResult.snapshots)
+      allPlanEdits.push(...planResult.edits)
+    } catch (err) {
+      if (opts.verbose) console.error(`  [plan-skip] ${basename(file)}: ${err}`)
+    }
+
     processed++
     if (processed % 50 === 0 || processed === files.length) {
       console.error(
@@ -529,6 +624,18 @@ export async function ingestClaudeCode(
   }
 
   console.error(`  Parsed ${allEvents.length} events from ${processed} files`)
+
+  // Group and upload plans
+  const groupedPlans = groupPlanSnapshots(allPlanSnapshots, allPlanEdits)
+  if (groupedPlans.length > 0) {
+    console.error(
+      `  Found ${groupedPlans.length} plans (${allPlanSnapshots.length} versioned snapshots)`
+    )
+    const planResult = await uploadPlans(groupedPlans, opts)
+    console.error(
+      `  Plans: ${planResult.uploaded} uploaded, ${planResult.duplicates} duplicates, ${planResult.errors} errors`
+    )
+  }
 
   return sendBatch(allEvents, opts)
 }

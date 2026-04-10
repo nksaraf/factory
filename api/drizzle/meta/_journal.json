@@ -64,6 +64,13 @@
       "when": 1776192000000,
       "tag": "0008_adoption-analytics-views",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776278400000,
+      "tag": "0009_document-store",
+      "breakpoints": true
     }
   ]
 }

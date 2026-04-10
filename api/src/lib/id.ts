@@ -126,6 +126,7 @@ export type EntityPrefix =
   | "thrd" // thread
   | "turn" // thread_turn
   | "tprt" // thread_participant
+  | "doc" // document
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`

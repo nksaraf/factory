@@ -33,6 +33,7 @@ import { buildControllerV2 } from "./modules/build/index.v2"
 import { webhookController } from "./modules/build/webhook.controller"
 import { catalogController } from "./modules/catalog/catalog.controller"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
+import { documentsController } from "./modules/documents/index"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
@@ -141,6 +142,7 @@ export class FactoryAPI {
       .use(workflowController(db))
       .use(ideHookController(db))
       .use(threadsControllerV2(db))
+      .use(documentsController(db))
       .use(catalogController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
