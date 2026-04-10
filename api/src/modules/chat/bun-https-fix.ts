@@ -17,9 +17,25 @@ import { promisify } from "node:util"
 
 const execFileAsync = promisify(execFile)
 
+const STATUS_TEXT: Record<number, string> = {
+  200: "OK",
+  201: "Created",
+  204: "No Content",
+  400: "Bad Request",
+  401: "Unauthorized",
+  403: "Forbidden",
+  404: "Not Found",
+  429: "Too Many Requests",
+  500: "Internal Server Error",
+}
+
 /**
  * Axios adapter that uses curl subprocess for HTTP requests.
  * Returns a proper axios-compatible response object.
+ *
+ * Note: response headers are not captured — Slack rate-limit headers
+ * (Retry-After) won't be available. WebClient's built-in retry logic
+ * falls back to exponential backoff when headers are missing.
  */
 async function curlAdapter(config: any): Promise<any> {
   const rawUrl = config.url ?? ""
@@ -61,6 +77,13 @@ async function curlAdapter(config: any): Promise<any> {
 
   args.push(url)
 
+  let pathname: string
+  try {
+    pathname = new URL(url).pathname
+  } catch {
+    pathname = url
+  }
+
   try {
     const { stdout } = await execFileAsync("curl", args)
 
@@ -82,13 +105,14 @@ async function curlAdapter(config: any): Promise<any> {
     return {
       data,
       status,
-      statusText: "OK",
+      statusText: STATUS_TEXT[status] ?? String(status),
       headers: {},
       config,
-      request: { path: new URL(url).pathname },
+      request: { path: pathname },
     }
   } catch (err: any) {
-    throw new Error(`curl request to ${url} failed: ${err.message}`)
+    const detail = err.stderr?.trim() || err.message
+    throw new Error(`curl request to ${url} failed: ${detail}`)
   }
 }
 
@@ -97,8 +121,6 @@ try {
   const { WebClient } = await import("@slack/web-api")
   const OriginalConstructor = WebClient as any
 
-  // Patch the prototype's constructor behavior by wrapping the axios instance
-  // after construction. We use a post-construction hook via a patched method.
   const origMakeRequest = OriginalConstructor.prototype.makeRequest
 
   OriginalConstructor.prototype.makeRequest = function (

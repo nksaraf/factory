@@ -1,6 +1,6 @@
+// must be first — patches @slack/web-api for Bun HTTPS compat
 import "./bun-https-fix"
 
-// must be first — patches @slack/web-api for Bun HTTPS compat
 import { createMemoryState } from "@chat-adapter/state-memory"
 import { Chat } from "chat"
 
