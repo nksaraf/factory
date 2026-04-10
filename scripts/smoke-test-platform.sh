@@ -171,10 +171,17 @@ elif [ "$MODE" = "dev" ]; then
   AUTH_PORT="${INFRA_AUTH_PORT:-8180}"
   AUTH_URL="http://localhost:$AUTH_PORT"
   echo "  Waiting for auth service at $AUTH_URL ..."
-  for i in $(seq 1 45); do
+  for _i in $(seq 1 45); do
     if curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then break; fi
     sleep 2
   done
+  if ! curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then
+    fail "auth: service at $AUTH_URL did not become ready within 90s"
+    (cd "$REPO_ROOT" && docker compose logs infra-auth --tail=30 2>/dev/null) || true
+    echo ""
+    echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
+    exit 1
+  fi
 
   CI_EMAIL="ci-smoke@factory.test"
   CI_PASSWORD="CiSmoke2026-xZ"
@@ -205,10 +212,11 @@ elif [ "$MODE" = "dev" ]; then
     JWT=$(echo "$SESSION_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
   fi
 
-  # Persist tokens in the dx session file so the CLI picks them up
-  DX_SESSION_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/dx"
+  # Persist tokens in the dx session file so the CLI picks them up.
+  # Derive path from the same config dir the CLI uses (platform-aware).
+  DX_SESSION_DIR="$(dirname "$DX_CONFIG_FILE")"
   mkdir -p "$DX_SESSION_DIR"
-  printf '{"bearerToken":"%s","jwt":"%s"}' "${BEARER:-}" "${JWT:-}" > "$DX_SESSION_DIR/session.json"
+  jq -n --arg b "${BEARER:-}" --arg j "${JWT:-}" '{bearerToken: $b, jwt: $j}' > "$DX_SESSION_DIR/session.json"
 
   if [ -n "$JWT" ]; then
     pass "auth: CI user JWT obtained"
@@ -218,6 +226,9 @@ elif [ "$MODE" = "dev" ]; then
     fail "auth: could not obtain tokens from auth service"
     echo "  Sign-in response (last 10 lines):"
     echo "$SIGNIN_RESP" | tail -10 | sed 's/^/    /'
+    echo ""
+    echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
+    exit 1
   fi
 
   # Now run setup — docker-compose up is idempotent, so the already-running
