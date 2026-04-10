@@ -31,17 +31,13 @@ function normalizeSlackEventType(eventType: string): string {
 }
 
 export function messagingWebhookController(db: Database) {
-  return new Elysia({ prefix: "/webhooks" })
-    .derive(async ({ request }) => {
-      // Capture the raw body BEFORE Elysia consumes it.
-      // The Chat SDK verifies the Slack signing signature against the exact
-      // original body bytes — we must preserve them byte-for-byte.
-      const rawBody = await request.clone().text()
-      return { rawBody }
-    })
-    .post(
+  return new Elysia({ prefix: "/webhooks" }).post(
     "/messaging/:providerId",
-    async ({ params, request, rawBody }) => {
+    async ({ params, request }) => {
+      // Read the raw body for Slack signature verification.
+      // With parse: 'none', Elysia skips body parsing so we can read
+      // the original bytes. The Chat SDK needs exact bytes for HMAC verification.
+      const rawBody = await request.text()
       const slackPayload = JSON.parse(rawBody)
       const slackEventType =
         (slackPayload as any)?.event?.type ??
@@ -114,6 +110,7 @@ export function messagingWebhookController(db: Database) {
     },
     {
       params: t.Object({ providerId: t.String() }),
+      parse: "none" as const,
       detail: {
         tags: ["Webhooks"],
         summary: "Receive Slack webhook (Chat SDK)",
