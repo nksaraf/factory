@@ -79,7 +79,14 @@ async function curlAdapter(config: any): Promise<any> {
       data = responseBody
     }
 
-    return { data, status, statusText: "OK", headers: {}, config }
+    return {
+      data,
+      status,
+      statusText: "OK",
+      headers: {},
+      config,
+      request: { path: new URL(url).pathname },
+    }
   } catch (err: any) {
     throw new Error(`curl request to ${url} failed: ${err.message}`)
   }
