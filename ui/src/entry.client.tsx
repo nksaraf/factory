@@ -67,7 +67,9 @@ async function boot() {
 
   console.log(rio.env)
   const authService = createAuthClient({
-    baseURL: "https://dev.trafficure.rio.software",
+    baseURL: import.meta.env.DEV
+      ? "http://localhost:8180"
+      : "https://dev.trafficure.rio.software",
     basePath: "/api/v1/auth",
     bearer: true,
   })
