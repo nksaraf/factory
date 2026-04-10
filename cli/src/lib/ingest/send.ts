@@ -251,7 +251,7 @@ export async function uploadDocument(opts: {
   }
 
   const data = (await res.json()) as any
-  return { success: true, id: data?.id }
+  return { success: true, id: data?.id, duplicate: !!data?.upserted }
 }
 
 export async function sendBatch(
