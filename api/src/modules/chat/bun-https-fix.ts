@@ -37,7 +37,7 @@ const STATUS_TEXT: Record<number, string> = {
  * (Retry-After) won't be available. WebClient's built-in retry logic
  * falls back to exponential backoff when headers are missing.
  */
-async function curlAdapter(config: any): Promise<any> {
+export async function curlAdapter(config: any): Promise<any> {
   const rawUrl = config.url ?? ""
   // If url is already absolute, use it directly; otherwise prepend baseURL
   const url =
