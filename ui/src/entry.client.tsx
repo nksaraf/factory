@@ -54,10 +54,10 @@ async function boot() {
   }
 
   rio.extensions.register({
-    // "app.core": () => import("@rio.js/app.core"),
-    // "auth.core": () => import("@rio.js/auth.core"),
+    "app.core": () => import("@rio.js/app.core"),
     // "settings.user": () => import("@rio.js/settings.user"),
     // "settings.organization": () => import("@rio.js/settings.organization"),
+    "factory.auth": () => import("./modules/factory.auth"),
     "factory.fleet": () => import("./modules/factory.fleet"),
     "factory.infra": () => import("./modules/factory.infra"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
@@ -77,10 +77,10 @@ async function boot() {
   rio.services.registerSync("auth", authService)
 
   await rio.extensions.enable(
-    // "app.core",
-    // "auth.core",
+    "app.core",
     // "settings.user",
     // "settings.organization",
+    "factory.auth",
     "factory.fleet",
     "factory.infra",
     "factory.game-viz"

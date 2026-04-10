@@ -1,0 +1,23 @@
+{
+  "id": "factory.auth",
+  "displayName": "Authentication",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "auth",
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.auth.route.page",
+        "displayName": "Auth",
+        "path": "/(root)/(auth)/auth/:page/"
+      }
+    ],
+    "providers": [
+      {
+        "id": "factory.auth.providers.auth-ui",
+        "displayName": "Auth UI Provider"
+      }
+    ]
+  }
+}
