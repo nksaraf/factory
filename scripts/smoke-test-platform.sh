@@ -159,6 +159,70 @@ if [ "$MODE" = "local" ]; then
     exit 1
   fi
 elif [ "$MODE" = "dev" ]; then
+  # Dev mode auth: the factory API requires JWT auth (JWKS).  dx setup's
+  # cluster registration step calls the factory REST API, so we need a valid
+  # JWT *before* setup runs.  Start the compose stack (auth + postgres),
+  # sign up a CI user, sign in to obtain a JWT, then let dx setup proceed.
+  echo "  Pre-starting docker-compose for auth bootstrap..."
+  COMPOSE_ARGS="-d"
+  if [ -n "${DX_NO_BUILD:-}" ]; then COMPOSE_ARGS="$COMPOSE_ARGS --no-build"; fi
+  (cd "$REPO_ROOT" && docker compose up $COMPOSE_ARGS)
+
+  AUTH_PORT="${INFRA_AUTH_PORT:-8180}"
+  AUTH_URL="http://localhost:$AUTH_PORT"
+  echo "  Waiting for auth service at $AUTH_URL ..."
+  for i in $(seq 1 45); do
+    if curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then break; fi
+    sleep 2
+  done
+
+  CI_EMAIL="ci-smoke@factory.test"
+  CI_PASSWORD="CiSmoke2026-xZ"
+
+  # Sign up (ignore error if user already exists from a previous run)
+  curl -s -X POST "$AUTH_URL/api/v1/auth/sign-up/email" \
+    -H "Content-Type: application/json" \
+    -H "Origin: $AUTH_URL" \
+    -d "{\"name\":\"CI Smoke\",\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}" \
+    >/dev/null 2>&1 || true
+
+  # Sign in — capture response headers + body
+  SIGNIN_RESP=$(curl -s -i -X POST "$AUTH_URL/api/v1/auth/sign-in/email" \
+    -H "Content-Type: application/json" \
+    -H "Origin: $AUTH_URL" \
+    -d "{\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}")
+
+  # Extract bearer token (Better Auth set-authorization header)
+  BEARER=$(echo "$SIGNIN_RESP" | grep -i '^set-authorization:' | sed 's/^[^:]*:[[:space:]]*Bearer[[:space:]]*//' | tr -d '\r\n' || true)
+  # Extract JWT if returned directly in sign-in response
+  JWT=$(echo "$SIGNIN_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+
+  # If no JWT yet, fetch it via /get-session using the bearer token
+  if [ -z "$JWT" ] && [ -n "$BEARER" ]; then
+    SESSION_RESP=$(curl -s -i "$AUTH_URL/api/v1/auth/get-session" \
+      -H "Authorization: Bearer $BEARER" \
+      -H "Origin: $AUTH_URL")
+    JWT=$(echo "$SESSION_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)
+  fi
+
+  # Persist tokens in the dx session file so the CLI picks them up
+  DX_SESSION_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/dx"
+  mkdir -p "$DX_SESSION_DIR"
+  printf '{"bearerToken":"%s","jwt":"%s"}' "${BEARER:-}" "${JWT:-}" > "$DX_SESSION_DIR/session.json"
+
+  if [ -n "$JWT" ]; then
+    pass "auth: CI user JWT obtained"
+  elif [ -n "$BEARER" ]; then
+    pass "auth: CI user bearer token obtained (JWT will be refreshed)"
+  else
+    fail "auth: could not obtain tokens from auth service"
+    echo "  Sign-in response (last 10 lines):"
+    echo "$SIGNIN_RESP" | tail -10 | sed 's/^/    /'
+  fi
+
+  # Now run setup — docker-compose up is idempotent, so the already-running
+  # services won't be restarted.  Setup will create k3d, health-check, and
+  # register the cluster using the JWT we just stored.
   if (cd "$REPO_ROOT" && $DX setup --role factory --mode dev --yes); then
     pass "dx setup --role factory --mode dev"
   else
@@ -417,6 +481,9 @@ echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
 
 # Dump compose logs before exit (cleanup trap will tear down containers)
 if [ "$MODE" = "dev" ] && [ "$FAIL" -gt 0 ]; then
+  echo ""
+  echo "--- Auth service logs (last 30 lines) ---"
+  (cd "$REPO_ROOT" && docker compose logs infra-auth --tail=30 2>/dev/null) || true
   echo ""
   echo "--- Factory container logs (last 50 lines) ---"
   (cd "$REPO_ROOT" && docker compose logs infra-factory --tail=50 2>/dev/null) || true
