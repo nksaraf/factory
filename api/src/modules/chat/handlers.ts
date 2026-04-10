@@ -1,7 +1,13 @@
 import { toAiMessages } from "chat"
 import { and, eq, sql } from "drizzle-orm"
 
-import { channel, thread, threadTurn } from "../../db/schema/org-v2"
+import {
+  channel,
+  identityLink,
+  principal,
+  thread,
+  threadTurn,
+} from "../../db/schema/org-v2"
 import { logger } from "../../logger"
 import { getAgent } from "./agent"
 import { bot } from "./bot"
@@ -10,6 +16,51 @@ import { getChatDb } from "./db"
 const log = logger.child({ module: "chat-handlers" })
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+/** Resolved actor identity from an external platform user. */
+interface ResolvedActor {
+  principalId: string | null
+  principalName: string | null
+  principalEmail: string | null
+  externalId: string
+}
+
+/** Resolve a Slack user ID to a factory principal. */
+async function resolveActor(slackUserId: string): Promise<ResolvedActor> {
+  const db = getChatDb()
+  const rows = await db
+    .select({
+      principalId: identityLink.principalId,
+      principalName: principal.name,
+      principalEmail: sql<string>`${principal.spec}->>'email'`,
+    })
+    .from(identityLink)
+    .innerJoin(principal, eq(identityLink.principalId, principal.id))
+    .where(
+      and(
+        eq(identityLink.type, "slack"),
+        eq(identityLink.externalId, slackUserId)
+      )
+    )
+    .limit(1)
+
+  const match = rows[0]
+  if (match) {
+    log.info(
+      { slackUserId, principalId: match.principalId, name: match.principalName },
+      "Resolved Slack user to principal"
+    )
+  } else {
+    log.warn({ slackUserId }, "No principal found for Slack user")
+  }
+
+  return {
+    principalId: match?.principalId ?? null,
+    principalName: match?.principalName ?? null,
+    principalEmail: match?.principalEmail ?? null,
+    externalId: slackUserId,
+  }
+}
 
 /** Parse a Chat SDK thread ID ("slack:CHANNEL:THREAD_TS") into parts. */
 export function parseSlackThreadId(threadId: string) {
@@ -64,7 +115,7 @@ export async function ensureChannel(slackChannelId: string): Promise<string> {
 export async function ensureThread(
   chatSdkThreadId: string,
   channelId: string,
-  authorUserId: string
+  actor: ResolvedActor
 ): Promise<string> {
   const db = getChatDb()
   const existing = await db
@@ -83,11 +134,12 @@ export async function ensureThread(
       type: "chat",
       source: "slack",
       externalId: chatSdkThreadId,
+      principalId: actor.principalId,
       status: "active",
       channelId,
       startedAt: new Date(),
       spec: {
-        participants: [authorUserId],
+        participants: [actor.externalId],
       },
     })
     .onConflictDoNothing()
@@ -136,12 +188,14 @@ export async function recordTurn(
 
 bot.onNewMention(async (chatThread, message) => {
   const { slackChannelId } = parseSlackThreadId(chatThread.id)
-  const authorId = message.author.userId
+  const actor = await resolveActor(message.author.userId)
 
   log.info(
     {
       threadId: chatThread.id,
-      author: authorId,
+      author: actor.externalId,
+      principalId: actor.principalId,
+      principalName: actor.principalName,
       text: message.text?.slice(0, 80),
     },
     "New mention"
@@ -149,8 +203,8 @@ bot.onNewMention(async (chatThread, message) => {
 
   try {
     const channelId = await ensureChannel(slackChannelId)
-    const threadId = await ensureThread(chatThread.id, channelId, authorId)
-    await recordTurn(threadId, "user", message.text ?? "", authorId)
+    const threadId = await ensureThread(chatThread.id, channelId, actor)
+    await recordTurn(threadId, "user", message.text ?? "", actor.externalId)
 
     // Subscribe so follow-ups route to onSubscribedMessage
     await chatThread.subscribe()
@@ -163,10 +217,18 @@ bot.onNewMention(async (chatThread, message) => {
       return
     }
 
+    // Build actor context for the agent
+    const actorContext = actor.principalName
+      ? `The user talking to you is ${actor.principalName}${actor.principalEmail ? ` (${actor.principalEmail})` : ""}.`
+      : `The user's Slack ID is ${actor.externalId} (no linked principal found).`
+
     await chatThread.startTyping("Thinking...")
     const agent = await getAgent()
     const result = await agent.stream({
-      messages: [{ role: "user" as const, content: query }],
+      messages: [
+        { role: "system" as const, content: actorContext },
+        { role: "user" as const, content: query },
+      ],
     })
 
     await chatThread.post(result.fullStream)
@@ -177,13 +239,12 @@ bot.onNewMention(async (chatThread, message) => {
       err instanceof Error ? err.message : "Unknown error"
     log.error({ err, threadId: chatThread.id }, "Failed to handle mention")
 
-    // Record the error as a turn so it's visible in the thread history
     try {
       const channelId = await ensureChannel(slackChannelId)
-      const threadId = await ensureThread(chatThread.id, channelId, authorId)
+      const threadId = await ensureThread(chatThread.id, channelId, actor)
       await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
     } catch (_) {
-      // Best-effort — don't mask the original error
+      // Best-effort
     }
 
     await chatThread
@@ -197,12 +258,14 @@ bot.onSubscribedMessage(async (chatThread, message) => {
   if (message.author.isMe) return
 
   const { slackChannelId } = parseSlackThreadId(chatThread.id)
-  const authorId = message.author.userId
+  const actor = await resolveActor(message.author.userId)
 
   log.info(
     {
       threadId: chatThread.id,
-      author: authorId,
+      author: actor.externalId,
+      principalId: actor.principalId,
+      principalName: actor.principalName,
       text: message.text?.slice(0, 80),
     },
     "Subscribed message"
@@ -210,8 +273,8 @@ bot.onSubscribedMessage(async (chatThread, message) => {
 
   try {
     const channelId = await ensureChannel(slackChannelId)
-    const threadId = await ensureThread(chatThread.id, channelId, authorId)
-    await recordTurn(threadId, "user", message.text ?? "", authorId)
+    const threadId = await ensureThread(chatThread.id, channelId, actor)
+    await recordTurn(threadId, "user", message.text ?? "", actor.externalId)
 
     const query = message.text?.trim()
     if (!query) return
@@ -225,8 +288,18 @@ bot.onSubscribedMessage(async (chatThread, message) => {
     }
     const history = await toAiMessages(threadMessages)
 
+    // Prepend actor context
+    const actorContext = actor.principalName
+      ? `The user talking to you is ${actor.principalName}${actor.principalEmail ? ` (${actor.principalEmail})` : ""}.`
+      : `The user's Slack ID is ${actor.externalId} (no linked principal found).`
+
     const agent = await getAgent()
-    const result = await agent.stream({ messages: history })
+    const result = await agent.stream({
+      messages: [
+        { role: "system" as const, content: actorContext },
+        ...history,
+      ],
+    })
 
     await chatThread.post(result.fullStream)
     const replyText = await result.text
@@ -238,7 +311,7 @@ bot.onSubscribedMessage(async (chatThread, message) => {
 
     try {
       const channelId = await ensureChannel(slackChannelId)
-      const threadId = await ensureThread(chatThread.id, channelId, authorId)
+      const threadId = await ensureThread(chatThread.id, channelId, actor)
       await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
     } catch (_) {
       // Best-effort

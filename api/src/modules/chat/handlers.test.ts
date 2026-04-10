@@ -19,6 +19,16 @@ import type { Database } from "../../db/connection"
 import { channel, thread, threadTurn } from "../../db/schema/org-v2"
 import { setChatDb } from "./db"
 
+/** Test helper: create a mock ResolvedActor from a Slack user ID string. */
+function mockActor(slackUserId: string) {
+  return {
+    principalId: null,
+    principalName: null,
+    principalEmail: null,
+    externalId: slackUserId,
+  }
+}
+
 // Mock the bot import so Chat SDK doesn't initialize during tests
 vi.mock("./bot", () => ({
   bot: {
@@ -175,7 +185,7 @@ describe("ensureThread", () => {
     const id = await ensureThread(
       "slack:CTEST:1234.5678",
       channelId,
-      "U_AUTHOR"
+      mockActor("U_AUTHOR")
     )
 
     expect(id).toMatch(/^thrd_/)
@@ -190,23 +200,23 @@ describe("ensureThread", () => {
   })
 
   it("returns existing thread on second call", async () => {
-    const id1 = await ensureThread("slack:CTEST:1234.5678", channelId, "U1")
-    const id2 = await ensureThread("slack:CTEST:1234.5678", channelId, "U2")
+    const id1 = await ensureThread("slack:CTEST:1234.5678", channelId, mockActor("U1"))
+    const id2 = await ensureThread("slack:CTEST:1234.5678", channelId, mockActor("U2"))
     expect(id1).toBe(id2)
   })
 
   it("creates different threads for different external IDs", async () => {
-    const id1 = await ensureThread("slack:CTEST:1111.0000", channelId, "U1")
-    const id2 = await ensureThread("slack:CTEST:2222.0000", channelId, "U1")
+    const id1 = await ensureThread("slack:CTEST:1111.0000", channelId, mockActor("U1"))
+    const id2 = await ensureThread("slack:CTEST:2222.0000", channelId, mockActor("U1"))
     expect(id1).not.toBe(id2)
   })
 
   it("handles concurrent inserts without error", async () => {
     const threadKey = "slack:CTEST:RACE.0000"
     const results = await Promise.all([
-      ensureThread(threadKey, channelId, "U1"),
-      ensureThread(threadKey, channelId, "U2"),
-      ensureThread(threadKey, channelId, "U3"),
+      ensureThread(threadKey, channelId, mockActor("U1")),
+      ensureThread(threadKey, channelId, mockActor("U2")),
+      ensureThread(threadKey, channelId, mockActor("U3")),
     ])
 
     expect(results[0]).toBe(results[1])
@@ -225,7 +235,7 @@ describe("recordTurn", () => {
 
   beforeEach(async () => {
     const channelId = await ensureChannel("CTURN")
-    threadId = await ensureThread("slack:CTURN:9999.0000", channelId, "U1")
+    threadId = await ensureThread("slack:CTURN:9999.0000", channelId, mockActor("U1"))
   })
 
   it("inserts a turn with turnIndex 0", async () => {
@@ -304,7 +314,7 @@ describe("recordTurn", () => {
     const threadId2 = await ensureThread(
       "slack:CTURN2:8888.0000",
       channelId,
-      "U2"
+      mockActor("U2")
     )
 
     await recordTurn(threadId, "user", "thread-1-msg")
