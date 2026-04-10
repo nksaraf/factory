@@ -55,6 +55,25 @@ export function stripSystemTags(text: string): string {
   return cleaned
 }
 
+/**
+ * Fix timestamps that are local time but incorrectly tagged as UTC (with Z suffix).
+ * Claude Code JSONL files stamp local wall-clock time with a Z suffix.
+ * This strips the Z so JS Date() parses it as local time, then returns a proper UTC ISO string.
+ *
+ * Examples (on IST machine, UTC+5:30):
+ *   "2026-04-09T11:13:55.103Z" → "2026-04-09T05:43:55.103Z" (corrected to real UTC)
+ *   "2026-04-09T11:13:19"      → "2026-04-09T05:43:19.000Z" (bare timestamp, already correct path)
+ *   undefined                   → undefined
+ */
+export function fixLocalTimestamp(ts: string | undefined): string | undefined {
+  if (!ts) return undefined
+  // Strip trailing Z so Date() interprets as local time
+  const bare = ts.replace(/Z$/, "")
+  const d = new Date(bare)
+  if (isNaN(d.getTime())) return ts // unparseable, return as-is
+  return d.toISOString()
+}
+
 export function truncText(s: string | undefined, max = MAX_TEXT): string {
   if (!s) return ""
   return s.length <= max ? s : s.slice(0, max) + "…[truncated]"
@@ -108,7 +127,7 @@ export function extractToolResults(content: unknown): ToolResult[] {
         } else if (Array.isArray(ct)) {
           errorText = truncText(
             ct.map((x: any) => x?.text ?? "").join(" "),
-            500,
+            500
           )
         }
       }
@@ -125,20 +144,36 @@ export function extractToolResults(content: unknown): ToolResult[] {
  */
 export function classifyToolError(error: string): string {
   const e = error.toLowerCase()
-  if (e.includes("rejected") || e.includes("doesn't want")) return "user_rejected"
-  if (e.includes("not found") || e.includes("no such file") || e.includes("does not exist")) return "file_not_found"
-  if (e.includes("read it first") || e.includes("has not been read")) return "file_not_read_first"
-  if (e.includes("exceeds maximum") || e.includes("too_big") || e.includes("too big")) return "too_large"
+  if (e.includes("rejected") || e.includes("doesn't want"))
+    return "user_rejected"
+  if (
+    e.includes("not found") ||
+    e.includes("no such file") ||
+    e.includes("does not exist")
+  )
+    return "file_not_found"
+  if (e.includes("read it first") || e.includes("has not been read"))
+    return "file_not_read_first"
+  if (
+    e.includes("exceeds maximum") ||
+    e.includes("too_big") ||
+    e.includes("too big")
+  )
+    return "too_large"
   if (e.includes("exit code")) return "command_failed"
-  if (e.includes("validation") || e.includes("invalid")) return "validation_error"
+  if (e.includes("validation") || e.includes("invalid"))
+    return "validation_error"
   if (e.includes("timeout")) return "timeout"
-  if (e.includes("rpc") || e.includes("tunnel") || e.includes("mcp error")) return "mcp_error"
+  if (e.includes("rpc") || e.includes("tunnel") || e.includes("mcp error"))
+    return "mcp_error"
   if (e.includes("modified since read")) return "file_modified_since_read"
   if (e.includes("permission")) return "permission_denied"
   if (e.includes("stream closed")) return "stream_closed"
   if (e.includes("found") && e.includes("matches")) return "ambiguous_edit"
-  if (e.includes("status code 4") || e.includes("status code 5")) return "http_error"
-  if (e.includes("eisdir") || e.includes("illegal operation on a directory")) return "is_directory"
+  if (e.includes("status code 4") || e.includes("status code 5"))
+    return "http_error"
+  if (e.includes("eisdir") || e.includes("illegal operation on a directory"))
+    return "is_directory"
   if (e.includes("no task found")) return "task_not_found"
   if (e.includes("cancelled") || e.includes("aborted")) return "cancelled"
   if (e.includes("outside allowed")) return "outside_allowed_dir"
@@ -185,11 +220,14 @@ export function remoteUrlToSlug(url: string): string | undefined {
  */
 function resolveGitRemote(cwd: string): string | undefined {
   try {
-    const result = Bun.spawnSync(["git", "-C", cwd, "remote", "get-url", "origin"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 2000,
-    })
+    const result = Bun.spawnSync(
+      ["git", "-C", cwd, "remote", "get-url", "origin"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: 2000,
+      }
+    )
     if (result.exitCode === 0) {
       return result.stdout.toString().trim() || undefined
     }
@@ -211,12 +249,19 @@ function getConductorRepoMap(): Map<string, string> {
     const { Database } = require("bun:sqlite")
     const dbPath = require("node:path").join(
       require("node:os").homedir(),
-      "Library", "Application Support", "com.conductor.app", "conductor.db",
+      "Library",
+      "Application Support",
+      "com.conductor.app",
+      "conductor.db"
     )
     if (!require("node:fs").existsSync(dbPath)) return _conductorRepoMap
 
     const db = new Database(dbPath, { readonly: true })
-    const rows = db.prepare("SELECT name, remote_url FROM repos WHERE remote_url IS NOT NULL").all() as any[]
+    const rows = db
+      .prepare(
+        "SELECT name, remote_url FROM repos WHERE remote_url IS NOT NULL"
+      )
+      .all() as any[]
     for (const row of rows) {
       _conductorRepoMap.set(row.name, row.remote_url)
     }
@@ -253,7 +298,11 @@ export function resolveRepoContext(cwd: string): RepoContext {
   const conductorRepos = getConductorRepoMap()
   for (const [repoName, remoteUrl] of conductorRepos) {
     if (cwd.includes(`/${repoName}/`) || cwd.endsWith(`/${repoName}`)) {
-      ctx = { gitRemoteUrl: remoteUrl, repoSlug: remoteUrlToSlug(remoteUrl), repoName }
+      ctx = {
+        gitRemoteUrl: remoteUrl,
+        repoSlug: remoteUrlToSlug(remoteUrl),
+        repoName,
+      }
       repoCache.set(cwd, ctx)
       return ctx
     }
@@ -275,7 +324,10 @@ export function resolveRepoContext(cwd: string): RepoContext {
     if (parentDir !== cwd) {
       const parentRemote = resolveGitRemote(parentDir)
       if (parentRemote) {
-        ctx = { gitRemoteUrl: parentRemote, repoSlug: remoteUrlToSlug(parentRemote) }
+        ctx = {
+          gitRemoteUrl: parentRemote,
+          repoSlug: remoteUrlToSlug(parentRemote),
+        }
         ctx.repoName = ctx.repoSlug?.split("/")[1]
       }
     }

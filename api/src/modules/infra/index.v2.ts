@@ -964,11 +964,6 @@ export function infraControllerV2(db: Database) {
         (() => {
           const handlers = createTunnelHandlers({ db })
           return {
-            // Enable per-message deflate — tunnel frames carry web traffic (HTML, JSON, JS)
-            // which compresses well, reducing bandwidth 2-5x on slow links.
-            // (Gateway proxy disables this for workspace/preview WS because ttyd/VS Code
-            // send pre-compressed frames, but the tunnel broker WS is a different path.)
-            perMessageDeflate: true,
             open(ws: any) {
               handlers.open(ws.raw as unknown as WebSocket)
             },

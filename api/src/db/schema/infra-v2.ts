@@ -1,26 +1,27 @@
-import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
-
-import { newId } from "../../lib/id";
-import { infraSchema, createdAt, updatedAt, metadataCol, reconciliationCols, specCol } from "./helpers";
-import { principal } from "./org-v2";
-
 import type {
-  SubstrateSpec,
-  HostSpec,
-  RuntimeSpec,
-  RouteSpec,
   DnsDomainSpec,
-  TunnelSpec,
+  HostSpec,
   IpAddressSpec,
-  SecretSpec,
   NetworkLinkSpec,
-} from "@smp/factory-shared/schemas/infra";
+  RouteSpec,
+  RuntimeSpec,
+  SecretSpec,
+  SubstrateSpec,
+  TunnelSpec,
+} from "@smp/factory-shared/schemas/infra"
+import { sql } from "drizzle-orm"
+import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+
+import { newId } from "../../lib/id"
+import {
+  createdAt,
+  infraSchema,
+  metadataCol,
+  reconciliationCols,
+  specCol,
+  updatedAt,
+} from "./helpers"
+import { principal } from "./org-v2"
 
 // ─── Substrate ──────────────────────────────────────────────
 // Represents physical/logical infrastructure layers:
@@ -56,7 +57,7 @@ export const substrate = infraSchema.table(
       sql`${t.type} IN ('cloud-account', 'region', 'datacenter', 'vpc', 'subnet', 'hypervisor', 'rack')`
     ),
   ]
-);
+)
 
 // ─── Host ───────────────────────────────────────────────────
 // Physical or virtual machines that run workloads.
@@ -88,7 +89,7 @@ export const host = infraSchema.table(
       sql`${t.type} IN ('bare-metal', 'vm', 'lxc', 'cloud-instance')`
     ),
   ]
-);
+)
 
 // ─── Runtime ────────────────────────────────────────────────
 // Execution environments where components actually run.
@@ -123,10 +124,10 @@ export const runtime = infraSchema.table(
     index("infra_runtime_host_idx").on(t.hostId),
     check(
       "infra_runtime_type_valid",
-      sql`${t.type} IN ('k8s-cluster', 'k8s-namespace', 'docker-engine', 'compose-project', 'systemd', 'reverse-proxy')`
+      sql`${t.type} IN ('k8s-cluster', 'k8s-namespace', 'docker-engine', 'compose-project', 'systemd', 'reverse-proxy', 'iis', 'windows-service', 'process')`
     ),
   ]
-);
+)
 
 // ─── Route ──────────────────────────────────────────────────
 // Network routes that expose services to traffic.
@@ -160,7 +161,7 @@ export const route = infraSchema.table(
       sql`${t.type} IN ('ingress', 'workspace', 'preview', 'tunnel', 'custom-domain')`
     ),
   ]
-);
+)
 
 // ─── DNS Domain ─────────────────────────────────────────────
 // DNS domain records associated with sites.
@@ -192,7 +193,7 @@ export const dnsDomain = infraSchema.table(
       sql`${t.type} IN ('primary', 'alias', 'custom', 'wildcard')`
     ),
   ]
-);
+)
 
 // ─── Tunnel ─────────────────────────────────────────────────
 // Developer tunnels that bridge local services to routes.
@@ -207,7 +208,9 @@ export const tunnel = infraSchema.table(
     routeId: text("route_id")
       .notNull()
       .references(() => route.id, { onDelete: "cascade" }),
-    principalId: text("principal_id").notNull().references(() => principal.id),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principal.id),
     subdomain: text("subdomain").notNull(),
     phase: text("phase").notNull().default("connecting"),
     spec: specCol<TunnelSpec>(),
@@ -221,16 +224,13 @@ export const tunnel = infraSchema.table(
     index("infra_tunnel_route_idx").on(t.routeId),
     index("infra_tunnel_principal_idx").on(t.principalId),
     index("infra_tunnel_phase_idx").on(t.phase),
-    check(
-      "infra_tunnel_type_valid",
-      sql`${t.type} IN ('http', 'tcp')`
-    ),
+    check("infra_tunnel_type_valid", sql`${t.type} IN ('http', 'tcp')`),
     check(
       "infra_tunnel_phase_valid",
-      sql`${t.phase} IN ('connecting', 'connected', 'disconnected', 'error')`,
+      sql`${t.phase} IN ('connecting', 'connected', 'disconnected', 'error')`
     ),
   ]
-);
+)
 
 // ─── IP Address ─────────────────────────────────────────────
 // Tracked IP addresses within subnets.
@@ -253,7 +253,7 @@ export const ipAddress = infraSchema.table(
     uniqueIndex("infra_ip_address_unique").on(t.address),
     index("infra_ip_address_subnet_idx").on(t.subnetId),
   ]
-);
+)
 
 // ─── Secret ─────────────────────────────────────────────────
 // Managed secrets referenced by infrastructure resources.
@@ -271,10 +271,8 @@ export const secret = infraSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    uniqueIndex("infra_secret_slug_unique").on(t.slug),
-  ]
-);
+  (t) => [uniqueIndex("infra_secret_slug_unique").on(t.slug)]
+)
 
 // ─── Network Link ────────────────────────────────────────
 // Directed edges in the infrastructure graph modeling traffic flow.
@@ -313,4 +311,4 @@ export const networkLink = infraSchema.table(
       sql`${t.sourceKind} IN ('substrate', 'host', 'runtime') AND ${t.targetKind} IN ('substrate', 'host', 'runtime')`
     ),
   ]
-);
+)

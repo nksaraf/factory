@@ -3,20 +3,21 @@
  * Backfill Conductor chat histories from conductor.db SQLite
  * into Factory webhook_events.
  */
-
 import { Database } from "bun:sqlite"
-import { join } from "node:path"
-import { homedir } from "node:os"
 import { statSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
+
 import {
   type IngestEvent,
   type IngestOptions,
-  truncText,
-  truncSummary,
   extractTextFromContent,
   extractToolCalls,
+  fixLocalTimestamp,
   progress,
   remoteUrlToSlug,
+  truncSummary,
+  truncText,
 } from "./lib/common"
 import { sendBatch } from "./lib/ingest-client"
 
@@ -56,7 +57,13 @@ type MessageRow = {
 }
 
 function openConductorDb(): Database {
-  const dbPath = join(homedir(), "Library", "Application Support", "com.conductor.app", "conductor.db")
+  const dbPath = join(
+    homedir(),
+    "Library",
+    "Application Support",
+    "com.conductor.app",
+    "conductor.db"
+  )
   if (!statSync(dbPath, { throwIfNoEntry: false })) {
     throw new Error(`Conductor DB not found at ${dbPath}`)
   }
@@ -92,7 +99,7 @@ function queryMessages(db: Database, sessionId: string): MessageRow[] {
       `SELECT id, session_id, role, content, sent_at, full_message, model, turn_id
        FROM session_messages
        WHERE session_id = ?
-       ORDER BY sent_at`,
+       ORDER BY sent_at`
     )
     .all(sessionId) as MessageRow[]
 }
@@ -104,7 +111,11 @@ function parseMessageContent(msg: MessageRow): {
   toolCalls: Array<{ name: string; input?: string }>
   isSystem: boolean
 } {
-  const empty = { text: "", toolCalls: [] as Array<{ name: string; input?: string }>, isSystem: false }
+  const empty = {
+    text: "",
+    toolCalls: [] as Array<{ name: string; input?: string }>,
+    isSystem: false,
+  }
 
   // The content field in Conductor is JSON with a top-level `type` field:
   // - "system" = system/hook init messages (skip these)
@@ -128,7 +139,10 @@ function parseMessageContent(msg: MessageRow): {
           text: extractTextFromContent(content),
           model: inner.model ?? msg.model ?? undefined,
           usage: usage
-            ? { input: usage.input_tokens ?? 0, output: usage.output_tokens ?? 0 }
+            ? {
+                input: usage.input_tokens ?? 0,
+                output: usage.output_tokens ?? 0,
+              }
             : undefined,
           toolCalls: extractToolCalls(content),
           isSystem: false,
@@ -203,9 +217,16 @@ function groupIntoTurns(messages: MessageRow[]): Turn[] {
     const msgs = turnMap.get(turnId)!
 
     // Parse all messages and filter out system init messages
-    const parsedMsgs = msgs.map((m) => ({ msg: m, parsed: parseMessageContent(m) }))
-    const userParsed = parsedMsgs.filter((p) => p.msg.role === "user" && !p.parsed.isSystem)
-    const assistantParsed = parsedMsgs.filter((p) => p.msg.role === "assistant" && !p.parsed.isSystem)
+    const parsedMsgs = msgs.map((m) => ({
+      msg: m,
+      parsed: parseMessageContent(m),
+    }))
+    const userParsed = parsedMsgs.filter(
+      (p) => p.msg.role === "user" && !p.parsed.isSystem
+    )
+    const assistantParsed = parsedMsgs.filter(
+      (p) => p.msg.role === "assistant" && !p.parsed.isSystem
+    )
 
     // Skip turns with no real user message
     if (userParsed.length === 0) continue
@@ -221,7 +242,8 @@ function groupIntoTurns(messages: MessageRow[]): Turn[] {
     }
 
     for (const { parsed } of assistantParsed) {
-      if (parsed.text) assistantText += (assistantText ? "\n" : "") + parsed.text
+      if (parsed.text)
+        assistantText += (assistantText ? "\n" : "") + parsed.text
       if (!model && parsed.model) model = parsed.model
       if (parsed.usage) {
         totalUsage.input += parsed.usage.input
@@ -230,7 +252,9 @@ function groupIntoTurns(messages: MessageRow[]): Turn[] {
       allToolCalls.push(...parsed.toolCalls)
     }
 
-    const timestamp = userParsed[0]?.msg.sent_at || assistantParsed[0]?.msg.sent_at || ""
+    const rawTimestamp =
+      userParsed[0]?.msg.sent_at || assistantParsed[0]?.msg.sent_at || ""
+    const timestamp = fixLocalTimestamp(rawTimestamp) ?? rawTimestamp
 
     turns.push({
       turnId,
@@ -251,22 +275,30 @@ function groupIntoTurns(messages: MessageRow[]): Turn[] {
 function buildSessionEvents(session: SessionRow, turns: Turn[]): IngestEvent[] {
   const events: IngestEvent[] = []
 
-  const repoSlug = session.remote_url ? remoteUrlToSlug(session.remote_url) : undefined
-  const project = repoSlug
-    ?? (session.root_path ? session.root_path.split("/").slice(-2).join("/") : undefined)
-    ?? session.directory_name ?? undefined
+  const repoSlug = session.remote_url
+    ? remoteUrlToSlug(session.remote_url)
+    : undefined
+  const project =
+    repoSlug ??
+    (session.root_path
+      ? session.root_path.split("/").slice(-2).join("/")
+      : undefined) ??
+    session.directory_name ??
+    undefined
 
-  const allToolNames = [...new Set(turns.flatMap((t) => t.toolCalls.map((tc) => tc.name)))]
+  const allToolNames = [
+    ...new Set(turns.flatMap((t) => t.toolCalls.map((tc) => tc.name))),
+  ]
   const totalTokens = turns.reduce(
     (acc, t) => ({
       input: acc.input + t.tokenUsage.input,
       output: acc.output + t.tokenUsage.output,
     }),
-    { input: 0, output: 0 },
+    { input: 0, output: 0 }
   )
 
-  const startedAt = session.created_at
-  const endedAt = session.updated_at
+  const startedAt = fixLocalTimestamp(session.created_at) ?? session.created_at
+  const endedAt = fixLocalTimestamp(session.updated_at) ?? session.updated_at
   const durationMs = new Date(endedAt).getTime() - new Date(startedAt).getTime()
 
   // Session summary
@@ -274,7 +306,7 @@ function buildSessionEvents(session: SessionRow, turns: Turn[]): IngestEvent[] {
     source: "conductor",
     providerId: "local-backfill",
     deliveryId: `conductor-session-${session.id}`,
-    eventType: "session.summary",
+    eventType: "thread.summary",
     sessionId: session.id,
     timestamp: startedAt,
     cwd: session.root_path ?? undefined,
@@ -312,7 +344,7 @@ function buildSessionEvents(session: SessionRow, turns: Turn[]): IngestEvent[] {
       source: "conductor",
       providerId: "local-backfill",
       deliveryId: `conductor-turn-${session.id}-${turn.turnId}`,
-      eventType: "turn.completed",
+      eventType: "thread_turn.completed",
       sessionId: session.id,
       timestamp: turn.timestamp || startedAt,
       cwd: session.root_path ?? undefined,
@@ -362,10 +394,14 @@ export async function ingestConductor(opts: IngestOptions) {
       progress(processed, sessions.length, session.title || session.id)
     }
 
-    console.error(`\nParsed ${allEvents.length} events from ${processed} sessions`)
+    console.error(
+      `\nParsed ${allEvents.length} events from ${processed} sessions`
+    )
 
     const result = await sendBatch(allEvents, opts)
-    console.error(`Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`)
+    console.error(
+      `Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`
+    )
     return result
   } finally {
     db.close()

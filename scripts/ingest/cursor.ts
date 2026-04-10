@@ -6,12 +6,17 @@
  * Note: Cursor does NOT store full chat messages locally — only code tracking metadata.
  * We ingest: session summaries per conversation + commit score events.
  */
-
 import { Database } from "bun:sqlite"
-import { join } from "node:path"
-import { homedir } from "node:os"
 import { statSync } from "node:fs"
-import { type IngestEvent, type IngestOptions, progress, resolveRepoContext } from "./lib/common"
+import { homedir } from "node:os"
+import { join } from "node:path"
+
+import {
+  type IngestEvent,
+  type IngestOptions,
+  progress,
+  resolveRepoContext,
+} from "./lib/common"
 import { sendBatch } from "./lib/ingest-client"
 
 type CodeHashRow = {
@@ -47,7 +52,12 @@ type ScoredCommitRow = {
 }
 
 function openCursorDb(): Database {
-  const dbPath = join(homedir(), ".cursor", "ai-tracking", "ai-code-tracking.db")
+  const dbPath = join(
+    homedir(),
+    ".cursor",
+    "ai-tracking",
+    "ai-code-tracking.db"
+  )
   if (!statSync(dbPath, { throwIfNoEntry: false })) {
     throw new Error(`Cursor tracking DB not found at ${dbPath}`)
   }
@@ -89,9 +99,13 @@ function queryConversations(db: Database, since?: Date): ConversationSummary[] {
   const rows = db.prepare(sql).all(...params) as any[]
   return rows.map((r) => ({
     conversationId: r.conversationId,
-    model: (r.models as string)?.split(",").filter((m: string) => m && m !== "")[0] ?? "unknown",
+    model:
+      (r.models as string)
+        ?.split(",")
+        .filter((m: string) => m && m !== "")[0] ?? "unknown",
     sources: (r.sources as string)?.split(",").filter(Boolean) ?? [],
-    fileExtensions: (r.fileExtensions as string)?.split(",").filter(Boolean) ?? [],
+    fileExtensions:
+      (r.fileExtensions as string)?.split(",").filter(Boolean) ?? [],
     fileNames: (r.fileNames as string)?.split(",").filter(Boolean) ?? [],
     codeHashCount: r.codeHashCount,
     startedAt: r.startedAt,
@@ -114,13 +128,15 @@ function buildConversationEvents(convos: ConversationSummary[]): IngestEvent[] {
   return convos.map((c) => {
     // Derive repo from first absolute file path
     const absFile = c.fileNames.find((f) => f.startsWith("/"))
-    const repoCtx = absFile ? resolveRepoContext(absFile.replace(/\/[^/]+$/, "")) : {}
+    const repoCtx = absFile
+      ? resolveRepoContext(absFile.replace(/\/[^/]+$/, ""))
+      : {}
 
     return {
       source: "cursor" as const,
       providerId: "local-backfill",
       deliveryId: `cursor-session-${c.conversationId}`,
-      eventType: "session.summary",
+      eventType: "thread.summary",
       sessionId: c.conversationId,
       timestamp: new Date(c.startedAt).toISOString(),
       cwd: absFile ? absFile.replace(/\/[^/]+$/, "") : undefined,
@@ -191,10 +207,14 @@ export async function ingestCursor(opts: IngestOptions) {
       allEvents = allEvents.slice(0, opts.limit)
     }
 
-    console.error(`\nParsed ${allEvents.length} events (${conversationEvents.length} sessions, ${commitEvents.length} commits)`)
+    console.error(
+      `\nParsed ${allEvents.length} events (${conversationEvents.length} sessions, ${commitEvents.length} commits)`
+    )
 
     const result = await sendBatch(allEvents, opts)
-    console.error(`Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`)
+    console.error(
+      `Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`
+    )
     return result
   } finally {
     db.close()

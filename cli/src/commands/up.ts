@@ -1,25 +1,24 @@
-import { basename, join } from "node:path";
+import { basename, join } from "node:path"
 
-import type { DxBase } from "../dx-root.js";
-import { exitWithError } from "../lib/cli-exit.js";
-import { composeUp, isDockerRunning } from "../lib/docker.js";
-import { resolveDxContext } from "../lib/dx-context.js";
+import type { DxBase } from "../dx-root.js"
+import { exitWithError } from "../lib/cli-exit.js"
+import { Compose, isDockerRunning } from "../lib/docker.js"
+import { resolveDxContext } from "../lib/dx-context.js"
 import {
   PortManager,
   catalogToPortRequests,
   portEnvVars,
   printPortTable,
-} from "../lib/port-manager.js";
-
-import { toDxFlags } from "./dx-flags.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+} from "../lib/port-manager.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+import { toDxFlags } from "./dx-flags.js"
 
 setExamples("up", [
   "$ dx up                  Bring up all services",
   "$ dx up infra            Bring up a profile",
   "$ dx up postgres redis   Bring up specific services",
   "$ dx up --no-build       Skip building local services",
-]);
+])
 
 export function upCommand(app: DxBase) {
   return app
@@ -36,7 +35,8 @@ export function upCommand(app: DxBase) {
     .flags({
       build: {
         type: "boolean",
-        description: "Build local services (default: true, use --no-build to skip)",
+        description:
+          "Build local services (default: true, use --no-build to skip)",
       },
       detach: {
         type: "boolean",
@@ -44,86 +44,91 @@ export function upCommand(app: DxBase) {
       },
     })
     .run(async ({ args, flags }) => {
-      const f = toDxFlags(flags);
+      const f = toDxFlags(flags)
       try {
         if (!isDockerRunning()) {
-          exitWithError(f, "Docker does not appear to be running.");
+          exitWithError(f, "Docker does not appear to be running.")
         }
 
-        const ctx = await resolveDxContext({ need: "project" });
-        const project = ctx.project;
+        const ctx = await resolveDxContext({ need: "project" })
+        const project = ctx.project
         if (project.composeFiles.length === 0) {
-          exitWithError(f, "No docker-compose files found.");
+          exitWithError(f, "No docker-compose files found.")
         }
 
         // Resolve all ports through PortManager
-        const portManager = new PortManager(join(project.rootDir, ".dx"));
-        const portRequests = catalogToPortRequests(project.catalog);
-        const resolved = await portManager.resolveMulti(portRequests);
+        const portManager = new PortManager(join(project.rootDir, ".dx"))
+        const portRequests = catalogToPortRequests(project.catalog)
+        const resolved = await portManager.resolveMulti(portRequests)
 
         // Build flat env var map and write .dx/ports.env
-        const allEnvVars: Record<string, string> = {};
+        const allEnvVars: Record<string, string> = {}
         for (const [service, ports] of Object.entries(resolved)) {
-          Object.assign(allEnvVars, portEnvVars(service, ports));
+          Object.assign(allEnvVars, portEnvVars(service, ports))
         }
-        const envPath = join(project.rootDir, ".dx", "ports.env");
-        portManager.writeEnvFile(allEnvVars, envPath);
+        const envPath = join(project.rootDir, ".dx", "ports.env")
+        portManager.writeEnvFile(allEnvVars, envPath)
 
-        const knownProfiles = new Set(project.allProfiles);
-        const targets = args.targets ?? [];
+        const knownProfiles = new Set(project.allProfiles)
+        const targets = args.targets ?? []
 
         // Separate targets into profiles and service names
-        const profiles: string[] = [];
-        const services: string[] = [];
+        const profiles: string[] = []
+        const services: string[] = []
 
         if (targets.length === 0) {
-          profiles.push(...knownProfiles);
+          profiles.push(...knownProfiles)
         } else {
           for (const target of targets) {
             if (knownProfiles.has(target)) {
-              profiles.push(target);
+              profiles.push(target)
             } else {
-              services.push(target);
+              services.push(target)
             }
           }
         }
 
-        const composeFiles = [...project.composeFiles];
+        const composeFiles = [...project.composeFiles]
+        const compose = new Compose(
+          composeFiles,
+          basename(project.rootDir),
+          envPath
+        )
 
         if (f.verbose) {
           if (profiles.length > 0) {
-            console.log(`Profiles: ${profiles.join(", ")}`);
+            console.log(`Profiles: ${profiles.join(", ")}`)
           }
           if (services.length > 0) {
-            console.log(`Services: ${services.join(", ")}`);
+            console.log(`Services: ${services.join(", ")}`)
           }
-          console.log(`Compose files: ${composeFiles.join(", ")}`);
+          console.log(`Compose files: ${composeFiles.join(", ")}`)
         }
 
-        composeUp(composeFiles, {
+        compose.up({
           detach: flags.detach !== false,
           noBuild: flags.build === false,
-          projectName: basename(project.rootDir),
           profiles: profiles.length > 0 ? profiles : undefined,
           services: services.length > 0 ? services : undefined,
-          envFile: envPath,
-        });
+        })
 
         if (!f.json) {
-          const parts: string[] = [];
-          if (profiles.length > 0) parts.push(`profiles: ${profiles.join(", ")}`);
-          if (services.length > 0) parts.push(`services: ${services.join(", ")}`);
-          const detail = parts.length > 0 ? ` (${parts.join("; ")})` : "";
-          console.log(`Stack started${detail}`);
+          const parts: string[] = []
+          if (profiles.length > 0)
+            parts.push(`profiles: ${profiles.join(", ")}`)
+          if (services.length > 0)
+            parts.push(`services: ${services.join(", ")}`)
+          const detail = parts.length > 0 ? ` (${parts.join("; ")})` : ""
+          console.log(`Stack started${detail}`)
         }
 
         // Print port table after services are up
         if (!f.quiet) {
-          printPortTable(resolved, f.verbose as boolean);
+          printPortTable(resolved, f.verbose as boolean)
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        exitWithError(f, msg);
+        const msg = err instanceof Error ? err.message : String(err)
+        exitWithError(f, msg)
       }
-    });
+    })
 }

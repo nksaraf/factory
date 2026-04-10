@@ -193,14 +193,14 @@ function createTunnelStack(localPort: number) {
 // ---------------------------------------------------------------------------
 
 interface ProdFetcher {
-  get(path: string): Promise<Response>
+  get(path: string, headers?: Record<string, string>): Promise<Response>
   post(path: string, body: Uint8Array): Promise<Response>
 }
 
 function createProdFetcher(baseUrl: string): ProdFetcher {
   return {
-    get(path: string) {
-      return fetch(`${baseUrl}${path}`)
+    get(path: string, headers?: Record<string, string>) {
+      return fetch(`${baseUrl}${path}`, { headers })
     },
     post(path: string, body: Uint8Array) {
       return fetch(`${baseUrl}${path}`, {
@@ -217,15 +217,16 @@ async function benchGet(
   sm: StreamManager | null,
   prod: ProdFetcher | null,
   path: string,
-  timeoutMs = 30_000
+  timeoutMs = 30_000,
+  headers?: Record<string, string>
 ): Promise<{ status: number; body: Uint8Array; bodyLength: number }> {
   if (prod) {
-    const res = await prod.get(path)
+    const res = await prod.get(path, headers)
     const buf = new Uint8Array(await res.arrayBuffer())
     return { status: res.status, body: buf, bodyLength: buf.byteLength }
   }
   const res = await sm!.sendHttpRequest(
-    { method: "GET", url: path, headers: {} },
+    { method: "GET", url: path, headers: headers ?? {} },
     { timeoutMs }
   )
   const reader = res.body.getReader()
@@ -349,25 +350,35 @@ describe.skipIf(skipBench)(
           }
 
           // Compressible content endpoints — realistic dev traffic
-          if (url.pathname === "/json") {
+          // Supports gzip when Accept-Encoding includes it (like real dev servers)
+          if (
+            url.pathname === "/json" ||
+            url.pathname === "/html" ||
+            url.pathname === "/js"
+          ) {
             const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
-            return new Response(generateJsonPayload(size), {
-              headers: { "content-type": "application/json" },
-            })
-          }
-
-          if (url.pathname === "/html") {
-            const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
-            return new Response(generateHtmlPayload(size), {
-              headers: { "content-type": "text/html" },
-            })
-          }
-
-          if (url.pathname === "/js") {
-            const size = parseInt(url.searchParams.get("size") ?? "1024", 10)
-            return new Response(generateJsPayload(size), {
-              headers: { "content-type": "application/javascript" },
-            })
+            const contentMap: Record<
+              string,
+              { gen: (n: number) => string; ct: string }
+            > = {
+              "/json": { gen: generateJsonPayload, ct: "application/json" },
+              "/html": { gen: generateHtmlPayload, ct: "text/html" },
+              "/js": { gen: generateJsPayload, ct: "application/javascript" },
+            }
+            const { gen, ct } = contentMap[url.pathname]!
+            const body = gen(size)
+            const acceptEncoding = req.headers.get("accept-encoding") ?? ""
+            if (acceptEncoding.includes("gzip") && typeof Bun !== "undefined") {
+              const compressed = Bun.gzipSync(new TextEncoder().encode(body))
+              return new Response(compressed as unknown as BodyInit, {
+                headers: {
+                  "content-type": ct,
+                  "content-encoding": "gzip",
+                  "content-length": String(compressed.byteLength),
+                },
+              })
+            }
+            return new Response(body, { headers: { "content-type": ct } })
           }
 
           return new Response("not found", { status: 404 })
@@ -821,21 +832,18 @@ describe.skipIf(skipBench)(
     //    This is the test that shows the impact of WS compression.
     // =========================================================================
 
-    it("compressible content throughput (JSON, HTML, JS)", async () => {
+    it("compressible content: gzip vs raw (real-world dev traffic)", async () => {
       const endpoints = [
-        { path: "/json", type: "JSON API" },
-        { path: "/html", type: "HTML page" },
-        { path: "/js", type: "JS bundle" },
-        { path: "/binary", type: "Binary (control)" },
+        { path: "/json", type: "JSON" },
+        { path: "/html", type: "HTML" },
+        { path: "/js", type: "JS" },
       ]
       const sizes = IS_PROD
         ? [
-            { label: "64KB", bytes: 64 * 1024 },
             { label: "256KB", bytes: 256 * 1024 },
             { label: "1MB", bytes: 1024 * 1024 },
           ]
         : [
-            { label: "64KB", bytes: 64 * 1024 },
             { label: "256KB", bytes: 256 * 1024 },
             { label: "1MB", bytes: 1024 * 1024 },
           ]
@@ -843,56 +851,87 @@ describe.skipIf(skipBench)(
       const results: {
         type: string
         label: string
-        bytes: number
+        origBytes: number
+        mode: string
         ms: number
+        wireBytes: number
+        ratio: string
         rate: string
-        received: number
         ok: boolean
       }[] = []
 
       for (const ep of endpoints) {
         for (const { label, bytes } of sizes) {
-          const { sm, prod, cleanup } = getStack()
-
-          const start = performance.now()
-          const res = await benchGet(
-            sm,
-            prod,
-            `${ep.path}?size=${bytes}`,
-            60_000
-          )
-          const elapsed = performance.now() - start
-
-          const ok = res.status === 200 && res.bodyLength >= bytes * 0.9 // allow slight size variance from generators
-          results.push({
-            type: ep.type,
-            label,
-            bytes,
-            ms: elapsed,
-            rate: formatRate((res.bodyLength / elapsed) * 1000),
-            received: res.bodyLength,
-            ok,
-          })
-          cleanup()
+          // Raw (no compression)
+          {
+            const { sm, prod, cleanup } = getStack()
+            const start = performance.now()
+            const res = await benchGet(
+              sm,
+              prod,
+              `${ep.path}?size=${bytes}`,
+              60_000
+            )
+            const elapsed = performance.now() - start
+            results.push({
+              type: ep.type,
+              label,
+              origBytes: bytes,
+              mode: "raw",
+              ms: elapsed,
+              wireBytes: res.bodyLength,
+              ratio: "1.0x",
+              rate: formatRate((res.bodyLength / elapsed) * 1000),
+              ok: res.status === 200 && res.bodyLength >= bytes * 0.9,
+            })
+            cleanup()
+          }
+          // Gzip (Accept-Encoding: gzip — server compresses, compressed bytes flow through tunnel)
+          {
+            const { sm, prod, cleanup } = getStack()
+            const start = performance.now()
+            const res = await benchGet(
+              sm,
+              prod,
+              `${ep.path}?size=${bytes}`,
+              60_000,
+              { "accept-encoding": "gzip" }
+            )
+            const elapsed = performance.now() - start
+            const compressionRatio =
+              res.bodyLength > 0 ? (bytes / res.bodyLength).toFixed(1) : "?"
+            results.push({
+              type: ep.type,
+              label,
+              origBytes: bytes,
+              mode: "gzip",
+              ms: elapsed,
+              wireBytes: res.bodyLength,
+              ratio: `${compressionRatio}x`,
+              rate: formatRate((bytes / elapsed) * 1000), // rate in terms of original content size
+              ok: res.status === 200 && res.bodyLength > 0,
+            })
+            cleanup()
+          }
         }
       }
 
       console.log(
-        "\n┌──────────────────┬─────────┬──────────┬──────────────┬────────────┬────┐"
+        "\n┌────────┬─────────┬──────┬──────────┬────────────┬───────┬──────────────┬────┐"
       )
       console.log(
-        "│ Content Type     │ Size    │ Time(ms) │ Throughput   │ Received   │ OK │"
+        "│ Type   │ Size    │ Mode │ Time(ms) │ Wire bytes │ Ratio │ Throughput   │ OK │"
       )
       console.log(
-        "├──────────────────┼─────────┼──────────┼──────────────┼────────────┼────┤"
+        "├────────┼─────────┼──────┼──────────┼────────────┼───────┼──────────────┼────┤"
       )
       for (const r of results) {
         console.log(
-          `│ ${r.type.padEnd(16)} │ ${r.label.padEnd(7)} │ ${r.ms.toFixed(0).padStart(8)} │ ${r.rate.padStart(12)} │ ${formatSize(r.received).padStart(10)} │ ${r.ok ? " ✓" : " ✗"} │`
+          `│ ${r.type.padEnd(6)} │ ${r.label.padEnd(7)} │ ${r.mode.padEnd(4)} │ ${r.ms.toFixed(0).padStart(8)} │ ${formatSize(r.wireBytes).padStart(10)} │ ${r.ratio.padStart(5)} │ ${r.rate.padStart(12)} │ ${r.ok ? " ✓" : " ✗"} │`
         )
       }
       console.log(
-        "└──────────────────┴─────────┴──────────┴──────────────┴────────────┴────┘\n"
+        "└────────┴─────────┴──────┴──────────┴────────────┴───────┴──────────────┴────┘\n"
       )
 
       for (const r of results) {

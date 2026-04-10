@@ -1,13 +1,13 @@
-import { existsSync } from "node:fs"
-import { join } from "node:path"
+import { basename } from "node:path"
 
-import type { DxBase } from "../dx-root.js"
 import { getFactoryClient } from "../client.js"
-import { isDockerRunning } from "../lib/docker.js"
-import { streamDockerLogs, parseDockerLogLine } from "../lib/docker-logs.js"
+import type { DxBase } from "../dx-root.js"
+import { streamDockerLogs } from "../lib/docker-logs.js"
+import { Compose } from "../lib/docker.js"
+import { resolveDxContext } from "../lib/dx-context.js"
 import { formatLogEntry, formatLogEntryJson } from "../lib/log-formatter.js"
-import { toDxFlags } from "./dx-flags.js"
 import { setExamples } from "../plugins/examples-plugin.js"
+import { toDxFlags } from "./dx-flags.js"
 
 setExamples("logs", [
   "$ dx logs --follow                 Stream live logs",
@@ -92,14 +92,34 @@ export function logsCommand(app: DxBase) {
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
-      const isRemote = !!(flags.site || flags.workspace || flags.build || flags.rollout)
+      const isRemote = !!(
+        flags.site ||
+        flags.workspace ||
+        flags.build ||
+        flags.rollout
+      )
 
       try {
         if (isRemote) {
           await fetchRemoteLogs(args, flags, f)
-        } else if (shouldUseLocalDocker()) {
-          await streamLocalLogs(args, flags, f)
         } else {
+          // Try local docker compose first
+          const ctx = await resolveDxContext({ need: "project" }).catch(
+            () => null
+          )
+          if (ctx?.project && ctx.project.composeFiles.length > 0) {
+            const compose = new Compose(
+              ctx.project.composeFiles,
+              basename(ctx.project.rootDir)
+            )
+            // Check if the service is actually running locally
+            const service = args.component ?? args.module
+            if (!service || compose.isRunning(service)) {
+              await streamLocalLogs(compose, args, flags, f)
+              return
+            }
+          }
+          // Fall back to remote
           await fetchRemoteLogs(args, flags, f)
         }
       } catch (err) {
@@ -110,17 +130,12 @@ export function logsCommand(app: DxBase) {
     })
 }
 
-function shouldUseLocalDocker(): boolean {
-  const composePath = join(process.cwd(), ".dx", "generated", "docker-compose.yaml")
-  return isDockerRunning() && existsSync(composePath)
-}
-
 async function streamLocalLogs(
+  compose: Compose,
   args: { module?: string; component?: string },
   flags: Record<string, unknown>,
   f: { json?: boolean }
 ) {
-  const composePath = join(process.cwd(), ".dx", "generated", "docker-compose.yaml")
   const ac = new AbortController()
 
   // Filter to specific services if module/component given
@@ -129,7 +144,9 @@ async function streamLocalLogs(
   else if (args.module) services.push(args.module)
 
   const levelFilter = flags.level
-    ? new Set((flags.level as string).split(",").map((l) => l.trim().toLowerCase()))
+    ? new Set(
+        (flags.level as string).split(",").map((l) => l.trim().toLowerCase())
+      )
     : null
   const grepFilter = flags.grep ? (flags.grep as string).toLowerCase() : null
 
@@ -137,7 +154,7 @@ async function streamLocalLogs(
 
   await streamDockerLogs(
     {
-      composeFile: composePath,
+      compose,
       services: services.length > 0 ? services : undefined,
       follow: !!flags.follow,
       since: flags.since as string | undefined,
@@ -146,7 +163,8 @@ async function streamLocalLogs(
     },
     (entry) => {
       if (levelFilter && !levelFilter.has(entry.level)) return
-      if (grepFilter && !entry.message.toLowerCase().includes(grepFilter)) return
+      if (grepFilter && !entry.message.toLowerCase().includes(grepFilter))
+        return
 
       if (f.json) {
         console.log(formatLogEntryJson(entry))

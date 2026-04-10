@@ -7,6 +7,14 @@
 # This is the canonical project definition — docker-compose is the single
 # source of truth, parsed into a CatalogSystem for the Software Catalog.
 
+x-catalog:
+  name: factory-dx
+  owner: platform
+  description: "Factory DX — developer experience platform and CLI toolchain"
+  lifecycle: production
+  repo: https://github.com/nksaraf/factory
+  tags: "dx,cli,platform,backstage"
+
 services:
   # ─── Components (things we build) ────────────────────────────
 
@@ -56,6 +64,8 @@ services:
       catalog.lifecycle: production
       catalog.port.4100.name: http
       catalog.port.4100.protocol: http
+      catalog.port.9090.name: gateway-proxy
+      catalog.port.9090.protocol: http
       catalog.api.provides: "factory-api"
       catalog.api.type: openapi
       catalog.api.consumes: "auth-api"
@@ -241,6 +251,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      catalog.description: "MongoDB — PowerSync storage backend"
+      catalog.owner: platform
+      catalog.type: database
+      catalog.tags: "mongodb,powersync"
 
   infra-powersync:
     image: journeyapps/powersync-service:latest
@@ -262,6 +277,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    labels:
+      catalog.description: "PowerSync — Postgres-to-client realtime sync engine"
+      catalog.owner: platform
+      catalog.type: sync
+      catalog.tags: "powersync,realtime,sync"
+      catalog.port.8080.name: http
+      catalog.port.8080.protocol: http
+      catalog.docs.url: "https://docs.powersync.com"
 
   # ---------------------------------------------------------------------------
   # Redis — used for presence WebSocket fan-out across API instances
@@ -277,6 +300,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      catalog.description: "Redis — presence WebSocket fan-out and caching"
+      catalog.owner: platform
+      catalog.type: cache
+      catalog.tags: "redis,cache,pubsub"
+      catalog.port.6379.name: redis
+      catalog.port.6379.protocol: tcp
 
   # ---------------------------------------------------------------------------
   # Loki — log aggregation backend
@@ -297,10 +327,13 @@ services:
       retries: 5
     labels:
       dx.role: infra
-      catalog.description: "Log aggregation (Loki)"
+      catalog.description: "Loki — log aggregation backend"
       catalog.owner: platform
       catalog.type: observability
       catalog.tags: "loki,logs,observability"
+      catalog.port.3100.name: http
+      catalog.port.3100.protocol: http
+      catalog.docs.url: "https://grafana.com/docs/loki/latest/"
 
   # ---------------------------------------------------------------------------
   # OpenTelemetry Collector — exports logs to Loki, traces/metrics to debug
@@ -324,10 +357,15 @@ services:
     healthcheck:
       test: ["NONE"]
     labels:
-      catalog.description: "OpenTelemetry Collector — exports logs to Loki"
+      catalog.description: "OpenTelemetry Collector — traces, metrics, and log export"
       catalog.owner: platform
       catalog.type: observability
       catalog.tags: "otel,tracing,observability"
+      catalog.port.4318.name: otlp-http
+      catalog.port.4318.protocol: http
+      catalog.port.4317.name: otlp-grpc
+      catalog.port.4317.protocol: grpc
+      catalog.docs.url: "https://opentelemetry.io/docs/collector/"
 
   infra-metabase:
     image: metabase/metabase:latest
@@ -357,6 +395,8 @@ services:
       catalog.type: dashboard
       catalog.tags: "analytics,dashboards,bi"
       catalog.port.3000.name: http
+      catalog.port.3000.protocol: http
+      catalog.docs.url: "https://www.metabase.com/docs/latest/"
 
 volumes:
   postgres-data:

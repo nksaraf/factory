@@ -1,20 +1,21 @@
-import { eq, and } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import {
-  workTrackerProvider,
-  workTrackerProjectMapping,
-  workItem,
-} from "../../db/schema/product";
-import { getWorkTrackerAdapter } from "../../adapters/adapter-registry";
-import type { WorkTrackerType } from "../../adapters/work-tracker-adapter";
+import { and, eq } from "drizzle-orm"
+
+import { getWorkTrackerAdapter } from "../../adapters/adapter-registry"
+import type { WorkTrackerType } from "../../adapters/work-tracker-adapter"
 import type {
-  WorkTrackerSyncResult,
   PushResult,
   PushWorkItemSpec,
-} from "../../adapters/work-tracker-adapter";
-import { newId } from "../../lib/id";
-import { allocateSlug } from "../../lib/slug";
-import { logger } from "../../logger";
+  WorkTrackerSyncResult,
+} from "../../adapters/work-tracker-adapter"
+import type { Database } from "../../db/connection"
+import {
+  workItem,
+  workTrackerProjectMapping,
+  workTrackerProvider,
+} from "../../db/schema/product"
+import { newId } from "../../lib/id"
+import { allocateSlug } from "../../lib/slug"
+import { logger } from "../../logger"
 
 // ---------------------------------------------------------------------------
 // Status & kind mapping helpers
@@ -33,10 +34,10 @@ const STATUS_MAP: Record<string, string> = {
   done: "done",
   closed: "done",
   resolved: "done",
-};
+}
 
 function mapExternalStatus(raw: string): string {
-  return STATUS_MAP[raw.toLowerCase()] ?? "backlog";
+  return STATUS_MAP[raw.toLowerCase()] ?? "backlog"
 }
 
 const KIND_MAP: Record<string, string> = {
@@ -47,10 +48,10 @@ const KIND_MAP: Record<string, string> = {
   "sub-task": "task",
   subtask: "task",
   feature: "story",
-};
+}
 
 function mapExternalKind(raw: string): string {
-  return KIND_MAP[raw.toLowerCase()] ?? "task";
+  return KIND_MAP[raw.toLowerCase()] ?? "task"
 }
 
 // ---------------------------------------------------------------------------
@@ -61,30 +62,32 @@ export async function listWorkTrackerProviders(
   db: Database,
   filters?: { status?: string }
 ) {
-  let query = db.select().from(workTrackerProvider);
+  let query = db.select().from(workTrackerProvider)
   if (filters?.status) {
-    query = query.where(eq(workTrackerProvider.status, filters.status)) as typeof query;
+    query = query.where(
+      eq(workTrackerProvider.status, filters.status)
+    ) as typeof query
   }
-  const rows = await query;
-  return { data: rows, total: rows.length };
+  const rows = await query
+  return { data: rows, total: rows.length }
 }
 
 export async function getWorkTrackerProvider(db: Database, id: string) {
   const rows = await db
     .select()
     .from(workTrackerProvider)
-    .where(eq(workTrackerProvider.workTrackerProviderId, id));
-  return rows[0] ?? null;
+    .where(eq(workTrackerProvider.workTrackerProviderId, id))
+  return rows[0] ?? null
 }
 
 export async function createWorkTrackerProvider(
   db: Database,
   data: {
-    name: string;
-    kind: string;
-    apiUrl: string;
-    credentialsRef?: string;
-    defaultProjectKey?: string;
+    name: string
+    kind: string
+    apiUrl: string
+    credentialsRef?: string
+    defaultProjectKey?: string
   }
 ) {
   const slug = await allocateSlug({
@@ -93,44 +96,44 @@ export async function createWorkTrackerProvider(
       const existing = await db
         .select()
         .from(workTrackerProvider)
-        .where(eq(workTrackerProvider.slug, s));
-      return existing.length > 0;
+        .where(eq(workTrackerProvider.slug, s))
+      return existing.length > 0
     },
-  });
+  })
   const rows = await db
     .insert(workTrackerProvider)
     .values({ ...data, slug })
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function updateWorkTrackerProvider(
   db: Database,
   id: string,
   patch: {
-    name?: string;
-    apiUrl?: string;
-    credentialsRef?: string;
-    defaultProjectKey?: string;
-    status?: string;
-    syncEnabled?: boolean;
-    syncIntervalMinutes?: number;
+    name?: string
+    apiUrl?: string
+    credentialsRef?: string
+    defaultProjectKey?: string
+    status?: string
+    syncEnabled?: boolean
+    syncIntervalMinutes?: number
   }
 ) {
   const rows = await db
     .update(workTrackerProvider)
     .set(patch)
     .where(eq(workTrackerProvider.workTrackerProviderId, id))
-    .returning();
-  return rows[0] ?? null;
+    .returning()
+  return rows[0] ?? null
 }
 
 export async function deleteWorkTrackerProvider(db: Database, id: string) {
   const rows = await db
     .delete(workTrackerProvider)
     .where(eq(workTrackerProvider.workTrackerProviderId, id))
-    .returning();
-  return rows[0] ?? null;
+    .returning()
+  return rows[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -141,10 +144,10 @@ export async function testWorkTrackerConnection(
   db: Database,
   id: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const prov = await getWorkTrackerProvider(db, id);
-  if (!prov) return { ok: false, error: "provider not found" };
-  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
-  return adapter.testConnection(prov.apiUrl, prov.credentialsRef ?? "");
+  const prov = await getWorkTrackerProvider(db, id)
+  if (!prov) return { ok: false, error: "provider not found" }
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType)
+  return adapter.testConnection(prov.apiUrl, prov.credentialsRef ?? "")
 }
 
 // ---------------------------------------------------------------------------
@@ -155,36 +158,34 @@ export async function listProjectMappings(db: Database, providerId: string) {
   const rows = await db
     .select()
     .from(workTrackerProjectMapping)
-    .where(
-      eq(workTrackerProjectMapping.workTrackerProviderId, providerId)
-    );
-  return { data: rows, total: rows.length };
+    .where(eq(workTrackerProjectMapping.workTrackerProviderId, providerId))
+  return { data: rows, total: rows.length }
 }
 
 export async function createProjectMapping(
   db: Database,
   data: {
-    workTrackerProviderId: string;
-    moduleId: string;
-    externalProjectId: string;
-    externalProjectName?: string;
-    syncDirection?: string;
-    filterQuery?: string;
+    workTrackerProviderId: string
+    moduleId: string
+    externalProjectId: string
+    externalProjectName?: string
+    syncDirection?: string
+    filterQuery?: string
   }
 ) {
   const rows = await db
     .insert(workTrackerProjectMapping)
     .values(data)
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function deleteProjectMapping(db: Database, mappingId: string) {
   const rows = await db
     .delete(workTrackerProjectMapping)
     .where(eq(workTrackerProjectMapping.mappingId, mappingId))
-    .returning();
-  return rows[0] ?? null;
+    .returning()
+  return rows[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -192,10 +193,10 @@ export async function deleteProjectMapping(db: Database, mappingId: string) {
 // ---------------------------------------------------------------------------
 
 export async function listExternalProjects(db: Database, providerId: string) {
-  const prov = await getWorkTrackerProvider(db, providerId);
-  if (!prov) throw new Error("provider not found");
-  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
-  return adapter.listProjects(prov.apiUrl, prov.credentialsRef ?? "");
+  const prov = await getWorkTrackerProvider(db, providerId)
+  if (!prov) throw new Error("provider not found")
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType)
+  return adapter.listProjects(prov.apiUrl, prov.credentialsRef ?? "")
 }
 
 // ---------------------------------------------------------------------------
@@ -206,27 +207,25 @@ export async function syncWorkTracker(
   db: Database,
   providerId: string
 ): Promise<WorkTrackerSyncResult> {
-  const prov = await getWorkTrackerProvider(db, providerId);
-  if (!prov) throw new Error("provider not found");
+  const prov = await getWorkTrackerProvider(db, providerId)
+  if (!prov) throw new Error("provider not found")
 
   // Mark syncing
   await db
     .update(workTrackerProvider)
     .set({ syncStatus: "syncing", syncError: null })
-    .where(eq(workTrackerProvider.workTrackerProviderId, providerId));
+    .where(eq(workTrackerProvider.workTrackerProviderId, providerId))
 
   try {
     const mappings = await db
       .select()
       .from(workTrackerProjectMapping)
-      .where(
-        eq(workTrackerProjectMapping.workTrackerProviderId, providerId)
-      );
+      .where(eq(workTrackerProjectMapping.workTrackerProviderId, providerId))
 
-    const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
-    let created = 0;
-    let updated = 0;
-    let total = 0;
+    const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType)
+    let created = 0
+    let updated = 0
+    let total = 0
 
     for (const mapping of mappings) {
       const issues = await adapter.fetchIssues(
@@ -234,10 +233,10 @@ export async function syncWorkTracker(
         prov.credentialsRef ?? "",
         mapping.externalProjectId,
         mapping.filterQuery ?? undefined
-      );
+      )
 
       for (const issue of issues) {
-        total++;
+        total++
 
         // Check if work item already exists for this external issue
         const existing = await db
@@ -248,7 +247,7 @@ export async function syncWorkTracker(
               eq(workItem.externalId, issue.id),
               eq(workItem.workTrackerProviderId, providerId)
             )
-          );
+          )
 
         if (existing.length > 0) {
           // Update existing
@@ -266,8 +265,8 @@ export async function syncWorkTracker(
               externalUrl: issue.url,
               updatedAt: new Date(),
             })
-            .where(eq(workItem.workItemId, existing[0]!.workItemId));
-          updated++;
+            .where(eq(workItem.workItemId, existing[0]!.workItemId))
+          updated++
         } else {
           // Create new
           await db.insert(workItem).values({
@@ -283,8 +282,8 @@ export async function syncWorkTracker(
             externalKey: issue.key,
             externalUrl: issue.url,
             workTrackerProviderId: providerId,
-          });
-          created++;
+          })
+          created++
         }
       }
     }
@@ -293,17 +292,16 @@ export async function syncWorkTracker(
     await db
       .update(workTrackerProvider)
       .set({ syncStatus: "idle", lastSyncAt: new Date() })
-      .where(eq(workTrackerProvider.workTrackerProviderId, providerId));
+      .where(eq(workTrackerProvider.workTrackerProviderId, providerId))
 
-    return { created, updated, total };
+    return { created, updated, removed: 0, total }
   } catch (err) {
-    const errorMessage =
-      err instanceof Error ? err.message : String(err);
+    const errorMessage = err instanceof Error ? err.message : String(err)
     await db
       .update(workTrackerProvider)
       .set({ syncStatus: "error", syncError: errorMessage })
-      .where(eq(workTrackerProvider.workTrackerProviderId, providerId));
-    throw err;
+      .where(eq(workTrackerProvider.workTrackerProviderId, providerId))
+    throw err
   }
 }
 
@@ -316,15 +314,15 @@ export async function pushWorkItem(
   workItemId: string,
   providerId: string
 ): Promise<PushResult> {
-  const prov = await getWorkTrackerProvider(db, providerId);
-  if (!prov) throw new Error("provider not found");
+  const prov = await getWorkTrackerProvider(db, providerId)
+  if (!prov) throw new Error("provider not found")
 
   const items = await db
     .select()
     .from(workItem)
-    .where(eq(workItem.workItemId, workItemId));
-  const item = items[0];
-  if (!item) throw new Error("work item not found");
+    .where(eq(workItem.workItemId, workItemId))
+  const item = items[0]
+  if (!item) throw new Error("work item not found")
 
   // Find mapping for this work item's module
   const mappings = item.moduleId
@@ -337,12 +335,11 @@ export async function pushWorkItem(
             eq(workTrackerProjectMapping.moduleId, item.moduleId)
           )
         )
-    : [];
-  const mapping = mappings[0];
-  const projectId =
-    mapping?.externalProjectId ?? prov.defaultProjectKey ?? "";
+    : []
+  const mapping = mappings[0]
+  const projectId = mapping?.externalProjectId ?? prov.defaultProjectKey ?? ""
 
-  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType)
   const spec: PushWorkItemSpec = {
     title: item.title,
     description: item.description ?? undefined,
@@ -350,14 +347,14 @@ export async function pushWorkItem(
     priority: item.priority ?? undefined,
     assignee: item.assignee ?? undefined,
     labels: (item.labels as string[]) ?? [],
-  };
+  }
 
   const result = await adapter.pushIssue(
     prov.apiUrl,
     prov.credentialsRef ?? "",
     projectId,
     spec
-  );
+  )
 
   // Update work item with external references
   await db
@@ -369,9 +366,9 @@ export async function pushWorkItem(
       workTrackerProviderId: providerId,
       updatedAt: new Date(),
     })
-    .where(eq(workItem.workItemId, workItemId));
+    .where(eq(workItem.workItemId, workItemId))
 
-  return result;
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -384,14 +381,14 @@ export async function createEpicFromPrd(
   moduleId: string,
   epic: { title: string; description: string },
   stories: Array<{
-    title: string;
-    description: string;
-    kind?: string;
-    priority?: string;
+    title: string
+    description: string
+    kind?: string
+    priority?: string
   }>
 ): Promise<{ epicWorkItemId: string; storyWorkItemIds: string[] }> {
-  const prov = await getWorkTrackerProvider(db, providerId);
-  if (!prov) throw new Error("provider not found");
+  const prov = await getWorkTrackerProvider(db, providerId)
+  if (!prov) throw new Error("provider not found")
 
   // Find mapping for module
   const mappings = await db
@@ -402,12 +399,11 @@ export async function createEpicFromPrd(
         eq(workTrackerProjectMapping.workTrackerProviderId, providerId),
         eq(workTrackerProjectMapping.moduleId, moduleId)
       )
-    );
-  const mapping = mappings[0];
-  const projectId =
-    mapping?.externalProjectId ?? prov.defaultProjectKey ?? "";
+    )
+  const mapping = mappings[0]
+  const projectId = mapping?.externalProjectId ?? prov.defaultProjectKey ?? ""
 
-  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType);
+  const adapter = getWorkTrackerAdapter(prov.kind as WorkTrackerType)
 
   // 1. Push epic to external
   const epicResult = await adapter.pushIssue(
@@ -419,10 +415,10 @@ export async function createEpicFromPrd(
       description: epic.description,
       kind: "epic",
     }
-  );
+  )
 
   // 2. Insert local epic work item
-  const epicWorkItemId = newId("wi");
+  const epicWorkItemId = newId("wi")
   await db.insert(workItem).values({
     workItemId: epicWorkItemId,
     moduleId,
@@ -434,7 +430,7 @@ export async function createEpicFromPrd(
     externalKey: epicResult.externalKey,
     externalUrl: epicResult.externalUrl,
     workTrackerProviderId: providerId,
-  });
+  })
 
   // 3. Push stories to external with parent link
   const storySpecs: PushWorkItemSpec[] = stories.map((s) => ({
@@ -443,20 +439,20 @@ export async function createEpicFromPrd(
     kind: s.kind ?? "story",
     priority: s.priority,
     parentExternalId: epicResult.externalId,
-  }));
+  }))
 
   const storyResults = await adapter.pushIssues(
     prov.apiUrl,
     prov.credentialsRef ?? "",
     projectId,
     storySpecs
-  );
+  )
 
   // 4. Insert local story work items
-  const storyWorkItemIds: string[] = [];
+  const storyWorkItemIds: string[] = []
   for (let i = 0; i < stories.length; i++) {
-    const storyId = newId("wi");
-    storyWorkItemIds.push(storyId);
+    const storyId = newId("wi")
+    storyWorkItemIds.push(storyId)
     await db.insert(workItem).values({
       workItemId: storyId,
       moduleId,
@@ -470,7 +466,7 @@ export async function createEpicFromPrd(
       externalKey: storyResults[i]!.externalKey,
       externalUrl: storyResults[i]!.externalUrl,
       workTrackerProviderId: providerId,
-    });
+    })
   }
 
   logger.info(
@@ -481,7 +477,7 @@ export async function createEpicFromPrd(
       moduleId,
     },
     "created epic from PRD"
-  );
+  )
 
-  return { epicWorkItemId, storyWorkItemIds };
+  return { epicWorkItemId, storyWorkItemIds }
 }

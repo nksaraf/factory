@@ -4,29 +4,24 @@
  */
 
 export interface FactoryFetchClient {
-  fetchApi(path: string, init?: RequestInit): Promise<Response>;
+  fetchApi(path: string, init?: RequestInit): Promise<Response>
 }
 
 export async function getFactoryFetchClient(): Promise<FactoryFetchClient> {
-  const { readConfig, resolveFactoryUrl } = await import("../config.js");
-  const { getStoredBearerToken } = await import("../session-token.js");
+  const { readConfig, resolveFactoryUrl } = await import("../config.js")
+  const { getFactoryApiToken } = await import("../client.js")
 
-  const config = await readConfig();
-  const factoryUrl = resolveFactoryUrl(config);
-  const token = await getStoredBearerToken();
+  const config = await readConfig()
+  const factoryUrl = resolveFactoryUrl(config)
+  const token = await getFactoryApiToken()
 
   if (!token) {
-    throw new Error(
-      "Not authenticated. Run `dx factory login` first.",
-    );
+    throw new Error("Not authenticated. Run `dx factory login` first.")
   }
 
   return {
-    async fetchApi(
-      path: string,
-      init?: RequestInit,
-    ): Promise<Response> {
-      const url = `${factoryUrl}/api/v1/factory${path}`;
+    async fetchApi(path: string, init?: RequestInit): Promise<Response> {
+      const url = `${factoryUrl}/api/v1/factory${path}`
       return fetch(url, {
         ...init,
         headers: {
@@ -34,7 +29,7 @@ export async function getFactoryFetchClient(): Promise<FactoryFetchClient> {
           Authorization: `Bearer ${token}`,
           ...init?.headers,
         },
-      });
+      })
     },
-  };
+  }
 }

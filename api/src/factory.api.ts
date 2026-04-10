@@ -1,63 +1,71 @@
 import { cors } from "@elysiajs/cors"
 import { openapi } from "@elysiajs/openapi"
+import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
+import { and, eq } from "drizzle-orm"
 import { Elysia } from "elysia"
 
-import { and, eq } from "drizzle-orm"
 import { createGitHostAdapter } from "./adapters/adapter-registry"
-import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
 import { getObservabilityAdapter } from "./adapters/adapter-registry"
-
+import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
 import { gitHostProvider } from "./db/schema/build-v2"
-import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
 import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
-import { PostgresSecretBackend } from "./lib/secrets/postgres-backend"
+import { startMessagingSyncLoop } from "./lib/messaging-sync-loop"
+import { registerRunner, stopAll } from "./lib/operations"
 import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
+import { PostgresSecretBackend } from "./lib/secrets/postgres-backend"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
-import { startMessagingSyncLoop } from "./lib/messaging-sync-loop"
-import { initWorkflowEngine, shutdownWorkflowEngine } from "./lib/workflow-engine"
+import {
+  initWorkflowEngine,
+  shutdownWorkflowEngine,
+} from "./lib/workflow-engine"
 import { setWorkflowDb } from "./lib/workflow-helpers"
-import { registerRunner, stopAll } from "./lib/operations"
 import { logger } from "./logger"
-import { presenceController } from "./modules/presence/index"
+import { agentControllerV2 } from "./modules/agent/index.v2"
 import { seedPlatformPresets } from "./modules/agent/preset.service"
-import { webhookController } from "./modules/build/webhook.controller"
-import { messagingWebhookController } from "./modules/messaging/index"
-import { healthController } from "./modules/health/index"
-import { installController } from "./modules/install/index"
-import { observabilityController } from "./modules/observability/index"
-import { productControllerV2 } from "./modules/product/index.v2"
-import { buildControllerV2 } from "./modules/build/index.v2"
 import { resolveGitHostAdapterConfig } from "./modules/build/git-host.service"
+import { buildControllerV2 } from "./modules/build/index.v2"
+import { webhookController } from "./modules/build/webhook.controller"
+import { catalogController } from "./modules/catalog/catalog.controller"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
-import { infraControllerV2 } from "./modules/infra/index.v2"
-import { agentControllerV2 } from "./modules/agent/index.v2"
+import { healthController } from "./modules/health/index"
+import { ideHookController } from "./modules/ide-hooks/index"
+import { configVarController } from "./modules/identity/config-var.controller"
 import { identityControllerV2 } from "./modules/identity/index.v2"
 import { secretController } from "./modules/identity/secret.controller"
-import { configVarController } from "./modules/identity/config-var.controller"
-import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { infraControllerV2 } from "./modules/infra/index.v2"
 import { previewCiController } from "./modules/infra/preview-ci.controller"
+import { installController } from "./modules/install/index"
+import { messagingWebhookController } from "./modules/messaging/index"
+import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { observabilityController } from "./modules/observability/index"
+import { presenceController } from "./modules/presence/index"
+import { productControllerV2 } from "./modules/product/index.v2"
+import { threadsControllerV2 } from "./modules/threads/index.v2"
 import { jiraWebhookTrigger } from "./modules/workflow/triggers/jira-webhook"
 import { workflowController } from "./modules/workflow/triggers/rest"
-import { ideHookController } from "./modules/ide-hooks/index"
+
 // Import workflows so they self-register in the workflow registry
 import "./modules/workflow/workflows/god-workflow"
 import "./modules/workflow/workflows/echo-workflow"
-import { siteController } from "./modules/site/index"
-import { SiteReconciler } from "./modules/site/reconciler"
-import { operationsController } from "./modules/system/operations.controller"
-import { Reconciler } from "./reconciler/reconciler"
+// Import chat module to register Chat SDK bot + handlers before webhooks arrive
+import "./modules/chat/index"
+
 import { KubeClientImpl } from "./lib/kube-client-impl"
 import { startGateway } from "./modules/infra/gateway-proxy"
 import { getTunnelStreamManager } from "./modules/infra/tunnel-broker"
+import { siteController } from "./modules/site/index"
+import { SiteReconciler } from "./modules/site/reconciler"
+import { operationsController } from "./modules/system/operations.controller"
 import { authPlugin, principalPlugin } from "./plugins/auth.plugin"
 import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
+import { Reconciler } from "./reconciler/reconciler"
 import {
   type FactorySettings,
   getAuthServiceUrl,
@@ -81,7 +89,10 @@ export class FactoryAPI {
   })()
   readonly authzClient: FactoryAuthzClient | null
   reconciler: Reconciler | null = null
-  private redis?: { publisher: import("ioredis").Redis; subscriber: import("ioredis").Redis }
+  private redis?: {
+    publisher: import("ioredis").Redis
+    subscriber: import("ioredis").Redis
+  }
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -129,6 +140,8 @@ export class FactoryAPI {
       .use(operationsController())
       .use(workflowController(db))
       .use(ideHookController(db))
+      .use(threadsControllerV2(db))
+      .use(catalogController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
@@ -181,11 +194,21 @@ export class FactoryAPI {
         const url = new URL(request.url)
         // Skip health checks to reduce noise
         if (url.pathname === "/health") return
-        logger.info({ method: request.method, path: url.pathname, host: request.headers.get("host") }, `${request.method} ${url.pathname}`)
+        logger.info(
+          {
+            method: request.method,
+            path: url.pathname,
+            host: request.headers.get("host"),
+          },
+          `${request.method} ${url.pathname}`
+        )
       })
       .onError(({ request, error, code }) => {
         const url = new URL(request.url)
-        logger.error({ method: request.method, path: url.pathname, code, err: error }, `${request.method} ${url.pathname} failed (${code})`)
+        logger.error(
+          { method: request.method, path: url.pathname, code, err: error },
+          `${request.method} ${url.pathname} failed (${code})`
+        )
       })
       .use(healthController)
       .use(installController)
@@ -232,25 +255,35 @@ export class FactoryAPI {
       "factory migrations complete"
     )
     // Load first active GitHub provider for preview PR comments/deployments/checks
-    let gitHost;
+    let gitHost
     try {
-      const [ghProvider] = await this.db.select().from(gitHostProvider)
+      const [ghProvider] = await this.db
+        .select()
+        .from(gitHostProvider)
         .where(eq(gitHostProvider.type, "github"))
-        .limit(1);
+        .limit(1)
       if (ghProvider) {
-        const spec = (ghProvider.spec ?? {}) as GitHostProviderSpec;
+        const spec = (ghProvider.spec ?? {}) as GitHostProviderSpec
         if (spec.status === "active" || !spec.status) {
           gitHost = createGitHostAdapter(
             "github",
-            await resolveGitHostAdapterConfig(this.db, spec),
-          );
-          logger.info({ provider: ghProvider.name }, "Loaded GitHub adapter for preview reconciler");
+            await resolveGitHostAdapterConfig(this.db, spec)
+          )
+          logger.info(
+            { provider: ghProvider.name },
+            "Loaded GitHub adapter for preview reconciler"
+          )
         }
       } else {
-        logger.warn("No active GitHub provider found — preview PR comments/checks will be skipped");
+        logger.warn(
+          "No active GitHub provider found — preview PR comments/checks will be skipped"
+        )
       }
     } catch (err) {
-      logger.warn({ err }, "Failed to load GitHub adapter — preview PR integration disabled");
+      logger.warn(
+        { err },
+        "Failed to load GitHub adapter — preview PR integration disabled"
+      )
     }
 
     this.reconciler = new Reconciler(this.db, new KubeClientImpl(), gitHost)
@@ -259,14 +292,19 @@ export class FactoryAPI {
     registerRunner(startProxmoxSyncLoop(this.db))
     registerRunner(startWorkTrackerSyncLoop(this.db))
     registerRunner(startGitHostSyncLoop(this.db))
-    registerRunner(startIdentitySyncLoop(this.db, new PostgresSecretBackend(this.db)))
+    registerRunner(
+      startIdentitySyncLoop(this.db, new PostgresSecretBackend(this.db))
+    )
     registerRunner(startMessagingSyncLoop(this.db))
 
     // Start gateway proxy for tunnel routing on port 9090
     try {
       startGateway({ db: this.db, getTunnelStreamManager })
     } catch (err) {
-      logger.warn({ err }, "Gateway proxy failed to start — tunnels will not work")
+      logger.warn(
+        { err },
+        "Gateway proxy failed to start — tunnels will not work"
+      )
     }
 
     seedPlatformPresets(this.db).catch((err) =>
@@ -277,7 +315,10 @@ export class FactoryAPI {
     setWorkflowDb(this.db)
     if (url) {
       initWorkflowEngine(url).catch((err) =>
-        logger.warn({ err }, "workflow engine init failed — durable workflows unavailable")
+        logger.warn(
+          { err },
+          "workflow engine init failed — durable workflows unavailable"
+        )
       )
     }
 
@@ -292,7 +333,10 @@ export class FactoryAPI {
         }
         logger.info("Redis connected for presence fan-out")
       } catch (err) {
-        logger.warn({ err }, "Redis unavailable — presence limited to single instance")
+        logger.warn(
+          { err },
+          "Redis unavailable — presence limited to single instance"
+        )
       }
     }
 

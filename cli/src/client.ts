@@ -1,12 +1,105 @@
 import { type Treaty, treaty } from "@elysiajs/eden"
 import type { FactoryApp } from "@smp/factory-api/app-type"
 
-import { readConfig, resolveFactoryUrl, resolveFactoryMode } from "./config.js"
+import { readConfig, resolveFactoryMode, resolveFactoryUrl } from "./config.js"
 import { FactoryClient } from "./lib/api-client.js"
-import { getStoredBearerToken } from "./session-token.js"
+import { readSession, writeSession } from "./session-token.js"
 import { getTraceHeaders } from "./telemetry.js"
 
 export type FactoryEdenClient = Treaty.Create<FactoryApp>
+
+// ---------------------------------------------------------------------------
+// JWT helpers — the Factory API validates JWTs via JWKS, not opaque bearer
+// tokens. The bearer token is only valid for the auth service (Better Auth).
+// ---------------------------------------------------------------------------
+
+function isJwtExpired(jwt: string): boolean {
+  try {
+    const parts = jwt.split(".")
+    if (parts.length !== 3) return true
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+    )
+    return !payload.exp || Date.now() / 1000 > payload.exp - 60
+  } catch {
+    return true
+  }
+}
+
+async function refreshJwt(
+  factoryUrl: string,
+  authBasePath: string,
+  bearerToken: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${factoryUrl}${authBasePath}/get-session`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${bearerToken}` },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const headerJwt = res.headers.get("set-auth-jwt")
+    if (headerJwt) {
+      await writeSession({ jwt: headerJwt })
+      return headerJwt
+    }
+    const data = (await res.json()) as Record<string, unknown>
+    const bodyJwt = (data?.session as Record<string, unknown>)?.jwt ?? data?.jwt
+    if (typeof bodyJwt === "string" && bodyJwt.length > 0) {
+      await writeSession({ jwt: bodyJwt })
+      return bodyJwt
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resolve a valid JWT for the Factory API.
+ *
+ * Priority:
+ * 1. Explicit `init.token` (caller override)
+ * 2. Stored JWT (if not expired)
+ * 3. Refreshed JWT (using bearer token against auth service)
+ * 4. Stored bearer token as last-resort fallback
+ */
+async function resolveApiToken(
+  factoryUrl: string,
+  authBasePath: string,
+  initToken?: string
+): Promise<string | undefined> {
+  if (initToken) return initToken
+
+  const session = await readSession()
+  const { jwt, bearerToken } = session
+
+  // Use stored JWT if still valid
+  if (jwt && !isJwtExpired(jwt)) return jwt
+
+  // Refresh JWT using bearer token
+  if (bearerToken) {
+    const fresh = await refreshJwt(factoryUrl, authBasePath, bearerToken)
+    if (fresh) return fresh
+  }
+
+  // Last-resort fallback: return whatever we have
+  return jwt || bearerToken || undefined
+}
+
+/**
+ * Resolve a valid API token (JWT) for the Factory API.
+ * Convenience wrapper for callers that don't go through the Eden clients.
+ */
+export async function getFactoryApiToken(): Promise<string | undefined> {
+  const cfg = await readConfig()
+  const url = resolveFactoryUrl(cfg).replace(/\/$/, "")
+  return resolveApiToken(url, cfg.authBasePath)
+}
+
+// ---------------------------------------------------------------------------
+// Client factories
+// ---------------------------------------------------------------------------
 
 /**
  * Typed Eden client for the Factory API.
@@ -25,8 +118,7 @@ export async function getFactoryClient(
     await ensureLocalDaemon()
   }
 
-  const stored = await getStoredBearerToken()
-  const token = init?.token ?? stored
+  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
 
   return treaty<FactoryApp>(url, {
     headers: () => ({
@@ -46,8 +138,7 @@ export async function getFactoryRestClient(
 ): Promise<FactoryClient> {
   const cfg = await readConfig()
   const url = (baseUrl ?? resolveFactoryUrl(cfg)).replace(/\/$/, "")
-  const stored = await getStoredBearerToken()
-  const token = init?.token ?? stored
+  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
   return new FactoryClient(url, token)
 }
 
@@ -64,8 +155,7 @@ export async function getSiteClient(
   if (!siteUrl) return undefined
 
   const url = siteUrl.replace(/\/$/, "")
-  const stored = await getStoredBearerToken()
-  const token = init?.token ?? stored
+  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
 
   return treaty<FactoryApp>(url, {
     headers: () => ({
