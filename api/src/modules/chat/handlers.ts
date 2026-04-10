@@ -173,8 +173,22 @@ bot.onNewMention(async (chatThread, message) => {
     const replyText = await result.text
     await recordTurn(threadId, "assistant", replyText)
   } catch (err) {
+    const errMsg =
+      err instanceof Error ? err.message : "Unknown error"
     log.error({ err, threadId: chatThread.id }, "Failed to handle mention")
-    await chatThread.post("Sorry, something went wrong.").catch(() => {})
+
+    // Record the error as a turn so it's visible in the thread history
+    try {
+      const channelId = await ensureChannel(slackChannelId)
+      const threadId = await ensureThread(chatThread.id, channelId, authorId)
+      await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
+    } catch (_) {
+      // Best-effort — don't mask the original error
+    }
+
+    await chatThread
+      .post(`Sorry, something went wrong: ${errMsg}`)
+      .catch(() => {})
   }
 })
 
@@ -218,7 +232,20 @@ bot.onSubscribedMessage(async (chatThread, message) => {
     const replyText = await result.text
     await recordTurn(threadId, "assistant", replyText)
   } catch (err) {
+    const errMsg =
+      err instanceof Error ? err.message : "Unknown error"
     log.error({ err, threadId: chatThread.id }, "Failed to handle message")
-    await chatThread.post("Sorry, something went wrong.").catch(() => {})
+
+    try {
+      const channelId = await ensureChannel(slackChannelId)
+      const threadId = await ensureThread(chatThread.id, channelId, authorId)
+      await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
+    } catch (_) {
+      // Best-effort
+    }
+
+    await chatThread
+      .post(`Sorry, something went wrong: ${errMsg}`)
+      .catch(() => {})
   }
 })
