@@ -16,13 +16,38 @@ ALTER TABLE "infra"."network_link" DROP CONSTRAINT "infra_network_link_type_vali
 ALTER TABLE "infra"."network_link" DROP CONSTRAINT "infra_network_link_endpoint_kind_valid";--> statement-breakpoint
 ALTER TABLE "infra"."runtime" DROP CONSTRAINT "infra_runtime_type_valid";--> statement-breakpoint
 ALTER TABLE "infra"."substrate" DROP CONSTRAINT "infra_substrate_type_valid";--> statement-breakpoint
-ALTER TABLE "org"."document" DROP CONSTRAINT "document_parent_id_document_id_fk";
+ALTER TABLE "org"."document" DROP CONSTRAINT IF EXISTS "document_parent_id_document_id_fk";--> statement-breakpoint
+ALTER TABLE "org"."document" DROP CONSTRAINT IF EXISTS "document_parent_id_fkey";
 --> statement-breakpoint
-DROP INDEX "org"."org_document_path_unique";--> statement-breakpoint
-DROP INDEX "org"."org_document_parent_idx";--> statement-breakpoint
-ALTER TABLE "org"."document" ADD COLUMN "slug" text NOT NULL;--> statement-breakpoint
+DROP INDEX IF EXISTS "org"."org_document_path_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "org"."org_document_parent_idx";--> statement-breakpoint
+ALTER TABLE "org"."document" ADD COLUMN "slug" text;--> statement-breakpoint
 ALTER TABLE "org"."document" ADD COLUMN "content_path" text;--> statement-breakpoint
 ALTER TABLE "org"."document" ADD COLUMN "updated_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+UPDATE "org"."document" SET slug = COALESCE(
+  spec->>'slug',
+  regexp_replace(regexp_replace(path, '^plan/', ''), '/(current\.md|versions/v\d+\.md)$', '')
+) WHERE slug IS NULL;--> statement-breakpoint
+UPDATE "org"."document" SET slug = id WHERE slug IS NULL OR slug = '';--> statement-breakpoint
+UPDATE "org"."document" SET content_path = path WHERE content_path IS NULL;--> statement-breakpoint
+INSERT INTO "org"."document_version" (id, document_id, version, content_path, content_hash, size_bytes, source, thread_id, spec, created_at)
+SELECT
+  v.id,
+  anchor.id,
+  v.version,
+  v.path,
+  v.content_hash,
+  v.size_bytes,
+  v.source,
+  v.thread_id,
+  v.spec,
+  v.created_at
+FROM "org"."document" v
+JOIN "org"."document" anchor
+  ON anchor.path = regexp_replace(v.path, '/versions/v\d+\.md$', '') || '/current.md'
+WHERE v.version IS NOT NULL;--> statement-breakpoint
+DELETE FROM "org"."document" WHERE version IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "org"."document" ALTER COLUMN "slug" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "org"."document_version" ADD CONSTRAINT "document_version_document_id_document_id_fk" FOREIGN KEY ("document_id") REFERENCES "org"."document"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "org"."document_version" ADD CONSTRAINT "document_version_thread_id_thread_id_fk" FOREIGN KEY ("thread_id") REFERENCES "org"."thread"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "org_docver_doc_version_unique" ON "org"."document_version" USING btree ("document_id","version");--> statement-breakpoint
