@@ -285,19 +285,24 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             })
           )
 
-          // Replay missed frames AFTER "registered" so the client is ready
+          // Replay missed frames AFTER "registered" so the client is ready.
+          // Preserve original seq numbers so the client's counter stays in sync
+          // with the replay buffer — avoids frame loss on double-reconnect.
           if (detached && typeof msg.resume?.lastReceivedSeq === "number") {
             const replayFrom = msg.resume.lastReceivedSeq
             let replayed = 0
             for (const entry of detached.buffer) {
               if (entry.seq > replayFrom) {
-                state.outSeq++
                 if (state.replayBuffer.length >= REPLAY_BUFFER_CAPACITY) {
                   state.replayBuffer.shift()
                 }
-                state.replayBuffer.push({ seq: state.outSeq, data: entry.data })
+                state.replayBuffer.push({ seq: entry.seq, data: entry.data })
                 ws.send(entry.data)
                 replayed++
+                // Keep outSeq in sync with the highest replayed seq
+                if (entry.seq > state.outSeq) {
+                  state.outSeq = entry.seq
+                }
               }
             }
             logger.info(

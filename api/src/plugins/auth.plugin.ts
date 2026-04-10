@@ -41,12 +41,7 @@ export function authPlugin(jwksUrl: string) {
 
       if (!token) {
         set.status = 401
-        throw new Error("Missing Authorization header")
-      }
-
-      if (!token) {
-        set.status = 401
-        throw new Error("Missing bearer token")
+        throw new Error("Missing authentication token")
       }
 
       try {
