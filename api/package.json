@@ -23,8 +23,8 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.47",
+    "@ai-sdk/google": "^3.0.29",
     "@anthropic-ai/sdk": "^0.80.0",
-    "ai": "^6.0.101",
     "@chat-adapter/slack": "latest",
     "@chat-adapter/state-memory": "latest",
     "@chat-adapter/state-pg": "4.24.0",
@@ -40,6 +40,7 @@
     "@rio.js/app-config": "0.3.0",
     "@slack/web-api": "^7.15.0",
     "@smp/factory-shared": "workspace:*",
+    "ai": "^6.0.101",
     "chat": "latest",
     "cuid": "^3.0.0",
     "drizzle-orm": "^0.45.2",

@@ -1,4 +1,4 @@
-import { createAnthropic } from "@ai-sdk/anthropic"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { ToolLoopAgent, stepCountIs, tool } from "ai"
 import { getTableConfig } from "drizzle-orm/pg-core"
 import type { PgTable } from "drizzle-orm/pg-core"
@@ -275,16 +275,17 @@ let _agentPromise: Promise<any> | null = null
 export function getAgent() {
   if (!_agentPromise) {
     _agentPromise = (async () => {
-      const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.LLM_API_KEY
+      const apiKey =
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.LLM_API_KEY
       if (!apiKey) {
         throw new Error(
-          "ANTHROPIC_API_KEY or LLM_API_KEY must be set for chat agent"
+          "GOOGLE_GENERATIVE_AI_API_KEY or LLM_API_KEY must be set for chat agent"
         )
       }
 
-      const anthropic = createAnthropic({ apiKey })
-      const model = anthropic(
-        process.env.LLM_MODEL ?? "claude-sonnet-4-20250514"
+      const google = createGoogleGenerativeAI({ apiKey })
+      const model = google(
+        process.env.LLM_MODEL ?? "gemini-2.5-flash"
       )
 
       return new ToolLoopAgent({
