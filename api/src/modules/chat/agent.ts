@@ -285,7 +285,7 @@ export function getAgent() {
 
       const google = createGoogleGenerativeAI({ apiKey })
       const model = google(
-        process.env.LLM_MODEL ?? "gemini-2.5-flash"
+        process.env.LLM_MODEL ?? "gemini-2.0-flash-lite"
       )
 
       return new ToolLoopAgent({
