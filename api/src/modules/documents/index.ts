@@ -25,8 +25,8 @@ import { documentExists, readDocument, writeDocument } from "./storage"
 export function documentsController(db: Database) {
   return (
     new Elysia({ prefix: "/documents" })
-      // Custom upsert endpoint — must come BEFORE ontologyRoutes to take priority
-      .post("/documents", async ({ body, set }) => {
+      // Upsert endpoint at /documents/upsert — handles create-or-update by path
+      .post("/upsert", async ({ body, set }) => {
         const parsed = CreateDocumentSchema.parse(body)
         const p = parsed as Record<string, unknown>
 
@@ -76,7 +76,7 @@ export function documentsController(db: Database) {
           table: document,
           slugColumn: document.id,
           idColumn: document.id,
-          // No createSchema — we handle create via the custom upsert POST above
+          createSchema: CreateDocumentSchema,
           updateSchema: UpdateDocumentSchema,
           deletable: true,
           relations: {
@@ -85,6 +85,19 @@ export function documentsController(db: Database) {
               table: document,
               fk: document.parentId,
               orderBy: document.version,
+            },
+          },
+          hooks: {
+            beforeCreate: async ({ parsed }) => {
+              const p = parsed as Record<string, unknown>
+              // Write content to filesystem if provided
+              if (typeof p.content === "string" && typeof p.path === "string") {
+                const content = p.content as string
+                await writeDocument(p.path as string, content)
+                p.sizeBytes = Buffer.byteLength(content, "utf-8")
+                delete p.content
+              }
+              return p
             },
           },
         })

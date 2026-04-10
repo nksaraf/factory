@@ -13,7 +13,11 @@ import {
   normalizeModel,
   resolveRepoContext,
 } from "./common.js"
-import { sendBatch } from "./send.js"
+import {
+  extractCursorPlans,
+  getCursorPlansDir,
+} from "./cursor-plan-extractor.js"
+import { sendBatch, uploadDocument } from "./send.js"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -191,6 +195,64 @@ export function countConversations(): number {
   }
 }
 
+// ── Plan upload ──────────────────────────────────────────────
+
+async function uploadCursorPlans(opts: {
+  dryRun: boolean
+  verbose: boolean
+}): Promise<{ uploaded: number; duplicates: number; errors: number }> {
+  const plans = extractCursorPlans()
+  if (plans.length === 0) return { uploaded: 0, duplicates: 0, errors: 0 }
+
+  console.error(`  Found ${plans.length} Cursor plans`)
+
+  let uploaded = 0
+  let duplicates = 0
+  let errors = 0
+
+  for (const plan of plans) {
+    try {
+      const completedTodos = plan.todos.filter(
+        (t) => t.status === "completed"
+      ).length
+      const totalTodos = plan.todos.length
+
+      const result = await uploadDocument({
+        path: `plan/${plan.slug}/current.md`,
+        content: plan.content,
+        type: "plan",
+        source: "cursor",
+        title: plan.title,
+        contentHash: plan.contentHash,
+        spec: {
+          title: plan.title,
+          slug: plan.slug,
+          overview: plan.overview,
+          isProject: plan.isProject,
+          todosTotal: totalTodos,
+          todosCompleted: completedTodos,
+          todoItems: plan.todos,
+        },
+        dryRun: opts.dryRun,
+      })
+      if (result.duplicate) {
+        duplicates++
+      } else {
+        uploaded++
+      }
+    } catch (err) {
+      if (opts.verbose) {
+        console.error(`  [cursor-plan-err] ${plan.slug}: ${err}`)
+      }
+      errors++
+    }
+  }
+
+  return { uploaded, duplicates, errors }
+}
+
+// ── Public API ───────────────────────────────────────────────
+
 export async function ingestCursor(opts: IngestOptions): Promise<IngestResult> {
   const db = openCursorDb()
 
@@ -213,7 +275,20 @@ export async function ingestCursor(opts: IngestOptions): Promise<IngestResult> {
       `  Parsed ${allEvents.length} events (${conversationEvents.length} sessions, ${commitEvents.length} commits)`
     )
 
-    return sendBatch(allEvents, opts)
+    const result = await sendBatch(allEvents, opts)
+
+    // Upload Cursor plans
+    if (getCursorPlansDir()) {
+      const planResult = await uploadCursorPlans({
+        dryRun: opts.dryRun,
+        verbose: opts.verbose,
+      })
+      console.error(
+        `  Plans: ${planResult.uploaded} uploaded, ${planResult.duplicates} duplicates, ${planResult.errors} errors`
+      )
+    }
+
+    return result
   } finally {
     db.close()
   }

@@ -229,7 +229,7 @@ export async function uploadDocument(opts: {
     body.sizeBytes = Buffer.byteLength(opts.content, "utf-8")
   }
 
-  const res = await fetch(`${auth.url}/api/v1/factory/documents/documents`, {
+  const res = await fetch(`${auth.url}/api/v1/factory/documents/upsert`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
