@@ -1,9 +1,14 @@
+import type {
+  LogEntry,
+  LogLevel,
+} from "@smp/factory-shared/observability-types"
 import { spawn } from "node:child_process"
 import { createInterface } from "node:readline"
-import type { LogEntry, LogLevel } from "@smp/factory-shared/observability-types"
+
+import type { Compose } from "./docker.js"
 
 export interface DockerLogStreamOptions {
-  composeFile: string
+  compose: Compose
   services?: string[]
   follow?: boolean
   since?: string
@@ -66,19 +71,40 @@ function normalizeLevel(raw: string): LogLevel {
   if (lower === "error" || lower === "err" || lower === "50") return "error"
   if (lower === "warn" || lower === "warning" || lower === "40") return "warn"
   if (lower === "info" || lower === "30") return "info"
-  if (lower === "debug" || lower === "20" || lower === "trace" || lower === "10") return "debug"
+  if (
+    lower === "debug" ||
+    lower === "20" ||
+    lower === "trace" ||
+    lower === "10"
+  )
+    return "debug"
   return "info"
 }
 
-function extractAttributes(parsed: Record<string, unknown>): Record<string, string> {
+function extractAttributes(
+  parsed: Record<string, unknown>
+): Record<string, string> {
   const skip = new Set([
-    "time", "timestamp", "ts", "level", "severity",
-    "msg", "message", "traceId", "trace_id", "spanId", "span_id",
+    "time",
+    "timestamp",
+    "ts",
+    "level",
+    "severity",
+    "msg",
+    "message",
+    "traceId",
+    "trace_id",
+    "spanId",
+    "span_id",
   ])
   const attrs: Record<string, string> = {}
   for (const [k, v] of Object.entries(parsed)) {
     if (skip.has(k)) continue
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+    if (
+      typeof v === "string" ||
+      typeof v === "number" ||
+      typeof v === "boolean"
+    ) {
       attrs[k] = String(v)
     }
   }
@@ -94,12 +120,12 @@ export function streamDockerLogs(
   onEntry: (entry: LogEntry) => void
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const args = ["compose", "-f", opts.composeFile, "logs"]
-    if (opts.follow) args.push("--follow")
-    if (opts.since) args.push("--since", opts.since)
-    if (opts.tail !== undefined) args.push("--tail", String(opts.tail))
-    args.push("--no-log-prefix")
-    if (opts.services?.length) args.push(...opts.services)
+    const args = opts.compose.logsArgs({
+      follow: opts.follow,
+      since: opts.since,
+      tail: opts.tail,
+      services: opts.services,
+    })
 
     const proc = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],

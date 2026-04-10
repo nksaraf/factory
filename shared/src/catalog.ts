@@ -16,9 +16,9 @@
  *   - persistent (not pvc)        — size, class, mode
  *   - exposure (not serviceType)  — internal, node, public
  */
+import { z } from "zod"
 
-import { z } from "zod";
-import type { PortProtocol } from "./types";
+import type { PortProtocol } from "./types"
 
 // ─── Lifecycle ───────────────────────────────────────────────
 
@@ -27,8 +27,8 @@ export const catalogLifecycleSchema = z.enum([
   "development",
   "production",
   "deprecated",
-]);
-export type CatalogLifecycle = z.infer<typeof catalogLifecycleSchema>;
+])
+export type CatalogLifecycle = z.infer<typeof catalogLifecycleSchema>
 
 // ─── Entity Kinds ────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export type CatalogEntityKind =
   | "Resource"
   | "API"
   | "Group"
-  | "User";
+  | "User"
 
 // ─── Metadata ────────────────────────────────────────────────
 
@@ -61,8 +61,8 @@ export const catalogMetadataSchema = z.object({
       })
     )
     .optional(),
-});
-export type CatalogMetadata = z.infer<typeof catalogMetadataSchema>;
+})
+export type CatalogMetadata = z.infer<typeof catalogMetadataSchema>
 
 // ─── Port ────────────────────────────────────────────────────
 
@@ -72,11 +72,17 @@ export const catalogPortSchema = z.object({
   port: z.number(),
   /** Container port when it differs from `port`. */
   containerPort: z.number().optional(),
-  protocol: z.enum(["http", "https", "grpc", "tcp", "udp"]) satisfies z.ZodType<PortProtocol>,
+  protocol: z.enum([
+    "http",
+    "https",
+    "grpc",
+    "tcp",
+    "udp",
+  ]) satisfies z.ZodType<PortProtocol>,
   /** How this port is exposed: internal (default), node-level, or public. */
   exposure: z.enum(["internal", "node", "public"]).optional(),
-});
-export type CatalogPort = z.infer<typeof catalogPortSchema>;
+})
+export type CatalogPort = z.infer<typeof catalogPortSchema>
 
 // ─── Healthcheck ────────────────────────────────────────────
 //
@@ -86,16 +92,20 @@ export type CatalogPort = z.infer<typeof catalogPortSchema>;
 
 export const catalogHealthcheckSchema = z.object({
   /** HTTP check — path + port. */
-  http: z.object({
-    path: z.string(),
-    port: z.union([z.number(), z.string()]),
-  }).optional(),
+  http: z
+    .object({
+      path: z.string(),
+      port: z.union([z.number(), z.string()]),
+    })
+    .optional(),
   /** Shell command check. */
   command: z.array(z.string()).optional(),
   /** TCP socket check — just a port. */
-  tcp: z.object({
-    port: z.union([z.number(), z.string()]),
-  }).optional(),
+  tcp: z
+    .object({
+      port: z.union([z.number(), z.string()]),
+    })
+    .optional(),
   /** Seconds to wait before first check. */
   delay: z.number().optional(),
   /** Seconds between checks. */
@@ -104,8 +114,8 @@ export const catalogHealthcheckSchema = z.object({
   timeout: z.number().optional(),
   /** Number of consecutive failures before marking unhealthy. */
   retries: z.number().optional(),
-});
-export type CatalogHealthcheck = z.infer<typeof catalogHealthcheckSchema>;
+})
+export type CatalogHealthcheck = z.infer<typeof catalogHealthcheckSchema>
 
 // ─── Volume ─────────────────────────────────────────────────
 
@@ -115,29 +125,37 @@ export const catalogVolumeSchema = z.object({
   containerPath: z.string(),
   readOnly: z.boolean().optional(),
   /** Persistent storage — requests a managed volume (PVC in k8s, named volume in compose). */
-  persistent: z.object({
-    size: z.string(),
-    class: z.string().optional(),
-    mode: z.enum(["read-write-once", "read-only-many", "read-write-many"]).optional(),
-  }).optional(),
-});
-export type CatalogVolume = z.infer<typeof catalogVolumeSchema>;
+  persistent: z
+    .object({
+      size: z.string(),
+      class: z.string().optional(),
+      mode: z
+        .enum(["read-write-once", "read-only-many", "read-write-many"])
+        .optional(),
+    })
+    .optional(),
+})
+export type CatalogVolume = z.infer<typeof catalogVolumeSchema>
 
 // ─── Compute (CPU / memory bounds) ──────────────────────────
 
 export const catalogComputeSchema = z.object({
   /** Minimum guaranteed resources. */
-  min: z.object({
-    cpu: z.string().optional(),
-    memory: z.string().optional(),
-  }).optional(),
+  min: z
+    .object({
+      cpu: z.string().optional(),
+      memory: z.string().optional(),
+    })
+    .optional(),
   /** Maximum allowed resources. */
-  max: z.object({
-    cpu: z.string().optional(),
-    memory: z.string().optional(),
-  }).optional(),
-});
-export type CatalogCompute = z.infer<typeof catalogComputeSchema>;
+  max: z
+    .object({
+      cpu: z.string().optional(),
+      memory: z.string().optional(),
+    })
+    .optional(),
+})
+export type CatalogCompute = z.infer<typeof catalogComputeSchema>
 
 // ─── Route (HTTP routing / ingress) ─────────────────────────
 
@@ -146,14 +164,16 @@ export const catalogRouteSchema = z.object({
   path: z.string().default("/"),
   pathMatch: z.enum(["prefix", "exact"]).optional(),
   portName: z.string(),
-  tls: z.object({
-    enabled: z.boolean().default(true),
-    secretName: z.string().optional(),
-  }).optional(),
+  tls: z
+    .object({
+      enabled: z.boolean().default(true),
+      secretName: z.string().optional(),
+    })
+    .optional(),
   labels: z.record(z.string()).optional(),
   provider: z.string().optional(),
-});
-export type CatalogRoute = z.infer<typeof catalogRouteSchema>;
+})
+export type CatalogRoute = z.infer<typeof catalogRouteSchema>
 
 // ─── Secret reference ───────────────────────────────────────
 
@@ -164,8 +184,8 @@ export const catalogSecretRefSchema = z.object({
   ref: z.string(),
   /** If set, the value for local dev / docker-compose. */
   localDefault: z.string().optional(),
-});
-export type CatalogSecretRef = z.infer<typeof catalogSecretRefSchema>;
+})
+export type CatalogSecretRef = z.infer<typeof catalogSecretRefSchema>
 
 // ─── Component (services you build) ──────────────────────────
 
@@ -176,8 +196,8 @@ export const componentTypeSchema = z.enum([
   "cronjob",
   "website",
   "library",
-]);
-export type ComponentType = z.infer<typeof componentTypeSchema>;
+])
+export type ComponentType = z.infer<typeof componentTypeSchema>
 
 export const catalogComponentSchema = z.object({
   kind: z.literal("Component"),
@@ -212,11 +232,13 @@ export const catalogComponentSchema = z.object({
     stateful: z.boolean().optional(),
 
     // ── Healthchecks ──
-    healthchecks: z.object({
-      live: catalogHealthcheckSchema.optional(),
-      ready: catalogHealthcheckSchema.optional(),
-      start: catalogHealthcheckSchema.optional(),
-    }).optional(),
+    healthchecks: z
+      .object({
+        live: catalogHealthcheckSchema.optional(),
+        ready: catalogHealthcheckSchema.optional(),
+        start: catalogHealthcheckSchema.optional(),
+      })
+      .optional(),
 
     // ── Scaling / compute ──
     replicas: z.number().optional(),
@@ -240,8 +262,8 @@ export const catalogComponentSchema = z.object({
     // ── Docker compose profiles ──
     profiles: z.array(z.string()).optional(),
   }),
-});
-export type CatalogComponent = z.infer<typeof catalogComponentSchema>;
+})
+export type CatalogComponent = z.infer<typeof catalogComponentSchema>
 
 // ─── Resource (infra dependencies) ───────────────────────────
 
@@ -252,8 +274,8 @@ export const resourceTypeSchema = z.enum([
   "gateway",
   "storage",
   "search",
-]);
-export type ResourceType = z.infer<typeof resourceTypeSchema>;
+])
+export type ResourceType = z.infer<typeof resourceTypeSchema>
 
 export const catalogResourceSchema = z.object({
   kind: z.literal("Resource"),
@@ -277,19 +299,19 @@ export const catalogResourceSchema = z.object({
     secrets: z.array(catalogSecretRefSchema).optional(),
 
     // ── Volumes / storage ──
-    volumes: z.array(
-      z.union([z.string(), catalogVolumeSchema])
-    ).optional(),
+    volumes: z.array(z.union([z.string(), catalogVolumeSchema])).optional(),
     stateful: z.boolean().optional(),
 
     // ── Healthchecks ──
     /** Simple healthcheck command string (docker-compose shorthand). */
     healthcheck: z.string().optional(),
-    healthchecks: z.object({
-      live: catalogHealthcheckSchema.optional(),
-      ready: catalogHealthcheckSchema.optional(),
-      start: catalogHealthcheckSchema.optional(),
-    }).optional(),
+    healthchecks: z
+      .object({
+        live: catalogHealthcheckSchema.optional(),
+        ready: catalogHealthcheckSchema.optional(),
+        start: catalogHealthcheckSchema.optional(),
+      })
+      .optional(),
 
     // ── Scaling / compute ──
     replicas: z.number().optional(),
@@ -301,8 +323,8 @@ export const catalogResourceSchema = z.object({
     // ── Docker compose profiles ──
     profiles: z.array(z.string()).optional(),
   }),
-});
-export type CatalogResource = z.infer<typeof catalogResourceSchema>;
+})
+export type CatalogResource = z.infer<typeof catalogResourceSchema>
 
 // ─── API ─────────────────────────────────────────────────────
 
@@ -316,8 +338,8 @@ export const catalogApiSchema = z.object({
     system: z.string().optional(),
     definition: z.string(),
   }),
-});
-export type CatalogAPI = z.infer<typeof catalogApiSchema>;
+})
+export type CatalogAPI = z.infer<typeof catalogApiSchema>
 
 // ─── Connection (dx-specific inter-module wiring) ────────────
 
@@ -328,8 +350,8 @@ export const catalogConnectionSchema = z.object({
   envVar: z.string(),
   localDefault: z.string().optional(),
   optional: z.boolean().optional(),
-});
-export type CatalogConnection = z.infer<typeof catalogConnectionSchema>;
+})
+export type CatalogConnection = z.infer<typeof catalogConnectionSchema>
 
 // ─── System (top-level, populated by format parsers) ─────────
 
@@ -346,5 +368,18 @@ export const catalogSystemSchema = z.object({
   apis: z.record(catalogApiSchema).optional(),
   connections: z.array(catalogConnectionSchema).default([]),
   formatExtensions: z.record(z.record(z.unknown())).optional(),
-});
-export type CatalogSystem = z.infer<typeof catalogSystemSchema>;
+})
+export type CatalogSystem = z.infer<typeof catalogSystemSchema>
+
+// ── Catalog sync result ──────────────────────────────────────
+
+/** Response shape for POST /api/v1/factory/catalog/sync */
+export interface CatalogSyncResult {
+  systemId: string
+  systemSlug: string
+  systemCreated: boolean
+  componentsUpserted: number
+  apisUpserted: number
+  created: { components: string[]; apis: string[] }
+  updated: { components: string[]; apis: string[] }
+}

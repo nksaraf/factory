@@ -2,6 +2,7 @@ import type {
   AgentSpec,
   ChannelSpec,
   ConfigVarSpec,
+  DocumentSpec,
   EntityRelationshipSpec,
   IdentityLinkSpec,
   JobSpec,
@@ -870,5 +871,43 @@ export const eventSubscription = orgSchema.table(
     index("org_esub_workflow_run_idx").on(t.workflowRunId),
     // GIN index for JSONB containment queries on matchFields
     index("org_esub_match_fields_gin_idx").using("gin", t.matchFields),
+  ]
+)
+
+// ─── Document ─────────────────────────────────────────────────
+// Generic document store: plans, PRDs, HLDs, LLDs, ADRs, decks, etc.
+// Content lives on filesystem; this table holds metadata + pointers.
+
+export const document = orgSchema.table(
+  "document",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("doc")),
+    path: text("path").notNull(),
+    type: text("type").notNull(),
+    source: text("source"),
+    title: text("title"),
+    threadId: text("thread_id").references(() => thread.id, {
+      onDelete: "set null",
+    }),
+    channelId: text("channel_id").references(() => channel.id, {
+      onDelete: "set null",
+    }),
+    version: integer("version"),
+    parentId: text("parent_id").references((): any => document.id, {
+      onDelete: "set null",
+    }),
+    contentHash: text("content_hash"),
+    sizeBytes: integer("size_bytes"),
+    spec: specCol<DocumentSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_document_path_unique").on(t.path),
+    index("org_document_thread_idx").on(t.threadId),
+    index("org_document_type_idx").on(t.type),
+    index("org_document_parent_idx").on(t.parentId),
+    index("org_document_source_idx").on(t.source),
   ]
 )

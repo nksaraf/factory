@@ -207,6 +207,7 @@ export type WorkTrackerType = z.infer<typeof WorkTrackerTypeSchema>
 
 export const WorkTrackerProviderSpecSchema = z.object({
   apiUrl: z.string(),
+  adminEmail: z.string().optional(),
   credentialsRef: z.string().optional(),
   status: z.enum(["active", "inactive", "error"]).optional(),
   syncStatus: z.enum(["idle", "syncing", "error"]).optional(),

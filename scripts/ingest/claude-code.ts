@@ -3,25 +3,26 @@
  * Backfill Claude Code chat histories from ~/.claude/projects/ JSONL files
  * into Factory webhook_events.
  */
-
 import { readdirSync, statSync } from "node:fs"
-import { join, basename } from "node:path"
 import { homedir } from "node:os"
+import { basename, join } from "node:path"
+
 import {
   type IngestEvent,
   type IngestOptions,
-  truncText,
-  truncSummary,
+  type ToolCall,
+  type ToolResult,
+  classifyToolError,
   extractTextFromContent,
   extractToolCalls,
-  extractToolResults,
   extractToolNames,
-  classifyToolError,
+  extractToolResults,
+  fixLocalTimestamp,
   progress,
   resolveRepoContext,
   stripSystemTags,
-  type ToolCall,
-  type ToolResult,
+  truncSummary,
+  truncText,
 } from "./lib/common"
 import { sendBatch } from "./lib/ingest-client"
 
@@ -73,15 +74,32 @@ type Turn = {
   userText: string
   assistantText: string
   model?: string
-  tokenUsage: { input: number; output: number; cacheRead: number; cacheWrite: number }
+  tokenUsage: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+  }
   toolCalls: Array<{ name: string; input?: string }>
   toolErrors: ToolError[]
   timestamp: string
 }
 
+type SubagentInvocation = {
+  toolUseId: string
+  index: number
+  description: string
+  subagentType: string
+  prompt: string
+  resultText: string
+  resultLen: number
+  timestamp: string
+}
+
 function findJsonlFiles(projectsDir: string, since?: Date): string[] {
   const files: string[] = []
-  if (!statSync(projectsDir, { throwIfNoEntry: false })?.isDirectory()) return files
+  if (!statSync(projectsDir, { throwIfNoEntry: false })?.isDirectory())
+    return files
 
   for (const projectDir of readdirSync(projectsDir)) {
     const projectPath = join(projectsDir, projectDir)
@@ -101,7 +119,9 @@ function findJsonlFiles(projectsDir: string, since?: Date): string[] {
   return files
 }
 
-function parseSession(filePath: string): { events: IngestEvent[]; sessionId: string } | null {
+function parseSession(
+  filePath: string
+): { events: IngestEvent[]; sessionId: string } | null {
   const sessionId = basename(filePath, ".jsonl")
   const fileContent = Bun.file(filePath)
 
@@ -148,6 +168,18 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
   // Map tool_use_id -> tool_name for correlating errors with tool names
   const toolUseIdToName = new Map<string, string>()
 
+  // Track Agent tool_use calls for subagent extraction
+  const agentToolUses = new Map<
+    string,
+    {
+      description: string
+      subagentType: string
+      prompt: string
+      timestamp: string
+    }
+  >()
+  const subagentInvocations: SubagentInvocation[] = []
+
   for (const entry of entries) {
     // Capture metadata from any entry that has it
     if (!cwd && entry.cwd) cwd = entry.cwd
@@ -158,38 +190,74 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
       const content = entry.message.content
       // Real user prompt: content is a string
       // Tool result: content is an array with tool_result blocks
-      const isToolResult = Array.isArray(content) &&
+      const isToolResult =
+        Array.isArray(content) &&
         content.some((c: any) => c?.type === "tool_result")
 
       if (isToolResult) {
+        // Check for Agent tool_result blocks → subagent completions
+        if (Array.isArray(content)) {
+          for (const c of content as any[]) {
+            if (c?.type === "tool_result" && agentToolUses.has(c.tool_use_id)) {
+              const info = agentToolUses.get(c.tool_use_id)!
+              const resultText =
+                typeof c.content === "string"
+                  ? c.content
+                  : Array.isArray(c.content)
+                    ? (c.content as any[])
+                        .map((b: any) => b.text ?? "")
+                        .join("")
+                    : ""
+              subagentInvocations.push({
+                toolUseId: c.tool_use_id,
+                index: subagentInvocations.length,
+                description: info.description,
+                subagentType: info.subagentType,
+                prompt: info.prompt,
+                resultText,
+                resultLen: resultText.length,
+                timestamp: info.timestamp,
+              })
+            }
+          }
+        }
         timeline.push({
           type: "user-tool-result",
           text: "",
           toolCalls: [],
           toolResults: extractToolResults(content),
-          timestamp: entry.timestamp ?? "",
+          timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
         })
       } else {
         // Real user prompt — extract text
-        const text = typeof content === "string"
-          ? content
-          : extractTextFromContent(content)
+        const text =
+          typeof content === "string"
+            ? content
+            : extractTextFromContent(content)
         timeline.push({
           type: "user-prompt",
           text,
           toolCalls: [],
           toolResults: [],
-          timestamp: entry.timestamp ?? "",
+          timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
         })
       }
     } else if (entry.type === "assistant" && entry.message) {
       const content = entry.message.content
       const calls = extractToolCalls(content)
-      // Track tool_use_id -> name for error correlation
+      // Track tool_use_id -> name for error correlation, and Agent calls for subagent extraction
       if (Array.isArray(content)) {
         for (const c of content) {
           if (c?.type === "tool_use" && c.id && c.name) {
             toolUseIdToName.set(c.id, c.name)
+            if (c.name === "Agent") {
+              agentToolUses.set(c.id, {
+                description: c.input?.description ?? "",
+                subagentType: c.input?.subagent_type ?? "general-purpose",
+                prompt: c.input?.prompt ?? "",
+                timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
+              })
+            }
           }
         }
       }
@@ -200,10 +268,30 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
         usage: entry.message.usage,
         toolCalls: calls,
         toolResults: [],
-        timestamp: entry.timestamp ?? "",
+        timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
       })
-    } else if (entry.type === "progress" && entry.data?.type === "assistant" && entry.data?.message) {
+    } else if (
+      entry.type === "progress" &&
+      entry.data?.type === "assistant" &&
+      entry.data?.message
+    ) {
       const msg = entry.data.message
+      // Also check progress entries for Agent tool_use
+      if (Array.isArray(msg.content)) {
+        for (const c of msg.content as any[]) {
+          if (c?.type === "tool_use" && c.id && c.name) {
+            toolUseIdToName.set(c.id, c.name)
+            if (c.name === "Agent") {
+              agentToolUses.set(c.id, {
+                description: c.input?.description ?? "",
+                subagentType: c.input?.subagent_type ?? "general-purpose",
+                prompt: c.input?.prompt ?? "",
+                timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
+              })
+            }
+          }
+        }
+      }
       timeline.push({
         type: "assistant",
         text: extractTextFromContent(msg.content),
@@ -211,7 +299,7 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
         usage: msg.usage,
         toolCalls: extractToolCalls(msg.content),
         toolResults: [],
-        timestamp: entry.timestamp ?? "",
+        timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
       })
     }
   }
@@ -227,7 +315,8 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
   let currentTurnStart = -1
 
   for (let i = 0; i <= timeline.length; i++) {
-    const isNewPrompt = i < timeline.length && timeline[i].type === "user-prompt"
+    const isNewPrompt =
+      i < timeline.length && timeline[i].type === "user-prompt"
     const isEnd = i === timeline.length
 
     // When we hit a new prompt (or end), flush the previous turn
@@ -294,7 +383,9 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
   const events: IngestEvent[] = []
 
   // Session summary
-  const allToolNames = [...new Set(turns.flatMap((t) => t.toolCalls.map((tc) => tc.name)))]
+  const allToolNames = [
+    ...new Set(turns.flatMap((t) => t.toolCalls.map((tc) => tc.name))),
+  ]
   const allErrors = turns.flatMap((t) => t.toolErrors)
   const totalTokens = turns.reduce(
     (acc, t) => ({
@@ -303,7 +394,7 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
       cacheRead: acc.cacheRead + t.tokenUsage.cacheRead,
       cacheWrite: acc.cacheWrite + t.tokenUsage.cacheWrite,
     }),
-    { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
   )
 
   // Aggregate error stats for session summary
@@ -316,13 +407,16 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
 
   const startedAt = turns[0].timestamp
   const endedAt = turns[turns.length - 1].timestamp
-  const durationMs = startedAt && endedAt ? new Date(endedAt).getTime() - new Date(startedAt).getTime() : 0
+  const durationMs =
+    startedAt && endedAt
+      ? new Date(endedAt).getTime() - new Date(startedAt).getTime()
+      : 0
 
   events.push({
     source: "claude-code",
     providerId: "local-backfill",
     deliveryId: `cc-session-${sessionId}`,
-    eventType: "session.summary",
+    eventType: "thread.summary",
     sessionId,
     timestamp: startedAt || new Date().toISOString(),
     cwd,
@@ -344,8 +438,10 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
       toolsUsed: allToolNames,
       toolCallCount: turns.reduce((sum, t) => sum + t.toolCalls.length, 0),
       toolErrorCount: allErrors.length,
-      toolErrorsByTool: Object.keys(errorsByTool).length > 0 ? errorsByTool : undefined,
-      toolErrorsByClass: Object.keys(errorsByClass).length > 0 ? errorsByClass : undefined,
+      toolErrorsByTool:
+        Object.keys(errorsByTool).length > 0 ? errorsByTool : undefined,
+      toolErrorsByClass:
+        Object.keys(errorsByClass).length > 0 ? errorsByClass : undefined,
       version,
     },
   })
@@ -356,7 +452,7 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
       source: "claude-code",
       providerId: "local-backfill",
       deliveryId: `cc-turn-${sessionId}-${turn.index}`,
-      eventType: "turn.completed",
+      eventType: "thread_turn.completed",
       sessionId,
       timestamp: turn.timestamp || startedAt,
       cwd,
@@ -371,6 +467,35 @@ function parseSession(filePath: string): { events: IngestEvent[]; sessionId: str
         toolCalls: turn.toolCalls.slice(0, 50),
         toolErrors: turn.toolErrors.length > 0 ? turn.toolErrors : undefined,
         timestamp: turn.timestamp,
+      },
+    })
+  }
+
+  // Subagent invocation events
+  for (const sub of subagentInvocations) {
+    events.push({
+      source: "claude-code",
+      providerId: "local-backfill",
+      deliveryId: `cc-subagent-${sessionId}-${sub.index}`,
+      eventType: "thread.subagent_summary",
+      sessionId,
+      timestamp: sub.timestamp || startedAt,
+      cwd,
+      project,
+      payload: {
+        parentSessionId: sessionId,
+        subagentIndex: sub.index,
+        subagentType: sub.subagentType,
+        description: sub.description,
+        prompt: truncText(sub.prompt),
+        resultSummary: truncSummary(sub.resultText),
+        resultLength: sub.resultLen,
+        timestamp: sub.timestamp,
+        cwd,
+        gitBranch,
+        gitRemoteUrl: repoCtx.gitRemoteUrl,
+        repoSlug: repoCtx.repoSlug,
+        repoName: repoCtx.repoName,
       },
     })
   }
@@ -408,6 +533,8 @@ export async function ingestClaudeCode(opts: IngestOptions) {
   console.error(`\nParsed ${allEvents.length} events from ${processed} files`)
 
   const result = await sendBatch(allEvents, opts)
-  console.error(`Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`)
+  console.error(
+    `Done: ${result.sent} sent, ${result.duplicates} duplicates, ${result.errors} errors`
+  )
   return result
 }

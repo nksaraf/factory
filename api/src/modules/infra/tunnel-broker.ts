@@ -68,14 +68,43 @@ export interface TunnelBrokerOptions {
   heartbeatIntervalMs?: number
 }
 
+/** Max frames retained for reconnect replay. ~1000 frames × 65KB ≈ 64MB worst case. */
+const REPLAY_BUFFER_CAPACITY = 1024
+
+interface ReplayEntry {
+  seq: number
+  data: Uint8Array
+}
+
 interface TunnelState {
   tunnelId: string | null
   streamManager: StreamManager | null
   heartbeatTimer: ReturnType<typeof setInterval> | null
   cleaning: boolean
+  /** Monotonically increasing sequence for outgoing binary frames. */
+  outSeq: number
+  /** Circular buffer of recently sent frames for reconnect replay. */
+  replayBuffer: ReplayEntry[]
 }
 
 const connectionState = new WeakMap<WebSocket, TunnelState>()
+
+/** Grace period for keeping routes + replay buffers alive after disconnect. */
+const RECONNECT_GRACE_MS = 60_000
+
+/**
+ * Detached tunnel state keyed by tunnelId.
+ * When a tunnel disconnects, its replay buffer and route are kept alive.
+ * If the client reconnects within the grace period, the route is reclaimed.
+ * Otherwise, the route and tunnel are cleaned up.
+ */
+interface DetachedTunnel {
+  buffer: ReplayEntry[]
+  outSeq: number
+  subdomain: string
+  timer: ReturnType<typeof setTimeout>
+}
+const detachedTunnels = new Map<string, DetachedTunnel>()
 
 function getOrCreateState(ws: WebSocket): TunnelState {
   let state = connectionState.get(ws)
@@ -85,6 +114,8 @@ function getOrCreateState(ws: WebSocket): TunnelState {
       streamManager: null,
       heartbeatTimer: null,
       cleaning: false,
+      outSeq: 0,
+      replayBuffer: [],
     }
     connectionState.set(ws, state)
   }
@@ -173,43 +204,107 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             },
             "registering tunnel"
           )
-          const { tunnel, route } = await gw.registerTunnel(db, {
-            subdomain,
-            principalId: msg.principalId ?? "anonymous",
-            localAddr: msg.localAddr ?? "localhost:3000",
-            createdBy: msg.principalId ?? "anonymous",
-            routeFamily,
-            deploymentTargetId: msg.deploymentTargetId,
-          })
 
-          state.tunnelId = tunnel.tunnelId
+          // Check if we can reclaim a detached tunnel (route kept alive during grace period)
+          const resumeTunnelId = msg.resume?.tunnelId
+          const detached = resumeTunnelId
+            ? detachedTunnels.get(resumeTunnelId)
+            : undefined
+          let tunnelId: string
+          let tunnelSubdomain: string
+          let tunnelUrl: string
+
+          if (detached && detached.subdomain === subdomain) {
+            // Reclaim the existing tunnel — route is still alive in DB
+            clearTimeout(detached.timer)
+            detachedTunnels.delete(resumeTunnelId!)
+            tunnelId = resumeTunnelId!
+            tunnelSubdomain = detached.subdomain
+            const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+            const domainSuffix =
+              routeFamily === "workspace"
+                ? `.workspace.${gatewayDomain}`
+                : `.tunnel.${gatewayDomain}`
+            tunnelUrl = `https://${tunnelSubdomain}${domainSuffix}`
+            // Update heartbeat so the DB knows we're alive
+            await gw.heartbeatTunnel(db, tunnelId).catch(() => {})
+            logger.info(
+              { tunnelId, subdomain: tunnelSubdomain },
+              "tunnel reclaimed from grace period"
+            )
+          } else {
+            // Clean up stale detached entry if subdomain changed
+            if (detached) {
+              clearTimeout(detached.timer)
+              detachedTunnels.delete(resumeTunnelId!)
+              if (detached.subdomain)
+                subdomainToTunnelId.delete(detached.subdomain)
+              await gw.closeTunnel(db, resumeTunnelId!).catch(() => {})
+            }
+            // Fresh registration
+            const { tunnel, route } = await gw.registerTunnel(db, {
+              subdomain,
+              principalId: msg.principalId ?? "anonymous",
+              localAddr: msg.localAddr ?? "localhost:3000",
+              createdBy: msg.principalId ?? "anonymous",
+              routeFamily,
+              deploymentTargetId: msg.deploymentTargetId,
+            })
+            tunnelId = tunnel.tunnelId
+            tunnelSubdomain = tunnel.subdomain
+            tunnelUrl = `https://${route.domain}`
+          }
+
+          state.tunnelId = tunnelId
           if (!state.tunnelId)
             throw new Error("tunnel registration returned null ID")
-          activeTunnels.set(state.tunnelId, ws)
-          subdomainToTunnelId.set(subdomain, state.tunnelId)
+          activeTunnels.set(tunnelId, ws)
+          subdomainToTunnelId.set(tunnelSubdomain, tunnelId)
 
-          // Create stream manager for this tunnel
+          // Create stream manager — track outgoing sequence for replay
           state.streamManager = new StreamManager((frameData) => {
+            state.outSeq++
+            if (state.replayBuffer.length >= REPLAY_BUFFER_CAPACITY) {
+              state.replayBuffer.shift()
+            }
+            state.replayBuffer.push({ seq: state.outSeq, data: frameData })
             ws.send(frameData)
           })
-          tunnelStreams.set(state.tunnelId, state.streamManager)
+          tunnelStreams.set(tunnelId, state.streamManager)
 
           logger.info(
-            {
-              tunnelId: tunnel.tunnelId,
-              subdomain: tunnel.subdomain,
-              domain: route.domain,
-            },
+            { tunnelId, subdomain: tunnelSubdomain },
             "tunnel registered"
           )
           ws.send(
             JSON.stringify({
               type: "registered",
-              tunnelId: tunnel.tunnelId,
-              subdomain: tunnel.subdomain,
-              url: `https://${route.domain}`,
+              tunnelId,
+              subdomain: tunnelSubdomain,
+              url: tunnelUrl,
             })
           )
+
+          // Replay missed frames AFTER "registered" so the client is ready
+          if (detached && typeof msg.resume?.lastReceivedSeq === "number") {
+            const replayFrom = msg.resume.lastReceivedSeq
+            let replayed = 0
+            for (const entry of detached.buffer) {
+              if (entry.seq > replayFrom) {
+                state.outSeq++
+                if (state.replayBuffer.length >= REPLAY_BUFFER_CAPACITY) {
+                  state.replayBuffer.shift()
+                }
+                state.replayBuffer.push({ seq: state.outSeq, data: entry.data })
+                ws.send(entry.data)
+                replayed++
+              }
+            }
+            logger.info(
+              { tunnelId, replayed, from: replayFrom },
+              "tunnel resumed with replay"
+            )
+          }
 
           // Start heartbeat with binary PING frames
           state.heartbeatTimer = setInterval(async () => {
@@ -240,18 +335,37 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
       const state = connectionState.get(ws)
       if (!state || state.cleaning || !state.tunnelId) return
       state.cleaning = true
-      logger.info({ tunnelId: state.tunnelId }, "tunnel disconnected")
+      const tunnelId = state.tunnelId
+      logger.info({ tunnelId }, "tunnel disconnected")
 
       if (state.heartbeatTimer) clearInterval(state.heartbeatTimer)
       state.streamManager?.cleanup()
-      tunnelStreams.delete(state.tunnelId)
+      tunnelStreams.delete(tunnelId)
+      activeTunnels.delete(tunnelId)
 
-      const t = await gw.getTunnel(db, state.tunnelId).catch(() => null)
-      if (t) {
-        subdomainToTunnelId.delete(t.subdomain)
-      }
-      activeTunnels.delete(state.tunnelId)
-      await gw.closeTunnel(db, state.tunnelId).catch(() => {})
+      // Keep route alive during grace period for seamless reconnect.
+      // The subdomain→tunnelId mapping stays so getTunnelStreamManager
+      // returns undefined (streamManager was deleted) — gateway returns 502
+      // only for the brief reconnect window rather than 404 (unknown subdomain).
+      const t = await gw.getTunnel(db, tunnelId).catch(() => null)
+      const subdomain = t?.subdomain
+      const timer = setTimeout(async () => {
+        detachedTunnels.delete(tunnelId)
+        if (subdomain) subdomainToTunnelId.delete(subdomain)
+        await gw.closeTunnel(db, tunnelId).catch(() => {})
+        logger.info(
+          { tunnelId, subdomain },
+          "tunnel grace period expired, route cleaned up"
+        )
+      }, RECONNECT_GRACE_MS)
+
+      detachedTunnels.set(tunnelId, {
+        buffer: state.replayBuffer,
+        outSeq: state.outSeq,
+        subdomain: subdomain ?? "",
+        timer,
+      })
+
       state.tunnelId = null
     },
   }
@@ -320,4 +434,9 @@ export function drainAllTunnels(): void {
       // WS may already be closing
     }
   }
+  // Cancel grace period timers for detached tunnels
+  for (const [, detached] of detachedTunnels) {
+    clearTimeout(detached.timer)
+  }
+  detachedTunnels.clear()
 }

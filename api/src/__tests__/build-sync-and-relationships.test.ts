@@ -130,8 +130,18 @@ describe("Build sync + entity relationships", () => {
     }
 
     const result = await syncWorkTracker(db, provider.id, { adapter })
-    expect(result.projects).toMatchObject({ created: 1, updated: 0, total: 1 })
-    expect(result.items).toMatchObject({ created: 1, updated: 0, total: 1 })
+    expect(result.projects).toMatchObject({
+      created: 1,
+      updated: 0,
+      removed: 0,
+      total: 1,
+    })
+    expect(result.items).toMatchObject({
+      created: 1,
+      updated: 0,
+      removed: 0,
+      total: 1,
+    })
 
     const listRes = await app.handle(
       new Request(`${BUILD_BASE}/work-tracker-projects`)
@@ -149,6 +159,39 @@ describe("Build sync + entity relationships", () => {
     expect(relatedRes.status).toBe(200)
     const related = (await relatedRes.json()) as ApiListResponse
     expect(related.data).toHaveLength(1)
+
+    // Re-sync with project removed from remote → should delete it
+    const emptyAdapter: WorkTrackerAdapter = {
+      ...adapter,
+      async listProjects() {
+        return []
+      },
+      async fetchIssues() {
+        return []
+      },
+    }
+    const resync = await syncWorkTracker(db, provider.id, {
+      adapter: emptyAdapter,
+    })
+    expect(resync.projects).toMatchObject({
+      created: 0,
+      updated: 0,
+      removed: 1,
+      total: 0,
+    })
+    expect(resync.items).toMatchObject({
+      created: 0,
+      updated: 0,
+      removed: 1,
+      total: 0,
+    })
+
+    // Verify data is actually gone
+    const listAfter = await app.handle(
+      new Request(`${BUILD_BASE}/work-tracker-projects`)
+    )
+    const afterData = (await listAfter.json()) as ApiListResponse
+    expect(afterData.data).toHaveLength(0)
   })
 
   it("creates repo-to-project entity relationships through the org API", async () => {

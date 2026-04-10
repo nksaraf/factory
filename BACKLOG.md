@@ -14,6 +14,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 ## Phase 1: Core Infrastructure
 
 ### 1A: `dx ci run` — Local Workflow Execution
+
 - [x] `dx ci run` command (delegates to `act`)
 - [x] Auto-install `act` if missing (macOS/Linux/Windows)
 - [x] `--workflow`, `--job`, `--secret`, `--env-file`, `--platform`, `--event` flags
@@ -23,6 +24,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [ ] `dx ci run --list` — list available workflows/jobs without running
 
 ### 1B: Preview Wiring
+
 - [x] Preview REST controller (`POST/GET/PATCH/DELETE /previews`)
 - [x] Preview model (Elysia validation schemas)
 - [x] `dx preview deploy/list/show/destroy/open` CLI commands
@@ -76,6 +78,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 ## Phase 5: `dx script` + `@dx/ci` Runtime
 
 ### `dx script` (basic runner)
+
 - [x] `dx script <file>` command — run .ts/.js via embedded Bun
 - [x] Script resolution: cwd, `.dx/scripts/`, bare name lookup
 - [x] `--watch` mode
@@ -83,6 +86,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [x] `DX_BIN` env var for scripts to call back into dx
 
 ### `@dx/ci` Runtime Context (not yet started)
+
 - [ ] `@dx/ci` package with typed helpers
 - [ ] `context` — current run context (event, branch, PR, commit, env) from `GITHUB_*` env vars
 - [ ] `github` — GitHub API wrapper (wraps git-host-adapter)
@@ -104,6 +108,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 ## DX CLI v2 — Convention-Over-Configuration Engine
 
 ### Completed (2026-04-04)
+
 - [x] Toolchain detector (`cli/src/lib/toolchain-detector.ts`) — auto-detects runtime, package manager, test runner, linter, formatter, type checker, migration tool, codegen, framework, database across 6 runtimes
 - [x] DX project config (`cli/src/lib/dx-project-config.ts`) — reads `package.json#dx` key with typed defaults
 - [x] Git hooks (`cli/src/lib/hooks.ts`) — POSIX sh scripts in `.dx/hooks/` with `core.hooksPath`, install/verify/health
@@ -120,6 +125,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [x] Updated docs (developer guide, new project workflow, existing project workflow, CLAUDE.md)
 
 ### DX Context Architecture (2026-04-07)
+
 > Plan: `.claude/plans/majestic-napping-coral.md` — four-tier context hierarchy (Host → Project → Workspace → Package)
 
 - [x] `DxContext` type definitions + `resolveDxContext({ need })` typed resolver (`cli/src/lib/dx-context.ts`)
@@ -143,6 +149,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [x] Clean up `catalog.ts` — uses `findComposeRoot()` + `ProjectContext.fromDir()` instead of `ProjectContext.fromCwd()` (still uses ProjectContext internally as the compose parser, which is appropriate)
 
 ### Deferred — Phase 6+
+
 > Items marked with → have full specs in "dx CLI — Design Handoff Core Commands" section above.
 
 - [ ] `dx doctor` enhancement → see "dx doctor" in Design Handoff Core Commands
@@ -155,6 +162,7 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 - [ ] `dx release` → see "dx release" in Design Handoff Core Commands
 - [x] `dx setup` (was `dx install`) comprehensive setup → see "dx setup" in Design Handoff Core Commands (37 defaults, 8 providers, backup/restore, --check, role filtering)
 - [ ] Port conflict detection in `dx dev` → see "dx dev" in Design Handoff Core Commands
+- [ ] Global PortManager — unify project-local `.dx/ports.json` with global `~/.config/dx/` so cross-project port conflicts are detected (currently only forwards are global)
 - [ ] `dx remove` — safely remove a component from the project (reverse of `dx add`)
 - [ ] Stacks/presets for `dx init` — opinionated starter kits (e.g. "SaaS starter", "API-only", "fullstack monorepo")
 - [ ] Community templates for `dx init` — pull template from registry
@@ -174,11 +182,13 @@ Spec: `docs/reference/dx-cli-design-handoff.md` + `docs/reference/dx-cli-design-
 Tracking features from the design docs not yet implemented. Items already tracked in other BACKLOG sections are cross-referenced, not duplicated.
 
 ### `dx factory` — Authentication & Host Management (addendum §2)
+
 > Tracked in "Stub CLI Commands" section above.
 
 ### `dx setup` — Comprehensive Machine Setup (handoff §11)
 
 #### Completed (2026-04-06)
+
 - [x] Renamed from `dx install` to `dx setup` (command, file, all user-facing strings, docs)
 - [x] 8 ConfigProviders: git (9), npm (6), curl (5), psql (7), docker (5), ssh (2), system-limits (2), shell (1) = 37 defaults
 - [x] Git defaults: `pull.rebase`, `push.autoSetupRemote`, `fetch.prune`, `rerere.enabled`, `diff.algorithm histogram`, `merge.conflictstyle zdiff3`, commit template
@@ -204,6 +214,7 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [x] 28 unit tests (5 defaults, 7 backup, 16 file-utils)
 
 #### Deferred
+
 - [ ] fnm + corepack setup (Node version management via fnm instead of system node)
 - [ ] Windows-specific defaults: credential manager, ssh-agent auto-start, PowerShell history
 - [ ] Print "Run `dx factory login` to connect to your organization" at end of setup
@@ -223,6 +234,7 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [x] `system-defaults.ts`: skips sysctl in WSL (kernel params controlled by `.wslconfig`)
 
 ### `dx dev` — Full Startup Sequence (handoff §15)
+
 - [x] Pre-flight: hook health check + codegen
 - [ ] Pre-flight: check Docker running, check ALL ports before starting anything
 - [ ] Pre-flight: port conflict → identify process, offer to kill
@@ -238,6 +250,7 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [ ] Worktree-aware: shared infra, isolated app servers with auto-assigned ports (addendum §4)
 
 ### `dx doctor` — Comprehensive Diagnostics (handoff §19)
+
 - [ ] System checks: OS, file descriptors, inotify watches, disk space
 - [ ] Git checks: version, config values (`pull.rebase`, `push.autoSetupRemote`, `core.hooksPath`), SSH key
 - [ ] Docker checks: version, BuildKit, log rotation, disk usage
@@ -248,12 +261,14 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [ ] `--json` output
 
 ### `dx status` — Running State View (handoff §19)
+
 - [ ] Show all services with ports, health status
 - [ ] Show native dev server processes (pid, watching status)
 - [ ] Show environment deployment info (preview URL + version, prod URL + version)
 - [ ] `--json` output
 
 ### `dx config` — Toolchain Introspection (handoff §19)
+
 - [ ] Show project name, type, team, template version
 - [ ] Show all detected tools (runtime, package mgr, test, lint, format, typecheck, db, migrations, codegen)
 - [ ] Show overrides from `package.json` scripts
@@ -262,32 +277,37 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [ ] `--json` output
 
 ### `dx release` — Version & Deploy (handoff §18)
+
 - [ ] `dx release [major|minor|patch]` — auto-increment version from conventional commits
 - [ ] Generate changelog from conventional commits since last tag
 - [ ] `git tag` + `git push --tags` + `gh release create --generate-notes`
 - [ ] Trigger production deploy via Factory API
 - [ ] Pre-release support (`--pre-release`, `--rc`)
-> Also tracked in Phase 4 below.
+  > Also tracked in Phase 4 below.
 
 ### `dx secret` — Vault-Backed Secret Management (handoff Appendix B)
+
 - [ ] `dx secret list` — list secrets for project
 - [ ] `dx secret get <KEY> --target <env>` — fetch from vault
 - [ ] `dx secret set <KEY> --target <env>` — opens `$EDITOR` (value never in shell history)
 - [ ] Pluggable backend (HashiCorp Vault, AWS SSM, Infisical)
-> Also tracked in "Stub CLI Commands" section.
+  > Also tracked in "Stub CLI Commands" section.
 
 ### `.env` Generation (handoff Appendix B)
+
 - [ ] Generate `.env` from `docker-compose.yaml` service environment blocks + `.dx/local/secrets.yaml`
 - [ ] Auto-generate random values for dev secrets (JWT_SECRET, etc.) on first run
 - [ ] Prompt once for real secrets (STRIPE_KEY, etc.), store in `.dx/local/secrets.yaml`
 - [ ] Regenerate on `dx sync` and `dx dev` startup
 
 ### `dx check --strict` — Agent Quality Gates (addendum §6)
+
 - [ ] `--strict` flag: full test suite (not just `--changed`), zero warnings, coverage threshold, no TODO/FIXME/HACK in changed files, `dx generate --check`
 - [ ] `.dx/local/agent-mode` flag detection — pre-push hook runs `--strict` in agent worktrees
 - [ ] Agent context files: ticket context written to `.dx/local/ticket-context.md`
 
 ### Cross-Platform Support (handoff §10)
+
 - [ ] `.gitattributes` template with line ending rules (generated by `dx init`)
 - [ ] `core.autocrlf` setting per platform in `dx install`
 - [ ] Windows: SSH agent auto-start, no ControlMaster, credential manager
@@ -295,6 +315,7 @@ Tracking features from the design docs not yet implemented. Items already tracke
 - [ ] POSIX sh hooks (not bash) for Git for Windows compatibility
 
 ### Known Hosts Strategy (addendum §10)
+
 - [ ] Scoped trust: dx-managed hosts use `StrictHostKeyChecking accept-new` + separate `UserKnownHostsFile ~/.ssh/known_hosts.d/dx-infra`
 - [ ] `dx factory sync hosts` clears `~/.ssh/known_hosts.d/dx-infra` on IP changes
 - [ ] Future: SSH CA certificates for managed hosts
@@ -306,6 +327,7 @@ Tracking features from the design docs not yet implemented. Items already tracke
 Spec: `docs/reference/dx-cli-design-handoff-addendum.md` §3-6
 
 ### Phase 1 — Core Work Items
+
 - [ ] `dx work start <TICKET>` — fetch ticket from Jira, generate branch name (`<ticket-slug>/<description-slug>`), create branch from main HEAD
 - [ ] `dx work start --quick "description"` — auto-create Jira ticket (default type: Task) + branch
 - [ ] `dx work start --no-worktree` — simple mode, just create branch + checkout
@@ -323,6 +345,7 @@ Spec: `docs/reference/dx-cli-design-handoff-addendum.md` §3-6
 - [ ] `--json` output for `dx work list` and `dx work status`
 
 ### Phase 2 — Worktree Support
+
 - [ ] `dx work start <TICKET>` (default) — create git worktree in `<project>.worktrees/<ticket>/`
 - [ ] Worktree setup: `pnpm install`, generate `.env` with worktree-specific `DATABASE_URL`, create per-worktree DB, run migrations
 - [ ] Worktree detection (`git rev-parse --git-common-dir` vs `--git-dir`)
@@ -332,6 +355,7 @@ Spec: `docs/reference/dx-cli-design-handoff-addendum.md` §3-6
 - [ ] `dx work done` cleanup: remove worktree dir + drop per-worktree DB
 
 ### Phase 3 — PR Stacking
+
 - [ ] `dx work stack "description"` — create stacked branch from current (not from main)
 - [ ] Stack metadata in `.dx/local/stacks.yaml` (gitignored)
 - [ ] `dx work stack status` — show stack state with PR status and sync status
@@ -340,12 +364,14 @@ Spec: `docs/reference/dx-cli-design-handoff-addendum.md` §3-6
 - [ ] `dx work pr` auto-sets `--base` from stack metadata
 
 ### Phase 4 — Agent Workflows
+
 - [ ] `dx work start <TICKET> --agent` — worktree + `.dx/local/agent-mode` flag + ticket context file
 - [ ] Agent context injection: Jira ticket description → `.dx/local/ticket-context.md`
 - [ ] Pre-push hook detects agent-mode → runs `dx check --strict`
 - [ ] Parallel agent isolation: each agent gets own worktree, branch, port allocation, database
 
 ### Prerequisites
+
 - Jira API integration (work tracker adapter) — see "Unimplemented Adapters" section
 - `package.json#dx.work` config: `tracker`, `project`, `branch_max_age_days`, `branch_warn_age_days`, `agent_strict_checks`, `default_worktree`
 
@@ -368,6 +394,7 @@ V1 controllers deleted from `createLocalApp` (2026-04-07). These CLI commands st
 Design spec: `plans/immutable-prancing-crown.md`
 
 ### Completed (2026-03-29)
+
 - [x] Conventions schema `quality` section (shared/src/conventions-schema.ts) with floor enforcement
 - [x] Quality library: strategy pattern for Node (oxlint/tsc/vitest/prettier), Python (ruff/mypy/pytest), Java (checkstyle/mvn/spotless)
 - [x] `dx check` command with lint/typecheck/test/format subcommands, --component/--staged/--ci/--fix/--report flags
@@ -378,6 +405,7 @@ Design spec: `plans/immutable-prancing-crown.md`
 - [x] Factory monorepo self-adoption: oxlint.config.json, .editorconfig, .vscode/, ci-quality.yml, .dx/conventions.yaml, root scripts
 
 ### Deferred
+
 - [ ] SonarQube integration — hooks designed (`dx check --report sonar`), needs SonarQube instance + token config
 - [ ] Coverage enforcement — schema supports `min-line`/`min-branch` but not wired to actual coverage collection yet
 - [ ] `dx check --ci` in CI workflow — currently CI uses raw `pnpm lint`/`pnpm typecheck`; switch to `dx check --ci` once dx binary is available in CI
@@ -389,7 +417,9 @@ Design spec: `plans/immutable-prancing-crown.md`
 ## Drift Items (identified 2026-03-28)
 
 ### Slack Conversational Agent (Chat SDK Layer)
+
 Spec: `docs/superpowers/specs/2026-03-28-chat-sdk-agent-layer-design.md`
+
 - [ ] Scaffold `agent-chat/` Next.js app in monorepo (Chat SDK + Vercel Workflow + AI SDK)
 - [ ] Chat SDK Slack adapter setup + webhook route
 - [ ] Custom state adapter: Chat SDK state → `factory_org.message_thread` + Redis locks
@@ -405,7 +435,9 @@ Spec: `docs/superpowers/specs/2026-03-28-chat-sdk-agent-layer-design.md`
 - [ ] Web UI transport (same backend, useChat() React client instead of Slack)
 
 ### Local-First CLI
+
 Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (all 11 phases)
+
 - [x] PGlite-based local factory daemon (`cli/src/local-daemon/`)
 - [x] `factoryUrl: localhost` auto-detection + `ensureLocalDaemon()` in `client.ts`
 - [x] `'local'` DB provider type (`api/drizzle/0003_drop_provider_constraints.sql`, `factory-core.ts` seeding)
@@ -431,6 +463,7 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 ## Phase 8: `dx docker` — Remote Docker Proxy & Machine Management
 
 ### Implemented (2026-03-29)
+
 - [x] `dx docker <args> --on <slug>` — proxy any docker command to a remote machine via SSH-based DOCKER_HOST
 - [x] `dx docker compose <args> --on <slug>` — remote compose with auto-sync detection (build contexts, volume mounts)
 - [x] `dx docker connect <slug>` — spawn subshell with DOCKER_HOST pre-set
@@ -440,6 +473,7 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 - [x] `lib/docker.ts` extended with `dockerHost` option for all compose helpers
 
 ### Implemented (2026-03-30)
+
 - [x] Machine resolution from `~/.ssh/config` entries (cascading: Factory API → SSH config → local machines.json)
 - [x] Machine resolution from local `~/.config/dx/machines.json` for ad-hoc additions
 - [x] `dx docker add <name> --host <ip>` / `dx docker remove <name>` — local machine registration
@@ -448,6 +482,7 @@ Plan: `local-first-cli-k3d-clusters-sandboxes-without-fac.md` — **COMPLETE** (
 - [x] `dx ssh` now uses same cascading machine resolver as `dx docker` (Factory → SSH config → local machines.json)
 
 ### Deferred
+
 - [x] `dx ssh config sync` pagination — pass `?limit=200` to fetch all targets (was silently truncated to 50)
 - [ ] `dx ssh config sync` — populate `host.spec.ipAddress` on production hosts (currently only `spec.hostname` is set, containing machine names not IPs, so SSH config entries may not resolve)
 - [x] `/access/targets` and `/access/resolve/:slug` API shape convergence — both now delegate to `access.service.ts` (`listTargets`/`resolveTarget`), returning canonical `SshTarget` shape
@@ -485,6 +520,7 @@ Full design spec: `docs/superpowers/specs/2026-04-02-database-lifecycle-manageme
 Goal: Remove friction from creating dev/preview environments by making database backup, restore, seeding (with anonymized production data), and provisioning a first-class concern in Factory.
 
 ### Phase 1: Schema + Adapter + Reconciler
+
 - [ ] Add `database`, `database_operation`, `anonymization_profile` tables to `factory_fleet` schema
 - [ ] Drop unused `dependency_workload` table
 - [ ] Create `DatabaseAdapter` interface + `PostgresAdapter` (pgBackRest + pg_dump)
@@ -493,6 +529,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 - [ ] Database resource generator (K8s StatefulSet, Service, PVC, Job manifests)
 
 ### Phase 2: API Endpoints
+
 - [ ] Database CRUD endpoints (`GET/POST/DELETE /databases`)
 - [ ] Backup/restore/seed operation endpoints
 - [ ] Anonymization profile CRUD
@@ -500,6 +537,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 - [ ] Operations tracking endpoint
 
 ### Phase 3: CLI Commands
+
 - [ ] `dx db list` — list databases across all deployment targets
 - [ ] `dx db register` — register existing external database
 - [ ] `dx db create` — create new sidecar database
@@ -509,6 +547,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 - [ ] `dx db backup-policy set/remove` — manage backup schedules
 
 ### Phase 4: Sandbox/Preview Integration
+
 - [ ] Auto-provision databases on sandbox creation (from docker-compose config)
 - [ ] Auto-seed sandbox databases from production backups (anonymized)
 - [ ] Auto-provision databases on preview deployment
@@ -520,6 +559,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 ## Observability / OpenTelemetry
 
 ### Completed (2026-04-02)
+
 - [x] OTel Collector service in docker compose (`--profile otel`, debug exporter + zpages)
 - [x] API backend instrumentation (`NodeSDK` + `auto-instrumentations-node`, Bun-compatible)
 - [x] CLI instrumentation (`BasicTracerProvider` + manual W3C `traceparent` header propagation)
@@ -527,6 +567,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 - [x] Single `TELEMETRY_ENABLED` env flag across the stack
 
 ### Deferred
+
 - [ ] Connect to production tracing backend (Jaeger, Grafana Tempo, or SigNoz) instead of debug exporter
 - [ ] Custom business-logic spans (e.g., sandbox lifecycle, preview deploy, pipeline run durations)
 - [x] Bun context propagation: was missing `AsyncLocalStorageContextManager` registration (not a Bun bug) — now using standard OTel APIs
@@ -539,6 +580,7 @@ Goal: Remove friction from creating dev/preview environments by making database 
 Multi-provider identity sync across GitHub, Slack, Jira, Google with cross-provider principal matching and CLI management.
 
 ### Completed (2026-04-04)
+
 - [x] `IdentityProviderAdapter` interface + adapters for GitHub, Slack, Jira, Google
 - [x] `$secret(key)` / `$var(key)` reference resolution in provider JSONB spec fields (`spec-ref-resolver.ts`)
 - [x] `spec` JSONB column on `git_host_provider`, `messaging_provider`, `work_tracker_provider`
@@ -553,6 +595,7 @@ Multi-provider identity sync across GitHub, Slack, Jira, Google with cross-provi
 - [x] 43 identity sync tests (spec-ref resolver, provider config, no-email dedup, profile merge, tool credentials)
 
 ### Deferred
+
 - [ ] Google OAuth user-facing flow: redirect user to Google consent → exchange code for token → store in `identity_link.tokenEnc` (client creds stored, no user flow yet)
 - [ ] GitHub commit-email enrichment: fetch commit emails from repos to improve cross-provider matching for users without public GitHub emails
 - [ ] Bulk identity resolution UI/CLI: `dx org identity suggest` — propose likely matches based on name similarity scores (not just exact normalized match)
@@ -580,46 +623,68 @@ Multi-provider identity sync across GitHub, Slack, Jira, Google with cross-provi
 - [ ] Metrics/observability: pipeline duration trends, failure rates, flaky step detection
 - [ ] Slack/messaging notifications for pipeline status changes (messaging adapter exists)
 - [ ] Branch protection rules enforcement via API
+- [ ] Work-tracker sync: batch upsert with `INSERT ... ON CONFLICT DO UPDATE` instead of per-row select+insert/update (N+1 queries)
+- [ ] Work-tracker sync: detect and soft-delete projects removed from external tracker (like git-host sync does with repos)
+- [ ] Work-tracker sync: add error-path test (adapter throws → assert provider `syncStatus === "error"` and `lastSyncAt` is set)
+- [ ] Work-tracker sync: pagination safety cap (e.g., 500 pages max) to prevent runaway loops if API misbehaves
 
 ---
 
 ## Unimplemented Adapters & Integrations
 
 ### Work Tracker Adapters
-- [ ] JIRA adapter — all 6 methods stubbed (`work-tracker-adapter-jira.ts`)
+
+- [x] JIRA adapter — fully implemented with pagination, Basic auth, API v3 migration (`work-tracker-adapter-jira.ts`)
+- [ ] JIRA adapter: implement HMAC webhook verification (`verifyWebhook` always returns `valid: true`)
+- [ ] JIRA adapter: use bulk issue creation API (`POST /rest/api/3/issue/bulk`) in `pushIssues` instead of sequential single-issue calls
 - [ ] Linear adapter — all 6 methods stubbed (`work-tracker-adapter-linear.ts`)
 
 ### Observability Adapters
+
 - [ ] ClickStack adapter — all 17 methods stubbed (`observability-adapter-clickstack.ts`)
 - [ ] SigNoz adapter — all 17 methods stubbed (`observability-adapter-signoz.ts`)
 
 ### Tunnel Backends
+
 - [ ] Gateway tunnel backend (`cli/src/lib/backends/gateway-backend.ts`) — requires gateway infrastructure
 - [ ] SSH tunnel backend (`cli/src/lib/backends/ssh-backend.ts`)
 - [ ] kubectl tunnel backend (`cli/src/lib/backends/kubectl-backend.ts`)
 
 ### `dx forward` — Remote Port Forwarding (new, from design addendum)
-- [ ] `dx forward <host>:<port>` — bring remote port to localhost via SSH `-L` (host resolved from `dx factory` aliases)
-- [ ] `dx forward <host>:<port> --as <local-port>` — map to a different local port
-- [ ] `dx forward <host>:<port> <host>:<port>` — multiple ports in one command
-- [ ] `dx forward list` / `dx forward close [id|--all]` — manage active forwards
-- [ ] Port conflict auto-detection — if local port in use, auto-assign next free port (unless `--as` explicit)
-- [ ] Wire `dx db connect --target` to use `dx forward` internally for remote DB tunneling
+
+- [x] `dx forward <host>:<port>` — bring remote port to localhost via SSH `-L` (host resolved from `dx factory` aliases)
+- [x] `dx forward <host>:<port> --as <local-port>` — map to a different local port
+- [x] `dx forward <host>:<port> <host>:<port>` — multiple ports in one command
+- [x] `dx forward list` / `dx forward close [id|--all]` — manage active forwards
+- [x] Port conflict auto-detection — if local port in use, auto-assign next free port (unless `--as` explicit)
+- [x] Wire `dx db connect --target` to use `dx forward` internally for remote DB tunneling
+- [x] Global forward state persistence (`~/.config/dx/forwards.json`) with dead-PID pruning
+- [x] PortManager integration — compose port allocation excludes globally-forwarded ports
+- [x] `dx forward --bg` — spawn SSH process detached and exit CLI, close via `dx forward close`
+- [x] Document two-token auth model (opaque bearer for auth service vs JWT for Factory API) in developer guide
 
 ### Deprecated Commands
+
 - [ ] Deprecate `dx connect <env>` — show migration message pointing to `dx forward <host>:<port>` (per design addendum)
 
 ### Tunnel System — Production Hardening
+
 > Note: `dx tunnel` = expose local port publicly (ngrok model, per design addendum). `dx forward` = bring remote port to localhost (SSH -L). Existing tunnel implementation aligns with addendum semantics.
+
 - [x] POST/PUT/PATCH request body forwarding through tunnel (DATA frame handling in tunnel-client.ts)
 - [x] WebSocket passthrough: browser WS ↔ gateway proxy ↔ tunnel WS_DATA ↔ local WS
 - [x] WS connect-phase message buffering (queue WS_DATA while local WS is CONNECTING)
 - [x] Smoke test suite using real `handleBinaryFrame` (not inline fakes), dual-mode local/prod via `FACTORY_URL`
-- [ ] Multiple concurrent WebSocket connections per tunnel — `sm.onWsMessage` is a single callback, overwrites per-connection; needs a `Map<streamId, ServerWebSocket>` dispatch
-- [ ] Binary WebSocket data round-trip test (current test only covers text messages)
-- [ ] Tunnel client backpressure on incoming DATA frames (flow control when local server is slow to consume request body)
-- [ ] Tunnel reconnect with stream resumption (currently all in-flight streams are lost on reconnect)
-- [ ] Gateway proxy connection pooling / keep-alive for tunnel WebSocket connections
+- [x] Multiple concurrent WebSocket connections per tunnel — replaced single `onWsMessage` callback with `Map<streamId, WsStreamHandlers>` dispatch via `registerWsStream`/`unregisterWsStream`
+- [x] Binary WebSocket data round-trip test (smoke test + echo server binary support)
+- [x] Tunnel client backpressure on incoming DATA frames — `BodySink` with 4MB high-water mark, pull-based overflow drain
+- [x] Tunnel reconnect with `onReconnected` callback (full stream resumption deferred — requires protocol-level changes)
+- [x] Gateway proxy connection pooling — verified Bun.serve uses HTTP keep-alive by default; single persistent WS per tunnel with multiplexed streams is sufficient
+- [x] Tunnel reconnect with stream resumption — broker-side replay buffer (1024 frames, 60s grace), client `lastReceivedSeq` tracking, resume on reconnect
+- [x] Make `wsConnectQueues` per-connection instead of module-level singleton — threaded as parameter through `handleBinaryFrame` → `forwardWsUpgrade`
+- [x] Body stream inactivity timeout — `bodyTimer` resets on each DATA frame, configurable via `bodyTimeoutMs`
+- [x] Cancel `streamBody` reader on `cleanup()` — `activeReaders` set tracks in-flight readers, cancelled in `cleanup()`
+- [ ] Tunnel reconnect: keep route alive during grace period — currently closes tunnel + route on disconnect, creating a brief 502 window before re-registration
 
 ---
 
@@ -667,6 +732,7 @@ These commands are registered but return "Not yet implemented":
 ## Phase 7: Sandbox Infrastructure — Snapshots, VMs, Cloning
 
 ### Snapshot Enhancements
+
 - [x] Volume-level snapshots via Kubernetes VolumeSnapshot CRDs (workspace PVC + docker PVC)
 - [x] CSI hostpath driver setup for k3d snapshot support
 - [x] Snapshot create/restore/delete reconciler flows (fire-and-forget async)
@@ -679,6 +745,7 @@ These commands are registered but return "Not yet implemented":
 - [ ] Incremental snapshots / snapshot chains for storage efficiency
 
 ### VM-Based Sandboxes
+
 - [ ] Proxmox VM provisioning via sandbox reconciler (`runtimeType: 'vm'`)
 - [ ] VM sandbox lifecycle: create, start, stop, suspend, resume, destroy
 - [ ] VM snapshots via Proxmox snapshot API (full machine state including memory)
@@ -687,11 +754,12 @@ These commands are registered but return "Not yet implemented":
 - [ ] Cloud-init integration for VM bootstrap (SSH keys, user data, network config)
 - [ ] VM migration between Proxmox nodes (live migration for load balancing)
 - [ ] Hybrid routing: gateway proxy support for VM-based sandboxes (not just k8s pods)
-resolveVm() does a full table scan — fine for typical VM counts (<1000), could add provider scope later if needed
-createVm() picks templates[0] as fallback when no templateId specified — non-deterministic but acceptable for single-template setups
-Service layer passes internal vmId to adapter which re-resolves it — works correctly because resolveVm matches on vmId, but the parameter name externalId is misleading. This is a naming concern, not a bug.
+      resolveVm() does a full table scan — fine for typical VM counts (<1000), could add provider scope later if needed
+      createVm() picks templates[0] as fallback when no templateId specified — non-deterministic but acceptable for single-template setups
+      Service layer passes internal vmId to adapter which re-resolves it — works correctly because resolveVm matches on vmId, but the parameter name externalId is misleading. This is a naming concern, not a bug.
 
 ### Sandbox Cloning
+
 - [ ] `dx sandbox clone <source> --name <new>` — create new sandbox from existing sandbox's current state
 - [ ] Clone via snapshot: snapshot source → restore into new sandbox (volume-level)
 - [ ] Clone via VM fork: Proxmox linked clone for instant VM copies
@@ -699,6 +767,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] Bulk clone for load testing / parallel CI (clone N sandboxes from a template snapshot)
 
 ### Web IDE & Web Terminal
+
 - [~] Base image with ttyd + openvscode-server (`images/dx-sandbox/Dockerfile` + `entrypoint.sh`) — built, needs CI push
 - [~] Pod spec: 3 ports (22, 8080, 8081), dual IngressRoute, entrypoint fallback — code done, needs k8s deploy
 - [~] Schema `webIdeUrl` column + reconciler IDE route creation — code done, needs k8s deploy
@@ -711,6 +780,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] WebSocket proxy verification: confirm ttyd and openvscode-server WS upgrades work through Traefik + tunnel relay
 
 ### Devcontainer & Envbuilder
+
 - [x] Envbuilder integration: sandbox pods use envbuilder to auto-detect/build devcontainer.json
 - [x] PVC mount fix: workspace PVC at `/workspace-pvc` with init script sync (envbuilder wipes `/workspaces` on rebuild)
 - [x] `dx sandbox exec` command (kubectl exec via slug or ID, TTY detection, `--context` override)
@@ -730,6 +800,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] Envbuilder cache warming: pre-pull common base images on cluster nodes for faster first build
 
 ### Sandbox Templates & Presets
+
 - [ ] `sandbox_template` table already has `runtimeType` column — wire up VM template support
 - [ ] Template snapshots: create a "golden" snapshot that new sandboxes bootstrap from
 - [ ] Template marketplace: share templates across orgs (read-only catalog entries)
@@ -744,6 +815,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [ ] Edge Traefik health monitoring: alert when `*.tunnel.lepton.software` or `*.preview.lepton.software` routes stop resolving
 
 ### Route Resolution & Network Topology
+
 - [ ] Compose-project port mapping resolution in route resolver (deferred — how do compose ports map to host ports?)
 - [ ] Cascade invalidation: host IP change → mark dependent routes as stale for re-resolution
 - [ ] Config drift detection: compare DB route state vs actual Traefik dynamic config on disk
@@ -759,6 +831,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 ## CLI Error Reporting & Diagnostics
 
 ### Completed (2026-04-06)
+
 - [x] `DxError` structured error class with operation, metadata, suggestions, cause chain (`cli/src/lib/dx-error.ts`)
 - [x] CLI logger with level control via `--verbose`/`--quiet`/`DX_LOG_LEVEL` (`cli/src/lib/logger.ts`)
 - [x] Top-level error handler renders DxError context, stack traces with `--verbose`, structured JSON with `--json` (`cli/src/cli.ts`)
@@ -767,6 +840,7 @@ Service layer passes internal vmId to adapter which re-resolves it — works cor
 - [x] `apiCall()` wraps API errors in DxError with status, recovery suggestions (`cli/src/commands/list-helpers.ts`)
 
 ### Deferred
+
 - [ ] Migrate existing `exitWithError(flags, message)` call sites to `exitWithDxError(flags, DxError)` with operation context
 - [ ] `dx workspace create --wait` timeout UX: query workspace status on timeout, show actionable guidance ("still provisioning", "reconciler error")
 - [ ] Typed response schemas exported from ontology routes so Eden clients carry proper types (eliminates `as unknown as` casts)
@@ -815,6 +889,7 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [x] Environment inheritance: `production` inherits from `all`, with per-env overrides
 
 ### Phase 10 — Follow-up / Polish
+
 - [x] Consolidate `getFactoryClient` — extracted to `cli/src/handlers/factory-fetch.ts`, shared across secret/var/env-scope handlers
 - [x] Atomic upsert for config var — switched to `onConflictDoUpdate` on the unique index
 - [x] Align scope models — both config vars and secrets now use `org/team/project/principal/system` scope types (v2 schema)
@@ -834,6 +909,7 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 ## Schema V2 — Follow-up Work
 
 ### Completed (2026-04-06)
+
 - [x] Remove `"sandbox"` from `RouteTypeSchema` (shared/src/schemas/infra.ts)
 - [x] Fix `RouteSpecSchema` — replace aspirational multi-target schema with flat fields matching actual `createRoute()` usage, keep optional `targets` for route resolver
 - [x] Deprecate dead v1 types: `Sandbox`, `SandboxTemplate`, `SandboxSnapshot`, `SandboxAccess`, `Cluster` in shared/src/types.ts
@@ -842,6 +918,7 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [x] Remove `createSandboxRoutes` backward compat alias in gateway.service.ts
 
 ### Spec-to-Column Migration (service layer)
+
 - [ ] Update service code to read promoted columns directly instead of `spec.*` for: identityLink.externalId, sshKey.fingerprint, job.status/mode/trigger, memory.layer/status/sourceAgentId, agent.status, toolUsage.tool/costMicrodollars, webhookEvent.gitHostProviderId/deliveryId, gitRepoSync.externalRepoId, gitUserSync.externalUserId, workItem.status/externalId/assignee, pipelineRun.status/commitSha, systemVersion.version, tunnel.subdomain/phase, dnsDomain.fqdn, ipAddress.address, route.domain, preview.phase/sourceBranch/prNumber
 - [ ] Backfill migration script: copy existing spec values to new columns for rows created before the migration
 - [ ] Entity relationship graph API: query `software.entity_relationship` for dependency graphs, impact analysis, ownership views
@@ -859,16 +936,19 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 ## Agent Platform
 
 ### Agent Taxonomy (v1 — implemented, needs migration)
+
 - [~] Generate Drizzle migration for agent schema changes (role_preset, job, memory tables, agent new columns)
 - [ ] Migrate existing `agent_execution` rows → `job` table (script or SQL migration)
 
 ### Agent Model — Future Dimensions
+
 - [ ] Migrate agent tables from `factory_agent` to `factory_org` schema (agents as org workers)
 - [ ] Trust score auto-computation from job history (success rate, override rate, escalation accuracy)
 - [ ] Autonomy auto-promotion: when trust exceeds thresholds, suggest level-up (with human confirmation)
 - [ ] Agent lifecycle: onboarding → active → expert stages with automatic context learning
 
 ### Memory System — v2 (Search Layer)
+
 - [ ] pgvector extension + `embedding` column type change (text → vector(1536))
 - [ ] Semantic retrieval pipeline: embed memories, top-K by cosine similarity before each job
 - [ ] Memory injection into agent context (structured sections: org → team → session)
@@ -880,6 +960,7 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] Cross-org memory layer (anonymized patterns across orgs — platform knowledge moat)
 
 ### Multi-Agent Collaboration
+
 - [ ] Supervisor agent: decompose tasks, delegate to specialist agents (uses job.parentJobId)
 - [ ] Crew mode: multiple agents collaborating on a shared goal
 - [ ] Event-triggered workflows: PR opened → auto-review, test failure → auto-diagnose, deploy failure → auto-investigate
@@ -904,6 +985,31 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] **Workspace auto-assign runtime: throw vs silent** — `createWorkspace()` throws if no runtime is registered. Consider whether workspace creation should succeed with `runtimeId = null` and let the reconciler retry when a runtime becomes available (more resilient for bootstrapping scenarios where runtime registration happens after workspace creation).
 - [ ] **Remove `FleetPlaneService` dead code** — `api/src/modules/fleet/plane.service.ts` defines `FleetPlaneService` which is never instantiated. Delete it along with its imports.
 - [ ] **Remove legacy sandbox adapter infrastructure** — `SandboxAdapter`, `NoopSandboxAdapter`, and the adapter registry are no longer used by workspace creation or TTL cleanup. The snapshot service still uses adapter for `snapshot()` operations. Audit and remove what's unused.
+
+---
+
+## `dx scan` — Infrastructure Host Scanning
+
+### Implemented (this session)
+
+- [x] Shared schemas: `HostScanResultSchema`, scan wire format types, new runtime types (`iis`, `windows-service`, `process`)
+- [x] DB migration: runtime type CHECK constraint includes new types
+- [x] API scan reconciler: upserts Systems/Runtimes/Components from scan results, decommissions missing
+- [x] API host scan action endpoint (`POST /infra/hosts/:slug/scan`)
+- [x] CLI collectors: Linux (bash), Windows (PowerShell), local dispatch, remote SSH
+- [x] CLI `--scanner ide|infra|all` flag, target argument for host slugs
+- [x] CLI output formatting for infra scan results + reconciliation summary
+
+### Follow-ups
+
+- [ ] macOS-specific collector — local scan routes macOS to Linux bash script which partially works (`ss` and `systemctl` don't exist on macOS). Add macOS collector using `lsof -iTCP -sTCP:LISTEN` for ports and `launchctl` for services
+- [ ] `jq` fallback in Linux collector — python3 is a soft dependency for compose/systemd JSON parsing; add `jq`-based fallback for minimal environments without python3
+- [ ] Python3 availability collector status — emit a collector status entry when python3 is missing so users understand why compose/systemd data is empty
+- [ ] Scan reconciler unit tests — cover: basic create, idempotent re-scan, decommission of disappeared services, re-activation of decommissioned services
+- [ ] OS detection for remote hosts — currently defaults to linux; should read `spec.os` from the host entity in Factory rather than `(entity as any).os`
+- [ ] Scheduled/periodic scanning — cron or timer-based re-scan to keep infrastructure digital twin current
+- [ ] Scan diff/changelog — show what changed between consecutive scans on the same host (new services, removed services, port changes)
+- [ ] Network topology from scan data — use port/service data across multiple hosts to infer service-to-service communication links
 
 ---
 

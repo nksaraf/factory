@@ -4,7 +4,9 @@
 
 CREATE SCHEMA IF NOT EXISTS "analytics";--> statement-breakpoint
 
--- GIN index on spec JSONB for extraction performance
+-- GIN index on spec JSONB for extraction performance.
+-- NOTE: For large production tables, consider creating this index concurrently
+-- outside of the migration to avoid locking: CREATE INDEX CONCURRENTLY ...
 CREATE INDEX IF NOT EXISTS "org_webhook_event_spec_gin_idx"
   ON "org"."webhook_event" USING gin ("spec");--> statement-breakpoint
 
@@ -56,7 +58,7 @@ LEFT JOIN "org"."principal" p ON f."actor_id" = p."id"
 LEFT JOIN "org"."membership" m ON p."id" = m."principal_id"
 LEFT JOIN "org"."team" t ON m."team_id" = t."id"
 WHERE f."event_type" IS NOT NULL
-  AND f."status" != 'failed';--> statement-breakpoint
+  AND f."status" IS DISTINCT FROM 'failed';--> statement-breakpoint
 
 -- AI tool events: pre-filtered with IDE-specific payload extraction
 CREATE OR REPLACE VIEW "analytics"."v_ai_events" AS

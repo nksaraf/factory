@@ -3,7 +3,7 @@ import type {
   WorkTrackerProjectSpec,
   WorkTrackerProviderSpec,
 } from "@smp/factory-shared/schemas/build"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, notInArray } from "drizzle-orm"
 
 import { getWorkTrackerAdapter } from "../../adapters/adapter-registry"
 import type {
@@ -49,6 +49,7 @@ const KIND_MAP: Record<string, string> = {
 export interface WorkTrackerProjectSyncResult {
   created: number
   updated: number
+  removed: number
   total: number
 }
 
@@ -90,9 +91,8 @@ function resolveCredentials(
   spec: WorkTrackerProviderSpec
 ): string {
   const token = spec.credentialsRef ?? ""
-  if (type === "jira" && (spec as Record<string, unknown>).adminEmail) {
-    const email = (spec as Record<string, unknown>).adminEmail as string
-    return Buffer.from(`${email}:${token}`).toString("base64")
+  if (type === "jira" && spec.adminEmail) {
+    return Buffer.from(`${spec.adminEmail}:${token}`).toString("base64")
   }
   return token
 }
@@ -153,24 +153,22 @@ export async function syncProjects(
   const adapter =
     opts?.adapter ?? getWorkTrackerAdapter(provider.type as WorkTrackerType)
   const creds = resolveCredentials(provider.type, spec)
-  const projects = await adapter.listProjects(spec.apiUrl, creds)
+  const remoteProjects = await adapter.listProjects(spec.apiUrl, creds)
+
+  // Fetch all existing projects for this provider in one query
+  const existing = await db
+    .select()
+    .from(workTrackerProject)
+    .where(eq(workTrackerProject.workTrackerProviderId, providerId))
+  const existingByExtId = new Map(existing.map((p) => [p.externalId, p]))
 
   let created = 0
   let updated = 0
 
-  for (const project of projects) {
-    const [existing] = await db
-      .select()
-      .from(workTrackerProject)
-      .where(
-        and(
-          eq(workTrackerProject.workTrackerProviderId, providerId),
-          eq(workTrackerProject.externalId, project.id)
-        )
-      )
-      .limit(1)
-
-    if (!existing) {
+  // Upsert each project (slug allocation requires per-row for new projects)
+  for (const project of remoteProjects) {
+    const ex = existingByExtId.get(project.id)
+    if (!ex) {
       await db.insert(workTrackerProject).values({
         slug: await projectSlug(db, provider.slug, project),
         name: project.name,
@@ -179,21 +177,33 @@ export async function syncProjects(
         spec: projectSpec(project),
       })
       created++
-      continue
+    } else {
+      await db
+        .update(workTrackerProject)
+        .set({
+          name: project.name,
+          spec: projectSpec(project),
+          updatedAt: new Date(),
+        })
+        .where(eq(workTrackerProject.id, ex.id))
+      updated++
     }
-
-    await db
-      .update(workTrackerProject)
-      .set({
-        name: project.name,
-        spec: projectSpec(project),
-        updatedAt: new Date(),
-      })
-      .where(eq(workTrackerProject.id, existing.id))
-    updated++
   }
 
-  return { created, updated, total: projects.length }
+  // Remove projects no longer in the remote
+  const remoteExtIds = remoteProjects.map((p) => p.id)
+  const staleIds = existing
+    .filter((p) => !remoteExtIds.includes(p.externalId))
+    .map((p) => p.id)
+  let removed = 0
+  if (staleIds.length > 0) {
+    await db
+      .delete(workTrackerProject)
+      .where(inArray(workTrackerProject.id, staleIds))
+    removed = staleIds.length
+  }
+
+  return { created, updated, removed, total: remoteProjects.length }
 }
 
 export async function syncWorkTracker(
@@ -231,12 +241,20 @@ export async function syncWorkTracker(
       .from(workTrackerProjectMapping)
       .where(eq(workTrackerProjectMapping.workTrackerProviderId, providerId))
 
+    // Fetch all existing work items for this provider in one query
+    const existingItems = await db
+      .select()
+      .from(workItem)
+      .where(eq(workItem.workTrackerProviderId, providerId))
+    const existingByExtId = new Map(existingItems.map((i) => [i.externalId, i]))
+
     let created = 0
     let updated = 0
     let total = 0
+    const creds = resolveCredentials(provider.type, spec)
+    const seenExtIds = new Set<string>()
 
     for (const mapping of mappings) {
-      const creds = resolveCredentials(provider.type, spec)
       const issues = await adapter.fetchIssues(
         spec.apiUrl,
         creds,
@@ -245,19 +263,10 @@ export async function syncWorkTracker(
 
       for (const issue of issues) {
         total++
+        seenExtIds.add(issue.id)
+        const ex = existingByExtId.get(issue.id)
 
-        const [existing] = await db
-          .select()
-          .from(workItem)
-          .where(
-            and(
-              eq(workItem.workTrackerProviderId, providerId),
-              eq(workItem.externalId, issue.id)
-            )
-          )
-          .limit(1)
-
-        if (!existing) {
+        if (!ex) {
           await db.insert(workItem).values({
             type: mapExternalKind(issue.kind),
             systemId: mapping.systemId,
@@ -268,22 +277,31 @@ export async function syncWorkTracker(
             spec: itemSpec(issue),
           })
           created++
-          continue
+        } else {
+          await db
+            .update(workItem)
+            .set({
+              type: mapExternalKind(issue.kind),
+              systemId: mapping.systemId,
+              status: mapExternalStatus(issue.status),
+              assignee: issue.assignee ?? null,
+              spec: itemSpec(issue),
+              updatedAt: new Date(),
+            })
+            .where(eq(workItem.id, ex.id))
+          updated++
         }
-
-        await db
-          .update(workItem)
-          .set({
-            type: mapExternalKind(issue.kind),
-            systemId: mapping.systemId,
-            status: mapExternalStatus(issue.status),
-            assignee: issue.assignee ?? null,
-            spec: itemSpec(issue),
-            updatedAt: new Date(),
-          })
-          .where(eq(workItem.id, existing.id))
-        updated++
       }
+    }
+
+    // Remove items no longer present in the remote
+    const staleIds = existingItems
+      .filter((i) => !seenExtIds.has(i.externalId))
+      .map((i) => i.id)
+    let removed = 0
+    if (staleIds.length > 0) {
+      await db.delete(workItem).where(inArray(workItem.id, staleIds))
+      removed = staleIds.length
     }
 
     await db
@@ -300,7 +318,7 @@ export async function syncWorkTracker(
 
     return {
       projects,
-      items: { created, updated, total },
+      items: { created, updated, removed, total },
     }
   } catch (error) {
     await db

@@ -5,11 +5,11 @@
  * Detects whether each IDE's hook config already includes our telemetry
  * hooks. If not, proposes adding them.
  */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join, resolve } from "node:path"
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { homedir } from "node:os";
-import type { ConfigProvider, ConfigChange } from "./types.js";
+import type { ConfigChange, ConfigProvider } from "./types.js"
 
 /**
  * Resolve the hook scripts directory.
@@ -19,15 +19,15 @@ import type { ConfigProvider, ConfigChange } from "./types.js";
 function resolveScriptsDir(): string {
   // Default to a well-known relative path from the CLI source
   // The scripts live at <repo>/scripts/ide-hooks/
-  let dir = resolve(import.meta.dir, "../../../../../..");
-  const candidate = join(dir, "scripts", "ide-hooks");
-  if (existsSync(join(candidate, "claude-code-hook.ts"))) return candidate;
+  let dir = resolve(import.meta.dir, "../../../../..")
+  const candidate = join(dir, "scripts", "ide-hooks")
+  if (existsSync(join(candidate, "claude-code-hook.ts"))) return candidate
 
   // Fallback: check from cwd (useful when running from repo root)
-  const cwdCandidate = join(process.cwd(), "scripts", "ide-hooks");
-  if (existsSync(join(cwdCandidate, "claude-code-hook.ts"))) return cwdCandidate;
+  const cwdCandidate = join(process.cwd(), "scripts", "ide-hooks")
+  if (existsSync(join(cwdCandidate, "claude-code-hook.ts"))) return cwdCandidate
 
-  return candidate;
+  return candidate
 }
 
 // ── Claude Code ──────────────────────────────────────────────
@@ -38,36 +38,49 @@ const CC_HOOK_EVENTS = [
   "UserPromptSubmit",
   "PreToolUse",
   "PostToolUse",
+  "PostToolUseFailure",
   "Stop",
+  "StopFailure",
+  "SubagentStart",
   "SubagentStop",
-] as const;
+  "PreCompact",
+  "PostCompact",
+] as const
 
 function detectClaudeCode(): ConfigChange {
-  const settingsPath = join(homedir(), ".claude", "settings.json");
-  const scriptsDir = resolveScriptsDir();
-  const hookScript = join(scriptsDir, "claude-code-hook.ts");
+  const settingsPath = join(homedir(), ".claude", "settings.json")
+  const scriptsDir = resolveScriptsDir()
+  const hookScript = join(scriptsDir, "claude-code-hook.ts")
 
-  let alreadyApplied = false;
-  let currentValue: string | null = null;
+  let alreadyApplied = false
+  let currentValue: string | null = null
 
   if (existsSync(settingsPath)) {
     try {
-      const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
-      const hooks = settings.hooks ?? {};
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8"))
+      const hooks = settings.hooks ?? {}
       // Check if at least the key events are registered
       const registered = CC_HOOK_EVENTS.filter((event) => {
-        const entries = hooks[event] as Array<Record<string, unknown>> | undefined;
-        if (!entries) return false;
+        const entries = hooks[event] as
+          | Array<Record<string, unknown>>
+          | undefined
+        if (!entries) return false
         return entries.some((entry) => {
-          const innerHooks = entry.hooks as Array<Record<string, unknown>> | undefined;
-          if (!innerHooks) return false;
+          const innerHooks = entry.hooks as
+            | Array<Record<string, unknown>>
+            | undefined
+          if (!innerHooks) return false
           return innerHooks.some(
-            (h) => typeof h.command === "string" && h.command.includes("claude-code-hook.ts"),
-          );
-        });
-      });
-      alreadyApplied = registered.length === CC_HOOK_EVENTS.length;
-      currentValue = registered.length > 0 ? `${registered.length}/${CC_HOOK_EVENTS.length} events` : null;
+            (h) =>
+              typeof h.command === "string" && h.command.includes(hookScript)
+          )
+        })
+      })
+      alreadyApplied = registered.length === CC_HOOK_EVENTS.length
+      currentValue =
+        registered.length > 0
+          ? `${registered.length}/${CC_HOOK_EVENTS.length} events`
+          : null
     } catch {
       // Malformed JSON — treat as not configured
     }
@@ -85,40 +98,46 @@ function detectClaudeCode(): ConfigChange {
     platform: null,
     apply: async () => {
       try {
-        let settings: Record<string, unknown> = {};
+        let settings: Record<string, unknown> = {}
         if (existsSync(settingsPath)) {
-          settings = JSON.parse(readFileSync(settingsPath, "utf8"));
+          settings = JSON.parse(readFileSync(settingsPath, "utf8"))
         }
 
-        const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>;
+        const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
 
         for (const event of CC_HOOK_EVENTS) {
-          const command = `bun run ${hookScript} ${event}`;
-          if (!hooks[event]) hooks[event] = [];
+          const command = `bun run ${hookScript} ${event}`
+          if (!hooks[event]) hooks[event] = []
 
           // Remove stale entries, then add current
-          hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter((entry) => {
-            const innerHooks = entry.hooks as Array<Record<string, unknown>> | undefined;
-            if (!innerHooks) return true;
+          hooks[event] = (
+            hooks[event] as Array<Record<string, unknown>>
+          ).filter((entry) => {
+            const innerHooks = entry.hooks as
+              | Array<Record<string, unknown>>
+              | undefined
+            if (!innerHooks) return true
             return !innerHooks.some(
-              (h) => typeof h.command === "string" && h.command.includes("claude-code-hook.ts"),
-            );
-          });
-          (hooks[event] as Array<Record<string, unknown>>).push({
+              (h) =>
+                typeof h.command === "string" &&
+                h.command.includes("claude-code-hook.ts")
+            )
+          })
+          ;(hooks[event] as Array<Record<string, unknown>>).push({
             matcher: "*",
             hooks: [{ type: "command", command }],
-          });
+          })
         }
 
-        settings.hooks = hooks;
-        mkdirSync(join(homedir(), ".claude"), { recursive: true });
-        writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
-        return true;
+        settings.hooks = hooks
+        mkdirSync(join(homedir(), ".claude"), { recursive: true })
+        writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n")
+        return true
       } catch {
-        return false;
+        return false
       }
     },
-  };
+  }
 }
 
 // ── Cursor ───────────────────────────────────────────────────
@@ -144,30 +163,37 @@ const CURSOR_HOOK_EVENTS = [
   "afterAgentThought",
   "preCompact",
   "stop",
-] as const;
+] as const
 
 function detectCursor(): ConfigChange {
-  const hooksDir = join(homedir(), ".cursor", "hooks");
-  const hooksPath = join(hooksDir, "hooks.json");
-  const scriptsDir = resolveScriptsDir();
-  const hookScript = join(scriptsDir, "cursor-hook.ts");
+  const hooksDir = join(homedir(), ".cursor", "hooks")
+  const hooksPath = join(hooksDir, "hooks.json")
+  const scriptsDir = resolveScriptsDir()
+  const hookScript = join(scriptsDir, "cursor-hook.ts")
 
-  let alreadyApplied = false;
-  let currentValue: string | null = null;
+  let alreadyApplied = false
+  let currentValue: string | null = null
 
   if (existsSync(hooksPath)) {
     try {
-      const config = JSON.parse(readFileSync(hooksPath, "utf8"));
-      const hooks = config.hooks ?? {};
+      const config = JSON.parse(readFileSync(hooksPath, "utf8"))
+      const hooks = config.hooks ?? {}
       const registered = CURSOR_HOOK_EVENTS.filter((event) => {
-        const entries = hooks[event] as Array<Record<string, unknown>> | undefined;
-        if (!entries) return false;
+        const entries = hooks[event] as
+          | Array<Record<string, unknown>>
+          | undefined
+        if (!entries) return false
         return entries.some(
-          (entry) => typeof entry.command === "string" && entry.command.includes("cursor-hook.ts"),
-        );
-      });
-      alreadyApplied = registered.length === CURSOR_HOOK_EVENTS.length;
-      currentValue = registered.length > 0 ? `${registered.length}/${CURSOR_HOOK_EVENTS.length} events` : null;
+          (entry) =>
+            typeof entry.command === "string" &&
+            entry.command.includes(hookScript)
+        )
+      })
+      alreadyApplied = registered.length === CURSOR_HOOK_EVENTS.length
+      currentValue =
+        registered.length > 0
+          ? `${registered.length}/${CURSOR_HOOK_EVENTS.length} events`
+          : null
     } catch {
       // Malformed JSON
     }
@@ -185,33 +211,39 @@ function detectCursor(): ConfigChange {
     platform: null,
     apply: async () => {
       try {
-        let config: Record<string, unknown> = {};
+        let config: Record<string, unknown> = {}
         if (existsSync(hooksPath)) {
-          config = JSON.parse(readFileSync(hooksPath, "utf8"));
+          config = JSON.parse(readFileSync(hooksPath, "utf8"))
         }
 
-        const hooks = (config.hooks ?? {}) as Record<string, unknown[]>;
+        const hooks = (config.hooks ?? {}) as Record<string, unknown[]>
 
         for (const event of CURSOR_HOOK_EVENTS) {
-          const command = `bun run ${hookScript} ${event}`;
-          if (!hooks[event]) hooks[event] = [];
+          const command = `bun run ${hookScript} ${event}`
+          if (!hooks[event]) hooks[event] = []
 
           // Remove stale entries, then add current
-          hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter(
-            (entry) => !(typeof entry.command === "string" && entry.command.includes("cursor-hook.ts")),
-          );
-          (hooks[event] as Array<Record<string, unknown>>).push({ command });
+          hooks[event] = (
+            hooks[event] as Array<Record<string, unknown>>
+          ).filter(
+            (entry) =>
+              !(
+                typeof entry.command === "string" &&
+                entry.command.includes("cursor-hook.ts")
+              )
+          )
+          ;(hooks[event] as Array<Record<string, unknown>>).push({ command })
         }
 
-        config.hooks = hooks;
-        mkdirSync(hooksDir, { recursive: true });
-        writeFileSync(hooksPath, JSON.stringify(config, null, 2) + "\n");
-        return true;
+        config.hooks = hooks
+        mkdirSync(hooksDir, { recursive: true })
+        writeFileSync(hooksPath, JSON.stringify(config, null, 2) + "\n")
+        return true
       } catch {
-        return false;
+        return false
       }
     },
-  };
+  }
 }
 
 // ── Provider ─────────────────────────────────────────────────
@@ -222,6 +254,6 @@ export const ideHooksDefaultsProvider: ConfigProvider = {
   roles: ["workbench"],
 
   async detect(): Promise<ConfigChange[]> {
-    return [detectClaudeCode(), detectCursor()];
+    return [detectClaudeCode(), detectCursor()]
   },
-};
+}

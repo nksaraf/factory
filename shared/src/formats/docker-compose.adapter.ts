@@ -6,11 +6,9 @@
  * a rich catalog model with proper port names, API declarations,
  * documentation links, and inter-service connections.
  */
-
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-
-import { parse as parseYaml } from "yaml";
+import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { basename, dirname, join } from "node:path"
+import { parse as parseYaml } from "yaml"
 
 import type {
   CatalogComponent,
@@ -19,14 +17,14 @@ import type {
   CatalogPort,
   CatalogResource,
   CatalogSystem,
-} from "../catalog";
+} from "../catalog"
 import type {
   CatalogFormatAdapter,
   CatalogGenerateResult,
   CatalogParseResult,
-} from "../catalog-registry";
-import type { ComposeService } from "../compose-gen";
-import { composeToYaml, generateComposeFromCatalog } from "../compose-gen";
+} from "../catalog-registry"
+import type { ComposeService } from "../compose-gen"
+import { composeToYaml, generateComposeFromCatalog } from "../compose-gen"
 
 // ─── Env var interpolation ───────────────────────────────────
 
@@ -36,36 +34,36 @@ import { composeToYaml, generateComposeFromCatalog } from "../compose-gen";
  */
 export function resolveComposeEnvVar(
   value: string,
-  env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
+  env: Record<string, string | undefined> = process.env as Record<
+    string,
+    string | undefined
+  >
 ): string {
-  return value.replace(
-    /\$\{([^}]+)\}/g,
-    (_match, expr: string) => {
-      // ${VAR:-default} — use default if unset or empty
-      const colonDash = expr.indexOf(":-");
-      if (colonDash !== -1) {
-        const varName = expr.slice(0, colonDash);
-        const defaultVal = expr.slice(colonDash + 2);
-        return env[varName] || defaultVal;
-      }
-      // ${VAR-default} — use default only if unset
-      const dash = expr.indexOf("-");
-      if (dash !== -1) {
-        const varName = expr.slice(0, dash);
-        const defaultVal = expr.slice(dash + 1);
-        return env[varName] ?? defaultVal;
-      }
-      // ${VAR:+alternate} — use alternate if set and non-empty
-      const colonPlus = expr.indexOf(":+");
-      if (colonPlus !== -1) {
-        const varName = expr.slice(0, colonPlus);
-        const altVal = expr.slice(colonPlus + 2);
-        return env[varName] ? altVal : "";
-      }
-      // ${VAR} — simple substitution
-      return env[expr] ?? "";
-    },
-  );
+  return value.replace(/\$\{([^}]+)\}/g, (_match, expr: string) => {
+    // ${VAR:-default} — use default if unset or empty
+    const colonDash = expr.indexOf(":-")
+    if (colonDash !== -1) {
+      const varName = expr.slice(0, colonDash)
+      const defaultVal = expr.slice(colonDash + 2)
+      return env[varName] || defaultVal
+    }
+    // ${VAR-default} — use default only if unset
+    const dash = expr.indexOf("-")
+    if (dash !== -1) {
+      const varName = expr.slice(0, dash)
+      const defaultVal = expr.slice(dash + 1)
+      return env[varName] ?? defaultVal
+    }
+    // ${VAR:+alternate} — use alternate if set and non-empty
+    const colonPlus = expr.indexOf(":+")
+    if (colonPlus !== -1) {
+      const varName = expr.slice(0, colonPlus)
+      const altVal = expr.slice(colonPlus + 2)
+      return env[varName] ? altVal : ""
+    }
+    // ${VAR} — simple substitution
+    return env[expr] ?? ""
+  })
 }
 
 /**
@@ -73,44 +71,42 @@ export function resolveComposeEnvVar(
  */
 function resolveEnvRecord(
   envMap: Record<string, string> | undefined,
-  processEnv: Record<string, string | undefined>,
+  processEnv: Record<string, string | undefined>
 ): Record<string, string> {
-  if (!envMap) return {};
-  const resolved: Record<string, string> = {};
+  if (!envMap) return {}
+  const resolved: Record<string, string> = {}
   for (const [key, value] of Object.entries(envMap)) {
-    resolved[key] = resolveComposeEnvVar(value, processEnv);
+    resolved[key] = resolveComposeEnvVar(value, processEnv)
   }
-  return resolved;
+  return resolved
 }
 
 /**
  * Normalize environment from compose — handles both record and array forms.
  */
-function normalizeEnvironment(
-  env: unknown,
-): Record<string, string> {
-  if (!env) return {};
+function normalizeEnvironment(env: unknown): Record<string, string> {
+  if (!env) return {}
   if (Array.isArray(env)) {
-    const result: Record<string, string> = {};
+    const result: Record<string, string> = {}
     for (const item of env) {
-      const s = String(item);
-      const eqIdx = s.indexOf("=");
+      const s = String(item)
+      const eqIdx = s.indexOf("=")
       if (eqIdx > 0) {
-        result[s.slice(0, eqIdx)] = s.slice(eqIdx + 1);
+        result[s.slice(0, eqIdx)] = s.slice(eqIdx + 1)
       } else {
-        result[s] = "";
+        result[s] = ""
       }
     }
-    return result;
+    return result
   }
   if (typeof env === "object") {
-    const result: Record<string, string> = {};
+    const result: Record<string, string> = {}
     for (const [k, v] of Object.entries(env as Record<string, unknown>)) {
-      result[k] = v == null ? "" : String(v);
+      result[k] = v == null ? "" : String(v)
     }
-    return result;
+    return result
   }
-  return {};
+  return {}
 }
 
 // ─── Heuristics ──────────────────────────────────────────────
@@ -146,17 +142,17 @@ const INFRA_IMAGE_PATTERNS: [RegExp, string][] = [
   [/^mailhog/i, "other"],
   [/^adminer/i, "other"],
   [/^phpmyadmin/i, "other"],
-];
+]
 
 function inferResourceTypeFromImage(image: string): string | null {
   // Strip registry/org prefix and tag: "asia-south2-docker.pkg.dev/org/docker/name:tag" → "name"
-  const parts = image.split("/");
-  const last = parts[parts.length - 1] ?? image;
-  const imageName = last.split(":")[0] ?? last;
+  const parts = image.split("/")
+  const last = parts[parts.length - 1] ?? image
+  const imageName = last.split(":")[0] ?? last
   for (const [pattern, type] of INFRA_IMAGE_PATTERNS) {
-    if (pattern.test(imageName)) return type;
+    if (pattern.test(imageName)) return type
   }
-  return null;
+  return null
 }
 
 /** Well-known port numbers → protocol and name. */
@@ -181,43 +177,75 @@ const KNOWN_PORTS: Record<number, { name: string; protocol: string }> = {
   2181: { name: "zookeeper", protocol: "tcp" },
   8005: { name: "http", protocol: "http" },
   8181: { name: "http", protocol: "http" },
-};
+}
 
 /** Infra service names that imply a resource. */
 const INFRA_NAME_PATTERNS = [
-  "db", "database", "postgres", "postgresql", "pg",
-  "mysql", "mariadb", "mongo", "mongodb",
-  "redis", "cache", "memcached", "valkey",
-  "rabbitmq", "nats", "kafka", "zookeeper",
-  "minio", "s3", "storage",
-  "elasticsearch", "opensearch", "meilisearch", "solr",
-  "traefik", "nginx", "envoy", "haproxy", "gateway", "proxy",
-  "mailhog", "adminer", "apisix", "kong",
-];
+  "db",
+  "database",
+  "postgres",
+  "postgresql",
+  "pg",
+  "mysql",
+  "mariadb",
+  "mongo",
+  "mongodb",
+  "redis",
+  "cache",
+  "memcached",
+  "valkey",
+  "rabbitmq",
+  "nats",
+  "kafka",
+  "zookeeper",
+  "minio",
+  "s3",
+  "storage",
+  "elasticsearch",
+  "opensearch",
+  "meilisearch",
+  "solr",
+  "traefik",
+  "nginx",
+  "envoy",
+  "haproxy",
+  "gateway",
+  "proxy",
+  "mailhog",
+  "adminer",
+  "apisix",
+  "kong",
+]
 
 function classifyService(
   name: string,
-  svc: ComposeService,
+  svc: ComposeService
 ): "component" | "resource" {
   // Labels can override classification
-  const labels = svc.labels ?? {};
+  const labels = svc.labels ?? {}
   if (labels["catalog.kind"]) {
-    return labels["catalog.kind"].toLowerCase() === "resource" ? "resource" : "component";
+    return labels["catalog.kind"].toLowerCase() === "resource"
+      ? "resource"
+      : "component"
   }
 
-  if (svc.build) return "component";
+  if (svc.build) return "component"
 
   if (svc.image) {
-    const resourceType = inferResourceTypeFromImage(svc.image);
-    if (resourceType) return "resource";
+    const resourceType = inferResourceTypeFromImage(svc.image)
+    if (resourceType) return "resource"
   }
 
-  const lowerName = name.toLowerCase();
-  if (INFRA_NAME_PATTERNS.some((n) => lowerName === n || lowerName.startsWith(`${n}-`))) {
-    return "resource";
+  const lowerName = name.toLowerCase()
+  if (
+    INFRA_NAME_PATTERNS.some(
+      (n) => lowerName === n || lowerName.startsWith(`${n}-`)
+    )
+  ) {
+    return "resource"
   }
 
-  return "component";
+  return "component"
 }
 
 // ─── Label conventions ───────────────────────────────────────
@@ -243,26 +271,34 @@ function classifyService(
 //   catalog.docs.runbook: "https://..."       — runbook link
 
 interface ParsedLabels {
-  catalogKind?: string;
-  catalogType?: string;
-  owner?: string;
-  description?: string;
-  tags?: string[];
-  lifecycle?: string;
-  portOverrides: Record<number, { name?: string; protocol?: string }>;
-  providesApis?: string[];
-  consumesApis?: string[];
-  apiType?: string;
-  links: Array<{ url: string; title: string; type?: string }>;
-  extraLabels: Record<string, string>;
+  catalogKind?: string
+  catalogType?: string
+  owner?: string
+  description?: string
+  tags?: string[]
+  lifecycle?: string
+  portOverrides: Record<number, { name?: string; protocol?: string }>
+  providesApis?: string[]
+  consumesApis?: string[]
+  apiType?: string
+  links: Array<{ url: string; title: string; type?: string }>
+  extraLabels: Record<string, string>
   // dx.* labels for dev workflow
-  devCommand?: string;
-  devSync?: string[];
-  testCommand?: string;
-  lintCommand?: string;
-  runtime?: string;
+  devCommand?: string
+  devSync?: string[]
+  testCommand?: string
+  lintCommand?: string
+  runtime?: string
   // catalog.connection.* labels
-  connections: Record<string, { module?: string; component?: string; envVar?: string; localDefault?: string }>;
+  connections: Record<
+    string,
+    {
+      module?: string
+      component?: string
+      envVar?: string
+      localDefault?: string
+    }
+  >
 }
 
 function parseLabels(labels: Record<string, string>): ParsedLabels {
@@ -271,100 +307,143 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
     links: [],
     extraLabels: {},
     connections: {},
-  };
+  }
 
   for (const [key, value] of Object.entries(labels)) {
     if (key === "catalog.kind") {
-      result.catalogKind = value;
+      result.catalogKind = value
     } else if (key === "catalog.type") {
-      result.catalogType = value;
+      result.catalogType = value
     } else if (key === "catalog.owner") {
-      result.owner = value;
+      result.owner = value
     } else if (key === "catalog.description") {
-      result.description = value;
+      result.description = value
     } else if (key === "catalog.tags") {
-      result.tags = value.split(",").map((t) => t.trim()).filter(Boolean);
+      result.tags = value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
     } else if (key === "catalog.lifecycle") {
-      result.lifecycle = value;
+      result.lifecycle = value
     } else if (key.startsWith("catalog.port.")) {
       // catalog.port.8080.name = "http"
-      const rest = key.slice("catalog.port.".length);
-      const dotIdx = rest.indexOf(".");
+      const rest = key.slice("catalog.port.".length)
+      const dotIdx = rest.indexOf(".")
       if (dotIdx > 0) {
-        const port = parseInt(rest.slice(0, dotIdx), 10);
-        const field = rest.slice(dotIdx + 1);
+        const port = parseInt(rest.slice(0, dotIdx), 10)
+        const field = rest.slice(dotIdx + 1)
         if (!isNaN(port)) {
-          result.portOverrides[port] ??= {};
-          if (field === "name") result.portOverrides[port].name = value;
-          if (field === "protocol") result.portOverrides[port].protocol = value;
+          result.portOverrides[port] ??= {}
+          if (field === "name") result.portOverrides[port].name = value
+          if (field === "protocol") result.portOverrides[port].protocol = value
         }
       }
     } else if (key === "catalog.api.provides") {
-      result.providesApis = value.split(",").map((s) => s.trim()).filter(Boolean);
+      result.providesApis = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     } else if (key === "catalog.api.consumes") {
-      result.consumesApis = value.split(",").map((s) => s.trim()).filter(Boolean);
+      result.consumesApis = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     } else if (key === "catalog.api.type") {
-      result.apiType = value;
+      result.apiType = value
     } else if (key === "catalog.docs.url") {
-      result.links.push({ url: value, title: "Documentation", type: "doc" });
+      result.links.push({ url: value, title: "Documentation", type: "doc" })
     } else if (key === "catalog.docs.api") {
-      result.links.push({ url: value, title: "API Documentation", type: "api-doc" });
+      result.links.push({
+        url: value,
+        title: "API Documentation",
+        type: "api-doc",
+      })
     } else if (key === "catalog.docs.runbook") {
-      result.links.push({ url: value, title: "Runbook", type: "runbook" });
+      result.links.push({ url: value, title: "Runbook", type: "runbook" })
     } else if (key.startsWith("catalog.connection.")) {
       // catalog.connection.<name>.module = "auth"
-      const rest = key.slice("catalog.connection.".length);
-      const dotIdx = rest.indexOf(".");
+      const rest = key.slice("catalog.connection.".length)
+      const dotIdx = rest.indexOf(".")
       if (dotIdx > 0) {
-        const connName = rest.slice(0, dotIdx);
-        const field = rest.slice(dotIdx + 1);
-        result.connections[connName] ??= {};
-        if (field === "module") result.connections[connName].module = value;
-        else if (field === "component") result.connections[connName].component = value;
-        else if (field === "env_var") result.connections[connName].envVar = value;
-        else if (field === "local_default") result.connections[connName].localDefault = value;
+        const connName = rest.slice(0, dotIdx)
+        const field = rest.slice(dotIdx + 1)
+        result.connections[connName] ??= {}
+        if (field === "module") result.connections[connName].module = value
+        else if (field === "component")
+          result.connections[connName].component = value
+        else if (field === "env_var")
+          result.connections[connName].envVar = value
+        else if (field === "local_default")
+          result.connections[connName].localDefault = value
       }
     } else if (key === "dx.dev.command") {
-      result.devCommand = value;
+      result.devCommand = value
     } else if (key === "dx.dev.sync") {
-      result.devSync = value.split(",").map((s) => s.trim()).filter(Boolean);
+      result.devSync = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     } else if (key === "dx.test") {
-      result.testCommand = value;
+      result.testCommand = value
     } else if (key === "dx.lint") {
-      result.lintCommand = value;
+      result.lintCommand = value
     } else if (key === "dx.runtime") {
-      result.runtime = value;
+      result.runtime = value
     } else {
       // Preserve non-catalog/non-dx labels
-      result.extraLabels[key] = value;
+      result.extraLabels[key] = value
     }
   }
 
-  return result;
+  return result
 }
 
 // ─── Connection inference ────────────────────────────────────
 
 /** Well-known env var patterns that reference other services. */
 const CONNECTION_ENV_PATTERNS: Array<{
-  pattern: RegExp;
-  protocol: string;
-  resourceType: string;
+  pattern: RegExp
+  protocol: string
+  resourceType: string
 }> = [
-  { pattern: /(?:^|_)(?:DATABASE_URL|DB_URL|POSTGRES_URL|PG_URL)$/i, protocol: "postgresql", resourceType: "database" },
-  { pattern: /(?:^|_)(?:REDIS_URL|REDIS_URI|CACHE_URL)$/i, protocol: "redis", resourceType: "cache" },
-  { pattern: /(?:^|_)(?:RABBITMQ_URL|AMQP_URL|RABBIT_URL)$/i, protocol: "amqp", resourceType: "queue" },
-  { pattern: /(?:^|_)(?:MONGO_URL|MONGO_URI|MONGODB_URI)$/i, protocol: "mongodb", resourceType: "database" },
-  { pattern: /(?:^|_)(?:KAFKA_BROKERS?|KAFKA_URL)$/i, protocol: "kafka", resourceType: "queue" },
-  { pattern: /(?:^|_)(?:ELASTICSEARCH_URL|ES_URL|OPENSEARCH_URL)$/i, protocol: "http", resourceType: "search" },
-];
+  {
+    pattern: /(?:^|_)(?:DATABASE_URL|DB_URL|POSTGRES_URL|PG_URL)$/i,
+    protocol: "postgresql",
+    resourceType: "database",
+  },
+  {
+    pattern: /(?:^|_)(?:REDIS_URL|REDIS_URI|CACHE_URL)$/i,
+    protocol: "redis",
+    resourceType: "cache",
+  },
+  {
+    pattern: /(?:^|_)(?:RABBITMQ_URL|AMQP_URL|RABBIT_URL)$/i,
+    protocol: "amqp",
+    resourceType: "queue",
+  },
+  {
+    pattern: /(?:^|_)(?:MONGO_URL|MONGO_URI|MONGODB_URI)$/i,
+    protocol: "mongodb",
+    resourceType: "database",
+  },
+  {
+    pattern: /(?:^|_)(?:KAFKA_BROKERS?|KAFKA_URL)$/i,
+    protocol: "kafka",
+    resourceType: "queue",
+  },
+  {
+    pattern: /(?:^|_)(?:ELASTICSEARCH_URL|ES_URL|OPENSEARCH_URL)$/i,
+    protocol: "http",
+    resourceType: "search",
+  },
+]
 
 interface InferredConnection {
-  name: string;
-  fromService: string;
-  toService: string;
-  envVar: string;
-  envValue: string;
+  name: string
+  fromService: string
+  toService: string
+  envVar: string
+  envValue: string
 }
 
 /**
@@ -374,116 +453,127 @@ interface InferredConnection {
 function extractHostFromUrl(url: string): string | null {
   try {
     // Handle protocol-less URLs
-    const normalized = url.includes("://") ? url : `proto://${url}`;
-    const parsed = new URL(normalized);
-    return parsed.hostname || null;
+    const normalized = url.includes("://") ? url : `proto://${url}`
+    const parsed = new URL(normalized)
+    return parsed.hostname || null
   } catch {
-    return null;
+    return null
   }
 }
 
 function inferConnections(
   services: Record<string, ComposeService>,
-  resolvedEnvs: Record<string, Record<string, string>>,
+  resolvedEnvs: Record<string, Record<string, string>>
 ): InferredConnection[] {
-  const serviceNames = new Set(Object.keys(services));
-  const connections: InferredConnection[] = [];
+  const serviceNames = new Set(Object.keys(services))
+  const connections: InferredConnection[] = []
 
   for (const [svcName, env] of Object.entries(resolvedEnvs)) {
     for (const [envKey, envValue] of Object.entries(env)) {
       // Check if env var matches known patterns
       for (const { pattern } of CONNECTION_ENV_PATTERNS) {
-        if (!pattern.test(envKey)) continue;
-        const host = extractHostFromUrl(envValue);
+        if (!pattern.test(envKey)) continue
+        const host = extractHostFromUrl(envValue)
         if (host && serviceNames.has(host)) {
           connections.push({
-            name: envKey.toLowerCase().replace(/_url$/i, "").replace(/_uri$/i, ""),
+            name: envKey
+              .toLowerCase()
+              .replace(/_url$/i, "")
+              .replace(/_uri$/i, ""),
             fromService: svcName,
             toService: host,
             envVar: envKey,
             envValue,
-          });
+          })
         }
-        break;
+        break
       }
 
       // Also check for simple http(s) URLs pointing at other services
       if (envValue.startsWith("http://") || envValue.startsWith("https://")) {
-        const host = extractHostFromUrl(envValue);
+        const host = extractHostFromUrl(envValue)
         if (host && serviceNames.has(host) && host !== svcName) {
           // Avoid duplicates from known patterns
-          if (!connections.some((c) => c.fromService === svcName && c.envVar === envKey)) {
+          if (
+            !connections.some(
+              (c) => c.fromService === svcName && c.envVar === envKey
+            )
+          ) {
             connections.push({
               name: envKey.toLowerCase().replace(/_url$/i, ""),
               fromService: svcName,
               toService: host,
               envVar: envKey,
               envValue,
-            });
+            })
           }
         }
       }
     }
   }
 
-  return connections;
+  return connections
 }
 
 // ─── Port parsing ────────────────────────────────────────────
 
-function parsePort(portStr: string): { host: number; container: number } | null {
+function parsePort(
+  portStr: string
+): { host: number; container: number } | null {
   // First resolve any env var interpolation to get the default
-  const resolved = resolveComposeEnvVar(portStr);
+  const resolved = resolveComposeEnvVar(portStr)
   // Strip protocol suffix (e.g. "/tcp", "/udp")
-  const clean = resolved.replace(/\/.*$/, "");
-  const parts = clean.split(":");
+  const clean = resolved.replace(/\/.*$/, "")
+  const parts = clean.split(":")
 
   if (parts.length === 1) {
-    const p = parseInt(parts[0]!, 10);
-    return isNaN(p) ? null : { host: p, container: p };
+    const p = parseInt(parts[0]!, 10)
+    return isNaN(p) ? null : { host: p, container: p }
   }
   if (parts.length === 2) {
-    const host = parseInt(parts[0]!, 10);
-    const container = parseInt(parts[1]!, 10);
-    return isNaN(host) || isNaN(container) ? null : { host, container };
+    const host = parseInt(parts[0]!, 10)
+    const container = parseInt(parts[1]!, 10)
+    return isNaN(host) || isNaN(container) ? null : { host, container }
   }
   if (parts.length === 3) {
     // ip:host:container
-    const host = parseInt(parts[1]!, 10);
-    const container = parseInt(parts[2]!, 10);
-    return isNaN(host) || isNaN(container) ? null : { host, container };
+    const host = parseInt(parts[1]!, 10)
+    const container = parseInt(parts[2]!, 10)
+    return isNaN(host) || isNaN(container) ? null : { host, container }
   }
-  return null;
+  return null
 }
 
 function parsePorts(
   portStrings: string[],
-  labelOverrides: Record<number, { name?: string; protocol?: string }>,
+  labelOverrides: Record<number, { name?: string; protocol?: string }>
 ): CatalogPort[] {
-  const ports: CatalogPort[] = [];
-  const usedNames = new Set<string>();
+  const ports: CatalogPort[] = []
+  const usedNames = new Set<string>()
 
   for (const ps of portStrings) {
-    const parsed = parsePort(typeof ps === "string" ? ps : String(ps));
-    if (!parsed) continue;
+    const parsed = parsePort(typeof ps === "string" ? ps : String(ps))
+    if (!parsed) continue
 
     // Determine name and protocol from: labels > known ports > generic
-    const override = labelOverrides[parsed.container];
-    const known = KNOWN_PORTS[parsed.container];
+    const override = labelOverrides[parsed.container]
+    const known = KNOWN_PORTS[parsed.container]
 
-    let name = override?.name ?? known?.name ?? `port-${parsed.container}`;
-    const protocol = (override?.protocol ?? known?.protocol ?? "tcp") as CatalogPort["protocol"];
+    let name = override?.name ?? known?.name ?? `port-${parsed.container}`
+    const protocol = (override?.protocol ??
+      known?.protocol ??
+      "tcp") as CatalogPort["protocol"]
 
     // Ensure unique names
     if (usedNames.has(name)) {
-      name = `${name}-${parsed.container}`;
+      name = `${name}-${parsed.container}`
     }
-    usedNames.add(name);
+    usedNames.add(name)
 
-    ports.push({ name, port: parsed.host, protocol });
+    ports.push({ name, port: parsed.host, protocol })
   }
 
-  return ports;
+  return ports
 }
 
 // ─── Service converters ──────────────────────────────────────
@@ -491,19 +581,22 @@ function parsePorts(
 function serviceToComponent(
   name: string,
   svc: ComposeService,
-  labels: ParsedLabels,
+  labels: ParsedLabels
 ): CatalogComponent {
-  const ports = parsePorts(svc.ports ?? [], labels.portOverrides);
+  const ports = parsePorts(svc.ports ?? [], labels.portOverrides)
 
   // Dev workflow: prefer dx.* labels, fall back to compose command
-  const devCommand = labels.devCommand ?? (
-    svc.command
-      ? (Array.isArray(svc.command) ? svc.command.join(" ") : svc.command)
+  const devCommand =
+    labels.devCommand ??
+    (svc.command
+      ? Array.isArray(svc.command)
+        ? svc.command.join(" ")
+        : svc.command
+      : undefined)
+  const dev =
+    devCommand || labels.devSync
+      ? { command: devCommand, sync: labels.devSync }
       : undefined
-  );
-  const dev = (devCommand || labels.devSync)
-    ? { command: devCommand, sync: labels.devSync }
-    : undefined;
 
   return {
     kind: "Component",
@@ -511,7 +604,9 @@ function serviceToComponent(
       name,
       namespace: "default",
       description: labels.description,
-      labels: Object.keys(labels.extraLabels).length ? labels.extraLabels : undefined,
+      labels: Object.keys(labels.extraLabels).length
+        ? labels.extraLabels
+        : undefined,
       tags: labels.tags,
       links: labels.links.length ? labels.links : undefined,
     },
@@ -521,7 +616,11 @@ function serviceToComponent(
       owner: labels.owner,
       image: svc.image,
       build: svc.build
-        ? { context: svc.build.context, dockerfile: svc.build.dockerfile, args: svc.build.args }
+        ? {
+            context: svc.build.context,
+            dockerfile: svc.build.dockerfile,
+            args: svc.build.args,
+          }
         : undefined,
       ports,
       environment: svc.environment ?? {},
@@ -534,21 +633,28 @@ function serviceToComponent(
       runtime: labels.runtime as "node" | "python" | "java" | undefined,
       profiles: svc.profiles,
     },
-  };
+  }
 }
 
 function serviceToResource(
   name: string,
   svc: ComposeService,
-  labels: ParsedLabels,
+  labels: ParsedLabels
 ): CatalogResource {
-  const ports = parsePorts(svc.ports ?? [], labels.portOverrides);
-  const firstPort = ports[0];
-  const firstRawPort = svc.ports?.[0];
-  const firstParsed = firstRawPort ? parsePort(typeof firstRawPort === "string" ? firstRawPort : String(firstRawPort)) : null;
+  const ports = parsePorts(svc.ports ?? [], labels.portOverrides)
+  const firstPort = ports[0]
+  const firstRawPort = svc.ports?.[0]
+  const firstParsed = firstRawPort
+    ? parsePort(
+        typeof firstRawPort === "string" ? firstRawPort : String(firstRawPort)
+      )
+    : null
 
-  const resourceType = labels.catalogType
-    ?? (svc.image ? inferResourceTypeFromImage(svc.image) ?? "database" : "database");
+  const resourceType =
+    labels.catalogType ??
+    (svc.image
+      ? (inferResourceTypeFromImage(svc.image) ?? "database")
+      : "database")
 
   return {
     kind: "Resource",
@@ -556,7 +662,9 @@ function serviceToResource(
       name,
       namespace: "default",
       description: labels.description,
-      labels: Object.keys(labels.extraLabels).length ? labels.extraLabels : undefined,
+      labels: Object.keys(labels.extraLabels).length
+        ? labels.extraLabels
+        : undefined,
       tags: labels.tags,
       links: labels.links.length ? labels.links : undefined,
     },
@@ -572,27 +680,28 @@ function serviceToResource(
           : undefined,
       environment: svc.environment ?? {},
       volumes: svc.volumes,
-      healthcheck: typeof svc.healthcheck?.test === "string"
-        ? svc.healthcheck.test
-        : Array.isArray(svc.healthcheck?.test)
-          ? svc.healthcheck!.test.slice(1).join(" ")
-          : undefined,
+      healthcheck:
+        typeof svc.healthcheck?.test === "string"
+          ? svc.healthcheck.test
+          : Array.isArray(svc.healthcheck?.test)
+            ? svc.healthcheck!.test.slice(1).join(" ")
+            : undefined,
       profiles: svc.profiles,
     },
-  };
+  }
 }
 
 /**
  * Extract depends_on service names as entity references.
  */
 function extractDependsOn(svc: ComposeService): string[] | undefined {
-  if (!svc.depends_on) return undefined;
+  if (!svc.depends_on) return undefined
   if (Array.isArray(svc.depends_on)) {
-    return svc.depends_on.length ? svc.depends_on : undefined;
+    return svc.depends_on.length ? svc.depends_on : undefined
   }
   // Object form: { service: { condition: ... } }
-  const keys = Object.keys(svc.depends_on);
-  return keys.length ? keys : undefined;
+  const keys = Object.keys(svc.depends_on)
+  return keys.length ? keys : undefined
 }
 
 // ─── Normalize compose YAML ──────────────────────────────────
@@ -603,110 +712,116 @@ function extractDependsOn(svc: ComposeService): string[] | undefined {
  */
 function normalizeServices(
   raw: Record<string, Record<string, unknown>>,
-  processEnv: Record<string, string | undefined>,
+  processEnv: Record<string, string | undefined>
 ): Record<string, ComposeService> {
-  const result: Record<string, ComposeService> = {};
+  const result: Record<string, ComposeService> = {}
 
   for (const [name, rawSvc] of Object.entries(raw)) {
-    const env = normalizeEnvironment(rawSvc.environment);
-    const resolvedEnv = resolveEnvRecord(env, processEnv);
+    const env = normalizeEnvironment(rawSvc.environment)
+    const resolvedEnv = resolveEnvRecord(env, processEnv)
 
     // Normalize labels (can be array or object)
-    let labels: Record<string, string> | undefined;
+    let labels: Record<string, string> | undefined
     if (Array.isArray(rawSvc.labels)) {
-      labels = {};
+      labels = {}
       for (const item of rawSvc.labels) {
-        const s = String(item);
-        const eqIdx = s.indexOf("=");
-        if (eqIdx > 0) labels[s.slice(0, eqIdx)] = s.slice(eqIdx + 1);
+        const s = String(item)
+        const eqIdx = s.indexOf("=")
+        if (eqIdx > 0) labels[s.slice(0, eqIdx)] = s.slice(eqIdx + 1)
       }
     } else if (rawSvc.labels && typeof rawSvc.labels === "object") {
-      labels = {};
-      for (const [k, v] of Object.entries(rawSvc.labels as Record<string, unknown>)) {
-        labels[k] = v == null ? "" : String(v);
+      labels = {}
+      for (const [k, v] of Object.entries(
+        rawSvc.labels as Record<string, unknown>
+      )) {
+        labels[k] = v == null ? "" : String(v)
       }
     }
 
     // Normalize ports — resolve env vars in port strings
-    const rawPorts = (rawSvc.ports ?? []) as Array<string | number | Record<string, unknown>>;
+    const rawPorts = (rawSvc.ports ?? []) as Array<
+      string | number | Record<string, unknown>
+    >
     const ports = rawPorts.map((p) => {
-      if (typeof p === "number") return String(p);
-      if (typeof p === "string") return resolveComposeEnvVar(p, processEnv);
+      if (typeof p === "number") return String(p)
+      if (typeof p === "string") return resolveComposeEnvVar(p, processEnv)
       // Long-form port syntax
       if (typeof p === "object" && p !== null) {
-        const target = (p as Record<string, unknown>).target;
-        const published = (p as Record<string, unknown>).published;
+        const target = (p as Record<string, unknown>).target
+        const published = (p as Record<string, unknown>).published
         if (target != null) {
-          return published != null ? `${published}:${target}` : String(target);
+          return published != null ? `${published}:${target}` : String(target)
         }
       }
-      return String(p);
-    });
+      return String(p)
+    })
 
     // Normalize image — resolve env vars
-    const image = rawSvc.image ? resolveComposeEnvVar(String(rawSvc.image), processEnv) : undefined;
+    const image = rawSvc.image
+      ? resolveComposeEnvVar(String(rawSvc.image), processEnv)
+      : undefined
 
     // Normalize build
-    let build: ComposeService["build"];
+    let build: ComposeService["build"]
     if (typeof rawSvc.build === "string") {
-      build = { context: rawSvc.build };
+      build = { context: rawSvc.build }
     } else if (rawSvc.build && typeof rawSvc.build === "object") {
-      const b = rawSvc.build as Record<string, unknown>;
+      const b = rawSvc.build as Record<string, unknown>
       build = {
         context: String(b.context ?? "."),
         dockerfile: b.dockerfile ? String(b.dockerfile) : undefined,
         args: b.args ? normalizeEnvironment(b.args) : undefined,
-      };
+      }
     }
 
     // Normalize depends_on
-    let dependsOn: ComposeService["depends_on"];
+    let dependsOn: ComposeService["depends_on"]
     if (Array.isArray(rawSvc.depends_on)) {
-      dependsOn = rawSvc.depends_on.map(String);
+      dependsOn = rawSvc.depends_on.map(String)
     } else if (rawSvc.depends_on && typeof rawSvc.depends_on === "object") {
-      dependsOn = rawSvc.depends_on as Record<string, { condition?: string }>;
+      dependsOn = rawSvc.depends_on as Record<string, { condition?: string }>
     }
 
     // Normalize command
-    let command: ComposeService["command"];
+    let command: ComposeService["command"]
     if (rawSvc.command != null) {
       command = Array.isArray(rawSvc.command)
         ? rawSvc.command.map(String)
-        : String(rawSvc.command);
+        : String(rawSvc.command)
     }
 
     // Normalize healthcheck
-    let healthcheck: ComposeService["healthcheck"];
+    let healthcheck: ComposeService["healthcheck"]
     if (rawSvc.healthcheck && typeof rawSvc.healthcheck === "object") {
-      const hc = rawSvc.healthcheck as Record<string, unknown>;
+      const hc = rawSvc.healthcheck as Record<string, unknown>
       healthcheck = {
         test: hc.test as string[] | string,
         interval: hc.interval ? String(hc.interval) : undefined,
         timeout: hc.timeout ? String(hc.timeout) : undefined,
         retries: typeof hc.retries === "number" ? hc.retries : undefined,
-      };
+      }
     }
 
     // Normalize volumes
     const volumes = rawSvc.volumes
       ? (rawSvc.volumes as unknown[]).map((v) => {
-          if (typeof v === "string") return v;
+          if (typeof v === "string") return v
           // Long-form volume
           if (typeof v === "object" && v !== null) {
-            const vol = v as Record<string, unknown>;
-            const src = vol.source ? String(vol.source) : "";
-            const tgt = vol.target ? String(vol.target) : "";
-            const ro = vol.read_only ? ":ro" : "";
-            return src ? `${src}:${tgt}${ro}` : tgt;
+            const vol = v as Record<string, unknown>
+            const src = vol.source ? String(vol.source) : ""
+            const tgt = vol.target ? String(vol.target) : ""
+            const ro = vol.read_only ? ":ro" : ""
+            return src ? `${src}:${tgt}${ro}` : tgt
           }
-          return String(v);
+          return String(v)
         })
-      : undefined;
+      : undefined
 
     // Normalize profiles
     const profiles = Array.isArray(rawSvc.profiles)
       ? rawSvc.profiles.map(String)
-      : undefined;
+      : undefined
 
     result[name] = {
       image,
@@ -721,10 +836,10 @@ function normalizeServices(
       platform: rawSvc.platform ? String(rawSvc.platform) : undefined,
       restart: rawSvc.restart ? String(rawSvc.restart) : undefined,
       profiles,
-    };
+    }
   }
 
-  return result;
+  return result
 }
 
 // ─── Deep merge for compose services ─────────────────────────
@@ -734,19 +849,37 @@ function normalizeServices(
  * concatenated (with deduplication) rather than replaced.
  */
 const COMPOSE_ARRAY_KEYS = new Set([
-  "ports", "volumes", "expose", "dns", "dns_search", "extra_hosts",
-  "external_links", "security_opt", "cap_add", "cap_drop", "devices",
-  "tmpfs", "sysctls", "configs", "secrets", "networks",
-]);
+  "ports",
+  "volumes",
+  "expose",
+  "dns",
+  "dns_search",
+  "extra_hosts",
+  "external_links",
+  "security_opt",
+  "cap_add",
+  "cap_drop",
+  "devices",
+  "tmpfs",
+  "sysctls",
+  "configs",
+  "secrets",
+  "networks",
+])
 
 /**
  * Keys in a compose service whose values are objects and should be
  * recursively merged (key-by-key, last wins per key).
  */
 const COMPOSE_OBJECT_KEYS = new Set([
-  "environment", "labels", "build", "healthcheck", "logging",
-  "deploy", "ulimits",
-]);
+  "environment",
+  "labels",
+  "build",
+  "healthcheck",
+  "logging",
+  "deploy",
+  "ulimits",
+])
 
 /**
  * Deep-merge two compose service definitions following Docker Compose semantics:
@@ -757,56 +890,82 @@ const COMPOSE_OBJECT_KEYS = new Set([
  */
 function deepMergeComposeService(
   base: Record<string, unknown>,
-  override: Record<string, unknown>,
+  override: Record<string, unknown>
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...base };
+  const result: Record<string, unknown> = { ...base }
 
   for (const [key, overrideVal] of Object.entries(override)) {
-    const baseVal = result[key];
+    const baseVal = result[key]
 
     // No base value — just take override
     if (baseVal === undefined || baseVal === null) {
-      result[key] = overrideVal;
-      continue;
+      result[key] = overrideVal
+      continue
     }
 
-    // Both are arrays — concatenate and deduplicate
-    if (Array.isArray(baseVal) && Array.isArray(overrideVal)) {
-      const seen = new Set(baseVal.map((v) => JSON.stringify(v)));
-      const merged = [...baseVal];
-      for (const item of overrideVal) {
-        const key = JSON.stringify(item);
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(item);
+    // Known array keys — always concatenate+deduplicate, even if one side isn't an array yet
+    if (COMPOSE_ARRAY_KEYS.has(key)) {
+      const baseArr = Array.isArray(baseVal) ? baseVal : [baseVal]
+      const overArr = Array.isArray(overrideVal) ? overrideVal : [overrideVal]
+      const seen = new Set(baseArr.map((v: unknown) => JSON.stringify(v)))
+      const merged = [...baseArr]
+      for (const item of overArr) {
+        const k = JSON.stringify(item)
+        if (!seen.has(k)) {
+          seen.add(k)
+          merged.push(item)
         }
       }
-      result[key] = merged;
-      continue;
+      result[key] = merged
+      continue
     }
 
-    // Both are plain objects — recursive merge
+    // Known object keys — always deep-merge, even if runtime types are mismatched
     if (
-      isPlainObject(baseVal) && isPlainObject(overrideVal)
+      COMPOSE_OBJECT_KEYS.has(key) &&
+      isPlainObject(baseVal) &&
+      isPlainObject(overrideVal)
     ) {
       result[key] = deepMergeComposeService(
         baseVal as Record<string, unknown>,
-        overrideVal as Record<string, unknown>,
-      );
-      continue;
+        overrideVal as Record<string, unknown>
+      )
+      continue
     }
 
-    // Known array key but base isn't array yet (e.g., base had scalar) — override wins
-    // Known object key but types mismatch — override wins
+    // Both are arrays (non-compose keys) — concatenate and deduplicate
+    if (Array.isArray(baseVal) && Array.isArray(overrideVal)) {
+      const seen = new Set(baseVal.map((v: unknown) => JSON.stringify(v)))
+      const merged = [...baseVal]
+      for (const item of overrideVal) {
+        const k = JSON.stringify(item)
+        if (!seen.has(k)) {
+          seen.add(k)
+          merged.push(item)
+        }
+      }
+      result[key] = merged
+      continue
+    }
+
+    // Both are plain objects (non-compose keys) — recursive merge
+    if (isPlainObject(baseVal) && isPlainObject(overrideVal)) {
+      result[key] = deepMergeComposeService(
+        baseVal as Record<string, unknown>,
+        overrideVal as Record<string, unknown>
+      )
+      continue
+    }
+
     // All other cases — override wins (scalar replacement)
-    result[key] = overrideVal;
+    result[key] = overrideVal
   }
 
-  return result;
+  return result
 }
 
 function isPlainObject(val: unknown): val is Record<string, unknown> {
-  return typeof val === "object" && val !== null && !Array.isArray(val);
+  return typeof val === "object" && val !== null && !Array.isArray(val)
 }
 
 /**
@@ -817,17 +976,20 @@ function isPlainObject(val: unknown): val is Record<string, unknown> {
 function mergeComposeServiceMaps(
   ...maps: Record<string, Record<string, unknown>>[]
 ): Record<string, Record<string, unknown>> {
-  const result: Record<string, Record<string, unknown>> = {};
+  const result: Record<string, Record<string, unknown>> = {}
   for (const map of maps) {
     for (const [name, service] of Object.entries(map)) {
       if (result[name]) {
-        result[name] = deepMergeComposeService(result[name], service) as Record<string, unknown>;
+        result[name] = deepMergeComposeService(result[name], service) as Record<
+          string,
+          unknown
+        >
       } else {
-        result[name] = { ...service };
+        result[name] = { ...service }
       }
     }
   }
-  return result;
+  return result
 }
 
 // ─── Compose file discovery ──────────────────────────────────
@@ -837,38 +999,42 @@ const COMPOSE_FILE_NAMES = [
   "docker-compose.yml",
   "compose.yaml",
   "compose.yml",
-];
+]
 
 /** Matches docker-compose*.yaml, docker-compose*.yml, compose*.yaml, compose*.yml */
-const COMPOSE_GLOB_RE = /^(docker-)?compose([.-].*)?\.ya?ml$/;
+const COMPOSE_GLOB_RE = /^(docker-)?compose([.-].*)?\.ya?ml$/
 
 export interface ComposeDiscoveryOptions {
   /** Explicit file list from package.json#dx.compose — overrides all auto-discovery */
-  explicitFiles?: string[];
+  explicitFiles?: string[]
   /** Current environment name (defaults to "local"). Filters x-dx.environment annotations. */
-  environment?: string;
+  environment?: string
 }
 
 /**
  * Check whether a compose file should be included based on its x-dx annotation.
  * Files with `x-dx.overlay: true` or a non-matching `x-dx.environment` are excluded.
  */
-function shouldIncludeComposeFile(filePath: string, environment: string): boolean {
+function shouldIncludeComposeFile(
+  filePath: string,
+  environment: string
+): boolean {
   try {
-    const raw = readFileSync(filePath, "utf-8");
-    const data = parseYaml(raw) as Record<string, unknown>;
-    if (!data || typeof data !== "object") return true;
+    const raw = readFileSync(filePath, "utf-8")
+    const data = parseYaml(raw) as Record<string, unknown>
+    if (!data || typeof data !== "object") return true
 
-    const xDx = data["x-dx"] as Record<string, unknown> | undefined;
-    if (!xDx || typeof xDx !== "object") return true;
+    const xDx = data["x-dx"] as Record<string, unknown> | undefined
+    if (!xDx || typeof xDx !== "object") return true
 
-    if (xDx.overlay === true) return false;
-    if (typeof xDx.environment === "string" && xDx.environment !== environment) return false;
+    if (xDx.overlay === true) return false
+    if (typeof xDx.environment === "string" && xDx.environment !== environment)
+      return false
 
-    return true;
+    return true
   } catch {
     // If we can't parse, include it — let the main parse() report the error
-    return true;
+    return true
   }
 }
 
@@ -883,33 +1049,35 @@ function shouldIncludeComposeFile(filePath: string, environment: string): boolea
  */
 export function discoverComposeFiles(
   rootDir: string,
-  options?: ComposeDiscoveryOptions,
+  options?: ComposeDiscoveryOptions
 ): string[] {
-  const environment = options?.environment ?? "local";
+  const environment = options?.environment ?? "local"
 
   // 1. Explicit file list from dx config — overrides all auto-discovery
   if (options?.explicitFiles && options.explicitFiles.length > 0) {
-    const resolved: string[] = [];
+    const resolved: string[] = []
     for (const f of options.explicitFiles) {
-      const candidate = join(rootDir, f);
+      const candidate = join(rootDir, f)
       if (existsSync(candidate)) {
-        resolved.push(candidate);
+        resolved.push(candidate)
       } else {
-        console.warn(`[dx] compose file not found: ${f} (listed in package.json#dx.compose)`);
+        console.warn(
+          `[dx] compose file not found: ${f} (listed in package.json#dx.compose)`
+        )
       }
     }
-    return resolved;
+    return resolved
   }
 
   // 2. Check for compose/ directory
-  const composeDir = join(rootDir, "compose");
+  const composeDir = join(rootDir, "compose")
   if (existsSync(composeDir)) {
     try {
       const entries = readdirSync(composeDir)
         .filter((f) => /\.ya?ml$/.test(f))
-        .sort();
+        .sort()
       if (entries.length > 0) {
-        return entries.map((f) => join(composeDir, f));
+        return entries.map((f) => join(composeDir, f))
       }
     } catch {
       // Fall through to auto-glob
@@ -920,12 +1088,12 @@ export function discoverComposeFiles(
   try {
     const entries = readdirSync(rootDir)
       .filter((f) => COMPOSE_GLOB_RE.test(f))
-      .sort();
+      .sort()
     return entries
       .map((f) => join(rootDir, f))
-      .filter((f) => shouldIncludeComposeFile(f, environment));
+      .filter((f) => shouldIncludeComposeFile(f, environment))
   } catch {
-    return [];
+    return []
   }
 }
 
@@ -936,17 +1104,19 @@ export function discoverComposeFiles(
  */
 function hasComposeFiles(rootDir: string): boolean {
   // Check compose/ directory
-  const composeDir = join(rootDir, "compose");
+  const composeDir = join(rootDir, "compose")
   if (existsSync(composeDir)) {
     try {
-      if (readdirSync(composeDir).some((f) => /\.ya?ml$/.test(f))) return true;
-    } catch { /* fall through */ }
+      if (readdirSync(composeDir).some((f) => /\.ya?ml$/.test(f))) return true
+    } catch {
+      /* fall through */
+    }
   }
   // Check root for any matching compose filenames
   try {
-    return readdirSync(rootDir).some((f) => COMPOSE_GLOB_RE.test(f));
+    return readdirSync(rootDir).some((f) => COMPOSE_GLOB_RE.test(f))
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -959,132 +1129,159 @@ function hasComposeFiles(rootDir: string): boolean {
  */
 export function findComposeRoot(
   startDir: string,
-  options?: ComposeDiscoveryOptions,
+  options?: ComposeDiscoveryOptions
 ): string | null {
   // When explicit files are provided, walk up and check those specific files
   if (options?.explicitFiles && options.explicitFiles.length > 0) {
-    let dir = startDir;
+    let dir = startDir
     for (;;) {
-      if (options.explicitFiles.some((f) => existsSync(join(dir, f)))) return dir;
-      const parent = dirname(dir);
-      if (parent === dir) return null;
-      dir = parent;
+      if (options.explicitFiles.some((f) => existsSync(join(dir, f))))
+        return dir
+      const parent = dirname(dir)
+      if (parent === dir) return null
+      dir = parent
     }
   }
 
   // Walk up using lightweight check, then validate with full discovery
-  let dir = startDir;
+  let dir = startDir
   for (;;) {
     if (hasComposeFiles(dir)) {
       // Validate: after annotation filtering, are there actually files?
-      if (discoverComposeFiles(dir, options).length > 0) return dir;
+      if (discoverComposeFiles(dir, options).length > 0) return dir
     }
-    const parent = dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
   }
 }
 
 // ─── Adapter ─────────────────────────────────────────────────
 
 export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
-  readonly format = "docker-compose" as const;
+  readonly format = "docker-compose" as const
 
   detect(rootDir: string, options?: ComposeDiscoveryOptions): boolean {
-    return discoverComposeFiles(rootDir, options).length > 0;
+    return discoverComposeFiles(rootDir, options).length > 0
   }
 
-  parse(rootDir: string, options?: { env?: Record<string, string | undefined>; compose?: ComposeDiscoveryOptions }): CatalogParseResult {
-    const composeFiles = discoverComposeFiles(rootDir, options?.compose);
+  parse(
+    rootDir: string,
+    options?: {
+      env?: Record<string, string | undefined>
+      compose?: ComposeDiscoveryOptions
+    }
+  ): CatalogParseResult {
+    const composeFiles = discoverComposeFiles(rootDir, options?.compose)
     if (composeFiles.length === 0) {
-      throw new Error(`No docker-compose file found in ${rootDir}`);
+      throw new Error(`No docker-compose file found in ${rootDir}`)
     }
 
-    const processEnv = options?.env ?? (process.env as Record<string, string | undefined>);
-    const warnings: string[] = [];
+    const processEnv =
+      options?.env ?? (process.env as Record<string, string | undefined>)
+    const warnings: string[] = []
 
     // Merge services and extensions from all compose files (deep merge)
-    let mergedRawServices: Record<string, Record<string, unknown>> = {};
-    let xCatalog: Record<string, unknown> | undefined;
-    let xConnections: Record<string, Record<string, unknown>> | undefined;
+    let mergedRawServices: Record<string, Record<string, unknown>> = {}
+    let xCatalog: Record<string, unknown> | undefined
+    let xConnections: Record<string, Record<string, unknown>> | undefined
 
     for (const filePath of composeFiles) {
-      const raw = readFileSync(filePath, "utf-8");
-      const data = parseYaml(raw) as Record<string, unknown>;
-      if (!data) continue;
+      const raw = readFileSync(filePath, "utf-8")
+      const data = parseYaml(raw) as Record<string, unknown>
+      if (!data) continue
 
-      const rawServices = (data.services ?? {}) as Record<string, Record<string, unknown>>;
-      mergedRawServices = mergeComposeServiceMaps(mergedRawServices, rawServices);
+      const rawServices = (data.services ?? {}) as Record<
+        string,
+        Record<string, unknown>
+      >
+      mergedRawServices = mergeComposeServiceMaps(
+        mergedRawServices,
+        rawServices
+      )
 
       // x-catalog: first file that has it wins
-      if (!xCatalog && data["x-catalog"] && typeof data["x-catalog"] === "object") {
-        xCatalog = data["x-catalog"] as Record<string, unknown>;
+      if (
+        !xCatalog &&
+        data["x-catalog"] &&
+        typeof data["x-catalog"] === "object"
+      ) {
+        xCatalog = data["x-catalog"] as Record<string, unknown>
       }
       // x-connections: merge across files
       if (data["x-connections"] && typeof data["x-connections"] === "object") {
-        xConnections = { ...xConnections, ...(data["x-connections"] as Record<string, Record<string, unknown>>) };
+        xConnections = {
+          ...xConnections,
+          ...(data["x-connections"] as Record<string, Record<string, unknown>>),
+        }
       }
     }
 
-    const services = normalizeServices(mergedRawServices, processEnv);
+    const services = normalizeServices(mergedRawServices, processEnv)
 
-    const components: Record<string, CatalogComponent> = {};
-    const resources: Record<string, CatalogResource> = {};
+    const components: Record<string, CatalogComponent> = {}
+    const resources: Record<string, CatalogResource> = {}
 
     // Classify and convert services
     for (const [name, svc] of Object.entries(services)) {
-      const labels = parseLabels(svc.labels ?? {});
-      const kind = classifyService(name, svc);
+      const labels = parseLabels(svc.labels ?? {})
+      const kind = classifyService(name, svc)
       if (kind === "resource") {
-        resources[name] = serviceToResource(name, svc, labels);
+        resources[name] = serviceToResource(name, svc, labels)
       } else {
-        components[name] = serviceToComponent(name, svc, labels);
+        components[name] = serviceToComponent(name, svc, labels)
       }
     }
 
     // Build connections from multiple sources
 
     // 1. Infer connections from env vars referencing other services
-    const resolvedEnvs: Record<string, Record<string, string>> = {};
+    const resolvedEnvs: Record<string, Record<string, string>> = {}
     for (const [name, svc] of Object.entries(services)) {
-      resolvedEnvs[name] = svc.environment ?? {};
+      resolvedEnvs[name] = svc.environment ?? {}
     }
-    const inferredConnections = inferConnections(services, resolvedEnvs);
+    const inferredConnections = inferConnections(services, resolvedEnvs)
 
     // 2. Connections from x-connections top-level extension
-    const explicitConnections: CatalogConnection[] = [];
+    const explicitConnections: CatalogConnection[] = []
     if (xConnections) {
       for (const [connName, conn] of Object.entries(xConnections)) {
-        if (!conn || typeof conn !== "object") continue;
+        if (!conn || typeof conn !== "object") continue
         explicitConnections.push({
           name: connName,
           targetModule: conn.module ? String(conn.module) : basename(rootDir),
           targetComponent: conn.component ? String(conn.component) : connName,
-          envVar: conn.env_var ? String(conn.env_var) : `${connName.toUpperCase()}_URL`,
-          localDefault: conn.local_default ? String(conn.local_default) : undefined,
+          envVar: conn.env_var
+            ? String(conn.env_var)
+            : `${connName.toUpperCase()}_URL`,
+          localDefault: conn.local_default
+            ? String(conn.local_default)
+            : undefined,
           optional: conn.optional === true ? true : undefined,
-        });
+        })
       }
     }
 
     // 3. Connections from catalog.connection.* labels on services
     for (const [, svc] of Object.entries(services)) {
-      const labels = parseLabels(svc.labels ?? {});
+      const labels = parseLabels(svc.labels ?? {})
       for (const [connName, conn] of Object.entries(labels.connections)) {
-        if (!conn.envVar) continue; // need at least env_var
+        if (!conn.envVar) continue // need at least env_var
         explicitConnections.push({
           name: connName,
           targetModule: conn.module ?? basename(rootDir),
           targetComponent: conn.component ?? connName,
           envVar: conn.envVar,
           localDefault: conn.localDefault,
-        });
+        })
       }
     }
 
     // Merge: explicit connections override inferred ones by envVar
-    const systemName = xCatalog?.name ? String(xCatalog.name) : basename(rootDir);
-    const explicitEnvVars = new Set(explicitConnections.map((c) => c.envVar));
+    const systemName = xCatalog?.name
+      ? String(xCatalog.name)
+      : basename(rootDir)
+    const explicitEnvVars = new Set(explicitConnections.map((c) => c.envVar))
     const connections: CatalogConnection[] = [
       ...explicitConnections,
       ...inferredConnections
@@ -1096,18 +1293,25 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
           envVar: c.envVar,
           localDefault: c.envValue,
         })),
-    ];
+    ]
 
     // System-level metadata from x-catalog, falling back to labels
-    let systemOwner = xCatalog?.owner ? String(xCatalog.owner) : undefined;
+    let systemOwner = xCatalog?.owner ? String(xCatalog.owner) : undefined
     if (!systemOwner) {
       for (const svc of Object.values(services)) {
-        const ownerLabel = svc.labels?.["catalog.owner"];
+        const ownerLabel = svc.labels?.["catalog.owner"]
         if (ownerLabel) {
-          systemOwner = ownerLabel;
-          break;
+          systemOwner = ownerLabel
+          break
         }
       }
+    }
+
+    // Build system-level annotations from x-catalog
+    const systemAnnotations: Record<string, string> = {}
+    if (xCatalog?.repo) {
+      systemAnnotations["backstage.io/source-location"] =
+        `url:${String(xCatalog.repo)}`
     }
 
     const system: CatalogSystem = {
@@ -1115,12 +1319,26 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       metadata: {
         name: systemName,
         namespace: "default",
-        description: xCatalog?.description ? String(xCatalog.description) : undefined,
+        description: xCatalog?.description
+          ? String(xCatalog.description)
+          : undefined,
+        annotations:
+          Object.keys(systemAnnotations).length > 0
+            ? systemAnnotations
+            : undefined,
+        tags: xCatalog?.tags
+          ? String(xCatalog.tags)
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined,
       },
       spec: {
         owner: systemOwner ?? "unknown",
         domain: xCatalog?.domain ? String(xCatalog.domain) : undefined,
-        lifecycle: xCatalog?.lifecycle ? (String(xCatalog.lifecycle) as CatalogLifecycle) : undefined,
+        lifecycle: xCatalog?.lifecycle
+          ? (String(xCatalog.lifecycle) as CatalogLifecycle)
+          : undefined,
       },
       components,
       resources,
@@ -1132,19 +1350,19 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
           sourceFile: composeFiles[0],
         },
       },
-    };
+    }
 
-    return { system, warnings };
+    return { system, warnings }
   }
 
   generate(system: CatalogSystem): CatalogGenerateResult {
-    const warnings: string[] = [];
-    const compose = generateComposeFromCatalog(system);
-    const content = composeToYaml(compose);
+    const warnings: string[] = []
+    const compose = generateComposeFromCatalog(system)
+    const content = composeToYaml(compose)
 
     return {
       files: { "docker-compose.yaml": content },
       warnings,
-    };
+    }
   }
 }

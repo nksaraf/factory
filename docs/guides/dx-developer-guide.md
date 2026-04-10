@@ -114,6 +114,7 @@ git commit -m "feat: add user search endpoint"
 ```
 
 Git hooks (installed by dx in `.dx/hooks/`) automatically:
+
 - **commit-msg**: validates conventional commit format
 - **pre-commit**: runs `lint-staged`
 - **pre-push**: runs `dx check`
@@ -197,11 +198,11 @@ These describe what a service IS in the software catalog:
 
 ```yaml
 labels:
-  catalog.type: service          # service, worker, website, library, database, cache, queue
-  catalog.owner: platform-eng    # Team that owns this component
+  catalog.type: service # service, worker, website, library, database, cache, queue
+  catalog.owner: platform-eng # Team that owns this component
   catalog.description: "User API"
   catalog.tags: "auth,api"
-  catalog.lifecycle: production   # experimental, development, production, deprecated
+  catalog.lifecycle: production # experimental, development, production, deprecated
 
   # Port metadata
   catalog.port.8080.name: http
@@ -223,11 +224,11 @@ These tell dx how to develop, test, and build the component:
 
 ```yaml
 labels:
-  dx.runtime: node              # node, java, python
-  dx.dev.command: "pnpm dev"    # Command to start dev server
+  dx.runtime: node # node, java, python
+  dx.dev.command: "pnpm dev" # Command to start dev server
   dx.dev.sync: "./src,./shared" # Paths to watch for hot reload
-  dx.test: "pnpm test"          # Test command
-  dx.lint: "pnpm lint"          # Lint command
+  dx.test: "pnpm test" # Test command
+  dx.lint: "pnpm lint" # Lint command
 ```
 
 ### The `package.json#dx` Key
@@ -323,17 +324,17 @@ dx auto-detects your project's tools from config files. No manual configuration 
 
 ### What Gets Detected
 
-| Category | Tools Detected From |
-|----------|-------------------|
-| **Runtime** | `package.json` (node), `pyproject.toml` (python), `go.mod` (go), `Cargo.toml` (rust), `pom.xml` (java) |
-| **Package manager** | `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`, `package-lock.json`, `packageManager` field |
-| **Test runner** | `vitest.config.ts`, `jest.config.ts`, `pyproject.toml [tool.pytest]`, `go.mod` |
-| **Linter** | `eslint.config.js`, `biome.json`, `oxlint.config.*`, `.golangci-lint.yaml`, `pyproject.toml [tool.ruff]` |
-| **Formatter** | `.prettierrc`, `biome.json`, `pyproject.toml [tool.ruff]`, `gofmt` (built-in) |
-| **Type checker** | `tsconfig.json`, `pyproject.toml [tool.pyright]` |
-| **Migration tool** | `drizzle.config.ts`, `prisma/schema.prisma`, `alembic.ini` |
-| **Codegen** | `drizzle-kit`, `prisma generate`, `openapi-typescript`, `graphql-codegen`, `sqlc` |
-| **Framework** | `next.config.*`, `vite.config.*`, `app.config.ts` (vinxi), `manage.py` (django), `pyproject.toml` (fastapi) |
+| Category            | Tools Detected From                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Runtime**         | `package.json` (node), `pyproject.toml` (python), `go.mod` (go), `Cargo.toml` (rust), `pom.xml` (java)      |
+| **Package manager** | `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`, `package-lock.json`, `packageManager` field                     |
+| **Test runner**     | `vitest.config.ts`, `jest.config.ts`, `pyproject.toml [tool.pytest]`, `go.mod`                              |
+| **Linter**          | `eslint.config.js`, `biome.json`, `oxlint.config.*`, `.golangci-lint.yaml`, `pyproject.toml [tool.ruff]`    |
+| **Formatter**       | `.prettierrc`, `biome.json`, `pyproject.toml [tool.ruff]`, `gofmt` (built-in)                               |
+| **Type checker**    | `tsconfig.json`, `pyproject.toml [tool.pyright]`                                                            |
+| **Migration tool**  | `drizzle.config.ts`, `prisma/schema.prisma`, `alembic.ini`                                                  |
+| **Codegen**         | `drizzle-kit`, `prisma generate`, `openapi-typescript`, `graphql-codegen`, `sqlc`                           |
+| **Framework**       | `next.config.*`, `vite.config.*`, `app.config.ts` (vinxi), `manage.py` (django), `pyproject.toml` (fastapi) |
 
 ### Resolution Order
 
@@ -358,13 +359,13 @@ dx uses `.dx/hooks/` with `core.hooksPath` (no symlinks, works on all platforms)
 
 ### Installed Hooks
 
-| Hook | What It Does |
-|------|-------------|
-| `commit-msg` | Validates conventional commit format via `dx git-hook commit-msg` |
-| `pre-commit` | Runs `lint-staged` via `dx git-hook pre-commit` |
-| `pre-push` | Runs `dx check` via `dx git-hook pre-push` |
-| `post-merge` | Runs `dx sync --quiet` to heal deps/hooks/env |
-| `post-checkout` | Runs `dx sync --quiet` on branch switch |
+| Hook            | What It Does                                                      |
+| --------------- | ----------------------------------------------------------------- |
+| `commit-msg`    | Validates conventional commit format via `dx git-hook commit-msg` |
+| `pre-commit`    | Runs `lint-staged` via `dx git-hook pre-commit`                   |
+| `pre-push`      | Runs `dx check` via `dx git-hook pre-push`                        |
+| `post-merge`    | Runs `dx sync --quiet` to heal deps/hooks/env                     |
+| `post-checkout` | Runs `dx sync --quiet` on branch switch                           |
 
 ### Managing Hooks
 
@@ -380,15 +381,15 @@ To skip hooks in emergencies: `git commit --no-verify` (but the pre-push hook wi
 
 ## Anti-Patterns — You're Doing It Wrong If...
 
-| What You're Doing | What To Do Instead | Why |
-|---|---|---|
-| Running `docker compose up` directly | `dx up` | dx manages port allocation, generates `.dx/ports.env`, reads catalog labels |
-| Running `npm run dev` / `bun run dev` | `dx dev` | dx handles port allocation, env injection, pre-flight sync |
-| Managing database URLs manually | `dx db connect` | dx reads connection info from compose resource definitions |
-| Running migrations with raw SQL | `dx db migrate` | dx tracks migration state and supports rollback |
-| Running `dx down` to reset | `dx down --volumes` | Without `--volumes`, database data persists and you get stale state |
-| Debugging without checking status | `dx status` first | Tells you if services are running, API is healthy, git is clean |
-| Installing git hooks manually | `dx sync` | dx manages `.dx/hooks/` and `core.hooksPath` automatically |
+| What You're Doing                     | What To Do Instead  | Why                                                                         |
+| ------------------------------------- | ------------------- | --------------------------------------------------------------------------- |
+| Running `docker compose up` directly  | `dx up`             | dx manages port allocation, generates `.dx/ports.env`, reads catalog labels |
+| Running `npm run dev` / `bun run dev` | `dx dev`            | dx handles port allocation, env injection, pre-flight sync                  |
+| Managing database URLs manually       | `dx db connect`     | dx reads connection info from compose resource definitions                  |
+| Running migrations with raw SQL       | `dx db migrate`     | dx tracks migration state and supports rollback                             |
+| Running `dx down` to reset            | `dx down --volumes` | Without `--volumes`, database data persists and you get stale state         |
+| Debugging without checking status     | `dx status` first   | Tells you if services are running, API is healthy, git is clean             |
+| Installing git hooks manually         | `dx sync`           | dx manages `.dx/hooks/` and `core.hooksPath` automatically                  |
 
 ---
 
@@ -396,13 +397,13 @@ To skip hooks in emergencies: `git commit --no-verify` (but the pre-push hook wi
 
 Every dx command supports these flags:
 
-| Flag | Description | When to Use |
-|---|---|---|
-| `--json` / `-j` | Structured JSON output | Agents should always use this for parsing |
-| `--verbose` / `-v` | More detailed output | Debugging dx itself |
-| `--quiet` / `-q` | Suppress non-essential output | CI/CD pipelines |
-| `--debug` | Show HTTP/API traces | Debugging API calls |
-| `--help` / `-h` | Show command help | Learning a new command |
+| Flag               | Description                   | When to Use                               |
+| ------------------ | ----------------------------- | ----------------------------------------- |
+| `--json` / `-j`    | Structured JSON output        | Agents should always use this for parsing |
+| `--verbose` / `-v` | More detailed output          | Debugging dx itself                       |
+| `--quiet` / `-q`   | Suppress non-essential output | CI/CD pipelines                           |
+| `--debug`          | Show HTTP/API traces          | Debugging API calls                       |
+| `--help` / `-h`    | Show command help             | Learning a new command                    |
 
 ---
 
@@ -417,30 +418,58 @@ Every dx command supports these flags:
 
 ---
 
+## Authentication Tokens
+
+The CLI uses two distinct tokens. Using the wrong one is a common source of 401 errors.
+
+| Token                                  | Function                      | Audience                                          |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------- |
+| **Auth service token** (opaque bearer) | Session token for Better Auth | Auth endpoints only (`/get-session`, `/sign-out`) |
+| **Factory API token** (JWT)            | JWKS-validated JWT            | All `/api/v1/factory/*` endpoints                 |
+
+**For CLI contributors:**
+
+- `getAuthServiceToken()` from `session-token.ts` — returns the opaque bearer token. Use this **only** for auth service calls (login, logout, whoami, session validation).
+- `getFactoryApiToken()` from `client.ts` — returns a valid JWT, auto-refreshing via the auth service if expired. Use this for **all Factory API calls**.
+
+The JWT is refreshed automatically by calling `/get-session` with the bearer token. It has a short TTL and is cached in `~/.config/dx/session.json` alongside the bearer token.
+
+**Never send the opaque bearer token to Factory API endpoints** — the API validates tokens via JWKS and will reject non-JWT tokens with "Invalid Compact JWS".
+
+---
+
 ## Command Reference by Category
 
 ### Setup
+
 `dx install` | `dx auth` | `dx self-update`
 
 ### Project Lifecycle
+
 `dx init` | `dx upgrade` | `dx sync` | `dx doctor`
 
 ### Development
+
 `dx dev` | `dx up` | `dx down` | `dx status` | `dx logs`
 
 ### Quality
+
 `dx check` | `dx lint` | `dx typecheck` | `dx test` | `dx format` | `dx generate`
 
 ### Database
+
 `dx db connect` | `dx db query` | `dx db migrate`
 
 ### Deploy
+
 `dx env` | `dx deploy` | `dx release` | `dx secret` | `dx preview`
 
 ### Infrastructure
+
 `dx tunnel` | `dx connect` | `dx infra` | `dx cluster` | `dx kube` | `dx workspace` | `dx site`
 
 ### Platform
+
 `dx catalog` | `dx config` | `dx context` | `dx build` | `dx run` | `dx agent`
 
 Run `dx --help` for the full list, or `dx <command> --help` for details on any command.

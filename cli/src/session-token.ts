@@ -1,16 +1,15 @@
-import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
-
-import { configDir, createStore } from "@crustjs/store";
+import { configDir, createStore } from "@crustjs/store"
+import { existsSync, readFileSync } from "node:fs"
+import path from "node:path"
 
 /**
  * Typed session persistence via {@link https://crustjs.com/docs/modules/store | @crustjs/store}.
  * Uses `read` / `write` / `update` / `reset` — no manual filesystem IO.
  */
-const SESSION_DIR = configDir("dx");
+const SESSION_DIR = configDir("dx")
 
 /** Resolved path for `session.json` (same file {@link dxSessionStore} uses). */
-export const SESSION_FILE = path.join(SESSION_DIR, "session.json");
+export const SESSION_FILE = path.join(SESSION_DIR, "session.json")
 
 export const dxSessionStore = createStore({
   dirPath: SESSION_DIR,
@@ -19,40 +18,44 @@ export const dxSessionStore = createStore({
     bearerToken: { type: "string", default: "" },
     jwt: { type: "string", default: "" },
   },
-});
+})
 
 export type SessionPayload = {
-  bearerToken?: string;
-  jwt?: string;
-};
+  bearerToken?: string
+  jwt?: string
+}
 
-function toPayload(s: {
-  bearerToken: string;
-  jwt: string;
-}): SessionPayload {
-  const out: SessionPayload = {};
+function toPayload(s: { bearerToken: string; jwt: string }): SessionPayload {
+  const out: SessionPayload = {}
   if (s.bearerToken.length > 0) {
-    out.bearerToken = s.bearerToken;
+    out.bearerToken = s.bearerToken
   }
   if (s.jwt.length > 0) {
-    out.jwt = s.jwt;
+    out.jwt = s.jwt
   }
-  return out;
+  return out
 }
 
 export async function readSession(): Promise<SessionPayload> {
-  const s = await dxSessionStore.read();
-  return toPayload(s);
+  const s = await dxSessionStore.read()
+  return toPayload(s)
 }
 
-export async function getStoredBearerToken(): Promise<string | undefined> {
-  const t = (await readSession()).bearerToken;
-  return typeof t === "string" && t.length > 0 ? t : undefined;
+/**
+ * Returns the opaque bearer token for Better Auth service calls
+ * (e.g. /get-session, /sign-out).
+ *
+ * **Do NOT use for Factory API endpoints** — those require a JWT.
+ * Use {@link getFactoryApiToken} from `client.ts` instead.
+ */
+export async function getAuthServiceToken(): Promise<string | undefined> {
+  const t = (await readSession()).bearerToken
+  return typeof t === "string" && t.length > 0 ? t : undefined
 }
 
 export async function getStoredJwt(): Promise<string | undefined> {
-  const t = (await readSession()).jwt;
-  return typeof t === "string" && t.length > 0 ? t : undefined;
+  const t = (await readSession()).jwt
+  return typeof t === "string" && t.length > 0 ? t : undefined
 }
 
 /**
@@ -61,31 +64,31 @@ export async function getStoredJwt(): Promise<string | undefined> {
  */
 export async function writeSession(update: SessionPayload): Promise<void> {
   await dxSessionStore.update((prev) => {
-    const next = { bearerToken: prev.bearerToken, jwt: prev.jwt };
+    const next = { bearerToken: prev.bearerToken, jwt: prev.jwt }
     for (const [k, val] of Object.entries(update) as [
       keyof SessionPayload,
       string | undefined,
     ][]) {
       if (val === undefined) {
         if (k === "bearerToken") {
-          next.bearerToken = "";
+          next.bearerToken = ""
         } else if (k === "jwt") {
-          next.jwt = "";
+          next.jwt = ""
         }
       } else {
-        next[k] = val;
+        next[k] = val
       }
     }
-    return next;
-  });
-  const after = await dxSessionStore.read();
+    return next
+  })
+  const after = await dxSessionStore.read()
   if (after.bearerToken === "" && after.jwt === "") {
-    await dxSessionStore.reset();
+    await dxSessionStore.reset()
   }
 }
 
 export async function clearAuthSession(): Promise<void> {
-  await dxSessionStore.reset();
+  await dxSessionStore.reset()
 }
 
 // ---------------------------------------------------------------------------
@@ -93,12 +96,12 @@ export async function clearAuthSession(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /** Directory for per-workbench auth profiles. */
-export const SESSION_PROFILES_DIR = path.join(SESSION_DIR, "sessions");
+export const SESSION_PROFILES_DIR = path.join(SESSION_DIR, "sessions")
 
 const SESSION_FIELDS = {
   bearerToken: { type: "string", default: "" },
   jwt: { type: "string", default: "" },
-} as const;
+} as const
 
 /** Create a store for a named auth profile. */
 export function createProfileStore(profileName: string) {
@@ -106,39 +109,49 @@ export function createProfileStore(profileName: string) {
     dirPath: SESSION_PROFILES_DIR,
     name: profileName,
     fields: SESSION_FIELDS,
-  });
+  })
 }
 
 /** Read session from a named profile. */
-export async function readSessionForProfile(profileName: string): Promise<SessionPayload> {
-  const store = createProfileStore(profileName);
-  const s = await store.read();
-  return toPayload(s);
+export async function readSessionForProfile(
+  profileName: string
+): Promise<SessionPayload> {
+  const store = createProfileStore(profileName)
+  const s = await store.read()
+  return toPayload(s)
 }
 
-/** Get bearer token from a named profile. */
-export async function getStoredBearerTokenForProfile(profileName: string): Promise<string | undefined> {
-  const t = (await readSessionForProfile(profileName)).bearerToken;
-  return typeof t === "string" && t.length > 0 ? t : undefined;
+/** Get auth service bearer token from a named profile. */
+export async function getAuthServiceTokenForProfile(
+  profileName: string
+): Promise<string | undefined> {
+  const t = (await readSessionForProfile(profileName)).bearerToken
+  return typeof t === "string" && t.length > 0 ? t : undefined
 }
 
 /** Write session to a named profile. */
-export async function writeSessionForProfile(profileName: string, update: SessionPayload): Promise<void> {
-  const store = createProfileStore(profileName);
+export async function writeSessionForProfile(
+  profileName: string,
+  update: SessionPayload
+): Promise<void> {
+  const store = createProfileStore(profileName)
   await store.update((prev) => {
-    const next = { bearerToken: prev.bearerToken, jwt: prev.jwt };
-    for (const [k, val] of Object.entries(update) as [keyof SessionPayload, string | undefined][]) {
+    const next = { bearerToken: prev.bearerToken, jwt: prev.jwt }
+    for (const [k, val] of Object.entries(update) as [
+      keyof SessionPayload,
+      string | undefined,
+    ][]) {
       if (val === undefined) {
-        next[k] = "";
+        next[k] = ""
       } else {
-        next[k] = val;
+        next[k] = val
       }
     }
-    return next;
-  });
-  const after = await store.read();
+    return next
+  })
+  const after = await store.read()
   if (after.bearerToken === "" && after.jwt === "") {
-    await store.reset();
+    await store.reset()
   }
 }
 
@@ -148,22 +161,25 @@ export async function writeSessionForProfile(profileName: string, update: Sessio
  * Falls back to "default" (which maps to the global session.json).
  */
 export function resolveActiveProfile(): string {
-  let dir = process.cwd();
-  const root = path.parse(dir).root;
+  let dir = process.cwd()
+  const root = path.parse(dir).root
   while (dir !== root) {
-    const candidate = path.join(dir, ".dx", "workbench.json");
+    const candidate = path.join(dir, ".dx", "workbench.json")
     if (existsSync(candidate)) {
       try {
-        const config = JSON.parse(readFileSync(candidate, "utf8"));
-        if (typeof config.authProfile === "string" && config.authProfile.length > 0) {
-          return config.authProfile;
+        const config = JSON.parse(readFileSync(candidate, "utf8"))
+        if (
+          typeof config.authProfile === "string" &&
+          config.authProfile.length > 0
+        ) {
+          return config.authProfile
         }
       } catch {
         // malformed json — fall through
       }
-      break; // found workbench.json but no profile — use default
+      break // found workbench.json but no profile — use default
     }
-    dir = path.dirname(dir);
+    dir = path.dirname(dir)
   }
-  return "default";
+  return "default"
 }

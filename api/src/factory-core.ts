@@ -5,43 +5,55 @@
  * and local infrastructure seeding used by both the CLI local daemon and
  * the vitest test context.
  */
-
+import { PGlite } from "@electric-sql/pglite"
+import { cors } from "@elysiajs/cors"
+import type {
+  DnsDomainSpec,
+  RouteSpec,
+  RuntimeSpec,
+  SubstrateSpec,
+} from "@smp/factory-shared/schemas/infra"
+import type {
+  ComponentDeploymentSpec,
+  PreviewSpec,
+  SiteSpec,
+  SystemDeploymentSpec,
+  WorkspaceSpec,
+} from "@smp/factory-shared/schemas/ops"
+import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
+import type {
+  GenericComponentSpec,
+  SystemSpec,
+} from "@smp/factory-shared/schemas/software"
+import { eq } from "drizzle-orm"
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite"
+import { Elysia } from "elysia"
 import fs from "node:fs"
 import path from "node:path"
 
-import { cors } from "@elysiajs/cors"
-import { PGlite } from "@electric-sql/pglite"
-import { drizzle as drizzlePglite } from "drizzle-orm/pglite"
-import { eq } from "drizzle-orm"
-import { Elysia } from "elysia"
-
-import type { SubstrateSpec, RuntimeSpec } from "@smp/factory-shared/schemas/infra"
-import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
-
+import { DemoObservabilityAdapter } from "./adapters/observability-adapter-demo"
+import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
 import type { Database } from "./db/connection"
 import * as schema from "./db/schema"
-import { substrate, runtime } from "./db/schema/infra-v2"
+import { runtime, substrate } from "./db/schema/infra-v2"
 import { principal } from "./db/schema/org-v2"
 import { KubeClientImpl } from "./lib/kube-client-impl"
-import { healthController } from "./modules/health/index"
-import { startGateway } from "./modules/infra/gateway-proxy"
-import { secretController } from "./modules/identity/secret.controller"
-import { configVarController } from "./modules/identity/config-var.controller"
-import { Reconciler } from "./reconciler/reconciler"
-import { productControllerV2 } from "./modules/product/index.v2"
+import { agentControllerV2 } from "./modules/agent/index.v2"
 import { buildControllerV2 } from "./modules/build/index.v2"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { fleetControllerV2 } from "./modules/fleet/index.v2"
-import { infraControllerV2 } from "./modules/infra/index.v2"
-import { agentControllerV2 } from "./modules/agent/index.v2"
+import { healthController } from "./modules/health/index"
+import { configVarController } from "./modules/identity/config-var.controller"
 import { identityControllerV2 } from "./modules/identity/index.v2"
+import { secretController } from "./modules/identity/secret.controller"
+import { startGateway } from "./modules/infra/gateway-proxy"
+import { infraControllerV2 } from "./modules/infra/index.v2"
 import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { observabilityController } from "./modules/observability/index"
+import { productControllerV2 } from "./modules/product/index.v2"
 import { operationsController } from "./modules/system/operations.controller"
 import { workflowController } from "./modules/workflow/triggers/rest"
-import { observabilityController } from "./modules/observability/index"
-import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
-import { DemoObservabilityAdapter } from "./adapters/observability-adapter-demo"
-import { site } from "./db/schema/ops"
+import { Reconciler } from "./reconciler/reconciler"
 
 /**
  * PGlite cannot handle multi-statement SQL in a single prepared statement.
@@ -100,9 +112,21 @@ export async function migrateWithPglite(
         // PGlite doesn't support some extensions (e.g. btree_gist) — skip gracefully
         if (err?.code === "0A000" && stmt.includes("CREATE EXTENSION")) continue
         // PGlite lacks gist operator classes needed for EXCLUDE constraints — skip
-        if (err?.code === "42704" && stmt.includes("EXCLUDE USING gist")) continue
+        if (err?.code === "42704" && stmt.includes("EXCLUDE USING gist"))
+          continue
         // PGlite may not support materialized views or PL/pgSQL functions — skip gracefully
-        if (stmt.includes("MATERIALIZED VIEW") || stmt.includes("LANGUAGE plpgsql")) continue
+        if (
+          (err?.code === "0A000" ||
+            err?.code === "42P17" ||
+            err?.code === "42883") &&
+          (stmt.includes("MATERIALIZED VIEW") ||
+            stmt.includes("LANGUAGE plpgsql"))
+        ) {
+          console.warn(
+            `[migrate] Skipping unsupported PGlite statement: ${stmt.slice(0, 80)}…`
+          )
+          continue
+        }
         throw err
       }
     }
@@ -124,10 +148,13 @@ export async function createPgliteDb(dataDir?: string) {
   // prototypes which crash drizzle's is() inside extractTablesRelationalConfig.
   const tableSchema = Object.fromEntries(
     Object.entries(schema).filter(
-      ([_, v]) => v != null && typeof v === "object" && Object.getPrototypeOf(v) !== null
+      ([_, v]) =>
+        v != null && typeof v === "object" && Object.getPrototypeOf(v) !== null
     )
   )
-  const db = drizzlePglite(client, { schema: tableSchema }) as unknown as Database
+  const db = drizzlePglite(client, {
+    schema: tableSchema,
+  }) as unknown as Database
   return { client, db }
 }
 
@@ -149,9 +176,10 @@ export async function seedLocalInfra(
 
   // Read kubeconfig content — always store inline YAML, never file paths.
   // This makes kubeconfigRef portable across host, Docker, and remote servers.
-  const kubeconfigContent = kubeconfigPath && fs.existsSync(kubeconfigPath)
-    ? fs.readFileSync(kubeconfigPath, "utf-8")
-    : kubeconfigPath // already inline content or undefined
+  const kubeconfigContent =
+    kubeconfigPath && fs.existsSync(kubeconfigPath)
+      ? fs.readFileSync(kubeconfigPath, "utf-8")
+      : kubeconfigPath // already inline content or undefined
 
   // Upsert anonymous principal for local dev (no auth)
   const [existingPrincipal] = await db
@@ -186,7 +214,12 @@ export async function seedLocalInfra(
         name: "Local",
         slug: "local",
         type: "datacenter",
-        spec: { providerKind: "bare-metal", lifecycle: "active", syncStatus: "idle", metadata: {} } satisfies SubstrateSpec,
+        spec: {
+          providerKind: "bare-metal",
+          lifecycle: "active",
+          syncStatus: "idle",
+          metadata: {},
+        } satisfies SubstrateSpec,
       })
       .returning({ id: substrate.id })
     substrateId = row!.id
@@ -204,13 +237,23 @@ export async function seedLocalInfra(
       name: clusterName,
       slug: clusterName,
       type: "k8s-cluster",
-      spec: { status: "ready", isDefault: true, kubeconfigRef: kubeconfigContent ?? undefined },
+      spec: {
+        status: "ready",
+        isDefault: true,
+        kubeconfigRef: kubeconfigContent ?? undefined,
+      },
     })
   } else if (kubeconfigContent) {
     const spec = (existingRuntime.spec ?? {}) as Record<string, unknown>
     await db
       .update(runtime)
-      .set({ spec: { ...spec, kubeconfigRef: kubeconfigContent, isDefault: true } as RuntimeSpec })
+      .set({
+        spec: {
+          ...spec,
+          kubeconfigRef: kubeconfigContent,
+          isDefault: true,
+        } as RuntimeSpec,
+      })
       .where(eq(runtime.id, existingRuntime.id))
   }
 }
@@ -219,7 +262,11 @@ export async function seedLocalInfra(
  * Create a stripped-down Elysia app for local use — infra controllers only,
  * no auth middleware.  Used by the CLI local daemon and potentially test helpers.
  */
-export function createLocalApp(db: Database, reconciler: Reconciler | null, opts?: { full?: boolean; demo?: boolean }) {
+export function createLocalApp(
+  db: Database,
+  reconciler: Reconciler | null,
+  opts?: { full?: boolean; demo?: boolean }
+) {
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", db)
     .use(productControllerV2(db))
@@ -236,8 +283,13 @@ export function createLocalApp(db: Database, reconciler: Reconciler | null, opts
     .use(workflowController(db))
 
   if (opts?.full) {
-    factoryRoutes
-      .use(observabilityController(opts?.demo ? new DemoObservabilityAdapter() : new NoopObservabilityAdapter()))
+    factoryRoutes.use(
+      observabilityController(
+        opts?.demo
+          ? new DemoObservabilityAdapter()
+          : new NoopObservabilityAdapter()
+      )
+    )
   }
 
   return new Elysia()

@@ -1,52 +1,68 @@
-import { Elysia } from "elysia";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-import type { FactoryAuthzClient } from "../lib/authz-client";
-import type { Database } from "../db/connection";
-import { IdentityService } from "../modules/identity/identity.service";
-import { logger } from "../logger";
+import { Elysia } from "elysia"
+import { type JWTPayload, createRemoteJWKSet, jwtVerify } from "jose"
+
+import type { Database } from "../db/connection"
+import type { FactoryAuthzClient } from "../lib/authz-client"
+import { logger } from "../logger"
+import { IdentityService } from "../modules/identity/identity.service"
 
 export interface AuthUser {
-  id: string;
-  email?: string;
-  organizationId?: string;
+  id: string
+  email?: string
+  organizationId?: string
 }
 
 /**
  * JWKS-based auth: verifies Bearer JWTs (Better Auth) and exposes user + principal.
  */
 export function authPlugin(jwksUrl: string) {
-  const jwks = createRemoteJWKSet(new URL(jwksUrl));
+  const jwks = createRemoteJWKSet(new URL(jwksUrl))
 
   return new Elysia({ name: "auth-plugin" }).derive(
-    async ({ headers, set }): Promise<{ user: AuthUser; principal: string }> => {
-      const authorization = headers["authorization"];
+    { as: "scoped" },
+    async ({
+      headers,
+      set,
+      request,
+    }): Promise<{ user: AuthUser; principal: string }> => {
+      const authorization = headers["authorization"]
 
-      if (!authorization) {
-        set.status = 401;
-        throw new Error("Missing Authorization header");
+      // WebSocket clients cannot send Authorization headers — accept token
+      // from query param as fallback (standard pattern for WS auth).
+      let token: string | undefined
+      if (authorization) {
+        token = authorization.startsWith("Bearer ")
+          ? authorization.slice(7)
+          : authorization
+      } else if (request?.url) {
+        const url = new URL(request.url)
+        token = url.searchParams.get("token") ?? undefined
       }
 
-      const token = authorization.startsWith("Bearer ")
-        ? authorization.slice(7)
-        : authorization;
+      if (!token) {
+        set.status = 401
+        throw new Error("Missing Authorization header")
+      }
 
       if (!token) {
-        set.status = 401;
-        throw new Error("Missing bearer token");
+        set.status = 401
+        throw new Error("Missing bearer token")
       }
 
       try {
-        const { payload } = await jwtVerify(token, jwks);
-        const user = extractUser(payload);
-        return { user, principal: user.id };
+        const { payload } = await jwtVerify(token, jwks)
+        const user = extractUser(payload)
+        return { user, principal: user.id }
       } catch (err) {
-        set.status = 401;
+        set.status = 401
         throw new Error(
-          err instanceof Error ? `Invalid token: ${err.message}` : "Invalid token"
-        );
+          err instanceof Error
+            ? `Invalid token: ${err.message}`
+            : "Invalid token"
+        )
       }
     }
-  );
+  )
 }
 
 /**
@@ -54,25 +70,29 @@ export function authPlugin(jwksUrl: string) {
  * every authenticated request, attaching principalId to context.
  */
 export function principalPlugin(db: Database) {
-  const identityService = new IdentityService(db);
+  const identityService = new IdentityService(db)
 
   return new Elysia({ name: "principal-plugin" }).derive(
+    { as: "scoped" },
     async (ctx): Promise<{ principalId: string }> => {
-      const user = (ctx as unknown as { user: AuthUser }).user;
-      if (!user?.id) return { principalId: "" };
+      const user = (ctx as unknown as { user: AuthUser }).user
+      if (!user?.id) return { principalId: "" }
 
       try {
         const principal = await identityService.resolveOrCreatePrincipal({
           authUserId: user.id,
           email: user.email,
-        });
-        return { principalId: principal.id };
+        })
+        return { principalId: principal.id }
       } catch (err) {
-        logger.error({ err, authUserId: user.id }, "principal auto-provision failed");
-        return { principalId: "" };
+        logger.error(
+          { err, authUserId: user.id },
+          "principal auto-provision failed"
+        )
+        return { principalId: "" }
       }
     }
-  );
+  )
 }
 
 /**
@@ -86,38 +106,38 @@ export function principalPlugin(db: Database) {
 export function requirePermission(
   authzClient: FactoryAuthzClient | null,
   resourceType: string,
-  action: string,
+  action: string
 ) {
   return new Elysia({ name: `require-${resourceType}-${action}` }).derive(
     async (context) => {
-      if (!authzClient) return {};
+      if (!authzClient) return {}
 
-      const params = context.params as Record<string, string | undefined>;
-      const principal = (context as unknown as { principal: string }).principal;
-      const resourceId = params.resourceId ?? params.id;
-      if (!resourceId || !principal) return {};
+      const params = context.params as Record<string, string | undefined>
+      const principal = (context as unknown as { principal: string }).principal
+      const resourceId = params.resourceId ?? params.id
+      if (!resourceId || !principal) return {}
 
       const allowed = await authzClient.checkPermission({
         principal,
         action,
         resourceType,
         resourceId,
-      });
+      })
 
       if (!allowed) {
-        context.set.status = 403;
-        throw new Error("Forbidden");
+        context.set.status = 403
+        throw new Error("Forbidden")
       }
 
-      return {};
-    },
-  );
+      return {}
+    }
+  )
 }
 
 function extractUser(payload: JWTPayload): AuthUser {
-  const id = payload.sub;
+  const id = payload.sub
   if (!id) {
-    throw new Error("Token missing sub claim");
+    throw new Error("Token missing sub claim")
   }
 
   return {
@@ -126,5 +146,5 @@ function extractUser(payload: JWTPayload): AuthUser {
     organizationId:
       (payload.org_id as string | undefined) ??
       (payload.organizationId as string | undefined),
-  };
+  }
 }
