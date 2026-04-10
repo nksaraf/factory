@@ -83,13 +83,21 @@ export function messagingWebhookController(db: Database) {
         body: rawBody,
       })
 
-      const response = await bot.webhooks.slack(chatRequest, {
-        waitUntil: (task) => {
-          task.catch((err) =>
-            wlog.error({ err }, "Chat SDK background task failed")
-          )
-        },
-      })
+      let response: Response
+      try {
+        response = await bot.webhooks.slack(chatRequest, {
+          waitUntil: (task) => {
+            task.catch((err) =>
+              wlog.error({ err }, "Chat SDK background task failed")
+            )
+          },
+        })
+      } catch (err) {
+        if (eventId)
+          await updateWebhookEventStatus(db, eventId, { status: "failed" })
+        wlog.error({ err, eventId }, "Chat SDK webhook processing failed")
+        return new Response("internal error", { status: 500 })
+      }
 
       // 3. Update webhook event status
       if (eventId)

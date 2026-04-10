@@ -74,6 +74,17 @@ describe("curlAdapter", () => {
       expect(args[args.length - 1]).toBe("https://slack.com/api/auth.test")
     })
 
+    it("handles undefined config.url with baseURL", async () => {
+      mockCurlResponse('{"ok":true}')
+      await curlAdapter({
+        url: undefined,
+        baseURL: "https://slack.com/api/",
+        method: "POST",
+      })
+      const args = getCurlArgs()
+      expect(args[args.length - 1]).toBe("https://slack.com/api/")
+    })
+
     it("uses raw URL when no baseURL provided", async () => {
       mockCurlResponse('{"ok":true}')
       await curlAdapter({ url: "https://example.com/test", method: "GET" })
@@ -123,6 +134,17 @@ describe("curlAdapter", () => {
         expect(result.status).toBe(code)
         expect(result.statusText).toBe(text)
       }
+    })
+
+    it("handles 204 No Content with empty body", async () => {
+      mockCurlResponse("", 204)
+      const result = await curlAdapter({
+        url: "https://slack.com/api/test",
+        method: "POST",
+      })
+      expect(result.status).toBe(204)
+      expect(result.statusText).toBe("No Content")
+      expect(result.data).toBe("")
     })
 
     it("uses numeric string for unknown status codes", async () => {
