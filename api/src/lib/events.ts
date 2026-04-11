@@ -11,14 +11,16 @@ import type {
   EmitExternalEventInput,
   EventSpec,
 } from "@smp/factory-shared/schemas/events"
-import { eq } from "drizzle-orm"
+import { and, eq, gt } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { event, eventOutbox } from "../db/schema/org-v2"
+import { event, eventOutbox, eventSubscription } from "../db/schema/org"
 import { logger } from "../logger"
+import { matchTopic } from "../modules/events/topic-matcher"
 import { canonicalize } from "./event-canonicalizers"
 import { validateEventData } from "./event-schemas"
 import { newId } from "./id"
+import { send } from "./workflow-engine"
 import { resolveActorPrincipal } from "./webhook-events"
 
 /**
@@ -112,13 +114,14 @@ export async function emitEvent(
     "emitEvent: recorded"
   )
 
-  // Bridge to legacy workflow event subscriptions
-  await bridgeToWorkflowSubscriptions(db, topic, data).catch((err) => {
-    logger.warn(
-      { eventId: id, topic, err },
-      "emitEvent: workflow bridge failed"
-    )
-  })
+  await matchSubscriptions(db, topic, severity, scopeKind, scopeId, data).catch(
+    (err) => {
+      logger.warn(
+        { eventId: id, topic, err },
+        "emitEvent: subscription matching failed"
+      )
+    }
+  )
 
   return id
 }
@@ -167,22 +170,81 @@ export async function emitExternalEvent(
 }
 
 /**
- * Bridge: translate new canonical topic to legacy event name
- * and wake any matching workflow subscriptions.
- *
- * Maps "ops.workbench.ready" -> "workbench.ready" (strips domain prefix)
+ * Match an event against all active trigger subscriptions.
+ * Wakes matching workflows via DBOS send(), marks triggers as fired.
+ * Stream subscriptions are handled by the NATS notification router.
  */
-async function bridgeToWorkflowSubscriptions(
+async function matchSubscriptions(
   db: Database,
   topic: string,
+  severity: string,
+  scopeKind: string,
+  scopeId: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  const { emitEvent: legacyEmitEvent } = await import("./workflow-events")
+  const subs = await db
+    .select()
+    .from(eventSubscription)
+    .where(
+      and(
+        eq(eventSubscription.kind, "trigger"),
+        eq(eventSubscription.status, "active"),
+        gt(eventSubscription.expiresAt, new Date())
+      )
+    )
 
-  // Strip the domain prefix: "ops.workbench.ready" -> "workbench.ready"
+  // Also try domain-stripped version for backward compat with legacy triggers
   const parts = topic.split(".")
-  if (parts.length < 3) return
+  const strippedTopic = parts.length >= 3 ? parts.slice(1).join(".") : null
 
-  const legacyEventName = parts.slice(1).join(".")
-  await legacyEmitEvent(db, legacyEventName, data)
+  const matched = subs.filter((sub) => {
+    // Topic filter — try full topic first, then domain-stripped
+    const topicMatch =
+      matchTopic(sub.topicFilter, topic) ||
+      (strippedTopic != null && matchTopic(sub.topicFilter, strippedTopic))
+    if (!topicMatch) return false
+
+    // Severity filter
+    if (sub.minSeverity) {
+      const order: Record<string, number> = {
+        debug: 0,
+        info: 1,
+        warning: 2,
+        critical: 3,
+      }
+      if ((order[severity] ?? 0) < (order[sub.minSeverity] ?? 0)) return false
+    }
+
+    // Scope filter
+    if (sub.scopeKind && sub.scopeId) {
+      if (scopeKind !== sub.scopeKind || scopeId !== sub.scopeId) return false
+    }
+
+    // JSONB containment
+    if (sub.matchFields) {
+      const fields = sub.matchFields as Record<string, unknown>
+      for (const [key, value] of Object.entries(fields)) {
+        if (data[key] !== value) return false
+      }
+    }
+
+    return true
+  })
+
+  logger.info(
+    { topic, triggerMatches: matched.length },
+    "matchSubscriptions: matched triggers"
+  )
+
+  for (const sub of matched) {
+    await send(sub.ownerId, data, topic)
+    await db
+      .update(eventSubscription)
+      .set({ status: "fired" })
+      .where(eq(eventSubscription.id, sub.id))
+    logger.info(
+      { topic, workflowRunId: sub.ownerId },
+      "matchSubscriptions: woke workflow"
+    )
+  }
 }
