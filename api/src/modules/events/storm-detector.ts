@@ -76,7 +76,9 @@ export class StormDetector {
         now - bucket.firstSeen <= this.config.windowMs &&
         bucket.count > this.config.thresholdPerMinute
       ) {
-        const [topicPrefix, scopeId] = k.split(":")
+        const colonIdx = k.indexOf(":")
+        const topicPrefix = k.slice(0, colonIdx)
+        const scopeId = k.slice(colonIdx + 1)
         storms.push({
           topicPrefix,
           scopeId,
