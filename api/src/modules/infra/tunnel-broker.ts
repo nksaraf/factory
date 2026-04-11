@@ -192,8 +192,8 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain()
           const routeFamily =
-            msg.routeFamily === "workspace" || msg.routeFamily === "sandbox"
-              ? ("workspace" as const)
+            msg.routeFamily === "workbench" || msg.routeFamily === "sandbox"
+              ? ("workbench" as const)
               : ("tunnel" as const)
           logger.info(
             {
@@ -222,8 +222,8 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             tunnelSubdomain = detached.subdomain
             const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
             const domainSuffix =
-              routeFamily === "workspace"
-                ? `.workspace.${gatewayDomain}`
+              routeFamily === "workbench"
+                ? `.workbench.${gatewayDomain}`
                 : `.tunnel.${gatewayDomain}`
             tunnelUrl = `https://${tunnelSubdomain}${domainSuffix}`
             // Update heartbeat so the DB knows we're alive

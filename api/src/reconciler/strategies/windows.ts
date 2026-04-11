@@ -5,20 +5,31 @@ import type {
 } from "../runtime-strategy"
 
 /**
- * Windows realm strategy — deploys components as Windows Services or IIS sites.
- * Handles both 'windows_service' and 'iis' runtimes.
+ * Windows realm strategies — backed by the site controller.
+ *
+ * The site controller on the target host manages Windows Services / IIS.
+ * These server-side strategies read controller-reported state.
  */
 export class WindowsServiceStrategy implements ReconcilerStrategy {
   readonly runtime = "windows_service"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
-    // TODO: SSH (or WinRM) into target Windows host/VM
-    // TODO: For windows_service: `sc.exe create/start` or `New-Service` via PowerShell
-    // TODO: Check service status via `Get-Service`
+    const controllerState = (ctx.workload as any).controllerReportedState as
+      | { status: string; actualImage: string | null }
+      | undefined
+
+    if (!controllerState) {
+      return {
+        status: ctx.component.kind === "task" ? "completed" : "running",
+        actualImage: null,
+        driftDetected: false,
+      }
+    }
+
     return {
-      status: ctx.component.kind === "task" ? "completed" : "running",
-      actualImage: null,
-      driftDetected: false,
+      status: controllerState.status as ReconcileResult["status"],
+      actualImage: controllerState.actualImage,
+      driftDetected: controllerState.actualImage !== ctx.workload.desiredImage,
     }
   }
 }
@@ -27,13 +38,22 @@ export class IisStrategy implements ReconcilerStrategy {
   readonly runtime = "iis"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
-    // TODO: SSH into target Windows host/VM
-    // TODO: Deploy to IIS via PowerShell (`New-WebApplication`, `Set-ItemProperty IIS:\Sites\...`)
-    // TODO: Check IIS site status
+    const controllerState = (ctx.workload as any).controllerReportedState as
+      | { status: string; actualImage: string | null }
+      | undefined
+
+    if (!controllerState) {
+      return {
+        status: "running",
+        actualImage: null,
+        driftDetected: false,
+      }
+    }
+
     return {
-      status: "running",
-      actualImage: null,
-      driftDetected: false,
+      status: controllerState.status as ReconcileResult["status"],
+      actualImage: controllerState.actualImage,
+      driftDetected: controllerState.actualImage !== ctx.workload.desiredImage,
     }
   }
 }

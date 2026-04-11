@@ -34,6 +34,7 @@ vi.mock("./bot", () => ({
   bot: {
     onNewMention: vi.fn(),
     onSubscribedMessage: vi.fn(),
+    onReaction: vi.fn(),
   },
 }))
 
@@ -200,14 +201,30 @@ describe("ensureThread", () => {
   })
 
   it("returns existing thread on second call", async () => {
-    const id1 = await ensureThread("slack:CTEST:1234.5678", channelId, mockActor("U1"))
-    const id2 = await ensureThread("slack:CTEST:1234.5678", channelId, mockActor("U2"))
+    const id1 = await ensureThread(
+      "slack:CTEST:1234.5678",
+      channelId,
+      mockActor("U1")
+    )
+    const id2 = await ensureThread(
+      "slack:CTEST:1234.5678",
+      channelId,
+      mockActor("U2")
+    )
     expect(id1).toBe(id2)
   })
 
   it("creates different threads for different external IDs", async () => {
-    const id1 = await ensureThread("slack:CTEST:1111.0000", channelId, mockActor("U1"))
-    const id2 = await ensureThread("slack:CTEST:2222.0000", channelId, mockActor("U1"))
+    const id1 = await ensureThread(
+      "slack:CTEST:1111.0000",
+      channelId,
+      mockActor("U1")
+    )
+    const id2 = await ensureThread(
+      "slack:CTEST:2222.0000",
+      channelId,
+      mockActor("U1")
+    )
     expect(id1).not.toBe(id2)
   })
 
@@ -235,7 +252,11 @@ describe("recordTurn", () => {
 
   beforeEach(async () => {
     const channelId = await ensureChannel("CTURN")
-    threadId = await ensureThread("slack:CTURN:9999.0000", channelId, mockActor("U1"))
+    threadId = await ensureThread(
+      "slack:CTURN:9999.0000",
+      channelId,
+      mockActor("U1")
+    )
   })
 
   it("inserts a turn with turnIndex 0", async () => {

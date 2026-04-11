@@ -28,6 +28,7 @@ import { setWorkflowDb } from "./lib/workflow-helpers"
 import { logger } from "./logger"
 import { agentControllerV2 } from "./modules/agent/index.v2"
 import { seedPlatformPresets } from "./modules/agent/preset.service"
+import { deployCiController } from "./modules/build/deploy-ci.controller"
 import { resolveGitHostAdapterConfig } from "./modules/build/git-host.service"
 import { buildControllerV2 } from "./modules/build/index.v2"
 import { webhookController } from "./modules/build/webhook.controller"
@@ -222,6 +223,7 @@ export class FactoryAPI {
       .use(messagingWebhookController(db))
       .use(jiraWebhookTrigger(db))
       .use(previewCiController(db))
+      .use(deployCiController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
       .use(this.mountSiteControllers())
       .use(

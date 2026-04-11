@@ -769,7 +769,7 @@ export async function reconcileHostScan(
     }
 
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────
-    // Create directed links from reverse-proxy runtime to backend hosts.
+    // Create directed links from reverse-proxy realm to backend hosts.
 
     const currentLinkSlugs = new Set<string>()
 
@@ -801,7 +801,7 @@ export async function reconcileHostScan(
       for (const [backendIp, domains] of hostIpToDomains) {
         const isLocalBackend = hostIpAddress && backendIp === hostIpAddress
 
-        // For same-host backends, create a host-local link to docker-engine runtime
+        // For same-host backends, create a host-local link to docker-engine realm
         if (isLocalBackend && primaryRealmId) {
           const linkSlug = slugify(`${proxySlug}-to-${hostSlug}-docker`)
           currentLinkSlugs.add(linkSlug)

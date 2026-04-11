@@ -1,8 +1,9 @@
-import React, { useState } from "react"
-import { Box, Text, useInput } from "ink"
 import { TextInput } from "@inkjs/ui"
+import { Box, Text, useInput } from "ink"
+import React, { useState } from "react"
+
 import { LogViewer } from "../components/log-viewer.js"
-import { useLogs, type LogFilters } from "../hooks/use-logs.js"
+import { type LogFilters, useLogs } from "../hooks/use-logs.js"
 import { useSelection } from "../hooks/use-selection.js"
 
 interface LogsTabProps {
@@ -18,7 +19,7 @@ export function LogsTab({ focused }: LogsTabProps) {
   const [grepMode, setGrepMode] = useState(false)
 
   const filters: LogFilters = {
-    workspaceId: selection?.type === "workspace" ? selection.id : undefined,
+    workbenchId: selection?.type === "workbench" ? selection.id : undefined,
     level: LEVELS[levelIndex],
     grep: grepText || undefined,
   }
@@ -47,8 +48,7 @@ export function LogsTab({ focused }: LogsTabProps) {
     { isActive: focused }
   )
 
-  const sourceName =
-    selection?.type === "workspace" ? selection.name : "all"
+  const sourceName = selection?.type === "workbench" ? selection.name : "all"
 
   return (
     <Box flexGrow={1} flexDirection="column">
@@ -81,9 +81,7 @@ export function LogsTab({ focused }: LogsTabProps) {
           </Text>
         ) : null}
         <Box flexGrow={1} />
-        <Text dimColor>
-          {connected ? "● streaming" : "○ connecting..."}
-        </Text>
+        <Text dimColor>{connected ? "● streaming" : "○ connecting..."}</Text>
       </Box>
 
       {/* Separator */}
@@ -96,9 +94,7 @@ export function LogsTab({ focused }: LogsTabProps) {
 
       {/* Footer shortcuts */}
       <Box paddingX={1}>
-        <Text dimColor>
-          [f] level  [/] grep  [c] clear  [↑↓] scroll
-        </Text>
+        <Text dimColor>[f] level [/] grep [c] clear [↑↓] scroll</Text>
       </Box>
     </Box>
   )

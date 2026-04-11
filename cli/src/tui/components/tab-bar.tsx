@@ -1,7 +1,16 @@
-import React from "react"
 import { Box, Text } from "ink"
+import React from "react"
 
-export type TabId = "infra" | "fleet" | "workspace" | "build" | "gateway" | "commerce" | "alerts" | "logs" | "explorer"
+export type TabId =
+  | "infra"
+  | "fleet"
+  | "workbench"
+  | "build"
+  | "gateway"
+  | "commerce"
+  | "alerts"
+  | "logs"
+  | "explorer"
 
 interface TabBarProps {
   activeTab: TabId
@@ -10,7 +19,7 @@ interface TabBarProps {
 const TABS: { id: TabId; label: string; key: string }[] = [
   { id: "infra", label: "Infra", key: "1" },
   { id: "fleet", label: "Fleet", key: "2" },
-  { id: "workspace", label: "Workspace", key: "3" },
+  { id: "workbench", label: "Workbench", key: "3" },
   { id: "build", label: "Build", key: "4" },
   { id: "gateway", label: "Gateway", key: "5" },
   { id: "commerce", label: "Commerce", key: "6" },
@@ -24,7 +33,14 @@ export const TAB_COUNT = TABS.length
 
 export function TabBar({ activeTab }: TabBarProps) {
   return (
-    <Box borderStyle="single" borderBottom borderLeft={false} borderRight={false} borderTop={false} paddingX={1}>
+    <Box
+      borderStyle="single"
+      borderBottom
+      borderLeft={false}
+      borderRight={false}
+      borderTop={false}
+      paddingX={1}
+    >
       {TABS.map((tab) => {
         const active = tab.id === activeTab
         return (

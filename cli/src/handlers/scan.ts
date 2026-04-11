@@ -63,7 +63,7 @@ type SourceInfo = {
   ingest: (opts: IngestOptions) => Promise<IngestResult>
 }
 
-// Conductor first so workspace channels exist when claude-code/cursor events reference them
+// Conductor first so workbench channels exist when claude-code/cursor events reference them
 const VALID_SOURCES = ["conductor", "claude-code", "cursor"] as const
 type SourceName = (typeof VALID_SOURCES)[number]
 

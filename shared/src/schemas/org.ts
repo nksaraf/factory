@@ -1095,3 +1095,6 @@ export const CreateDocumentVersionSchema = z.object({
   spec: DocumentVersionSpecSchema.default({}),
 })
 export const UpdateDocumentVersionSchema = CreateDocumentVersionSchema.partial()
+
+// ── Events (re-exported from events.ts) ────────────────────────
+export { EventSpecSchema, type EventSpec } from "./events"

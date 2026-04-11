@@ -332,7 +332,7 @@ export type Service = z.infer<typeof ServiceSchema>
 
 export const RouteTypeSchema = z.enum([
   "ingress",
-  "workspace",
+  "workbench",
   "preview",
   "tunnel",
   "custom-domain",
@@ -350,7 +350,7 @@ export type RouteTarget = z.infer<typeof RouteTargetSchema>
 
 export const RouteSpecSchema = z
   .object({
-    // Flat target fields — used by reconciler-created routes (workspace, preview, tunnel)
+    // Flat target fields — used by reconciler-created routes (workbench, preview, tunnel)
     targetService: z.string().optional(),
     targetPort: z.number().int().optional(),
     pathPrefix: z.string().optional(),

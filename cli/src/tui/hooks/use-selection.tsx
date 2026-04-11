@@ -5,7 +5,7 @@ import React, {
   useState,
 } from "react"
 
-export type ResourceType = "estate" | "realm" | "workspace"
+export type ResourceType = "estate" | "realm" | "workbench"
 
 export interface Selection {
   type: ResourceType

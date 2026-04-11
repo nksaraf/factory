@@ -27,7 +27,7 @@ import {
   writeConnectionContext,
 } from "../lib/connection-context-file.js"
 import { DevController } from "../lib/dev-controller.js"
-import { Compose } from "../lib/docker.js"
+import { Compose, isDockerRunning } from "../lib/docker.js"
 import { type ProjectContextData, resolveDxContext } from "../lib/dx-context.js"
 import { hooksHealthy, installHooks } from "../lib/hooks.js"
 import {
@@ -135,34 +135,43 @@ export function devCommand(app: DxBase) {
         const envPath = join(project.rootDir, ".dx", "ports.env")
         portManager.writeEnvFile(allEnvVars, envPath)
 
-        // ── Active restore: clean up stale connection state ─────────
+        // ── Shared infrastructure ──────────────────────────────────
+        const graph = DependencyGraph.fromCatalog(project.catalog)
         const hasConnectionFlags =
           flags["connect-to"] || flags.connect || flags.profile
 
+        // Create compose instance once (reused for remote deps, local deps, overrides)
+        const compose =
+          project.composeFiles.length > 0
+            ? new Compose(
+                project.composeFiles,
+                basename(project.rootDir),
+                envPath
+              )
+            : null
+
+        // ── Active restore: clean up stale connection state ─────────
         if (!hasConnectionFlags) {
           restoreLocalState(project, envPath, !!f.quiet)
         }
 
-        // ── Connection resolution (hybrid dev) ──────────────────────
+        // ── Connection resolution ────────────────────────────────────
         let connectionCtx: ResolvedConnectionContext | null = null
         let connectionEnv: Record<string, string> = {}
         let profileName: string | undefined
+        let allRemoteDeps: string[] = []
 
         if (hasConnectionFlags) {
-          // Resolve the profile name: --connect-to and --profile both load
-          // a named profile. --connect-to also overrides ALL deps to remote.
           profileName =
             (flags["connect-to"] as string | undefined) ??
             (flags.profile as string | undefined)
 
-          // Load the profile (merged: connect entries + env vars)
           const profile = profileName
             ? loadConnectionProfile(project.rootDir, profileName)
             : null
 
           const profileEnv = profile?.env ?? {}
 
-          // Build connection overrides
           let profileOverrides:
             | Record<string, NormalizedProfileEntry>
             | undefined
@@ -173,7 +182,6 @@ export function devCommand(app: DxBase) {
             }
           }
 
-          // --connect-to overrides ALL deps (not just those in the profile)
           const connectToOverrides = flags["connect-to"]
             ? parseConnectToFlag(flags["connect-to"] as string, project.catalog)
             : undefined
@@ -192,14 +200,12 @@ export function devCommand(app: DxBase) {
             connectFlags
           )
 
-          // Parse --env flags (these win over everything)
           const envFlags = flags.env
             ? parseEnvFlags(
                 Array.isArray(flags.env) ? flags.env : [flags.env as string]
               )
             : undefined
 
-          // Profile env is the tier overlay (merged — no separate tier file)
           const tierOverlay =
             Object.keys(profileEnv).length > 0 ? profileEnv : undefined
 
@@ -210,13 +216,11 @@ export function devCommand(app: DxBase) {
             cliEnvFlags: envFlags,
           })
 
-          // Flatten resolved env for passing to dev processes
           connectionEnv = Object.fromEntries(
             Object.entries(connectionCtx.envVars).map(([k, v]) => [k, v.value])
           )
 
-          // ── Graph-based connection propagation ───────────────────
-          const graph = DependencyGraph.fromCatalog(project.catalog)
+          // Graph-based connection propagation
           const endpoints = buildConnectionEndpoints(
             overrides ?? {},
             project.catalog
@@ -225,15 +229,13 @@ export function devCommand(app: DxBase) {
             endpoints.has(name)
           )
 
-          // Expand transitive deps (auth → postgres)
-          const allRemoteDeps = expandRemoteDeps(
+          allRemoteDeps = expandRemoteDeps(
             explicitDeps,
             graph,
             endpoints,
             profileName ?? "remote"
           )
 
-          // Derive env overrides for Docker services that depend on remote deps
           const derivedOverrides = deriveServiceEnvOverrides(
             project.catalog,
             graph,
@@ -242,12 +244,7 @@ export function devCommand(app: DxBase) {
           )
 
           // Stop remote deps' containers to free ports
-          const compose = new Compose(
-            project.composeFiles,
-            basename(project.rootDir),
-            envPath
-          )
-          if (allRemoteDeps.length > 0) {
+          if (allRemoteDeps.length > 0 && compose) {
             if (!f.quiet) {
               console.log(
                 `  Stopping remote dep containers: ${allRemoteDeps.join(", ")}`
@@ -284,7 +281,6 @@ export function devCommand(app: DxBase) {
               })
             }
 
-            // Print warnings
             for (const d of derivedOverrides) {
               for (const w of d.warnings) {
                 console.log(`  \u26A0 ${w}`)
@@ -292,13 +288,11 @@ export function devCommand(app: DxBase) {
             }
           }
 
-          // Write connection context with tracking info for active restore
           writeConnectionContext(project.rootDir, connectionCtx, {
             stoppedServices: allRemoteDeps,
             reconfiguredServices,
           })
 
-          // Print connection banner
           printConnectionBanner(
             connectionCtx,
             profileName ?? "remote",
@@ -306,15 +300,13 @@ export function devCommand(app: DxBase) {
             allRemoteDeps
           )
 
-          // Health-check remote direct connections before starting
           if (connectionCtx.remoteDeps.length > 0) {
             await checkRemoteHealth(connectionCtx, !!f.quiet)
           }
         }
 
-        // ── Start dev servers ───────────────────────────────────────
+        // ── Determine dev targets ────────────────────────────────────
 
-        // Only start components that declare a dev command or have a detectable runtime
         const devableComponents = Object.entries(project.catalog.components)
           .filter(([_, comp]) => comp.spec.dev?.command != null)
           .map(([name]) => name)
@@ -329,6 +321,36 @@ export function devCommand(app: DxBase) {
           )
           return
         }
+
+        // ── Start local Docker dependencies ──────────────────────────
+        const devTargetSet = new Set(targets)
+        const remoteDepSet = new Set(allRemoteDeps)
+
+        const allNeeded = new Set<string>()
+        for (const target of targets) {
+          for (const dep of graph.transitiveDeps(target)) {
+            allNeeded.add(dep)
+          }
+        }
+
+        const localDockerDeps = [...allNeeded].filter(
+          (name) => !devTargetSet.has(name) && !remoteDepSet.has(name)
+        )
+
+        if (localDockerDeps.length > 0 && compose) {
+          if (!isDockerRunning()) {
+            exitWithError(
+              f,
+              "Docker is not running. Start Docker for infrastructure dependencies."
+            )
+          }
+          if (!f.quiet) {
+            console.log(`  Starting Docker deps: ${localDockerDeps.join(", ")}`)
+          }
+          compose.up({ detach: true, services: localDockerDeps })
+        }
+
+        // ── Start dev servers ────────────────────────────────────────
 
         for (const component of targets) {
           try {

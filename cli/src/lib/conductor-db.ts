@@ -1,5 +1,5 @@
 /**
- * Conductor SQLite DB integration — register/unregister worktree workspaces.
+ * Conductor SQLite DB integration — register/unregister worktree workbenches.
  *
  * Best-effort: all public functions silently no-op if Conductor isn't installed
  * or the DB is unavailable.
@@ -12,7 +12,7 @@ import { getConductorDbPath } from "./ingest/common.js"
 
 // ── Types ────────────────────────────────────────────────────
 
-interface RegisterWorkspaceParams {
+interface RegisterWorkbenchParams {
   name: string
   branch: string
   worktreePath: string
@@ -62,8 +62,8 @@ function findOrCreateRepo(
 
 // ── Public API ───────────────────────────────────────────────
 
-export function registerWorkspaceInConductorDb(
-  params: RegisterWorkspaceParams
+export function registerWorkbenchInConductorDb(
+  params: RegisterWorkbenchParams
 ): void {
   try {
     const dbPath = getConductorDbPath()
@@ -102,7 +102,7 @@ export function registerWorkspaceInConductorDb(
   }
 }
 
-export function unregisterWorkspaceFromConductorDb(
+export function unregisterWorkbenchFromConductorDb(
   name: string,
   repoDir: string
 ): void {

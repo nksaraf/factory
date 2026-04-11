@@ -65,9 +65,9 @@ export function logsCommand(app: DxBase) {
         type: "string",
         description: "Target site",
       },
-      workspace: {
+      workbench: {
         type: "string",
-        description: "Target workspace",
+        description: "Target workbench",
       },
       build: {
         type: "string",
@@ -94,7 +94,7 @@ export function logsCommand(app: DxBase) {
       const f = toDxFlags(flags)
       const isRemote = !!(
         flags.site ||
-        flags.workspace ||
+        flags.workbench ||
         flags.build ||
         flags.rollout
       )
@@ -185,7 +185,7 @@ async function fetchRemoteLogs(
     module: args.module,
     component: args.component,
     site: flags.site as string | undefined,
-    workspace: flags.workspace as string | undefined,
+    workbench: flags.workbench as string | undefined,
     level: flags.level as string | undefined,
     grep: flags.grep as string | undefined,
     since: flags.since as string | undefined,

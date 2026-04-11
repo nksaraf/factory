@@ -6,7 +6,7 @@
  *   defaults   — machine-level configs (git, npm, ssh, etc.)
  *   auth       — factory auth + registry credentials
  *   workbench  — identity, registration status
- *   workspace  — delegates to dx pkg doctor if inside a workspace
+ *   project    — delegates to dx pkg doctor if inside a project
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"

@@ -11,7 +11,7 @@ import { componentDeployment, site, systemDeployment } from "../db/schema/ops"
 import { component, system } from "../db/schema/software-v2"
 import type { KubeClient, KubeResource } from "../lib/kube-client"
 import { Reconciler } from "../reconciler/reconciler"
-import { generateWorkspaceResources } from "../reconciler/sandbox-resource-generator"
+import { generateWorkbenchResources } from "../reconciler/sandbox-resource-generator"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
 // K8s resource shape interfaces for typed spec access
@@ -349,10 +349,10 @@ describe("Reconciler", () => {
   })
 })
 
-describe("generateWorkspaceResources", () => {
-  const baseWorkspace = {
-    id: "wksp_test123",
-    slug: "my-workspace",
+describe("generateWorkbenchResources", () => {
+  const baseWorkbench = {
+    id: "wkbn_test123",
+    slug: "my-workbench",
     spec: {
       devcontainerImage: null,
       devcontainerConfig: {},
@@ -365,25 +365,25 @@ describe("generateWorkspaceResources", () => {
   }
 
   it("generates resources with 3 container ports (ssh, web-terminal, web-ide)", () => {
-    const resources = generateWorkspaceResources(baseWorkspace)
+    const resources = generateWorkbenchResources(baseWorkbench)
     const pod = resources.find((r) => r.kind === "Pod")
     expect(pod).toBeTruthy()
 
     const containers = (pod!.spec as unknown as K8sPodSpec).containers
-    const workspace = containers.find((c) => c.name === "workspace")!
-    expect(workspace.ports).toHaveLength(3)
-    expect(workspace.ports.map((p) => p.name)).toEqual([
+    const workbench = containers.find((c) => c.name === "workbench")!
+    expect(workbench.ports).toHaveLength(3)
+    expect(workbench.ports.map((p) => p.name)).toEqual([
       "ssh",
       "web-terminal",
       "web-ide",
     ])
-    expect(workspace.ports.map((p) => p.containerPort)).toEqual([
+    expect(workbench.ports.map((p) => p.containerPort)).toEqual([
       22, 8080, 8081,
     ])
   })
 
   it("generates Service with 3 port mappings", () => {
-    const resources = generateWorkspaceResources(baseWorkspace)
+    const resources = generateWorkbenchResources(baseWorkbench)
     const svc = resources.find((r) => r.kind === "Service")
     expect(svc).toBeTruthy()
 
@@ -394,53 +394,53 @@ describe("generateWorkspaceResources", () => {
   })
 
   it("generates IngressRoute with 3 route rules (primary + terminal + IDE)", () => {
-    process.env.WORKSPACE_INGRESS_ENABLED = "true"
-    const resources = generateWorkspaceResources(baseWorkspace)
-    delete process.env.WORKSPACE_INGRESS_ENABLED
+    process.env.WORKBENCH_INGRESS_ENABLED = "true"
+    const resources = generateWorkbenchResources(baseWorkbench)
+    delete process.env.WORKBENCH_INGRESS_ENABLED
     const ingress = resources.find((r) => r.kind === "IngressRoute")
     expect(ingress).toBeTruthy()
 
     const routes = (ingress!.spec as unknown as K8sIngressRouteSpec).routes
     expect(routes).toHaveLength(3)
     // Primary (defaults to IDE port 8081)
-    expect(routes[0].match).toContain("my-workspace.workspace.dx.dev")
+    expect(routes[0].match).toContain("my-workbench.workbench.dx.dev")
     expect(routes[0].services[0].port).toBe(8081)
     // Terminal sub-route
-    expect(routes[1].match).toContain("my-workspace--terminal.workspace.dx.dev")
+    expect(routes[1].match).toContain("my-workbench--terminal.workbench.dx.dev")
     expect(routes[1].services[0].port).toBe(8080)
     // IDE sub-route
-    expect(routes[2].match).toContain("my-workspace--ide.workspace.dx.dev")
+    expect(routes[2].match).toContain("my-workbench--ide.workbench.dx.dev")
     expect(routes[2].services[0].port).toBe(8081)
   })
 
   it("uses dx-entrypoint.sh instead of sleep infinity in direct-image mode", () => {
-    const resources = generateWorkspaceResources(baseWorkspace)
+    const resources = generateWorkbenchResources(baseWorkbench)
     const pod = resources.find((r) => r.kind === "Pod")
-    const workspace = (pod!.spec as unknown as K8sPodSpec).containers.find(
-      (c) => c.name === "workspace"
+    const workbench = (pod!.spec as unknown as K8sPodSpec).containers.find(
+      (c) => c.name === "workbench"
     )!
-    expect(workspace.command).toBeTruthy()
-    const cmd = Array.isArray(workspace.command)
-      ? workspace.command.join(" ")
-      : workspace.command
+    expect(workbench.command).toBeTruthy()
+    const cmd = Array.isArray(workbench.command)
+      ? workbench.command.join(" ")
+      : workbench.command
     expect(cmd).toContain("dx-entrypoint.sh")
     expect(cmd).toContain("sleep infinity") // fallback for custom images
   })
 
   it("uses dx-entrypoint.sh in envbuilder init script", () => {
-    const workspaceWithRepo = {
-      ...baseWorkspace,
+    const workbenchWithRepo = {
+      ...baseWorkbench,
       spec: {
-        ...baseWorkspace.spec,
+        ...baseWorkbench.spec,
         repos: [{ url: "https://github.com/user/repo", branch: "main" }],
       },
     }
-    const resources = generateWorkspaceResources(workspaceWithRepo)
+    const resources = generateWorkbenchResources(workbenchWithRepo)
     const pod = resources.find((r) => r.kind === "Pod")
-    const workspace = (pod!.spec as unknown as K8sPodSpec).containers.find(
-      (c) => c.name === "workspace"
+    const workbench = (pod!.spec as unknown as K8sPodSpec).containers.find(
+      (c) => c.name === "workbench"
     )!
-    const initScriptEnv = workspace.env.find(
+    const initScriptEnv = workbench.env.find(
       (e) => e.name === "ENVBUILDER_INIT_SCRIPT"
     )
     expect(initScriptEnv).toBeTruthy()
@@ -449,13 +449,13 @@ describe("generateWorkspaceResources", () => {
   })
 
   it("uses dx-sandbox as default fallback image", () => {
-    const resources = generateWorkspaceResources(baseWorkspace)
+    const resources = generateWorkbenchResources(baseWorkbench)
     const pod = resources.find((r) => r.kind === "Pod")
-    const workspace = (pod!.spec as unknown as K8sPodSpec).containers.find(
-      (c) => c.name === "workspace"
+    const workbench = (pod!.spec as unknown as K8sPodSpec).containers.find(
+      (c) => c.name === "workbench"
     )!
-    expect(workspace.image).toBe(
-      process.env.WORKSPACE_DEFAULT_IMAGE || "ghcr.io/nksaraf/dx-sandbox:latest"
+    expect(workbench.image).toBe(
+      process.env.WORKBENCH_DEFAULT_IMAGE || "ghcr.io/nksaraf/dx-sandbox:latest"
     )
   })
 })

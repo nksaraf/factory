@@ -13,7 +13,7 @@ import type {
   PreviewSpec,
   SiteSpec,
   SystemDeploymentSpec,
-  WorkspaceSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
@@ -30,7 +30,7 @@ import type {
 } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
 import { estate, realm } from "../db/schema/infra-v2"
-import { preview, site, systemDeployment, workspace } from "../db/schema/ops"
+import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
 import { system } from "../db/schema/software-v2"
 import { createPgliteDb, migrateWithPglite } from "../factory-core"
 import { KubeClientImpl } from "../lib/kube-client-impl"
@@ -254,10 +254,10 @@ async function main() {
   info("Reconciler", "KubeClientImpl (real kubectl)")
   info("GitHost", "SpyGitHostAdapter (captures PR comments + checks)")
 
-  // ── Step 4: Workspace ──
-  step(4, "Create workspace")
-  const [wksp] = await db
-    .insert(workspace)
+  // ── Step 4: Workbench ──
+  step(4, "Create workbench")
+  const [wb] = await db
+    .insert(workbench)
     .values({
       name: "manual-preview-test",
       slug: "manual-preview-test",
@@ -276,39 +276,39 @@ async function main() {
         authMode: "private",
         healthStatus: "unknown",
         setupProgress: {},
-      } satisfies WorkspaceSpec,
+      } satisfies WorkbenchSpec,
     })
     .returning()
-  info("Workspace ID", wksp.id)
-  info("Workspace slug", wksp.slug)
+  info("Workbench ID", wb.id)
+  info("Workbench slug", wb.slug)
 
-  // ── Step 5: Reconcile workspace ──
-  step(5, "Reconcile workspace -> K8s resources")
-  await reconciler.reconcileWorkspace(wksp.id)
-  info("Namespace", `workspace-${wksp.slug}`)
+  // ── Step 5: Reconcile workbench ──
+  step(5, "Reconcile workbench -> K8s resources")
+  await reconciler.reconcileWorkbench(wb.id)
+  info("Namespace", `workbench-${wb.slug}`)
 
   // Show K8s resources
   const resources = kubectl([
     "get",
     "all",
     "-n",
-    `workspace-${wksp.slug}`,
+    `workbench-${wb.slug}`,
     "--no-headers",
   ]).trim()
   console.log(`\n  K8s resources created:\n`)
   resources.split("\n").forEach((line) => console.log(`    ${line}`))
 
   // Wait for pod
-  await waitForPod(`workspace-${wksp.slug}`, `workspace-${wksp.slug}`)
+  await waitForPod(`workbench-${wb.slug}`, `workbench-${wb.slug}`)
 
   // Re-reconcile to pick up pod IP
-  await reconciler.reconcileWorkspace(wksp.id)
-  const [updatedWksp] = await db
+  await reconciler.reconcileWorkbench(wb.id)
+  const [updatedWb] = await db
     .select()
-    .from(workspace)
-    .where(eq(workspace.id, wksp.id))
-  info("Pod name", updatedWksp!.spec.podName)
-  info("Pod IP", updatedWksp!.spec.ipAddress)
+    .from(workbench)
+    .where(eq(workbench.id, wb.id))
+  info("Pod name", updatedWb!.spec.podName)
+  info("Pod IP", updatedWb!.spec.ipAddress)
 
   // ── Step 6: Create preview ──
   step(6, "Create preview (simulating PR #42 on feat/auth)")
@@ -435,11 +435,11 @@ async function main() {
     kubectl([
       "delete",
       "namespace",
-      `workspace-${wksp.slug}`,
+      `workbench-${wb.slug}`,
       "--ignore-not-found",
       "--wait=false",
     ])
-    info("Deleted", `workspace-${wksp.slug}`)
+    info("Deleted", `workbench-${wb.slug}`)
   } catch {}
   try {
     kubectl([

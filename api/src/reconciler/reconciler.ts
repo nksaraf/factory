@@ -2,8 +2,8 @@ import type { RealmSpec } from "@smp/factory-shared/schemas/infra"
 import type {
   ComponentDeploymentSpec,
   SystemDeploymentSpec,
-  WorkspaceSnapshotSpec,
-  WorkspaceSpec,
+  WorkbenchSnapshotSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import { and, eq, isNull, ne, notInArray, or, sql } from "drizzle-orm"
 
@@ -15,8 +15,8 @@ import {
   componentDeployment,
   preview,
   systemDeployment,
-  workspace,
-  workspaceSnapshot,
+  workbench,
+  workbenchSnapshot,
 } from "../db/schema/ops"
 import { component } from "../db/schema/software-v2"
 import { release } from "../db/schema/software-v2"
@@ -30,8 +30,8 @@ import {
 } from "../modules/fleet/snapshot.service"
 import {
   expireStale,
-  updateWorkspaceHealth,
-} from "../modules/fleet/workspace.service"
+  updateWorkbenchHealth,
+} from "../modules/fleet/workbench.service"
 import {
   createRoute,
   lookupRouteByDomain,
@@ -49,8 +49,8 @@ import {
 } from "./runtime-strategy"
 import {
   generatePVCFromSnapshot,
-  generateSandboxResources,
   generateVolumeSnapshots,
+  generateWorkbenchResources,
 } from "./sandbox-resource-generator"
 import { ComposeStrategy } from "./strategies/compose"
 import { KubernetesStrategy } from "./strategies/kubernetes"
@@ -67,9 +67,9 @@ const SANDBOX_STORAGE_CLASS = process.env.SANDBOX_STORAGE_CLASS || "local-path"
 const ENVBUILDER_CACHE_REPO = process.env.ENVBUILDER_CACHE_REPO || undefined
 const ENVBUILDER_IMAGE = process.env.ENVBUILDER_IMAGE || undefined
 
-// Which service the bare workspace domain serves: "ide" (8081) or "terminal" (8080).
-const WORKSPACE_PRIMARY_ENDPOINT =
-  process.env.WORKSPACE_PRIMARY_ENDPOINT ?? "ide"
+// Which service the bare workbench domain serves: "ide" (8081) or "terminal" (8080).
+const WORKBENCH_PRIMARY_ENDPOINT =
+  process.env.WORKBENCH_PRIMARY_ENDPOINT ?? "ide"
 
 /**
  * Extract the server host from inline kubeconfig YAML.
@@ -134,32 +134,32 @@ export class Reconciler {
       }
     }
 
-    // --- Workspace (sandbox) reconciliation ---
-    // Only reconcile current (non-deleted) workspace records — systemTo IS NULL
+    // --- Workbench reconciliation ---
+    // Only reconcile current (non-deleted) workbench records — systemTo IS NULL
     // excludes bitemporal tombstones from soft-deletes.
-    const allWorkspaces = await this.db
+    const allWorkbenches = await this.db
       .select()
-      .from(workspace)
-      .where(and(isNull(workspace.systemTo), isNull(workspace.validTo)))
-    const activeWorkspaces = allWorkspaces.filter((w) => {
+      .from(workbench)
+      .where(and(isNull(workbench.systemTo), isNull(workbench.validTo)))
+    const activeWorkbenches = allWorkbenches.filter((w) => {
       return (
         w.spec?.realmType === "container" && w.spec?.lifecycle !== "destroyed"
       )
     })
     logger.debug(
-      { total: allWorkspaces.length, active: activeWorkspaces.length },
-      "Workspace reconciliation candidates"
+      { total: allWorkbenches.length, active: activeWorkbenches.length },
+      "Workbench reconciliation candidates"
     )
 
-    for (const wks of activeWorkspaces) {
+    for (const wks of activeWorkbenches) {
       try {
-        await this.reconcileWorkspace(wks.id)
+        await this.reconcileWorkbench(wks.id)
         reconciled++
       } catch (err) {
         errors++
         logger.error(
-          { workspaceId: wks.id, err },
-          "Failed to reconcile workspace"
+          { workbenchId: wks.id, err },
+          "Failed to reconcile workbench"
         )
       }
     }
@@ -251,21 +251,21 @@ export class Reconciler {
     return { reconciled, errors }
   }
 
-  async reconcileWorkspace(workspaceId: string): Promise<void> {
-    // 1. Load workspace
+  async reconcileWorkbench(workbenchId: string): Promise<void> {
+    // 1. Load workbench
     const [wks] = await this.db
       .select()
-      .from(workspace)
-      .where(eq(workspace.id, workspaceId))
-    if (!wks) throw new Error(`Workspace not found: ${workspaceId}`)
-    const wksSpec: WorkspaceSpec = wks.spec ?? ({} as WorkspaceSpec)
+      .from(workbench)
+      .where(eq(workbench.id, workbenchId))
+    if (!wks) throw new Error(`Workbench not found: ${workbenchId}`)
+    const wksSpec: WorkbenchSpec = wks.spec ?? ({} as WorkbenchSpec)
 
-    // 2. Skip if realmType !== 'container' (VM workspaces managed directly)
+    // 2. Skip if realmType !== 'container' (VM workbenches managed directly)
     if (wksSpec.realmType !== "container") return
 
-    // 3. Load realm directly from workspace.realmId
+    // 3. Load realm directly from workbench.realmId
     const realmId = wks.realmId
-    if (!realmId) throw new Error(`Workspace ${workspaceId} has no realm`)
+    if (!realmId) throw new Error(`Workbench ${workbenchId} has no realm`)
 
     const [rt] = await this.db.select().from(realm).where(eq(realm.id, realmId))
     if (!rt) throw new Error(`Realm not found: ${realmId}`)
@@ -274,9 +274,9 @@ export class Reconciler {
       throw new Error(`Realm ${realmId} has no kubeconfig`)
 
     const kubeconfig = rtSpec.kubeconfigRef
-    const ns = `workspace-${wks.slug}`
-    const podName = `workspace-${wks.slug}`
-    const serviceName = `workspace-${wks.slug}`
+    const ns = `workbench-${wks.slug}`
+    const podName = `workbench-${wks.slug}`
+    const serviceName = `workbench-${wks.slug}`
 
     // 4. Check lifecycle state
     if (wksSpec.lifecycle === "suspended") {
@@ -295,17 +295,17 @@ export class Reconciler {
         .catch(() => {})
       await this.kube.remove(kubeconfig, "Namespace", "", ns)
       await this.db
-        .update(workspace)
+        .update(workbench)
         .set({
           spec: { ...wksSpec, lifecycle: "destroyed" },
           updatedAt: new Date(),
         })
-        .where(eq(workspace.id, workspaceId))
+        .where(eq(workbench.id, workbenchId))
       return
     }
 
-    // 4b. Clean stale k8s resources — if a pod exists with a different workspace ID,
-    // it means PGlite was wiped but k8s resources remain from a previous workspace
+    // 4b. Clean stale k8s resources — if a pod exists with a different workbench ID,
+    // it means PGlite was wiped but k8s resources remain from a previous workbench
     // with the same slug. Delete the namespace so the reconciler can re-provision cleanly.
     try {
       const existingPod = await this.kube.get(kubeconfig, "Pod", ns, podName)
@@ -314,19 +314,19 @@ export class Reconciler {
         const podLabels = podMeta?.labels ?? {}
         const podEnv = ((existingPod as any).spec?.containers?.[0]?.env ??
           []) as Array<{ name: string; value: string }>
-        const podWorkspaceId =
-          podLabels["dx.dev/workspace"] ??
-          podLabels["dx.dev/workspace-id"] ??
-          podEnv.find((e) => e.name === "DX_WORKSPACE_ID")?.value ??
-          podEnv.find((e) => e.name === "WORKSPACE_ID")?.value
-        if (podWorkspaceId && podWorkspaceId !== wks.id) {
+        const podWorkbenchId =
+          podLabels["dx.dev/workbench"] ??
+          podLabels["dx.dev/workbench-id"] ??
+          podEnv.find((e) => e.name === "DX_WORKBENCH_ID")?.value ??
+          podEnv.find((e) => e.name === "WORKBENCH_ID")?.value
+        if (podWorkbenchId && podWorkbenchId !== wks.id) {
           logger.info(
             {
               ns,
-              staleWorkspaceId: podWorkspaceId,
-              currentWorkspaceId: wks.id,
+              staleWorkbenchId: podWorkbenchId,
+              currentWorkbenchId: wks.id,
             },
-            "Stale k8s resources detected — namespace belongs to a different workspace ID. Cleaning up."
+            "Stale k8s resources detected — namespace belongs to a different workbench ID. Cleaning up."
           )
           // Delete pod and PVCs first so namespace deletion isn't blocked by
           // kubernetes.io/pvc-protection finalizers on in-use volumes.
@@ -376,13 +376,13 @@ export class Reconciler {
       // Non-fatal
     }
 
-    // 5. Generate resources via generateSandboxResources()
-    // TODO: fix type — devcontainerImage is not yet in WorkspaceSpec; add it when schema is updated
-    const wksSpecExtra = wksSpec as WorkspaceSpec & {
+    // 5. Generate resources via generateWorkbenchResources()
+    // TODO: fix type — devcontainerImage is not yet in WorkbenchSpec; add it when schema is updated
+    const wksSpecExtra = wksSpec as WorkbenchSpec & {
       devcontainerImage?: string
     }
-    const resources = generateSandboxResources({
-      workspaceId: wks.id,
+    const resources = generateWorkbenchResources({
+      workbenchId: wks.id,
       slug: wks.slug,
       devcontainerImage: wksSpecExtra.devcontainerImage ?? null,
       devcontainerConfig: wksSpec.devcontainerConfig ?? {},
@@ -450,24 +450,24 @@ export class Reconciler {
 
     // 10. Create bare domain route (primary endpoint: ide or terminal)
     const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
-    const workspaceDomain = `${wks.slug}.workspace.${gatewayDomain}`
+    const workbenchDomain = `${wks.slug}.workbench.${gatewayDomain}`
     const primaryPort =
-      WORKSPACE_PRIMARY_ENDPOINT === "terminal"
+      WORKBENCH_PRIMARY_ENDPOINT === "terminal"
         ? (webPort ?? 8080)
         : (webIdePort ?? 8081)
-    const existingRoute = await lookupRouteByDomain(this.db, workspaceDomain)
+    const existingRoute = await lookupRouteByDomain(this.db, workbenchDomain)
     if (!existingRoute) {
       await createRoute(this.db, {
-        type: "workspace",
-        domain: workspaceDomain,
+        type: "workbench",
+        domain: workbenchDomain,
         targetService: runtimeEndpoint,
         targetPort: primaryPort,
         status: "active",
         createdBy: "reconciler",
       })
       logger.info(
-        { domain: workspaceDomain },
-        "Created bare domain route for workspace"
+        { domain: workbenchDomain },
+        "Created bare domain route for workbench"
       )
     } else if (
       existingRoute.targetPort !== primaryPort ||
@@ -478,8 +478,8 @@ export class Reconciler {
         targetService: runtimeEndpoint,
       })
       logger.info(
-        { domain: workspaceDomain, targetPort: primaryPort },
-        "Updated bare domain route for workspace"
+        { domain: workbenchDomain, targetPort: primaryPort },
+        "Updated bare domain route for workbench"
       )
     }
 
@@ -496,7 +496,7 @@ export class Reconciler {
     }
 
     for (const [name, config] of Object.entries(endpoints)) {
-      const endpointDomain = `${wks.slug}--${name}.workspace.${gatewayDomain}`
+      const endpointDomain = `${wks.slug}--${name}.workbench.${gatewayDomain}`
       const targetPort =
         name === "terminal"
           ? (webPort ?? 8080)
@@ -509,7 +509,7 @@ export class Reconciler {
       )
       if (!existingEndpointRoute) {
         await createRoute(this.db, {
-          type: "workspace",
+          type: "workbench",
           domain: endpointDomain,
           targetService: runtimeEndpoint,
           targetPort,
@@ -536,8 +536,8 @@ export class Reconciler {
     }
 
     const protocol = gatewayDomain === "localhost" ? "http" : "https"
-    const webTerminalUrl = `${protocol}://${workspaceDomain}`
-    const webIdeUrl = `${protocol}://${wks.slug}--ide.workspace.${gatewayDomain}`
+    const webTerminalUrl = `${protocol}://${workbenchDomain}`
+    const webIdeUrl = `${protocol}://${wks.slug}--ide.workbench.${gatewayDomain}`
 
     // 12. Check pod readiness (single check per reconcile cycle — no blocking poll).
     //     If not ready yet, lifecycle stays "provisioning" and the next reconcile
@@ -566,7 +566,7 @@ export class Reconciler {
           ipAddress = (podStatus?.podIP as string) ?? ipAddress
         } else if (phase === "Failed" || phase === "Unknown") {
           logger.warn(
-            { workspaceId, phase },
+            { workbenchId, phase },
             "Pod entered terminal state during provisioning"
           )
         } else {
@@ -586,7 +586,7 @@ export class Reconciler {
             .find((r) => r && terminalReasons.has(r))
           if (stuckReason) {
             logger.warn(
-              { workspaceId, podName, reason: stuckReason },
+              { workbenchId, podName, reason: stuckReason },
               "Pod has container in terminal waiting state"
             )
           }
@@ -594,9 +594,9 @@ export class Reconciler {
       }
     }
 
-    // 13. Update workspace spec with runtime info
+    // 13. Update workbench spec with runtime info
     await this.db
-      .update(workspace)
+      .update(workbench)
       .set({
         spec: {
           ...wksSpec,
@@ -611,38 +611,33 @@ export class Reconciler {
         },
         updatedAt: new Date(),
       })
-      .where(eq(workspace.id, workspaceId))
+      .where(eq(workbench.id, workbenchId))
 
-    // Emit workflow event when workspace becomes active
+    // Emit workflow event when workbench becomes active
     if (newLifecycle === "active" && wksSpec.lifecycle !== "active") {
-      await emitEvent(this.db, "workspace.ready", {
-        workspaceId,
+      await emitEvent(this.db, "workbench.ready", {
+        workbenchId,
         status: "active",
       }).catch((err) => {
         logger.warn(
-          { workspaceId, err },
-          "Failed to emit workspace.ready event"
+          { workbenchId, err },
+          "Failed to emit workbench.ready event"
         )
       })
     }
-  }
-
-  /** @deprecated Use reconcileWorkspace */
-  async reconcileSandbox(sandboxId: string): Promise<void> {
-    return this.reconcileWorkspace(sandboxId)
   }
 
   /**
    * On-demand health check for a single sandbox.
    * Fetches pod status from k8s and maps to health_status.
    */
-  async reconcileWorkspaceHealth(workspaceId: string): Promise<{
+  async reconcileWorkbenchHealth(workbenchId: string): Promise<{
     status: string
     checkedAt: Date
     containerStatus?: string
   }> {
-    const { wks, kubeconfig, ns } = await this.loadWorkspaceContext(workspaceId)
-    const podName = `workspace-${wks.slug}`
+    const { wks, kubeconfig, ns } = await this.loadWorkbenchContext(workbenchId)
+    const podName = `workbench-${wks.slug}`
     const checkedAt = new Date()
 
     const pod = await this.kube.get(kubeconfig, "Pod", ns, podName)
@@ -665,22 +660,22 @@ export class Reconciler {
         lastState?: Record<string, unknown>
       }>
 
-      const workspace = containerStatuses.find((c) => c.name === "workspace")
+      const wb = containerStatuses.find((c) => c.name === "workbench")
       const allReady = containerStatuses.every((c) => c.ready)
 
       if (phase === "Running" && allReady) {
         healthStatus = "ready"
-      } else if (phase === "Running" && workspace && !workspace.ready) {
+      } else if (phase === "Running" && wb && !wb.ready) {
         healthStatus = "building"
       } else if (phase === "Failed" || phase === "Unknown") {
         healthStatus = "unhealthy"
-        const waiting = workspace?.state?.waiting as
+        const waiting = wb?.state?.waiting as
           | { reason?: string; message?: string }
           | undefined
         if (waiting) {
           statusMessage = `${waiting.reason}: ${waiting.message ?? ""}`.trim()
         }
-        const terminated = workspace?.state?.terminated as
+        const terminated = wb?.state?.terminated as
           | { reason?: string; message?: string }
           | undefined
         if (terminated) {
@@ -692,19 +687,14 @@ export class Reconciler {
       }
     }
 
-    await updateWorkspaceHealth(
+    await updateWorkbenchHealth(
       this.db,
-      workspaceId,
+      workbenchId,
       healthStatus,
       statusMessage
     )
 
     return { status: healthStatus, checkedAt, containerStatus: statusMessage }
-  }
-
-  /** @deprecated Use reconcileWorkspaceHealth */
-  async reconcileSandboxHealth(sandboxId: string) {
-    return this.reconcileWorkspaceHealth(sandboxId)
   }
 
   // ---------------------------------------------------------------------------
@@ -715,15 +705,15 @@ export class Reconciler {
    * Load sandbox + cluster context needed by snapshot operations.
    * Reuses the same pattern as reconcileSandbox.
    */
-  private async loadWorkspaceContext(workspaceId: string) {
+  private async loadWorkbenchContext(workbenchId: string) {
     const [wks] = await this.db
       .select()
-      .from(workspace)
-      .where(eq(workspace.id, workspaceId))
-    if (!wks) throw new Error(`Workspace not found: ${workspaceId}`)
+      .from(workbench)
+      .where(eq(workbench.id, workbenchId))
+    if (!wks) throw new Error(`Workbench not found: ${workbenchId}`)
 
     const realmId = wks.realmId
-    if (!realmId) throw new Error(`Workspace ${workspaceId} has no realm`)
+    if (!realmId) throw new Error(`Workbench ${workbenchId} has no realm`)
 
     const [rt] = await this.db.select().from(realm).where(eq(realm.id, realmId))
     if (!rt) throw new Error(`Realm not found: ${realmId}`)
@@ -735,25 +725,20 @@ export class Reconciler {
       wks,
       rt,
       kubeconfig: rtSpec.kubeconfigRef,
-      ns: `workspace-${wks.slug}`,
+      ns: `workbench-${wks.slug}`,
     }
   }
 
-  /** @deprecated Use loadWorkspaceContext */
-  private async loadSandboxContext(sandboxId: string) {
-    return this.loadWorkspaceContext(sandboxId)
-  }
-
   /**
-   * Create VolumeSnapshots for both workspace and docker PVCs.
+   * Create VolumeSnapshots for both workbench and docker PVCs.
    * Polls until both snapshots are ready, then updates the DB record.
    */
   async reconcileSnapshotCreate(snapshotId: string): Promise<void> {
     const snap = await getSnapshot(this.db, snapshotId)
     if (!snap) throw new Error(`Snapshot not found: ${snapshotId}`)
 
-    const { wks, kubeconfig, ns } = await this.loadWorkspaceContext(
-      snap.workspaceId
+    const { wks, kubeconfig, ns } = await this.loadWorkbenchContext(
+      snap.workbenchId
     )
 
     try {
@@ -770,7 +755,7 @@ export class Reconciler {
 
       // Poll until both VolumeSnapshots are ready
       const snapshotNames = [
-        `snap-${k8sName(snapshotId)}-workspace`,
+        `snap-${k8sName(snapshotId)}-workbench`,
         `snap-${k8sName(snapshotId)}-docker`,
       ]
 
@@ -782,10 +767,10 @@ export class Reconciler {
 
       if (ready) {
         await updateSnapshotStatus(this.db, snapshotId, "ready", {
-          volumeSnapshotName: `snap-${k8sName(snapshotId)}-workspace`,
+          volumeSnapshotName: `snap-${k8sName(snapshotId)}-workbench`,
         })
         logger.info(
-          { snapshotId, sandboxId: snap.workspaceId },
+          { snapshotId, sandboxId: snap.workbenchId },
           "Snapshot created successfully"
         )
       } else {
@@ -815,19 +800,19 @@ export class Reconciler {
   ): Promise<void> {
     const snap = await getSnapshot(this.db, snapshotId)
     if (!snap) throw new Error(`Snapshot not found: ${snapshotId}`)
-    const snapSpec: WorkspaceSnapshotSpec =
-      snap.spec ?? ({} as WorkspaceSnapshotSpec)
+    const snapSpec: WorkbenchSnapshotSpec =
+      snap.spec ?? ({} as WorkbenchSnapshotSpec)
     if (snapSpec.status !== "ready")
       throw new Error(
         `Snapshot ${snapshotId} is not ready (status: ${snapSpec.status})`
       )
 
-    const { wks, kubeconfig, ns } = await this.loadWorkspaceContext(sandboxId)
-    const wksSpec: WorkspaceSpec = wks.spec ?? ({} as WorkspaceSpec)
+    const { wks, kubeconfig, ns } = await this.loadWorkbenchContext(sandboxId)
+    const wksSpec: WorkbenchSpec = wks.spec ?? ({} as WorkbenchSpec)
 
-    const podName = `workspace-${wks.slug}`
-    const workspacePvcName = `workspace-${wks.slug}-workspace`
-    const dockerPvcName = `workspace-${wks.slug}-docker`
+    const podName = `workbench-${wks.slug}`
+    const workbenchPvcName = `workbench-${wks.slug}-workbench`
+    const dockerPvcName = `workbench-${wks.slug}-docker`
 
     // 1. Delete the pod so PVCs are released
     await this.kube.remove(kubeconfig, "Pod", ns, podName)
@@ -838,7 +823,7 @@ export class Reconciler {
       kubeconfig,
       "PersistentVolumeClaim",
       ns,
-      workspacePvcName
+      workbenchPvcName
     )
     await this.kube.remove(
       kubeconfig,
@@ -850,7 +835,7 @@ export class Reconciler {
       kubeconfig,
       "PersistentVolumeClaim",
       ns,
-      workspacePvcName
+      workbenchPvcName
     )
     await this.waitForResourceGone(
       kubeconfig,
@@ -860,10 +845,10 @@ export class Reconciler {
     )
 
     // 3. Create new PVCs from snapshot data
-    const workspacePvc = generatePVCFromSnapshot(
+    const workbenchPvc = generatePVCFromSnapshot(
       wks.slug,
-      `snap-${k8sName(snapshotId)}-workspace`,
-      "workspace",
+      `snap-${k8sName(snapshotId)}-workbench`,
+      "workbench",
       wksSpec.storageGb ?? 10,
       wks.id,
       SANDBOX_STORAGE_CLASS
@@ -877,11 +862,11 @@ export class Reconciler {
       SANDBOX_STORAGE_CLASS
     )
 
-    await this.kube.apply(kubeconfig, workspacePvc)
+    await this.kube.apply(kubeconfig, workbenchPvc)
     await this.kube.apply(kubeconfig, dockerPvc)
 
     // 4. Re-reconcile to create pod + service (PVCs already exist with snapshot data)
-    await this.reconcileWorkspace(sandboxId)
+    await this.reconcileWorkbench(sandboxId)
 
     logger.info({ sandboxId, snapshotId }, "Sandbox restored from snapshot")
   }
@@ -894,8 +879,8 @@ export class Reconciler {
     if (!snap) return // Already gone
 
     try {
-      const { wks, kubeconfig, ns } = await this.loadWorkspaceContext(
-        snap.workspaceId
+      const { wks, kubeconfig, ns } = await this.loadWorkbenchContext(
+        snap.workbenchId
       )
 
       // Remove both VolumeSnapshot resources
@@ -903,7 +888,7 @@ export class Reconciler {
         kubeconfig,
         "VolumeSnapshot",
         ns,
-        `snap-${k8sName(snapshotId)}-workspace`
+        `snap-${k8sName(snapshotId)}-workbench`
       )
       await this.kube.remove(
         kubeconfig,

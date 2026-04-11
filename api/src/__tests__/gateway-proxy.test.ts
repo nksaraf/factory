@@ -28,12 +28,12 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
   const BACKEND_PORT = 28000 + Math.floor(Math.random() * 1000)
   const GATEWAY_PORT = 29000 + Math.floor(Math.random() * 1000)
 
-  const WORKSPACE_SLUG = "test-proxy"
-  const WORKSPACE_DOMAIN = `${WORKSPACE_SLUG}.workspace.dx.dev`
-  const TERMINAL_DOMAIN = `${WORKSPACE_SLUG}--terminal.workspace.dx.dev`
+  const WORKBENCH_SLUG = "test-proxy"
+  const WORKBENCH_DOMAIN = `${WORKBENCH_SLUG}.workbench.dx.dev`
+  const TERMINAL_DOMAIN = `${WORKBENCH_SLUG}--terminal.workbench.dx.dev`
 
   // ---------------------------------------------------------------------------
-  // Mock backend: HTTP + WebSocket server simulating a workspace service
+  // Mock backend: HTTP + WebSocket server simulating a workbench service
   // ---------------------------------------------------------------------------
 
   let backendServer: any
@@ -53,8 +53,11 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
         // WebSocket upgrade — echo with subprotocol support
         if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
           const proto = req.headers.get("sec-websocket-protocol")
-          const opts: { data: Record<string, never>; headers?: Headers } = { data: {} }
-          if (proto) opts.headers = new Headers({ "sec-websocket-protocol": proto })
+          const opts: { data: Record<string, never>; headers?: Headers } = {
+            data: {},
+          }
+          if (proto)
+            opts.headers = new Headers({ "sec-websocket-protocol": proto })
           const upgraded = server.upgrade(req, opts)
           if (upgraded) return new Response(null)
           return new Response("WebSocket upgrade failed", { status: 500 })
@@ -77,8 +80,12 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
         if (url.pathname === "/echo") {
           const text = req.body ? await req.text() : ""
           return new Response(
-            JSON.stringify({ method: req.method, path: url.pathname, body: text }),
-            { headers: { "content-type": "application/json" } },
+            JSON.stringify({
+              method: req.method,
+              path: url.pathname,
+              body: text,
+            }),
+            { headers: { "content-type": "application/json" } }
           )
         }
 
@@ -91,7 +98,8 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
             ws.send(`echo:${message}`)
           } else {
             // Binary: prepend 0x01 byte
-            const buf = message instanceof ArrayBuffer ? message : message.buffer
+            const buf =
+              message instanceof ArrayBuffer ? message : message.buffer
             const input = new Uint8Array(buf)
             const output = new Uint8Array(input.length + 1)
             output[0] = 0x01
@@ -105,9 +113,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     // Start gateway proxy with a mock route cache
     const mockCache = {
       get: async (domain: string) => {
-        if (domain === WORKSPACE_DOMAIN || domain === TERMINAL_DOMAIN) {
+        if (domain === WORKBENCH_DOMAIN || domain === TERMINAL_DOMAIN) {
           return {
-            kind: "workspace",
+            kind: "workbench",
             domain,
             targetService: "localhost",
             targetPort: BACKEND_PORT,
@@ -131,11 +139,11 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
   // Helper to make requests through the gateway with the right Host header
   function gwFetch(path: string, opts?: RequestInit & { host?: string }) {
-    const host = opts?.host ?? WORKSPACE_DOMAIN
+    const host = opts?.host ?? WORKBENCH_DOMAIN
     const { host: _, ...rest } = opts ?? {}
     return fetch(`http://localhost:${GATEWAY_PORT}${path}`, {
       ...rest,
-      headers: { ...(rest.headers ?? {}), host },
+      headers: { ...rest.headers, host },
     })
   }
 
@@ -144,10 +152,10 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
   // ---------------------------------------------------------------------------
 
   describe("parseHostname", () => {
-    it("parses workspace domain", () => {
-      const result = parseHostname("my-env.workspace.dx.dev")
+    it("parses workbench domain", () => {
+      const result = parseHostname("my-env.workbench.dx.dev")
       expect(result).toEqual({
-        family: "workspace",
+        family: "workbench",
         slug: "my-env",
         fullSubdomain: "my-env",
       })
@@ -163,9 +171,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("parses named endpoint (--terminal)", () => {
-      const result = parseHostname("my-env--terminal.workspace.dx.dev")
+      const result = parseHostname("my-env--terminal.workbench.dx.dev")
       expect(result).toEqual({
-        family: "workspace",
+        family: "workbench",
         slug: "my-env",
         endpointName: "terminal",
         fullSubdomain: "my-env--terminal",
@@ -173,9 +181,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("parses port suffix (-p3000)", () => {
-      const result = parseHostname("my-env-p3000.workspace.dx.dev")
+      const result = parseHostname("my-env-p3000.workbench.dx.dev")
       expect(result).toEqual({
-        family: "workspace",
+        family: "workbench",
         slug: "my-env",
         port: 3000,
         fullSubdomain: "my-env-p3000",
@@ -187,7 +195,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("strips port from host", () => {
-      const result = parseHostname("my-env.workspace.dx.dev:8080")
+      const result = parseHostname("my-env.workbench.dx.dev:8080")
       expect(result?.slug).toBe("my-env")
     })
   })
@@ -228,7 +236,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("returns 404 for unknown route", async () => {
-      const res = await gwFetch("/echo", { host: "unknown.workspace.dx.dev" })
+      const res = await gwFetch("/echo", { host: "unknown.workbench.dx.dev" })
       expect(res.status).toBe(404)
     })
   })
@@ -239,10 +247,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
   describe("WebSocket proxy", () => {
     it("relays text messages bidirectionally", async () => {
-      const ws = new WebSocket(
-        `ws://localhost:${GATEWAY_PORT}/ws`,
-        { headers: { host: WORKSPACE_DOMAIN } } as unknown as string[],
-      )
+      const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
+        headers: { host: WORKSPACE_DOMAIN },
+      } as unknown as string[])
 
       const messages: string[] = []
       const opened = new Promise<void>((resolve) => {
@@ -263,10 +270,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("relays binary messages", async () => {
-      const ws = new WebSocket(
-        `ws://localhost:${GATEWAY_PORT}/ws`,
-        { headers: { host: WORKSPACE_DOMAIN } } as unknown as string[],
-      )
+      const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
+        headers: { host: WORKSPACE_DOMAIN },
+      } as unknown as string[])
       ws.binaryType = "arraybuffer"
 
       const messages: ArrayBuffer[] = []
@@ -294,15 +300,12 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
     it("forwards Sec-WebSocket-Protocol (subprotocol)", async () => {
       // Simulate ttyd which requires the "tty" subprotocol
-      const ws = new WebSocket(
-        `ws://localhost:${GATEWAY_PORT}/ws`,
-        {
-          headers: {
-            host: TERMINAL_DOMAIN,
-            "sec-websocket-protocol": "tty",
-          },
-        } as unknown as string[],
-      )
+      const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
+        headers: {
+          host: TERMINAL_DOMAIN,
+          "sec-websocket-protocol": "tty",
+        },
+      } as unknown as string[])
 
       const opened = new Promise<void>((resolve, reject) => {
         ws.addEventListener("open", () => resolve(), { once: true })
@@ -330,10 +333,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("closes browser WS when backend closes", async () => {
-      const ws = new WebSocket(
-        `ws://localhost:${GATEWAY_PORT}/ws`,
-        { headers: { host: WORKSPACE_DOMAIN } } as unknown as string[],
-      )
+      const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
+        headers: { host: WORKSPACE_DOMAIN },
+      } as unknown as string[])
 
       const opened = new Promise<void>((resolve) => {
         ws.addEventListener("open", () => resolve(), { once: true })

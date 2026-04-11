@@ -1,51 +1,51 @@
-import type { KubeResource } from "../lib/kube-client";
+import type { KubeResource } from "../lib/kube-client"
 
 /** Flat-field input (v1 style). */
-export interface WorkspaceResourceInputFlat {
-  workspaceId?: string;
-  sandboxId?: string;
-  slug: string;
-  devcontainerImage: string | null;
-  devcontainerConfig: Record<string, unknown>;
-  repos: Array<{ url: string; branch: string; clonePath?: string }>;
-  cpu: string | null;
-  memory: string | null;
-  storageGb: number;
-  dockerCacheGb: number;
-  storageClassName?: string;
-  envbuilderCacheRepo?: string;
-  envbuilderImage?: string;
-  devcontainerDir?: string;
+export interface WorkbenchResourceInputFlat {
+  workbenchId?: string
+  slug: string
+  devcontainerImage: string | null
+  devcontainerConfig: Record<string, unknown>
+  repos: Array<{ url: string; branch: string; clonePath?: string }>
+  cpu: string | null
+  memory: string | null
+  storageGb: number
+  dockerCacheGb: number
+  storageClassName?: string
+  envbuilderCacheRepo?: string
+  envbuilderImage?: string
+  devcontainerDir?: string
 }
 
 /** Spec-JSONB input (v2 style). */
-export interface WorkspaceResourceInputSpec {
-  id: string;
-  slug: string;
+export interface WorkbenchResourceInputSpec {
+  id: string
+  slug: string
   spec: {
-    devcontainerImage?: string | null;
-    devcontainerConfig?: Record<string, unknown>;
-    repos?: Array<{ url: string; branch: string; clonePath?: string }>;
-    cpu?: string | null;
-    memory?: string | null;
-    storageGb?: number;
-    dockerCacheGb?: number;
-    storageClassName?: string;
-    envbuilderCacheRepo?: string;
-    envbuilderImage?: string;
-    devcontainerDir?: string;
-  };
+    devcontainerImage?: string | null
+    devcontainerConfig?: Record<string, unknown>
+    repos?: Array<{ url: string; branch: string; clonePath?: string }>
+    cpu?: string | null
+    memory?: string | null
+    storageGb?: number
+    dockerCacheGb?: number
+    storageClassName?: string
+    envbuilderCacheRepo?: string
+    envbuilderImage?: string
+    devcontainerDir?: string
+  }
 }
 
-export type WorkspaceResourceInput = WorkspaceResourceInputFlat | WorkspaceResourceInputSpec;
+export type WorkbenchResourceInput =
+  | WorkbenchResourceInputFlat
+  | WorkbenchResourceInputSpec
 
-/** @deprecated Use WorkspaceResourceInput */
-export type SandboxResourceInput = WorkspaceResourceInput;
-
-function normalizeInput(input: WorkspaceResourceInput): WorkspaceResourceInputFlat {
+function normalizeInput(
+  input: WorkbenchResourceInput
+): WorkbenchResourceInputFlat {
   if ("spec" in input && input.spec) {
     return {
-      workspaceId: input.id,
+      workbenchId: input.id,
       slug: input.slug,
       devcontainerImage: input.spec.devcontainerImage ?? null,
       devcontainerConfig: input.spec.devcontainerConfig ?? {},
@@ -58,39 +58,39 @@ function normalizeInput(input: WorkspaceResourceInput): WorkspaceResourceInputFl
       envbuilderCacheRepo: input.spec.envbuilderCacheRepo,
       envbuilderImage: input.spec.envbuilderImage,
       devcontainerDir: input.spec.devcontainerDir,
-    };
+    }
   }
-  return input as WorkspaceResourceInputFlat;
+  return input as WorkbenchResourceInputFlat
 }
 
-export function generateWorkspaceResources(
-  raw: WorkspaceResourceInput,
+export function generateWorkbenchResources(
+  raw: WorkbenchResourceInput
 ): KubeResource[] {
-  const workspace = normalizeInput(raw);
-  const id = workspace.workspaceId ?? workspace.sandboxId ?? workspace.slug;
-  const ns = `workspace-${workspace.slug}`;
+  const wb = normalizeInput(raw)
+  const id = wb.workbenchId ?? wb.slug
+  const ns = `workbench-${wb.slug}`
   const labels: Record<string, string> = {
-    "dx.dev/workspace": id,
+    "dx.dev/workbench": id,
     "dx.dev/managed-by": "factory-reconciler",
-    "dx.dev/target-kind": "workspace",
-  };
+    "dx.dev/target-kind": "workbench",
+  }
 
   const resources = [
     makeNamespace(ns, labels),
-    makeWorkspacePVC(workspace, ns, labels),
-    makeDockerPVC(workspace, ns, labels),
-    makePod(workspace, ns, labels),
-    makeService(workspace, ns, labels),
-  ];
+    makeWorkbenchPVC(wb, ns, labels),
+    makeDockerPVC(wb, ns, labels),
+    makePod(wb, ns, labels),
+    makeService(wb, ns, labels),
+  ]
 
   // Only generate IngressRoute when in-cluster Traefik CRDs are available.
   // When routing is handled by the gateway proxy (the common case), this is
   // not needed — the reconciler creates DB-backed routes instead.
-  if (process.env.WORKSPACE_INGRESS_ENABLED === "true") {
-    resources.push(makeIngressRoute(workspace, ns, labels));
+  if (process.env.WORKBENCH_INGRESS_ENABLED === "true") {
+    resources.push(makeIngressRoute(wb, ns, labels))
   }
 
-  return resources;
+  return resources
 }
 
 function makeNamespace(
@@ -104,11 +104,11 @@ function makeNamespace(
       name: ns,
       labels,
     },
-  };
+  }
 }
 
-function makeWorkspacePVC(
-  workspace: WorkspaceResourceInputFlat,
+function makeWorkbenchPVC(
+  wb: WorkbenchResourceInputFlat,
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
@@ -116,128 +116,142 @@ function makeWorkspacePVC(
     apiVersion: "v1",
     kind: "PersistentVolumeClaim",
     metadata: {
-      name: `workspace-${workspace.slug}-data`,
+      name: `workbench-${wb.slug}-data`,
       namespace: ns,
       labels,
     },
     spec: {
       accessModes: ["ReadWriteOnce"],
-      ...(workspace.storageClassName ? { storageClassName: workspace.storageClassName } : {}),
+      ...(wb.storageClassName ? { storageClassName: wb.storageClassName } : {}),
       resources: {
         requests: {
-          storage: `${workspace.storageGb}Gi`,
+          storage: `${wb.storageGb}Gi`,
         },
       },
     },
-  };
+  }
 }
 
 function makeDockerPVC(
-  workspace: WorkspaceResourceInputFlat,
+  wb: WorkbenchResourceInputFlat,
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const dockerCacheGb = workspace.dockerCacheGb ?? 20;
+  const dockerCacheGb = wb.dockerCacheGb ?? 20
   return {
     apiVersion: "v1",
     kind: "PersistentVolumeClaim",
     metadata: {
-      name: `workspace-${workspace.slug}-docker`,
+      name: `workbench-${wb.slug}-docker`,
       namespace: ns,
       labels,
     },
     spec: {
       accessModes: ["ReadWriteOnce"],
-      ...(workspace.storageClassName ? { storageClassName: workspace.storageClassName } : {}),
+      ...(wb.storageClassName ? { storageClassName: wb.storageClassName } : {}),
       resources: {
         requests: {
           storage: `${dockerCacheGb}Gi`,
         },
       },
     },
-  };
+  }
 }
 
 function buildCloneScript(
   repos: Array<{ url: string; branch: string; clonePath?: string }>
 ): string {
   const steps = repos.map((repo) => {
-    const path = repo.clonePath ?? repo.url.split("/").pop()?.replace(/\.git$/, "") ?? "repo";
+    const path =
+      repo.clonePath ??
+      repo.url
+        .split("/")
+        .pop()
+        ?.replace(/\.git$/, "") ??
+      "repo"
     return (
       `if [ -d /workspaces/${path}/.git ]; then\n` +
       `  cd /workspaces/${path} && git fetch origin ${repo.branch} && git reset --hard origin/${repo.branch}\n` +
       `else\n` +
       `  git clone -b ${repo.branch} ${repo.url} /workspaces/${path}\n` +
       `fi`
-    );
-  });
-  return steps.join("\n");
+    )
+  })
+  return steps.join("\n")
 }
 
-const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest";
-const DEFAULT_FALLBACK_IMAGE = process.env.WORKSPACE_DEFAULT_IMAGE || "ghcr.io/nksaraf/dx-sandbox:latest";
+const DEFAULT_ENVBUILDER_IMAGE = "ghcr.io/coder/envbuilder:latest"
+const DEFAULT_FALLBACK_IMAGE =
+  process.env.WORKBENCH_DEFAULT_IMAGE || "ghcr.io/nksaraf/dx-sandbox:latest"
 
 function makePod(
-  workspace: WorkspaceResourceInputFlat,
+  wb: WorkbenchResourceInputFlat,
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const workspacePvcName = `workspace-${workspace.slug}-data`;
-  const dockerPvcName = `workspace-${workspace.slug}-docker`;
+  const workbenchPvcName = `workbench-${wb.slug}-data`
+  const dockerPvcName = `workbench-${wb.slug}-docker`
 
-  const containerEnv = (workspace.devcontainerConfig.containerEnv ?? {}) as Record<string, string>;
-  const remoteEnv = (workspace.devcontainerConfig.remoteEnv ?? {}) as Record<string, string>;
-  const factoryWsUrl = process.env.DX_FACTORY_WS_URL || "wss://factory.dx.dev/ws";
+  const containerEnv = (wb.devcontainerConfig.containerEnv ?? {}) as Record<
+    string,
+    string
+  >
+  const remoteEnv = (wb.devcontainerConfig.remoteEnv ?? {}) as Record<
+    string,
+    string
+  >
+  const factoryWsUrl =
+    process.env.DX_FACTORY_WS_URL || "wss://factory.dx.dev/ws"
   const mergedEnv = {
     ...containerEnv,
     ...remoteEnv,
     DOCKER_HOST: "tcp://localhost:2375",
-    DX_WORKSPACE_ID: workspace.workspaceId ?? workspace.sandboxId ?? workspace.slug,
-    DX_WORKSPACE_SLUG: workspace.slug,
+    DX_WORKBENCH_ID: wb.workbenchId ?? wb.slug,
+    DX_WORKBENCH_SLUG: wb.slug,
     DX_FACTORY_WS_URL: factoryWsUrl,
-  };
+  }
 
-  const resourceLimits: Record<string, string> = {};
-  if (workspace.cpu) resourceLimits.cpu = workspace.cpu;
-  if (workspace.memory) resourceLimits.memory = workspace.memory;
+  const resourceLimits: Record<string, string> = {}
+  if (wb.cpu) resourceLimits.cpu = wb.cpu
+  if (wb.memory) resourceLimits.memory = wb.memory
 
-  const hasRepos = workspace.repos.length > 0;
-  const useEnvbuilder = hasRepos;
-  const primaryRepo = hasRepos ? workspace.repos[0]! : null;
-  const additionalRepos = hasRepos ? workspace.repos.slice(1) : [];
+  const hasRepos = wb.repos.length > 0
+  const useEnvbuilder = hasRepos
+  const primaryRepo = hasRepos ? wb.repos[0]! : null
+  const additionalRepos = hasRepos ? wb.repos.slice(1) : []
 
   // --- Init containers: only needed for additional repos beyond the primary ---
-  const initContainers: Record<string, unknown>[] = [];
+  const initContainers: Record<string, unknown>[] = []
   if (additionalRepos.length > 0) {
-    const cloneScript = buildCloneScript(additionalRepos);
+    const cloneScript = buildCloneScript(additionalRepos)
     initContainers.push({
       name: "clone-extra-repos",
       image: "alpine/git",
       command: ["sh", "-c", cloneScript],
-      volumeMounts: [{ name: "workspace", mountPath: "/workspaces" }],
-    });
+      volumeMounts: [{ name: "workbench", mountPath: "/workspaces" }],
+    })
   }
   if (!useEnvbuilder && hasRepos) {
     // Fallback: clone all repos via init container when envbuilder is off
-    const cloneScript = buildCloneScript(workspace.repos);
+    const cloneScript = buildCloneScript(wb.repos)
     initContainers.push({
       name: "clone-repos",
       image: "alpine/git",
       command: ["sh", "-c", cloneScript],
-      volumeMounts: [{ name: "workspace", mountPath: "/workspaces" }],
-    });
+      volumeMounts: [{ name: "workbench", mountPath: "/workspaces" }],
+    })
   }
 
-  // --- Workspace container ---
-  let workspaceContainer: Record<string, unknown>;
+  // --- Workbench container ---
+  let workbenchContainer: Record<string, unknown>
 
   if (useEnvbuilder) {
     // Envbuilder mode: envbuilder clones the primary repo, detects devcontainer.json,
     // builds the image (or hits cache), and execs into the result.
-    const envbuilderImage = workspace.envbuilderImage ?? DEFAULT_ENVBUILDER_IMAGE;
-    const fallbackImage = workspace.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE;
+    const envbuilderImage = wb.envbuilderImage ?? DEFAULT_ENVBUILDER_IMAGE
+    const fallbackImage = wb.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE
 
-    // The workspace PVC is mounted at /workspace-pvc (not /workspaces) because
+    // The workbench PVC is mounted at /workspace-pvc (not /workspaces) because
     // envbuilder deletes the root filesystem during image rebuilds. After envbuilder
     // finishes, the init script syncs user data from the PVC into /workspaces so
     // snapshot-restored files survive container restarts.
@@ -245,7 +259,7 @@ function makePod(
       "cp -a /workspace-pvc/. /workspaces/ 2>/dev/null; " +
       "touch /tmp/.envbuilder-ready; " +
       "(while true; do sleep 30; cp -a /workspaces/. /workspace-pvc/ 2>/dev/null; done) & " +
-      "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi";
+      "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi"
 
     const envbuilderEnv: Array<{ name: string; value: string }> = [
       { name: "ENVBUILDER_GIT_URL", value: primaryRepo!.url },
@@ -255,30 +269,39 @@ function makePod(
       { name: "ENVBUILDER_INIT_SCRIPT", value: initScript },
       // Envbuilder clones to /workspaces (its own managed directory)
       { name: "ENVBUILDER_WORKSPACE_FOLDER", value: "/workspaces" },
-    ];
+    ]
 
     if (primaryRepo!.branch) {
-      envbuilderEnv.push({ name: "ENVBUILDER_GIT_CLONE_SINGLE_BRANCH", value: "true" });
-      envbuilderEnv.push({ name: "ENVBUILDER_GIT_HTTP_PROXY_URL", value: "" }); // placeholder
+      envbuilderEnv.push({
+        name: "ENVBUILDER_GIT_CLONE_SINGLE_BRANCH",
+        value: "true",
+      })
+      envbuilderEnv.push({ name: "ENVBUILDER_GIT_HTTP_PROXY_URL", value: "" }) // placeholder
     }
 
-    if (workspace.devcontainerDir) {
-      envbuilderEnv.push({ name: "ENVBUILDER_DEVCONTAINER_DIR", value: workspace.devcontainerDir });
+    if (wb.devcontainerDir) {
+      envbuilderEnv.push({
+        name: "ENVBUILDER_DEVCONTAINER_DIR",
+        value: wb.devcontainerDir,
+      })
     }
 
-    if (workspace.envbuilderCacheRepo) {
-      envbuilderEnv.push({ name: "ENVBUILDER_CACHE_REPO", value: workspace.envbuilderCacheRepo });
+    if (wb.envbuilderCacheRepo) {
+      envbuilderEnv.push({
+        name: "ENVBUILDER_CACHE_REPO",
+        value: wb.envbuilderCacheRepo,
+      })
       // Push the built image to cache on first build
-      envbuilderEnv.push({ name: "ENVBUILDER_PUSH_IMAGE", value: "true" });
+      envbuilderEnv.push({ name: "ENVBUILDER_PUSH_IMAGE", value: "true" })
     }
 
     // Merge user-specified env vars
     for (const [name, value] of Object.entries(mergedEnv)) {
-      envbuilderEnv.push({ name, value });
+      envbuilderEnv.push({ name, value })
     }
 
-    workspaceContainer = {
-      name: "workspace",
+    workbenchContainer = {
+      name: "workbench",
       image: envbuilderImage,
       imagePullPolicy: "IfNotPresent",
       env: envbuilderEnv,
@@ -290,26 +313,31 @@ function makePod(
       ...(Object.keys(resourceLimits).length > 0
         ? { resources: { limits: resourceLimits, requests: resourceLimits } }
         : {}),
-      volumeMounts: [
-        { name: "workspace", mountPath: "/workspace-pvc" },
-      ],
+      volumeMounts: [{ name: "workbench", mountPath: "/workspace-pvc" }],
       readinessProbe: {
         exec: { command: ["sh", "-c", "test -f /tmp/.envbuilder-ready"] },
         initialDelaySeconds: 5,
         periodSeconds: 5,
         failureThreshold: 120,
       },
-    };
+    }
   } else {
     // Direct image mode: no repos or explicit image only
-    const image = workspace.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE;
-    const envVars = Object.entries(mergedEnv).map(([name, value]) => ({ name, value }));
+    const image = wb.devcontainerImage ?? DEFAULT_FALLBACK_IMAGE
+    const envVars = Object.entries(mergedEnv).map(([name, value]) => ({
+      name,
+      value,
+    }))
 
-    workspaceContainer = {
-      name: "workspace",
+    workbenchContainer = {
+      name: "workbench",
       image,
       imagePullPolicy: "IfNotPresent",
-      command: ["sh", "-c", "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi"],
+      command: [
+        "sh",
+        "-c",
+        "if [ -x /usr/local/bin/dx-entrypoint.sh ]; then exec /usr/local/bin/dx-entrypoint.sh; else sleep infinity; fi",
+      ],
       env: envVars,
       ports: [
         { containerPort: 22, name: "ssh" },
@@ -319,22 +347,20 @@ function makePod(
       ...(Object.keys(resourceLimits).length > 0
         ? { resources: { limits: resourceLimits, requests: resourceLimits } }
         : {}),
-      volumeMounts: [
-        { name: "workspace", mountPath: "/workspaces" },
-      ],
+      volumeMounts: [{ name: "workbench", mountPath: "/workspaces" }],
       readinessProbe: {
         exec: { command: ["true"] },
         initialDelaySeconds: 1,
         periodSeconds: 5,
       },
-    };
+    }
   }
 
   return {
     apiVersion: "v1",
     kind: "Pod",
     metadata: {
-      name: `workspace-${workspace.slug}`,
+      name: `workbench-${wb.slug}`,
       namespace: ns,
       labels,
     },
@@ -342,7 +368,7 @@ function makePod(
       restartPolicy: "Never",
       ...(initContainers.length > 0 ? { initContainers } : {}),
       containers: [
-        workspaceContainer,
+        workbenchContainer,
         {
           name: "dind",
           image: "docker:dind",
@@ -360,8 +386,8 @@ function makePod(
       ],
       volumes: [
         {
-          name: "workspace",
-          persistentVolumeClaim: { claimName: workspacePvcName },
+          name: "workbench",
+          persistentVolumeClaim: { claimName: workbenchPvcName },
         },
         {
           name: "docker-storage",
@@ -369,11 +395,11 @@ function makePod(
         },
       ],
     },
-  };
+  }
 }
 
 function makeService(
-  workspace: WorkspaceResourceInputFlat,
+  wb: WorkbenchResourceInputFlat,
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
@@ -381,14 +407,14 @@ function makeService(
     apiVersion: "v1",
     kind: "Service",
     metadata: {
-      name: `workspace-${workspace.slug}`,
+      name: `workbench-${wb.slug}`,
       namespace: ns,
       labels,
     },
     spec: {
       type: "NodePort",
       selector: {
-        "dx.dev/workspace": workspace.workspaceId ?? workspace.sandboxId ?? workspace.slug,
+        "dx.dev/workbench": wb.workbenchId ?? wb.slug,
       },
       ports: [
         { name: "ssh", port: 22, targetPort: 22 },
@@ -396,23 +422,25 @@ function makeService(
         { name: "web-ide", port: 8081, targetPort: 8081 },
       ],
     },
-  };
+  }
 }
 
 function makeIngressRoute(
-  workspace: WorkspaceResourceInputFlat,
+  wb: WorkbenchResourceInputFlat,
   ns: string,
   labels: Record<string, string>
 ): KubeResource {
-  const primaryEndpoint = (process.env.WORKSPACE_PRIMARY_ENDPOINT || "ide").toLowerCase();
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
-  const host = `${workspace.slug}.workspace.${gatewayDomain}`;
-  const primaryPort = primaryEndpoint === "terminal" ? 8080 : 8081;
+  const primaryEndpoint = (
+    process.env.WORKBENCH_PRIMARY_ENDPOINT || "ide"
+  ).toLowerCase()
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+  const host = `${wb.slug}.workbench.${gatewayDomain}`
+  const primaryPort = primaryEndpoint === "terminal" ? 8080 : 8081
   return {
     apiVersion: "traefik.io/v1alpha1",
     kind: "IngressRoute",
     metadata: {
-      name: `workspace-${workspace.slug}-ingress`,
+      name: `workbench-${wb.slug}-ingress`,
       namespace: ns,
       labels,
     },
@@ -424,71 +452,71 @@ function makeIngressRoute(
           kind: "Rule",
           services: [
             {
-              name: `workspace-${workspace.slug}`,
+              name: `workbench-${wb.slug}`,
               port: primaryPort,
             },
           ],
         },
         {
-          match: `Host(\`${workspace.slug}--terminal.workspace.${gatewayDomain}\`)`,
+          match: `Host(\`${wb.slug}--terminal.workbench.${gatewayDomain}\`)`,
           kind: "Rule",
           services: [
             {
-              name: `workspace-${workspace.slug}`,
+              name: `workbench-${wb.slug}`,
               port: 8080,
             },
           ],
         },
         {
-          match: `Host(\`${workspace.slug}--ide.workspace.${gatewayDomain}\`)`,
+          match: `Host(\`${wb.slug}--ide.workbench.${gatewayDomain}\`)`,
           kind: "Rule",
           services: [
             {
-              name: `workspace-${workspace.slug}`,
+              name: `workbench-${wb.slug}`,
               port: 8081,
             },
           ],
         },
       ],
     },
-  };
+  }
 }
 
 /** Sanitize an ID for use in k8s resource names (RFC 1123). */
 function k8sName(id: string): string {
-  return id.replace(/_/g, "-").toLowerCase();
+  return id.replace(/_/g, "-").toLowerCase()
 }
 
 /**
- * Generate VolumeSnapshot resources for both workspace and docker PVCs.
+ * Generate VolumeSnapshot resources for both workbench and docker PVCs.
  */
 export function generateVolumeSnapshots(
   slug: string,
-  workspaceId: string,
+  workbenchId: string,
   snapshotId: string,
-  snapshotClassName: string = "csi-hostpath-snapclass",
+  snapshotClassName: string = "csi-hostpath-snapclass"
 ): KubeResource[] {
-  const ns = `workspace-${slug}`;
-  const safeName = k8sName(snapshotId);
+  const ns = `workbench-${slug}`
+  const safeName = k8sName(snapshotId)
   const labels: Record<string, string> = {
-    "dx.dev/workspace": workspaceId,
+    "dx.dev/workbench": workbenchId,
     "dx.dev/snapshot": snapshotId,
     "dx.dev/managed-by": "factory-reconciler",
-  };
+  }
 
   return [
     {
       apiVersion: "snapshot.storage.k8s.io/v1",
       kind: "VolumeSnapshot",
       metadata: {
-        name: `snap-${safeName}-workspace`,
+        name: `snap-${safeName}-workbench`,
         namespace: ns,
         labels,
       },
       spec: {
         volumeSnapshotClassName: snapshotClassName,
         source: {
-          persistentVolumeClaimName: `workspace-${slug}-data`,
+          persistentVolumeClaimName: `workbench-${slug}-data`,
         },
       },
     },
@@ -503,11 +531,11 @@ export function generateVolumeSnapshots(
       spec: {
         volumeSnapshotClassName: snapshotClassName,
         source: {
-          persistentVolumeClaimName: `workspace-${slug}-docker`,
+          persistentVolumeClaimName: `workbench-${slug}-docker`,
         },
       },
     },
-  ];
+  ]
 }
 
 /**
@@ -516,23 +544,23 @@ export function generateVolumeSnapshots(
 export function generatePVCFromSnapshot(
   slug: string,
   snapshotName: string,
-  pvcSuffix: "workspace" | "docker",
+  pvcSuffix: "workbench" | "docker",
   storageGb: number,
-  workspaceId: string,
-  storageClassName?: string,
+  workbenchId: string,
+  storageClassName?: string
 ): KubeResource {
-  const ns = `workspace-${slug}`;
+  const ns = `workbench-${slug}`
   const labels: Record<string, string> = {
-    "dx.dev/workspace": workspaceId,
+    "dx.dev/workbench": workbenchId,
     "dx.dev/managed-by": "factory-reconciler",
-    "dx.dev/target-kind": "workspace",
-  };
+    "dx.dev/target-kind": "workbench",
+  }
 
   return {
     apiVersion: "v1",
     kind: "PersistentVolumeClaim",
     metadata: {
-      name: `workspace-${slug}-${pvcSuffix}`,
+      name: `workbench-${slug}-${pvcSuffix}`,
       namespace: ns,
       labels,
     },
@@ -550,8 +578,5 @@ export function generatePVCFromSnapshot(
         name: snapshotName,
       },
     },
-  };
+  }
 }
-
-/** @deprecated Use generateWorkspaceResources */
-export const generateSandboxResources = generateWorkspaceResources;

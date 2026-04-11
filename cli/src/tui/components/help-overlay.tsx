@@ -7,7 +7,7 @@ const SHORTCUTS = [
     [
       ["1", "Infra — estates, realms, hosts"],
       ["2", "Fleet — sites, releases"],
-      ["3", "Workspace — workspaces, previews"],
+      ["3", "Workbench — workbenches, previews"],
       ["4", "Build — modules, CI runs"],
       ["5", "Gateway — routes, domains"],
       ["6", "Commerce — customers"],
@@ -27,8 +27,8 @@ const SHORTCUTS = [
   [
     "Infra tab",
     [
-      ["l", "View logs for selected workspace"],
-      ["s", "SSH into selected workspace"],
+      ["l", "View logs for selected workbench"],
+      ["s", "SSH into selected workbench"],
     ],
   ],
   [

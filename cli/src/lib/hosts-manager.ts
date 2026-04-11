@@ -1,19 +1,19 @@
 /**
  * Manage /etc/hosts entries for local gateway DNS routing.
  *
- * The gateway proxy expects *.workspace.dx.dev hostnames.
+ * The gateway proxy expects *.workbench.dx.dev hostnames.
  * For local routing we add entries pointing to 127.0.0.1.
  *
  * All managed entries are tagged with "# dx-managed" for safe cleanup.
  */
-
 import { readFileSync } from "node:fs"
+
 import { capture } from "./subprocess.js"
 
 const HOSTS_FILE = "/etc/hosts"
 const MARKER = "# dx-managed"
 
-export type RouteFamily = "sandbox" | "workspace" | "preview" | "tunnel"
+export type RouteFamily = "sandbox" | "workbench" | "preview" | "tunnel"
 
 /**
  * Add a host entry: `127.0.0.1 <slug>.<family>.dx.dev  # dx-managed`
@@ -21,7 +21,7 @@ export type RouteFamily = "sandbox" | "workspace" | "preview" | "tunnel"
  */
 export async function addHostEntry(
   slug: string,
-  family: RouteFamily = "workspace"
+  family: RouteFamily = "workbench"
 ): Promise<void> {
   const hostname = `${slug}.${family}.dx.dev`
   const line = `127.0.0.1 ${hostname}  ${MARKER}`
@@ -32,14 +32,16 @@ export async function addHostEntry(
 
   // Append via sudo tee
   const result = await capture([
-    "sudo", "sh", "-c",
+    "sudo",
+    "sh",
+    "-c",
     `echo '${line}' >> ${HOSTS_FILE}`,
   ])
 
   if (result.exitCode !== 0) {
     console.warn(
       `Could not add hosts entry for ${hostname}.\n` +
-      `Run manually: sudo sh -c "echo '${line}' >> ${HOSTS_FILE}"`
+        `Run manually: sudo sh -c "echo '${line}' >> ${HOSTS_FILE}"`
     )
   }
 }
@@ -49,12 +51,15 @@ export async function addHostEntry(
  */
 export async function removeHostEntry(
   slug: string,
-  family: RouteFamily = "workspace"
+  family: RouteFamily = "workbench"
 ): Promise<void> {
   const hostname = `${slug}.${family}.dx.dev`
 
   const result = await capture([
-    "sudo", "sed", "-i", "",
+    "sudo",
+    "sed",
+    "-i",
+    "",
     `/${hostname}.*${MARKER}/d`,
     HOSTS_FILE,
   ])

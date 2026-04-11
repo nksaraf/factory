@@ -7,16 +7,16 @@ import type { FactoryEdenClient } from "../client.js"
 import { readConfig, resolveFactoryUrl } from "../config.js"
 import type { DxBase } from "../dx-root.js"
 import {
-  createLocalWorkspace,
-  deleteLocalWorkspace,
-  listLocalWorkspaces,
-  showLocalWorkspace,
+  createLocalWorkbench,
+  deleteLocalWorkbench,
+  listLocalWorkbenches,
+  showLocalWorkbench,
 } from "../handlers/workspace/local-workspace.js"
 import type { FactoryClient } from "../lib/api-client.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js"
 import { getRepoDisplayName } from "../lib/repo-picker.js"
-import type { LocalWorkspaceInfo } from "../lib/worktree-detect.js"
+import type { LocalWorkbenchInfo } from "../lib/worktree-detect.js"
 import { printTable } from "../output.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
@@ -33,16 +33,16 @@ import {
   timeAgo,
 } from "./list-helpers.js"
 
-setExamples("workspace", [
-  "$ dx workspace list                           List all workspaces (local + remote)",
-  "$ dx workspace list --tier worktree           List local worktree workspaces",
-  "$ dx workspace create my-ws --tier worktree   Create a worktree workspace",
-  "$ dx workspace create my-ws                   Create a remote workspace",
-  "$ dx workspace show my-ws                     Show workspace details",
-  "$ dx workspace delete my-ws                   Delete a workspace",
+setExamples("workbench", [
+  "$ dx workbench list                           List all workbenches (local + remote)",
+  "$ dx workbench list --tier worktree           List local worktree workbenches",
+  "$ dx workbench create my-ws --tier worktree   Create a worktree workbench",
+  "$ dx workbench create my-ws                   Create a remote workbench",
+  "$ dx workbench show my-ws                     Show workbench details",
+  "$ dx workbench delete my-ws                   Delete a workbench",
 ])
 
-const WS_BASE = "/api/v1/factory/fleet/workspaces"
+const WS_BASE = "/api/v1/factory/fleet/workbenches"
 function wsPath(id?: string, action?: string): string {
   let p = WS_BASE
   if (id) p += `/${id}`
@@ -50,7 +50,7 @@ function wsPath(id?: string, action?: string): string {
   return p
 }
 
-const SNAP_BASE = "/api/v1/factory/fleet/workspace-snapshots"
+const SNAP_BASE = "/api/v1/factory/fleet/workbench-snapshots"
 function snapPath(id?: string, action?: string): string {
   let p = SNAP_BASE
   if (id) p += `/${id}`
@@ -64,8 +64,8 @@ function snapPath(id?: string, action?: string): string {
 async function getApi() {
   return getFactoryClient()
 }
-// Shorthand to reach the workspaces sub-path on the Eden proxy.
-const S = (api: FactoryEdenClient) => api.api.v1.factory.fleet.workspaces
+// Shorthand to reach the workbenches sub-path on the Eden proxy.
+const S = (api: FactoryEdenClient) => api.api.v1.factory.fleet.workbenches
 
 async function waitForStatus(
   rest: FactoryClient,
@@ -74,7 +74,7 @@ async function waitForStatus(
   maxWaitMs: number
 ): Promise<boolean> {
   const spinner = ora({
-    text: `Waiting for workspace to be ${target}...`,
+    text: `Waiting for workbench to be ${target}...`,
     spinner: "dots",
   }).start()
   const interval = 2_000
@@ -91,16 +91,16 @@ async function waitForStatus(
         d?.spec && typeof d.spec === "object" ? d.spec : {}
       ) as Record<string, unknown>
       const status = (spec.lifecycle ?? d?.status ?? "") as string
-      spinner.text = `Workspace status: ${status}...`
+      spinner.text = `Workbench status: ${status}...`
       if (status === target) {
-        spinner.succeed(`Workspace is ${target}.`)
+        spinner.succeed(`Workbench is ${target}.`)
         return true
       }
     } catch {
       // ignore transient errors
     }
   }
-  spinner.warn(`Timed out waiting for workspace to be ${target}.`)
+  spinner.warn(`Timed out waiting for workbench to be ${target}.`)
   return false
 }
 
@@ -142,7 +142,7 @@ async function waitForSnapshotStatus(
   return status
 }
 
-/** Run a command inside the workspace container via kubectl exec */
+/** Run a command inside the workbench container via kubectl exec */
 function kubectlExecInSandbox(
   podName: string,
   ns: string,
@@ -155,7 +155,7 @@ function kubectlExecInSandbox(
     "-n",
     ns,
     "-c",
-    "workspace",
+    "workbench",
     ...(kubeContext ? ["--context", kubeContext] : []),
     "--",
     ...cmd,
@@ -177,7 +177,7 @@ interface LogSource {
   description: string
 }
 
-/** Discover all available log sources in a workspace */
+/** Discover all available log sources in a workbench */
 function discoverLogSources(
   podName: string,
   ns: string,
@@ -185,9 +185,9 @@ function discoverLogSources(
 ): LogSource[] {
   const sources: LogSource[] = [
     {
-      name: "workspace",
+      name: "workbench",
       type: "container",
-      description: "Workspace container (k8s)",
+      description: "Workbench container (k8s)",
     },
     {
       name: "dind",
@@ -299,21 +299,21 @@ function discoverLogSources(
   return sources
 }
 
-export function workspaceCommand(app: DxBase) {
+export function workbenchCommand(app: DxBase) {
   return (
     app
-      .sub("workspace")
+      .sub("workbench")
       .meta({ description: "Manage workspaces" })
 
       // --- create ---
       .command("create", (c) =>
         c
-          .meta({ description: "Create a workspace" })
+          .meta({ description: "Create a workbench" })
           .args([
             {
               name: "name",
               type: "string",
-              description: "Workspace name (interactive if omitted)",
+              description: "Workbench name (interactive if omitted)",
             },
           ])
           .flags({
@@ -327,7 +327,7 @@ export function workspaceCommand(app: DxBase) {
             },
             template: {
               type: "string",
-              description: "Workspace template slug",
+              description: "Workbench template slug",
             },
             size: {
               type: "string",
@@ -387,7 +387,7 @@ export function workspaceCommand(app: DxBase) {
               type: "boolean",
               alias: "w",
               description:
-                "Wait for workspace to become active (default: true)",
+                "Wait for workbench to become active (default: true)",
             },
           })
           .run(async ({ args, flags }) => {
@@ -406,11 +406,11 @@ export function workspaceCommand(app: DxBase) {
             if (!name) {
               if (!process.stdout.isTTY) {
                 console.error(
-                  "Workspace name is required in non-interactive mode."
+                  "Workbench name is required in non-interactive mode."
                 )
                 console.log(
                   styleMuted(
-                    "Usage: dx workspace create <name> [--size medium] [--repo <url>]"
+                    "Usage: dx workbench create <name> [--size medium] [--repo <url>]"
                   )
                 )
                 process.exit(1)
@@ -418,11 +418,11 @@ export function workspaceCommand(app: DxBase) {
 
               const { input, select, filter } = await import("@crustjs/prompts")
               const { WORKSPACE_PRESETS } =
-                await import("../lib/workspace-presets.js")
+                await import("../lib/workbench-presets.js")
 
               // 1. Name
               name = await input({
-                message: "Workspace name",
+                message: "Workbench name",
                 validate: (v) => v.trim().length > 0 || "Name is required",
               })
 
@@ -435,7 +435,7 @@ export function workspaceCommand(app: DxBase) {
                 { label: "Custom", value: "custom" },
               ]
               const sizeChoice = await select({
-                message: "Workspace size",
+                message: "Workbench size",
                 choices: sizeChoices,
                 default: "medium",
               })
@@ -480,7 +480,7 @@ export function workspaceCommand(app: DxBase) {
                       hint: r.gitUrl,
                     })),
                     {
-                      label: styleMuted("None — empty workspace"),
+                      label: styleMuted("None — empty workbench"),
                       value: null as (typeof repos)[0] | null,
                     },
                   ]
@@ -504,7 +504,7 @@ export function workspaceCommand(app: DxBase) {
             // ── Size preset (non-interactive shorthand) ──
             if (flags.size && !flags.cpu && !flags.memory) {
               const { WORKSPACE_PRESETS } =
-                await import("../lib/workspace-presets.js")
+                await import("../lib/workbench-presets.js")
               const preset = WORKSPACE_PRESETS[flags.size as string]
               if (preset) {
                 overrides.cpu = preset.cpu
@@ -532,7 +532,7 @@ export function workspaceCommand(app: DxBase) {
                   )
                 } else {
                   console.log(
-                    styleSuccess(`Worktree workspace "${result.name}" created.`)
+                    styleSuccess(`Worktree workbench "${result.name}" created.`)
                   )
                   console.log(styleMuted(`  Path:     ${result.path}`))
                   console.log(styleMuted(`  Branch:   ${result.branch}`))
@@ -604,7 +604,7 @@ export function workspaceCommand(app: DxBase) {
               actionResult(
                 flags,
                 result,
-                styleSuccess(`Workspace "${name}" created.`)
+                styleSuccess(`Workbench "${name}" created.`)
               )
               return
             }
@@ -614,7 +614,7 @@ export function workspaceCommand(app: DxBase) {
 
             if (shouldWait) {
               const spinner = ora({
-                text: "Provisioning workspace...",
+                text: "Provisioning workbench...",
                 spinner: "dots",
               }).start()
               const maxWait = 60_000
@@ -636,14 +636,14 @@ export function workspaceCommand(app: DxBase) {
                     d?.spec && typeof d.spec === "object" ? d.spec : {}
                   ) as Record<string, unknown>
                   status = (spc.lifecycle ?? d?.status ?? status) as string
-                  spinner.text = `Workspace status: ${status}...`
+                  spinner.text = `Workbench status: ${status}...`
                 } catch {
                   // ignore transient errors
                 }
               }
 
               if (status === "active") {
-                spinner.succeed(`Workspace "${name}" is active.`)
+                spinner.succeed(`Workbench "${name}" is active.`)
                 const poll = await rest.request<{
                   data?: Record<string, unknown>
                 }>("GET", wsPath(sandboxId))
@@ -677,11 +677,11 @@ export function workspaceCommand(app: DxBase) {
                   factoryUrl.includes("127.0.0.1")
                 ) {
                   const wksSlug = (sbxData?.slug as string) ?? name
-                  await addHostEntry(wksSlug, "workspace")
+                  await addHostEntry(wksSlug, "workbench")
                 }
               } else {
                 spinner.warn(
-                  `Workspace status: ${status} (may still be provisioning)`
+                  `Workbench status: ${status} (may still be provisioning)`
                 )
               }
             } else {
@@ -689,7 +689,7 @@ export function workspaceCommand(app: DxBase) {
                 flags,
                 result,
                 styleSuccess(
-                  `Workspace "${name}" created (provisioning in background).`
+                  `Workbench "${name}" created (provisioning in background).`
                 )
               )
             }
@@ -868,13 +868,13 @@ export function workspaceCommand(app: DxBase) {
       // --- show ---
       .command("show", (c) =>
         c
-          .meta({ description: "Show workspace details" })
+          .meta({ description: "Show workbench details" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace name, ID, or slug",
+              description: "Workbench name, ID, or slug",
             },
           ])
           .run(async ({ args, flags }) => {
@@ -959,27 +959,27 @@ export function workspaceCommand(app: DxBase) {
       // --- start ---
       .command("start", (c) =>
         c
-          .meta({ description: "Start a workspace" })
+          .meta({ description: "Start a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .run(async ({ args, flags }) => {
             const rest = await getFactoryRestClient()
             await rest.request("POST", wsPath(args.id, "start"), {})
-            process.stdout.write(styleMuted("Starting workspace..."))
+            process.stdout.write(styleMuted("Starting workbench..."))
             const ok = await waitForStatus(rest, args.id, "active", 60_000)
             console.log()
             if (ok) {
-              console.log(styleSuccess(`Workspace ${args.id} started.`))
+              console.log(styleSuccess(`Workbench ${args.id} started.`))
             } else {
               console.log(
                 styleMuted(
-                  `Workspace ${args.id} start initiated (may still be starting).`
+                  `Workbench ${args.id} start initiated (may still be starting).`
                 )
               )
             }
@@ -989,27 +989,27 @@ export function workspaceCommand(app: DxBase) {
       // --- stop ---
       .command("stop", (c) =>
         c
-          .meta({ description: "Stop a workspace" })
+          .meta({ description: "Stop a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .run(async ({ args, flags }) => {
             const rest = await getFactoryRestClient()
             await rest.request("POST", wsPath(args.id, "stop"), {})
-            process.stdout.write(styleMuted("Stopping workspace..."))
+            process.stdout.write(styleMuted("Stopping workbench..."))
             const ok = await waitForStatus(rest, args.id, "suspended", 30_000)
             console.log()
             if (ok) {
-              console.log(styleSuccess(`Workspace ${args.id} stopped.`))
+              console.log(styleSuccess(`Workbench ${args.id} stopped.`))
             } else {
               console.log(
                 styleMuted(
-                  `Workspace ${args.id} stop initiated (may still be in progress).`
+                  `Workbench ${args.id} stop initiated (may still be in progress).`
                 )
               )
             }
@@ -1019,13 +1019,13 @@ export function workspaceCommand(app: DxBase) {
       // --- delete ---
       .command("delete", (c) =>
         c
-          .meta({ description: "Delete a workspace" })
+          .meta({ description: "Delete a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace name, ID, or slug",
+              description: "Workbench name, ID, or slug",
             },
           ])
           .flags({
@@ -1054,7 +1054,7 @@ export function workspaceCommand(app: DxBase) {
                   } else {
                     console.log(
                       styleSuccess(
-                        `Worktree workspace "${local.name}" deleted.`
+                        `Worktree workbench "${local.name}" deleted.`
                       )
                     )
                   }
@@ -1076,7 +1076,7 @@ export function workspaceCommand(app: DxBase) {
             // 3. Bitemporal-delete the DB record
             const rest = await getFactoryRestClient()
             await rest.request("POST", wsPath(args.id, "destroy"), {})
-            process.stdout.write(styleMuted("Destroying workspace..."))
+            process.stdout.write(styleMuted("Destroying workbench..."))
             const ok = await waitForStatus(rest, args.id, "destroyed", 60_000)
             console.log()
             try {
@@ -1085,19 +1085,19 @@ export function workspaceCommand(app: DxBase) {
               // Record may already be gone
             }
             if (ok) {
-              console.log(styleSuccess(`Workspace ${args.id} destroyed.`))
+              console.log(styleSuccess(`Workbench ${args.id} destroyed.`))
               const cfg = await readConfig()
               const factoryUrl = resolveFactoryUrl(cfg)
               if (
                 factoryUrl.includes("localhost") ||
                 factoryUrl.includes("127.0.0.1")
               ) {
-                await removeHostEntry(args.id, "workspace")
+                await removeHostEntry(args.id, "workbench")
               }
             } else {
               console.log(
                 styleMuted(
-                  `Workspace ${args.id} delete initiated (may still be destroying).`
+                  `Workbench ${args.id} delete initiated (may still be destroying).`
                 )
               )
             }
@@ -1107,13 +1107,13 @@ export function workspaceCommand(app: DxBase) {
       // --- resize ---
       .command("resize", (c) =>
         c
-          .meta({ description: "Resize a workspace" })
+          .meta({ description: "Resize a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1144,7 +1144,7 @@ export function workspaceCommand(app: DxBase) {
             actionResult(
               flags,
               result,
-              styleSuccess(`Workspace ${args.id} resized.`)
+              styleSuccess(`Workbench ${args.id} resized.`)
             )
           })
       )
@@ -1152,13 +1152,13 @@ export function workspaceCommand(app: DxBase) {
       // --- extend ---
       .command("extend", (c) =>
         c
-          .meta({ description: "Extend workspace TTL" })
+          .meta({ description: "Extend workbench TTL" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1179,7 +1179,7 @@ export function workspaceCommand(app: DxBase) {
               flags,
               result,
               styleSuccess(
-                `Workspace ${args.id} TTL extended by ${flags.minutes} minutes.`
+                `Workbench ${args.id} TTL extended by ${flags.minutes} minutes.`
               )
             )
           })
@@ -1188,16 +1188,16 @@ export function workspaceCommand(app: DxBase) {
       // --- snapshot ---
       .command("snapshot", (c) =>
         c
-          .meta({ description: "Manage workspace snapshots" })
+          .meta({ description: "Manage workbench snapshots" })
           .command("create", (sc) =>
             sc
-              .meta({ description: "Create a snapshot of a workspace" })
+              .meta({ description: "Create a snapshot of a workbench" })
               .args([
                 {
                   name: "id",
                   type: "string",
                   required: true,
-                  description: "Workspace ID or slug",
+                  description: "Workbench ID or slug",
                 },
               ])
               .flags({
@@ -1224,7 +1224,7 @@ export function workspaceCommand(app: DxBase) {
                 if (flags.description) body.description = flags.description
                 const result = await rest.request<{ data?: { id?: string } }>(
                   "POST",
-                  `${wsPath(args.id)}/workspace-snapshots`,
+                  `${wsPath(args.id)}/workbench-snapshots`,
                   body
                 )
                 const snapshotId = result?.data?.id
@@ -1233,7 +1233,7 @@ export function workspaceCommand(app: DxBase) {
                     flags,
                     result,
                     styleSuccess(
-                      `Snapshot "${flags.name}" created for workspace ${args.id}.`
+                      `Snapshot "${flags.name}" created for workbench ${args.id}.`
                     )
                   )
                   return
@@ -1260,20 +1260,20 @@ export function workspaceCommand(app: DxBase) {
           )
           .command("list", (sc) =>
             sc
-              .meta({ description: "List snapshots for a workspace" })
+              .meta({ description: "List snapshots for a workbench" })
               .args([
                 {
                   name: "id",
                   type: "string",
                   required: true,
-                  description: "Workspace ID or slug",
+                  description: "Workbench ID or slug",
                 },
               ])
               .run(async ({ args, flags }) => {
                 const rest = await getFactoryRestClient()
                 const result = await rest.request<{
                   data?: Record<string, unknown>[]
-                }>("GET", `${wsPath(args.id)}/workspace-snapshots`)
+                }>("GET", `${wsPath(args.id)}/workbench-snapshots`)
                 const f = toDxFlags(flags)
                 if (f.json) {
                   console.log(
@@ -1310,13 +1310,13 @@ export function workspaceCommand(app: DxBase) {
       // --- restore ---
       .command("restore", (c) =>
         c
-          .meta({ description: "Restore a workspace from a snapshot" })
+          .meta({ description: "Restore a workbench from a snapshot" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1329,7 +1329,7 @@ export function workspaceCommand(app: DxBase) {
               type: "boolean",
               alias: "w",
               description:
-                "Wait for workspace to become active after restore (default: true)",
+                "Wait for workbench to become active after restore (default: true)",
             },
           })
           .run(async ({ args, flags }) => {
@@ -1339,9 +1339,9 @@ export function workspaceCommand(app: DxBase) {
               snapPath(flags.snapshot as string, "restore"),
               {}
             )
-            // args.id is the workspace, but the restore endpoint is on the snapshot
+            // args.id is the workbench, but the restore endpoint is on the snapshot
             if (flags.wait !== false) {
-              process.stdout.write(styleMuted("Restoring workspace..."))
+              process.stdout.write(styleMuted("Restoring workbench..."))
               const ready = await waitForStatus(
                 rest,
                 args.id,
@@ -1352,12 +1352,12 @@ export function workspaceCommand(app: DxBase) {
               if (ready) {
                 console.log(
                   styleSuccess(
-                    `Workspace ${args.id} restored from snapshot ${flags.snapshot}.`
+                    `Workbench ${args.id} restored from snapshot ${flags.snapshot}.`
                   )
                 )
               } else {
                 console.log(
-                  `Workspace ${args.id} restore may still be in progress. Check with: dx sandbox show ${args.id}`
+                  `Workbench ${args.id} restore may still be in progress. Check with: dx workbench show ${args.id}`
                 )
               }
             } else {
@@ -1365,7 +1365,7 @@ export function workspaceCommand(app: DxBase) {
                 flags,
                 result,
                 styleSuccess(
-                  `Workspace restore triggered from snapshot ${flags.snapshot}.`
+                  `Workbench restore triggered from snapshot ${flags.snapshot}.`
                 )
               )
             }
@@ -1375,7 +1375,7 @@ export function workspaceCommand(app: DxBase) {
       // --- clone ---
       .command("clone", (c) =>
         c
-          .meta({ description: "Clone a workspace from a snapshot" })
+          .meta({ description: "Clone a workbench from a snapshot" })
           .flags({
             snapshot: {
               type: "string",
@@ -1385,7 +1385,7 @@ export function workspaceCommand(app: DxBase) {
             name: {
               type: "string",
               required: true,
-              description: "Name for the new workspace",
+              description: "Name for the new workbench",
             },
           })
           .run(async ({ flags }) => {
@@ -1399,7 +1399,7 @@ export function workspaceCommand(app: DxBase) {
               flags,
               result,
               styleSuccess(
-                `Workspace "${flags.name}" cloned from snapshot ${flags.snapshot}.`
+                `Workbench "${flags.name}" cloned from snapshot ${flags.snapshot}.`
               )
             )
           })
@@ -1408,13 +1408,13 @@ export function workspaceCommand(app: DxBase) {
       // --- share ---
       .command("share", (c) =>
         c
-          .meta({ description: "Share a workspace with a user" })
+          .meta({ description: "Share a workbench with a user" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1441,7 +1441,7 @@ export function workspaceCommand(app: DxBase) {
             actionResult(
               flags,
               result,
-              styleSuccess(`Workspace ${args.id} shared with ${flags.user}.`)
+              styleSuccess(`Workbench ${args.id} shared with ${flags.user}.`)
             )
           })
       )
@@ -1449,13 +1449,13 @@ export function workspaceCommand(app: DxBase) {
       // --- unshare ---
       .command("unshare", (c) =>
         c
-          .meta({ description: "Revoke workspace access for a user" })
+          .meta({ description: "Revoke workbench access for a user" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1476,7 +1476,7 @@ export function workspaceCommand(app: DxBase) {
               flags,
               result,
               styleSuccess(
-                `Access revoked for ${flags.user} on workspace ${args.id}.`
+                `Access revoked for ${flags.user} on workbench ${args.id}.`
               )
             )
           })
@@ -1485,13 +1485,13 @@ export function workspaceCommand(app: DxBase) {
       // --- access ---
       .command("access", (c) =>
         c
-          .meta({ description: "List who has access to a workspace" })
+          .meta({ description: "List who has access to a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .run(async ({ args, flags }) => {
@@ -1524,13 +1524,13 @@ export function workspaceCommand(app: DxBase) {
       // --- exec ---
       .command("exec", (c) =>
         c
-          .meta({ description: "Execute a command in a workspace" })
+          .meta({ description: "Execute a command in a workbench" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
             {
               name: "command",
@@ -1541,14 +1541,14 @@ export function workspaceCommand(app: DxBase) {
           .flags({
             container: {
               type: "string",
-              description: "Container name (default: workspace)",
+              description: "Container name (default: workbench)",
             },
           })
           .run(async ({ args, flags }) => {
             const slugOrId = args.id
             const cmd = args.command ?? "bash"
 
-            // Resolve workspace to get pod info
+            // Resolve workbench to get pod info
             const api = await getApi()
             const result = await apiCall(flags, () =>
               S(api)({ slugOrId }).get()
@@ -1558,9 +1558,9 @@ export function workspaceCommand(app: DxBase) {
               wksData && typeof wksData === "object" ? wksData : {}
             ) as Record<string, unknown>
             const wksSlug = (wks.slug ?? slugOrId) as string
-            const podName = `workspace-${wksSlug}`
-            const ns = `workspace-${wksSlug}`
-            const container = (flags.container as string) ?? "workspace"
+            const podName = `workbench-${wksSlug}`
+            const ns = `workbench-${wksSlug}`
+            const container = (flags.container as string) ?? "workbench"
 
             const { spawnSync } = await import("node:child_process")
             try {
@@ -1591,13 +1591,13 @@ export function workspaceCommand(app: DxBase) {
       // --- logs ---
       .command("logs", (c) =>
         c
-          .meta({ description: "Stream workspace logs" })
+          .meta({ description: "Stream workbench logs" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1614,7 +1614,7 @@ export function workspaceCommand(app: DxBase) {
               type: "string",
               alias: "c",
               description:
-                "Container (workspace, dind, clone-repos, build) or Docker container name",
+                "Container (workbench, dind, clone-repos, build) or Docker container name",
             },
             source: {
               type: "string",
@@ -1623,7 +1623,7 @@ export function workspaceCommand(app: DxBase) {
             },
             discover: {
               type: "boolean",
-              description: "List all available log sources in the workspace",
+              description: "List all available log sources in the workbench",
             },
           })
           .run(async ({ args, flags }) => {
@@ -1637,8 +1637,8 @@ export function workspaceCommand(app: DxBase) {
               wksData && typeof wksData === "object" ? wksData : {}
             ) as Record<string, unknown>
             const wksSlug = (wks.slug ?? slugOrId) as string
-            const podName = `workspace-${wksSlug}`
-            const ns = `workspace-${wksSlug}`
+            const podName = `workbench-${wksSlug}`
+            const ns = `workbench-${wksSlug}`
 
             // Discover mode
             if (flags.discover) {
@@ -1658,16 +1658,16 @@ export function workspaceCommand(app: DxBase) {
 
             const tail = (flags.tail as number) ?? 100
             const follow = flags.follow !== false
-            const container = (flags.container as string) ?? "workspace"
+            const container = (flags.container as string) ?? "workbench"
             const source = flags.source as string | undefined
 
             const { spawn } = await import("node:child_process")
 
-            // Docker container logs (run inside workspace via kubectl exec)
+            // Docker container logs (run inside workbench via kubectl exec)
             if (
               source === "docker" ||
               (container &&
-                !["workspace", "dind", "clone-repos", "build"].includes(
+                !["workbench", "dind", "clone-repos", "build"].includes(
                   container
                 ))
             ) {
@@ -1682,7 +1682,7 @@ export function workspaceCommand(app: DxBase) {
                   "-n",
                   ns,
                   "-c",
-                  "workspace",
+                  "workbench",
                   "--",
                   "sh",
                   "-c",
@@ -1708,7 +1708,7 @@ export function workspaceCommand(app: DxBase) {
                   "-n",
                   ns,
                   "-c",
-                  "workspace",
+                  "workbench",
                   "--",
                   "sh",
                   "-c",
@@ -1733,7 +1733,7 @@ export function workspaceCommand(app: DxBase) {
                   "-n",
                   ns,
                   "-c",
-                  "workspace",
+                  "workbench",
                   "--",
                   "sh",
                   "-c",
@@ -1759,7 +1759,7 @@ export function workspaceCommand(app: DxBase) {
                   "-n",
                   ns,
                   "-c",
-                  "workspace",
+                  "workbench",
                   "--",
                   "sh",
                   "-c",
@@ -1795,13 +1795,13 @@ export function workspaceCommand(app: DxBase) {
       // --- open ---
       .command("open", (c) =>
         c
-          .meta({ description: "Open workspace in browser" })
+          .meta({ description: "Open workbench in browser" })
           .args([
             {
               name: "id",
               type: "string",
               required: true,
-              description: "Workspace ID or slug",
+              description: "Workbench ID or slug",
             },
           ])
           .flags({
@@ -1824,7 +1824,7 @@ export function workspaceCommand(app: DxBase) {
               : (spc.webTerminalUrl ?? d?.webTerminalUrl)
             if (!url) {
               console.error(
-                `No ${flags.ide ? "IDE" : "terminal"} URL available for workspace ${args.id}.`
+                `No ${flags.ide ? "IDE" : "terminal"} URL available for workbench ${args.id}.`
               )
               process.exitCode = 1
               return

@@ -18,7 +18,7 @@ import type {
   PreviewSpec,
   SiteSpec,
   SystemDeploymentSpec,
-  WorkspaceSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type {

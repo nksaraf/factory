@@ -4,7 +4,7 @@ import React from "react"
 import { useSelection } from "../hooks/use-selection.js"
 
 interface DetailPaneProps {
-  workspaces: Record<string, unknown>[]
+  workbenches: Record<string, unknown>[]
   realms: Record<string, unknown>[]
   estates: Record<string, unknown>[]
 }
@@ -54,7 +54,7 @@ function str(
   return typeof v === "string" ? v : fallback
 }
 
-export function DetailPane({ workspaces, realms, estates }: DetailPaneProps) {
+export function DetailPane({ workbenches, realms, estates }: DetailPaneProps) {
   const { selection } = useSelection()
 
   if (!selection) {
@@ -67,10 +67,10 @@ export function DetailPane({ workspaces, realms, estates }: DetailPaneProps) {
 
   let fields: [string, string, string?][] = [] // [label, value, color?]
 
-  if (selection.type === "workspace") {
-    const sb = workspaces.find(
+  if (selection.type === "workbench") {
+    const sb = workbenches.find(
       (s) =>
-        s.workspaceId === selection.id ||
+        s.workbenchId === selection.id ||
         s.id === selection.id ||
         s.slug === selection.id ||
         s.name === selection.name
@@ -165,7 +165,7 @@ export function DetailPane({ workspaces, realms, estates }: DetailPaneProps) {
         </Box>
       ))}
 
-      {selection.type === "workspace" && (
+      {selection.type === "workbench" && (
         <Box flexDirection="column" marginTop={1} paddingX={1}>
           <Box borderStyle="single" paddingX={1} flexDirection="row" gap={2}>
             <Text>[l] logs</Text>

@@ -8,7 +8,7 @@ import {
   styleSuccess,
   styleWarn,
 } from "../cli-style.js"
-import { exitWithError, exitWithDxError } from "../lib/cli-exit.js"
+import { exitWithDxError, exitWithError } from "../lib/cli-exit.js"
 import { DxError } from "../lib/dx-error.js"
 import { type ColumnOpt, printTable } from "../output.js"
 import { toDxFlags } from "./dx-flags.js"
@@ -30,9 +30,11 @@ function formatApiError(error: unknown): string {
   if (status === 404) return "Resource not found."
   if (status === 401 || status === 403)
     return "Authentication failed. Run 'dx factory login' to sign in."
-  if (status === 409) return "Conflict — the resource already exists or was modified."
+  if (status === 409)
+    return "Conflict — the resource already exists or was modified."
   if (status === 429) return "Rate limit exceeded. Please wait and try again."
-  if (status && status >= 500) return `Server error (${status}). The API may be experiencing issues.`
+  if (status && status >= 500)
+    return `Server error (${status}). The API may be experiencing issues.`
 
   const raw = (err.value ?? err.message ?? err.error ?? "") as string
 
@@ -44,7 +46,10 @@ function formatApiError(error: unknown): string {
     const detail = preMatch?.[1]?.trim()
 
     if (detail) {
-      const firstLine = detail.split("\n")[0].replace(/^Error:\s*/, "").trim()
+      const firstLine = detail
+        .split("\n")[0]
+        .replace(/^Error:\s*/, "")
+        .trim()
       const summary = title ? `${title}: ${firstLine}` : firstLine
       return status ? `[${status}] ${summary}` : summary
     }
@@ -57,7 +62,9 @@ function formatApiError(error: unknown): string {
       const parsed = JSON.parse(raw)
       const msg = parsed.error_msg ?? parsed.error ?? parsed.message
       if (msg) return status ? `[${status}] ${msg}` : msg
-    } catch { /* not JSON */ }
+    } catch {
+      /* not JSON */
+    }
   }
 
   if (err.error_msg)
@@ -65,7 +72,9 @@ function formatApiError(error: unknown): string {
 
   const json = JSON.stringify(error)
   if (json.length > 200)
-    return status ? `[${status}] ${json.slice(0, 200)}...` : `${json.slice(0, 200)}...`
+    return status
+      ? `[${status}] ${json.slice(0, 200)}...`
+      : `${json.slice(0, 200)}...`
   return status ? `[${status}] ${json}` : json
 }
 
@@ -79,28 +88,40 @@ export async function apiCall<T>(
     if (res.error) {
       const err = res.error as Record<string, unknown>
       const status = (err.status ?? err.statusCode) as number | undefined
-      exitWithDxError(f, new DxError(formatApiError(res.error), {
-        operation: "API call",
-        metadata: { ...(status ? { status } : {}), error: res.error },
-        suggestions: [
-          { action: "dx factory health", description: "Check API server status" },
-        ],
-        code: "API_ERROR",
-      }))
+      exitWithDxError(
+        f,
+        new DxError(formatApiError(res.error), {
+          operation: "API call",
+          metadata: { ...(status ? { status } : {}), error: res.error },
+          suggestions: [
+            {
+              action: "dx factory health",
+              description: "Check API server status",
+            },
+          ],
+          code: "API_ERROR",
+        })
+      )
     }
     return res.data
   } catch (err) {
     if (err instanceof DxError) exitWithDxError(f, err)
     if (err instanceof TypeError && err.message.includes("fetch")) {
-      exitWithDxError(f, new DxError("Cannot connect to the API server. Is it running?", {
-        operation: "API call",
-        code: "API_UNREACHABLE",
-        suggestions: [
-          { action: "dx status", description: "Check if the environment is healthy" },
-          { action: "dx up", description: "Start local infrastructure" },
-        ],
-        cause: err,
-      }))
+      exitWithDxError(
+        f,
+        new DxError("Cannot connect to the API server. Is it running?", {
+          operation: "API call",
+          code: "API_UNREACHABLE",
+          suggestions: [
+            {
+              action: "dx status",
+              description: "Check if the environment is healthy",
+            },
+            { action: "dx up", description: "Start local infrastructure" },
+          ],
+          cause: err,
+        })
+      )
     }
     const msg = err instanceof Error ? err.message : String(err)
     exitWithError(f, msg)
@@ -124,7 +145,16 @@ export function jsonOut(flags: Record<string, unknown>, data: unknown) {
 // Status coloring
 // ---------------------------------------------------------------------------
 
+/** Safely extract a status string from a value that may be a string, object, or nullish */
+export function resolveStatus(...candidates: unknown[]): string {
+  for (const v of candidates) {
+    if (typeof v === "string" && v) return v
+  }
+  return ""
+}
+
 export function colorStatus(status: string): string {
+  if (!status || status === "[object Object]") return styleMuted("●")
   switch (status) {
     case "active":
     case "running":

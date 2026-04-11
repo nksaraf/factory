@@ -8,6 +8,7 @@ import {
   actionResult,
   apiCall,
   colorStatus,
+  resolveStatus,
   styleBold,
   styleMuted,
   styleSuccess,
@@ -31,7 +32,7 @@ export function routeCommand(app: DxBase) {
       .sub("route")
       .meta({ description: "Gateway route management" })
 
-      // dx route list [--kind workspace] [--site my-site]
+      // dx route list [--kind workbench] [--site my-site]
       .command("list", (c) =>
         c
           .meta({ description: "List routes" })
@@ -39,7 +40,7 @@ export function routeCommand(app: DxBase) {
             kind: {
               type: "string",
               description:
-                "Filter by kind (workspace, tunnel, preview, ingress, custom_domain)",
+                "Filter by kind (workbench, tunnel, preview, ingress, custom_domain)",
             },
             site: { type: "string", description: "Filter by site ID" },
             status: {
@@ -96,7 +97,7 @@ export function routeCommand(app: DxBase) {
               styleBold(String(r.domain)),
               String(r.targetService ?? ""),
               String(r.targetPort ?? "-"),
-              colorStatus(String(r.status ?? "")),
+              colorStatus(resolveStatus(r.status)),
             ])
             console.log(
               printTable(
@@ -125,7 +126,7 @@ export function routeCommand(app: DxBase) {
             port: { type: "number", description: "Target port" },
             kind: {
               type: "string",
-              description: "Route kind (ingress, workspace, etc.)",
+              description: "Route kind (ingress, workbench, etc.)",
             },
             site: { type: "string", description: "Site ID" },
             path: { type: "string", description: "Path prefix" },

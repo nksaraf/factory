@@ -1,15 +1,14 @@
 /**
  * Daemon process management — start, stop, health-check the local factory.
  */
-
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs"
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 
+import { DxError } from "../lib/dx-error.js"
+import { log } from "../lib/logger.js"
 import { capture } from "../lib/subprocess.js"
 import { ensureLocalCluster } from "./ensure-cluster.js"
-import { log } from "../lib/logger.js"
-import { DxError } from "../lib/dx-error.js"
 
 const PID_FILE = join(homedir(), ".config", "dx", "daemon.pid")
 const LOG_FILE = join(homedir(), ".config", "dx", "daemon.log")
@@ -75,7 +74,9 @@ export async function startLocalDaemon(kubeconfigPath?: string): Promise<void> {
       DX_GATEWAY_DOMAIN: process.env.DX_GATEWAY_DOMAIN ?? "localhost",
       SANDBOX_STORAGE_CLASS: process.env.SANDBOX_STORAGE_CLASS ?? "local-path",
       // Pass migrations dir explicitly so it works regardless of __dirname resolution
-      FACTORY_MIGRATIONS_DIR: process.env.FACTORY_MIGRATIONS_DIR ?? resolve(process.cwd(), "api/drizzle"),
+      FACTORY_MIGRATIONS_DIR:
+        process.env.FACTORY_MIGRATIONS_DIR ??
+        resolve(process.cwd(), "api/drizzle"),
       ...(kubeconfigPath ? { KUBECONFIG: kubeconfigPath } : {}),
     },
   })
@@ -104,34 +105,39 @@ export async function stopLocalDaemon(): Promise<void> {
  * waits for the health endpoint to respond.
  *
  * Also ensures the k3d cluster is healthy before starting the daemon,
- * so workspace provisioning works out of the box.
+ * so workbench provisioning works out of the box.
  */
 export async function ensureLocalDaemon(): Promise<void> {
   if (await isLocalDaemonRunning()) return
 
   // Ensure k3d cluster is healthy before starting daemon
-  log.debug("Ensuring local k3d cluster is ready...");
-  let kubeconfigPath: string | undefined;
+  log.debug("Ensuring local k3d cluster is ready...")
+  let kubeconfigPath: string | undefined
   try {
-    kubeconfigPath = await ensureLocalCluster();
-    log.debug(`Cluster ready, kubeconfig: ${kubeconfigPath}`);
+    kubeconfigPath = await ensureLocalCluster()
+    log.debug(`Cluster ready, kubeconfig: ${kubeconfigPath}`)
   } catch (err) {
     // Wrap if not already a DxError
-    if (err instanceof DxError) throw err;
+    if (err instanceof DxError) throw err
     throw DxError.wrap(err, {
       operation: "ensure local cluster for daemon",
       code: "CLUSTER_SETUP_FAILED",
       suggestions: [
         { action: "docker info", description: "Check if Docker is running" },
-        { action: "dx doctor --category local", description: "Run local diagnostics" },
+        {
+          action: "dx doctor --category local",
+          description: "Run local diagnostics",
+        },
       ],
-    });
+    })
   }
 
   // Clean up stale PID
   const stalePid = readPid()
   if (stalePid && !isProcessAlive(stalePid)) {
-    try { unlinkSync(PID_FILE) } catch {}
+    try {
+      unlinkSync(PID_FILE)
+    } catch {}
   }
 
   await startLocalDaemon(kubeconfigPath)
@@ -153,9 +159,15 @@ export async function ensureLocalDaemon(): Promise<void> {
       code: "DAEMON_HEALTH_TIMEOUT",
       metadata: { logFile: LOG_FILE, healthUrl: HEALTH_URL },
       suggestions: [
-        { action: `cat ${LOG_FILE}`, description: "Check daemon logs for errors" },
-        { action: "dx doctor --category local", description: "Run local diagnostics" },
+        {
+          action: `cat ${LOG_FILE}`,
+          description: "Check daemon logs for errors",
+        },
+        {
+          action: "dx doctor --category local",
+          description: "Run local diagnostics",
+        },
       ],
-    },
+    }
   )
 }

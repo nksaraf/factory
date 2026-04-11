@@ -7,7 +7,7 @@ export interface TreeNode {
   id: string
   name: string
   slug?: string
-  type: "estate" | "realm" | "workspace"
+  type: "estate" | "realm" | "workbench"
   status?: string
   children?: TreeNode[]
   estateId?: string

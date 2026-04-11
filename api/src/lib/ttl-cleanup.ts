@@ -7,7 +7,7 @@ import { and, lt } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { operationRun } from "../db/schema/ops"
-import { cleanupExpiredWorkspaces } from "../modules/fleet/service"
+import { cleanupExpiredWorkbenches } from "../modules/fleet/service"
 import {
   cleanupExpiredRoutes,
   cleanupStaleTunnels,
@@ -29,7 +29,7 @@ export function startTtlCleanupLoop(
     name: "ttl-cleanup",
     intervalMs: opts?.intervalMs ?? 60_000,
     async execute(log) {
-      const { cleaned } = await cleanupExpiredWorkspaces(db)
+      const { cleaned } = await cleanupExpiredWorkbenches(db)
       if (cleaned > 0)
         log.info({ count: cleaned }, "cleaned up expired system deployments")
 

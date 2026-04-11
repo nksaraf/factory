@@ -67,8 +67,8 @@ import { upgradeCommand } from "./commands/upgrade.js"
 import { varCommand } from "./commands/var.js"
 import { whoamiCommand } from "./commands/whoami.js"
 import { workCommand } from "./commands/work.js"
+import { workbenchCommand } from "./commands/workbench.js"
 import { workflowCommand } from "./commands/workflow.js"
-import { workspaceCommand } from "./commands/workspace.js"
 import type { DxBase } from "./dx-root.js"
 
 /**
@@ -121,7 +121,7 @@ export function registerCommands(app: DxBase): DxBase {
       .command(infraCommand(app))
       .command(clusterCommand(app))
       .command(kubeCommand(app))
-      .command(workspaceCommand(app))
+      .command(workbenchCommand(app))
       .command(openCommand(app))
       .command(siteCommand(app))
 

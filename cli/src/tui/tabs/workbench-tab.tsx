@@ -7,16 +7,16 @@ import {
   type DetailField,
   timeAgo,
 } from "../components/data-table.js"
-import { usePreviews, useWorkspaces } from "../hooks/use-infra-data.js"
+import { usePreviews, useWorkbenches } from "../hooks/use-infra-data.js"
 import { useSelection } from "../hooks/use-selection.js"
 
-interface WorkspaceTabProps {
+interface WorkbenchTabProps {
   focused: boolean
 }
 
-type SubView = "workspaces" | "previews"
+type SubView = "workbenches" | "previews"
 
-const WORKSPACE_COLUMNS: Column[] = [
+const WORKBENCH_COLUMNS: Column[] = [
   { header: "Name", key: "name", width: 28, slugKey: "slug" },
   { header: "Status", key: "status", width: 14 },
   {
@@ -70,32 +70,32 @@ const PREVIEW_COLUMNS: Column[] = [
   },
 ]
 
-export function WorkspaceTab({ focused }: WorkspaceTabProps) {
-  const [subView, setSubView] = useState<SubView>("workspaces")
-  const workspacesQuery = useWorkspaces()
+export function WorkbenchTab({ focused }: WorkbenchTabProps) {
+  const [subView, setSubView] = useState<SubView>("workbenches")
+  const workbenchesQuery = useWorkbenches()
   const previewsQuery = usePreviews()
   const { setSelection } = useSelection()
 
   useInput(
     (input) => {
       if (!focused) return
-      if (input === "w") setSubView("workspaces")
+      if (input === "w") setSubView("workbenches")
       else if (input === "p") setSubView("previews")
     },
     { isActive: focused }
   )
 
-  const workspaces = workspacesQuery.data ?? []
+  const workbenches = workbenchesQuery.data ?? []
   const previews = previewsQuery.data ?? []
 
   return (
     <Box flexGrow={1} flexDirection="column">
       <Box paddingX={1} gap={2}>
         <Text
-          bold={subView === "workspaces"}
-          color={subView === "workspaces" ? "cyan" : "gray"}
+          bold={subView === "workbenches"}
+          color={subView === "workbenches" ? "cyan" : "gray"}
         >
-          [w] Workspaces ({workspaces.length})
+          [w] Workbenches ({workbenches.length})
         </Text>
         <Text
           bold={subView === "previews"}
@@ -105,19 +105,19 @@ export function WorkspaceTab({ focused }: WorkspaceTabProps) {
         </Text>
       </Box>
 
-      {subView === "workspaces" && (
+      {subView === "workbenches" && (
         <DataTable
-          columns={WORKSPACE_COLUMNS}
-          rows={workspaces}
+          columns={WORKBENCH_COLUMNS}
+          rows={workbenches}
           focused={focused}
           onSelect={(row) => {
             setSelection({
-              type: "workspace",
-              id: String(row.workspaceId ?? row.id ?? ""),
+              type: "workbench",
+              id: String(row.workbenchId ?? row.id ?? ""),
               name: String(row.name ?? row.slug ?? ""),
             })
           }}
-          emptyMessage="No workspaces. Create one with: dx workspace create <name>"
+          emptyMessage="No workbenches. Create one with: dx workbench create <name>"
           detailFields={[
             { label: "Name", key: "name" },
             { label: "Slug", key: "slug" },

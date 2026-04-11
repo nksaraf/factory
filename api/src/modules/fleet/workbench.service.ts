@@ -1,146 +1,327 @@
-/**
- * Fleet workbench service — registration, pings, and queries.
- * v2: uses ops.workbench with spec JSONB.
- */
+import { and, desc, eq } from "drizzle-orm"
 
-import { eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { workbench } from "../../db/schema/ops";
-import { allocateSlug } from "../../lib/slug";
-import type { WorkbenchSpec } from "@smp/factory-shared/schemas/ops";
+import type { Database } from "../../db/connection"
+import { realm } from "../../db/schema/infra-v2"
+import { workbench as workbenchTable } from "../../db/schema/ops"
+import { principal } from "../../db/schema/org-v2"
+import { allocateSlug } from "../../lib/slug"
+import { removeSystemDeploymentRoutes } from "../infra/gateway.service"
+import { parseTtlToMs } from "./utils"
 
-export class WorkbenchService {
-  constructor(private db: Database) {}
+// ---------------------------------------------------------------------------
+// Workbench CRUD — ops schema
+// ---------------------------------------------------------------------------
 
-  /** Register or update a workbench (upsert on slug derived from workbenchId). */
-  async register(data: {
-    workbenchId: string;
-    type: string;
-    hostname: string;
-    ips: string[];
-    os: string;
-    arch: string;
-    dxVersion: string;
-    principalId?: string;
-  }) {
-    const now = new Date();
-
-    // Check if workbench already exists by matching workbenchId in spec
-    const existing = await this.db
-      .select()
-      .from(workbench)
-      .where(eq(workbench.slug, data.workbenchId))
-      .limit(1);
-
-    const specData: Partial<WorkbenchSpec> & Pick<WorkbenchSpec, "machineId" | "hostname" | "os"> = {
-      machineId: data.workbenchId,
-      hostname: data.hostname,
-      os: data.os,
-      arch: data.arch,
-      lastSeenAt: now,
-    };
-
-    if (existing[0]) {
-      const oldSpec = (existing[0].spec ?? {}) as WorkbenchSpec;
-      const [row] = await this.db
-        .update(workbench)
-        .set({
-          type: data.type,
-          spec: { ...oldSpec, ...specData },
-          updatedAt: now,
-        })
-        .where(eq(workbench.id, existing[0].id))
-        .returning();
-      return row;
-    }
-
-    const slug = await allocateSlug({
-      baseLabel: data.workbenchId,
-      explicitSlug: data.workbenchId,
-      isTaken: async (s) => {
-        const [r] = await this.db
-          .select({ id: workbench.id })
-          .from(workbench)
-          .where(eq(workbench.slug, s))
-          .limit(1);
-        return !!r;
-      },
-    });
-
-    const [row] = await this.db
-      .insert(workbench)
-      .values({
-        slug,
-        name: data.hostname || data.workbenchId,
-        type: data.type,
-        spec: specData as WorkbenchSpec,
-      })
-      .returning();
-    return row;
-  }
-
-  /** Update ping timestamp and last command. */
-  async ping(workbenchId: string, data: { command: string; dxVersion: string }) {
-    const now = new Date();
-    const [existing] = await this.db
-      .select()
-      .from(workbench)
-      .where(eq(workbench.slug, workbenchId))
-      .limit(1);
-    if (!existing) return null;
-
-    const spec = (existing.spec ?? {}) as WorkbenchSpec;
-    const [row] = await this.db
-      .update(workbench)
-      .set({
-        spec: {
-          ...spec,
-          lastSeenAt: now,
-        },
-        updatedAt: now,
-      })
-      .where(eq(workbench.id, existing.id))
-      .returning();
-    return row ?? null;
-  }
-
-  /** List workbenches with optional type filter and derived status. */
-  async list(filters?: { type?: string }) {
-    let query = this.db.select().from(workbench);
-
-    if (filters?.type) {
-      query = query.where(eq(workbench.type, filters.type)) as typeof query;
-    }
-
-    const rows = await query;
-
-    return rows.map((row) => {
-      const spec = (row.spec ?? {}) as WorkbenchSpec;
-      return {
-        ...row,
-        status: deriveStatus(spec.lastSeenAt ? new Date(spec.lastSeenAt) : null),
-      };
-    });
-  }
-
-  /** Get a single workbench by ID or slug. */
-  async get(workbenchId: string) {
-    const [row] = await this.db
-      .select()
-      .from(workbench)
-      .where(eq(workbench.slug, workbenchId));
-
-    if (!row) return null;
-    const spec = (row.spec ?? {}) as WorkbenchSpec;
-    return { ...row, status: deriveStatus(spec.lastSeenAt ? new Date(spec.lastSeenAt) : null) };
-  }
+const DEFAULT_TTLS: Record<string, string> = {
+  pr: "48h",
+  agent: "2h",
+  manual: "24h",
+  ci: "4h",
 }
 
-/** Derive workbench status from last ping timestamp. */
-function deriveStatus(lastPingAt: Date | null): "online" | "stale" | "offline" | "never" {
-  if (!lastPingAt) return "never";
-  const ageMs = Date.now() - lastPingAt.getTime();
-  if (ageMs < 10 * 60 * 1000) return "online";   // < 10 min
-  if (ageMs < 60 * 60 * 1000) return "stale";     // < 1 hr
-  return "offline";
+function generateWorkbenchName(): string {
+  return `workbench-${Math.random().toString(36).substring(2, 8)}`
+}
+
+/**
+ * Resolve the default realm (k8s cluster) for a workbench.
+ * Priority: isDefault=true > status=ready > any k8s-cluster.
+ * Returns null if no realms are registered.
+ */
+export async function resolveDefaultRealm(
+  db: Database
+): Promise<string | null> {
+  const allRealms = await db
+    .select({ id: realm.id, spec: realm.spec })
+    .from(realm)
+    .where(eq(realm.type, "k8s-cluster"))
+
+  const defaultRealm =
+    allRealms.find((r) => (r.spec as any)?.isDefault === true) ??
+    allRealms.find((r) => (r.spec as any)?.status === "ready") ??
+    allRealms[0]
+
+  return defaultRealm?.id ?? null
+}
+
+export async function listWorkbenches(
+  db: Database,
+  opts?: {
+    ownerId?: string
+    type?: string
+    all?: boolean
+    createdBy?: string
+    trigger?: string
+  }
+) {
+  const conditions = []
+  if (opts?.ownerId) conditions.push(eq(workbenchTable.ownerId, opts.ownerId))
+  if (opts?.type) conditions.push(eq(workbenchTable.type, opts.type))
+
+  const base = db.select().from(workbenchTable)
+  const rows =
+    conditions.length > 0
+      ? await base
+          .where(and(...conditions))
+          .orderBy(desc(workbenchTable.createdAt))
+      : await base.orderBy(desc(workbenchTable.createdAt))
+
+  let filtered = rows
+  if (opts?.createdBy) {
+    filtered = filtered.filter(
+      (r) => (r.spec as any)?.createdBy === opts.createdBy
+    )
+  }
+  if (opts?.trigger) {
+    filtered = filtered.filter((r) => (r.spec as any)?.trigger === opts.trigger)
+  }
+  if (!opts?.all) {
+    filtered = filtered.filter(
+      (r) =>
+        !["destroyed", "destroying"].includes((r.spec as any)?.lifecycle ?? "")
+    )
+  }
+
+  return { data: filtered, total: filtered.length }
+}
+
+/**
+ * Create a workbench. Inserts a DB row with proper defaults and returns it.
+ * The reconciler handles actual provisioning (namespace, routes, etc).
+ */
+export async function createWorkbench(
+  db: Database,
+  input: {
+    name?: string
+    ownerId?: string
+    createdBy?: string
+    type?: string
+    ttl?: string
+    trigger?: string
+    labels?: Record<string, unknown>
+    dependencies?: Array<{
+      name: string
+      image: string
+      port: number
+      env?: Record<string, unknown>
+    }>
+    publishPorts?: number[]
+    snapshotId?: string
+    realmId?: string
+  }
+) {
+  const name = input.name ?? generateWorkbenchName()
+  const trigger = input.trigger ?? "manual"
+  const ttl = input.ttl ?? DEFAULT_TTLS[trigger] ?? "24h"
+  const type = input.type ?? "developer"
+
+  const slug = await allocateSlug({
+    baseLabel: name,
+    isTaken: async (s) => {
+      const [existing] = await db
+        .select({ id: workbenchTable.id })
+        .from(workbenchTable)
+        .where(eq(workbenchTable.slug, s))
+        .limit(1)
+      return !!existing
+    },
+  })
+
+  const expiresAt = new Date(Date.now() + parseTtlToMs(ttl))
+
+  // Auto-assign default realm if none provided
+  let realmId: string | null = input.realmId ?? null
+  if (!realmId) {
+    realmId = await resolveDefaultRealm(db)
+  }
+  if (!realmId) {
+    throw new Error(
+      "No cluster registered. Run `dx setup --role factory` to bootstrap a cluster."
+    )
+  }
+
+  // Auto-create principal if it doesn't exist (local dev convenience)
+  if (input.ownerId) {
+    const [existingPrincipal] = await db
+      .select({ id: principal.id })
+      .from(principal)
+      .where(eq(principal.id, input.ownerId))
+      .limit(1)
+    if (!existingPrincipal) {
+      await db
+        .insert(principal)
+        .values({
+          id: input.ownerId,
+          slug: input.ownerId,
+          name: input.ownerId,
+          type: "human",
+          spec: { status: "active" },
+        } as any)
+        .onConflictDoNothing()
+    }
+  }
+
+  const [ws] = await db
+    .insert(workbenchTable)
+    .values({
+      name,
+      slug,
+      type,
+      realmId,
+      ownerId: input.ownerId ?? null,
+      spec: {
+        trigger,
+        createdBy: input.createdBy ?? input.ownerId ?? "system",
+        lifecycle: "provisioning",
+        realmType: "container",
+        ttl,
+        expiresAt: expiresAt.toISOString(),
+        labels: input.labels ?? {},
+        dependencies: input.dependencies ?? [],
+      } as any,
+    })
+    .returning()
+
+  return ws
+}
+
+export async function destroyWorkbench(db: Database, id: string) {
+  await removeSystemDeploymentRoutes(db, id)
+
+  const [existing] = await db
+    .select()
+    .from(workbenchTable)
+    .where(eq(workbenchTable.id, id))
+    .limit(1)
+
+  if (!existing) throw new Error(`Workbench not found: ${id}`)
+
+  const [updated] = await db
+    .update(workbenchTable)
+    .set({
+      spec: {
+        ...(existing.spec as any),
+        lifecycle: "destroying",
+      } as any,
+    })
+    .where(eq(workbenchTable.id, id))
+    .returning()
+
+  return updated
+}
+
+export async function cleanupExpiredWorkbenches(db: Database) {
+  const all = await db.select().from(workbenchTable)
+  const now = new Date()
+
+  const expired = all.filter((w) => {
+    const spec = w.spec as any
+    if (spec?.lifecycle !== "active") return false
+    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null
+    return ea && ea < now
+  })
+
+  let cleaned = 0
+  for (const ws of expired) {
+    await destroyWorkbench(db, ws.id)
+    cleaned++
+  }
+
+  return { cleaned }
+}
+
+// ---------------------------------------------------------------------------
+// Resize
+// ---------------------------------------------------------------------------
+
+export async function resizeWorkbench(
+  db: Database,
+  workbenchId: string,
+  resize: { cpu?: string; memory?: string; storageGb?: number }
+) {
+  const [existing] = await db
+    .select()
+    .from(workbenchTable)
+    .where(eq(workbenchTable.id, workbenchId))
+    .limit(1)
+  if (!existing) throw new Error(`Workbench not found: ${workbenchId}`)
+
+  const spec = (existing.spec ?? {}) as Record<string, any>
+  const [updated] = await db
+    .update(workbenchTable)
+    .set({
+      spec: {
+        ...spec,
+        ...(resize.cpu !== undefined ? { cpu: resize.cpu } : {}),
+        ...(resize.memory !== undefined ? { memory: resize.memory } : {}),
+        ...(resize.storageGb !== undefined
+          ? { storageGb: resize.storageGb }
+          : {}),
+      } as any,
+      updatedAt: new Date(),
+    })
+    .where(eq(workbenchTable.id, workbenchId))
+    .returning()
+  return updated!
+}
+
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
+export async function updateWorkbenchHealth(
+  db: Database,
+  workbenchId: string,
+  healthStatus: string,
+  statusMessage?: string
+) {
+  const [existing] = await db
+    .select()
+    .from(workbenchTable)
+    .where(eq(workbenchTable.id, workbenchId))
+    .limit(1)
+  if (!existing) return
+
+  const spec = (existing.spec ?? {}) as Record<string, any>
+  await db
+    .update(workbenchTable)
+    .set({
+      spec: {
+        ...spec,
+        healthStatus,
+        healthCheckedAt: new Date().toISOString(),
+        ...(statusMessage !== undefined ? { statusMessage } : {}),
+      } as any,
+      updatedAt: new Date(),
+    })
+    .where(eq(workbenchTable.id, workbenchId))
+}
+
+// ---------------------------------------------------------------------------
+// TTL / Expiry
+// ---------------------------------------------------------------------------
+
+export async function expireStale(db: Database): Promise<number> {
+  const now = new Date()
+  const all = await db.select().from(workbenchTable)
+
+  const expired = all.filter((w) => {
+    const spec = w.spec as any
+    if (spec?.lifecycle !== "active") return false
+    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null
+    return ea != null && ea < now
+  })
+
+  for (const ws of expired) {
+    const spec = (ws.spec ?? {}) as Record<string, any>
+    await db
+      .update(workbenchTable)
+      .set({
+        spec: { ...spec, lifecycle: "destroying" } as any,
+        updatedAt: now,
+      })
+      .where(eq(workbenchTable.id, ws.id))
+  }
+
+  return expired.length
 }

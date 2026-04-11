@@ -18,7 +18,7 @@ type PipelineRunSpecStored = Omit<
   triggerRef?: string
   triggerActor?: string
   workflowFile?: string
-  workspaceId?: string
+  workbenchId?: string
   errorMessage?: string
   startedAt?: string
   completedAt?: string
@@ -59,14 +59,14 @@ export interface CreatePipelineRunInput {
   triggerRef: string
   commitSha: string
   workflowFile?: string
-  workspaceId?: string
+  workbenchId?: string
   webhookEventId?: string
   triggerActor?: string
 }
 
 export interface UpdatePipelineRunInput {
   status?: string
-  workspaceId?: string
+  workbenchId?: string
   errorMessage?: string
   startedAt?: Date
   completedAt?: Date
@@ -114,7 +114,7 @@ export async function createPipelineRun(
     triggerRef: input.triggerRef,
     triggerActor: input.triggerActor,
     workflowFile: input.workflowFile,
-    workspaceId: input.workspaceId,
+    workbenchId: input.workbenchId,
   }
 
   const [row] = await db
@@ -182,8 +182,8 @@ export async function updatePipelineRun(
   // merge updates into spec JSONB for non-column fields
   const newSpec: PipelineRunSpecStored = {
     ...(existing.spec as PipelineRunSpecStored),
-    ...(input.workspaceId !== undefined
-      ? { workspaceId: input.workspaceId }
+    ...(input.workbenchId !== undefined
+      ? { workbenchId: input.workbenchId }
       : {}),
     ...(input.errorMessage !== undefined
       ? { errorMessage: input.errorMessage }

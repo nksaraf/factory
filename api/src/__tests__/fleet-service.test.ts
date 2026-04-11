@@ -6,7 +6,7 @@ import type {
   RolloutSpec,
   SiteSpec,
   SystemDeploymentSpec,
-  WorkspaceSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
@@ -22,7 +22,7 @@ import {
   rollout,
   site,
   systemDeployment,
-  workspace,
+  workbench,
 } from "../db/schema/ops"
 import { principal } from "../db/schema/org-v2"
 // v2 schema imports — direct DB operations instead of v1 service calls
@@ -48,7 +48,7 @@ describe("Fleet Service (v2)", () => {
     return sys
   }
 
-  // Helper: create a principal (for workspace ownerId FK)
+  // Helper: create a principal (for workbench ownerId FK)
   async function createPrincipal(id = "user_1") {
     // Check if already seeded by seedTestParents
     const existing = await db
@@ -459,11 +459,11 @@ describe("Fleet Service (v2)", () => {
     })
   })
 
-  // --- Workspaces ---
-  describe("workspaces", () => {
-    it("creates workspace", async () => {
+  // --- Workbenches ---
+  describe("workbenches", () => {
+    it("creates workbench", async () => {
       await createPrincipal()
-      const spec: WorkspaceSpec = {
+      const spec: WorkbenchSpec = {
         realmType: "container",
         devcontainerConfig: {},
         repos: [],
@@ -473,24 +473,24 @@ describe("Fleet Service (v2)", () => {
         setupProgress: {},
         lifecycle: "provisioning",
       }
-      const [wksp] = await db
-        .insert(workspace)
+      const [wb] = await db
+        .insert(workbench)
         .values({
-          name: "my-workspace",
-          slug: "my-workspace",
+          name: "my-workbench",
+          slug: "my-workbench",
           type: "developer",
           ownerId: "user_1",
           spec,
         })
         .returning()
 
-      expect(wksp.type).toBe("developer")
-      expect(wksp.name).toBe("my-workspace")
+      expect(wb.type).toBe("developer")
+      expect(wb.name).toBe("my-workbench")
     })
 
-    it("creates workspace with custom name", async () => {
+    it("creates workbench with custom name", async () => {
       await createPrincipal()
-      const spec: WorkspaceSpec = {
+      const spec: WorkbenchSpec = {
         realmType: "container",
         devcontainerConfig: {},
         repos: [],
@@ -500,23 +500,23 @@ describe("Fleet Service (v2)", () => {
         setupProgress: {},
         lifecycle: "provisioning",
       }
-      const [wksp] = await db
-        .insert(workspace)
+      const [wb] = await db
+        .insert(workbench)
         .values({
-          name: "custom-workspace",
-          slug: "custom-workspace",
+          name: "custom-workbench",
+          slug: "custom-workbench",
           type: "developer",
           ownerId: "user_1",
           spec,
         })
         .returning()
 
-      expect(wksp.name).toBe("custom-workspace")
+      expect(wb.name).toBe("custom-workbench")
     })
 
-    it("lists workspaces excluding soft-deleted", async () => {
+    it("lists workbenches excluding soft-deleted", async () => {
       await createPrincipal()
-      const spec: WorkspaceSpec = {
+      const spec: WorkbenchSpec = {
         realmType: "container",
         devcontainerConfig: {},
         repos: [],
@@ -526,11 +526,11 @@ describe("Fleet Service (v2)", () => {
         setupProgress: {},
         lifecycle: "provisioning",
       }
-      const [wksp] = await db
-        .insert(workspace)
+      const [wb] = await db
+        .insert(workbench)
         .values({
-          name: "ws-1",
-          slug: "ws-1",
+          name: "wb-1",
+          slug: "wb-1",
           type: "developer",
           ownerId: "user_1",
           spec,
@@ -539,12 +539,12 @@ describe("Fleet Service (v2)", () => {
 
       // Soft-delete via validTo (bitemporal)
       await db
-        .update(workspace)
+        .update(workbench)
         .set({ validTo: new Date() })
-        .where(eq(workspace.id, wksp.id))
+        .where(eq(workbench.id, wb.id))
 
       // Active only (validTo is null)
-      const all = await db.select().from(workspace)
+      const all = await db.select().from(workbench)
       // Without bitemporal filter, we see all — the controller handles filtering
       // Here we just verify the insert/update works
       expect(all).toHaveLength(1)
@@ -553,7 +553,7 @@ describe("Fleet Service (v2)", () => {
     it("applies TTL via spec.expiresAt", async () => {
       await createPrincipal()
       const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString()
-      const spec: WorkspaceSpec = {
+      const spec: WorkbenchSpec = {
         realmType: "container",
         devcontainerConfig: {},
         repos: [],
@@ -564,19 +564,19 @@ describe("Fleet Service (v2)", () => {
         lifecycle: "provisioning",
         expiresAt: new Date(expiresAt),
       }
-      const [wksp] = await db
-        .insert(workspace)
+      const [wb] = await db
+        .insert(workbench)
         .values({
-          name: "ws-ttl",
-          slug: "ws-ttl",
+          name: "wb-ttl",
+          slug: "wb-ttl",
           type: "developer",
           ownerId: "user_1",
           spec,
         })
         .returning()
 
-      expect(wksp.spec.expiresAt).toBeTruthy()
-      const actual = new Date(wksp.spec.expiresAt!).getTime()
+      expect(wb.spec.expiresAt).toBeTruthy()
+      const actual = new Date(wb.spec.expiresAt!).getTime()
       const expected = Date.now() + 48 * 3600 * 1000
       expect(Math.abs(actual - expected)).toBeLessThan(5000)
     })

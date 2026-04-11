@@ -82,18 +82,21 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/sites/${name}/manifest`)
   }
 
-  // Fleet API methods — workspaces
-  async listWorkspaces(opts?: { all?: boolean }) {
+  // Fleet API methods — workbenches
+  async listWorkbenches(opts?: { all?: boolean }) {
     return this.request(
       "GET",
-      `/api/v1/factory/fleet/workspaces${opts?.all ? "?all=true" : ""}`
+      `/api/v1/factory/fleet/workbenches${opts?.all ? "?all=true" : ""}`
     )
   }
-  async createWorkspace(body: Record<string, unknown>) {
-    return this.request("POST", "/api/v1/factory/fleet/workspaces", body)
+  async createWorkbench(body: Record<string, unknown>) {
+    return this.request("POST", "/api/v1/factory/fleet/workbenches", body)
   }
-  async destroyWorkspace(id: string) {
-    return this.request("POST", `/api/v1/factory/fleet/workspaces/${id}/delete`)
+  async destroyWorkbench(id: string) {
+    return this.request(
+      "POST",
+      `/api/v1/factory/fleet/workbenches/${id}/delete`
+    )
   }
 
   // Fleet API methods — rollouts
@@ -115,20 +118,20 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/system-deployments/${id}`)
   }
 
-  // Fleet API methods — workspace snapshots
-  async listWorkspaceSnapshots() {
-    return this.request("GET", "/api/v1/factory/fleet/workspace-snapshots")
+  // Fleet API methods — workbench snapshots
+  async listWorkbenchSnapshots() {
+    return this.request("GET", "/api/v1/factory/fleet/workbench-snapshots")
   }
-  async getWorkspaceSnapshot(id: string) {
+  async getWorkbenchSnapshot(id: string) {
     return this.request(
       "GET",
-      `/api/v1/factory/fleet/workspace-snapshots/${id}`
+      `/api/v1/factory/fleet/workbench-snapshots/${id}`
     )
   }
-  async deleteWorkspaceSnapshot(id: string) {
+  async deleteWorkbenchSnapshot(id: string) {
     return this.request(
       "POST",
-      `/api/v1/factory/fleet/workspace-snapshots/${id}/delete`
+      `/api/v1/factory/fleet/workbench-snapshots/${id}/delete`
     )
   }
 

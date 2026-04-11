@@ -14,7 +14,7 @@ interface ApiListResponse<T = Record<string, unknown>> {
   data: T[]
 }
 
-const BASE = "http://localhost/api/v1/factory/fleet/workspaces"
+const BASE = "http://localhost/api/v1/factory/fleet/workbenches"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {
@@ -36,7 +36,7 @@ function del(url: string) {
   return new Request(url, { method: "DELETE" })
 }
 
-describe("Workspace Controller (v2)", () => {
+describe("Workbench Controller (v2)", () => {
   let app: TestApp
   let client: PGlite
 
@@ -54,11 +54,11 @@ describe("Workspace Controller (v2)", () => {
     await truncateAllTables(client)
   })
 
-  async function createWorkspace(overrides?: Record<string, unknown>) {
+  async function createWorkbench(overrides?: Record<string, unknown>) {
     const res = await app.handle(
       post(BASE, {
-        name: "test-workspace",
-        slug: "test-workspace",
+        name: "test-workbench",
+        slug: "test-workbench",
         type: "developer",
         ownerId: "user_1",
         spec: {
@@ -74,20 +74,20 @@ describe("Workspace Controller (v2)", () => {
   }
 
   // =========================================================================
-  // Workspace CRUD
+  // Workbench CRUD
   // =========================================================================
-  describe("Workspace CRUD", () => {
-    it("POST /workspaces creates workspace and returns id", async () => {
-      const res = await createWorkspace()
+  describe("Workbench CRUD", () => {
+    it("POST /workbenches creates workbench and returns id", async () => {
+      const res = await createWorkbench()
       expect(res.status).toBe(200)
       const { data } = (await res.json()) as ApiResponse
       expect(data.id).toBeTruthy()
-      expect(data.name).toBe("test-workspace")
+      expect(data.name).toBe("test-workbench")
     })
 
-    it("GET /workspaces lists workspaces", async () => {
-      await createWorkspace({ name: "ws-1", slug: "ws-1" })
-      await createWorkspace({ name: "ws-2", slug: "ws-2" })
+    it("GET /workbenches lists workbenches", async () => {
+      await createWorkbench({ name: "wb-1", slug: "wb-1" })
+      await createWorkbench({ name: "wb-2", slug: "wb-2" })
 
       const res = await app.handle(new Request(BASE))
       expect(res.status).toBe(200)
@@ -95,17 +95,17 @@ describe("Workspace Controller (v2)", () => {
       expect(data).toHaveLength(2)
     })
 
-    it("GET /workspaces/:slugOrId returns detail by slug", async () => {
-      await createWorkspace({ slug: "my-workspace" })
+    it("GET /workbenches/:slugOrId returns detail by slug", async () => {
+      await createWorkbench({ slug: "my-workbench" })
 
-      const res = await app.handle(new Request(`${BASE}/my-workspace`))
+      const res = await app.handle(new Request(`${BASE}/my-workbench`))
       expect(res.status).toBe(200)
       const { data } = (await res.json()) as ApiResponse<{ slug: string }>
-      expect(data.slug).toBe("my-workspace")
+      expect(data.slug).toBe("my-workbench")
     })
 
-    it("GET /workspaces/:slugOrId returns detail by id", async () => {
-      const createRes = await createWorkspace()
+    it("GET /workbenches/:slugOrId returns detail by id", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(new Request(`${BASE}/${created.id}`))
@@ -114,13 +114,13 @@ describe("Workspace Controller (v2)", () => {
       expect(data.id).toBe(created.id)
     })
 
-    it("GET /workspaces/:slugOrId returns 404 for nonexistent", async () => {
-      const res = await app.handle(new Request(`${BASE}/wksp_nonexistent`))
+    it("GET /workbenches/:slugOrId returns 404 for nonexistent", async () => {
+      const res = await app.handle(new Request(`${BASE}/wkbn_nonexistent`))
       expect(res.status).toBe(404)
     })
 
-    it("POST /workspaces/:slugOrId/update updates workspace", async () => {
-      const createRes = await createWorkspace()
+    it("POST /workbenches/:slugOrId/update updates workbench", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(
@@ -136,8 +136,8 @@ describe("Workspace Controller (v2)", () => {
       expect(data.spec.memory).toBe("8Gi")
     })
 
-    it("POST /workspaces/:slugOrId/delete soft-deletes (bitemporal)", async () => {
-      const createRes = await createWorkspace()
+    it("POST /workbenches/:slugOrId/delete soft-deletes (bitemporal)", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(post(`${BASE}/${created.id}/delete`, {}))
@@ -154,8 +154,8 @@ describe("Workspace Controller (v2)", () => {
   // Lifecycle Actions
   // =========================================================================
   describe("Lifecycle Actions", () => {
-    it("POST /workspaces/:id/start sets lifecycle to active", async () => {
-      const createRes = await createWorkspace()
+    it("POST /workbenches/:id/start sets lifecycle to active", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(post(`${BASE}/${created.id}/start`, {}))
@@ -166,8 +166,8 @@ describe("Workspace Controller (v2)", () => {
       expect(data.spec.lifecycle).toBe("active")
     })
 
-    it("POST /workspaces/:id/stop sets lifecycle to suspended", async () => {
-      const createRes = await createWorkspace()
+    it("POST /workbenches/:id/stop sets lifecycle to suspended", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       await app.handle(post(`${BASE}/${created.id}/start`, {}))
@@ -180,8 +180,8 @@ describe("Workspace Controller (v2)", () => {
       expect(data.spec.lifecycle).toBe("suspended")
     })
 
-    it("POST /workspaces/:id/extend updates expiresAt in spec", async () => {
-      const createRes = await createWorkspace({
+    it("POST /workbenches/:id/extend updates expiresAt in spec", async () => {
+      const createRes = await createWorkbench({
         spec: { expiresAt: new Date(Date.now() + 3600_000).toISOString() },
       })
       const { data: created } = (await createRes.json()) as ApiResponse
@@ -196,8 +196,8 @@ describe("Workspace Controller (v2)", () => {
       expect(data.spec.expiresAt).toBeTruthy()
     })
 
-    it("POST /workspaces/:id/start returns 404 for nonexistent", async () => {
-      const res = await app.handle(post(`${BASE}/wksp_nonexistent/start`, {}))
+    it("POST /workbenches/:id/start returns 404 for nonexistent", async () => {
+      const res = await app.handle(post(`${BASE}/wkbn_nonexistent/start`, {}))
       expect(res.status).toBe(404)
     })
   })
@@ -206,8 +206,8 @@ describe("Workspace Controller (v2)", () => {
   // Snapshots
   // =========================================================================
   describe("Snapshots", () => {
-    it("POST /workspaces/:id/snapshot creates snapshot", async () => {
-      const createRes = await createWorkspace()
+    it("POST /workbenches/:id/snapshot creates snapshot", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(
@@ -224,8 +224,8 @@ describe("Workspace Controller (v2)", () => {
       expect(data.spec.status).toBe("creating")
     })
 
-    it("GET /workspaces/:id/snapshots lists snapshots", async () => {
-      const createRes = await createWorkspace()
+    it("GET /workbenches/:id/snapshots lists snapshots", async () => {
+      const createRes = await createWorkbench()
       const { data: created } = (await createRes.json()) as ApiResponse
 
       await app.handle(

@@ -4,19 +4,32 @@ import type {
   ReconcilerStrategy,
 } from "../runtime-strategy"
 
-/** systemd realm strategy — deploys components as systemd units on Linux hosts/VMs */
+/**
+ * systemd realm strategy — backed by the site controller.
+ *
+ * The site controller on the target host manages systemd units.
+ * This server-side strategy reads controller-reported state.
+ */
 export class SystemdStrategy implements ReconcilerStrategy {
   readonly runtime = "systemd"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
-    // TODO: SSH into target host/VM
-    // TODO: Generate systemd unit file from component spec
-    // TODO: `systemctl daemon-reload && systemctl enable --now <unit>`
-    // TODO: Check `systemctl is-active <unit>` for status
+    const controllerState = (ctx.workload as any).controllerReportedState as
+      | { status: string; actualImage: string | null }
+      | undefined
+
+    if (!controllerState) {
+      return {
+        status: ctx.component.kind === "task" ? "completed" : "running",
+        actualImage: null,
+        driftDetected: false,
+      }
+    }
+
     return {
-      status: ctx.component.kind === "task" ? "completed" : "running",
-      actualImage: null,
-      driftDetected: false,
+      status: controllerState.status as ReconcileResult["status"],
+      actualImage: controllerState.actualImage,
+      driftDetected: controllerState.actualImage !== ctx.workload.desiredImage,
     }
   }
 }

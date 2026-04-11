@@ -7,14 +7,14 @@ import { ResourceTree, type TreeNode } from "../components/resource-tree.js"
 interface InfraTabProps {
   estates: any[]
   realms: any[]
-  workspaces: any[]
+  workbenches: any[]
   focused: boolean
 }
 
 function buildTree(
   estates: any[],
   realms: any[],
-  workspaces: any[]
+  workbenches: any[]
 ): TreeNode[] {
   return estates.map((p) => {
     const seenRealms = new Set<string>()
@@ -39,13 +39,13 @@ function buildTree(
       children: estateRealms.map((c: any) => {
         const cid = c.realmId ?? c.id
         const seen = new Set<string>()
-        const realmWorkspaces = workspaces.filter((s: any) => {
+        const realmWorkbenches = workbenches.filter((s: any) => {
           const matches =
             s.realmId === c.realmId ||
             s.realmId === c.id ||
             s.realmSlug === c.slug
           if (!matches) return false
-          const sid = s.workspaceId ?? s.id ?? s.name
+          const sid = s.workbenchId ?? s.id ?? s.name
           if (seen.has(sid)) return false
           seen.add(sid)
           return true
@@ -58,11 +58,11 @@ function buildTree(
           type: "realm" as const,
           status: c.status,
           estateId: p.estateId ?? p.id,
-          children: realmWorkspaces.map((s: any) => ({
-            id: s.workspaceId ?? s.id ?? s.name,
+          children: realmWorkbenches.map((s: any) => ({
+            id: s.workbenchId ?? s.id ?? s.name,
             name: s.name ?? s.slug ?? "unknown",
             slug: s.slug,
-            type: "workspace" as const,
+            type: "workbench" as const,
             status: s.status,
             realmId: c.realmId ?? c.id,
             estateId: p.estateId ?? p.id,
@@ -76,10 +76,10 @@ function buildTree(
 export function InfraTab({
   estates,
   realms,
-  workspaces,
+  workbenches,
   focused,
 }: InfraTabProps) {
-  const tree = buildTree(estates, realms, workspaces)
+  const tree = buildTree(estates, realms, workbenches)
 
   return (
     <Box flexGrow={1} flexDirection="row">
@@ -95,7 +95,11 @@ export function InfraTab({
         <ResourceTree nodes={tree} focused={focused} />
       </Box>
       <Box width="60%" flexDirection="column" paddingLeft={1}>
-        <DetailPane workspaces={workspaces} realms={realms} estates={estates} />
+        <DetailPane
+          workbenches={workbenches}
+          realms={realms}
+          estates={estates}
+        />
       </Box>
     </Box>
   )

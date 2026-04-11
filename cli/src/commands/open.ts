@@ -2,13 +2,13 @@ import { execFileSync } from "node:child_process"
 
 import type { DxBase } from "../dx-root.js"
 import {
-  listLocalWorkspaces,
-  showLocalWorkspace,
+  listLocalWorkbenches,
+  showLocalWorkbench,
 } from "../handlers/workspace/local-workspace.js"
 import { EntityFinder } from "../lib/entity-finder.js"
 import type { ResolvedEntity } from "../lib/entity-finder.js"
 import { capture } from "../lib/subprocess.js"
-import type { LocalWorkspaceInfo } from "../lib/worktree-detect.js"
+import type { LocalWorkbenchInfo } from "../lib/worktree-detect.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { styleBold, styleError, styleMuted } from "./list-helpers.js"
 import { connectToEntity } from "./ssh.js"
@@ -16,9 +16,9 @@ import { connectToEntity } from "./ssh.js"
 setExamples("open", [
   "$ dx open my-feature              Open worktree in editor (auto-detect cursor/code)",
   "$ dx open my-feature --terminal   Spawn a shell in the worktree directory",
-  "$ dx open dev-vm                  Open remote workspace in editor via SSH",
-  "$ dx open dev-vm /home/me/project Open remote workspace at a specific path",
-  "$ dx open dev-vm --terminal       SSH into a remote workspace",
+  "$ dx open dev-vm                  Open remote workbench in editor via SSH",
+  "$ dx open dev-vm /home/me/project Open remote workbench at a specific path",
+  "$ dx open dev-vm --terminal       SSH into a remote workbench",
   "$ dx open --editor code           Force VS Code as editor",
 ])
 
@@ -49,18 +49,18 @@ async function detectEditor(preference?: string): Promise<string> {
 export function openCommand(app: DxBase) {
   return app
     .sub("open")
-    .meta({ description: "Open a workspace in your editor or terminal" })
+    .meta({ description: "Open a workbench in your editor or terminal" })
     .args([
       {
         name: "target",
         type: "string",
-        description: "Workspace name, slug, or ID",
+        description: "Workbench name, slug, or ID",
       },
       {
         name: "path",
         type: "string",
         description:
-          "Directory to open (remote path for SSH workspaces, local override for worktrees)",
+          "Directory to open (remote path for SSH workbenches, local override for worktrees)",
       },
     ])
     .flags({
@@ -89,20 +89,20 @@ export function openCommand(app: DxBase) {
       }
 
       // ── Resolve target ───────────────────────────────────────────────
-      let local: LocalWorkspaceInfo | null = null
+      let local: LocalWorkbenchInfo | null = null
       let remote: ResolvedEntity | null = null
 
       if (!target) {
         // Interactive picker
-        const picked = await pickWorkspace()
+        const picked = await pickWorkbench()
         if ("tier" in picked) {
-          local = picked as LocalWorkspaceInfo
+          local = picked as LocalWorkbenchInfo
         } else {
           remote = picked as ResolvedEntity
         }
       } else {
         // Try local worktree first (returns null if not found)
-        local = await showLocalWorkspace(target)
+        local = await showLocalWorkbench(target)
 
         if (!local) {
           // Try remote (returns null if not found or API unreachable)
@@ -115,8 +115,8 @@ export function openCommand(app: DxBase) {
         }
 
         if (!local && !remote) {
-          console.error(styleError(`Workspace "${target}" not found.`))
-          console.log(styleMuted("Try: dx workspace list"))
+          console.error(styleError(`Workbench "${target}" not found.`))
+          console.log(styleMuted("Try: dx workbench list"))
           process.exitCode = 1
           return
         }
@@ -145,7 +145,7 @@ export function openCommand(app: DxBase) {
 // ---------------------------------------------------------------------------
 
 async function openLocal(
-  ws: LocalWorkspaceInfo,
+  ws: LocalWorkbenchInfo,
   opts: { terminal: boolean; editor?: string; path?: string }
 ) {
   const dir = opts.path || ws.path
@@ -165,7 +165,7 @@ async function openLocal(
 }
 
 // ---------------------------------------------------------------------------
-// Remote workspace
+// Remote workbench
 // ---------------------------------------------------------------------------
 
 async function openRemote(
@@ -203,21 +203,21 @@ async function openRemote(
 // Interactive picker
 // ---------------------------------------------------------------------------
 
-async function pickWorkspace(): Promise<LocalWorkspaceInfo | ResolvedEntity> {
+async function pickWorkbench(): Promise<LocalWorkbenchInfo | ResolvedEntity> {
   const { filter } = await import("@crustjs/prompts")
 
   // Gather local + remote in parallel
   const [localResult, remoteResult] = await Promise.allSettled([
-    listLocalWorkspaces(),
+    listLocalWorkbenches(),
     new EntityFinder().list(),
   ])
 
-  const locals: LocalWorkspaceInfo[] =
+  const locals: LocalWorkbenchInfo[] =
     localResult.status === "fulfilled" ? localResult.value : []
   const remotes: ResolvedEntity[] =
     remoteResult.status === "fulfilled" ? remoteResult.value : []
 
-  type Choice = LocalWorkspaceInfo | ResolvedEntity
+  type Choice = LocalWorkbenchInfo | ResolvedEntity
   const choices: { label: string; value: Choice }[] = []
 
   for (const ws of locals) {
@@ -235,12 +235,12 @@ async function pickWorkspace(): Promise<LocalWorkspaceInfo | ResolvedEntity> {
   }
 
   if (choices.length === 0) {
-    console.error(styleError("No workspaces found."))
+    console.error(styleError("No workbenches found."))
     process.exit(1)
   }
 
   return filter<Choice>({
-    message: "Select a workspace to open",
+    message: "Select a workbench to open",
     choices,
   })
 }

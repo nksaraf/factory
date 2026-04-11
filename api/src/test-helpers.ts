@@ -2,6 +2,7 @@ import type { PGlite } from "@electric-sql/pglite"
 import { cors } from "@elysiajs/cors"
 import { Elysia } from "elysia"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 import type { Database } from "./db/connection"
 import { createPgliteDb, migrateWithPglite } from "./factory-core"
@@ -19,7 +20,8 @@ import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
 export async function createTestContext() {
   const { client, db } = await createPgliteDb()
 
-  await migrateWithPglite(client, path.join(import.meta.dir, "..", "drizzle"))
+  const srcDir = path.dirname(fileURLToPath(import.meta.url))
+  await migrateWithPglite(client, path.join(srcDir, "..", "drizzle"))
 
   const database = db as unknown as Database
 
@@ -53,8 +55,8 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE ops.rollout RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.component_deployment RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.preview RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE ops.workspace_snapshot RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE ops.workspace RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.workbench_snapshot RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE ops.workbench RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.deployment_set RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.system_deployment RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE ops.install_manifest RESTART IDENTITY CASCADE`,
@@ -87,6 +89,9 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE build.system_version RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.repo RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE build.git_host_provider RESTART IDENTITY CASCADE`,
+  // org (events)
+  `TRUNCATE TABLE org.event_outbox RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.event RESTART IDENTITY CASCADE`,
   // org
   `TRUNCATE TABLE org.event_subscription RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.workflow_run RESTART IDENTITY CASCADE`,
@@ -191,7 +196,7 @@ export async function seedTestParents(client: PGlite) {
     /* table may not exist */
   }
 
-  // Seed a default realm for workspace creation (fleet beforeCreate hook requires it)
+  // Seed a default realm for workbench creation (fleet beforeCreate hook requires it)
   try {
     await client.query(
       `INSERT INTO infra.realm (id, slug, name, type, spec)

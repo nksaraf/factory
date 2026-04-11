@@ -98,8 +98,7 @@ export type EntityPrefix =
   | "sdp" // system_deployment
   | "dset" // deployment_set
   | "cdp" // component_deployment
-  | "wks" // workspace
-  | "wksn" // workspace_snapshot
+  | "wbsnap" // workbench_snapshot
   | "db" // database (ops)
   | "dbop" // database_operation
   | "aprf" // anonymization_profile
@@ -120,6 +119,8 @@ export type EntityPrefix =
   // workflow
   | "wfr" // workflow_run
   | "esub" // event_subscription
+  | "evt" // event
+  | "eob" // event_outbox
   // operations
   | "opr" // operation_run
   // interaction

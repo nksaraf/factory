@@ -1,6 +1,6 @@
 import { getFactoryClient } from "../client.js"
 
-export type EntityType = "workspace" | "vm" | "host"
+export type EntityType = "workbench" | "vm" | "host"
 export type Transport = "ssh" | "kubectl" | "none"
 
 export interface ResolvedEntity {
@@ -9,7 +9,7 @@ export interface ResolvedEntity {
   slug: string
   displayName: string
   status: string
-  realmType?: string // container | vm (for workspaces)
+  realmType?: string // container | vm (for workbenches)
 
   transport: Transport
 
@@ -47,21 +47,21 @@ export class EntityFinder {
 
   /**
    * Resolve a single target by slug/name/id.
-   * Searches: workspaces → hosts (type=vm) → hosts → /access/resolve fallback
+   * Searches: workbenches → hosts (type=vm) → hosts → /access/resolve fallback
    */
   async resolve(target: string): Promise<ResolvedEntity | null> {
     const api = await this.apiPromise
 
-    // 1. Try workspaces (v2 — was sandboxes)
+    // 1. Try workbenches
     try {
-      const result = await api.api.v1.factory.fleet.workspaces.get()
+      const result = await api.api.v1.factory.fleet.workbenches.get()
       const items = (result?.data?.data ?? []).filter(
         (w) => w.slug === target || w.id === target
       )
       if (items.length === 0) {
         try {
           const byId = await api.api.v1.factory.fleet
-            .workspaces({ slugOrId: target })
+            .workbenches({ slugOrId: target })
             .get()
           const wksData = byId?.data?.data ?? byId?.data
           if (wksData && typeof wksData === "object" && "id" in wksData)
@@ -72,7 +72,7 @@ export class EntityFinder {
       }
       const match = items[0]
       if (match) {
-        const entity = workspaceToEntity(match)
+        const entity = workbenchToEntity(match)
         if (entity?.transport === "kubectl") {
           if (entity.systemDeploymentId) {
             const access = await this.resolveClusterAccess(
@@ -148,7 +148,7 @@ export class EntityFinder {
         | undefined
       if (data) {
         return {
-          type: (data.type === "host" ? "host" : "workspace") as EntityType,
+          type: (data.type === "host" ? "host" : "workbench") as EntityType,
           id: (data.id as string | undefined) ?? target,
           slug: (data.slug as string | undefined) ?? target,
           displayName: (data.name as string | undefined) ?? target,
@@ -257,17 +257,17 @@ export class EntityFinder {
     const api = await this.apiPromise
     const entities: ResolvedEntity[] = []
 
-    // Fetch in parallel: workspaces + hosts
-    const [workspaces, hosts] = await Promise.allSettled([
-      api.api.v1.factory.fleet.workspaces
+    // Fetch in parallel: workbenches + hosts
+    const [workbenches, hosts] = await Promise.allSettled([
+      api.api.v1.factory.fleet.workbenches
         .get()
         .then((r) => r?.data?.data ?? []),
       api.api.v1.factory.infra.hosts.get().then((r) => r?.data?.data ?? []),
     ])
 
-    if (workspaces.status === "fulfilled") {
-      for (const wks of workspaces.value) {
-        const entity = workspaceToEntity(wks)
+    if (workbenches.status === "fulfilled") {
+      for (const wks of workbenches.value) {
+        const entity = workbenchToEntity(wks)
         if (entity) entities.push(entity)
       }
     }
@@ -283,7 +283,7 @@ export class EntityFinder {
   }
 }
 
-function workspaceToEntity(
+function workbenchToEntity(
   wks: Record<string, unknown>
 ): ResolvedEntity | null {
   if (!wks) return null
@@ -297,7 +297,7 @@ function workspaceToEntity(
   const transport: Transport = isContainer && !hasSsh ? "kubectl" : "ssh"
 
   return {
-    type: "workspace",
+    type: "workbench",
     id: wks.id as string,
     slug: (wks.slug ?? wks.id) as string,
     displayName: (wks.name ?? wks.slug ?? wks.id) as string,
@@ -308,12 +308,12 @@ function workspaceToEntity(
     sshHost: (spec.sshHost ?? spec.ipAddress) as string | undefined,
     sshPort: (spec.sshPort as number | undefined) ?? 22,
     sshUser: "root",
-    // kubectl fallback (container workspaces without SSH)
+    // kubectl fallback (container workbenches without SSH)
     podName: isContainer
-      ? ((spec.podName as string | undefined) ?? `workspace-${wks.slug}`)
+      ? ((spec.podName as string | undefined) ?? `workbench-${wks.slug}`)
       : undefined,
-    namespace: isContainer ? `workspace-${wks.slug}` : undefined,
-    container: isContainer ? "workspace" : undefined,
+    namespace: isContainer ? `workbench-${wks.slug}` : undefined,
+    container: isContainer ? "workbench" : undefined,
     systemDeploymentId: wks.systemDeploymentId as string | undefined,
   }
 }

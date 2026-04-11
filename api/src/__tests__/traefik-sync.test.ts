@@ -9,10 +9,10 @@ import {
 describe("generateTraefikYaml", () => {
   const baseRoute: TraefikRoute = {
     routeId: "rte_abc123",
-    kind: "workspace",
-    domain: "my-workspace.preview.dx.dev",
+    kind: "workbench",
+    domain: "my-workbench.preview.dx.dev",
     pathPrefix: null,
-    targetService: "workspace-svc",
+    targetService: "workbench-svc",
     targetPort: 3000,
     protocol: "http",
     tlsMode: "auto",
@@ -30,10 +30,10 @@ describe("generateTraefikYaml", () => {
   it("generates router and service for a single route", () => {
     const yaml = generateTraefikYaml([baseRoute])
     expect(yaml).toContain("rte_abc123:")
-    expect(yaml).toContain('rule: "Host(`my-workspace.preview.dx.dev`)"')
+    expect(yaml).toContain('rule: "Host(`my-workbench.preview.dx.dev`)"')
     expect(yaml).toContain("service: rte_abc123")
     expect(yaml).toContain("priority: 100")
-    expect(yaml).toContain('url: "http://workspace-svc:3000"')
+    expect(yaml).toContain('url: "http://workbench-svc:3000"')
     expect(yaml).toContain("tls: {}")
   })
 
@@ -41,7 +41,7 @@ describe("generateTraefikYaml", () => {
     const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api/v1" }
     const yaml = generateTraefikYaml([r])
     expect(yaml).toContain(
-      "Host(`my-workspace.preview.dx.dev`) && PathPrefix(`/api/v1`)"
+      "Host(`my-workbench.preview.dx.dev`) && PathPrefix(`/api/v1`)"
     )
   })
 
@@ -54,7 +54,7 @@ describe("generateTraefikYaml", () => {
   it("defaults to port 80 when no targetPort", () => {
     const r: TraefikRoute = { ...baseRoute, targetPort: null }
     const yaml = generateTraefikYaml([r])
-    expect(yaml).toContain('url: "http://workspace-svc:80"')
+    expect(yaml).toContain('url: "http://workbench-svc:80"')
   })
 
   it("generates multiple routes", () => {

@@ -472,32 +472,32 @@ export async function verifyDomain(
 }
 
 // ---------------------------------------------------------------------------
-// Workspace Route Helpers
+// Workbench Route Helpers
 // ---------------------------------------------------------------------------
 
-export async function createWorkspaceRoutes(
+export async function createWorkbenchRoutes(
   db: Database,
   input: {
     systemDeploymentId?: string
     realmId?: string
-    workspaceSlug: string
+    workbenchSlug: string
     siteId?: string
     publishPorts?: number[]
     createdBy: string
   }
 ) {
   const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
-  // Site-scoped workspaces use site ID as subdomain; generic workspaces use "workspace"
-  const routeScope = input.siteId ? input.siteId : "workspace"
-  const baseDomain = `${input.workspaceSlug}.${routeScope}.${gatewayDomain}`
+  // Site-scoped workbenches use site ID as subdomain; generic workbenches use "workbench"
+  const routeScope = input.siteId ? input.siteId : "workbench"
+  const baseDomain = `${input.workbenchSlug}.${routeScope}.${gatewayDomain}`
 
   const routes: any[] = []
 
   const primary = await createRoute(db, {
-    type: "workspace",
+    type: "workbench",
     domain: baseDomain,
     realmId: input.realmId,
-    targetService: input.workspaceSlug,
+    targetService: input.workbenchSlug,
     protocol: "http",
     status: "active",
     createdBy: input.createdBy,
@@ -507,13 +507,13 @@ export async function createWorkspaceRoutes(
 
   if (input.publishPorts) {
     for (const port of input.publishPorts) {
-      const portDomain = `${input.workspaceSlug}-${port}.${routeScope}.${gatewayDomain}`
+      const portDomain = `${input.workbenchSlug}-${port}.${routeScope}.${gatewayDomain}`
 
       const portRoute = await createRoute(db, {
-        type: "workspace",
+        type: "workbench",
         domain: portDomain,
         realmId: input.realmId,
-        targetService: input.workspaceSlug,
+        targetService: input.workbenchSlug,
         targetPort: port,
         protocol: "http",
         status: "active",
@@ -551,7 +551,7 @@ export async function registerTunnel(
     brokerNodeId?: string
     expiresAt?: Date
     createdBy: string
-    routeFamily?: "workspace" | "tunnel"
+    routeFamily?: "workbench" | "tunnel"
     systemDeploymentId?: string
     routeKind?: string
   }
@@ -559,10 +559,10 @@ export async function registerTunnel(
   const family = input.routeFamily ?? "tunnel"
   const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
   const domainSuffix =
-    family === "workspace"
-      ? `.workspace.${gatewayDomain}`
+    family === "workbench"
+      ? `.workbench.${gatewayDomain}`
       : `.tunnel.${gatewayDomain}`
-  const routeType = family === "workspace" ? "workspace" : "tunnel"
+  const routeType = family === "workbench" ? "workbench" : "tunnel"
 
   const tunnelRoute = await createRoute(db, {
     type: input.routeKind ?? routeType,

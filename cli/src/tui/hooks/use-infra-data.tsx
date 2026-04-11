@@ -25,11 +25,11 @@ export function useRealms() {
   )
 }
 
-export function useWorkspaces() {
+export function useWorkbenches() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.fleet.workspaces.get()
+      const res = await api.api.v1.factory.fleet.workbenches.get()
       return unwrap(res)
     },
     [],

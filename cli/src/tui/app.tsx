@@ -4,7 +4,11 @@ import React, { useEffect, useState } from "react"
 import { HelpOverlay } from "./components/help-overlay.js"
 import { StatusBar } from "./components/status-bar.js"
 import { TAB_IDS, TabBar, type TabId } from "./components/tab-bar.js"
-import { useEstates, useRealms, useWorkspaces } from "./hooks/use-infra-data.js"
+import {
+  useEstates,
+  useRealms,
+  useWorkbenches,
+} from "./hooks/use-infra-data.js"
 import { SelectionProvider, useSelection } from "./hooks/use-selection.js"
 import { AlertsTab } from "./tabs/alerts-tab.js"
 import { BuildTab } from "./tabs/build-tab.js"
@@ -14,7 +18,7 @@ import { FleetTab } from "./tabs/fleet-tab.js"
 import { GatewayTab } from "./tabs/gateway-tab.js"
 import { InfraTab } from "./tabs/infra-tab.js"
 import { LogsTab } from "./tabs/logs-tab.js"
-import { WorkspaceTab } from "./tabs/workspace-tab.js"
+import { WorkbenchTab } from "./tabs/workbench-tab.js"
 
 function resolveInitialTab(tab?: string): TabId {
   if (tab && TAB_IDS.includes(tab as TabId)) return tab as TabId
@@ -52,24 +56,24 @@ function Dashboard({ initialTab }: AppProps) {
   // Infra data (used for status bar counts)
   const estatesQuery = useEstates()
   const realmsQuery = useRealms()
-  const workspacesQuery = useWorkspaces()
+  const workbenchesQuery = useWorkbenches()
 
   const estates = estatesQuery.data ?? []
   const realms = realmsQuery.data ?? []
-  const workspaces = workspacesQuery.data ?? []
+  const workbenches = workbenchesQuery.data ?? []
 
   const counts = {
-    running: workspaces.filter((s: any) =>
+    running: workbenches.filter((s: any) =>
       ["active", "running", "ready", "healthy"].includes(
         s.spec?.lifecycle ?? s.status
       )
     ).length,
-    degraded: workspaces.filter((s: any) =>
+    degraded: workbenches.filter((s: any) =>
       ["provisioning", "pending", "creating", "syncing"].includes(
         s.spec?.lifecycle ?? s.status
       )
     ).length,
-    down: workspaces.filter((s: any) =>
+    down: workbenches.filter((s: any) =>
       ["stopped", "error", "failed", "destroyed"].includes(
         s.spec?.lifecycle ?? s.status
       )
@@ -77,7 +81,7 @@ function Dashboard({ initialTab }: AppProps) {
   }
 
   const connected =
-    !estatesQuery.error && !realmsQuery.error && !workspacesQuery.error
+    !estatesQuery.error && !realmsQuery.error && !workbenchesQuery.error
 
   useInput((input, key) => {
     if (showHelp) {
@@ -101,10 +105,10 @@ function Dashboard({ initialTab }: AppProps) {
       setActiveTab(TAB_IDS[tabNum - 1])
     }
 
-    // Action: l on workspace switches to logs
+    // Action: l on workbench switches to logs
     if (
       activeTab === "infra" &&
-      selection?.type === "workspace" &&
+      selection?.type === "workbench" &&
       input === "l"
     ) {
       setActiveTab("logs")
@@ -125,12 +129,12 @@ function Dashboard({ initialTab }: AppProps) {
             <InfraTab
               estates={estates}
               realms={realms}
-              workspaces={workspaces}
+              workbenches={workbenches}
               focused={tabFocused}
             />
           )}
           {activeTab === "fleet" && <FleetTab focused={tabFocused} />}
-          {activeTab === "workspace" && <WorkspaceTab focused={tabFocused} />}
+          {activeTab === "workbench" && <WorkbenchTab focused={tabFocused} />}
           {activeTab === "build" && <BuildTab focused={tabFocused} />}
           {activeTab === "gateway" && <GatewayTab focused={tabFocused} />}
           {activeTab === "commerce" && <CommerceTab focused={tabFocused} />}

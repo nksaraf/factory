@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+
 import { getFactoryClient } from "../../client.js"
 
 export interface LogEntry {
@@ -9,7 +10,7 @@ export interface LogEntry {
 }
 
 export interface LogFilters {
-  workspaceId?: string
+  workbenchId?: string
   level?: string
   grep?: string
 }
@@ -40,7 +41,7 @@ export function useLogs(filters: LogFilters) {
         try {
           const api = await getFactoryClient()
           const query: Record<string, string | undefined> = {
-            sandbox: filtersRef.current.workspaceId,
+            workbench: filtersRef.current.workbenchId,
             level: filtersRef.current.level,
             grep: filtersRef.current.grep,
             cursor: cursorRef.current,
@@ -60,7 +61,11 @@ export function useLogs(filters: LogFilters) {
           }
 
           setConnected(true)
-          const body = (res.data ?? {}) as { entries?: LogEntry[]; cursor?: string; hasMore?: boolean }
+          const body = (res.data ?? {}) as {
+            entries?: LogEntry[]
+            cursor?: string
+            hasMore?: boolean
+          }
 
           if (body.entries?.length) {
             const newEntries = body.entries
@@ -88,7 +93,7 @@ export function useLogs(filters: LogFilters) {
     return () => {
       aborted = true
     }
-  }, [filters.workspaceId, filters.level, filters.grep])
+  }, [filters.workbenchId, filters.level, filters.grep])
 
   return { entries, connected, clear }
 }

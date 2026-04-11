@@ -7,7 +7,6 @@
  *   /fleet/system-deployments   → ops.system_deployment
  *   /fleet/deployment-sets      → ops.deployment_set
  *   /fleet/rollouts             → ops.rollout
- *   /fleet/workspaces           → ops.workspace
  *   /fleet/workbenches          → ops.workbench
  *   /fleet/previews             → ops.preview
  *   /fleet/interventions        → ops.intervention
@@ -25,13 +24,13 @@ import {
   DatabaseOperationBody,
   DeliverPreviewImageBody,
   ExtendPreviewBody,
-  ExtendWorkspaceBody,
-  ResizeWorkspaceBody,
+  ExtendWorkbenchBody,
+  ResizeWorkbenchBody,
   RestartComponentDeploymentBody,
   RestoreSnapshotBody,
   ScaleComponentDeploymentBody,
   SiteCheckinBody,
-  SnapshotWorkspaceBody,
+  SnapshotWorkbenchBody,
   UpdatePreviewStatusBody,
   UpdateRolloutStatusBody,
   WorkbenchPingBody,
@@ -53,7 +52,6 @@ import {
   CreateSystemDeploymentSchema,
   CreateTenantSchema,
   CreateWorkbenchSchema,
-  CreateWorkspaceSchema,
   UpdateAnonymizationProfileSchema,
   UpdateComponentDeploymentSchema,
   UpdateConnectionAuditEventSchema,
@@ -67,7 +65,6 @@ import {
   UpdateSystemDeploymentSchema,
   UpdateTenantSchema,
   UpdateWorkbenchSchema,
-  UpdateWorkspaceSchema,
 } from "@smp/factory-shared/schemas/ops"
 import type {
   ComponentDeploymentSpec,
@@ -77,8 +74,8 @@ import type {
   PreviewSpec,
   RolloutSpec,
   SiteSpec,
+  SystemDeploymentSpec,
   WorkbenchSpec,
-  WorkspaceSpec,
 } from "@smp/factory-shared/schemas/ops"
 import { eq } from "drizzle-orm"
 import { desc } from "drizzle-orm"
@@ -103,8 +100,7 @@ import {
   systemDeployment,
   tenant,
   workbench,
-  workspace,
-  workspaceSnapshot,
+  workbenchSnapshot,
 } from "../../db/schema/ops"
 import { principal } from "../../db/schema/org-v2"
 import { ontologyRoutes } from "../../lib/crud"
@@ -121,10 +117,10 @@ import {
   restoreFromSnapshot,
 } from "./snapshot.service"
 import {
-  resizeWorkspace,
+  resizeWorkbench,
   resolveDefaultRealm,
-  updateWorkspaceHealth,
-} from "./workspace.service"
+  updateWorkbenchHealth,
+} from "./workbench.service"
 
 export function fleetControllerV2(db: Database) {
   return (
@@ -329,21 +325,21 @@ export function fleetControllerV2(db: Database) {
         })
       )
 
-      // ── Workspaces ─────────────────────────────────────────
+      // ── Workbenches (cloud) ────────────────────────────────
       .use(
         ontologyRoutes(db, {
           schema: "ops",
-          entity: "workspaces",
-          singular: "workspace",
-          table: workspace,
-          slugColumn: workspace.slug,
-          idColumn: workspace.id,
-          createSchema: CreateWorkspaceSchema,
-          updateSchema: UpdateWorkspaceSchema,
+          entity: "workbenches",
+          singular: "workbench",
+          table: workbench,
+          slugColumn: workbench.slug,
+          idColumn: workbench.id,
+          createSchema: CreateWorkbenchSchema,
+          updateSchema: UpdateWorkbenchSchema,
           deletable: "bitemporal",
           bitemporal: {
-            validTo: workspace.validTo,
-            systemTo: workspace.systemTo,
+            validTo: workbench.validTo,
+            systemTo: workbench.systemTo,
           },
           hooks: {
             beforeCreate: async ({ db, parsed }) => {
@@ -389,63 +385,63 @@ export function fleetControllerV2(db: Database) {
           relations: {
             snapshots: {
               path: "snapshots",
-              table: workspaceSnapshot,
-              fk: workspaceSnapshot.workspaceId,
+              table: workbenchSnapshot,
+              fk: workbenchSnapshot.workbenchId,
             },
             "forwarded-ports": {
               path: "forwarded-ports",
               table: forwardedPort,
-              fk: forwardedPort.workspaceId,
+              fk: forwardedPort.workbenchId,
             },
           },
           actions: {
             start: {
               handler: async ({ db, entity }) => {
-                const spec = entity.spec as WorkspaceSpec
+                const spec = entity.spec as WorkbenchSpec
                 const [row] = await db
-                  .update(workspace)
+                  .update(workbench)
                   .set({
                     spec: { ...spec, lifecycle: "active" },
                     updatedAt: new Date(),
                   })
-                  .where(eq(workspace.id, entity.id as string))
+                  .where(eq(workbench.id, entity.id as string))
                   .returning()
                 return row
               },
             },
             stop: {
               handler: async ({ db, entity }) => {
-                const spec = entity.spec as WorkspaceSpec
+                const spec = entity.spec as WorkbenchSpec
                 const [row] = await db
-                  .update(workspace)
+                  .update(workbench)
                   .set({
                     spec: { ...spec, lifecycle: "suspended" },
                     updatedAt: new Date(),
                   })
-                  .where(eq(workspace.id, entity.id as string))
+                  .where(eq(workbench.id, entity.id as string))
                   .returning()
                 return row
               },
             },
             destroy: {
               handler: async ({ db, entity }) => {
-                const spec = entity.spec as WorkspaceSpec
+                const spec = entity.spec as WorkbenchSpec
                 const [row] = await db
-                  .update(workspace)
+                  .update(workbench)
                   .set({
                     spec: { ...spec, lifecycle: "destroying" },
                     updatedAt: new Date(),
                   })
-                  .where(eq(workspace.id, entity.id as string))
+                  .where(eq(workbench.id, entity.id as string))
                   .returning()
                 return row
               },
             },
             extend: {
-              bodySchema: ExtendWorkspaceBody,
+              bodySchema: ExtendWorkbenchBody,
               handler: async ({ db, entity, body }) => {
-                const b = body as ExtendWorkspaceBody
-                const spec = entity.spec as WorkspaceSpec
+                const b = body as ExtendWorkbenchBody
+                const spec = entity.spec as WorkbenchSpec
                 const currentExpiry = spec.expiresAt
                   ? new Date(spec.expiresAt as unknown as string)
                   : new Date()
@@ -453,25 +449,25 @@ export function fleetControllerV2(db: Database) {
                   currentExpiry.getTime() + b.minutes * 60_000
                 )
                 const [row] = await db
-                  .update(workspace)
+                  .update(workbench)
                   .set({
                     spec: { ...spec, expiresAt: newExpiry },
                     updatedAt: new Date(),
                   })
-                  .where(eq(workspace.id, entity.id as string))
+                  .where(eq(workbench.id, entity.id as string))
                   .returning()
                 return row
               },
             },
             snapshot: {
-              bodySchema: SnapshotWorkspaceBody,
+              bodySchema: SnapshotWorkbenchBody,
               handler: async ({ db, entity, body }) => {
-                const b = body as SnapshotWorkspaceBody
+                const b = body as SnapshotWorkbenchBody
                 const [snap] = await db
-                  .insert(workspaceSnapshot)
+                  .insert(workbenchSnapshot)
                   .values({
                     id: newId("wksn"),
-                    workspaceId: entity.id as string,
+                    workbenchId: entity.id as string,
                     spec: { status: "creating", volumeSnapshotName: b.name },
                   })
                   .returning()
@@ -479,51 +475,77 @@ export function fleetControllerV2(db: Database) {
               },
             },
             resize: {
-              bodySchema: ResizeWorkspaceBody,
+              bodySchema: ResizeWorkbenchBody,
               handler: async ({ db, entity, body }) => {
-                const b = body as ResizeWorkspaceBody
-                return resizeWorkspace(db, entity.id as string, b)
+                const b = body as ResizeWorkbenchBody
+                return resizeWorkbench(db, entity.id as string, b)
               },
             },
             "health-check": {
               handler: async ({ db, entity }) => {
-                const spec = (entity.spec ?? {}) as WorkspaceSpec
+                const spec = (entity.spec ?? {}) as WorkbenchSpec
                 return {
                   status: spec.healthStatus ?? "unknown",
                   checkedAt: null,
                 }
               },
             },
+            ping: {
+              bodySchema: WorkbenchPingBody,
+              handler: async ({ db, entity, body }) => {
+                const b = body as WorkbenchPingBody
+                const spec = entity.spec as WorkbenchSpec
+                const [row] = await db
+                  .update(workbench)
+                  .set({
+                    spec: {
+                      ...spec,
+                      lastSeenAt: new Date(),
+                      ...(b.hostname && { hostname: b.hostname }),
+                      ...(b.os && { os: b.os }),
+                      ...(b.arch && { arch: b.arch }),
+                      ...(b.nodes && { nodes: b.nodes }),
+                      ...(b.connectedResources && {
+                        connectedResources: b.connectedResources,
+                      }),
+                    } as WorkbenchSpec,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(workbench.id, entity.id as string))
+                  .returning()
+                return row
+              },
+            },
           },
         })
       )
 
-      // ── Workspace Snapshots ─────────────────────────────────
+      // ── Workbench Snapshots ─────────────────────────────────
       .get(
-        "/workspace-snapshots",
+        "/workbench-snapshots",
         async ({ query }) => {
           const { limit, offset } = parsePagination({
             limit: Number(query.limit) || undefined,
             offset: Number(query.offset) || undefined,
           })
-          const total = await countRows(db, workspaceSnapshot)
+          const total = await countRows(db, workbenchSnapshot)
           const rows = await db
             .select()
-            .from(workspaceSnapshot)
-            .orderBy(desc(workspaceSnapshot.createdAt))
+            .from(workbenchSnapshot)
+            .orderBy(desc(workbenchSnapshot.createdAt))
             .limit(limit)
             .offset(offset)
           return list(rows, paginationMeta(total, { limit, offset }))
         },
         {
           detail: {
-            tags: ["ops/workspace-snapshots"],
-            summary: "List workspace snapshots",
+            tags: ["ops/workbench-snapshots"],
+            summary: "List workbench snapshots",
           },
         }
       )
       .get(
-        "/workspace-snapshots/:id",
+        "/workbench-snapshots/:id",
         async ({ params, set }) => {
           const snap = await getSnapshot(db, params.id)
           if (!snap) {
@@ -534,13 +556,13 @@ export function fleetControllerV2(db: Database) {
         },
         {
           detail: {
-            tags: ["ops/workspace-snapshots"],
-            summary: "Get workspace snapshot",
+            tags: ["ops/workbench-snapshots"],
+            summary: "Get workbench snapshot",
           },
         }
       )
       .post(
-        "/workspace-snapshots/:id/restore",
+        "/workbench-snapshots/:id/restore",
         async ({ params, body, set }) => {
           const b = RestoreSnapshotBody.parse(body)
           const snap = await getSnapshot(db, params.id)
@@ -548,11 +570,11 @@ export function fleetControllerV2(db: Database) {
             set.status = 404
             return { success: false, error: "Snapshot not found" }
           }
-          const result = await restoreFromSnapshot(db, b.workspaceId, params.id)
+          const result = await restoreFromSnapshot(db, b.workbenchId, params.id)
           return { success: true, data: result }
         }
       )
-      .post("/workspace-snapshots/:id/clone", async ({ params, body, set }) => {
+      .post("/workbench-snapshots/:id/clone", async ({ params, body, set }) => {
         const b = CloneSnapshotBody.parse(body)
         try {
           const result = await cloneFromSnapshot(db, params.id, {
@@ -619,49 +641,6 @@ export function fleetControllerV2(db: Database) {
                     componentDeploymentId: entity.id as string,
                     spec: interventionSpec,
                   })
-                  .returning()
-                return row
-              },
-            },
-          },
-        })
-      )
-
-      // ── Workbenches ────────────────────────────────────────
-      .use(
-        ontologyRoutes(db, {
-          schema: "ops",
-          entity: "workbenches",
-          singular: "workbench",
-          table: workbench,
-          slugColumn: workbench.slug,
-          idColumn: workbench.id,
-          createSchema: CreateWorkbenchSchema,
-          updateSchema: UpdateWorkbenchSchema,
-          deletable: true,
-          actions: {
-            ping: {
-              bodySchema: WorkbenchPingBody,
-              handler: async ({ db, entity, body }) => {
-                const b = body as WorkbenchPingBody
-                const spec = entity.spec as WorkbenchSpec
-                const [row] = await db
-                  .update(workbench)
-                  .set({
-                    spec: {
-                      ...spec,
-                      lastSeenAt: new Date(),
-                      ...(b.hostname && { hostname: b.hostname }),
-                      ...(b.os && { os: b.os }),
-                      ...(b.arch && { arch: b.arch }),
-                      ...(b.nodes && { nodes: b.nodes }),
-                      ...(b.connectedResources && {
-                        connectedResources: b.connectedResources,
-                      }),
-                    } as WorkbenchSpec,
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(workbench.id, entity.id as string))
                   .returning()
                 return row
               },
@@ -953,5 +932,79 @@ export function fleetControllerV2(db: Database) {
           deletable: true,
         })
       )
+
+      // ── Site Controller Manifest Assembly ──────────────────────
+      .get("/site-controller-manifest/:name", async ({ params, set }) => {
+        const [siteRow] = await db
+          .select()
+          .from(site)
+          .where(eq(site.slug, params.name))
+          .limit(1)
+
+        if (!siteRow) {
+          set.status = 404
+          return { error: `Site '${params.name}' not found` }
+        }
+
+        const sds = await db
+          .select()
+          .from(systemDeployment)
+          .where(eq(systemDeployment.siteId, siteRow.id))
+
+        if (sds.length === 0) {
+          set.status = 404
+          return {
+            error: `No system deployment found for site '${params.name}'`,
+          }
+        }
+
+        const sd = sds[0]
+        const sdSpec = (sd.spec ?? {}) as SystemDeploymentSpec
+
+        const cds = await db
+          .select()
+          .from(componentDeployment)
+          .where(eq(componentDeployment.systemDeploymentId, sd.id))
+
+        const manifestCDs = cds.map((cd) => {
+          const spec = (cd.spec ?? {}) as ComponentDeploymentSpec
+          return {
+            id: cd.id,
+            componentName: cd.componentId,
+            desiredImage: spec.desiredImage ?? "",
+            trackedImageRef: spec.trackedImageRef,
+            replicas: spec.replicas ?? 1,
+            envOverrides: spec.envOverrides ?? {},
+            resourceOverrides: spec.resourceOverrides ?? {},
+            status: spec.status ?? "provisioning",
+          }
+        })
+
+        const latestManifests = await db
+          .select()
+          .from(siteManifest)
+          .where(eq(siteManifest.siteId, siteRow.id))
+          .orderBy(desc(siteManifest.createdAt))
+          .limit(1)
+        const manifestVersion =
+          latestManifests.length > 0
+            ? ((latestManifests[0].spec as any)?.version ?? 0) + 1
+            : 1
+
+        return ok({
+          version: manifestVersion,
+          systemDeployment: {
+            id: sd.id,
+            name: sd.name,
+            site: siteRow.slug,
+            realmType: sdSpec.runtime ?? "compose",
+            namespace: sdSpec.namespace,
+            labels: sdSpec.labels,
+          },
+          componentDeployments: manifestCDs,
+          catalog: null,
+          gateway: null,
+        })
+      })
   )
 }

@@ -1,10 +1,9 @@
 /**
  * k3d cluster management — create, delete, list local k3d clusters.
  */
-
+import { mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { mkdirSync, writeFileSync } from "node:fs"
 
 import { capture, captureOrThrow } from "../../lib/subprocess.js"
 
@@ -40,7 +39,11 @@ export async function ensureK3d(): Promise<void> {
   if (platform === "darwin") {
     installCmd = ["sh", "-c", "brew install k3d"]
   } else if (platform === "linux") {
-    installCmd = ["sh", "-c", "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash"]
+    installCmd = [
+      "sh",
+      "-c",
+      "curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash",
+    ]
   } else if (platform === "win32") {
     installCmd = ["powershell", "-Command", "choco install k3d -y"]
   }
@@ -86,7 +89,10 @@ export async function createK3dCluster(opts: K3dCreateOptions = {}): Promise<{
   if (existing.exitCode === 0) {
     try {
       const clusters = JSON.parse(existing.stdout)
-      if (Array.isArray(clusters) && clusters.some((c: any) => c.name === name)) {
+      if (
+        Array.isArray(clusters) &&
+        clusters.some((c: any) => c.name === name)
+      ) {
         console.log(`Cluster '${name}' already exists.`)
         const kubeconfigPath = await getK3dKubeconfig(name)
         return { name, kubeconfigPath }
@@ -98,14 +104,22 @@ export async function createK3dCluster(opts: K3dCreateOptions = {}): Promise<{
 
   const nodePortRange = `${nodePortLo}-${nodePortHi}`
   const args = [
-    "k3d", "cluster", "create", name,
-    "--api-port", String(apiPort),
-    "-p", `${httpPort}:80@loadbalancer`,
-    "-p", `${httpsPort}:443@loadbalancer`,
-    // Expose NodePort range for workspace services (SSH, web-terminal, web-ide)
-    "-p", `${nodePortRange}:${nodePortRange}@server:0`,
+    "k3d",
+    "cluster",
+    "create",
+    name,
+    "--api-port",
+    String(apiPort),
+    "-p",
+    `${httpPort}:80@loadbalancer`,
+    "-p",
+    `${httpsPort}:443@loadbalancer`,
+    // Expose NodePort range for workbench services (SSH, web-terminal, web-ide)
+    "-p",
+    `${nodePortRange}:${nodePortRange}@server:0`,
     // Constrain k3s to only assign NodePorts in the mapped range
-    "--k3s-arg", `--service-node-port-range=${nodePortRange}@server:0`,
+    "--k3s-arg",
+    `--service-node-port-range=${nodePortRange}@server:0`,
     "--wait",
   ]
 
@@ -140,13 +154,23 @@ export async function deleteK3dCluster(name: string): Promise<void> {
  * List k3d clusters as JSON objects.
  */
 export interface K3dCluster {
-  name: string;
-  nodes?: Array<{ name: string; role: string; state?: { running?: boolean; status?: string } }>;
+  name: string
+  nodes?: Array<{
+    name: string
+    role: string
+    state?: { running?: boolean; status?: string }
+  }>
 }
 
 export async function listK3dClusters(): Promise<K3dCluster[]> {
   await ensureK3d()
-  const result = await captureOrThrow(["k3d", "cluster", "list", "--output", "json"])
+  const result = await captureOrThrow([
+    "k3d",
+    "cluster",
+    "list",
+    "--output",
+    "json",
+  ])
   try {
     return JSON.parse(result.stdout)
   } catch {
@@ -170,17 +194,25 @@ export async function getK3dKubeconfig(name: string): Promise<string> {
 
   // Verify the kubeconfig works (catches stale TLS certs early)
   const verify = await capture([
-    "kubectl", "--kubeconfig", kubeconfigPath,
-    "cluster-info", "--request-timeout=5s",
+    "kubectl",
+    "--kubeconfig",
+    kubeconfigPath,
+    "cluster-info",
+    "--request-timeout=5s",
   ])
   if (verify.exitCode !== 0 && verify.stderr.includes("x509")) {
     console.warn(
       `[k3d] TLS cert mismatch detected for cluster '${name}'. ` +
-      `This usually means the cluster was recreated. Regenerating kubeconfig...`
+        `This usually means the cluster was recreated. Regenerating kubeconfig...`
     )
     // Force k3d to overwrite the merged kubeconfig entry
     const regen = await capture([
-      "k3d", "kubeconfig", "get", name, "--output", "raw",
+      "k3d",
+      "kubeconfig",
+      "get",
+      name,
+      "--output",
+      "raw",
     ])
     if (regen.exitCode === 0) {
       writeFileSync(kubeconfigPath, regen.stdout)

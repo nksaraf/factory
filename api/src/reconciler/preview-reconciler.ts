@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm"
 import type { GitHostAdapter } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
 import { realm } from "../db/schema/infra-v2"
-import { preview, site, systemDeployment, workspace } from "../db/schema/ops"
+import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
 import type { KubeClient } from "../lib/kube-client"
 import { emitEvent } from "../lib/workflow-events"
 import { logger } from "../logger"
@@ -29,7 +29,7 @@ type PreviewRow = typeof preview.$inferSelect
 // Add them to PreviewSpecSchema in shared/src/schemas/ops.ts when the schema is updated.
 type PreviewSpecStored = PreviewSpec & {
   slug?: string
-  workspaceId?: string
+  workbenchId?: string
   systemDeploymentId?: string
   realmId?: string
 }
@@ -118,15 +118,15 @@ export class PreviewReconciler {
       return
     }
 
-    // No workspace linked yet — nothing we can do this cycle
-    if (!spec.workspaceId) return
+    // No workbench linked yet — nothing we can do this cycle
+    if (!spec.workbenchId) return
 
-    const wks = await this.loadWorkspace(spec.workspaceId)
+    const wks = await this.loadWorkbench(spec.workbenchId)
     if (!wks) return
     const wksSpec = (wks.spec ?? {}) as Record<string, any>
     if (!wksSpec.podName) return
 
-    // Workspace has a direct realmId FK
+    // Workbench has a direct realmId FK
     if (!wks.realmId) return
 
     const rt = await this.loadRealm(wks.realmId)
@@ -135,7 +135,7 @@ export class PreviewReconciler {
     if (!rtSpec.kubeconfigRef) return
 
     const kubeconfig = rtSpec.kubeconfigRef
-    const ns = `workspace-${wks.slug}`
+    const ns = `workbench-${wks.slug}`
     const podName = wksSpec.podName
 
     await this.createOrUpdateCheck(prev, "in_progress")
@@ -153,7 +153,7 @@ export class PreviewReconciler {
         kubeconfig,
         ns,
         podName,
-        "workspace",
+        "workbench",
         ["docker", "build", "-t", fullImageRef, "/workspaces"],
         { timeoutMs: 600_000 }
       )
@@ -170,7 +170,7 @@ export class PreviewReconciler {
         kubeconfig,
         ns,
         podName,
-        "workspace",
+        "workbench",
         ["docker", "push", fullImageRef],
         { timeoutMs: 300_000 }
       )
@@ -742,11 +742,11 @@ export class PreviewReconciler {
     return row ?? null
   }
 
-  private async loadWorkspace(workspaceId: string) {
+  private async loadWorkbench(workbenchId: string) {
     const [row] = await this.db
       .select()
-      .from(workspace)
-      .where(eq(workspace.id, workspaceId))
+      .from(workbench)
+      .where(eq(workbench.id, workbenchId))
       .limit(1)
     return row ?? null
   }

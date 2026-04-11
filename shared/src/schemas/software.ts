@@ -306,7 +306,7 @@ export type Release = z.infer<typeof ReleaseSchema>
 
 // ── Template ────────────────────────────────────────────────
 
-export const TemplateTypeSchema = z.enum(["component", "system", "workspace"])
+export const TemplateTypeSchema = z.enum(["component", "system", "workbench"])
 export type TemplateType = z.infer<typeof TemplateTypeSchema>
 
 export const TemplateSpecSchema = z.object({

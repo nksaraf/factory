@@ -1,17 +1,19 @@
-import type { DxBase } from "../dx-root.js";
-import { styleMuted } from "./list-helpers.js";
+import type { DxBase } from "../dx-root.js"
+import { styleMuted } from "./list-helpers.js"
 
-const DEPRECATION = `dx worktree is deprecated. Use dx workspace instead:
+const DEPRECATION = `dx worktree is deprecated. Use dx workbench instead:
 
-  dx worktree create <branch>  →  dx workspace create <name> --tier worktree --branch <branch>
-  dx worktree list             →  dx workspace list --tier worktree
-  dx worktree remove <name>    →  dx workspace delete <name>
-`;
+  dx worktree create <branch>  →  dx workbench create <name> --tier worktree --branch <branch>
+  dx worktree list             →  dx workbench list --tier worktree
+  dx worktree remove <name>    →  dx workbench delete <name>
+`
 
 export function worktreeCommand(app: DxBase) {
   return app
     .sub("worktree")
-    .meta({ description: "Git worktree management (deprecated — use dx workspace)" })
+    .meta({
+      description: "Git worktree management (deprecated — use dx workbench)",
+    })
 
     .command("create", (c) =>
       c
@@ -29,18 +31,16 @@ export function worktreeCommand(app: DxBase) {
           force: { type: "boolean", description: "Skip validation" },
         })
         .run(() => {
-          console.log(styleMuted(DEPRECATION));
-          process.exit(0);
+          console.log(styleMuted(DEPRECATION))
+          process.exit(0)
         })
     )
 
     .command("list", (c) =>
-      c
-        .meta({ description: "(deprecated) List worktrees" })
-        .run(() => {
-          console.log(styleMuted(DEPRECATION));
-          process.exit(0);
-        })
+      c.meta({ description: "(deprecated) List worktrees" }).run(() => {
+        console.log(styleMuted(DEPRECATION))
+        process.exit(0)
+      })
     )
 
     .command("remove", (c) =>
@@ -58,8 +58,8 @@ export function worktreeCommand(app: DxBase) {
           force: { type: "boolean", description: "Force removal" },
         })
         .run(() => {
-          console.log(styleMuted(DEPRECATION));
-          process.exit(0);
+          console.log(styleMuted(DEPRECATION))
+          process.exit(0)
         })
-    );
+    )
 }

@@ -9,6 +9,7 @@ import {
   apiCall,
   colorStatus,
   detailView,
+  resolveStatus,
   styleBold,
   styleMuted,
   styleSuccess,
@@ -99,7 +100,7 @@ export function infraCommand(app: DxBase) {
                     styleBold(String(r.name ?? "")),
                     String(r.spec?.type ?? ""),
                     String(r.spec?.kind ?? ""),
-                    colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                    colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ]
                 )
               })
@@ -128,7 +129,7 @@ export function infraCommand(app: DxBase) {
                   [
                     "Status",
                     (r) =>
-                      colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                   ["Created", (r) => String(r.createdAt ?? "")],
                 ])
@@ -352,7 +353,7 @@ export function infraCommand(app: DxBase) {
                     styleMuted(String(r.id ?? "")),
                     styleBold(String(r.name ?? "")),
                     String(r.spec?.estateId ?? ""),
-                    colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                    colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ]
                 )
               })
@@ -380,7 +381,7 @@ export function infraCommand(app: DxBase) {
                   [
                     "Status",
                     (r) =>
-                      colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                   ["Created", (r) => String(r.createdAt ?? "")],
                 ])
@@ -582,7 +583,7 @@ export function infraCommand(app: DxBase) {
                         String(spec.cpu ?? ""),
                         `${Math.round((Number(spec.memoryMb) || 0) / 1024)}GB`,
                         `${spec.diskGb ?? ""}GB`,
-                        colorStatus(String(spec.lifecycle ?? r.status ?? "")),
+                        colorStatus(resolveStatus(spec.lifecycle, r.status)),
                       ]
                     }),
                     vmColOpts
@@ -622,7 +623,7 @@ export function infraCommand(app: DxBase) {
                   [
                     "Status",
                     (r) =>
-                      colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                   ["Created", (r) => String(r.createdAt ?? "")],
                 ])
@@ -839,7 +840,7 @@ export function infraCommand(app: DxBase) {
                     `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`,
                     `${r.spec?.diskGb ?? ""}GB`,
                     String(r.spec?.ipAddress ?? ""),
-                    colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                    colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                   [
                     {}, // ID
@@ -885,7 +886,7 @@ export function infraCommand(app: DxBase) {
                   [
                     "Status",
                     (r) =>
-                      colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                 ])
               })
@@ -1008,7 +1009,7 @@ export function infraCommand(app: DxBase) {
                     String(r.spec?.role ?? ""),
                     String(r.spec?.ipAddress ?? ""),
                     String(r.spec?.realmId ?? ""),
-                    colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                    colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ]
                 )
               })
@@ -1039,7 +1040,7 @@ export function infraCommand(app: DxBase) {
                   [
                     "Status",
                     (r) =>
-                      colorStatus(String(r.spec?.lifecycle ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.lifecycle, r.status)),
                   ],
                 ])
               })
@@ -1369,7 +1370,7 @@ export function infraCommand(app: DxBase) {
                     return [
                       styleMuted(String(r.id ?? "")),
                       styleBold(String(r.spec?.address ?? r.address ?? "")),
-                      colorStatus(String(r.spec?.status ?? r.status ?? "")),
+                      colorStatus(resolveStatus(r.spec?.status, r.status)),
                       assigned,
                       String(r.spec?.hostname ?? ""),
                     ]
@@ -1569,8 +1570,7 @@ export function infraCommand(app: DxBase) {
                   ["Subnet", (r) => String(r.spec?.subnetId ?? "")],
                   [
                     "Status",
-                    (r) =>
-                      colorStatus(String(r.spec?.status ?? r.status ?? "")),
+                    (r) => colorStatus(resolveStatus(r.spec?.status, r.status)),
                   ],
                   [
                     "Assigned To",
@@ -1608,7 +1608,7 @@ export function infraCommand(app: DxBase) {
                     styleMuted(String(r.id ?? "")),
                     styleBold(String(r.name ?? "")),
                     String(r.type ?? ""),
-                    colorStatus(String(r.status ?? "")),
+                    colorStatus(resolveStatus(r.status)),
                   ]
                 )
               })
@@ -1637,7 +1637,7 @@ export function infraCommand(app: DxBase) {
                   ["ID", (r) => styleMuted(String(r.id ?? ""))],
                   ["Name", (r) => styleBold(String(r.name ?? ""))],
                   ["Type", (r) => String(r.type ?? "")],
-                  ["Status", (r) => colorStatus(String(r.status ?? ""))],
+                  ["Status", (r) => colorStatus(resolveStatus(r.status))],
                 ])
               })
           )

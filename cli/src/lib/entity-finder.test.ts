@@ -130,7 +130,7 @@ describe("EntityFinder", () => {
       const entity = await finder.resolve("maria-network-access-dev")
 
       expect(entity).not.toBeNull()
-      expect(entity!.type).toBe("workspace")
+      expect(entity!.type).toBe("workbench")
       expect(entity!.transport).toBe("kubectl")
       expect(entity!.podName).toBeDefined()
     })

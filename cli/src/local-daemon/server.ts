@@ -121,7 +121,7 @@ async function main() {
   // isolate PGlite state in some cases).
   app.listen(API_PORT)
 
-  // Start reconciler loop so workspaces transition from provisioning → active
+  // Start reconciler loop so workbenches transition from provisioning → active
   setInterval(async () => {
     try {
       await reconciler.reconcileAll()

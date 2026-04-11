@@ -14,9 +14,8 @@ import type {
   SiteSpec,
   SystemDeploymentSpec,
   TenantSpec,
+  WorkbenchSnapshotSpec,
   WorkbenchSpec,
-  WorkspaceSnapshotSpec,
-  WorkspaceSpec,
 } from "@smp/factory-shared/schemas/ops"
 import {
   index,
@@ -206,14 +205,14 @@ export const componentDeployment = opsSchema.table(
   ]
 )
 
-// ─── Workspace ───────────────────────────────────────────────
+// ─── Workbench ──────────────────────────────────────────────
 
-export const workspace = opsSchema.table(
-  "workspace",
+export const workbench = opsSchema.table(
+  "workbench",
   {
     id: text("id")
       .primaryKey()
-      .$defaultFn(() => newId("wks")),
+      .$defaultFn(() => newId("wbnch")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull(), // developer, agent, ci, playground
@@ -227,7 +226,7 @@ export const workspace = opsSchema.table(
     ownerId: text("owner_id").references(() => principal.id, {
       onDelete: "set null",
     }),
-    spec: specCol<WorkspaceSpec>(),
+    spec: specCol<WorkbenchSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -236,29 +235,29 @@ export const workspace = opsSchema.table(
   },
   (t) => [
     // Partial unique index in migration (bitemporal)
-    index("ops_workspace_slug_idx").on(t.slug),
-    index("ops_workspace_type_idx").on(t.type),
-    index("ops_workspace_host_idx").on(t.hostId),
-    index("ops_workspace_realm_idx").on(t.realmId),
-    index("ops_workspace_owner_idx").on(t.ownerId),
+    index("ops_workbench_slug_idx").on(t.slug),
+    index("ops_workbench_type_idx").on(t.type),
+    index("ops_workbench_host_idx").on(t.hostId),
+    index("ops_workbench_realm_idx").on(t.realmId),
+    index("ops_workbench_owner_idx").on(t.ownerId),
   ]
 )
 
-// ─── Workspace Snapshot ──────────────────────────────────────
+// ─── Workbench Snapshot ─────────────────────────────────────
 
-export const workspaceSnapshot = opsSchema.table(
-  "workspace_snapshot",
+export const workbenchSnapshot = opsSchema.table(
+  "workbench_snapshot",
   {
     id: text("id")
       .primaryKey()
-      .$defaultFn(() => newId("wksn")),
-    workspaceId: text("workspace_id")
+      .$defaultFn(() => newId("wbsnap")),
+    workbenchId: text("workbench_id")
       .notNull()
-      .references(() => workspace.id, { onDelete: "cascade" }),
-    spec: specCol<WorkspaceSnapshotSpec>(),
+      .references(() => workbench.id, { onDelete: "cascade" }),
+    spec: specCol<WorkbenchSnapshotSpec>(),
     createdAt: createdAt(),
   },
-  (t) => [index("ops_workspace_snapshot_workspace_idx").on(t.workspaceId)]
+  (t) => [index("ops_workbench_snapshot_workbench_idx").on(t.workbenchId)]
 )
 
 // ─── Preview ─────────────────────────────────────────────────
@@ -420,15 +419,15 @@ export const forwardedPort = opsSchema.table(
       .primaryKey()
       .$defaultFn(() => newId("fp")),
     type: text("type").notNull(), // http, tcp
-    workspaceId: text("workspace_id")
+    workbenchId: text("workbench_id")
       .notNull()
-      .references(() => workspace.id, { onDelete: "cascade" }),
+      .references(() => workbench.id, { onDelete: "cascade" }),
     spec: specCol<ForwardedPortSpec>(),
     createdAt: createdAt(),
   },
   (t) => [
     index("ops_forwarded_port_type_idx").on(t.type),
-    index("ops_forwarded_port_workspace_idx").on(t.workspaceId),
+    index("ops_forwarded_port_workbench_idx").on(t.workbenchId),
   ]
 )
 
@@ -472,27 +471,6 @@ export const installManifest = opsSchema.table(
     updatedAt: updatedAt(),
   },
   (t) => [index("ops_install_manifest_site_idx").on(t.siteId)]
-)
-
-// ─── Workbench ───────────────────────────────────────────────
-
-export const workbench = opsSchema.table(
-  "workbench",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => newId("wbnch")),
-    slug: text("slug").notNull(),
-    name: text("name").notNull(),
-    type: text("type").notNull(), // developer, ci, agent, build
-    spec: specCol<WorkbenchSpec>(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    uniqueIndex("ops_workbench_slug_unique").on(t.slug),
-    index("ops_workbench_type_idx").on(t.type),
-  ]
 )
 
 // ─── Connection Audit Event ──────────────────────────────────

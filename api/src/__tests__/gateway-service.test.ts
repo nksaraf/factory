@@ -175,16 +175,16 @@ describe("Gateway Service", () => {
         createdBy: "test",
       })
       await gw.createRoute(db, {
-        type: "workspace",
-        domain: "workspace.test.dx.dev",
-        targetService: "workspace-svc",
+        type: "workbench",
+        domain: "workbench.test.dx.dev",
+        targetService: "workbench-svc",
         createdBy: "test",
       })
 
-      const { data, total } = await gw.listRoutes(db, { type: "workspace" })
+      const { data, total } = await gw.listRoutes(db, { type: "workbench" })
       expect(data).toHaveLength(1)
       expect(total).toBe(1)
-      expect(data[0].type).toBe("workspace")
+      expect(data[0].type).toBe("workbench")
     })
 
     it("cleans up expired routes", async () => {
@@ -287,9 +287,9 @@ describe("Gateway Service", () => {
   })
 
   // ---------------------------------------------------------------------------
-  // Workspace Route Helpers
+  // Workbench Route Helpers
   // ---------------------------------------------------------------------------
-  describe("workspace route helpers", () => {
+  describe("workbench route helpers", () => {
     async function createSystemDeploymentPrereqs() {
       const { site: s } = await createSitePrereqs()
       const [sys] = await db
@@ -307,13 +307,13 @@ describe("Gateway Service", () => {
       return { site: s, system: sys }
     }
 
-    it("creates workspace routes with publish ports", async () => {
+    it("creates workbench routes with publish ports", async () => {
       const { site: s, system: sys } = await createSystemDeploymentPrereqs()
       const [sd] = await db
         .insert(systemDeployment)
         .values({
-          name: `workspace-${Date.now()}`,
-          slug: `workspace-${Date.now()}`,
+          name: `workbench-${Date.now()}`,
+          slug: `workbench-${Date.now()}`,
           type: "dev",
           systemId: sys.id,
           siteId: s.id,
@@ -328,8 +328,8 @@ describe("Gateway Service", () => {
         })
         .returning()
 
-      const routes = await gw.createWorkspaceRoutes(db, {
-        workspaceSlug: "my-workspace",
+      const routes = await gw.createWorkbenchRoutes(db, {
+        workbenchSlug: "my-workbench",
         systemDeploymentId: sd.id,
         publishPorts: [3000, 8080],
         createdBy: "test",
@@ -338,28 +338,28 @@ describe("Gateway Service", () => {
       expect(routes).toHaveLength(3)
 
       const primary = routes.find(
-        (r) => r.domain === "my-workspace.workspace.dx.dev"
+        (r) => r.domain === "my-workbench.workbench.dx.dev"
       )
       expect(primary).toBeTruthy()
 
       const port3000 = routes.find(
-        (r) => r.domain === "my-workspace-3000.workspace.dx.dev"
+        (r) => r.domain === "my-workbench-3000.workbench.dx.dev"
       )
       expect(port3000).toBeTruthy()
 
       const port8080 = routes.find(
-        (r) => r.domain === "my-workspace-8080.workspace.dx.dev"
+        (r) => r.domain === "my-workbench-8080.workbench.dx.dev"
       )
       expect(port8080).toBeTruthy()
     })
 
-    it("creates workspace routes for site", async () => {
+    it("creates workbench routes for site", async () => {
       const { site: s, system: sys } = await createSystemDeploymentPrereqs()
       const [sd] = await db
         .insert(systemDeployment)
         .values({
-          name: `workspace-site-${Date.now()}`,
-          slug: `workspace-site-${Date.now()}`,
+          name: `workbench-site-${Date.now()}`,
+          slug: `workbench-site-${Date.now()}`,
           type: "dev",
           systemId: sys.id,
           siteId: s.id,
@@ -374,15 +374,15 @@ describe("Gateway Service", () => {
         })
         .returning()
 
-      const routes = await gw.createWorkspaceRoutes(db, {
-        workspaceSlug: "my-workspace",
+      const routes = await gw.createWorkbenchRoutes(db, {
+        workbenchSlug: "my-workbench",
         systemDeploymentId: sd.id,
         siteId: s.id,
         createdBy: "test",
       })
 
       expect(routes).toHaveLength(1)
-      expect(routes[0].domain).toBe(`my-workspace.${s.id}.dx.dev`)
+      expect(routes[0].domain).toBe(`my-workbench.${s.id}.dx.dev`)
     })
 
     it("removes target routes", async () => {
@@ -390,8 +390,8 @@ describe("Gateway Service", () => {
       const [sd] = await db
         .insert(systemDeployment)
         .values({
-          name: `workspace-${Date.now()}`,
-          slug: `workspace-${Date.now()}`,
+          name: `workbench-${Date.now()}`,
+          slug: `workbench-${Date.now()}`,
           type: "dev",
           systemId: sys.id,
           siteId: s.id,
@@ -406,8 +406,8 @@ describe("Gateway Service", () => {
         })
         .returning()
 
-      await gw.createWorkspaceRoutes(db, {
-        workspaceSlug: "my-workspace",
+      await gw.createWorkbenchRoutes(db, {
+        workbenchSlug: "my-workbench",
         systemDeploymentId: sd.id,
         publishPorts: [3000],
         createdBy: "test",

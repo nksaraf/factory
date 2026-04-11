@@ -212,7 +212,7 @@ export const template = softwareSchema.table(
     uniqueIndex("software_template_name_unique").on(t.name),
     check(
       "software_template_type_valid",
-      sql`${t.type} IN ('component', 'system', 'workspace')`
+      sql`${t.type} IN ('component', 'system', 'workbench')`
     ),
   ]
 )

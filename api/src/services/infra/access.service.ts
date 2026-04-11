@@ -3,14 +3,14 @@ import { and, eq, isNull, or } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
 import { host, realm } from "../../db/schema/infra-v2"
-import { workspace } from "../../db/schema/ops"
+import { workbench } from "../../db/schema/ops"
 
 /**
  * Unified SSH target resolved from a slug.
  * Searched across workspaces, VMs, and hosts.
  */
 export interface SshTarget {
-  kind: "workspace" | "host"
+  kind: "workbench" | "host"
   id: string
   slug: string
   name: string
@@ -26,22 +26,22 @@ export interface SshTarget {
 
 /**
  * Resolve a slug to an SSH-connectable target.
- * Search order: workspaces → VMs → hosts.
+ * Search order: workbenches → VMs → hosts.
  * Accepts either a slug or an ID.
  */
 export async function resolveTarget(
   db: Database,
   slug: string
 ): Promise<SshTarget | null> {
-  // 1. Workspaces (lifecycle + SSH config live in spec JSONB)
+  // 1. Workbenches (lifecycle + SSH config live in spec JSONB)
   const wsRows = await db
     .select()
-    .from(workspace)
+    .from(workbench)
     .where(
       and(
-        or(eq(workspace.slug, slug), eq(workspace.id, slug)),
-        isNull(workspace.systemTo),
-        isNull(workspace.validTo)
+        or(eq(workbench.slug, slug), eq(workbench.id, slug)),
+        isNull(workbench.systemTo),
+        isNull(workbench.validTo)
       )
     )
   const wsRow = wsRows[0]
@@ -59,7 +59,7 @@ export async function resolveTarget(
         sshHost
     }
     return {
-      kind: "workspace",
+      kind: "workbench",
       id: wsRow.id,
       slug: wsRow.slug,
       name: wsRow.name,
@@ -104,11 +104,11 @@ export async function resolveTarget(
 export async function listTargets(db: Database): Promise<SshTarget[]> {
   const targets: SshTarget[] = []
 
-  // Workspaces with SSH access (lifecycle + SSH config in spec JSONB)
+  // Workbenches with SSH access (lifecycle + SSH config in spec JSONB)
   const wsRows = await db
     .select()
-    .from(workspace)
-    .where(and(isNull(workspace.systemTo), isNull(workspace.validTo)))
+    .from(workbench)
+    .where(and(isNull(workbench.systemTo), isNull(workbench.validTo)))
 
   // Pre-fetch realms to resolve localhost sshHost → actual realm endpoint
   const realmIds = [
@@ -137,7 +137,7 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
       }
       if (isLoopback(sshHost)) continue // skip unresolvable localhost targets
       targets.push({
-        kind: "workspace",
+        kind: "workbench",
         id: row.id,
         slug: row.slug,
         name: row.name,

@@ -2,7 +2,7 @@
  * E2E test: Preview deployment lifecycle
  *
  * Uses real PGlite + real k3d cluster + spy GitHostAdapter.
- * Tests the full flow: workspace provisioning → preview deploy → PR comment.
+ * Tests the full flow: workbench provisioning → preview deploy → PR comment.
  *
  * Prerequisites:
  *   - k3d cluster "dx-test" running
@@ -16,7 +16,7 @@ import type {
   PreviewSpec,
   SiteSpec,
   SystemDeploymentSpec,
-  WorkspaceSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
@@ -37,7 +37,7 @@ import type {
 } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
 import { estate, realm } from "../db/schema/infra-v2"
-import { preview, site, systemDeployment, workspace } from "../db/schema/ops"
+import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
 import { system } from "../db/schema/software-v2"
 import { createPgliteDb, migrateWithPglite } from "../factory-core"
 import { KubeClientImpl } from "../lib/kube-client-impl"
@@ -232,8 +232,8 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
     let kubeconfig: string
 
     let realmId: string
-    let workspaceSlug: string
-    let workspaceId: string
+    let workbenchSlug: string
+    let workbenchId: string
     let previewId: string
     let previewSlug: string
 
@@ -268,11 +268,11 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
 
     afterAll(async () => {
       try {
-        if (workspaceSlug) {
+        if (workbenchSlug) {
           kubectlDirect([
             "delete",
             "namespace",
-            `workspace-${workspaceSlug}`,
+            `workbench-${workbenchSlug}`,
             "--ignore-not-found",
             "--wait=false",
           ])
@@ -324,11 +324,11 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
     })
 
     it(
-      "should create a workspace and reconcile it into a real K8s pod",
+      "should create a workbench and reconcile it into a real K8s pod",
       async () => {
-        // Create workspace via direct insert with v2 shape
-        const [wksp] = await db
-          .insert(workspace)
+        // Create workbench via direct insert
+        const [wb] = await db
+          .insert(workbench)
           .values({
             name: "e2e-preview-test",
             slug: "e2e-preview-test",
@@ -347,40 +347,40 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
               authMode: "private",
               healthStatus: "unknown",
               setupProgress: {},
-            } satisfies WorkspaceSpec,
+            } satisfies WorkbenchSpec,
           })
           .returning()
 
-        workspaceId = wksp.id
-        workspaceSlug = wksp.slug
-        expect(workspaceId).toBeTruthy()
-        expect(workspaceSlug).toBeTruthy()
+        workbenchId = wb.id
+        workbenchSlug = wb.slug
+        expect(workbenchId).toBeTruthy()
+        expect(workbenchSlug).toBeTruthy()
 
-        // Reconcile workspace → should create K8s namespace, PVC, pod, service
-        await reconciler.reconcileWorkspace(workspaceId)
+        // Reconcile workbench → should create K8s namespace, PVC, pod, service
+        await reconciler.reconcileWorkbench(workbenchId)
 
         // Verify namespace exists
         const nsOutput = kubectlDirect([
           "get",
           "namespace",
-          `workspace-${workspaceSlug}`,
+          `workbench-${workbenchSlug}`,
           "-o",
           "name",
         ])
-        expect(nsOutput.trim()).toBe(`namespace/workspace-${workspaceSlug}`)
+        expect(nsOutput.trim()).toBe(`namespace/workbench-${workbenchSlug}`)
 
         await new Promise((r) => setTimeout(r, 5000))
 
         // Re-reconcile to pick up pod IP and node ports
-        await reconciler.reconcileWorkspace(workspaceId)
+        await reconciler.reconcileWorkbench(workbenchId)
 
-        // Verify workspace record was updated
-        const [updatedWksp] = await db
+        // Verify workbench record was updated
+        const [updatedWb] = await db
           .select()
-          .from(workspace)
-          .where(eq(workspace.id, workspaceId))
-        expect(updatedWksp).toBeTruthy()
-        expect(updatedWksp!.spec.podName).toBe(`workspace-${workspaceSlug}`)
+          .from(workbench)
+          .where(eq(workbench.id, workbenchId))
+        expect(updatedWb).toBeTruthy()
+        expect(updatedWb!.spec.podName).toBe(`workbench-${workbenchSlug}`)
       },
       TEST_TIMEOUT
     )

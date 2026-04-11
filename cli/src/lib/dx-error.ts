@@ -9,9 +9,9 @@
  */
 
 export interface DxErrorContext {
-  /** What operation was being attempted (e.g., "creating workspace", "applying k8s resource"). */
+  /** What operation was being attempted (e.g., "creating workbench", "applying k8s resource"). */
   operation: string
-  /** Key-value pairs of relevant state (e.g., { workspaceSlug, realmId, kubeconfig }). */
+  /** Key-value pairs of relevant state (e.g., { workbenchSlug, realmId, kubeconfig }). */
   metadata?: Record<string, unknown>
   /** Actionable recovery suggestions shown to the user. */
   suggestions?: Array<{ action: string; description: string }>

@@ -71,28 +71,28 @@ export const UpdateRolloutStatusBody = z.object({
 })
 export type UpdateRolloutStatusBody = z.infer<typeof UpdateRolloutStatusBody>
 
-// ── Fleet: Workspace actions ────────────────────────────────
+// ── Fleet: Workbench actions ────────────────────────────────
 
-export const ExtendWorkspaceBody = z.object({
+export const ExtendWorkbenchBody = z.object({
   minutes: z.number().int().min(1),
 })
-export type ExtendWorkspaceBody = z.infer<typeof ExtendWorkspaceBody>
+export type ExtendWorkbenchBody = z.infer<typeof ExtendWorkbenchBody>
 
-export const SnapshotWorkspaceBody = z.object({
+export const SnapshotWorkbenchBody = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
 })
-export type SnapshotWorkspaceBody = z.infer<typeof SnapshotWorkspaceBody>
+export type SnapshotWorkbenchBody = z.infer<typeof SnapshotWorkbenchBody>
 
-export const ResizeWorkspaceBody = z.object({
+export const ResizeWorkbenchBody = z.object({
   cpu: z.string().optional(),
   memory: z.string().optional(),
   storageGb: z.number().int().optional(),
 })
-export type ResizeWorkspaceBody = z.infer<typeof ResizeWorkspaceBody>
+export type ResizeWorkbenchBody = z.infer<typeof ResizeWorkbenchBody>
 
 export const RestoreSnapshotBody = z.object({
-  workspaceId: z.string().min(1),
+  workbenchId: z.string().min(1),
 })
 export type RestoreSnapshotBody = z.infer<typeof RestoreSnapshotBody>
 

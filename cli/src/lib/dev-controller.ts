@@ -163,8 +163,8 @@ export class DevController {
   private readonly portManager: PortManager
   private readonly projectName: string
   private readonly compose: Compose
-  private readonly workspaceId: string | undefined
-  private readonly workspaceSlug: string | undefined
+  private readonly workbenchId: string | undefined
+  private readonly workbenchSlug: string | undefined
   private readonly activeTunnels = new Map<string, { close: () => void }>()
 
   constructor(
@@ -176,13 +176,13 @@ export class DevController {
     this.portManager = new PortManager(join(rootDir, ".dx"))
     this.projectName = basename(rootDir)
     this.compose = new Compose(composeFiles, this.projectName)
-    this.workspaceId = process.env.DX_WORKSPACE_ID
-    this.workspaceSlug = process.env.DX_WORKSPACE_SLUG
+    this.workbenchId = process.env.DX_WORKBENCH_ID
+    this.workbenchSlug = process.env.DX_WORKBENCH_SLUG
   }
 
-  /** Whether we're running inside a workspace environment */
-  get inSandbox(): boolean {
-    return !!this.workspaceId
+  /** Whether we're running inside a workbench environment */
+  get inWorkbench(): boolean {
+    return !!this.workbenchId
   }
 
   // ------------------------------------------------------------------
@@ -323,9 +323,9 @@ export class DevController {
     writeFileSync(pidFile, String(pid))
     writeFileSync(portFile, String(actualPort))
 
-    // Create tunnel(s) when running inside a workspace
-    if (this.workspaceSlug) {
-      await this.createSandboxTunnels(resolved.name, actualPort)
+    // Create tunnel(s) when running inside a workbench
+    if (this.workbenchSlug) {
+      await this.createWorkbenchTunnels(resolved.name, actualPort)
     }
 
     return {
@@ -338,18 +338,18 @@ export class DevController {
   }
 
   // ------------------------------------------------------------------
-  // Sandbox tunnel management
+  // Workbench tunnel management
   // ------------------------------------------------------------------
 
-  private async createSandboxTunnels(
+  private async createWorkbenchTunnels(
     componentName: string,
     port: number
   ): Promise<void> {
-    if (!this.workspaceSlug) return
+    if (!this.workbenchSlug) return
 
-    const slug = this.workspaceSlug
+    const slug = this.workbenchSlug
 
-    // Port-based tunnel: {slug}-p{port}.workspace.dx.dev
+    // Port-based tunnel: {slug}-p{port}.workbench.dx.dev
     const portSubdomain = `${slug}-p${port}`
     const portTunnel = await openTunnel(
       {
@@ -410,7 +410,7 @@ export class DevController {
     }
   }
 
-  private closeSandboxTunnels(componentName?: string): void {
+  private closeWorkbenchTunnels(componentName?: string): void {
     if (componentName) {
       for (const suffix of ["port", "named", "bare"]) {
         const key = `${componentName}:${suffix}`
@@ -435,7 +435,7 @@ export class DevController {
     if (!existsSync(this.stateDir)) return stopped
 
     if (component === undefined) {
-      this.closeSandboxTunnels()
+      this.closeWorkbenchTunnels()
       for (const entry of readdirSync(this.stateDir)) {
         if (!entry.endsWith(".pid")) continue
         const name = entry.replace(/\.pid$/, "")
@@ -457,7 +457,7 @@ export class DevController {
     }
 
     const resolved = this.resolveComponent(component)
-    this.closeSandboxTunnels(resolved.name)
+    this.closeWorkbenchTunnels(resolved.name)
     const pidFile = join(this.stateDir, `${resolved.name}.pid`)
     const portFile = join(this.stateDir, `${resolved.name}.port`)
 

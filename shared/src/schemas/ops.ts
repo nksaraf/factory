@@ -207,6 +207,7 @@ export const ComponentDeploymentSpecSchema = z.object({
     .default({}),
   desiredImage: z.string().optional(),
   actualImage: z.string().optional(),
+  trackedImageRef: z.string().optional(),
   driftDetected: z.boolean().default(false),
   status: ComponentDeploymentStatusSchema.default("provisioning"),
   lastReconciledAt: z.coerce.date().optional(),
@@ -294,39 +295,39 @@ export const DeploymentSetSchema = z
   .merge(ReconciliationSchema)
 export type DeploymentSet = z.infer<typeof DeploymentSetSchema>
 
-// ── Workspace ───────────────────────────────────────────────
+// ── Workbench ───────────────────────────────────────────────
 
-export const WorkspaceTypeSchema = z.enum([
+export const WorkbenchTypeSchema = z.enum([
   "developer",
   "agent",
   "ci",
   "playground",
 ])
-export type WorkspaceType = z.infer<typeof WorkspaceTypeSchema>
+export type WorkbenchType = z.infer<typeof WorkbenchTypeSchema>
 
-export const WorkspaceRealmTypeSchema = z.enum(["container", "vm"])
-export type WorkspaceRealmType = z.infer<typeof WorkspaceRealmTypeSchema>
+export const WorkbenchRealmTypeSchema = z.enum(["container", "vm"])
+export type WorkbenchRealmType = z.infer<typeof WorkbenchRealmTypeSchema>
 
-export const WorkspaceHealthSchema = z.enum([
+export const WorkbenchHealthSchema = z.enum([
   "unknown",
   "building",
   "ready",
   "unhealthy",
   "terminated",
 ])
-export type WorkspaceHealth = z.infer<typeof WorkspaceHealthSchema>
+export type WorkbenchHealth = z.infer<typeof WorkbenchHealthSchema>
 
-export const WorkspaceRepoSchema = z.object({
+export const WorkbenchRepoSchema = z.object({
   url: z.string(),
   branch: z.string().optional(),
   clonePath: z.string().optional(),
 })
-export type WorkspaceRepo = z.infer<typeof WorkspaceRepoSchema>
+export type WorkbenchRepo = z.infer<typeof WorkbenchRepoSchema>
 
-export const WorkspaceSpecSchema = z.object({
-  realmType: WorkspaceRealmTypeSchema.default("container"),
+export const WorkbenchSpecSchema = z.object({
+  realmType: WorkbenchRealmTypeSchema.default("container"),
   devcontainerConfig: z.record(z.unknown()).default({}),
-  repos: z.array(WorkspaceRepoSchema).default([]),
+  repos: z.array(WorkbenchRepoSchema).default([]),
   cpu: z.string().optional(), // e.g., "2"
   memory: z.string().optional(), // e.g., "4Gi"
   storageGb: z.number().int().optional(),
@@ -339,36 +340,36 @@ export const WorkspaceSpecSchema = z.object({
   webIdeUrl: z.string().optional(),
   podName: z.string().optional(),
   ipAddress: z.string().optional(),
-  healthStatus: WorkspaceHealthSchema.default("unknown"),
+  healthStatus: WorkbenchHealthSchema.default("unknown"),
   setupProgress: z.record(z.unknown()).default({}),
   lifecycle: z
     .enum(["provisioning", "active", "suspended", "destroying", "destroyed"])
     .default("provisioning"),
   expiresAt: z.coerce.date().optional(),
 })
-export type WorkspaceSpec = z.infer<typeof WorkspaceSpecSchema>
+export type WorkbenchSpec = z.infer<typeof WorkbenchSpecSchema>
 
-export const WorkspaceSchema = z
+export const WorkbenchSchema = z
   .object({
     id: z.string(),
     slug: z.string(),
     name: z.string(),
-    type: WorkspaceTypeSchema,
+    type: WorkbenchTypeSchema,
     hostId: z.string().nullable(),
     realmId: z.string().nullable(),
     templateId: z.string().nullable(),
     ownerId: z.string(),
-    spec: WorkspaceSpecSchema,
+    spec: WorkbenchSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
   .merge(BitemporalSchema)
   .merge(ReconciliationSchema)
-export type Workspace = z.infer<typeof WorkspaceSchema>
+export type Workbench = z.infer<typeof WorkbenchSchema>
 
-// ── Workspace Snapshot ──────────────────────────────────────
+// ── Workbench Snapshot ──────────────────────────────────────
 
-export const WorkspaceSnapshotSpecSchema = z.object({
+export const WorkbenchSnapshotSpecSchema = z.object({
   volumeSnapshotName: z.string().optional(),
   sizeBytes: z.number().int().optional(),
   status: z
@@ -376,15 +377,15 @@ export const WorkspaceSnapshotSpecSchema = z.object({
     .default("creating"),
   error: z.string().optional(),
 })
-export type WorkspaceSnapshotSpec = z.infer<typeof WorkspaceSnapshotSpecSchema>
+export type WorkbenchSnapshotSpec = z.infer<typeof WorkbenchSnapshotSpecSchema>
 
-export const WorkspaceSnapshotSchema = z.object({
+export const WorkbenchSnapshotSchema = z.object({
   id: z.string(),
-  workspaceId: z.string(),
-  spec: WorkspaceSnapshotSpecSchema,
+  workbenchId: z.string(),
+  spec: WorkbenchSnapshotSpecSchema,
   createdAt: z.coerce.date(),
 })
-export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>
+export type WorkbenchSnapshot = z.infer<typeof WorkbenchSnapshotSchema>
 
 // ── Preview ─────────────────────────────────────────────────
 
@@ -624,7 +625,7 @@ export type ForwardedPortSpec = z.infer<typeof ForwardedPortSpecSchema>
 export const ForwardedPortSchema = z.object({
   id: z.string(),
   type: ForwardedPortTypeSchema,
-  workspaceId: z.string(),
+  workbenchId: z.string(),
   spec: ForwardedPortSpecSchema,
   createdAt: z.coerce.date(),
 })
@@ -665,34 +666,6 @@ export const InstallManifestSchema = z.object({
   updatedAt: z.coerce.date(),
 })
 export type InstallManifest = z.infer<typeof InstallManifestSchema>
-
-// ── Workbench ───────────────────────────────────────────────
-
-export const WorkbenchTypeSchema = z.enum(["developer", "ci", "agent", "build"])
-export type WorkbenchType = z.infer<typeof WorkbenchTypeSchema>
-
-export const WorkbenchSpecSchema = z.object({
-  machineId: z.string(),
-  hostname: z.string(),
-  os: z.string(),
-  arch: z.string().optional(),
-  lastSeenAt: z.coerce.date().optional(),
-  enabledPlanes: z.array(z.string()).default([]),
-  nodes: z.array(z.record(z.unknown())).default([]),
-  connectedResources: z.record(z.unknown()).default({}),
-})
-export type WorkbenchSpec = z.infer<typeof WorkbenchSpecSchema>
-
-export const WorkbenchSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  type: WorkbenchTypeSchema,
-  spec: WorkbenchSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-})
-export type Workbench = z.infer<typeof WorkbenchSchema>
 
 // ── Connection Audit Event ──────────────────────────────────
 
@@ -754,17 +727,17 @@ export const CreateDeploymentSetSchema = z.object({
 })
 export const UpdateDeploymentSetSchema = CreateDeploymentSetSchema.partial()
 
-export const CreateWorkspaceSchema = z.object({
+export const CreateWorkbenchSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
-  type: WorkspaceTypeSchema,
+  type: WorkbenchTypeSchema,
   hostId: z.string().optional(),
   realmId: z.string().optional(),
   templateId: z.string().optional(),
   ownerId: z.string(),
-  spec: WorkspaceSpecSchema.default({}),
+  spec: WorkbenchSpecSchema.default({}),
 })
-export const UpdateWorkspaceSchema = CreateWorkspaceSchema.partial()
+export const UpdateWorkbenchSchema = CreateWorkbenchSchema.partial()
 
 export const CreateRolloutSchema = z.object({
   releaseId: z.string(),
@@ -772,14 +745,6 @@ export const CreateRolloutSchema = z.object({
   spec: RolloutSpecSchema.default({}),
 })
 export const UpdateRolloutSchema = CreateRolloutSchema.partial()
-
-export const CreateWorkbenchSchema = z.object({
-  slug: z.string().min(1).max(100),
-  name: z.string().min(1).max(200),
-  type: WorkbenchTypeSchema,
-  spec: WorkbenchSpecSchema,
-})
-export const UpdateWorkbenchSchema = CreateWorkbenchSchema.partial()
 
 // ── Preview ─────────────────────────────────────────────────
 
@@ -870,6 +835,6 @@ export const UpdateAnonymizationProfileSchema =
 
 export const CreateForwardedPortSchema = z.object({
   type: ForwardedPortTypeSchema,
-  workspaceId: z.string().min(1),
+  workbenchId: z.string().min(1),
   spec: ForwardedPortSpecSchema,
 })

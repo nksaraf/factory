@@ -7,7 +7,7 @@ import type { StreamManager } from "./tunnel-streams"
 
 const logger = rootLogger.child({ module: "gateway-proxy" })
 
-export type RouteFamily = "tunnel" | "preview" | "sandbox" | "workspace"
+export type RouteFamily = "tunnel" | "preview" | "sandbox" | "workbench"
 
 export interface ParsedHost {
   family: RouteFamily
@@ -26,7 +26,9 @@ function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
   return [
     { suffix: `.tunnel.${domain}`, family: "tunnel" },
     { suffix: `.preview.${domain}`, family: "preview" },
-    { suffix: `.workspace.${domain}`, family: "workspace" },
+    // Legacy public hostname; routes are stored as *.workbench.{domain}
+    { suffix: `.workspace.${domain}`, family: "workbench" },
+    { suffix: `.workbench.${domain}`, family: "workbench" },
     { suffix: `.sandbox.${domain}`, family: "sandbox" },
   ]
 }
@@ -151,7 +153,7 @@ interface TunnelWsData {
 }
 
 /**
- * Per-WebSocket state for browser↔backend bridging (workspace/preview).
+ * Per-WebSocket state for browser↔backend bridging (workbench/preview).
  * The gateway opens a raw WebSocket to the backend NodePort service and
  * relays frames in both directions.
  */
@@ -202,7 +204,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     const suffixMap: Record<RouteFamily, string> = {
       tunnel: `.tunnel.${gwd}`,
       preview: `.preview.${gwd}`,
-      workspace: `.workspace.${gwd}`,
+      workbench: `.workbench.${gwd}`,
       sandbox: `.sandbox.${gwd}`,
     }
     const domain = parsed.fullSubdomain + suffixMap[parsed.family]
@@ -221,7 +223,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     if (
       opts.checkAuth &&
       (route.kind === "sandbox" ||
-        route.kind === "workspace" ||
+        route.kind === "workbench" ||
         route.kind === "preview")
     ) {
       const authMode = route.metadata?.authMode ?? "private"
@@ -326,21 +328,21 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         }
       }
 
-      // Reverse proxy for preview/workspace (NodePort-backed routes)
+      // Reverse proxy for preview/workbench (NodePort-backed routes)
       const targetPort = route.targetPort ?? 80
       const targetUrl = new URL(req.url)
       targetUrl.hostname = route.targetService
       targetUrl.port = String(targetPort)
       targetUrl.protocol = "http:"
 
-      // WebSocket upgrade for workspace/preview routes
+      // WebSocket upgrade for workbench/preview routes
       const upgradeHeader = req.headers.get("upgrade")
       if (upgradeHeader?.toLowerCase() === "websocket") {
         const wsTarget = new URL(targetUrl)
         wsTarget.protocol = "ws:"
         logger.debug(
           { target: wsTarget.toString(), targetPort },
-          "workspace ws upgrade"
+          "workbench ws upgrade"
         )
 
         try {
@@ -390,7 +392,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         } catch (err) {
           logger.error(
             { err, target: wsTarget.toString() },
-            "workspace ws proxy error"
+            "workbench ws proxy error"
           )
           return new Response("Bad Gateway", { status: 502 })
         }

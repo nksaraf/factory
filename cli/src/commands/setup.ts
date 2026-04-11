@@ -388,7 +388,7 @@ export function setupCommand(app: DxBase) {
 
             console.log()
             successLine("Factory ready (local mode)", Date.now() - totalStart)
-            infoLine("dx workspace create <name>   create a workspace")
+            infoLine("dx workbench create <name>   create a workbench")
             infoLine("dx factory status            check factory health")
             console.log()
 
@@ -518,7 +518,7 @@ export function setupCommand(app: DxBase) {
             console.log()
             successLine("Factory ready (dev mode)", Date.now() - totalStart)
             infoLine(`Factory API: ${factoryUrl}`)
-            infoLine("dx workspace create <name>   create a workspace")
+            infoLine("dx workbench create <name>   create a workbench")
             infoLine("dx down --volumes            tear down stack")
             console.log()
 

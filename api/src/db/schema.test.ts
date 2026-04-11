@@ -30,7 +30,7 @@ describe("factory drizzle schemas", () => {
     expect(keys).toContain("build.repo")
     expect(keys).toContain("infra.estate")
     expect(keys).toContain("infra.realm")
-    expect(keys).toContain("ops.workspace")
+    expect(keys).toContain("ops.workbench")
     expect(keys).toContain("ops.site")
     expect(keys).toContain("commerce.customer")
     expect(keys).toContain("software.system")

@@ -1,0 +1,24 @@
+name: Notify Factory of Image Push
+description: >
+  Notifies the Factory API that a new container image has been pushed,
+  triggering site controllers to deploy the update.
+
+inputs:
+  factory-api-url:
+    description: Factory API base URL
+    required: true
+  image-ref:
+    description: Fully qualified image reference (registry/repo:tag@sha256:...)
+    required: true
+  base-tag:
+    description: The base tag that component deployments track (e.g. registry/myapp:main)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - run: |
+        curl -sf -X POST "${{ inputs.factory-api-url }}/api/v1/factory/build/ci/image" \
+          -H "Content-Type: application/json" \
+          -d '{"imageRef":"${{ inputs.image-ref }}","baseTag":"${{ inputs.base-tag }}","branch":"${{ github.ref_name }}","commitSha":"${{ github.sha }}"}'
+      shell: bash

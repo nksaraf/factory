@@ -291,6 +291,23 @@ services:
       catalog.docs.url: "https://docs.powersync.com"
 
   # ---------------------------------------------------------------------------
+  # NATS — real-time event broker with JetStream persistence
+  # ---------------------------------------------------------------------------
+  infra-nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+    labels:
+      catalog.system: factory-dx
+      catalog.component: infra-nats
+      catalog.type: message-queue
+      catalog.description: "NATS JetStream — real-time event broker"
+
+  # ---------------------------------------------------------------------------
   # Redis — used for presence WebSocket fan-out across API instances
   # ---------------------------------------------------------------------------
   infra-redis:
@@ -410,6 +427,7 @@ services:
 volumes:
   postgres-data:
   powersync-mongo-data:
+  nats-data:
   redis-data:
   loki-data:
   factory-documents:

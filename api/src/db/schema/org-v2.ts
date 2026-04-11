@@ -1,3 +1,4 @@
+import type { EventSpec } from "@smp/factory-shared/schemas/events"
 import type {
   AgentSpec,
   ChannelSpec,
@@ -820,6 +821,82 @@ export const webhookEvent = orgSchema.table(
   ]
 )
 
+// ─── Event (Universal Event Log) ──────────────────────────────────
+// Replaces webhook_event as the single event store.
+// All producers (reconciler, webhooks, agents, CLI, API mutations)
+// write canonical events here via emitEvent().
+
+export const event = orgSchema.table(
+  "event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("evt")),
+    topic: text("topic").notNull(),
+    source: text("source").notNull(),
+    severity: text("severity").notNull().default("info"),
+
+    correlationId: text("correlation_id"),
+    parentEventId: text("parent_event_id"),
+
+    principalId: text("principal_id"),
+    entityKind: text("entity_kind"),
+    entityId: text("entity_id"),
+
+    scopeKind: text("scope_kind").notNull().default("org"),
+    scopeId: text("scope_id").notNull().default("default"),
+
+    rawEventType: text("raw_event_type"),
+    idempotencyKey: text("idempotency_key"),
+    schemaVersion: integer("schema_version").notNull().default(1),
+
+    spec: specCol<EventSpec>(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_event_topic_idx").on(t.topic),
+    index("org_event_source_idx").on(t.source),
+    index("org_event_entity_idx").on(t.entityKind, t.entityId),
+    index("org_event_principal_idx").on(t.principalId),
+    index("org_event_occurred_idx").on(t.occurredAt),
+    index("org_event_correlation_idx").on(t.correlationId),
+    index("org_event_parent_idx").on(t.parentEventId),
+    index("org_event_severity_idx").on(t.severity),
+    uniqueIndex("org_event_idempotency_unique").on(t.idempotencyKey),
+    index("org_event_spec_gin_idx").using("gin", t.spec),
+  ]
+)
+
+// ─── Event Outbox ──────────────────────────────────────────────
+// Transactional outbox for reliable NATS publishing.
+// Written in the same DB transaction as org.event.
+// The outbox relay polls for pending rows, publishes to NATS,
+// and marks them as published.
+
+export const eventOutbox = orgSchema.table(
+  "event_outbox",
+  {
+    eventId: text("event_id")
+      .primaryKey()
+      .references(() => event.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("org_event_outbox_pending_idx").on(t.createdAt),
+    check(
+      "org_event_outbox_status_valid",
+      sql`${t.status} IN ('pending', 'published', 'failed')`
+    ),
+  ]
+)
+
 // ─── Workflow Run ─────────────────────────────────────────
 // Tracks each workflow execution with JSONB state.
 
@@ -847,7 +924,7 @@ export const workflowRun = orgSchema.table(
 
     /**
      * Mutable scratch pad — each workflow writes its own shape here.
-     * E.g. god-workflow stores { branchName, workspaceId, jobId, prNumber, prUrl, previewUrl }.
+     * E.g. god-workflow stores { branchName, workbenchId, jobId, prNumber, prUrl, previewUrl }.
      */
     state: jsonb("state")
       .notNull()
@@ -894,13 +971,13 @@ export const eventSubscription = orgSchema.table(
     /** The workflow run that registered this subscription. */
     workflowRunId: text("workflow_run_id").notNull(),
 
-    /** Event name to match, e.g. "workspace.ready", "pr.opened". */
+    /** Event name to match, e.g. "workbench.ready", "pr.opened". */
     eventName: text("event_name").notNull(),
 
     /**
      * JSONB fields that must be a subset of the emitted event data.
      * Uses Postgres <@ (contained-by) operator for matching.
-     * E.g. { "workspaceId": "wks_abc123" }
+     * E.g. { "workbenchId": "wkbn_abc123" }
      */
     matchFields: jsonb("match_fields").notNull(),
 

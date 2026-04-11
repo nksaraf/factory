@@ -2,30 +2,30 @@ import { desc, eq } from "drizzle-orm"
 
 import type { SandboxAdapter } from "../../adapters/sandbox-adapter"
 import type { Database } from "../../db/connection"
-import { workspace, workspaceSnapshot } from "../../db/schema/ops"
-import { createWorkspace, destroyWorkspace } from "./workspace.service"
+import { workbench, workbenchSnapshot } from "../../db/schema/ops"
+import { createWorkbench, destroyWorkbench } from "./workbench.service"
 
 // ---------------------------------------------------------------------------
-// Snapshot CRUD — v2: workspaceSnapshot in ops schema
+// Snapshot CRUD — workbenchSnapshot in ops schema
 // ---------------------------------------------------------------------------
 
 export async function createSnapshot(
   db: Database,
   adapter: SandboxAdapter,
   input: {
-    workspaceId?: string
+    workbenchId?: string
     sandboxId?: string
     createdBy: string
     stop?: boolean
   }
 ) {
-  const wsId = input.workspaceId ?? input.sandboxId!
+  const wsId = input.workbenchId ?? input.sandboxId!
   const result = await adapter.snapshot(wsId)
 
   const [row] = await db
-    .insert(workspaceSnapshot)
+    .insert(workbenchSnapshot)
     .values({
-      workspaceId: wsId,
+      workbenchId: wsId,
       spec: {
         name: `snapshot-${Date.now()}`,
         realmType: "container",
@@ -36,7 +36,7 @@ export async function createSnapshot(
     .returning()
 
   if (input.stop) {
-    await destroyWorkspace(db, wsId)
+    await destroyWorkbench(db, wsId)
   }
 
   return row
@@ -44,15 +44,15 @@ export async function createSnapshot(
 
 export async function listSnapshots(
   db: Database,
-  opts?: { workspaceId?: string; sandboxId?: string }
+  opts?: { workbenchId?: string; sandboxId?: string }
 ) {
-  const wsId = opts?.workspaceId ?? opts?.sandboxId
-  const base = db.select().from(workspaceSnapshot)
+  const wsId = opts?.workbenchId ?? opts?.sandboxId
+  const base = db.select().from(workbenchSnapshot)
   const rows = wsId
     ? await base
-        .where(eq(workspaceSnapshot.workspaceId, wsId))
-        .orderBy(desc(workspaceSnapshot.createdAt))
-    : await base.orderBy(desc(workspaceSnapshot.createdAt))
+        .where(eq(workbenchSnapshot.workbenchId, wsId))
+        .orderBy(desc(workbenchSnapshot.createdAt))
+    : await base.orderBy(desc(workbenchSnapshot.createdAt))
 
   return { data: rows, total: rows.length }
 }
@@ -60,8 +60,8 @@ export async function listSnapshots(
 export async function getSnapshot(db: Database, snapshotId: string) {
   const [row] = await db
     .select()
-    .from(workspaceSnapshot)
-    .where(eq(workspaceSnapshot.id, snapshotId))
+    .from(workbenchSnapshot)
+    .where(eq(workbenchSnapshot.id, snapshotId))
     .limit(1)
 
   return row ?? null
@@ -75,14 +75,14 @@ export async function updateSnapshotStatus(
 ) {
   const [existing] = await db
     .select()
-    .from(workspaceSnapshot)
-    .where(eq(workspaceSnapshot.id, snapshotId))
+    .from(workbenchSnapshot)
+    .where(eq(workbenchSnapshot.id, snapshotId))
     .limit(1)
   if (!existing) return
 
   const spec = (existing.spec ?? {}) as Record<string, any>
   await db
-    .update(workspaceSnapshot)
+    .update(workbenchSnapshot)
     .set({
       spec: {
         ...spec,
@@ -93,7 +93,7 @@ export async function updateSnapshotStatus(
           : {}),
       } as any,
     })
-    .where(eq(workspaceSnapshot.id, snapshotId))
+    .where(eq(workbenchSnapshot.id, snapshotId))
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ export async function updateSnapshotStatus(
 
 export async function restoreFromSnapshot(
   db: Database,
-  workspaceId: string,
+  workbenchId: string,
   snapshotId: string
 ) {
   const snap = await getSnapshot(db, snapshotId)
@@ -113,14 +113,14 @@ export async function restoreFromSnapshot(
 
   const [existing] = await db
     .select()
-    .from(workspace)
-    .where(eq(workspace.id, workspaceId))
+    .from(workbench)
+    .where(eq(workbench.id, workbenchId))
     .limit(1)
-  if (!existing) throw new Error(`Workspace not found: ${workspaceId}`)
+  if (!existing) throw new Error(`Workbench not found: ${workbenchId}`)
 
   const wsSpec = (existing.spec ?? {}) as Record<string, any>
   const [updated] = await db
-    .update(workspace)
+    .update(workbench)
     .set({
       spec: {
         ...wsSpec,
@@ -135,7 +135,7 @@ export async function restoreFromSnapshot(
       } as any,
       updatedAt: new Date(),
     })
-    .where(eq(workspace.id, workspaceId))
+    .where(eq(workbench.id, workbenchId))
     .returning()
 
   return updated!
@@ -156,16 +156,16 @@ export async function cloneFromSnapshot(
   const snapSpec = (snap.spec ?? {}) as Record<string, any>
   const config = snapSpec.config ?? {}
 
-  const ws = await createWorkspace(db, {
+  const ws = await createWorkbench(db, {
     name: data.name,
     ownerId: data.ownerId,
     type: data.ownerType === "agent" ? "agent" : "developer",
   })
 
-  // Overlay snapshot config into new workspace spec
+  // Overlay snapshot config into new workbench spec
   const wsSpec = (ws.spec ?? {}) as Record<string, any>
   const [updated] = await db
-    .update(workspace)
+    .update(workbench)
     .set({
       spec: {
         ...wsSpec,
@@ -181,7 +181,7 @@ export async function cloneFromSnapshot(
       } as any,
       updatedAt: new Date(),
     })
-    .where(eq(workspace.id, ws.id))
+    .where(eq(workbench.id, ws.id))
     .returning()
 
   return updated!
@@ -193,8 +193,8 @@ export async function cloneFromSnapshot(
 
 export async function deleteSnapshot(db: Database, snapshotId: string) {
   const [deleted] = await db
-    .delete(workspaceSnapshot)
-    .where(eq(workspaceSnapshot.id, snapshotId))
+    .delete(workbenchSnapshot)
+    .where(eq(workbenchSnapshot.id, snapshotId))
     .returning()
 
   return deleted ?? null

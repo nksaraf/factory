@@ -31,10 +31,10 @@ import {
 import { detectToolchain } from "../../lib/toolchain-detector.js"
 import {
   type LocalWorkbenchInfo,
-  type WorkspacePaths,
-  discoverAllLocalWorkspaces,
-  discoverLocalWorkspaces,
-  resolveWorkspacePaths,
+  type WorkbenchPaths,
+  discoverAllLocalWorkbenches,
+  discoverLocalWorkbenches,
+  resolveWorkbenchPaths,
 } from "../../lib/worktree-detect.js"
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ export interface CreateLocalWorkbenchOpts {
 export async function createLocalWorkbench(
   opts: CreateLocalWorkbenchOpts
 ): Promise<LocalWorkbenchInfo> {
-  const paths = await resolveWorkspacePaths()
+  const paths = await resolveWorkbenchPaths()
 
   // Validate branch name against conventions
   if (!opts.force) {
@@ -229,17 +229,17 @@ function resolveInstallCommand(
 export async function listLocalWorkbenches(opts?: {
   project?: string
 }): Promise<LocalWorkbenchInfo[]> {
-  const paths = await resolveWorkspacePaths()
+  const paths = await resolveWorkbenchPaths()
 
   // If a specific project was requested, scope to that project
   if (opts?.project) {
-    const scoped: WorkspacePaths = {
+    const scoped: WorkbenchPaths = {
       ...paths,
       projectName: opts.project,
       projectRepoDir: join(paths.reposDir, opts.project),
       projectWorktreesDir: join(paths.worktreesDir, opts.project),
     }
-    return discoverLocalWorkspaces(scoped)
+    return discoverLocalWorkbenches(scoped)
   }
 
   // Default: scan all projects across the machine
@@ -319,7 +319,7 @@ export async function deleteLocalWorkbench(
   }
 
   // Remove the git worktree (must run from inside the same git repo)
-  const paths = await resolveWorkspacePaths(workbench.path)
+  const paths = await resolveWorkbenchPaths(workbench.path)
 
   // Unregister from Conductor DB (best-effort)
   try {
