@@ -60,8 +60,12 @@ export function parseEnvFlags(flags: string[]): Record<string, string> {
 }
 
 /**
- * Merge connection sources by priority: profile < connect-to < selective connect.
- * Higher priority sources override lower ones per-key.
+ * Merge connection sources by priority: connect-to < profile < selective connect.
+ *
+ * connect-to is lowest: it's a blanket "point everything at this target" hint.
+ * profile is higher: it has explicit host/port for specific services and should
+ *   override the blanket connect-to entries for those services.
+ * selective --connect is highest: explicit CLI overrides win everything.
  */
 export function mergeConnectionSources(
   profile?: Record<string, NormalizedProfileEntry>,
@@ -69,8 +73,8 @@ export function mergeConnectionSources(
   connect?: Record<string, NormalizedProfileEntry>
 ): Record<string, NormalizedProfileEntry> {
   return {
-    ...profile,
     ...connectTo,
+    ...profile,
     ...connect,
   }
 }

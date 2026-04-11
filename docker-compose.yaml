@@ -76,7 +76,7 @@ services:
       catalog.api.consumes: "auth-api"
       catalog.docs.api: "/api/v1/factory/openapi"
       catalog.docs.url: "https://docs.internal/factory"
-      dx.dev.command: "pnpm --filter @smp/factory-api dev"
+      dx.dev.command: "pnpm --filter @smp/factory-api-server dev"
       dx.dev.sync: "./api/src,./shared/src"
       dx.runtime: node
 

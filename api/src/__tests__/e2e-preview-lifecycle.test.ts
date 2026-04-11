@@ -22,8 +22,7 @@ import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
 import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
-import path from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 import type {
   GitHostAdapter,
@@ -36,10 +35,10 @@ import type {
   WebhookVerification,
 } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
-import { estate, realm } from "../db/schema/infra-v2"
+import { estate, realm } from "../db/schema/infra"
 import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
-import { system } from "../db/schema/software-v2"
-import { createPgliteDb, migrateWithPglite } from "../factory-core"
+import { system } from "../db/schema/software"
+import { createMigratedTestPglite } from "../test-helpers"
 import { KubeClientImpl } from "../lib/kube-client-impl"
 import { lookupRouteByDomain } from "../modules/infra/gateway.service"
 import { PreviewReconciler } from "../reconciler/preview-reconciler"
@@ -252,13 +251,9 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
         throw new Error(`k3d cluster not reachable: ${err}`)
       }
 
-      const pglite = await createPgliteDb()
+      const pglite = await createMigratedTestPglite()
       client = pglite.client as unknown as { close: () => Promise<void> }
       db = pglite.db as unknown as Database
-      await migrateWithPglite(
-        pglite.client,
-        path.join(process.cwd(), "drizzle")
-      )
 
       kube = new KubeClientImpl()
       gitHost = new SpyGitHostAdapter()

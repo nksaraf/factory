@@ -44,7 +44,7 @@ import {
   softwareApi,
   system,
   template,
-} from "../../db/schema/software-v2"
+} from "../../db/schema/software"
 import { ontologyRoutes } from "../../lib/crud"
 
 const GenerateReleaseContentBody = z.object({
@@ -52,7 +52,7 @@ const GenerateReleaseContentBody = z.object({
 })
 type GenerateReleaseContentBody = z.infer<typeof GenerateReleaseContentBody>
 
-export function productControllerV2(db: Database) {
+export function productController(db: Database) {
   return new Elysia({ prefix: "/product" })
     .use(
       ontologyRoutes(db, {
@@ -62,6 +62,8 @@ export function productControllerV2(db: Database) {
         table: system,
         slugColumn: system.slug,
         idColumn: system.id,
+        prefix: "sys",
+        kindAlias: "system",
         createSchema: CreateSystemSchema,
         updateSchema: UpdateSystemSchema,
         deletable: "bitemporal",
@@ -97,6 +99,8 @@ export function productControllerV2(db: Database) {
         table: component,
         slugColumn: component.slug,
         idColumn: component.id,
+        prefix: "cmp",
+        kindAlias: "component",
         createSchema: CreateComponentSchema,
         updateSchema: UpdateComponentSchema,
         deletable: "bitemporal",
@@ -121,6 +125,8 @@ export function productControllerV2(db: Database) {
         table: softwareApi,
         slugColumn: softwareApi.slug,
         idColumn: softwareApi.id,
+        prefix: "api",
+        kindAlias: "api",
         createSchema: CreateApiSchema,
         updateSchema: UpdateApiSchema,
         deletable: true,
@@ -134,6 +140,8 @@ export function productControllerV2(db: Database) {
         table: artifact,
         slugColumn: artifact.slug,
         idColumn: artifact.id,
+        prefix: "art",
+        kindAlias: "artifact",
         createSchema: CreateArtifactSchema,
         updateSchema: UpdateArtifactSchema,
         deletable: true,
@@ -147,6 +155,8 @@ export function productControllerV2(db: Database) {
         table: release,
         slugColumn: release.slug,
         idColumn: release.id,
+        prefix: "rel",
+        kindAlias: "release",
         createSchema: CreateReleaseSchema,
         updateSchema: UpdateReleaseSchema,
         deletable: true,
@@ -202,6 +212,8 @@ export function productControllerV2(db: Database) {
         table: template,
         slugColumn: template.slug,
         idColumn: template.id,
+        prefix: "tmpl",
+        kindAlias: "template",
         createSchema: CreateTemplateSchema,
         updateSchema: UpdateTemplateSchema,
         deletable: true,
@@ -215,6 +227,8 @@ export function productControllerV2(db: Database) {
         table: product,
         slugColumn: product.slug,
         idColumn: product.id,
+        prefix: "prod",
+        kindAlias: "product",
         createSchema: CreateProductSchema,
         updateSchema: UpdateProductSchema,
         deletable: true,
@@ -235,9 +249,24 @@ export function productControllerV2(db: Database) {
         table: capability,
         slugColumn: capability.slug,
         idColumn: capability.id,
+        prefix: "cap",
+        kindAlias: "capability",
         createSchema: CreateCapabilitySchema,
         updateSchema: UpdateCapabilitySchema,
         deletable: true,
       })
     )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const productOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "systems", singular: "system", table: system, slugColumn: system.slug, idColumn: system.id, prefix: "sys", kindAlias: "system" },
+  { entity: "components", singular: "component", table: component, slugColumn: component.slug, idColumn: component.id, prefix: "cmp", kindAlias: "component" },
+  { entity: "apis", singular: "api", table: softwareApi, slugColumn: softwareApi.slug, idColumn: softwareApi.id, prefix: "api", kindAlias: "api" },
+  { entity: "artifacts", singular: "artifact", table: artifact, slugColumn: artifact.slug, idColumn: artifact.id, prefix: "art", kindAlias: "artifact" },
+  { entity: "releases", singular: "release", table: release, slugColumn: release.slug, idColumn: release.id, prefix: "rel", kindAlias: "release" },
+  { entity: "templates", singular: "template", table: template, slugColumn: template.slug, idColumn: template.id, prefix: "tmpl", kindAlias: "template" },
+  { entity: "products", singular: "product", table: product, slugColumn: product.slug, idColumn: product.id, prefix: "prod", kindAlias: "product" },
+  { entity: "capabilities", singular: "capability", table: capability, slugColumn: capability.slug, idColumn: capability.id, prefix: "cap", kindAlias: "capability" },
+]

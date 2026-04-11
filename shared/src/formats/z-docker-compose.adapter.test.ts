@@ -1159,21 +1159,46 @@ services:
       )
     })
 
-    it("detects restart:no + no ports as init", () => {
+    it("detects restart:no + no ports + depends_on as init", () => {
       setupComposeFile(
         "/myproject",
         `
 services:
   my-setup:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
     image: alpine:latest
     restart: "no"
     command: ["echo", "done"]
+`
+    depends_on:
+      - db
 `
       )
       const adapter = new DockerComposeFormatAdapter()
       const result = adapter.parse("/myproject")
       expect(result.system.components["my-setup"]).toBeDefined()
       expect(result.system.components["my-setup"].spec.type).toBe("init")
+    })
+
+    it("does NOT detect restart:no + no ports alone (no depends_on) as init", () => {
+      setupComposeFile(
+        "/myproject",
+        `
+services:
+  standalone-job:
+    image: alpine:latest
+    restart: "no"
+    command: ["echo", "done"]
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/myproject")
+      // Without depends_on, a portless restart:no container is NOT classified as init
+      expect(result.system.components["standalone-job"]).toBeDefined()
+      expect(result.system.components["standalone-job"].spec.type).not.toBe("init")
     })
 
     it("detects service_completed_successfully dependents as init", () => {

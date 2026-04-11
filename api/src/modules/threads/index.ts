@@ -27,10 +27,10 @@ import {
   thread,
   threadParticipant,
   threadTurn,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 
-export function threadsControllerV2(db: Database) {
+export function threadsController(db: Database) {
   return (
     new Elysia({ prefix: "/threads" })
 
@@ -43,6 +43,8 @@ export function threadsControllerV2(db: Database) {
           table: channel,
           slugColumn: channel.id, // no slug — use id
           idColumn: channel.id,
+          prefix: "chan",
+          kindAlias: "channel",
           createSchema: CreateChannelSchema,
           updateSchema: UpdateChannelSchema,
           deletable: true,
@@ -65,6 +67,8 @@ export function threadsControllerV2(db: Database) {
           table: thread,
           slugColumn: thread.id, // no slug — use id
           idColumn: thread.id,
+          prefix: "thrd",
+          kindAlias: "thread",
           createSchema: CreateThreadSchema,
           updateSchema: UpdateThreadSchema,
           deletable: true,
@@ -168,6 +172,8 @@ export function threadsControllerV2(db: Database) {
           table: threadTurn,
           slugColumn: threadTurn.id, // no slug — use id
           idColumn: threadTurn.id,
+          prefix: "turn",
+          kindAlias: "thread-turn",
           createSchema: CreateThreadTurnSchema,
           deletable: true,
         })
@@ -187,3 +193,11 @@ export function threadsControllerV2(db: Database) {
       )
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const threadsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "channels", singular: "channel", table: channel, slugColumn: channel.id, idColumn: channel.id, prefix: "chan", kindAlias: "channel" },
+  { entity: "threads", singular: "thread", table: thread, slugColumn: thread.id, idColumn: thread.id, prefix: "thrd", kindAlias: "thread" },
+  { entity: "turns", singular: "thread turn", table: threadTurn, slugColumn: threadTurn.id, idColumn: threadTurn.id, prefix: "turn", kindAlias: "thread-turn" },
+]

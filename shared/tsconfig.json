@@ -12,7 +12,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["node"]
+    "types": ["bun", "node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.bench.ts"]

@@ -1,7 +1,7 @@
 /**
- * v2 Org controller.
+ * Org controller.
  *
- * Maps org-level routes to v2 ontology tables:
+ * Maps org-level routes to ontology tables:
  *   /org/teams        → org.team
  *   /org/principals   → org.principal
  *   /org/scopes       → org.scope
@@ -29,9 +29,12 @@ import {
   scope,
   sshKey,
   team,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
+import { currentRow } from "../../db/temporal"
 import { ontologyRoutes } from "../../lib/crud"
+import { ConflictError, NotFoundError } from "../../lib/errors"
 import { newId } from "../../lib/id"
+import { resolveBySlugOrId } from "../../lib/resolvers"
 import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend"
 import { IdentitySyncService } from "./identity-sync.service"
 import { IdentityService } from "./identity.service"
@@ -60,7 +63,23 @@ const AddSshKeyBody = z.object({
 })
 type AddSshKeyBody = z.infer<typeof AddSshKeyBody>
 
-export function identityControllerV2(db: Database) {
+const AddTeamMemberBody = z.object({
+  principal: z.string().min(1),
+  role: z.enum(["member", "lead", "admin"]).optional(),
+})
+type AddTeamMemberBody = z.infer<typeof AddTeamMemberBody>
+
+const RemoveTeamMemberBody = z.object({
+  principal: z.string().min(1),
+})
+type RemoveTeamMemberBody = z.infer<typeof RemoveTeamMemberBody>
+
+const principalCurrent = currentRow({
+  validTo: principal.validTo,
+  systemTo: principal.systemTo,
+})
+
+export function identityController(db: Database) {
   return (
     new Elysia({ prefix: "/org" })
 
@@ -73,6 +92,8 @@ export function identityControllerV2(db: Database) {
           table: team,
           slugColumn: team.slug,
           idColumn: team.id,
+          prefix: "team",
+          kindAlias: "team",
           createSchema: CreateTeamSchema,
           updateSchema: UpdateTeamSchema,
           deletable: "bitemporal",
@@ -82,6 +103,90 @@ export function identityControllerV2(db: Database) {
               path: "members",
               table: membership,
               fk: membership.teamId,
+            },
+          },
+          actions: {
+            "add-member": {
+              bodySchema: AddTeamMemberBody,
+              handler: async ({ db, entity, body }) => {
+                const b = body as AddTeamMemberBody
+                const teamId = entity.id as string
+                const prow = await resolveBySlugOrId(
+                  db,
+                  principal,
+                  b.principal,
+                  principal.slug,
+                  principal.id,
+                  principalCurrent
+                )
+                if (!prow) {
+                  throw new NotFoundError(
+                    `principal '${b.principal}' not found`
+                  )
+                }
+                const principalId = (prow as { id: string }).id
+                const [dup] = await db
+                  .select({ id: membership.id })
+                  .from(membership)
+                  .where(
+                    and(
+                      eq(membership.teamId, teamId),
+                      eq(membership.principalId, principalId)
+                    )
+                  )
+                  .limit(1)
+                if (dup) {
+                  throw new ConflictError(
+                    `principal '${b.principal}' is already a member of this team`
+                  )
+                }
+                const [row] = await db
+                  .insert(membership)
+                  .values({
+                    id: newId("ptm"),
+                    principalId,
+                    teamId,
+                    spec: { role: b.role ?? "member" },
+                  })
+                  .returning()
+                return row
+              },
+            },
+            "remove-member": {
+              bodySchema: RemoveTeamMemberBody,
+              handler: async ({ db, entity, body }) => {
+                const b = body as RemoveTeamMemberBody
+                const teamId = entity.id as string
+                const prow = await resolveBySlugOrId(
+                  db,
+                  principal,
+                  b.principal,
+                  principal.slug,
+                  principal.id,
+                  principalCurrent
+                )
+                if (!prow) {
+                  throw new NotFoundError(
+                    `principal '${b.principal}' not found`
+                  )
+                }
+                const principalId = (prow as { id: string }).id
+                const removed = await db
+                  .delete(membership)
+                  .where(
+                    and(
+                      eq(membership.teamId, teamId),
+                      eq(membership.principalId, principalId)
+                    )
+                  )
+                  .returning()
+                if (removed.length === 0) {
+                  throw new NotFoundError(
+                    `principal '${b.principal}' is not a member of this team`
+                  )
+                }
+                return { removed: true }
+              },
             },
           },
         })
@@ -96,6 +201,8 @@ export function identityControllerV2(db: Database) {
           table: principal,
           slugColumn: principal.slug,
           idColumn: principal.id,
+          prefix: "prin",
+          kindAlias: "principal",
           createSchema: CreatePrincipalSchema,
           updateSchema: UpdatePrincipalSchema,
           deletable: "bitemporal",
@@ -196,6 +303,8 @@ export function identityControllerV2(db: Database) {
           table: scope,
           slugColumn: scope.slug,
           idColumn: scope.id,
+          prefix: "scope",
+          kindAlias: "scope",
           createSchema: CreateScopeSchema,
           updateSchema: UpdateScopeSchema,
           deletable: true,
@@ -211,6 +320,8 @@ export function identityControllerV2(db: Database) {
           table: entityRelationship,
           slugColumn: entityRelationship.id,
           idColumn: entityRelationship.id,
+          prefix: "erel",
+          kindAlias: "entity-relationship",
           createSchema: CreateEntityRelationshipSchema,
           updateSchema: UpdateEntityRelationshipSchema,
           deletable: true,
@@ -247,3 +358,54 @@ export function identityControllerV2(db: Database) {
       })
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const identityOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "teams",
+    singular: "team",
+    table: team,
+    slugColumn: team.slug,
+    idColumn: team.id,
+    prefix: "team",
+    kindAlias: "team",
+  },
+  {
+    entity: "principals",
+    singular: "principal",
+    table: principal,
+    slugColumn: principal.slug,
+    idColumn: principal.id,
+    prefix: "prin",
+    kindAlias: "principal",
+  },
+  {
+    entity: "scopes",
+    singular: "scope",
+    table: scope,
+    slugColumn: scope.slug,
+    idColumn: scope.id,
+    prefix: "scope",
+    kindAlias: "scope",
+  },
+  {
+    entity: "entity-relationships",
+    singular: "entity relationship",
+    table: entityRelationship,
+    slugColumn: entityRelationship.id,
+    idColumn: entityRelationship.id,
+    prefix: "erel",
+    kindAlias: "entity-relationship",
+  },
+]

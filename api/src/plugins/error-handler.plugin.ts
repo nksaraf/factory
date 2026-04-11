@@ -4,7 +4,7 @@
  * Translates AppError subclasses, ZodError, and Postgres constraint
  * violations into structured JSON responses with correct HTTP status codes.
  *
- * Used by both the legacy app and the standalone v2 app.
+ * Used by factory API entrypoints that mount this plugin.
  */
 
 import { Elysia } from "elysia"

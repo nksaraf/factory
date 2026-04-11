@@ -5,7 +5,7 @@ import {
   NetworkLinkSpecSchema,
   NetworkLinkTypeSchema,
 } from "@smp/factory-shared/schemas/infra"
-import { describe, expect, test } from "vitest"
+import { describe, expect, test } from "bun:test"
 
 import {
   type GraphReader,

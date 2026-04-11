@@ -4,7 +4,7 @@
 
 import { createStep } from "../../../lib/workflow-engine"
 import { getWorkflowDb } from "../../../lib/workflow-helpers"
-import { job } from "../../../db/schema/org-v2"
+import { job } from "../../../db/schema/org"
 import type { JobSpec } from "@smp/factory-shared/schemas/org"
 
 export const createAgentJob = createStep({

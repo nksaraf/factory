@@ -7,8 +7,11 @@
  *   3. --quiet / -q flag → "warn"
  *   4. Default → "info"
  *
- * No external dependencies — uses stderr so stdout stays clean for
- * structured output (--json).
+ * `debug` / `info` / `warn` / `error` always use **stderr** so stdout can stay
+ * JSON-only when `--json` is set (see `cli-output.ts`).
+ *
+ * For a single line that would otherwise be `console.log` but must not steal stdout
+ * under `--json`, use **`cliLine`** from `cli-output.ts`.
  */
 import { styleMuted } from "../cli-style.js"
 

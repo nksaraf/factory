@@ -857,7 +857,8 @@ export const CreateTeamSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: TeamTypeSchema.optional(),
-  parentTeamId: z.string().optional(),
+  /** Omit for root teams; set null on update to detach from parent. */
+  parentTeamId: z.string().nullish(),
   spec: TeamSpecSchema.default({}),
 })
 export const UpdateTeamSchema = CreateTeamSchema.partial()

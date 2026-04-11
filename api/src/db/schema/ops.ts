@@ -27,7 +27,7 @@ import {
 } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
-import { customer } from "./commerce-v2"
+import { customer } from "./commerce"
 import {
   bitemporalCols,
   createdAt,
@@ -37,9 +37,9 @@ import {
   specCol,
   updatedAt,
 } from "./helpers"
-import { host, realm, service } from "./infra-v2"
-import { principal } from "./org-v2"
-import { artifact, component, release, system, template } from "./software-v2"
+import { host, realm, service } from "./infra"
+import { principal } from "./org"
+import { artifact, component, release, system, template } from "./software"
 
 // ─── Site ────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach } from "vitest"
+import { describe, expect, it, afterEach } from "bun:test"
 import { encrypt, decrypt } from "../lib/secrets/crypto"
 
 describe("secrets/crypto", () => {
@@ -59,8 +59,8 @@ describe("secrets/crypto", () => {
       expect(decrypted).toBe("test")
     })
 
-    it("falls back to v1 key when versioned key env var is missing", () => {
-      // keyVersion 5 has no env var set, should fall back to v1
+    it("falls back to default key when versioned key env var is missing", () => {
+      // keyVersion 5 has no env var set — should fall back to the base key (slot 1)
       const encrypted = encrypt("fallback-test", 5)
       expect(encrypted.keyVersion).toBe(5)
       const decrypted = decrypt(encrypted)
@@ -71,19 +71,19 @@ describe("secrets/crypto", () => {
       // Set a different key for version 2
       process.env.FACTORY_SECRET_MASTER_KEY_V2 =
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-      const encrypted = encrypt("v2-test", 2)
+      const encrypted = encrypt("versioned-key-roundtrip", 2)
       expect(encrypted.keyVersion).toBe(2)
       const decrypted = decrypt(encrypted)
-      expect(decrypted).toBe("v2-test")
+      expect(decrypted).toBe("versioned-key-roundtrip")
     })
 
     it("fails to decrypt with wrong key version", () => {
-      // Encrypt with v1
+      // Encrypt with keyVersion 1
       const encrypted = encrypt("secret", 1)
-      // Set a DIFFERENT key for v2
+      // Set a DIFFERENT key for encryption format 2
       process.env.FACTORY_SECRET_MASTER_KEY_V2 =
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-      // Try to decrypt claiming it was v2 — should fail
+      // Try to decrypt claiming format version 2 — should fail
       expect(() => decrypt({ ...encrypted, keyVersion: 2 })).toThrow()
     })
   })

@@ -32,7 +32,7 @@ Tables are defined inside their schema namespace, e.g. `infraSchema.table("host"
 Every entity table follows the same column pattern:
 
 ```ts
-// api/src/db/schema/infra-v2.ts (simplified)
+// api/src/db/schema/infra.ts (simplified)
 export const host = infraSchema.table("host", {
   id: text("id")
     .primaryKey()
@@ -214,10 +214,10 @@ Cross-schema foreign keys that Drizzle cannot infer (e.g. `realm.workbenchId` �
 | Concern                                                             | File                               |
 | ------------------------------------------------------------------- | ---------------------------------- |
 | Column helper builders                                              | `api/src/db/schema/helpers.ts`     |
-| Infrastructure entities (Estate, Host, Realm, Service, Route…)      | `api/src/db/schema/infra-v2.ts`    |
+| Infrastructure entities (Estate, Host, Realm, Service, Route…)      | `api/src/db/schema/infra.ts`    |
 | Operations entities (Site, Tenant, Workspace, Preview, Deployment…) | `api/src/db/schema/ops.ts`         |
-| Software entities (System, Component, Release, Artifact…)           | `api/src/db/schema/software-v2.ts` |
-| Organisation entities (Principal, Group…)                           | `api/src/db/schema/org-v2.ts`      |
+| Software entities (System, Component, Release, Artifact…)           | `api/src/db/schema/software.ts` |
+| Organisation entities (Principal, Group…)                           | `api/src/db/schema/org.ts`      |
 | Zod spec types for infra                                            | `shared/src/schemas/infra.ts`      |
 | Zod spec types for ops                                              | `shared/src/schemas/ops.ts`        |
 

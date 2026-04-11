@@ -19,8 +19,6 @@ import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
 import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
-import path from "node:path"
-
 import type {
   GitHostAdapter,
   GitHostCheckRun,
@@ -29,10 +27,10 @@ import type {
   WebhookVerification,
 } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
-import { estate, realm } from "../db/schema/infra-v2"
+import { estate, realm } from "../db/schema/infra"
 import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
-import { system } from "../db/schema/software-v2"
-import { createPgliteDb, migrateWithPglite } from "../factory-core"
+import { system } from "../db/schema/software"
+import { createMigratedTestPglite } from "../test-helpers"
 import { KubeClientImpl } from "../lib/kube-client-impl"
 import { lookupRouteByDomain } from "../modules/infra/gateway.service"
 import { PreviewReconciler } from "../reconciler/preview-reconciler"
@@ -209,12 +207,8 @@ async function main() {
 
   // ── Step 1: Database ──
   step(1, "Initialize PGlite database + migrations")
-  const { client, db: rawDb } = await createPgliteDb()
+  const { client, db: rawDb } = await createMigratedTestPglite()
   const db = rawDb as unknown as Database
-  await migrateWithPglite(
-    client as Parameters<typeof migrateWithPglite>[0],
-    path.join(process.cwd(), "drizzle")
-  )
   info("Database", "PGlite in-memory, migrations applied")
 
   // ── Step 2: Infra ──

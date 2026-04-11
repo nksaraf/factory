@@ -28,7 +28,7 @@ export interface ComposeExecutorConfig {
 }
 
 export class ComposeExecutor implements Executor {
-  readonly type = "compose"
+  readonly type = "docker-compose"
   private config: ComposeExecutorConfig
 
   constructor(config: ComposeExecutorConfig) {

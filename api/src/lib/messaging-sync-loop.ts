@@ -8,7 +8,7 @@
 
 import { eq, sql } from "drizzle-orm"
 import type { Database } from "../db/connection"
-import { messagingProvider } from "../db/schema/org-v2"
+import { messagingProvider } from "../db/schema/org"
 import type { MessagingProviderSpec } from "@smp/factory-shared/schemas/org"
 import { createOperationRunner, type OperationRunner } from "./operations"
 

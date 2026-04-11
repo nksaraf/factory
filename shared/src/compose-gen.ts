@@ -1,6 +1,7 @@
 import { join, resolve } from "node:path"
 import { stringify } from "yaml"
 
+import { isDevComponent } from "./catalog"
 import type { CatalogSystem } from "./catalog"
 import type { ResolvedConnectionContext } from "./connection-context-schemas"
 
@@ -174,7 +175,7 @@ export function generateComposeFromCatalog(
       svc.ports = [`${hostP}:${containerP}`]
     }
 
-    if (comp.spec.dev?.command) {
+    if (isDevComponent(comp)) {
       svc.command = comp.spec.dev.command.includes(" ")
         ? ["sh", "-c", comp.spec.dev.command]
         : comp.spec.dev.command

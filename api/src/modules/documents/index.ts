@@ -20,7 +20,7 @@ import { desc, eq, max } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { document, documentVersion } from "../../db/schema/org-v2"
+import { document, documentVersion } from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
 import { documentExists, readDocument, writeDocument } from "./storage"
@@ -102,6 +102,8 @@ export function documentsController(db: Database) {
           table: document,
           slugColumn: document.slug,
           idColumn: document.id,
+          prefix: "doc",
+          kindAlias: "document",
           createSchema: CreateDocumentSchema,
           updateSchema: UpdateDocumentSchema,
           deletable: true,
@@ -210,3 +212,9 @@ export function documentsController(db: Database) {
       })
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const documentsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "documents", singular: "document", table: document, slugColumn: document.slug, idColumn: document.id, prefix: "doc", kindAlias: "document" },
+]

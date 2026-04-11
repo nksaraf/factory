@@ -15,7 +15,7 @@ import {
   thread,
   threadTurn,
   webhookEvent,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
 import {

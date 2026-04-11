@@ -9,7 +9,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
 
-import { webhookEvent } from "../../api/src/db/schema/org-v2"
+import { webhookEvent } from "../../api/src/db/schema/org"
 import { newId } from "../../api/src/lib/id"
 import { type IngestEvent, parseArgs } from "./lib/common"
 

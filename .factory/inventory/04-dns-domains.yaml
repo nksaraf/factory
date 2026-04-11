@@ -1,0 +1,116 @@
+version: "1"
+
+# DNS domains — registered domains mapped to their DNS provider estate
+entities:
+  # ── Cloudflare-managed ───────────────────────────────────────
+  - kind: dns-domain
+    slug: rio-software
+    name: rio.software
+    type: primary
+    fqdn: rio.software
+    spec:
+      registrar: namecheap
+      dnsProvider: cloudflare
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: lepton-software
+    name: lepton.software
+    type: primary
+    fqdn: lepton.software
+    spec:
+      registrar: namecheap
+      dnsProvider: cloudflare
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: trafficure-com
+    name: trafficure.com
+    type: primary
+    fqdn: trafficure.com
+    spec:
+      registrar: cloudflare
+      dnsProvider: cloudflare
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: smartmarket-ai
+    name: smartmarket.ai
+    type: primary
+    fqdn: smartmarket.ai
+    spec:
+      registrar: cloudflare
+      dnsProvider: cloudflare
+      verified: false
+      records: []
+
+  # ── Verio-managed ─────────────────────────────────────────────
+  - kind: dns-domain
+    slug: leptonmaps-com
+    name: leptonmaps.com
+    type: primary
+    fqdn: leptonmaps.com
+    spec:
+      registrar: verio
+      dnsProvider: verio
+      verified: false
+      records: []
+
+  # ── GoDaddy-managed ───────────────────────────────────────────
+  - kind: dns-domain
+    slug: leptonsoftware-com
+    name: leptonsoftware.com
+    type: primary
+    fqdn: leptonsoftware.com
+    spec:
+      registrar: godaddy
+      dnsProvider: godaddy
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: leptonsoftware-ai
+    name: leptonsoftware.ai
+    type: primary
+    fqdn: leptonsoftware.ai
+    spec:
+      registrar: godaddy
+      dnsProvider: godaddy
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: leptonsoftware-co
+    name: leptonsoftware.co
+    type: primary
+    fqdn: leptonsoftware.co
+    spec:
+      registrar: godaddy
+      dnsProvider: godaddy
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: pathlosssoftware-com
+    name: pathlosssoftware.com
+    type: primary
+    fqdn: pathlosssoftware.com
+    spec:
+      registrar: godaddy
+      dnsProvider: godaddy
+      verified: false
+      records: []
+
+  - kind: dns-domain
+    slug: networkaccess-co
+    name: networkaccess.co
+    type: primary
+    fqdn: networkaccess.co
+    spec:
+      registrar: godaddy
+      dnsProvider: godaddy
+      verified: false
+      records: []

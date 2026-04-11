@@ -5,12 +5,12 @@ import type { PgTable } from "drizzle-orm/pg-core"
 import pg from "pg"
 import { z } from "zod"
 
-import * as buildSchema from "../../db/schema/build-v2"
-import * as commerceSchema from "../../db/schema/commerce-v2"
-import * as infraSchema from "../../db/schema/infra-v2"
+import * as buildSchema from "../../db/schema/build"
+import * as commerceSchema from "../../db/schema/commerce"
+import * as infraSchema from "../../db/schema/infra"
 // Schema imports — ontology tables
-import * as orgSchema from "../../db/schema/org-v2"
-import * as softwareSchema from "../../db/schema/software-v2"
+import * as orgSchema from "../../db/schema/org"
+import * as softwareSchema from "../../db/schema/software"
 import { logger } from "../../logger"
 import { emitAgentEvent } from "./events"
 

@@ -14,14 +14,14 @@ import {
   gitRepoSync,
   gitUserSync,
   repo,
-} from "../../db/schema/build-v2"
+} from "../../db/schema/build"
 import type { AuthAdminClient } from "../../lib/auth-admin-client"
 import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend"
 import { allocateSlug } from "../../lib/slug"
 import { createSpecRefResolver } from "../../lib/spec-ref-resolver"
 
 // ---------------------------------------------------------------------------
-// Spec helpers — v2 stores credentials & config in the JSONB `spec` column
+// Spec helpers — credentials & config live in the JSONB `spec` column
 // ---------------------------------------------------------------------------
 
 function providerSpec(provider: { spec: unknown }): GitHostProviderSpec {
@@ -29,7 +29,7 @@ function providerSpec(provider: { spec: unknown }): GitHostProviderSpec {
 }
 
 /**
- * Build adapter config from v2 provider spec.
+ * Build adapter config from git host provider spec.
  * Supports credentialsRef as plain token, JSON object, or $secret() reference.
  */
 function adapterConfigFromResolvedSpec(
@@ -354,7 +354,7 @@ export class GitHostService {
         }
       }
 
-      // Insert sync record — v2 stores user metadata in spec JSONB
+      // Insert sync record — user metadata in spec JSONB
       await this.db.insert(gitUserSync).values({
         gitHostProviderId: providerId,
         externalUserId: member.externalUserId,

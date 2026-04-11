@@ -308,7 +308,7 @@ export function createLocalApp(
     .use(secretController(db))
     .use(configVarController(db))
     .use(messagingController(db))
-    .use(operationsController())
+    .use(operationsController(db))
     .use(workflowController(db))
     .use(eventController(db))
 

@@ -182,7 +182,7 @@ for p in projects:
                 services.append({
                     'name': svc_name,
                     'displayName': svc_name,
-                    'realmType': 'docker',
+                    'realmType': 'docker-compose',
                     'status': svc_status,
                     'ports': sorted(set(port_nums)),
                     'image': c.get('Image', ''),

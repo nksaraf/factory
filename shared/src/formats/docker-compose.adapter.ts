@@ -284,8 +284,11 @@ const INIT_NAME_SUFFIXES = [
 /**
  * Detect whether a service is a one-shot init/migration container.
  *
- * Signals: restart:"no" + (name pattern OR no ports OR service_completed_successfully dependents).
- * Label `catalog.type: init` is an explicit opt-in override.
+ * Signals (all require restart:"no"):
+ *   - Name matches an init suffix pattern
+ *   - No ports AND has depends_on (portless standalone containers are not init containers)
+ *   - Other services depend on this via service_completed_successfully
+ * Label `catalog.type: init` is an explicit opt-in override (no restart check needed).
  */
 function isInitContainer(
   name: string,
@@ -304,8 +307,15 @@ function isInitContainer(
   const lowerName = name.toLowerCase()
   if (INIT_NAME_SUFFIXES.some((s) => lowerName.endsWith(s))) return true
 
-  // No exposed ports
-  if (!svc.ports?.length) return true
+  // No exposed ports AND has depends_on — portless standalone containers are
+  // not init containers, but a portless service that depends on something else
+  // almost certainly runs against that dependency and exits
+  const hasDeps =
+    svc.depends_on != null &&
+    (Array.isArray(svc.depends_on)
+      ? svc.depends_on.length > 0
+      : Object.keys(svc.depends_on).length > 0)
+  if (!svc.ports?.length && hasDeps) return true
 
   // Other services depend on this via service_completed_successfully
   if (completedSuccessfullyDependents.has(name)) return true

@@ -5,6 +5,14 @@
     "no-console": "warn",
     "eqeqeq": "error"
   },
+  "overrides": [
+    {
+      "files": ["cli/src/lib/cli-output.ts", "cli/src/lib/logger.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "dist/",
     "node_modules/",

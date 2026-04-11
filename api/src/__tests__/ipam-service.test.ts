@@ -6,7 +6,7 @@
  */
 import type { PGlite } from "@electric-sql/pglite"
 import type { IpAddressSpec } from "@smp/factory-shared/schemas/infra"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type {
   ArpEntry,
@@ -16,7 +16,7 @@ import type {
 } from "../adapters/network-device-adapter"
 import { NoopNetworkDeviceAdapter } from "../adapters/network-device-adapter-noop"
 import type { Database } from "../db/connection"
-import { estate, ipAddress } from "../db/schema/infra-v2"
+import { estate, ipAddress } from "../db/schema/infra"
 import * as ipamSvc from "../services/infra/ipam.service"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 

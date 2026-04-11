@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test"
 import { eq } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { event, eventOutbox } from "../db/schema/org-v2"
+import { event, eventOutbox } from "../db/schema/org"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import { emitEvent } from "./events"
 

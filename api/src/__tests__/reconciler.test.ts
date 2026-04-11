@@ -2,13 +2,13 @@ import type { PGlite } from "@electric-sql/pglite"
 import type { ComponentDeploymentSpec } from "@smp/factory-shared/schemas/ops"
 import type { ComponentSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
-import { systemVersion } from "../db/schema/build-v2"
-import { estate, realm } from "../db/schema/infra-v2"
+import { systemVersion } from "../db/schema/build"
+import { estate, realm } from "../db/schema/infra"
 import { componentDeployment, site, systemDeployment } from "../db/schema/ops"
-import { component, system } from "../db/schema/software-v2"
+import { component, system } from "../db/schema/software"
 import type { KubeClient, KubeResource } from "../lib/kube-client"
 import { Reconciler } from "../reconciler/reconciler"
 import { generateWorkbenchResources } from "../reconciler/sandbox-resource-generator"
@@ -147,7 +147,7 @@ describe("Reconciler", () => {
         spec: { namespace: "default", lifecycle: "production", tags: [] },
       })
       .returning()
-    // Map legacy kind names to valid v2 component type values
+    // Map legacy kind names to valid component type values
     const componentType = kind === "server" ? "service" : kind
     const [comp] = await db
       .insert(component)
@@ -196,7 +196,7 @@ describe("Reconciler", () => {
         spec: {
           runtime: runtimeMode as
             | "kubernetes"
-            | "compose"
+            | "docker-compose"
             | "systemd"
             | "windows_service"
             | "iis"
@@ -331,8 +331,8 @@ describe("Reconciler", () => {
     expect(mockKube.applied.map((r) => r.kind)).toContain("StatefulSet")
   })
 
-  it("dispatches compose runtime without touching K8s", async () => {
-    const { cd } = await seedComponentDeployment({ runtimeMode: "compose" })
+  it("dispatches docker-compose runtime without touching K8s", async () => {
+    const { cd } = await seedComponentDeployment({ runtimeMode: "docker-compose" })
     const reconciler = new Reconciler(db, mockKube)
 
     await reconciler.reconcileWorkload(cd.id)

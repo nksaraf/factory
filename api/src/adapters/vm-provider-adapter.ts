@@ -1,4 +1,4 @@
-import type { estate } from "../db/schema/infra-v2"
+import type { estate } from "../db/schema/infra"
 
 /** An estate record representing a hypervisor/cloud-account. */
 export type InfraEstate = typeof estate.$inferSelect

@@ -5,7 +5,7 @@
 import { eq, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { workflowRun } from "../db/schema/org-v2"
+import { workflowRun } from "../db/schema/org"
 import { logger } from "../logger"
 
 // ── Workflow DB accessor ─────────────────────────────────

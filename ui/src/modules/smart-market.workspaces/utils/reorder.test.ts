@@ -1,5 +1,5 @@
 import { generateKeyBetween } from "fractional-indexing"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import {
   type ReorderItem,

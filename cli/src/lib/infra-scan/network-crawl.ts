@@ -182,7 +182,7 @@ function matchBackendsToServices(
         displayName: portMap.containerName,
         composeProject: portMap.composeProject,
         image: portMap.image,
-        realmType: "docker",
+        realmType: "docker-compose",
       }
     }
 

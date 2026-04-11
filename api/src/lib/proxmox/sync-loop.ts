@@ -6,7 +6,7 @@ import { and, eq, sql } from "drizzle-orm"
 
 import { getVMProviderAdapter } from "../../adapters/adapter-registry"
 import type { Database } from "../../db/connection"
-import { estate } from "../../db/schema/infra-v2"
+import { estate } from "../../db/schema/infra"
 import { type OperationRunner, createOperationRunner } from "../operations"
 
 const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes

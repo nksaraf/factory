@@ -6,7 +6,7 @@ import {
   RouteStatusSchema,
 } from "@smp/factory-shared/schemas/infra"
 import type { RouteTarget } from "@smp/factory-shared/schemas/infra"
-import { describe, expect, test } from "vitest"
+import { describe, expect, test } from "bun:test"
 
 import {
   type DbReader,

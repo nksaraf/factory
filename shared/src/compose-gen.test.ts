@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import { composeToYaml, generateComposeFromCatalog } from "./compose-gen"
 import type { CatalogSystem } from "./catalog"

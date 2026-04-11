@@ -21,7 +21,7 @@ export interface GatewayReconciler {
 
 /**
  * Noop gateway reconciler — used when the site doesn't manage
- * its own gateway (e.g. compose sites behind an external LB).
+ * its own gateway (e.g. Docker Compose sites behind an external LB).
  */
 export class NoopGatewayReconciler implements GatewayReconciler {
   async apply(_gateway: ManifestGateway): Promise<GatewayReconcileResult> {

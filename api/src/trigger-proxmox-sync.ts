@@ -7,7 +7,7 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import pg from "pg"
 
 import { getVMProviderAdapter } from "./adapters/adapter-registry"
-import { estate } from "./db/schema/infra-v2"
+import { estate } from "./db/schema/infra"
 
 const DB_URL = process.env.FACTORY_DATABASE_URL ?? process.env.DATABASE_URL
 if (!DB_URL) {

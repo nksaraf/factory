@@ -5,7 +5,7 @@ import type {
 import { and, desc, eq, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { pipelineRun, pipelineStep } from "../../db/schema/build-v2"
+import { pipelineRun, pipelineStep } from "../../db/schema/build"
 
 // TODO: fix type — PipelineRunSpec schema does not yet include all fields stored here;
 // these extra fields should be promoted to the shared schema or stored differently.

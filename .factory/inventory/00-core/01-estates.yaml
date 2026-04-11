@@ -1,0 +1,69 @@
+version: "1"
+
+# Core estates — cloud accounts, datacenter, hypervisor cluster, subnets
+# Source of truth for the Lepton production environment.
+# Generated via: dx scan --export --kinds estate
+entities:
+  - kind: estate
+    slug: google-gcp
+    name: Google Cloud
+    type: cloud-account
+    spec:
+      lifecycle: active
+      providerKind: gcp
+
+  - kind: estate
+    slug: lepton-proxmox
+    name: Lepton (Proxmox)
+    type: cloud-account
+    spec:
+      lifecycle: active
+      providerKind: proxmox
+
+  - kind: estate
+    slug: lepton-datacenter
+    name: Lepton Datacenter
+    type: datacenter
+    parentEstateSlug: lepton-proxmox
+    spec:
+      location: Gurgaon, IN
+      lifecycle: active
+
+  - kind: estate
+    slug: pve-cluster-01
+    name: Lepton PVE Cluster
+    type: hypervisor
+    parentEstateSlug: lepton-datacenter
+    spec:
+      apiHost: 192.168.1.1
+      apiPort: 8006
+      tokenId: root@pam!nirvana
+      lifecycle: active
+      tokenSecret: $secret(tokenSecret)
+      providerKind: proxmox
+
+  - kind: estate
+    slug: mgmt-subnet
+    name: Management Network
+    type: subnet
+    parentEstateSlug: lepton-datacenter
+    spec:
+      metadata:
+        cidr: 192.168.1.0/24
+        gateway: 192.168.1.1
+        netmask: 255.255.255.0
+        description: Management / Proxmox node network
+      lifecycle: active
+
+  - kind: estate
+    slug: vm-subnet
+    name: VM Network
+    type: subnet
+    parentEstateSlug: lepton-datacenter
+    spec:
+      metadata:
+        cidr: 192.168.2.0/24
+        gateway: 192.168.2.1
+        netmask: 255.255.255.0
+        description: VM network
+      lifecycle: active

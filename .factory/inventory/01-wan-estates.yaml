@@ -1,0 +1,84 @@
+version: "1"
+
+# ISP WAN link estates — children of lepton-datacenter (seeded by seed-prod)
+entities:
+  - kind: estate
+    slug: airtel-wan
+    name: Airtel WAN Link
+    type: wan
+    parentEstateSlug: lepton-datacenter
+    spec:
+      providerKind: airtel
+      lifecycle: active
+      metadata:
+        wanIp: "182.74.24.70"
+        gateway: "182.74.24.69"
+        subnetMask: "255.255.255.252"
+        bandwidth: unspecified
+
+  - kind: estate
+    slug: tata-ill
+    name: Tata 50 Mbps ILL
+    type: wan
+    parentEstateSlug: lepton-datacenter
+    spec:
+      providerKind: tata
+      lifecycle: active
+      metadata:
+        wanIp: "14.98.61.194"
+        bandwidth: 50 Mbps
+
+  - kind: estate
+    slug: hetzner
+    name: Hetzner Cloud
+    type: cloud-account
+    spec:
+      providerKind: hetzner
+      lifecycle: active
+
+  - kind: estate
+    slug: sci-future-dc
+    name: Sci-Future Data Center
+    type: datacenter
+    spec:
+      providerKind: sci-future
+      lifecycle: active
+      location: India
+      metadata:
+        description: "External data center vendor — storage and compute"
+
+  - kind: estate
+    slug: dns-cloudflare
+    name: DNS (cloudflare)
+    type: dns-zone
+    parentEstateSlug: lepton-datacenter
+    spec:
+      providerKind: cloudflare
+      dnsProvider: cloudflare
+      lifecycle: active
+      metadata:
+        domains: "rio.software,lepton.software,trafficure.com,smartmarket.ai"
+
+  - kind: estate
+    slug: dns-verio
+    name: DNS (verio)
+    type: dns-zone
+    parentEstateSlug: lepton-datacenter
+    spec:
+      providerKind: verio
+      dnsProvider: verio
+      lifecycle: active
+      metadata:
+        domains: "leptonmaps.com"
+
+  - kind: estate
+    slug: dns-godaddy
+    name: DNS (godaddy)
+    type: dns-zone
+    parentEstateSlug: lepton-datacenter
+    spec:
+      providerKind: godaddy
+      dnsProvider: godaddy
+      lifecycle: active
+      metadata:
+        domains: "leptonsoftware.com,leptonsoftware.ai,leptonsoftware.co,pathlosssoftware.com,networkaccess.co"

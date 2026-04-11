@@ -3,7 +3,7 @@ import type {
   SystemDeployment,
   Workload,
 } from "@smp/factory-shared/types"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import { generateResources } from "../reconciler/resource-generator"
 

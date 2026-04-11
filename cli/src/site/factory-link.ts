@@ -103,7 +103,7 @@ export class FactoryLink {
   async checkForUpdates(
     currentVersion: number,
     componentStates: ComponentState[] = [],
-    executorType = "compose"
+    executorType = "docker-compose"
   ): Promise<SiteManifest | null> {
     const checkinResult = await this.checkin({
       manifestVersion: currentVersion,

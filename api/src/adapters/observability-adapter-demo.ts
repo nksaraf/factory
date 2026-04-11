@@ -141,7 +141,7 @@ const LOG_TEMPLATES: Array<Pick<LogEntry, "level" | "message" | "source">> = [
   },
   {
     level: "info",
-    message: "Release v2.14.0 promoted to production across 5 sites",
+    message: "Release 2.14.0 promoted to production across 5 sites",
     source: "ops-controller",
   },
   {

@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { estate, host, ipAddress } from "../db/schema/infra-v2"
+import { estate, host, ipAddress } from "../db/schema/infra"
 import {
   type ProxmoxClient,
   createProxmoxClientFromCluster,

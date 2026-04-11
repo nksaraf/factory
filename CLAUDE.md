@@ -24,6 +24,12 @@ At the end of any session where work was discussed but not completed, prompt the
 
 - Never assert broken behavior in tests. Tests should always assert the correct/expected behavior. If the code doesn't match yet, leave the test failing — that's fine. A failing test is a signal to fix the code, not to weaken the test.
 
+### Factory API (`api/`)
+
+- **`pnpm test`** and **`pnpm test:local`** — default suite: all Bun tests except the k3d preview e2e file and tunnel WebSocket smoke (faster local and `pnpm -r test` from repo root).
+- **`pnpm test:full`** — full Bun suite, including `e2e-preview-lifecycle.test.ts` and `tunnel-smoke.test.ts`. Use in CI/CD when k3d/tunnel prerequisites exist.
+- **`pnpm test:smoke`** — runs only `tunnel-smoke.test.ts`.
+
 ## Database Migrations
 
 - **Never write migration SQL by hand.** Always use `drizzle-kit generate` (via `pnpm db:generate` in `api/`) to produce migrations from schema changes in `api/src/db/schema/*.ts`.

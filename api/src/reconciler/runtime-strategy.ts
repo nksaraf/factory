@@ -48,7 +48,7 @@ export interface ReconcilerStrategy {
 
 export type RuntimeType =
   | "kubernetes"
-  | "compose"
+  | "docker-compose"
   | "systemd"
   | "windows_service"
   | "iis"

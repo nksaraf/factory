@@ -16,7 +16,7 @@ import { eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import pg from "pg"
 
-import { principal } from "../db/schema/org-v2"
+import { principal } from "../db/schema/org"
 
 const DB_URL = process.env.FACTORY_DATABASE_URL ?? process.env.DATABASE_URL
 if (!DB_URL) {

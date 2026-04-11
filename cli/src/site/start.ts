@@ -8,7 +8,10 @@ import { join } from "node:path"
 import { readConfig, resolveFactoryUrl } from "../config.js"
 import { createControllerServer } from "./controller-server.js"
 import { type ControllerMode, SiteController } from "./controller.js"
-import { detectExecutor } from "./execution/detect.js"
+import {
+  detectExecutor,
+  formatExecutorTypeLabel,
+} from "./execution/detect.js"
 import { FactoryLink } from "./factory-link.js"
 import { HealthMonitor } from "./health.js"
 import { StateStore } from "./state.js"
@@ -60,7 +63,7 @@ export async function startSiteController(opts: StartOptions): Promise<void> {
   console.log(`  Working directory: ${opts.workingDir}`)
 
   const { type: executorType, executor } = await detectExecutor(opts.workingDir)
-  console.log(`  Executor: ${executorType}`)
+  console.log(`  Executor: ${formatExecutorTypeLabel(executorType)}`)
 
   let mode: ControllerMode = "connected"
   let factoryLink: FactoryLink | null = null

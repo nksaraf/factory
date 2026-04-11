@@ -20,8 +20,8 @@ import type { GatewayTarget } from "../catalog"
 export interface GatewayConfigParser {
   /** Image name patterns this parser handles (matched against base image name) */
   readonly imagePatterns: RegExp[]
-  /** Parse config file content and return routing targets */
-  parse(content: string, filePath: string): GatewayTarget[]
+  /** Parse config file content and return routing targets. Push to warnings on parse errors. */
+  parse(content: string, filePath: string, warnings?: string[]): GatewayTarget[]
 }
 
 const parsers = new Map<string, GatewayConfigParser>()
@@ -102,7 +102,7 @@ export function parseGatewayConfigs(
     const absPath = resolve(rootDir, parts.hostPath)
     try {
       const content = readFileSync(absPath, "utf-8")
-      const targets = parser.parse(content, absPath)
+      const targets = parser.parse(content, absPath, warnings)
       for (const t of targets) {
         const key = `${t.service}:${t.port}`
         if (seen.has(key)) continue
@@ -121,7 +121,7 @@ export function parseGatewayConfigs(
 
 registerGatewayParser("apisix", {
   imagePatterns: [/^apisix/i],
-  parse(content: string): GatewayTarget[] {
+  parse(content: string, filePath: string, warnings?: string[]): GatewayTarget[] {
     try {
       const doc = parseYaml(content)
       if (!doc || typeof doc !== "object") return []
@@ -181,7 +181,10 @@ registerGatewayParser("apisix", {
       }
 
       return targets
-    } catch {
+    } catch (err) {
+      warnings?.push(
+        `Could not parse APISIX config ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      )
       return []
     }
   },
@@ -224,7 +227,7 @@ function parseApisixNodes(
 
 registerGatewayParser("traefik", {
   imagePatterns: [/^traefik/i],
-  parse(content: string): GatewayTarget[] {
+  parse(content: string, filePath: string, warnings?: string[]): GatewayTarget[] {
     try {
       const doc = parseYaml(content)
       if (!doc || typeof doc !== "object") return []
@@ -295,7 +298,10 @@ registerGatewayParser("traefik", {
       }
 
       return targets
-    } catch {
+    } catch (err) {
+      warnings?.push(
+        `Could not parse Traefik config ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      )
       return []
     }
   },

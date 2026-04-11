@@ -1,5 +1,5 @@
 import { Elysia } from "elysia"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import { NoopObservabilityAdapter } from "../adapters/observability-adapter-noop"
 import { observabilityController } from "../modules/observability/index"

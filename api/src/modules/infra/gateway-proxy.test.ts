@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import {
   RouteCache,
@@ -63,7 +63,7 @@ describe("parseHostname", () => {
 
 describe("RouteCache", () => {
   let cache: RouteCache
-  const mockLookup = vi.fn()
+  const mockLookup = mock()
 
   beforeEach(() => {
     mockLookup.mockReset()

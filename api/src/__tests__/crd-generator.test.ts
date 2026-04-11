@@ -3,7 +3,7 @@ import type {
   ManifestRoute,
   ManifestV1,
 } from "@smp/factory-shared/types"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import type { GatewayCRD } from "../adapters/gateway-adapter"
 import {

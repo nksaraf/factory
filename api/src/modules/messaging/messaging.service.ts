@@ -7,7 +7,7 @@ import {
   threadTurn,
   identityLink,
   principal,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { getMessagingAdapter } from "../../adapters/adapter-registry"
 import type {
   MessagingConfig,
@@ -124,7 +124,7 @@ export async function testMessagingProviderConnection(
 }
 
 // ---------------------------------------------------------------------------
-// Channel Mapping (uses v2 channel table with kind='slack')
+// Channel Mapping (org.channel with kind='slack')
 // ---------------------------------------------------------------------------
 
 export async function mapChannel(
@@ -194,7 +194,7 @@ export async function resolveChannelContext(
 }
 
 // ---------------------------------------------------------------------------
-// Identity Resolution (uses v2 identityLink table)
+// Identity Resolution (org.identity_link)
 // ---------------------------------------------------------------------------
 
 export async function resolveMessagingUser(
@@ -342,7 +342,7 @@ export async function unlinkMessagingUser(
 }
 
 // ---------------------------------------------------------------------------
-// Message Threads (uses v2 thread table with type='chat', source='slack')
+// Message Threads (org.thread with type='chat', source='slack')
 // ---------------------------------------------------------------------------
 
 export async function getOrCreateThread(

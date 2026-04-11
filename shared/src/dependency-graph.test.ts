@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import type { CatalogSystem } from "./catalog"
 import { DependencyGraph } from "./dependency-graph"
@@ -408,9 +408,7 @@ describe("DependencyGraph", () => {
         ["spicedb", "spicedb-migrate"],
         ["spicedb-migrate", "postgres"],
       ])
-      const collapsed = graph.collapse(
-        new Map([["spicedb-migrate", "spicedb"]])
-      )
+      const collapsed = graph.collapse(new Set(["spicedb-migrate"]))
       expect(collapsed.allServices().sort()).toEqual(["postgres", "spicedb"])
       expect(collapsed.directDeps("spicedb")).toEqual(["postgres"])
     })
@@ -423,10 +421,7 @@ describe("DependencyGraph", () => {
         ["postgres-init", "postgres"],
       ])
       const collapsed = graph.collapse(
-        new Map([
-          ["spicedb-migrate", "spicedb"],
-          ["postgres-init", "postgres"],
-        ])
+        new Set(["spicedb-migrate", "postgres-init"])
       )
       expect(collapsed.allServices().sort()).toEqual(["postgres", "spicedb"])
       expect(collapsed.directDeps("spicedb")).toEqual(["postgres"])
@@ -438,7 +433,7 @@ describe("DependencyGraph", () => {
         ["app", "app-migrate"],
         ["app-migrate", "db"],
       ])
-      const collapsed = graph.collapse(new Map([["app-migrate", "app"]]))
+      const collapsed = graph.collapse(new Set(["app-migrate"]))
       expect(collapsed.directDeps("app")).toEqual(["db"])
       expect(collapsed.has("app-migrate")).toBe(false)
     })
@@ -448,7 +443,7 @@ describe("DependencyGraph", () => {
         ["a", "b"],
         ["b", "c"],
       ])
-      const collapsed = graph.collapse(new Map())
+      const collapsed = graph.collapse(new Set())
       expect(collapsed.allServices().sort()).toEqual(["a", "b", "c"])
       expect(collapsed.directDeps("a")).toEqual(["b"])
     })
@@ -459,7 +454,7 @@ describe("DependencyGraph", () => {
         ["c", "c-init"],
       ])
       // Add an isolated node that has no edges at all
-      const collapsed = graph.collapse(new Map([["c-init", "c"]]))
+      const collapsed = graph.collapse(new Set(["c-init"]))
       expect(collapsed.has("a")).toBe(true)
       expect(collapsed.has("b")).toBe(true)
       expect(collapsed.has("c")).toBe(true)

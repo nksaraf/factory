@@ -1,6 +1,6 @@
 import { eq, and, isNull } from "drizzle-orm"
 import type { Database } from "../../db/connection"
-import { rolePreset } from "../../db/schema/org-v2"
+import { rolePreset } from "../../db/schema/org"
 import type { RolePresetSpec } from "@smp/factory-shared/schemas/org"
 import { allocateSlug } from "../../lib/slug"
 

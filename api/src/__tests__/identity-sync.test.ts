@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import { IdentityService } from "../modules/identity/identity.service"
 import { IdentitySyncService } from "../modules/identity/identity-sync.service"
@@ -13,8 +13,8 @@ import {
   team,
   messagingProvider,
   configVar,
-} from "../db/schema/org-v2"
-import { gitHostProvider } from "../db/schema/build-v2"
+} from "../db/schema/org"
+import { gitHostProvider } from "../db/schema/build"
 import { eq, and } from "drizzle-orm"
 
 // ── Mock SecretBackend ──────────────────────────────────────────
@@ -85,20 +85,25 @@ async function createIdentityLink(
 
 // ── Tests ───────────────────────────────────────────────────────
 
-describe("IdentityService - Multi-signal matching", () => {
+describe("identity sync", () => {
   let db: Database
   let client: PGlite
-  let svc: IdentityService
 
   beforeAll(async () => {
     const ctx = await createTestContext()
     db = ctx.db as unknown as Database
     client = ctx.client
-    svc = new IdentityService(db)
   })
 
   afterAll(async () => {
     await client.close()
+  })
+
+describe("IdentityService - Multi-signal matching", () => {
+  let svc: IdentityService
+
+  beforeAll(() => {
+    svc = new IdentityService(db)
   })
 
   beforeEach(async () => {
@@ -280,33 +285,21 @@ describe("IdentityService - Multi-signal matching", () => {
 
       await svc.linkIdentity(p.id, "github", {
         externalUserId: "gh-100",
-        externalLogin: "idem-v2",
+        externalLogin: "idem-sync",
         email: "idem@example.com",
       })
 
       const links = await svc.getLinkedIdentities(p.id)
       expect(links).toHaveLength(1)
       expect((links[0].spec as Record<string, unknown>).externalUsername).toBe(
-        "idem-v2"
+        "idem-sync"
       ) // updated
     })
   })
 })
 
 describe("IdentitySyncService - Secret resolution", () => {
-  let db: Database
-  let client: PGlite
   let secrets: MockSecretBackend
-
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
-  })
-
-  afterAll(async () => {
-    await client.close()
-  })
 
   beforeEach(async () => {
     await truncateAllTables(client)
@@ -327,19 +320,10 @@ describe("IdentitySyncService - Secret resolution", () => {
 })
 
 describe("IdentitySyncService - Discovery sync with profile merge", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -418,19 +402,10 @@ describe("IdentitySyncService - Discovery sync with profile merge", () => {
 })
 
 describe("IdentitySyncService - Departed user handling", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -525,19 +500,7 @@ describe("Google adapter - fetchUsers returns empty", () => {
 })
 
 describe("Spec ref resolver", () => {
-  let db: Database
-  let client: PGlite
   let secrets: MockSecretBackend
-
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
-  })
-
-  afterAll(async () => {
-    await client.close()
-  })
 
   beforeEach(async () => {
     await truncateAllTables(client)
@@ -668,19 +631,7 @@ describe("Spec ref resolver", () => {
 })
 
 describe("IdentitySyncService - Spec-based provider config", () => {
-  let db: Database
-  let client: PGlite
   let secrets: MockSecretBackend
-
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
-  })
-
-  afterAll(async () => {
-    await client.close()
-  })
 
   beforeEach(async () => {
     await truncateAllTables(client)
@@ -810,19 +761,10 @@ describe("IdentitySyncService - Spec-based provider config", () => {
 })
 
 describe("IdentityService - No-email cross-provider dedup", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -868,19 +810,10 @@ describe("IdentityService - No-email cross-provider dedup", () => {
 })
 
 describe("IdentityService - Profile merge priority order", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -976,19 +909,10 @@ describe("IdentityService - Profile merge priority order", () => {
 })
 
 describe("IdentityService - Tool credentials", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -1031,26 +955,17 @@ describe("IdentityService - Tool credentials", () => {
     const revoked = await svc.revokeToolCredential(p.id, cred.id)
     expect(revoked).not.toBeNull()
 
-    // In v2, revokeToolCredential deletes the row — list should be empty
+    // revokeToolCredential deletes the row — list should be empty
     const list = await svc.listToolCredentials(p.id)
     expect(list).toHaveLength(0)
   })
 })
 
 describe("IdentityService - Tool usage tracking", () => {
-  let db: Database
-  let client: PGlite
   let svc: IdentityService
 
-  beforeAll(async () => {
-    const ctx = await createTestContext()
-    db = ctx.db as unknown as Database
-    client = ctx.client
+  beforeAll(() => {
     svc = new IdentityService(db)
-  })
-
-  afterAll(async () => {
-    await client.close()
   })
 
   beforeEach(async () => {
@@ -1095,4 +1010,5 @@ describe("IdentityService - Tool usage tracking", () => {
     expect(result.count).toBe(1)
     expect(result.data[0].tool).toBe("claude")
   })
+})
 })

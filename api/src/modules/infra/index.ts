@@ -36,6 +36,7 @@ import {
   CreateRealmSchema,
   CreateRouteSchema,
   CreateSecretSchema,
+  CreateServiceSchema,
   CreateTunnelSchema,
   type DnsDomainSpec,
   type EstateSpec,
@@ -53,9 +54,10 @@ import {
   UpdateRealmSchema,
   UpdateRouteSchema,
   UpdateSecretSchema,
+  UpdateServiceSchema,
   UpdateTunnelSchema,
 } from "@smp/factory-shared/schemas/infra"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, or, sql } from "drizzle-orm"
 import { Elysia } from "elysia"
 import { z } from "zod"
 
@@ -70,8 +72,9 @@ import {
   realmHost,
   route,
   secret,
+  service,
   tunnel,
-} from "../../db/schema/infra-v2"
+} from "../../db/schema/infra"
 import { ontologyRoutes } from "../../lib/crud"
 import { NotFoundError, ValidationError } from "../../lib/errors"
 import {
@@ -110,7 +113,7 @@ const TraceBodySchema = z.object({
   direction: z.enum(["outbound", "inbound"]).default("outbound"),
 })
 
-export function infraControllerV2(db: Database) {
+export function infraController(db: Database) {
   return (
     new Elysia({ prefix: "/infra" })
 
@@ -124,6 +127,11 @@ export function infraControllerV2(db: Database) {
           table: estate,
           slugColumn: estate.slug,
           idColumn: estate.id,
+          prefix: "est",
+          kindAlias: "estate",
+          slugRefs: {
+            parentEstateSlug: { fk: "parentEstateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id },
+          },
           createSchema: CreateEstateSchema,
           updateSchema: UpdateEstateSchema,
           deletable: true,
@@ -180,6 +188,11 @@ export function infraControllerV2(db: Database) {
           table: host,
           slugColumn: host.slug,
           idColumn: host.id,
+          prefix: "host",
+          kindAlias: "host",
+          slugRefs: {
+            estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id },
+          },
           createSchema: CreateHostSchema,
           updateSchema: UpdateHostSchema,
           deletable: true,
@@ -477,6 +490,12 @@ export function infraControllerV2(db: Database) {
           table: realm,
           slugColumn: realm.slug,
           idColumn: realm.id,
+          prefix: "rlm",
+          kindAlias: "realm",
+          slugRefs: {
+            estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id },
+            parentRealmSlug: { fk: "parentRealmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id },
+          },
           createSchema: CreateRealmSchema,
           updateSchema: UpdateRealmSchema,
           deletable: true,
@@ -541,6 +560,11 @@ export function infraControllerV2(db: Database) {
           table: route,
           slugColumn: route.slug,
           idColumn: route.id,
+          prefix: "rte",
+          kindAlias: "route",
+          slugRefs: {
+            realmSlug: { fk: "realmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id },
+          },
           createSchema: CreateRouteSchema,
           updateSchema: UpdateRouteSchema,
           deletable: true,
@@ -592,6 +616,8 @@ export function infraControllerV2(db: Database) {
           table: dnsDomain,
           slugColumn: dnsDomain.slug,
           idColumn: dnsDomain.id,
+          prefix: "dom",
+          kindAlias: "dns-domain",
           createSchema: CreateDnsDomainSchema,
           updateSchema: UpdateDnsDomainSchema,
           deletable: true,
@@ -615,6 +641,8 @@ export function infraControllerV2(db: Database) {
           table: secret,
           slugColumn: secret.slug,
           idColumn: secret.id,
+          prefix: "sec",
+          kindAlias: "secret",
           createSchema: CreateSecretSchema,
           updateSchema: UpdateSecretSchema,
           deletable: true,
@@ -653,6 +681,8 @@ export function infraControllerV2(db: Database) {
           table: networkLink,
           slugColumn: networkLink.slug,
           idColumn: networkLink.id,
+          prefix: "nlnk",
+          kindAlias: "network-link",
           createSchema: CreateNetworkLinkSchema,
           updateSchema: UpdateNetworkLinkSchema,
           deletable: true,
@@ -687,6 +717,8 @@ export function infraControllerV2(db: Database) {
           table: tunnel,
           slugColumn: tunnel.subdomain,
           idColumn: tunnel.id,
+          prefix: "tnl",
+          kindAlias: "tunnel",
           createSchema: CreateTunnelSchema,
           updateSchema: UpdateTunnelSchema,
           deletable: true,
@@ -716,6 +748,11 @@ export function infraControllerV2(db: Database) {
           table: ipAddress,
           slugColumn: ipAddress.address,
           idColumn: ipAddress.id,
+          prefix: "ipa",
+          kindAlias: "ip-address",
+          slugRefs: {
+            subnetSlug: { fk: "subnetId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id },
+          },
           createSchema: CreateIpAddressSchema,
           updateSchema: UpdateIpAddressSchema,
           deletable: true,
@@ -763,6 +800,27 @@ export function infraControllerV2(db: Database) {
                 return row
               },
             },
+          },
+        })
+      )
+
+      // ── Services ─────────────────────────────────────────
+      .use(
+        ontologyRoutes(db, {
+          schema: "infra",
+          entity: "services",
+          singular: "service",
+          table: service,
+          slugColumn: service.slug,
+          idColumn: service.id,
+          prefix: "svc",
+          kindAlias: "service",
+          createSchema: CreateServiceSchema,
+          updateSchema: UpdateServiceSchema,
+          deletable: true,
+          slugRefs: {
+            estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id },
+            realmSlug: { fk: "realmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id },
           },
         })
       )
@@ -1116,5 +1174,60 @@ export function infraControllerV2(db: Database) {
           }
         })()
       )
+
+      // ── Inventory ────────────────────────────────────────
+      .post(
+        "/inventory",
+        async ({ body }) => {
+          const { InventoryScanBodySchema } = await import(
+            "@smp/factory-shared/schemas/inventory"
+          )
+          const parsed = InventoryScanBodySchema.safeParse(body)
+          if (!parsed.success) throw new ValidationError("Invalid inventory request", parsed.error.flatten())
+          const { reconcileInventory } = await import(
+            "../../services/infra/inventory-reconciler"
+          )
+          const summary = await reconcileInventory(
+            db,
+            parsed.data.entities as any[],
+            parsed.data.dryRun,
+          )
+          return { data: summary, action: "inventory" }
+        },
+        { detail: { tags: ["infra/inventory"], summary: "Upsert entities from YAML/static declarations" } },
+      )
+      .post(
+        "/inventory/export",
+        async ({ body }) => {
+          const kinds = Array.isArray((body as any)?.kinds) ? (body as any).kinds as string[] : undefined
+          const { exportInventory } = await import(
+            "../../services/infra/inventory-exporter"
+          )
+          const exportedKinds = await exportInventory(db, kinds)
+          return { data: exportedKinds }
+        },
+        { detail: { tags: ["infra/inventory"], summary: "Export DB entities as YAML-compatible inventory" } },
+      )
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const infraOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "slugRefs" | "kindAlias" | "createSchema">[] = [
+  { entity: "estates", singular: "estate", table: estate, slugColumn: estate.slug, idColumn: estate.id, prefix: "est", kindAlias: "estate",
+    slugRefs: { parentEstateSlug: { fk: "parentEstateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id } } },
+  { entity: "hosts", singular: "host", table: host, slugColumn: host.slug, idColumn: host.id, prefix: "host", kindAlias: "host",
+    slugRefs: { estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id } } },
+  { entity: "realms", singular: "realm", table: realm, slugColumn: realm.slug, idColumn: realm.id, prefix: "rlm", kindAlias: "realm",
+    slugRefs: { estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id }, parentRealmSlug: { fk: "parentRealmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id } } },
+  { entity: "services", singular: "service", table: service, slugColumn: service.slug, idColumn: service.id, prefix: "svc", kindAlias: "service",
+    slugRefs: { estateSlug: { fk: "estateId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id }, realmSlug: { fk: "realmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id } } },
+  { entity: "routes", singular: "route", table: route, slugColumn: route.slug, idColumn: route.id, prefix: "rte", kindAlias: "route",
+    slugRefs: { realmSlug: { fk: "realmId", lookupTable: realm, lookupSlugCol: realm.slug, lookupIdCol: realm.id } } },
+  { entity: "dns-domains", singular: "DNS domain", table: dnsDomain, slugColumn: dnsDomain.slug, idColumn: dnsDomain.id, prefix: "dom", kindAlias: "dns-domain" },
+  { entity: "secrets", singular: "secret", table: secret, slugColumn: secret.slug, idColumn: secret.id, prefix: "sec", kindAlias: "secret" },
+  { entity: "network-links", singular: "network link", table: networkLink, slugColumn: networkLink.slug, idColumn: networkLink.id, prefix: "nlnk", kindAlias: "network-link" },
+  { entity: "tunnels", singular: "tunnel", table: tunnel, slugColumn: tunnel.subdomain, idColumn: tunnel.id, prefix: "tnl", kindAlias: "tunnel" },
+  { entity: "ip-addresses", singular: "IP address", table: ipAddress, slugColumn: ipAddress.address, idColumn: ipAddress.id, prefix: "ipa", kindAlias: "ip-address",
+    slugRefs: { subnetSlug: { fk: "subnetId", lookupTable: estate, lookupSlugCol: estate.slug, lookupIdCol: estate.id } } },
+]

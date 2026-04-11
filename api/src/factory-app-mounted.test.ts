@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 import { createTestContext, type TestApp } from "./test-helpers"
 import type { PGlite } from "@electric-sql/pglite"

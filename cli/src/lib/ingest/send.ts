@@ -1,124 +1,47 @@
 /**
  * HTTP event sender — POSTs IngestEvents to the Factory IDE hooks endpoint.
- * Uses the CLI's existing auth infrastructure (readConfig, readSession).
+ * Uses {@link getFactoryApiToken} so we never send the opaque Better Auth
+ * session token to `/api/v1/factory/*` (JWKS-verified JWT only).
  */
+import { getFactoryApiToken } from "../../client.js"
 import { readConfig, resolveFactoryUrl } from "../../config.js"
-import { readSession, writeSession } from "../../session-token.js"
 import type { IngestEvent, IngestResult } from "./common.js"
 
 const MAX_PAYLOAD_BYTES = 64 * 1024
 
-function isJwtExpired(jwt: string): boolean {
+function jwtExpiresAt(token: string): number | null {
   try {
-    const parts = jwt.split(".")
-    if (parts.length !== 3) return true
+    const parts = token.split(".")
+    if (parts.length !== 3) return null
     const payload = JSON.parse(
       atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
-    )
-    return !payload.exp || Date.now() / 1000 > payload.exp - 60
-  } catch {
-    return true
-  }
-}
-
-async function refreshJwt(
-  factoryUrl: string,
-  authBasePath: string,
-  bearerToken: string
-): Promise<string | null> {
-  try {
-    const res = await fetch(`${factoryUrl}${authBasePath}/get-session`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${bearerToken}` },
-      signal: AbortSignal.timeout(3000),
-    })
-    if (!res.ok) return null
-    // JWT comes back in the set-auth-jwt response header
-    const headerJwt = res.headers.get("set-auth-jwt")
-    if (headerJwt) {
-      await writeSession({ jwt: headerJwt })
-      return headerJwt
-    }
-    // Fallback: check JSON body
-    const data = (await res.json()) as any
-    const bodyJwt = data?.session?.jwt ?? data?.jwt
-    if (bodyJwt) {
-      await writeSession({ jwt: bodyJwt })
-      return bodyJwt
-    }
-    return null
+    ) as { exp?: number }
+    return typeof payload.exp === "number" ? payload.exp : null
   } catch {
     return null
   }
 }
 
-let _cachedAuth: {
-  url: string
-  token: string
-  bearerToken?: string
-  authBasePath: string
-} | null = null
+let _cachedAuth: { url: string; token: string } | null = null
 
 async function ensureAuth(): Promise<{ url: string; token: string }> {
-  // Re-validate cached JWT hasn't expired mid-scan
-  if (_cachedAuth && !isJwtExpired(_cachedAuth.token)) return _cachedAuth
-  // If JWT expired but we have a bearer token, refresh
-  if (
-    _cachedAuth &&
-    isJwtExpired(_cachedAuth.token) &&
-    _cachedAuth.bearerToken
-  ) {
-    const fresh = await refreshJwt(
-      _cachedAuth.url,
-      _cachedAuth.authBasePath,
-      _cachedAuth.bearerToken
-    )
-    if (fresh) {
-      _cachedAuth.token = fresh
+  const config = await readConfig()
+  const factoryUrl = resolveFactoryUrl(config)
+  const now = Date.now() / 1000
+
+  if (_cachedAuth) {
+    const exp = jwtExpiresAt(_cachedAuth.token)
+    if (exp !== null && exp > now + 60) {
       return _cachedAuth
     }
   }
 
-  const config = await readConfig()
-  const factoryUrl = resolveFactoryUrl(config)
-  const session = await readSession()
-  const { bearerToken, jwt } = session
-
-  if (!bearerToken && !jwt) {
-    throw new Error("Not authenticated. Run `dx setup` first.")
-  }
-
-  let token: string | undefined
-
-  // Try JWT first
-  if (jwt && !isJwtExpired(jwt)) {
-    token = jwt
-  }
-
-  // Refresh JWT if we have a bearer token
-  if (!token && bearerToken) {
-    const fresh = await refreshJwt(factoryUrl, config.authBasePath, bearerToken)
-    if (fresh) {
-      token = fresh
-    } else {
-      token = bearerToken
-    }
-  }
-
+  const token = await getFactoryApiToken()
   if (!token) {
-    token = jwt ?? undefined
+    throw new Error("Not authenticated. Run `dx factory login` first.")
   }
 
-  if (!token) {
-    throw new Error("Not authenticated. Run `dx setup` first.")
-  }
-
-  _cachedAuth = {
-    url: factoryUrl,
-    token,
-    bearerToken,
-    authBasePath: config.authBasePath,
-  }
+  _cachedAuth = { url: factoryUrl, token }
   return _cachedAuth
 }
 

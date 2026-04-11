@@ -1,4 +1,8 @@
-import { basename } from "node:path"
+import { createReadStream, existsSync } from "node:fs"
+import { basename, join } from "node:path"
+import { createInterface } from "node:readline"
+
+import { isDevComponent } from "@smp/factory-shared"
 
 import { getFactoryClient } from "../client.js"
 import type { DxBase } from "../dx-root.js"
@@ -103,23 +107,45 @@ export function logsCommand(app: DxBase) {
         if (isRemote) {
           await fetchRemoteLogs(args, flags, f)
         } else {
-          // Try local docker compose first
           const ctx = await resolveDxContext({ need: "project" }).catch(
             () => null
           )
-          if (ctx?.project && ctx.project.composeFiles.length > 0) {
-            const compose = new Compose(
-              ctx.project.composeFiles,
-              basename(ctx.project.rootDir)
-            )
-            // Check if the service is actually running locally
-            const service = args.component ?? args.module
-            if (!service || compose.isRunning(service)) {
-              await streamLocalLogs(compose, args, flags, f)
-              return
+          const service = args.component ?? args.module
+
+          if (ctx?.project) {
+            // 1. Devable component → check dev server log first
+            const comp =
+              service != null
+                ? ctx.project.catalog.components[service]
+                : undefined
+            const isDevable = comp != null && isDevComponent(comp)
+            if (isDevable) {
+              const devLogPath = join(
+                ctx.project.rootDir,
+                ".dx",
+                "dev",
+                `${service}.log`
+              )
+              if (existsSync(devLogPath)) {
+                await streamDevLog(devLogPath, flags, f)
+                return
+              }
+            }
+
+            // 2. Docker compose — if service is running (or no service filter)
+            if (ctx.project.composeFiles.length > 0) {
+              const compose = new Compose(
+                ctx.project.composeFiles,
+                basename(ctx.project.rootDir)
+              )
+              if (!service || compose.isRunning(service)) {
+                await streamLocalLogs(compose, args, flags, f)
+                return
+              }
             }
           }
-          // Fall back to remote
+
+          // 3. Fall back to remote (Loki)
           await fetchRemoteLogs(args, flags, f)
         }
       } catch (err) {
@@ -173,6 +199,70 @@ async function streamLocalLogs(
       }
     }
   )
+}
+
+async function streamDevLog(
+  logPath: string,
+  flags: Record<string, unknown>,
+  _f: { json?: boolean }
+) {
+  const grepFilter = flags.grep ? (flags.grep as string).toLowerCase() : null
+  const tail = flags.tail as number | undefined
+  const follow = !!flags.follow
+
+  const matchesFilter = (line: string) =>
+    !grepFilter || line.toLowerCase().includes(grepFilter)
+
+  // Read all lines from the file
+  const readLines = (): Promise<string[]> => {
+    const lines: string[] = []
+    const rl = createInterface({ input: createReadStream(logPath) })
+    return new Promise((resolve) => {
+      rl.on("line", (line) => lines.push(line))
+      rl.on("close", () => resolve(lines))
+    })
+  }
+
+  const allLines = await readLines()
+  const startLines = tail != null ? allLines.slice(-tail) : allLines
+  for (const line of startLines) {
+    if (matchesFilter(line)) console.log(line)
+  }
+
+  if (!follow) return
+
+  // Follow mode: poll for new content by byte offset
+  const { statSync } = await import("node:fs")
+  let offset = statSync(logPath).size
+
+  await new Promise<void>((resolve) => {
+    const ac = new AbortController()
+    process.on("SIGINT", () => {
+      ac.abort()
+      resolve()
+    })
+
+    const poll = () => {
+      if (ac.signal.aborted) return
+      const size = statSync(logPath).size
+      if (size > offset) {
+        const stream = createReadStream(logPath, { start: offset })
+        const rl2 = createInterface({ input: stream })
+        const newLines: string[] = []
+        rl2.on("line", (line) => newLines.push(line))
+        rl2.on("close", () => {
+          for (const line of newLines) {
+            if (matchesFilter(line)) console.log(line)
+          }
+          offset = size
+          if (!ac.signal.aborted) setTimeout(poll, 300)
+        })
+      } else {
+        if (!ac.signal.aborted) setTimeout(poll, 300)
+      }
+    }
+    poll()
+  })
 }
 
 async function fetchRemoteLogs(

@@ -17,7 +17,7 @@ export interface WorkbenchResourceInputFlat {
   devcontainerDir?: string
 }
 
-/** Spec-JSONB input (v2 style). */
+/** Spec-JSONB input for workbench snapshot resources. */
 export interface WorkbenchResourceInputSpec {
   id: string
   slug: string

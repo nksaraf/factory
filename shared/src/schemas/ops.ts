@@ -154,7 +154,7 @@ export const SystemDeploymentSpecSchema = z.object({
   runtime: z
     .enum([
       "kubernetes",
-      "compose",
+      "docker-compose",
       "systemd",
       "windows_service",
       "iis",

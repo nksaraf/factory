@@ -9,7 +9,7 @@
     "./formats/*": "./src/formats/*.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "bun test --path-ignore-patterns='**/z-*.test.ts' && bun test ./src/formats/z-*.test.ts",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
@@ -17,8 +17,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.0",
     "@types/node": "^22.10.0",
-    "typescript": "^5.8.0",
-    "vitest": "^4.0.18"
+    "typescript": "^5.8.0"
   }
 }

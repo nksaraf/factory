@@ -4,7 +4,7 @@ import type { Database } from "../../db/connection"
 import { connectionAuditEvent } from "../../db/schema/ops"
 
 // ---------------------------------------------------------------------------
-// Connection Audit Events — v2: spec JSONB
+// Connection Audit Events — spec JSONB
 // ---------------------------------------------------------------------------
 
 export async function createConnectionAuditEvent(

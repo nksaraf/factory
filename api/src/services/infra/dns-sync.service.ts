@@ -16,7 +16,7 @@ import {
   estate,
   ipAddress,
   networkLink,
-} from "../../db/schema/infra-v2"
+} from "../../db/schema/infra"
 import { newId } from "../../lib/id"
 import { assignIp, ensureIp } from "./ipam.service"
 

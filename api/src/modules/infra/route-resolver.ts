@@ -15,13 +15,13 @@ import type {
 import { and, eq, inArray } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { host, realm, realmHost } from "../../db/schema/infra-v2"
+import { host, realm, realmHost } from "../../db/schema/infra"
 import {
   componentDeployment,
   systemDeployment,
   tenant,
 } from "../../db/schema/ops"
-import { component } from "../../db/schema/software-v2"
+import { component } from "../../db/schema/software"
 
 // ── DbReader interface (testable abstraction) ──────────────
 

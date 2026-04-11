@@ -3,6 +3,7 @@ import type {
   CatalogResource,
   CatalogSystem,
 } from "@smp/factory-shared/catalog"
+import { isDevComponent } from "@smp/factory-shared/catalog"
 import { DependencyGraph } from "@smp/factory-shared/dependency-graph"
 import { execFileSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
@@ -121,7 +122,7 @@ function renderComponentInfo(name: string, c: CatalogComponent): void {
   if (c.spec.ports.length > 0) {
     fields.push(["Ports", portsStr(c.spec.ports)])
   }
-  if (c.spec.dev?.command) {
+  if (isDevComponent(c)) {
     fields.push(["Dev command", c.spec.dev.command])
   }
   if (c.spec.test) {
@@ -681,7 +682,7 @@ export function catalogCommand(app: DxBase) {
           const graph =
             showInit || initMap.size === 0
               ? fullGraph
-              : fullGraph.collapse(initMap)
+              : fullGraph.collapse(new Set(initMap.keys()))
 
           // Filter init nodes from entityInfo when collapsed
           const entityInfo = buildEntityInfo(cat)

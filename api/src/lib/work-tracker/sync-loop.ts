@@ -5,7 +5,7 @@
 import type { WorkTrackerProviderSpec } from "@smp/factory-shared/schemas/build"
 
 import type { Database } from "../../db/connection"
-import { workTrackerProvider } from "../../db/schema/build-v2"
+import { workTrackerProvider } from "../../db/schema/build"
 import { syncWorkTracker } from "../../modules/build/work-tracker.service"
 import { type OperationRunner, createOperationRunner } from "../operations"
 

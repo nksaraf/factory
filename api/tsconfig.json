@@ -7,7 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "types": [],
+    "types": ["bun", "node"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "declaration": true,

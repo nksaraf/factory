@@ -4,8 +4,8 @@ import crypto from "node:crypto"
 import dns from "node:dns/promises"
 
 import type { Database } from "../../db/connection"
-import { dnsDomain, networkLink, route, tunnel } from "../../db/schema/infra-v2"
-import { principal } from "../../db/schema/org-v2"
+import { dnsDomain, networkLink, route, tunnel } from "../../db/schema/infra"
+import { principal } from "../../db/schema/org"
 import { newId } from "../../lib/id"
 import { ensureIp } from "../../services/infra/ipam.service"
 
@@ -263,7 +263,7 @@ export async function lookupRouteByDomain(
 }
 
 // ---------------------------------------------------------------------------
-// Domain Management (v2: domain → dnsDomain)
+// Domain Management (gateway domain rows map to dnsDomain)
 // ---------------------------------------------------------------------------
 
 export async function listDomains(

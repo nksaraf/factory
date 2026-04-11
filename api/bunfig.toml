@@ -1,0 +1,5 @@
+[test]
+# Integration tests run PGlite migrations + truncates; default 5s is too tight.
+timeout = 120000
+# Heavier files (k3d e2e, tunnel WebSocket smoke) are skipped via package.json `test` / `test:local`;
+# use `pnpm test:full` in CI when that environment is available.

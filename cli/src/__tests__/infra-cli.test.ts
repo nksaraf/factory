@@ -16,9 +16,9 @@ describe("dx infra CLI", () => {
     const { status, stdout, stderr } = runDx(["infra", "--help"], { home })
     expect(status).toBe(0)
     expect(stderr).toBe("")
-    expect(stdout).toContain("provider")
+    expect(stdout).toContain("estate")
     expect(stdout).toContain("region")
-    expect(stdout).toContain("cluster")
+    expect(stdout).toContain("realm")
     expect(stdout).toContain("vm")
     expect(stdout).toContain("host")
     expect(stdout).toContain("kube-node")
@@ -27,9 +27,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("asset")
   })
 
-  it("dx infra provider --help shows subcommands", () => {
+  it("dx infra estate --help shows subcommands", () => {
     const home = isolatedHome()
-    const { status, stdout } = runDx(["infra", "provider", "--help"], {
+    const { status, stdout } = runDx(["infra", "estate", "--help"], {
       home,
     })
     expect(status).toBe(0)
@@ -49,9 +49,9 @@ describe("dx infra CLI", () => {
     expect(stdout).toContain("delete")
   })
 
-  it("dx infra cluster --help shows subcommands", () => {
+  it("dx infra realm --help shows subcommands", () => {
     const home = isolatedHome()
-    const { status, stdout } = runDx(["infra", "cluster", "--help"], {
+    const { status, stdout } = runDx(["infra", "realm", "--help"], {
       home,
     })
     expect(status).toBe(0)

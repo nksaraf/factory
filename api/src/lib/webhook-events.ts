@@ -8,8 +8,8 @@
 
 import { and, eq } from "drizzle-orm"
 import type { Database } from "../db/connection"
-import { webhookEvent, identityLink } from "../db/schema/org-v2"
-import { gitUserSync } from "../db/schema/build-v2"
+import { webhookEvent, identityLink } from "../db/schema/org"
+import { gitUserSync } from "../db/schema/build"
 import type {
   WebhookEventSpec,
   WebhookEventActor,

@@ -6,7 +6,7 @@ import type {
 import { eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { realm } from "../../db/schema/infra-v2"
+import { realm } from "../../db/schema/infra"
 import { generateResources } from "../resource-generator"
 import type {
   ReconcileContext,

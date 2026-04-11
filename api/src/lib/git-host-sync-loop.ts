@@ -5,7 +5,7 @@
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
 
 import type { Database } from "../db/connection"
-import { gitHostProvider } from "../db/schema/build-v2"
+import { gitHostProvider } from "../db/schema/build"
 import { GitHostService } from "../modules/build/git-host.service"
 import { type OperationRunner, createOperationRunner } from "./operations"
 

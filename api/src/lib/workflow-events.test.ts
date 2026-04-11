@@ -44,20 +44,26 @@ beforeAll(async () => {
   await client.query(`
     CREATE TABLE org.event_subscription (
       id TEXT PRIMARY KEY,
+      name TEXT,
       kind TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       topic_filter TEXT NOT NULL,
       match_fields JSONB,
+      min_severity TEXT,
+      scope_kind TEXT,
+      scope_id TEXT,
       owner_kind TEXT NOT NULL,
       owner_id TEXT NOT NULL,
+      spec JSONB DEFAULT '{}' NOT NULL,
+      expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-      expires_at TIMESTAMPTZ
+      updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
     )
   `)
-  // GIN index for containment queries
+  // GIN index for containment queries (aligned with org schema)
   await client.query(`
     CREATE INDEX esub_match_gin ON org.event_subscription
-    USING gin (match_fields)
+    USING gin (COALESCE(match_fields, '{}'::jsonb))
   `)
 })
 

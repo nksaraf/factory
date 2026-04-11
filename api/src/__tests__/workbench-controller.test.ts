@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import {
   type TestApp,
@@ -36,7 +36,7 @@ function del(url: string) {
   return new Request(url, { method: "DELETE" })
 }
 
-describe("Workbench Controller (v2)", () => {
+describe("Workbench Controller", () => {
   let app: TestApp
   let client: PGlite
 

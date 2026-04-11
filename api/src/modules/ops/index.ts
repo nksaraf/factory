@@ -63,7 +63,7 @@ import { desc } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { realm } from "../../db/schema/infra-v2"
+import { realm } from "../../db/schema/infra"
 import {
   anonymizationProfile,
   componentDeployment,
@@ -83,7 +83,7 @@ import {
   workbench,
   workbenchSnapshot,
 } from "../../db/schema/ops"
-import { principal } from "../../db/schema/org-v2"
+import { principal } from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
 import {
@@ -103,7 +103,7 @@ import {
   updateWorkbenchHealth,
 } from "./workbench.service"
 
-export function opsControllerV2(db: Database) {
+export function opsController(db: Database) {
   return (
     new Elysia({ prefix: "/ops" })
 
@@ -116,6 +116,8 @@ export function opsControllerV2(db: Database) {
           table: site,
           slugColumn: site.slug,
           idColumn: site.id,
+          prefix: "site",
+          kindAlias: "site",
           createSchema: CreateSiteSchema,
           updateSchema: UpdateSiteSchema,
           deletable: "bitemporal",
@@ -190,6 +192,8 @@ export function opsControllerV2(db: Database) {
           table: tenant,
           slugColumn: tenant.slug,
           idColumn: tenant.id,
+          prefix: "tnt",
+          kindAlias: "tenant",
           createSchema: CreateTenantSchema,
           updateSchema: UpdateTenantSchema,
           deletable: "bitemporal",
@@ -217,6 +221,8 @@ export function opsControllerV2(db: Database) {
           table: systemDeployment,
           slugColumn: systemDeployment.slug,
           idColumn: systemDeployment.id,
+          prefix: "sdp",
+          kindAlias: "system-deployment",
           createSchema: CreateSystemDeploymentSchema,
           updateSchema: UpdateSystemDeploymentSchema,
           deletable: "bitemporal",
@@ -258,6 +264,8 @@ export function opsControllerV2(db: Database) {
           table: deploymentSet,
           slugColumn: deploymentSet.slug,
           idColumn: deploymentSet.id,
+          prefix: "dset",
+          kindAlias: "deployment-set",
           createSchema: CreateDeploymentSetSchema,
           updateSchema: UpdateDeploymentSetSchema,
           deletable: true,
@@ -280,6 +288,8 @@ export function opsControllerV2(db: Database) {
           table: rollout,
           slugColumn: rollout.id, // rollouts don't have slugs — use id for both
           idColumn: rollout.id,
+          prefix: "rout",
+          kindAlias: "rollout",
           createSchema: CreateRolloutSchema,
           updateSchema: UpdateRolloutSchema,
           actions: {
@@ -315,6 +325,8 @@ export function opsControllerV2(db: Database) {
           table: workbench,
           slugColumn: workbench.slug,
           idColumn: workbench.id,
+          prefix: "wbnch",
+          kindAlias: "workbench",
           createSchema: CreateWorkbenchSchema,
           updateSchema: UpdateWorkbenchSchema,
           deletable: "bitemporal",
@@ -584,6 +596,8 @@ export function opsControllerV2(db: Database) {
           table: componentDeployment,
           slugColumn: componentDeployment.id, // no slug — use id
           idColumn: componentDeployment.id,
+          prefix: "cdp",
+          kindAlias: "component-deployment",
           createSchema: CreateComponentDeploymentSchema,
           updateSchema: UpdateComponentDeploymentSchema,
           actions: {
@@ -639,6 +653,8 @@ export function opsControllerV2(db: Database) {
           table: preview,
           slugColumn: preview.id, // no slug — use id
           idColumn: preview.id,
+          prefix: "prev",
+          kindAlias: "preview",
           createSchema: CreatePreviewSchema,
           updateSchema: UpdatePreviewSchema,
           deletable: true,
@@ -735,6 +751,8 @@ export function opsControllerV2(db: Database) {
           table: intervention,
           slugColumn: intervention.id, // no slug
           idColumn: intervention.id,
+          prefix: "intv",
+          kindAlias: "intervention",
           createSchema: CreateInterventionSchema,
         })
       )
@@ -790,6 +808,8 @@ export function opsControllerV2(db: Database) {
           table: opsDatabase,
           slugColumn: opsDatabase.slug,
           idColumn: opsDatabase.id,
+          prefix: "db",
+          kindAlias: "database",
           createSchema: CreateDatabaseSchema,
           updateSchema: UpdateDatabaseSchema,
           deletable: true,
@@ -894,6 +914,8 @@ export function opsControllerV2(db: Database) {
           table: anonymizationProfile,
           slugColumn: anonymizationProfile.slug,
           idColumn: anonymizationProfile.id,
+          prefix: "aprf",
+          kindAlias: "anonymization-profile",
           createSchema: CreateAnonymizationProfileSchema,
           updateSchema: UpdateAnonymizationProfileSchema,
           deletable: true,
@@ -909,12 +931,14 @@ export function opsControllerV2(db: Database) {
           table: forwardedPort,
           slugColumn: forwardedPort.id, // no slug
           idColumn: forwardedPort.id,
+          prefix: "fp",
+          kindAlias: "forwarded-port",
           createSchema: CreateForwardedPortSchema,
           deletable: true,
         })
       )
 
-      // ── Site Controller Manifest Assembly ──────────────────────
+      // ── Site Controller Manifest Assembly ─────────────────────
       .get("/site-controller-manifest/:name", async ({ params, set }) => {
         const [siteRow] = await db
           .select()
@@ -978,7 +1002,7 @@ export function opsControllerV2(db: Database) {
             id: sd.id,
             name: sd.name,
             site: siteRow.slug,
-            realmType: sdSpec.runtime ?? "compose",
+            realmType: sdSpec.runtime ?? "docker-compose",
             namespace: sdSpec.namespace,
             labels: sdSpec.labels,
           },
@@ -989,3 +1013,15 @@ export function opsControllerV2(db: Database) {
       })
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const opsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "sites", singular: "site", table: site, slugColumn: site.slug, idColumn: site.id, prefix: "site", kindAlias: "site" },
+  { entity: "tenants", singular: "tenant", table: tenant, slugColumn: tenant.slug, idColumn: tenant.id, prefix: "tnt", kindAlias: "tenant" },
+  { entity: "system-deployments", singular: "system deployment", table: systemDeployment, slugColumn: systemDeployment.slug, idColumn: systemDeployment.id, prefix: "sdp", kindAlias: "system-deployment" },
+  { entity: "deployment-sets", singular: "deployment set", table: deploymentSet, slugColumn: deploymentSet.slug, idColumn: deploymentSet.id, prefix: "dset", kindAlias: "deployment-set" },
+  { entity: "workbenches", singular: "workbench", table: workbench, slugColumn: workbench.slug, idColumn: workbench.id, prefix: "wbnch", kindAlias: "workbench" },
+  { entity: "databases", singular: "database", table: opsDatabase, slugColumn: opsDatabase.slug, idColumn: opsDatabase.id, prefix: "db", kindAlias: "database" },
+  { entity: "forwarded-ports", singular: "forwarded port", table: forwardedPort, slugColumn: forwardedPort.id, idColumn: forwardedPort.id, prefix: "fp", kindAlias: "forwarded-port" },
+]

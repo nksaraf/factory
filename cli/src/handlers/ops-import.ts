@@ -317,7 +317,7 @@ export async function executeImportPlan(
           realmId: composeRealmId,
           spec: {
             status: "active",
-            runtime: "compose",
+            runtime: "docker-compose",
             trigger: "manual",
           },
         }

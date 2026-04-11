@@ -17,8 +17,9 @@ import {
   parseJsonPayload,
 } from "@smp/factory-shared/tunnel-protocol"
 
+import { getFactoryApiToken } from "../client.js"
 import { readConfig, resolveFactoryUrl } from "../config.js"
-import { getAuthServiceToken, getStoredJwt } from "../session-token.js"
+import { getAuthServiceToken } from "../session-token.js"
 
 /** Send Uint8Array via WebSocket — passes the underlying ArrayBuffer to work around TS 5.7+ ArrayBufferLike variance. */
 const buf = (data: Uint8Array): ArrayBuffer =>
@@ -94,7 +95,7 @@ export async function openTunnel(
   const config = await readConfig()
   const base = resolveFactoryUrl(config)
   // WS clients can't send Authorization headers — pass JWT as query param
-  const jwt = await getStoredJwt()
+  const jwt = await getFactoryApiToken()
   const tokenParam = jwt ? `?token=${encodeURIComponent(jwt)}` : ""
   const wsUrl =
     base.replace(/^http/, "ws") +

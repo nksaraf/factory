@@ -1,0 +1,59 @@
+version: "1"
+
+# PVE bare-metal nodes — physical Proxmox hypervisor hosts
+# VMs are discovered dynamically via Proxmox sync; only physical nodes are declared here.
+# Generated via: dx scan --export --kinds host (filtered to type: bare-metal)
+entities:
+  - kind: host
+    slug: lepton-squirtle
+    name: lepton-squirtle
+    type: bare-metal
+    estateSlug: pve-cluster-01
+    spec:
+      os: linux
+      cpu: 40
+      arch: amd64
+      diskGb: 94
+      sshPort: 22
+      hostname: lepton-squirtle
+      memoryMb: 257570
+      ipAddress: 192.168.1.1
+      lifecycle: active
+      accessUser: root
+      accessMethod: ssh
+
+  - kind: host
+    slug: lepton-pikachu
+    name: lepton-pikachu
+    type: bare-metal
+    estateSlug: pve-cluster-01
+    spec:
+      os: linux
+      cpu: 52
+      arch: amd64
+      diskGb: 94
+      sshPort: 22
+      hostname: lepton-pikachu
+      memoryMb: 257593
+      ipAddress: 192.168.1.132
+      lifecycle: active
+      accessUser: root
+      accessMethod: ssh
+
+  - kind: host
+    slug: lepton-charmander
+    name: lepton-charmander
+    type: bare-metal
+    estateSlug: pve-cluster-01
+    spec:
+      os: linux
+      cpu: 8
+      arch: amd64
+      diskGb: 98
+      sshPort: 22
+      hostname: lepton-charmander
+      memoryMb: 15770
+      ipAddress: 192.168.1.70
+      lifecycle: active
+      accessUser: root
+      accessMethod: ssh

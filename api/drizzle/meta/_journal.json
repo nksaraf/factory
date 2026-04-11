@@ -40,8 +40,29 @@
     {
       "idx": 5,
       "version": "7",
-      "when": 1775895623842,
-      "tag": "0005_event-tables",
+      "when": 1775912747379,
+      "tag": "0005_closed_micromax",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775913600000,
+      "tag": "0006_custom-rename-compose-to-docker-compose",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775913700000,
+      "tag": "0007_event_subscription_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775920000000,
+      "tag": "0008_network-link-via",
       "breakpoints": true
     }
   ]

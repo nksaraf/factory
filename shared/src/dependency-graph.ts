@@ -320,16 +320,16 @@ export class DependencyGraph {
   /**
    * Collapse nodes out of the graph, rewiring edges through them.
    *
-   * For each entry in `nodeToTarget`, the node is removed and any service
-   * that depended on it inherits the collapsed node's own dependencies.
+   * Each node in `nodesToCollapse` is removed and any service that depended
+   * on it inherits the collapsed node's own dependencies.
    * Returns a new DependencyGraph (no mutation).
    *
-   * Example: collapse({spicedb-migrate: spicedb, postgres-init: postgres})
+   * Example: collapse(new Set(["spicedb-migrate", "postgres-init"]))
    *   Before: spicedb → spicedb-migrate → postgres-init → postgres
    *   After:  spicedb → postgres
    */
-  collapse(nodeToTarget: Map<string, string>): DependencyGraph {
-    const collapsedSet = new Set(nodeToTarget.keys())
+  collapse(nodesToCollapse: Set<string>): DependencyGraph {
+    const collapsedSet = nodesToCollapse
 
     // Resolve deps for a node, expanding through collapsed nodes
     const resolveDeps = (

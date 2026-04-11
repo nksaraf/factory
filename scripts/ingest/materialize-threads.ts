@@ -21,7 +21,7 @@ import {
   thread,
   threadTurn,
   webhookEvent,
-} from "../../api/src/db/schema/org-v2"
+} from "../../api/src/db/schema/org"
 import { newId } from "../../api/src/lib/id"
 import { parseArgs } from "./lib/common"
 

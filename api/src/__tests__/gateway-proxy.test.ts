@@ -10,7 +10,7 @@
  *
  * NOTE: Requires Bun runtime (Bun.serve, Bun.gzipSync). Skipped under plain vitest.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 // This entire file requires the Bun runtime (Bun.serve, Bun.gzipSync, WebSocket with headers).
 const hasBun = typeof globalThis.Bun !== "undefined"

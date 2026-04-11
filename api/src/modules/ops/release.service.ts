@@ -1,11 +1,11 @@
 import { desc, eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { release } from "../../db/schema/software-v2"
+import { release } from "../../db/schema/software"
 import { allocateSlug } from "../../lib/slug"
 
 // ---------------------------------------------------------------------------
-// Release CRUD — v2: spec JSONB for version, status, systemPins
+// Release CRUD — spec JSONB for version, status, systemPins
 // ---------------------------------------------------------------------------
 
 const VALID_TRANSITIONS: Record<string, string> = {
@@ -130,7 +130,7 @@ export async function promoteRelease(
 }
 
 // ---------------------------------------------------------------------------
-// Release Pin Management — v2: pins in release.spec.systemPins
+// Release Pin Management — pins in release.spec.systemPins
 // ---------------------------------------------------------------------------
 
 export async function addModulePin(

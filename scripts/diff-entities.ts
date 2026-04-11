@@ -3,12 +3,13 @@
  * Diff two entity inventory files to find missing/changed/new tables and columns.
  *
  * Usage:
- *   bun run scripts/diff-entities.ts snapshots/v1-entities.json snapshots/v2-entities.json
+ *   bun run scripts/diff-entities.ts <baseline.json> <candidate.json>
+ *   (e.g. older snapshot vs current `entity-inventory` output)
  *
  * Reports:
- *   - Missing tables (in v1 but not v2)
- *   - Missing columns (v1 column not in v2 table or its spec JSONB)
- *   - New tables (in v2 only)
+ *   - Missing tables (in baseline but not candidate, after rename map)
+ *   - Missing columns (baseline column absent from candidate table or its spec JSONB)
+ *   - New tables (candidate only)
  *   - Column type changes
  */
 import { readFileSync } from "fs"
@@ -17,7 +18,7 @@ const [, , v1Path, v2Path] = process.argv
 
 if (!v1Path || !v2Path) {
   console.error(
-    "Usage: bun run scripts/diff-entities.ts <v1-entities.json> <v2-entities.json>"
+    "Usage: bun run scripts/diff-entities.ts <baseline-entities.json> <candidate-entities.json>"
   )
   process.exit(1)
 }
@@ -48,7 +49,7 @@ function loadInventory(filePath: string): Inventory {
   return JSON.parse(readFileSync(filePath, "utf-8"))
 }
 
-// Known table renames: v1 tableName → v2 tableName
+// Known table renames: legacy tableName → current tableName
 const TABLE_RENAMES: Record<string, string> = {
   module: "system",
   module_version: "release",
@@ -67,7 +68,7 @@ const TABLE_RENAMES: Record<string, string> = {
 
 // Known columns that moved into spec JSONB (v1 column → "in spec")
 const COLUMNS_IN_SPEC = new Set([
-  // These are columns that existed as flat fields in v1 but are now inside spec JSONB in v2
+  // Columns that existed as flat fields historically but now live inside spec JSONB
   // Add entries as we discover them during migration
 ])
 
@@ -101,7 +102,7 @@ for (const [v1Name, v1Table] of v1Tables) {
 
   const v2Table = v2Tables.get(v2Name)
   if (!v2Table) {
-    missingTables.push(`${v1Name} (expected as ${v2Name} in v2)`)
+    missingTables.push(`${v1Name} (expected as ${v2Name} in candidate)`)
     continue
   }
 
@@ -119,7 +120,7 @@ for (const [v1Name, v1Table] of v1Tables) {
       const specKey = `${v1Name}.${v1Col.sqlName}`
       if (COLUMNS_IN_SPEC.has(specKey)) continue
 
-      // Check if v2 table has a spec column (JSONB catch-all)
+      // Check if candidate table has a spec column (JSONB catch-all)
       const hasSpec = v2ColMap.has("spec")
       const hint = hasSpec ? " (may be in spec JSONB — verify manually)" : ""
       missingColumns.push(`${v1Name}.${v1Col.sqlName} → ${v2Name}${hint}`)
@@ -137,7 +138,7 @@ for (const [v1Name, v1Table] of v1Tables) {
 
 // Find new tables
 for (const v2Name of v2Tables.keys()) {
-  // Check if any v1 table maps to this name
+  // Check if any baseline table maps to this name
   const isRenamed = Object.values(TABLE_RENAMES).includes(v2Name)
   const existsInV1 = v1Tables.has(v2Name)
   if (!isRenamed && !existsInV1) {

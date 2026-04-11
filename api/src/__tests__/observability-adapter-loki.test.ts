@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test"
 import { LokiObservabilityAdapter } from "../adapters/observability-adapter-loki"
 import { getObservabilityAdapter } from "../adapters/adapter-registry"
 
@@ -25,11 +25,11 @@ const pinoLog = (overrides: Record<string, unknown> = {}) =>
 
 describe("LokiObservabilityAdapter", () => {
   let adapter: LokiObservabilityAdapter
-  let fetchSpy: ReturnType<typeof vi.spyOn>
+  let fetchSpy: ReturnType<typeof spyOn>
 
   beforeEach(() => {
     adapter = new LokiObservabilityAdapter("http://loki:3100")
-    fetchSpy = vi.spyOn(globalThis, "fetch")
+    fetchSpy = spyOn(globalThis, "fetch")
   })
 
   afterEach(() => {

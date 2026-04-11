@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia"
 import { eq, and, or } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { secret } from "../../db/schema/org-v2"
+import { secret } from "../../db/schema/org"
 import { encrypt, decrypt } from "../../lib/secrets/crypto"
 import {
   ScopeQuery,

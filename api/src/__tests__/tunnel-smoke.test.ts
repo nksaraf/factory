@@ -12,7 +12,7 @@
  * Local:  cd api && bun test src/__tests__/tunnel-smoke.test.ts
  * Prod:   cd api && FACTORY_URL=https://factory.lepton.software bun test src/__tests__/tunnel-smoke.test.ts
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 import {
   type PendingBodies,

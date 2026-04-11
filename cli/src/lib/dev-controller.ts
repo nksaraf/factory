@@ -296,7 +296,8 @@ export class DevController {
 
     let cmd: string[]
     if (resolved.devCommand) {
-      cmd = ["sh", "-c", `${resolved.devCommand} --port ${actualPort}`]
+      // PORT is already injected via procEnv — don't append --port to the command
+      cmd = ["sh", "-c", resolved.devCommand]
     } else {
       cmd = buildDevCmd(resolved.type, actualPort, resolved.absPath)
     }

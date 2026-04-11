@@ -2,10 +2,10 @@ import { and, desc, eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
 import { rollout } from "../../db/schema/ops"
-import { release } from "../../db/schema/software-v2"
+import { release } from "../../db/schema/software"
 
 // ---------------------------------------------------------------------------
-// Rollout Management — v2: status → spec JSONB
+// Rollout Management — status → spec JSONB
 // ---------------------------------------------------------------------------
 
 const VALID_ROLLOUT_TRANSITIONS: Record<string, string[]> = {

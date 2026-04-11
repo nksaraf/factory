@@ -41,7 +41,7 @@ function makeManifest(version: number): SiteManifest {
       id: "sd-1",
       name: "test",
       site: "test-site",
-      realmType: "compose",
+      realmType: "docker-compose",
     },
     componentDeployments: [],
     catalog: {

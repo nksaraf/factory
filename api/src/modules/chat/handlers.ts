@@ -7,7 +7,7 @@ import {
   principal,
   thread,
   threadTurn,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { logger } from "../../logger"
 import { createAgentSession } from "./agent"
 import { bot } from "./bot"

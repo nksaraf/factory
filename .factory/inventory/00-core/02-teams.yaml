@@ -1,0 +1,43 @@
+version: "1"
+
+# Org teams — business units and functional areas
+# Generated via: dx scan --export --kinds team
+entities:
+  - kind: team
+    slug: lepton
+    name: Lepton
+    type: business-unit
+    spec:
+      description: Lepton Technologies
+
+  - kind: team
+    slug: engineering
+    name: Engineering
+    type: product-area
+    parentTeamSlug: lepton
+    spec:
+      description: All product engineering teams
+
+  - kind: team
+    slug: platform
+    name: Platform
+    type: product-area
+    parentTeamSlug: lepton
+    spec:
+      description: Infrastructure and developer experience
+
+  - kind: team
+    slug: product
+    name: Product
+    type: product-area
+    parentTeamSlug: lepton
+    spec:
+      description: Product management
+
+  - kind: team
+    slug: qa
+    name: QA
+    type: team
+    parentTeamSlug: lepton
+    spec:
+      description: Quality assurance

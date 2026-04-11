@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach } from "bun:test"
 import { computeManifest } from "../lib/manifest"
 import { NoopGatewayAdapter } from "../adapters/gateway-adapter-noop"
 import { SiteReconciler } from "../modules/site/reconciler"
@@ -129,11 +129,11 @@ describe("Site Gateway Pipeline", () => {
       release: null,
       routes: [
         {
-          routeId: "rte_v2",
+          routeId: "rte_second",
           kind: "ingress",
-          domain: "v2.dx.dev",
+          domain: "second.dx.dev",
           pathPrefix: null,
-          targetService: "svc-v2",
+          targetService: "svc-second",
           targetPort: 80,
           protocol: "http",
           tlsMode: "auto",
@@ -151,7 +151,7 @@ describe("Site Gateway Pipeline", () => {
 
     const crds = await adapter.getCurrentState()
     expect(crds).toHaveLength(1)
-    expect(crds[0].metadata.labels["dx-route-id"]).toBe("rte_v2")
+    expect(crds[0].metadata.labels["dx-route-id"]).toBe("rte_second")
   })
 
   it("empty manifest cleans up all CRDs", async () => {

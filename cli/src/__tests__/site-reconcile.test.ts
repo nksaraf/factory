@@ -30,7 +30,7 @@ function makeManifest(
       id: "sd-1",
       name: "test-system",
       site: "test-site",
-      realmType: "compose",
+      realmType: "docker-compose",
     },
     componentDeployments,
     catalog: {
@@ -188,7 +188,7 @@ describe("planChanges", () => {
         "db-migrate": {
           kind: "Component" as const,
           metadata: { name: "db-migrate", namespace: "default" },
-          spec: { type: "init", initFor: "api" },
+          spec: { type: "init", initFor: "api", ports: [] },
         },
       },
       resources: {},
@@ -235,12 +235,12 @@ describe("topological ordering", () => {
         "db-migrate": {
           kind: "Component" as const,
           metadata: { name: "db-migrate", namespace: "default" },
-          spec: { type: "init", initFor: "api" },
+          spec: { type: "init", initFor: "api", ports: [] },
         },
         api: {
           kind: "Component" as const,
           metadata: { name: "api", namespace: "default" },
-          spec: { type: "service" },
+          spec: { type: "service", ports: [] },
         },
       },
       resources: {},
@@ -266,12 +266,12 @@ describe("topological ordering", () => {
         api: {
           kind: "Component" as const,
           metadata: { name: "api", namespace: "default" },
-          spec: { type: "service", dependsOn: ["resource:infra-postgres"] },
+          spec: { type: "service", dependsOn: ["resource:infra-postgres"], ports: [] },
         },
         "infra-postgres": {
           kind: "Component" as const,
           metadata: { name: "infra-postgres", namespace: "default" },
-          spec: { type: "service" },
+          spec: { type: "service", ports: [] },
         },
       },
       resources: {},
@@ -297,12 +297,12 @@ describe("topological ordering", () => {
         a: {
           kind: "Component" as const,
           metadata: { name: "a", namespace: "default" },
-          spec: { type: "service", dependsOn: ["component:b"] },
+          spec: { type: "service", dependsOn: ["component:b"], ports: [] },
         },
         b: {
           kind: "Component" as const,
           metadata: { name: "b", namespace: "default" },
-          spec: { type: "service", dependsOn: ["component:a"] },
+          spec: { type: "service", dependsOn: ["component:a"], ports: [] },
         },
       },
       resources: {},

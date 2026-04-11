@@ -3,12 +3,12 @@ import { desc, eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
 import { site, siteManifest } from "../../db/schema/ops"
-import { release } from "../../db/schema/software-v2"
+import { release } from "../../db/schema/software"
 import { computeManifest } from "../../lib/manifest"
 import { listDomains, listRoutes } from "../infra/gateway.service"
 
 // ---------------------------------------------------------------------------
-// Manifest & Check-in — v2: spec JSONB
+// Manifest & Check-in — spec JSONB
 // ---------------------------------------------------------------------------
 
 export async function siteCheckin(

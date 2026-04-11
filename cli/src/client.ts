@@ -62,7 +62,10 @@ async function refreshJwt(
  * 1. Explicit `init.token` (caller override)
  * 2. Stored JWT (if not expired)
  * 3. Refreshed JWT (using bearer token against auth service)
- * 4. Stored bearer token as last-resort fallback
+ *
+ * Never returns the Better Auth **opaque** `bearerToken` — the Factory API
+ * verifies **compact JWS** via JWKS (`auth.plugin`). Sending the session
+ * token produces `Invalid Compact JWS` from jose.
  */
 async function resolveApiToken(
   factoryUrl: string,
@@ -83,8 +86,7 @@ async function resolveApiToken(
     if (fresh) return fresh
   }
 
-  // Last-resort fallback: return whatever we have
-  return jwt || bearerToken || undefined
+  return undefined
 }
 
 /**
@@ -94,7 +96,20 @@ async function resolveApiToken(
 export async function getFactoryApiToken(): Promise<string | undefined> {
   const cfg = await readConfig()
   const url = resolveFactoryUrl(cfg).replace(/\/$/, "")
-  return resolveApiToken(url, cfg.authBasePath)
+  const token = await resolveApiToken(url, cfg.authBasePath)
+  if (token) return token
+
+  const { bearerToken, jwt } = await readSession()
+  if (bearerToken && (!jwt || isJwtExpired(jwt))) {
+    throw new Error(
+      "Factory API requires a JWT, but yours is missing or stale and could not be refreshed. " +
+        `The auth service must return a JWT (e.g. \`set-auth-jwt\` from GET ${url}${cfg.authBasePath}/get-session). ` +
+        "Try: dx factory logout && dx factory login. " +
+        "If this persists from a server or CI host, check that host can reach that URL and that prod auth is configured to issue Factory JWTs."
+    )
+  }
+
+  return undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +133,8 @@ export async function getFactoryClient(
     await ensureLocalDaemon()
   }
 
-  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
+  const token =
+    init?.token ?? (await getFactoryApiToken())
 
   return treaty<FactoryApp>(url, {
     headers: () => ({
@@ -138,7 +154,8 @@ export async function getFactoryRestClient(
 ): Promise<FactoryClient> {
   const cfg = await readConfig()
   const url = (baseUrl ?? resolveFactoryUrl(cfg)).replace(/\/$/, "")
-  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
+  const token =
+    init?.token ?? (await getFactoryApiToken())
   return new FactoryClient(url, token)
 }
 
@@ -155,7 +172,9 @@ export async function getSiteClient(
   if (!siteUrl) return undefined
 
   const url = siteUrl.replace(/\/$/, "")
-  const token = await resolveApiToken(url, cfg.authBasePath, init?.token)
+  // Refresh JWT against this host's auth (`get-session`), not necessarily `factoryUrl`.
+  const token =
+    init?.token ?? (await resolveApiToken(url, cfg.authBasePath))
 
   return treaty<FactoryApp>(url, {
     headers: () => ({

@@ -166,6 +166,7 @@ export async function emitExternalEvent(
     rawPayload: payload,
     data: canonical.data,
     idempotencyKey: `${source}:${providerId}:${deliveryId}`,
+    schemaVersion: 1,
   })
 }
 

@@ -10,6 +10,7 @@ import type {
 } from "@smp/factory-shared/connection-context-schemas"
 import { normalizeProfileEntry } from "@smp/factory-shared/connection-context-schemas"
 import { loadConnectionProfile } from "@smp/factory-shared/connection-profile-loader"
+import { isDevComponent } from "@smp/factory-shared"
 import { DependencyGraph } from "@smp/factory-shared/dependency-graph"
 import { resolveEnvVars } from "@smp/factory-shared/env-resolution"
 import { spawnSync } from "node:child_process"
@@ -93,9 +94,20 @@ export function devCommand(app: DxBase) {
         short: "e",
         description: "Env var override: KEY=VALUE (repeatable)",
       },
+      "dry-run": {
+        type: "boolean" as const,
+        description: "Show what would happen without starting anything",
+      },
+      restart: {
+        type: "boolean" as const,
+        short: "r",
+        description: "Restart dev server(s) without re-running setup or Docker",
+      },
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
+      const dryRun = !!flags["dry-run"]
+      const doRestart = !!flags["restart"]
 
       try {
         const ctx = await resolveDxContext({ need: "project" })
@@ -110,18 +122,60 @@ export function devCommand(app: DxBase) {
         // Pre-flight: run codegen if generators are detected
         const codegen = ctx.package?.toolchain.codegen ?? []
         if (codegen.length > 0 && !f.quiet) {
-          console.log(`  Running ${codegen.length} code generator(s)...`)
-          for (const gen of codegen) {
-            const [bin, ...genArgs] = gen.runCmd.split(" ")
-            spawnSync(bin!, genArgs, {
-              cwd: project.rootDir,
-              stdio: "inherit",
-              shell: true,
-            })
+          if (dryRun) {
+            console.log(
+              `  [dry-run] Would run ${codegen.length} code generator(s): ${codegen.map((g) => g.runCmd).join(", ")}`
+            )
+          } else {
+            console.log(`  Running ${codegen.length} code generator(s)...`)
+            for (const gen of codegen) {
+              const [bin, ...genArgs] = gen.runCmd.split(" ")
+              spawnSync(bin!, genArgs, {
+                cwd: project.rootDir,
+                stdio: "inherit",
+                shell: true,
+              })
+            }
           }
         }
 
         const ctrl = makeController(project)
+
+        // ── --restart: skip setup, reuse saved connection context ────
+        if (doRestart) {
+          const devableComponents = Object.entries(project.catalog.components)
+            .filter(([_, comp]) => isDevComponent(comp))
+            .map(([name]) => name)
+          const targets = args.components?.length
+            ? args.components
+            : devableComponents
+
+          if (targets.length === 0) {
+            console.log("No dev-able components found.")
+            return
+          }
+
+          const savedCtx = readConnectionContext(project.rootDir)
+          const env = savedCtx
+            ? Object.fromEntries(
+                Object.entries(savedCtx.envVars).map(([k, v]) => [k, v.value])
+              )
+            : undefined
+
+          for (const component of targets) {
+            try {
+              ctrl.stop(component)
+              const result = await ctrl.start(component, {
+                env: env && Object.keys(env).length > 0 ? env : undefined,
+              })
+              console.log(`Restarted ${result.name} on :${result.port} (PID ${result.pid})`)
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err)
+              console.error(`Error restarting ${component}: ${msg}`)
+            }
+          }
+          return
+        }
 
         // Resolve all ports (for both dev servers and infra) and write ports.env
         const portManager = new PortManager(join(project.rootDir, ".dx"))
@@ -133,7 +187,7 @@ export function devCommand(app: DxBase) {
           Object.assign(allEnvVars, portEnvVars(service, ports))
         }
         const envPath = join(project.rootDir, ".dx", "ports.env")
-        portManager.writeEnvFile(allEnvVars, envPath)
+        if (!dryRun) portManager.writeEnvFile(allEnvVars, envPath)
 
         // ── Shared infrastructure ──────────────────────────────────
         const graph = DependencyGraph.fromCatalog(project.catalog)
@@ -151,7 +205,7 @@ export function devCommand(app: DxBase) {
             : null
 
         // ── Active restore: clean up stale connection state ─────────
-        if (!hasConnectionFlags) {
+        if (!hasConnectionFlags && !dryRun) {
           restoreLocalState(project, envPath, !!f.quiet)
         }
 
@@ -245,12 +299,18 @@ export function devCommand(app: DxBase) {
 
           // Stop remote deps' containers to free ports
           if (allRemoteDeps.length > 0 && compose) {
-            if (!f.quiet) {
+            if (dryRun) {
               console.log(
-                `  Stopping remote dep containers: ${allRemoteDeps.join(", ")}`
+                `  [dry-run] Would stop remote dep containers: ${allRemoteDeps.join(", ")}`
               )
+            } else {
+              if (!f.quiet) {
+                console.log(
+                  `  Stopping remote dep containers: ${allRemoteDeps.join(", ")}`
+                )
+              }
+              compose.stop(allRemoteDeps)
             }
-            compose.stop(allRemoteDeps)
           }
 
           // Write compose override and restart reconfigured services
@@ -262,23 +322,30 @@ export function devCommand(app: DxBase) {
             reconfiguredServices.push(...overridesWithEnv.map((d) => d.service))
 
             if (overridesWithEnv.length > 0) {
-              writeComposeOverride(project.rootDir, overridesWithEnv)
+              if (dryRun) {
+                console.log(
+                  `  [dry-run] Would restart reconfigured Docker services with env overrides: ${reconfiguredServices.join(", ")}`
+                )
+              } else {
+                writeComposeOverride(project.rootDir, overridesWithEnv)
 
-              const overridePath = join(
-                project.rootDir,
-                ".dx",
-                COMPOSE_OVERRIDE_FILE
-              )
-              const overrideCompose = new Compose(
-                [...project.composeFiles, overridePath],
-                basename(project.rootDir),
-                envPath
-              )
-              overrideCompose.up({
-                detach: true,
-                noBuild: true,
-                services: reconfiguredServices,
-              })
+                const overridePath = join(
+                  project.rootDir,
+                  ".dx",
+                  COMPOSE_OVERRIDE_FILE
+                )
+                const overrideCompose = new Compose(
+                  [...project.composeFiles, overridePath],
+                  basename(project.rootDir),
+                  envPath
+                )
+                overrideCompose.up({
+                  detach: true,
+                  noBuild: true,
+                  noDeps: allRemoteDeps.length > 0,
+                  services: reconfiguredServices,
+                })
+              }
             }
 
             for (const d of derivedOverrides) {
@@ -288,10 +355,12 @@ export function devCommand(app: DxBase) {
             }
           }
 
-          writeConnectionContext(project.rootDir, connectionCtx, {
-            stoppedServices: allRemoteDeps,
-            reconfiguredServices,
-          })
+          if (!dryRun) {
+            writeConnectionContext(project.rootDir, connectionCtx, {
+              stoppedServices: allRemoteDeps,
+              reconfiguredServices,
+            })
+          }
 
           printConnectionBanner(
             connectionCtx,
@@ -308,7 +377,7 @@ export function devCommand(app: DxBase) {
         // ── Determine dev targets ────────────────────────────────────
 
         const devableComponents = Object.entries(project.catalog.components)
-          .filter(([_, comp]) => comp.spec.dev?.command != null)
+          .filter(([_, comp]) => isDevComponent(comp))
           .map(([name]) => name)
 
         const targets = args.components?.length
@@ -337,6 +406,30 @@ export function devCommand(app: DxBase) {
           (name) => !devTargetSet.has(name) && !remoteDepSet.has(name)
         )
 
+        if (dryRun) {
+          // ── Dry-run plan ─────────────────────────────────────────
+          console.log("\nPlan:")
+          if (localDockerDeps.length > 0) {
+            const noDepsSuffix = remoteDepSet.size > 0 ? " (--no-deps)" : ""
+            console.log(
+              `  Docker (compose up -d${noDepsSuffix}): ${localDockerDeps.join(", ")}`
+            )
+          } else {
+            console.log("  Docker: nothing to start")
+          }
+          for (const component of targets) {
+            const comp = project.catalog.components[component]
+            const cmd = comp?.spec.dev?.command ?? "(no dev command)"
+            const port = resolved[component]?.[0]
+            const portStr = port ? `:${port}` : ""
+            console.log(`  Dev server: ${component}${portStr}  →  ${cmd}`)
+          }
+          if (allRemoteDeps.length > 0) {
+            console.log(`  Remote deps: ${allRemoteDeps.join(", ")}`)
+          }
+          return
+        }
+
         if (localDockerDeps.length > 0 && compose) {
           if (!isDockerRunning()) {
             exitWithError(
@@ -347,7 +440,14 @@ export function devCommand(app: DxBase) {
           if (!f.quiet) {
             console.log(`  Starting Docker deps: ${localDockerDeps.join(", ")}`)
           }
-          compose.up({ detach: true, services: localDockerDeps })
+          // Use --no-deps when remote deps exist: we computed the full dep set
+          // ourselves, so Docker Compose must not pull in depends_on services
+          // (which may include the remote deps we just stopped).
+          compose.up({
+            detach: true,
+            services: localDockerDeps,
+            noDeps: remoteDepSet.size > 0,
+          })
         }
 
         // ── Start dev servers ────────────────────────────────────────

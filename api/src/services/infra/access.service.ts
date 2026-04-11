@@ -2,7 +2,7 @@ import type { HostSpec } from "@smp/factory-shared/schemas/infra"
 import { and, eq, isNull, or } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { host, realm } from "../../db/schema/infra-v2"
+import { host, realm } from "../../db/schema/infra"
 import { workbench } from "../../db/schema/ops"
 import { getEntityIps } from "./ipam.service"
 
@@ -71,7 +71,7 @@ export async function resolveTarget(
     }
   }
 
-  // 2. Hosts (v2 schema — SSH config lives in spec JSONB)
+  // 2. Hosts (SSH config lives in spec JSONB)
   const hostRows = await db
     .select()
     .from(host)

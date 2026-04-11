@@ -1030,3 +1030,15 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [x] **Slack sync fails under Bun runtime** — Fixed: replaced `@slack/web-api` SDK with direct curl subprocess calls (`slack-client.ts`). Bun's fetch AND node:https polyfill both drop sockets; curl bypasses Bun's networking entirely.
 - [ ] **Remove `@slack/web-api` dependency** — No longer imported anywhere in `api/src/`. Can be removed from `api/package.json` to reduce install size. Verify no other packages depend on it first.
 - [ ] **Validation error on `POST /api/v1/factory/infra/hosts/:slug/update`** — Recurring error: `spec.hostname` required but undefined. Investigate caller sending incomplete payloads.
+
+---
+
+## DNS/IP Graph Follow-ups (2026-04-11)
+
+- [ ] Add NAT/firewall network-link ingestion from gateway device APIs (e.g. Gajshield) so traces include middle hops without manual CRUD.
+- [ ] Add endpoint abstraction service: compute "how to reach this entity" from graph + access metadata for CLI/API consumers.
+- [ ] Add VIP/floating-IP lifecycle workflows (create/assign/reassign) on top of existing `ip_address` model support.
+- [ ] Add DNS record write-back (create/update/delete) from Factory to providers after sync/read model is stable.
+- [ ] Add non-Cloudflare DNS provider sync adapters (Route53 first, then generic provider abstraction).
+- [ ] Fix `gateway-service` full-suite test fixture mismatch with current `system_deployment` schema (`workbench_id` insert failure) so full test run is green.
+- [ ] Fix `infra-controller` host→realm relation test (`GET /hosts/:id/realms` returning empty) by aligning relation wiring or test setup with current v2 model.

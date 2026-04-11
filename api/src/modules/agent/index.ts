@@ -25,10 +25,10 @@ import { eq } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { agent, job, memory, rolePreset } from "../../db/schema/org-v2"
+import { agent, job, memory, rolePreset } from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 
-export function agentControllerV2(db: Database) {
+export function agentController(db: Database) {
   return (
     new Elysia({ prefix: "/agent" })
 
@@ -41,6 +41,8 @@ export function agentControllerV2(db: Database) {
           table: agent,
           slugColumn: agent.slug,
           idColumn: agent.id,
+          prefix: "agt",
+          kindAlias: "agent",
           createSchema: CreateAgentSchema,
           updateSchema: UpdateAgentSchema,
           deletable: true,
@@ -63,6 +65,8 @@ export function agentControllerV2(db: Database) {
           table: rolePreset,
           slugColumn: rolePreset.slug,
           idColumn: rolePreset.id,
+          prefix: "rpre",
+          kindAlias: "role-preset",
           createSchema: CreateRolePresetSchema,
           updateSchema: UpdateRolePresetSchema,
           deletable: true,
@@ -78,6 +82,8 @@ export function agentControllerV2(db: Database) {
           table: job,
           slugColumn: job.id, // no slug — use id
           idColumn: job.id,
+          prefix: "job",
+          kindAlias: "job",
           actions: {
             start: {
               handler: async ({ db, entity }) => {
@@ -177,6 +183,8 @@ export function agentControllerV2(db: Database) {
           table: memory,
           slugColumn: memory.id, // no slug — use id
           idColumn: memory.id,
+          prefix: "mem",
+          kindAlias: "memory",
           deletable: true,
           actions: {
             approve: {
@@ -235,3 +243,12 @@ export function agentControllerV2(db: Database) {
       )
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const agentOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "agents", singular: "agent", table: agent, slugColumn: agent.slug, idColumn: agent.id, prefix: "agt", kindAlias: "agent" },
+  { entity: "presets", singular: "role preset", table: rolePreset, slugColumn: rolePreset.slug, idColumn: rolePreset.id, prefix: "rpre", kindAlias: "role-preset" },
+  { entity: "jobs", singular: "job", table: job, slugColumn: job.id, idColumn: job.id, prefix: "job", kindAlias: "job" },
+  { entity: "memories", singular: "memory", table: memory, slugColumn: memory.id, idColumn: memory.id, prefix: "mem", kindAlias: "memory" },
+]

@@ -6,7 +6,6 @@ import type {
 } from "@smp/factory-shared/schemas/infra"
 import type {
   SiteSpec,
-  SystemDeploymentSpec,
 } from "@smp/factory-shared/schemas/ops"
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
@@ -19,14 +18,14 @@ import {
   describe,
   expect,
   it,
-  vi,
-} from "vitest"
+  spyOn,
+} from "bun:test"
 
 import type { Database } from "../db/connection"
-import { dnsDomain, estate, realm } from "../db/schema/infra-v2"
-import { site, systemDeployment } from "../db/schema/ops"
-import { principal } from "../db/schema/org-v2"
-import { system } from "../db/schema/software-v2"
+import { dnsDomain, estate, realm } from "../db/schema/infra"
+import { site } from "../db/schema/ops"
+import { principal } from "../db/schema/org"
+import { system } from "../db/schema/software"
 import * as gw from "../modules/infra/gateway.service"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
@@ -266,15 +265,11 @@ describe("Gateway Service", () => {
     })
 
     it("verifyDomain validates DNS and creates A/AAAA resolution links", async () => {
-      const txtSpy = vi
-        .spyOn(dns, "resolveTxt")
-        .mockResolvedValue([["token-123"]])
-      const v4Spy = vi
-        .spyOn(dns, "resolve4")
-        .mockResolvedValue(["203.0.113.20"])
-      const v6Spy = vi
-        .spyOn(dns, "resolve6")
-        .mockResolvedValue(["2001:db8::10"])
+      const txtSpy = spyOn(dns, "resolveTxt").mockResolvedValue([
+        ["token-123"],
+      ])
+      const v4Spy = spyOn(dns, "resolve4").mockResolvedValue(["203.0.113.20"])
+      const v6Spy = spyOn(dns, "resolve6").mockResolvedValue(["2001:db8::10"])
       const created = await gw.registerDomain(db, {
         fqdn: "verify.acme.com",
         type: "custom",
@@ -356,29 +351,10 @@ describe("Gateway Service", () => {
     }
 
     it("creates workbench routes with publish ports", async () => {
-      const { site: s, system: sys } = await createSystemDeploymentPrereqs()
-      const [sd] = await db
-        .insert(systemDeployment)
-        .values({
-          name: `workbench-${Date.now()}`,
-          slug: `workbench-${Date.now()}`,
-          type: "dev",
-          systemId: sys.id,
-          siteId: s.id,
-          spec: {
-            trigger: "manual",
-            createdBy: "test",
-            status: "provisioning",
-            deploymentStrategy: "rolling",
-            labels: {},
-            runtime: "kubernetes",
-          } satisfies SystemDeploymentSpec,
-        })
-        .returning()
+      await createSystemDeploymentPrereqs()
 
       const routes = await gw.createWorkbenchRoutes(db, {
         workbenchSlug: "my-workbench",
-        systemDeploymentId: sd.id,
         publishPorts: [3000, 8080],
         createdBy: "test",
       })
@@ -402,29 +378,10 @@ describe("Gateway Service", () => {
     })
 
     it("creates workbench routes for site", async () => {
-      const { site: s, system: sys } = await createSystemDeploymentPrereqs()
-      const [sd] = await db
-        .insert(systemDeployment)
-        .values({
-          name: `workbench-site-${Date.now()}`,
-          slug: `workbench-site-${Date.now()}`,
-          type: "dev",
-          systemId: sys.id,
-          siteId: s.id,
-          spec: {
-            trigger: "manual",
-            createdBy: "test",
-            status: "provisioning",
-            deploymentStrategy: "rolling",
-            labels: {},
-            runtime: "kubernetes",
-          } satisfies SystemDeploymentSpec,
-        })
-        .returning()
+      const { site: s } = await createSystemDeploymentPrereqs()
 
       const routes = await gw.createWorkbenchRoutes(db, {
         workbenchSlug: "my-workbench",
-        systemDeploymentId: sd.id,
         siteId: s.id,
         createdBy: "test",
       })
@@ -434,34 +391,17 @@ describe("Gateway Service", () => {
     })
 
     it("removes target routes", async () => {
-      const { site: s, system: sys } = await createSystemDeploymentPrereqs()
-      const [sd] = await db
-        .insert(systemDeployment)
-        .values({
-          name: `workbench-${Date.now()}`,
-          slug: `workbench-${Date.now()}`,
-          type: "dev",
-          systemId: sys.id,
-          siteId: s.id,
-          spec: {
-            trigger: "manual",
-            createdBy: "test",
-            status: "provisioning",
-            deploymentStrategy: "rolling",
-            labels: {},
-            runtime: "kubernetes",
-          } satisfies SystemDeploymentSpec,
-        })
-        .returning()
+      await createSystemDeploymentPrereqs()
+      const systemDeploymentId = "sdp-test-remove-routes"
 
       await gw.createWorkbenchRoutes(db, {
         workbenchSlug: "my-workbench",
-        systemDeploymentId: sd.id,
+        systemDeploymentId,
         publishPorts: [3000],
         createdBy: "test",
       })
 
-      const removed = await gw.removeSystemDeploymentRoutes(db, sd.id)
+      const removed = await gw.removeSystemDeploymentRoutes(db, systemDeploymentId)
       expect(removed).toBe(2)
 
       const { data } = await gw.listRoutes(db)

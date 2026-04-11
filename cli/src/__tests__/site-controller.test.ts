@@ -42,7 +42,7 @@ function createMockExecutor(initialStates: ComponentState[] = []): Executor & {
   let inspectResult = [...initialStates]
 
   return {
-    type: "compose",
+    type: "docker-compose",
     deployed,
     stopped,
     get inspectResult() {
@@ -144,7 +144,7 @@ function makeManifest(
       id: "sd-1",
       name: "test",
       site: "test-site",
-      realmType: "compose",
+      realmType: "docker-compose",
     },
     componentDeployments: cds.map((cd) => ({
       id: `cd-${cd.name}`,
@@ -345,7 +345,7 @@ describe("SiteController", () => {
 
     expect(status.siteName).toBe("test-site")
     expect(status.mode).toBe("standalone")
-    expect(status.executorType).toBe("compose")
+    expect(status.executorType).toBe("docker-compose")
     expect(status.manifestVersion).toBe(1)
     expect(status.lastReconcileAt).toBeNull()
   })

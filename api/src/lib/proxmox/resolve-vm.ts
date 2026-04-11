@@ -5,7 +5,7 @@
 import { eq, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { estate, host } from "../../db/schema/infra-v2"
+import { estate, host } from "../../db/schema/infra"
 import { createProxmoxClientFromCluster } from "./client"
 import type { ProxmoxClient } from "./client"
 
@@ -112,7 +112,7 @@ export async function getVmContext(
 
   // Determine node name — find a bare-metal host that matches
   // We need to figure out which Proxmox node this VM runs on.
-  // In v2, the bare-metal hosts and VMs both link to the same hypervisor estate.
+  // Bare-metal hosts and VMs both link to the same hypervisor estate.
   // The node name is the bare-metal host's name. We'll use a simple approach:
   // if the VM was synced, the Proxmox node info may be in metadata or we need
   // to query the Proxmox API directly.

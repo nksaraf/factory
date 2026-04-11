@@ -2,7 +2,7 @@
  * Catalog sync controller.
  *
  * Accepts a CatalogSystem (Backstage-aligned vocabulary from format adapters)
- * and upserts it into the v2 software schema tables:
+ * and upserts it into the software schema tables:
  *   - system   → software.system
  *   - components + resources → software.component (resources are just infra-typed components)
  *   - apis     → software.api
@@ -23,15 +23,15 @@ import { and, eq } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { team } from "../../db/schema/org-v2"
-import { component, softwareApi, system } from "../../db/schema/software-v2"
+import { team } from "../../db/schema/org"
+import { component, softwareApi, system } from "../../db/schema/software"
 import { currentRow } from "../../db/temporal"
 import { ok } from "../../lib/responses"
 
 // ── Helpers ──────────────────────────────────────────────────
 
-/** Map catalog lifecycle values to v2 software lifecycle. */
-function toV2Lifecycle(catalogLifecycle: string | undefined): Lifecycle {
+/** Map catalog lifecycle values to software `Lifecycle`. */
+function catalogLifecycleToSoftware(catalogLifecycle: string | undefined): Lifecycle {
   switch (catalogLifecycle) {
     case "development":
       return "beta"
@@ -114,7 +114,7 @@ async function upsertSystem(
         ownerTeamId,
         spec: {
           namespace: catalog.metadata.namespace ?? "default",
-          lifecycle: toV2Lifecycle(catalog.spec.lifecycle),
+          lifecycle: catalogLifecycleToSoftware(catalog.spec.lifecycle),
           description: catalog.metadata.description,
           tags: catalog.metadata.tags ?? [],
         },
@@ -137,7 +137,7 @@ async function upsertSystem(
       ownerTeamId,
       spec: {
         namespace: catalog.metadata.namespace ?? "default",
-        lifecycle: toV2Lifecycle(catalog.spec.lifecycle),
+        lifecycle: catalogLifecycleToSoftware(catalog.spec.lifecycle),
         description: catalog.metadata.description,
         tags: catalog.metadata.tags ?? [],
       },
@@ -159,7 +159,7 @@ async function upsertComponent(
 ) {
   const name = entry.metadata.title ?? entry.metadata.name
   const type = entry.spec.type
-  const lifecycle = toV2Lifecycle(
+  const lifecycle = catalogLifecycleToSoftware(
     "lifecycle" in entry.spec ? entry.spec.lifecycle : undefined
   )
   const now = new Date()
@@ -342,7 +342,7 @@ export function catalogController(db: Database) {
     {
       detail: {
         tags: ["catalog"],
-        summary: "Sync a catalog system to the v2 software schema",
+        summary: "Sync a catalog system to the software schema",
       },
     }
   )

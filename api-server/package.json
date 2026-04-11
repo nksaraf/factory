@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vinxi dev --port 4100",
+    "dev": "bun run src/bun-entry.ts",
     "build": "vinxi build",
     "start": "node .output/server/index.js"
   },

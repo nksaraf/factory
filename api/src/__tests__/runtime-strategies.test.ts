@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "bun:test"
 
 import {
   clearReconcilerStrategies,
@@ -16,7 +16,7 @@ import {
 describe("Reconciler strategy registry", () => {
   beforeEach(() => {
     clearReconcilerStrategies()
-    registerReconcilerStrategy("compose", () => new ComposeStrategy())
+    registerReconcilerStrategy("docker-compose", () => new ComposeStrategy())
     registerReconcilerStrategy("systemd", () => new SystemdStrategy())
     registerReconcilerStrategy(
       "windows_service",
@@ -26,9 +26,9 @@ describe("Reconciler strategy registry", () => {
     registerReconcilerStrategy("process", () => new NoopStrategy())
   })
 
-  it("returns compose strategy", () => {
-    const strategy = getReconcilerStrategy("compose")
-    expect(strategy.runtime).toBe("compose")
+  it("returns docker-compose strategy", () => {
+    const strategy = getReconcilerStrategy("docker-compose")
+    expect(strategy.runtime).toBe("docker-compose")
   })
 
   it("returns systemd strategy", () => {

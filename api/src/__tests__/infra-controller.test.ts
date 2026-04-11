@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import {
   type TestApp,
@@ -295,21 +295,27 @@ describe("Infra Controller", () => {
       )
       const { data: h } = (await hostRes.json()) as ApiResponse
 
-      await app.handle(
+      const realmCreate = await app.handle(
         post(`${BASE}/realms`, {
           name: "k3s-realm",
           slug: "k3s-realm",
           type: "k8s-cluster",
-          hostId: h.id,
           spec: { kubeconfigRef: "fake-kc", status: "ready" },
         })
+      )
+      const { data: realmEntity } = (await realmCreate.json()) as ApiResponse
+
+      await client.query(
+        `insert into infra.realm_host (realm_id, host_id, role) values ($1, $2, 'single')`,
+        [realmEntity.id, h.id]
       )
 
       const res = await app.handle(new Request(`${BASE}/hosts/${h.id}/realms`))
       expect(res.status).toBe(200)
       const { data } = (await res.json()) as ApiListResponse
       expect(data).toHaveLength(1)
-      expect(data[0].name).toBe("k3s-realm")
+      expect(data[0].realmId).toBe(realmEntity.id)
+      expect(data[0].hostId).toBe(h.id)
     })
   })
 

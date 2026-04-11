@@ -5,7 +5,7 @@ import { site, systemDeployment } from "../../db/schema/ops"
 import { allocateSlug } from "../../lib/slug"
 
 // ---------------------------------------------------------------------------
-// Site CRUD — v2: ops schema; product, status → spec JSONB
+// Site CRUD — ops schema; product, status → spec JSONB
 // ---------------------------------------------------------------------------
 
 const VALID_SITE_STATUSES = [

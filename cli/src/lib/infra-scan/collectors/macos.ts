@@ -168,7 +168,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   "                services.append({\n" +
   "                    'name': svc_name,\n" +
   "                    'displayName': svc_name,\n" +
-  "                    'realmType': 'docker',\n" +
+  "                    'realmType': 'docker-compose',\n" +
   "                    'status': svc_status,\n" +
   "                    'ports': sorted(set(port_nums)),\n" +
   "                    'image': c.get('Image', ''),\n" +

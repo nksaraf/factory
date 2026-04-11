@@ -561,6 +561,7 @@ export class PreviewReconciler {
       topic: "ops.preview.ready",
       source: "reconciler",
       severity: "info",
+      schemaVersion: 1,
       entityKind: "preview",
       data: {
         branchName: prev.sourceBranch,

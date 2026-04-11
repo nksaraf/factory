@@ -13,7 +13,7 @@ import { Elysia } from "elysia"
 import { getWorkTrackerAdapter } from "../../../adapters/adapter-registry"
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter"
 import type { Database } from "../../../db/connection"
-import { workTrackerProvider } from "../../../db/schema/build-v2"
+import { workTrackerProvider } from "../../../db/schema/build"
 import { newId } from "../../../lib/id"
 import {
   recordWebhookEvent,

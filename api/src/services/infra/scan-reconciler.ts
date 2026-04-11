@@ -27,13 +27,13 @@ import {
   realm,
   realmHost,
   route,
-} from "../../db/schema/infra-v2"
+} from "../../db/schema/infra"
 import {
   componentDeployment,
   site,
   systemDeployment,
 } from "../../db/schema/ops"
-import { component, system } from "../../db/schema/software-v2"
+import { component, system } from "../../db/schema/software"
 import { newId } from "../../lib/id"
 import { extractHost, extractPort } from "../../lib/url-utils"
 import { assignIp, ensureIp } from "./ipam.service"
@@ -447,7 +447,7 @@ export async function reconcileHostScan(
 
       const sdpSpec: SystemDeploymentSpec = {
         status: "active",
-        runtime: "compose",
+        runtime: "docker-compose",
         trigger: "manual",
         deploymentStrategy: "rolling",
         labels: {},
@@ -610,7 +610,7 @@ export async function reconcileHostScan(
               address: backend.url,
               port: extractPort(backend.url) ?? 80,
               weight: 100,
-              realmType: "docker",
+              realmType: "docker-compose",
             })
           }
         }
@@ -847,6 +847,7 @@ export async function reconcileHostScan(
               headers: {},
               sni: [],
             },
+            bidirectional: false,
             enabled: true,
             priority: 0,
             middlewares: [],
@@ -909,6 +910,7 @@ export async function reconcileHostScan(
             headers: {},
             sni: [],
           },
+          bidirectional: false,
           enabled: true,
           priority: 0,
           middlewares: [],

@@ -1,16 +1,45 @@
 import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { ExitCodes } from "@smp/factory-shared/exit-codes"
 
 import { shutdownTelemetry, tracer } from "./telemetry.js"
 import { createDxApp } from "./build-app.js"
 import { fireWorkbenchPing } from "./handlers/install/workbench-ping.js"
+import {
+  isMachineJsonStdout,
+  syncMachineJsonStdoutEnvFromArgv,
+  writeStdoutJsonDocument,
+} from "./lib/cli-output.js"
 import { loadPackageScripts } from "./lib/dx-project-config.js"
 import { DxError } from "./lib/dx-error.js"
 import { styleMuted } from "./cli-style.js"
 
+syncMachineJsonStdoutEnvFromArgv()
+
+function readCliPackageVersion(): string {
+  try {
+    const dir = dirname(fileURLToPath(import.meta.url))
+    const raw = readFileSync(join(dir, "../package.json"), "utf-8")
+    const pkg = JSON.parse(raw) as { version?: string }
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0"
+  } catch {
+    return "0.0.0"
+  }
+}
+
 // --version (long-only, -v stays for --verbose)
 if (process.argv.includes("--version")) {
-  console.log("dx v0.0.2")
+  const version = readCliPackageVersion()
+  if (isMachineJsonStdout()) {
+    writeStdoutJsonDocument({
+      success: true,
+      data: { name: "dx", version },
+    })
+  } else {
+    console.log(`dx v${version}`)
+  }
   process.exit(ExitCodes.SUCCESS)
 }
 
@@ -30,8 +59,6 @@ await tracer.startActiveSpan(`dx ${commandName}`, async (rootSpan) => {
     await app.execute()
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    const isJson =
-      process.argv.includes("--json") || process.argv.includes("-j")
 
     // Script pass-through: if no built-in command matched, try package.json scripts
     const scriptName = args.filter((a) => !a.startsWith("-"))[0]
@@ -57,7 +84,7 @@ await tracer.startActiveSpan(`dx ${commandName}`, async (rootSpan) => {
       process.argv.includes("-v") ||
       process.argv.includes("--debug")
 
-    if (isJson) {
+    if (isMachineJsonStdout()) {
       const payload: Record<string, unknown> = {
         success: false,
         error: {
@@ -74,7 +101,7 @@ await tracer.startActiveSpan(`dx ${commandName}`, async (rootSpan) => {
         },
         exitCode: ExitCodes.GENERAL_FAILURE,
       }
-      console.log(JSON.stringify(payload, null, 2))
+      writeStdoutJsonDocument(payload)
     } else {
       // Always show message
       console.error(message)

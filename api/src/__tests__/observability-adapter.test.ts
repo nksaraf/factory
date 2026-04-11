@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 import { NoopObservabilityAdapter } from "../adapters/observability-adapter-noop"
 import { ClickStackObservabilityAdapter } from "../adapters/observability-adapter-clickstack"
 import { SigNozObservabilityAdapter } from "../adapters/observability-adapter-signoz"

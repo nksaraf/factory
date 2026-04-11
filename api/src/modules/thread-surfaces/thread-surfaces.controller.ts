@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { threadChannel } from "../../db/schema/org-v2"
+import { threadChannel } from "../../db/schema/org"
 import { logger } from "../../logger"
 import { autoAttachSlackSurface, findThreadBySessionId } from "./slack-surface"
 

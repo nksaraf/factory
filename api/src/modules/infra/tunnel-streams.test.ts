@@ -8,7 +8,7 @@ import {
   buildWsDataFrame,
   encodeFrame,
 } from "@smp/factory-shared/tunnel-protocol"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, jest, mock } from "bun:test"
 
 import { StreamManager } from "./tunnel-streams"
 
@@ -35,7 +35,7 @@ async function readAll(
 
 describe("StreamManager", () => {
   let sm: StreamManager
-  const mockSend = vi.fn()
+  const mockSend = mock()
 
   beforeEach(() => {
     mockSend.mockReset()
@@ -94,14 +94,14 @@ describe("StreamManager", () => {
   })
 
   it("times out pending requests", async () => {
-    vi.useFakeTimers()
+    jest.useFakeTimers()
     const promise = sm.sendHttpRequest(
       { method: "GET", url: "/slow", headers: {} },
       { timeoutMs: 100 }
     )
-    vi.advanceTimersByTime(150)
+    jest.advanceTimersByTime(150)
     await expect(promise).rejects.toThrow("timed out")
-    vi.useRealTimers()
+    jest.useRealTimers()
   })
 
   it("handleFrame with RST_STREAM rejects the pending request", async () => {
@@ -319,7 +319,7 @@ describe("StreamManager", () => {
   })
 
   it("body stream times out when no DATA arrives after HTTP_RES", async () => {
-    vi.useFakeTimers()
+    jest.useFakeTimers()
     const sm2 = new StreamManager(mockSend, { bodyTimeoutMs: 200 })
     const promise = sm2.sendHttpRequest({
       method: "GET",
@@ -334,14 +334,14 @@ describe("StreamManager", () => {
     const reader = res.body.getReader()
 
     // Advance past body timeout
-    vi.advanceTimersByTime(250)
+    jest.advanceTimersByTime(250)
 
     await expect(reader.read()).rejects.toThrow("body timed out")
-    vi.useRealTimers()
+    jest.useRealTimers()
   })
 
   it("body timer resets on each DATA frame", async () => {
-    vi.useFakeTimers()
+    jest.useFakeTimers()
     const sm2 = new StreamManager(mockSend, { bodyTimeoutMs: 200 })
     const promise = sm2.sendHttpRequest({
       method: "GET",
@@ -353,19 +353,19 @@ describe("StreamManager", () => {
     const res = await promise
 
     // Advance 150ms (under timeout), send DATA
-    vi.advanceTimersByTime(150)
+    jest.advanceTimersByTime(150)
     sm2.handleFrame(
       buildDataFrame(2, new TextEncoder().encode("chunk1"), false)
     )
 
     // Advance another 150ms (under reset timeout), send FIN
-    vi.advanceTimersByTime(150)
+    jest.advanceTimersByTime(150)
     sm2.handleFrame(buildDataFrame(2, new TextEncoder().encode("chunk2"), true))
 
     // Body should complete normally
     const body = await readAll(res.body)
     expect(new TextDecoder().decode(body)).toBe("chunk1chunk2")
-    vi.useRealTimers()
+    jest.useRealTimers()
   })
 
   it("cleanup cancels active body readers", async () => {

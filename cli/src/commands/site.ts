@@ -3,6 +3,7 @@ import { readConfig, resolveFactoryUrl, resolveSiteUrl } from "../config.js"
 import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { setExamples } from "../plugins/examples-plugin.js"
+import { formatExecutorTypeLabel } from "../site/execution/detect.js"
 import { toDxFlags } from "./dx-flags.js"
 import {
   actionResult,
@@ -348,7 +349,10 @@ export function siteCommand(app: DxBase) {
             detailView(flags, data.data, [
               ["Site", (r) => styleBold(String(r.siteName ?? ""))],
               ["Mode", (r) => String(r.mode ?? "")],
-              ["Executor", (r) => String(r.executorType ?? "")],
+              [
+                "Executor",
+                (r) => formatExecutorTypeLabel(String(r.executorType ?? "")),
+              ],
               ["Manifest Version", (r) => String(r.manifestVersion ?? "0")],
               ["Uptime", (r) => String(r.uptime ?? "")],
               ["Last Reconcile", (r) => timeAgo(r.lastReconcileAt as string)],

@@ -25,7 +25,7 @@ import {
   ipAddress,
   networkLink,
   service,
-} from "./schema/infra-v2"
+} from "./schema/infra"
 
 const db = connection(
   process.env.FACTORY_DATABASE_URL ??
@@ -381,26 +381,26 @@ async function seedFirewall() {
 
   const fwId = id("host", "gajshield-fw", "host")
 
-  await db
-    .insert(host)
-    .values({
-      id: fwId,
-      slug: "gajshield-fw",
-      name: "Gajshield Firewall",
-      type: "network-appliance",
-      estateId: dcId,
-      spec: {
-        hostname: "gajshield",
-        os: "linux" as const,
-        arch: "amd64" as const,
-        ipAddress: "192.168.1.5",
-        lifecycle: "active" as const,
-        accessMethod: "ssh" as const,
-        model: "Gajshield",
-        managementUrl: "https://192.168.1.5",
-      },
-    })
-    .onConflictDoNothing()
+  const fwRow = {
+    id: fwId,
+    slug: "gajshield-fw",
+    name: "Gajshield Firewall",
+    type: "network-appliance",
+    estateId: dcId,
+    spec: {
+      hostname: "gajshield",
+      os: "linux" as const,
+      arch: "amd64" as const,
+      ipAddress: "192.168.1.5",
+      lifecycle: "active" as const,
+      accessMethod: "ssh" as const,
+      accessUser: "root",
+      sshPort: 22,
+      model: "Gajshield",
+      managementUrl: "https://192.168.1.5",
+    },
+  }
+  await db.insert(host).values(fwRow).onConflictDoNothing()
 
   // Assign the firewall's IP
   await db
@@ -448,6 +448,7 @@ async function seedWindowsServers() {
         lifecycle: "active" as const,
         accessMethod: "rdp" as const,
         accessUser: "Administrator",
+        sshPort: 22,
         model: srv.model,
       },
     }
@@ -489,8 +490,13 @@ async function seedStorageDevices() {
       estateId: dcId,
       spec: {
         hostname: dev.name,
+        os: "linux" as const,
+        arch: "amd64" as const,
         ipAddress: dev.ip,
         lifecycle: "active" as const,
+        accessMethod: "ssh" as const,
+        accessUser: "root",
+        sshPort: 22,
         role: "storage",
       },
     }
@@ -532,42 +538,40 @@ async function seedDNSEstatesAndDomains() {
     const estateSlug = `dns-${provider}`
     const estId = id("est", estateSlug, "est")
 
-    await db
-      .insert(estate)
-      .values({
-        id: estId,
-        slug: estateSlug,
-        name: `DNS (${provider})`,
-        type: "dns-zone",
-        parentEstateId: dcId,
-        spec: {
-          providerKind: provider,
-          dnsProvider: provider,
-          lifecycle: "active",
-          metadata: {
-            domains: domains.map((d) => d.fqdn),
-          },
+    const estRow = {
+      id: estId,
+      slug: estateSlug,
+      name: `DNS (${provider})`,
+      type: "dns-zone",
+      parentEstateId: dcId,
+      spec: {
+        providerKind: provider,
+        dnsProvider: provider,
+        lifecycle: "active" as const,
+        metadata: {
+          domains: domains.map((d) => d.fqdn).join(","),
         },
-      })
-      .onConflictDoNothing()
+      },
+    }
+    await db.insert(estate).values(estRow).onConflictDoNothing()
 
     // Create DNS domain entities
     for (const d of domains) {
       const domSlug = slugify(d.fqdn)
-      await db
-        .insert(dnsDomain)
-        .values({
-          id: id("dom", domSlug, "dom"),
-          slug: domSlug,
-          name: d.fqdn,
-          type: d.type,
-          fqdn: d.fqdn,
-          spec: {
-            registrar: d.registrar,
-            dnsProvider: d.nameservers,
-          },
-        })
-        .onConflictDoNothing()
+      const domRow = {
+        id: id("dom", domSlug, "dom"),
+        slug: domSlug,
+        name: d.fqdn,
+        type: d.type,
+        fqdn: d.fqdn,
+        spec: {
+          registrar: d.registrar,
+          dnsProvider: d.nameservers,
+          verified: false,
+          records: [] as any[],
+        },
+      }
+      await db.insert(dnsDomain).values(domRow).onConflictDoNothing()
     }
   }
 }
@@ -598,26 +602,24 @@ async function seedNATLinks(
 
     const linkSlug = slugify(`nat-${nat.publicIp}-to-${nat.privateIp}`)
 
-    await db
-      .insert(networkLink)
-      .values({
-        id: newId("nlnk"),
-        slug: linkSlug,
-        name: `NAT ${nat.publicIp} → ${nat.privateIp} (${nat.note})`,
-        type: "nat",
-        sourceKind: "host",
-        sourceId: firewallId,
-        targetKind: targetHost ? "host" : "ip-address",
-        targetId: targetHost?.id ?? nat.privateIp!,
-        spec: {
-          ingressPort: 0,
-          egressPort: 0,
-          egressProtocol: "tcp",
-          description: `${nat.isp.toUpperCase()}: ${nat.publicIp} → ${nat.privateIp} (${nat.note})`,
-          enabled: true,
-        },
-      })
-      .onConflictDoNothing()
+    const linkRow = {
+      id: newId("nlnk"),
+      slug: linkSlug,
+      name: `NAT ${nat.publicIp} → ${nat.privateIp} (${nat.note})`,
+      type: "nat",
+      sourceKind: "host",
+      sourceId: firewallId,
+      targetKind: targetHost ? "host" : "ip-address",
+      targetId: targetHost?.id ?? nat.privateIp!,
+      spec: {
+        description: `${nat.isp.toUpperCase()}: ${nat.publicIp} → ${nat.privateIp} (${nat.note})`,
+        bidirectional: false,
+        enabled: true,
+        priority: 0,
+        middlewares: [] as any[],
+      },
+    }
+    await db.insert(networkLink).values(linkRow).onConflictDoNothing()
   }
 }
 

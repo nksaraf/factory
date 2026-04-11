@@ -9,7 +9,7 @@ import type {
   WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
 import { workbench, workbenchSnapshot } from "../db/schema/ops"

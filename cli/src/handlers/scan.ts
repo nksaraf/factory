@@ -901,9 +901,133 @@ function printReconciliationSummary(recon: {
   )
 }
 
+// ── Inventory export ─────────────────────────────────────────
+
+async function runInventoryExport(
+  outputDir: string | undefined,
+  kinds: string[] | undefined,
+  jsonOutput: boolean,
+): Promise<void> {
+  const { stringify: toYaml } = await import("yaml")
+  const { mkdirSync, writeFileSync } = await import("node:fs")
+  const { join } = await import("node:path")
+  const { cwd } = await import("node:process")
+
+  const outDir = outputDir ?? join(cwd(), ".factory", "inventory")
+  mkdirSync(outDir, { recursive: true })
+
+  const rest = await getFactoryRestClient()
+  const response = await rest.inventoryExport(kinds) as any
+  const exportedKinds: { kind: string; entities: Record<string, unknown>[] }[] =
+    response?.data ?? []
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(exportedKinds, null, 2))
+    process.exit(0)
+  }
+
+  // Write one YAML file per kind, prefixed to preserve topological order
+  const kindOrder = [
+    "estate", "team", "principal", "scope",
+    "realm", "host", "service", "ip-address", "dns-domain",
+    "network-link", "route", "secret",
+  ]
+  const sortedKinds = [
+    ...kindOrder.filter((k) => exportedKinds.some((e) => e.kind === k)),
+    ...exportedKinds.map((e) => e.kind).filter((k) => !kindOrder.includes(k)),
+  ]
+
+  let fileIndex = 1
+  for (const kind of sortedKinds) {
+    const group = exportedKinds.find((e) => e.kind === kind)
+    if (!group || group.entities.length === 0) continue
+
+    const prefix = String(fileIndex).padStart(2, "0")
+    const filename = `${prefix}-${kind}s.yaml`
+    const yamlContent =
+      `version: "1"\n\n# ${kind} entities — exported from Factory DB\nentities:\n` +
+      group.entities
+        .map((e) => toYaml([e], { indent: 2 }).replace(/^- /, "  - ").replace(/\n  /g, "\n    "))
+        .join("")
+
+    writeFileSync(join(outDir, filename), yamlContent, "utf8")
+    console.log(`  ${styleBold(filename)}  ${styleMuted(`(${group.entities.length} ${kind}${group.entities.length === 1 ? "" : "s"})`)}`)
+    fileIndex++
+  }
+
+  const total = exportedKinds.reduce((s, g) => s + g.entities.length, 0)
+  console.log(`\nExported ${total} entities to ${outDir}`)
+  process.exit(0)
+}
+
+// ── Inventory scan ──────────────────────────────────────────
+
+async function runInventoryScan(
+  path: string,
+  dryRun: boolean,
+  jsonOutput: boolean,
+): Promise<void> {
+  const { loadInventoryFiles } = await import("../lib/infra-scan/inventory-loader.js")
+  const entities = loadInventoryFiles(path)
+
+  const count = entities.length
+  if (!jsonOutput) {
+    console.log(`Loaded ${count} ${count === 1 ? "entity" : "entities"} from ${path}`)
+    if (dryRun) console.log("Dry run — no changes will be committed\n")
+  }
+
+  const rest = await getFactoryRestClient()
+  const response = await rest.inventoryScan(entities, dryRun)
+  const summary = (response as any)?.data ?? response
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(summary, null, 2))
+    return
+  }
+
+  if (summary.dryRun) console.log("(dry run — rolled back)\n")
+
+  let anyOutput = false
+  for (const [kind, s] of Object.entries(summary.byKind ?? {}) as [string, { created: number; updated: number; unchanged: number }][]) {
+    if (s.created + s.updated > 0) {
+      console.log(
+        `  ${kind.padEnd(24)} +${s.created} created  ~${s.updated} updated  ${s.unchanged} unchanged`
+      )
+      anyOutput = true
+    }
+  }
+  if (!anyOutput) console.log("  No changes — all entities already up to date")
+
+  const errors = summary.errors ?? []
+  if (errors.length > 0) {
+    console.error(`\n  ${errors.length} error(s):`)
+    for (const e of errors) {
+      console.error(`    [${e.kind}] ${String(e.slug)}: ${e.error}`)
+    }
+  }
+
+  process.exit(0)
+}
+
 // ── Main entry point ────────────────────────────────────────
 
 export async function runScan(flags: DxFlags, target?: string): Promise<void> {
+  if ((flags as any).export) {
+    return runInventoryExport(
+      (flags as any).output as string | undefined,
+      ((flags as any).kinds as string | undefined)?.split(",").map((k: string) => k.trim()).filter(Boolean),
+      !!flags.json,
+    )
+  }
+
+  if ((flags as any).file) {
+    return runInventoryScan(
+      (flags as any).file as string,
+      !!((flags as any)["dry-run"] ?? (flags as any).dryRun),
+      !!flags.json,
+    )
+  }
+
   const mode = parseScannerMode(flags)
 
   // If target is a known IDE source, force IDE mode regardless of --scanner flag

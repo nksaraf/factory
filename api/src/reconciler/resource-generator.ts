@@ -43,7 +43,7 @@ export function generateResources(
   }
 
   switch (component.kind) {
-    case "service": // v2 name for long-running server components
+    case "service": // long-running server components
     case "server": // legacy alias
     case "worker":
     case "gateway":
@@ -70,13 +70,13 @@ export function generateResources(
     case "task":
       resources.push(makeJob(workload, component, ns, labels, resourceLimits))
       break
-    case "cronjob": // v2 name
+    case "cronjob":
     case "scheduled": // legacy alias
       resources.push(
         makeCronJob(workload, component, ns, labels, resourceLimits)
       )
       break
-    case "website": // v2 name for frontend/static sites
+    case "website": // frontend/static sites
     case "site": // legacy alias
     case "cli":
     case "library":

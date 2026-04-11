@@ -53,6 +53,22 @@ export function scanCommand(app: DxBase) {
         description:
           "Spider-crawl: auto-register discovered backend hosts and submit their scan data",
       },
+      file: {
+        type: "string",
+        description: "YAML inventory file or directory to ingest",
+      },
+      export: {
+        type: "boolean",
+        description: "Export current DB entities as YAML inventory files",
+      },
+      output: {
+        type: "string",
+        description: "Output directory for --export (default: .factory/inventory/)",
+      },
+      kinds: {
+        type: "string",
+        description: "Comma-separated entity kinds to export (default: all)",
+      },
     })
     .run(async ({ args, flags }) => {
       await runScan(

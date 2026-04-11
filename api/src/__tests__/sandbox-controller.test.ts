@@ -4,7 +4,7 @@
  * Tests workbench CRUD via /ops/workbenches endpoints.
  */
 import type { PGlite } from "@electric-sql/pglite"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import {
   type TestApp,

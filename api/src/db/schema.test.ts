@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
@@ -13,7 +13,7 @@ describe("factory drizzle schemas", () => {
     await ctx.client.close()
   })
 
-  it("exposes expected v2 schemas and core tables", async () => {
+  it("exposes expected ontology schemas and core tables", async () => {
     const res = await ctx.client.query<{
       table_schema: string
       table_name: string

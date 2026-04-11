@@ -269,7 +269,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
               state.replayBuffer.shift()
             }
             state.replayBuffer.push({ seq: state.outSeq, data: frameData })
-            ws.send(frameData)
+            ws.send(frameData as unknown as ArrayBuffer)
           })
           tunnelStreams.set(tunnelId, state.streamManager)
 
@@ -298,7 +298,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
                   state.replayBuffer.shift()
                 }
                 state.replayBuffer.push({ seq: entry.seq, data: entry.data })
-                ws.send(entry.data)
+                ws.send(entry.data as unknown as ArrayBuffer)
                 replayed++
                 // Keep outSeq in sync with the highest replayed seq
                 if (entry.seq > state.outSeq) {
@@ -317,7 +317,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             if (state.tunnelId) {
               await gw.heartbeatTunnel(db, state.tunnelId).catch(() => {})
               try {
-                ws.send(ENCODED_PING)
+                ws.send(ENCODED_PING as unknown as ArrayBuffer)
               } catch {
                 // WS may be closing
               }
@@ -435,7 +435,7 @@ export function drainAllTunnels(): void {
   const goaway = encodeFrame(buildGoawayFrame())
   for (const [, ws] of activeTunnels) {
     try {
-      ws.send(goaway)
+      ws.send(goaway as unknown as ArrayBuffer)
     } catch {
       // WS may already be closing
     }

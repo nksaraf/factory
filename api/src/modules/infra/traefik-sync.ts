@@ -31,9 +31,9 @@ export interface TraefikRoute {
   middlewares: unknown[]
   priority: number
   status: string
-  /** The proxy realm this route is bound to (v2 routes). */
+  /** The proxy realm this route is bound to. */
   realmId?: string
-  /** Resolved targets from the v2 route resolver (preferred over targetService/targetPort). */
+  /** Resolved targets from the route resolver (preferred over targetService/targetPort). */
   resolvedTargets?: Array<{ address: string; port: number; weight: number }>
 }
 

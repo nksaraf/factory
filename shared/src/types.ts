@@ -303,7 +303,7 @@ export type SystemDeploymentStatus =
 
 export type SystemDeploymentRuntime =
   | "kubernetes"
-  | "compose"
+  | "docker-compose"
   | "systemd"
   | "windows_service"
   | "iis"

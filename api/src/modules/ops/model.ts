@@ -3,7 +3,7 @@ import { type UnwrapSchema, t } from "elysia"
 export const OpsModel = {
   // Releases
   createReleaseBody: t.Object({ version: t.String() }),
-  createReleaseBodyV2: t.Object({
+  createReleaseBodyWithModulePins: t.Object({
     version: t.String(),
     modulePins: t.Optional(t.Array(t.Object({ moduleVersionId: t.String() }))),
   }),

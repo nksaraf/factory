@@ -91,7 +91,7 @@ export const EmitEventInputSchema = z.object({
   occurredAt: z.coerce.date().optional(),
   scopeKind: EventScopeKindSchema.optional(),
   scopeId: z.string().optional(),
-  schemaVersion: z.number().default(1),
+  schemaVersion: z.number().optional().default(1),
 })
 export type EmitEventInput = z.infer<typeof EmitEventInputSchema>
 

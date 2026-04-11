@@ -4,40 +4,36 @@
  * Uses Elysia's built-in test client (app.handle) to test the full handler,
  * mocking the database and workflow engine.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 
-import { startWorkflow } from "../../../lib/workflow-engine"
-import { createWorkflowRun } from "../../../lib/workflow-helpers"
-import { jiraWebhookTrigger } from "./jira-webhook"
+const mockStartWorkflow = mock()
+const mockCreateWorkflowRun = mock().mockResolvedValue({
+  workflowRunId: "wfr_mock",
+})
 
-// ── Mocks ──────────────────────────────────────────────
-
-// Mock the workflow engine
-vi.mock("../../../lib/workflow-engine", () => ({
-  startWorkflow: vi.fn(),
+mock.module("../../../lib/workflow-engine.js", () => ({
+  startWorkflow: mockStartWorkflow,
 }))
 
-// Mock workflow helpers
-vi.mock("../../../lib/workflow-helpers", () => ({
-  createWorkflowRun: vi.fn().mockResolvedValue({ workflowRunId: "wfr_mock" }),
+mock.module("../../../lib/workflow-helpers.js", () => ({
+  createWorkflowRun: mockCreateWorkflowRun,
 }))
 
-// Mock the god workflow
-vi.mock("../workflows/god-workflow", () => ({
+mock.module("../workflows/god-workflow.js", () => ({
   godWorkflow: { name: "god-workflow" },
 }))
 
-// Mock id generation
-vi.mock("../../../lib/id", () => ({
+mock.module("../../../lib/id.js", () => ({
   newId: (prefix: string) => `${prefix}_test123`,
 }))
 
-// Mock adapter registry
-vi.mock("../../../adapters/adapter-registry", () => ({
+mock.module("../../../adapters/adapter-registry.js", () => ({
   getWorkTrackerAdapter: () => ({
-    verifyWebhook: undefined, // skip verification
+    verifyWebhook: undefined,
   }),
 }))
+
+const { jiraWebhookTrigger } = await import("./jira-webhook.js")
 
 // ── Test DB mock ────────────────────────────────────────
 
@@ -51,13 +47,13 @@ function createMockDb(providerRow: Record<string, unknown> | null) {
         }),
       }),
     }),
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        returning: vi
-          .fn()
-          .mockResolvedValue([{ workflowRunId: "wfr_test123" }]),
-      }),
-    }),
+    insert: mock(() => ({
+      values: mock(() => ({
+        returning: mock().mockResolvedValue([
+          { workflowRunId: "wfr_test123" },
+        ]),
+      })),
+    })),
   } as any
 }
 
@@ -138,7 +134,8 @@ async function sendWebhook(
 // ── Tests ──────────────────────────────────────────────
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  mockStartWorkflow.mockClear()
+  mockCreateWorkflowRun.mockClear()
 })
 
 describe("Jira webhook trigger", () => {
@@ -151,8 +148,8 @@ describe("Jira webhook trigger", () => {
     expect(status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.action).toBe("workflow_started")
-    expect(createWorkflowRun).toHaveBeenCalledOnce()
-    expect(startWorkflow).toHaveBeenCalledOnce()
+    expect(mockCreateWorkflowRun).toHaveBeenCalledTimes(1)
+    expect(mockStartWorkflow).toHaveBeenCalledTimes(1)
   })
 
   it("returns 404 when provider not found", async () => {
@@ -170,7 +167,7 @@ describe("Jira webhook trigger", () => {
 
     expect(body.action).toBe("ignored")
     expect(body.reason).toBe("not_a_status_transition")
-    expect(startWorkflow).not.toHaveBeenCalled()
+    expect(mockStartWorkflow).not.toHaveBeenCalled()
   })
 
   it("ignores when no status change in changelog", async () => {
@@ -235,7 +232,7 @@ describe("Jira webhook trigger", () => {
 
     expect(body.action).toBe("ignored")
     expect(body.reason).toBe("no_repo_mapping")
-    expect(startWorkflow).not.toHaveBeenCalled()
+    expect(mockStartWorkflow).not.toHaveBeenCalled()
   })
 
   it("returns 400 when issue key is missing", async () => {
@@ -256,8 +253,7 @@ describe("Jira webhook trigger", () => {
   it("passes correct workflow input structure", async () => {
     await sendWebhook(DEFAULT_PROVIDER, buildJiraPayload())
 
-    const input = (createWorkflowRun as ReturnType<typeof vi.fn>).mock
-      .calls[0][1]
+    const input = mockCreateWorkflowRun.mock.calls[0][1]
     expect(input.workflowName).toBe("god-workflow")
     expect(input.trigger).toBe("jira_webhook")
     expect(input.input).toMatchObject({

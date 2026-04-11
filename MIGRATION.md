@@ -2,7 +2,7 @@
 
 **Purpose:** Preserve the **terminology map** (old names → current ontology) and the **intentionally removed** v1-era tables/features.
 
-**Status:** The migration **described in older versions of this file is complete** in the current codebase: there is no dual v1/v2 controller stack, no `X-Factory-V2` plugin, and no legacy `db/schema/{org,fleet,infra,...}.ts` files without the `*-v2` / `ops` layout.
+**Status:** The migration **described in older versions of this file is complete** in the current codebase: there is no dual v1/v2 controller stack, no `X-Factory-V2` plugin, and no legacy pre-ontology `db/schema/{org,fleet,infra,...}.ts` tree — live Drizzle modules are `org.ts`, `infra.ts`, `software.ts`, `build.ts`, `commerce.ts`, and `ops.ts`.
 
 For **how the app is wired today**, see **`HANDOFF.md`** (assembly, glossary, schema layout).
 
@@ -11,7 +11,7 @@ For **how the app is wired today**, see **`HANDOFF.md`** (assembly, glossary, sc
 ## Glossary pointer
 
 - **`/api/v1/...` in URLs** = HTTP versioning, **not** “v1 schema.”
-- **`*.v2.ts`, `*V2` in code** = only implementation; renaming is optional cleanup.
+- **Drizzle filenames** (`org.ts`, `infra.ts`, …) are the current ontology layout, distinct from HTTP `/api/v1/...`.
 
 ---
 
@@ -19,19 +19,19 @@ For **how the app is wired today**, see **`HANDOFF.md`** (assembly, glossary, sc
 
 | Area                                                                    | State                                                                                |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Drizzle v1 schema files (`db/schema/org.ts`, `fleet.ts`, …)             | **Removed** — replaced by `*-v2.ts` + `ops.ts`                                       |
+| Drizzle v1 schema files (`db/schema/org.ts`, `fleet.ts`, …)             | **Removed** — replaced by ontology `org.ts`, `infra.ts`, `software.ts`, `build.ts`, `commerce.ts`, and `ops.ts` |
 | `plugins/v2-switch.plugin.ts`                                           | **Removed**                                                                          |
-| `factory.api.ts` / `factory-core.ts`                                    | Mount **`opsControllerV2`** + other `*ControllerV2`; prefix **`/api/v1/factory`**    |
+| `factory.api.ts` / `factory-core.ts`                                    | Mount **`opsController`** + other ontology `*Controller`; prefix **`/api/v1/factory`** |
 | `modules/fleet/` as a directory                                         | **Absent** — fleet-shaped HTTP surface lives under **ops** controller + `ops` schema |
 | Large v1 `services/*` tree (sandbox, catalog-sync, many infra services) | **Absent** from current `api/src/services/`                                          |
 
-Legacy **per-file** checklists in older commits listed many `pending` rows; those files either **no longer exist** or **already import** `*-v2` / `ops` schemas. Do not treat the old tables below as current work queues without re-auditing the path.
+Legacy **per-file** checklists in older commits listed many `pending` rows; those files either **no longer exist** or **already import** the current `db/schema/*` modules. Do not treat the old tables below as current work queues without re-auditing the path.
 
 ---
 
 ## Controllers — historical mapping (for blame / archaeology)
 
-The **v1** entry in the left column referred to **deleted** `index.ts` monoliths. **Live** routers are `modules/*/index.v2.ts` (except helpers like `health`, `webhook.controller.ts`, `site/index.ts`, `documents/index.ts`, `messaging/index.ts` exports webhooks only, etc.).
+The **v1** entry in the left column referred to **deleted** monolith routers. **Live** ontology controllers are `modules/*/index.ts` (plus focused files like `health/index.ts`, `webhook.controller.ts`, `site/index.ts`, `documents/index.ts`, and `messaging/messaging-ontology.controller.ts` + webhook exports from `messaging/index.ts`).
 
 `secret.controller.ts` remains under **identity** (not infra) in current `factory.api.ts`.
 
@@ -84,7 +84,7 @@ The **v1** entry in the left column referred to **deleted** `index.ts` monoliths
 | `vm` / `vm_cluster` (tables)                | External to Factory DB where applicable     |
 | `workload_override` (table)                 | Folded into `component_deployment` spec     |
 
-**Pattern:** Many v1 flat columns moved into v2 **`spec` JSONB** to reduce migration churn.
+**Pattern:** Many v1 flat columns moved into ontology **`spec` JSONB** to reduce migration churn.
 
 ---
 

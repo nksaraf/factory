@@ -399,6 +399,15 @@ export const catalogSystemSchema = z.object({
 })
 export type CatalogSystem = z.infer<typeof catalogSystemSchema>
 
+// ── Helpers ──────────────────────────────────────────────────
+
+/** Returns true if the component has a dev command (i.e. can be started with `dx dev`). */
+export function isDevComponent(
+  comp: CatalogComponent
+): comp is CatalogComponent & { spec: { dev: { command: string } } } {
+  return comp.spec.dev?.command != null
+}
+
 // ── Catalog sync result ──────────────────────────────────────
 
 /** Response shape for POST /api/v1/factory/catalog/sync */

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 import { NoopGitHostAdapter } from "../adapters/git-host-adapter-noop"
 import type { GitHostAdapter } from "../adapters/git-host-adapter"
 import { getGitHostAdapter } from "../adapters/adapter-registry"

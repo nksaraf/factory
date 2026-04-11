@@ -113,7 +113,12 @@ software.release.published
 software.artifact.published
 software.api.updated
 
-# Build
+# Build (canonical domain events from Git/CI providers)
+build.push.received
+build.pr.opened
+build.pr.commented
+build.pr.merged
+build.pr.closed
 build.pipeline.started
 build.pipeline.completed
 build.pipeline.failed
@@ -127,14 +132,13 @@ org.thread.created
 org.thread.turn_added
 org.thread.completed
 org.principal.created
+ops.work_item.created
+ops.work_item.updated
 
-# External (webhooks from third-party systems)
-ext.github.push
-ext.github.pull_request
-ext.github.check_run
-ext.slack.message
+# External (fallback for unmapped vendor events only)
+ext.github.deployment_status
 ext.slack.reaction
-ext.jira.issue_updated
+ext.jira.sprint_updated
 
 # CLI
 cli.command.executed
@@ -145,7 +149,8 @@ cli.deploy.completed
 **Naming rules:**
 
 - Domain prefixes map to DB schemas: `factory_infra` -> `infra`, `factory_build` -> `build`, `org` -> `org`, `factory_fleet` -> `ops`, `factory_product` -> `software`, `factory_commerce` -> `commerce`
-- External webhook events use `ext.{source}.{event_type}` — not `webhook.*`, to avoid confusion with the domain hierarchy
+- Vendor webhook events are canonicalized to domain topics: GitHub `pull_request.opened` → `build.pr.opened`, Jira `issue_updated` → `ops.work_item.updated`, Claude Code `session.start` → `org.agent.session_started`
+- `ext.{source}.{event_type}` is only used as a fallback for unmapped vendor events — not as the primary topic
 - Verbs are past tense (`created`, `drifted`, `failed`) — events describe things that happened
 - Topic segments validated at ingestion time via Zod union types
 

@@ -1,0 +1,59 @@
+version: "1"
+
+# External services — SaaS and cloud APIs used by Lepton
+entities:
+  - kind: service
+    slug: gcp-bigquery
+    name: Google BigQuery
+    type: analytics
+    estateSlug: google-gcp
+    spec:
+      provider: gcp
+      protocol: https
+      endpoint: "https://bigquery.googleapis.com"
+
+  - kind: service
+    slug: gcp-gemini
+    name: Google Gemini API
+    type: llm
+    estateSlug: google-gcp
+    spec:
+      provider: gcp
+      protocol: https
+      endpoint: "https://generativelanguage.googleapis.com"
+
+  - kind: service
+    slug: github-lepton-org
+    name: GitHub (LeptonSoftware)
+    type: source-control
+    spec:
+      provider: github
+      protocol: https
+      endpoint: "https://github.com/LeptonSoftware"
+
+  - kind: service
+    slug: jira-lepton
+    name: Jira (Lepton)
+    type: issue-tracker
+    spec:
+      provider: atlassian
+      protocol: https
+      endpoint: "https://leptonsoftware.atlassian.net"
+
+  - kind: service
+    slug: slack-lepton
+    name: Slack (Lepton)
+    type: messaging
+    spec:
+      provider: slack
+      protocol: https
+      endpoint: "https://leptonsoftware.slack.com"
+
+  - kind: service
+    slug: anthropic-claude
+    name: Anthropic Claude API
+    type: llm
+    spec:
+      provider: anthropic
+      protocol: https
+      endpoint: "https://api.anthropic.com"

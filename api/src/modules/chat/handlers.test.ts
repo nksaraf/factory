@@ -12,11 +12,11 @@ import {
   describe,
   expect,
   it,
-  vi,
-} from "vitest"
+  mock,
+} from "bun:test"
 
 import type { Database } from "../../db/connection"
-import { channel, thread, threadTurn } from "../../db/schema/org-v2"
+import { channel, thread, threadTurn } from "../../db/schema/org"
 import { setChatDb } from "./db"
 
 /** Test helper: create a mock ResolvedActor from a Slack user ID string. */
@@ -29,12 +29,15 @@ function mockActor(slackUserId: string) {
   }
 }
 
-// Mock the bot import so Chat SDK doesn't initialize during tests
-vi.mock("./bot", () => ({
+const onNewMention = mock()
+const onSubscribedMessage = mock()
+const onReaction = mock()
+
+mock.module("./bot.js", () => ({
   bot: {
-    onNewMention: vi.fn(),
-    onSubscribedMessage: vi.fn(),
-    onReaction: vi.fn(),
+    onNewMention,
+    onSubscribedMessage,
+    onReaction,
   },
 }))
 

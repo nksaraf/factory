@@ -14,7 +14,7 @@
  * → local server → back through the same path.
  */
 import { FrameType, decodeFrame } from "@smp/factory-shared/tunnel-protocol"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 
 import {
   type PendingBodies,

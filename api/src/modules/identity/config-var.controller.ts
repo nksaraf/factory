@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia"
 import { eq, and, or } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { configVar } from "../../db/schema/org-v2"
+import { configVar } from "../../db/schema/org"
 import {
   ScopeQuery,
   ResolveBody,

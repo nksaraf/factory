@@ -18,7 +18,7 @@ import {
   workTrackerProject,
   workTrackerProjectMapping,
   workTrackerProvider,
-} from "../../db/schema/build-v2"
+} from "../../db/schema/build"
 import { allocateSlug } from "../../lib/slug"
 
 const STATUS_MAP: Record<string, string> = {

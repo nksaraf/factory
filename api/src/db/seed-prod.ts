@@ -1,5 +1,5 @@
 /**
- * Production seed — org root team + real infrastructure only (v2 schemas).
+ * Production seed — org root team + real infrastructure only.
  * No synthetic test data, no catalog, no commerce.
  *
  * Run: FACTORY_DATABASE_URL=postgres://... bun run api/src/db/seed-prod.ts
@@ -8,11 +8,11 @@ import { sql } from "drizzle-orm"
 
 import { type EntityPrefix, newId } from "../lib/id"
 import { connection } from "./connection"
-import { gitHostProvider } from "./schema/build-v2"
-import { workTrackerProvider } from "./schema/build-v2"
-import { estate, host, ipAddress } from "./schema/infra-v2"
-import { team } from "./schema/org-v2"
-import { messagingProvider } from "./schema/org-v2"
+import { gitHostProvider } from "./schema/build"
+import { workTrackerProvider } from "./schema/build"
+import { estate, host, ipAddress } from "./schema/infra"
+import { team } from "./schema/org"
+import { messagingProvider } from "./schema/org"
 
 const db = connection(
   process.env.FACTORY_DATABASE_URL ??
@@ -834,9 +834,9 @@ async function seedProviders(rootTeamId: string) {
 // ── Main ─────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("Production seed (v2): org + infra + providers\n")
+  console.log("Production seed: org + infra + providers\n")
 
-  // Truncate v2 tables
+  // Truncate ontology tables
   await db.execute(sql`
     TRUNCATE
       infra.ip_address,

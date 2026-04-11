@@ -49,6 +49,8 @@ export function startIdentitySyncLoop(
         totalLinked,
         totalCreated,
         totalErrors,
+        /** Per-provider rows for CLI / UI after polling operation_run */
+        results,
       }
     },
   })

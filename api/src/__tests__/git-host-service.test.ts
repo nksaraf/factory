@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import {
   GitHostService,
@@ -9,7 +9,7 @@ import type { GitHostRepoInfo } from "../adapters/git-host-adapter"
 import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
 import type { Database } from "../db/connection"
 import type { PGlite } from "@electric-sql/pglite"
-import { configVar } from "../db/schema/org-v2"
+import { configVar } from "../db/schema/org"
 
 describe("GitHostService", () => {
   let db: Database

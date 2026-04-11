@@ -1,16 +1,24 @@
-import { getFactoryClient, getFactoryRestClient } from "../client.js"
+import { ExitCodes } from "@smp/factory-shared/exit-codes"
+import {
+  getFactoryClient,
+  getFactoryRestClient,
+  type FactoryEdenClient,
+} from "../client.js"
 import {
   actionResult,
   apiCall,
-  colorStatus,
-  detailView,
   styleBold,
   styleMuted,
   styleSuccess,
-  tableOrJson,
   unwrapList,
 } from "../commands/list-helpers.js"
 import type { FactoryClient } from "../lib/api-client.js"
+import { exitWithError } from "../lib/cli-exit.js"
+import {
+  isMachineJsonStdout,
+  wantsCliJson,
+  writeStdoutJsonDocument,
+} from "../lib/cli-output.js"
 import type { DxFlags } from "../stub.js"
 
 // ── Types ────────────────────────────────────────────────────
@@ -66,6 +74,31 @@ function unwrapSingle<T>(data: unknown): T | undefined {
   return data as T | undefined
 }
 
+/**
+ * Must match `api/src/lib/pagination.ts` MAX_LIMIT (server clamps higher values).
+ */
+const ORG_PRINCIPAL_PAGE_SIZE = 200
+
+export async function fetchAllOrgPrincipals(
+  flags: DxFlags,
+  api: FactoryEdenClient
+): Promise<Principal[]> {
+  const all: Principal[] = []
+  let offset = 0
+  for (;;) {
+    const data = await apiCall(flags, () =>
+      api.api.v1.factory.org.principals.get({
+        query: { limit: ORG_PRINCIPAL_PAGE_SIZE, offset },
+      })
+    )
+    const chunk = unwrapList<Principal>(data)
+    all.push(...chunk)
+    if (chunk.length < ORG_PRINCIPAL_PAGE_SIZE) break
+    offset += ORG_PRINCIPAL_PAGE_SIZE
+  }
+  return all
+}
+
 async function fetchIdentities(
   rest: FactoryClient,
   principalId: string
@@ -82,11 +115,7 @@ async function fetchIdentities(
 export async function runIdentityList(flags: DxFlags): Promise<void> {
   const api = await getFactoryClient()
   const rest = await getFactoryRestClient()
-  const data = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals.get({ query: { limit: 500 } })
-  )
-
-  const principals = unwrapList<Principal>(data)
+  const principals = await fetchAllOrgPrincipals(flags, api)
 
   // Fetch identities for all principals in parallel (batched)
   const identityMap = new Map<string, IdentityLinkRow[]>()
@@ -106,12 +135,12 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
     }
   }
 
-  if (flags.json) {
+  if (wantsCliJson(flags)) {
     const enriched = principals.map((p) => ({
       ...p,
       identities: identityMap.get(p.id) ?? [],
     }))
-    console.log(JSON.stringify({ success: true, data: enriched }, null, 2))
+    writeStdoutJsonDocument({ success: true, data: enriched })
     return
   }
 
@@ -122,7 +151,12 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
 
   // Build table with provider columns
   const providers = ["github", "slack", "jira", "google"]
-  const headers = ["NAME", "EMAIL", ...providers.map((p) => p.toUpperCase())]
+  const headers = [
+    "NAME",
+    "SLUG",
+    "EMAIL",
+    ...providers.map((p) => p.toUpperCase()),
+  ]
 
   const rowsWithCount = principals.map((p) => {
     const links = identityMap.get(p.id) ?? []
@@ -134,7 +168,11 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
       const login = specString(link.spec, "displayName") || link.externalId
       return providerTag(prov).replace(prov, login)
     })
-    return { row: [styleBold(p.name), email, ...cols], linkCount, name: p.name }
+    return {
+      row: [styleBold(p.name), p.slug, email, ...cols],
+      linkCount,
+      name: p.name,
+    }
   })
 
   // Sort by number of providers linked (descending), then name
@@ -164,20 +202,16 @@ export async function runIdentityShow(
   const principal = unwrapSingle<Principal>(data)
 
   if (!principal) {
-    console.log("Principal not found.")
-    return
+    exitWithError(flags, "Principal not found.", ExitCodes.GENERAL_FAILURE)
   }
 
   const links = await fetchIdentities(rest, principal.id)
 
-  if (flags.json) {
-    console.log(
-      JSON.stringify(
-        { success: true, data: { ...principal, identities: links } },
-        null,
-        2
-      )
-    )
+  if (wantsCliJson(flags)) {
+    writeStdoutJsonDocument({
+      success: true,
+      data: { ...principal, identities: links },
+    })
     return
   }
 
@@ -260,8 +294,11 @@ export async function runIdentityMerge(
   const dup = unwrapSingle<{ id: string }>(dupData)
 
   if (!dup?.id) {
-    console.error(`Principal not found: ${duplicateSlug}`)
-    process.exit(1)
+    exitWithError(
+      flags,
+      `Principal not found: ${duplicateSlug}`,
+      ExitCodes.GENERAL_FAILURE
+    )
   }
 
   const rest = await getFactoryRestClient()
@@ -279,21 +316,64 @@ export async function runIdentityMerge(
 
 // ── Sync ─────────────────────────────────────────────────────
 
+const IDENTITY_POLL_MS = 2000
+const IDENTITY_MAX_WAIT_MS = 15 * 60 * 1000
+
+async function pollIdentityRun(
+  rest: FactoryClient,
+  runId: string,
+  maxWaitMs: number
+): Promise<SyncResult[]> {
+  const deadline = Date.now() + maxWaitMs
+  while (Date.now() < deadline) {
+    const body = await rest.request<{
+      run: {
+        status: string
+        error?: string | null
+        summary?: { results?: SyncResult[] } | null
+      }
+    }>(
+      "GET",
+      `/api/v1/factory/system/operations/runs/${encodeURIComponent(runId)}`
+    )
+
+    const run = body.run
+    if (run.status === "succeeded") {
+      return run.summary?.results ?? []
+    }
+    if (run.status === "failed") {
+      throw new Error(run.error ?? "Identity sync failed")
+    }
+    await new Promise((r) => setTimeout(r, IDENTITY_POLL_MS))
+  }
+  throw new Error(
+    `Timed out after ${Math.round(maxWaitMs / 60_000)}m waiting for identity sync (run ${runId})`
+  )
+}
+
 export async function runIdentitySync(flags: DxFlags): Promise<void> {
-  console.log("Triggering identity sync...")
+  if (!isMachineJsonStdout()) console.log("Triggering identity sync...")
   const rest = await getFactoryRestClient()
-  const data = await rest.request<{ status: string; data: SyncResult[] }>(
+  const trigger = await rest.request<{ runId?: string; error?: string }>(
     "POST",
-    "/api/v1/factory/org/sync/identities",
+    "/api/v1/factory/system/operations/identity/trigger",
     {}
   )
 
-  if (flags.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2))
-    return
+  const runId = trigger.runId
+  if (!runId) {
+    throw new Error(
+      trigger.error ??
+        "Could not start identity sync (is another sync already running?)"
+    )
   }
 
-  const results = data?.data ?? []
+  const results = await pollIdentityRun(rest, runId, IDENTITY_MAX_WAIT_MS)
+
+  if (wantsCliJson(flags)) {
+    writeStdoutJsonDocument({ success: true, runId, data: results })
+    return
+  }
 
   if (results.length === 0) {
     console.log("No providers configured.")
@@ -321,11 +401,7 @@ export async function runIdentityUnmatched(
 ): Promise<void> {
   const api = await getFactoryClient()
   const rest = await getFactoryRestClient()
-  const data = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals.get({ query: { limit: 500 } })
-  )
-
-  const principals = unwrapList<Principal>(data)
+  const principals = await fetchAllOrgPrincipals(flags, api)
 
   // Fetch identities for all
   const identityMap = new Map<string, IdentityLinkRow[]>()
@@ -355,12 +431,12 @@ export async function runIdentityUnmatched(
     return links.length <= 1
   })
 
-  if (flags.json) {
+  if (wantsCliJson(flags)) {
     const enriched = unmatched.map((p) => ({
       ...p,
       identities: identityMap.get(p.id) ?? [],
     }))
-    console.log(JSON.stringify({ success: true, data: enriched }, null, 2))
+    writeStdoutJsonDocument({ success: true, data: enriched })
     return
   }
 

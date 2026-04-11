@@ -199,6 +199,7 @@ export class WebhookService {
           topic: "build.pr.opened",
           source: "github",
           severity: "info",
+          schemaVersion: 1,
           data: {
             repoFullName,
             branchName: headBranch,
@@ -445,6 +446,7 @@ export class WebhookService {
       topic: "build.pr.commented",
       source: "github",
       severity: "info",
+      schemaVersion: 1,
       data: {
         repoFullName,
         prNumber: String(prNumber),

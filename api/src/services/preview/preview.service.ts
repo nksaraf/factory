@@ -1,7 +1,7 @@
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { route } from "../../db/schema/infra-v2"
+import { route } from "../../db/schema/infra"
 import { preview } from "../../db/schema/ops"
 import { createRoute, updateRoute } from "../../modules/infra/gateway.service"
 

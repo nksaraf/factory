@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 
 import type { NetworkDeviceAdapter } from "../../adapters/network-device-adapter"
 import type { Database } from "../../db/connection"
-import { estate, ipAddress } from "../../db/schema/infra-v2"
+import { estate, ipAddress } from "../../db/schema/infra"
 
 // hostname/purpose/assignedToType/assignedToId are now in IpAddressSpecSchema
 type IpAddressSpecStored = IpAddressSpec

@@ -31,7 +31,7 @@ setExamples("setup", [
   "$ dx setup --yes                             Non-interactive setup",
   "$ dx setup --skip-defaults                   Skip machine defaults configuration",
   "$ dx setup --role factory --mode local       Local factory (k3d + embedded daemon)",
-  "$ dx setup --role factory --mode dev         Dev factory (k3d + docker-compose)",
+  "$ dx setup --role factory --mode dev         Dev factory (k3d + Docker Compose)",
   "$ dx setup --role factory --mode prod        Production factory (k3s + Helm)",
   "$ dx setup --role site                       Set up as site node",
   "$ dx setup restore                           Restore config files from backups",
@@ -85,7 +85,7 @@ export function setupCommand(app: DxBase) {
           type: "string",
           short: "k",
           description:
-            "Path to kubeconfig for a remote k3s/k8s cluster (skips local k3s bootstrap and image loading)",
+            "Path to kubeconfig for a remote Kubernetes cluster (k3s or other; skips local k3s bootstrap and image loading)",
         },
         yes: {
           type: "boolean",
@@ -216,11 +216,11 @@ export function setupCommand(app: DxBase) {
                 },
                 {
                   value: "dev",
-                  label: "Dev — k3d + docker-compose (requires factory repo)",
+                  label: "Dev — k3d + Docker Compose (requires factory repo)",
                 },
                 {
                   value: "prod",
-                  label: "Production — k3s + Helm (requires factory repo)",
+                  label: "Production — Kubernetes (k3s) + Helm (requires factory repo)",
                 },
               ],
             })
@@ -301,7 +301,7 @@ export function setupCommand(app: DxBase) {
                 items.push("local daemon (port 4100)", "k3d cluster dx-local")
               } else if (prevMode === "dev") {
                 items.push(
-                  "docker-compose stack (port 4100)",
+                  "Docker Compose stack (port 4100)",
                   "k3d cluster dx-dev"
                 )
               }
@@ -407,9 +407,9 @@ export function setupCommand(app: DxBase) {
             return
           }
 
-          // Factory --mode dev: k3d + docker-compose + cluster registration
+          // Factory --mode dev: k3d + Docker Compose + cluster registration
           if (role === "factory" && resolvedFactoryMode === "dev") {
-            infoLine("Factory mode: dev (k3d + docker-compose)")
+            infoLine("Factory mode: dev (k3d + Docker Compose)")
             console.log()
 
             const { resolveDxContext } = await import("../lib/dx-context.js")
@@ -420,7 +420,7 @@ export function setupCommand(app: DxBase) {
             } catch {
               exitWithError(
                 f,
-                "Factory --mode dev must be run from inside a factory project directory (needs docker-compose.yaml)."
+                "Factory --mode dev must be run from inside a factory project directory (needs a Docker Compose file such as docker-compose.yaml)."
               )
               return
             }
@@ -429,7 +429,7 @@ export function setupCommand(app: DxBase) {
               await import("../local-daemon/ensure-cluster.js")
             const { readFileSync } = await import("node:fs")
 
-            // Stop local daemon if running (shares port 4100 with compose factory)
+            // Stop local daemon if running (shares port 4100 with Factory on Docker Compose)
             const { stopLocalDaemon } =
               await import("../local-daemon/lifecycle.js")
             await stopLocalDaemon()
@@ -446,8 +446,8 @@ export function setupCommand(app: DxBase) {
             })
             phaseSucceed(s, 1, 4, "k3d cluster dx-dev", start)
 
-            // 2. Start docker-compose stack
-            s = phase(2, 4, "Docker-compose stack")
+            // 2. Start Docker Compose stack
+            s = phase(2, 4, "Docker Compose stack")
             start = Date.now()
             const { basename } = await import("node:path")
             const { Compose } = await import("../lib/docker.js")
@@ -458,7 +458,7 @@ export function setupCommand(app: DxBase) {
               build: !process.env.DX_NO_BUILD,
               noBuild: !!process.env.DX_NO_BUILD,
             })
-            phaseSucceed(s, 2, 4, "Docker-compose stack", start)
+            phaseSucceed(s, 2, 4, "Docker Compose stack", start)
 
             // 3. Wait for factory API health
             s = phase(3, 4, "Factory API health")
@@ -486,7 +486,7 @@ export function setupCommand(app: DxBase) {
             }
             phaseSucceed(s, 3, 4, "Factory API healthy", start)
 
-            // 4. Register cluster with compose factory API
+            // 4. Register cluster with Factory API (Docker Compose stack)
             s = phase(4, 4, "Cluster registration")
             start = Date.now()
             // Rewrite kubeconfig for Docker access: localhost → host.docker.internal
@@ -495,7 +495,7 @@ export function setupCommand(app: DxBase) {
               /server:\s*https?:\/\/(0\.0\.0\.0|127\.0\.0\.1|localhost)/g,
               (match, host) => match.replace(host, "host.docker.internal")
             )
-            // Set factoryUrl + factoryMode BEFORE registration so the REST client targets the compose factory
+            // Set factoryUrl + factoryMode BEFORE registration so the REST client targets Factory on Docker Compose
             await dxConfigStore.update((prev) => ({
               ...prev,
               factoryUrl,
@@ -511,7 +511,7 @@ export function setupCommand(app: DxBase) {
               s,
               4,
               4,
-              "Cluster registered with compose factory",
+              "Cluster registered with Factory (Docker Compose)",
               start
             )
 
@@ -661,7 +661,7 @@ export function setupCommand(app: DxBase) {
 
           let chartVersion = ""
           if (remoteKubeconfig) {
-            // Remote cluster: skip local image loading — k8s will pull images during helm install
+            // Remote cluster: skip local image loading — Kubernetes will pull images during Helm install
             phaseSkipped(3, TOTAL, "Loading images (remote cluster)")
           } else if (lastPhase < 3) {
             s = phase(3, TOTAL, "Loading images")

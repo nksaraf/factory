@@ -30,7 +30,7 @@ import {
 import { eq } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { dnsDomain, estate, networkLink } from "../db/schema/infra-v2"
+import { dnsDomain, estate, networkLink } from "../db/schema/infra"
 import type { GraphReader, TraceHop } from "../modules/infra/trace"
 import { traceFrom } from "../modules/infra/trace"
 import { syncFromCloudflare } from "../services/infra/dns-sync.service"

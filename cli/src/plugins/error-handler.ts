@@ -6,7 +6,10 @@ import { CrustError } from "@crustjs/core"
 import type { CrustPlugin } from "@crustjs/core"
 import { ExitCodes } from "@smp/factory-shared/exit-codes"
 
-const isJson = process.argv.includes("--json") || process.argv.includes("-j")
+import {
+  isMachineJsonStdout,
+  writeStdoutJsonDocument,
+} from "../lib/cli-output.js"
 
 export function errorHandlerPlugin(): CrustPlugin {
   return {
@@ -25,14 +28,12 @@ export function errorHandlerPlugin(): CrustPlugin {
             ? `Unknown command "${input}". Did you mean "${suggestion}"?`
             : `Unknown command "${input}".`
 
-          if (isJson) {
-            console.log(
-              JSON.stringify({
-                success: false,
-                error: { message: msg },
-                exitCode: ExitCodes.USAGE_ERROR,
-              })
-            )
+          if (isMachineJsonStdout()) {
+            writeStdoutJsonDocument({
+              success: false,
+              error: { message: msg },
+              exitCode: ExitCodes.USAGE_ERROR,
+            })
           } else {
             console.error(msg)
             if (available.length > 0)
@@ -43,14 +44,12 @@ export function errorHandlerPlugin(): CrustPlugin {
 
         if (err.is("VALIDATION")) {
           const msg = err.message
-          if (isJson) {
-            console.log(
-              JSON.stringify({
-                success: false,
-                error: { message: msg },
-                exitCode: ExitCodes.USAGE_ERROR,
-              })
-            )
+          if (isMachineJsonStdout()) {
+            writeStdoutJsonDocument({
+              success: false,
+              error: { message: msg },
+              exitCode: ExitCodes.USAGE_ERROR,
+            })
           } else {
             console.error(msg)
             console.error("Run 'dx <command> --help' for usage.")

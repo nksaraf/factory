@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { WorkTrackerAdapter } from "../adapters/work-tracker-adapter"
 import type { Database } from "../db/connection"
@@ -8,8 +8,8 @@ import {
   workTrackerProject,
   workTrackerProjectMapping,
   workTrackerProvider,
-} from "../db/schema/build-v2"
-import { system } from "../db/schema/software-v2"
+} from "../db/schema/build"
+import { system } from "../db/schema/software"
 import { syncWorkTracker } from "../modules/build/work-tracker.service"
 import {
   type TestApp,
@@ -105,7 +105,7 @@ describe("Build sync + entity relationships", () => {
             id: "ORD-101",
             key: "ORD-101",
             title: "Fix sync wiring",
-            description: "Wire the v2 sync route to the adapter.",
+            description: "Wire the sync route to the adapter.",
             status: "In Progress",
             kind: "Task",
             priority: "High",

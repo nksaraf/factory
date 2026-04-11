@@ -11,7 +11,7 @@
 import { eq, and } from "drizzle-orm"
 import type { Database } from "../db/connection"
 import type { SecretBackend } from "./secrets/secret-backend"
-import { configVar } from "../db/schema/org-v2"
+import { configVar } from "../db/schema/org"
 
 const SECRET_REF = /^\$secret\(([^)]+)\)$/
 const VAR_REF = /^\$var\(([^)]+)\)$/
@@ -37,7 +37,9 @@ export function createSpecRefResolver(
           const resolved = await secrets.get({
             key: secretMatch[1],
             scopeType: scope?.scopeType ?? "org",
-            scopeId: scope?.scopeId,
+            // Align with POST /secrets default (scopeId "default") and
+            // PostgresSecretBackend lookups — not empty string.
+            scopeId: scope?.scopeId ?? "default",
           })
           ;(result as Record<string, unknown>)[key] = resolved
           continue

@@ -42,13 +42,13 @@ import {
   workTrackerProject,
   workTrackerProjectMapping,
   workTrackerProvider,
-} from "../../db/schema/build-v2"
+} from "../../db/schema/build"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
 import { GitHostService } from "./git-host.service"
 import { syncWorkTracker } from "./work-tracker.service"
 
-export function buildControllerV2(db: Database) {
+export function buildController(db: Database) {
   const gitHostSvc = new GitHostService(db)
 
   return (
@@ -63,6 +63,8 @@ export function buildControllerV2(db: Database) {
           table: repo,
           slugColumn: repo.slug,
           idColumn: repo.id,
+          prefix: "repo",
+          kindAlias: "repo",
           createSchema: CreateRepoSchema,
           updateSchema: UpdateRepoSchema,
           deletable: "bitemporal",
@@ -140,6 +142,8 @@ export function buildControllerV2(db: Database) {
           table: gitHostProvider,
           slugColumn: gitHostProvider.slug,
           idColumn: gitHostProvider.id,
+          prefix: "ghp",
+          kindAlias: "git-host-provider",
           createSchema: CreateGitHostProviderSchema,
           updateSchema: UpdateGitHostProviderSchema,
           deletable: true,
@@ -201,6 +205,8 @@ export function buildControllerV2(db: Database) {
           table: workTrackerProvider,
           slugColumn: workTrackerProvider.slug,
           idColumn: workTrackerProvider.id,
+          prefix: "wtp",
+          kindAlias: "work-tracker-provider",
           createSchema: CreateWorkTrackerProviderSchema,
           updateSchema: UpdateWorkTrackerProviderSchema,
           deletable: true,
@@ -251,6 +257,8 @@ export function buildControllerV2(db: Database) {
           table: workTrackerProject,
           slugColumn: workTrackerProject.slug,
           idColumn: workTrackerProject.id,
+          prefix: "wtpj",
+          kindAlias: "work-tracker-project",
           createSchema: CreateWorkTrackerProjectSchema,
           updateSchema: UpdateWorkTrackerProjectSchema,
           deletable: true,
@@ -324,3 +332,12 @@ export function buildControllerV2(db: Database) {
       )
   )
 }
+
+import type { OntologyRouteConfig } from "../../lib/crud"
+
+export const buildOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
+  { entity: "repos", singular: "repo", table: repo, slugColumn: repo.slug, idColumn: repo.id, prefix: "repo", kindAlias: "repo" },
+  { entity: "git-host-providers", singular: "git host provider", table: gitHostProvider, slugColumn: gitHostProvider.slug, idColumn: gitHostProvider.id, prefix: "ghp", kindAlias: "git-host-provider" },
+  { entity: "work-tracker-providers", singular: "work tracker provider", table: workTrackerProvider, slugColumn: workTrackerProvider.slug, idColumn: workTrackerProvider.id, prefix: "wtp", kindAlias: "work-tracker-provider" },
+  { entity: "work-tracker-projects", singular: "work tracker project", table: workTrackerProject, slugColumn: workTrackerProject.slug, idColumn: workTrackerProject.id, prefix: "wtpj", kindAlias: "work-tracker-project" },
+]

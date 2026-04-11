@@ -16,10 +16,10 @@ import { eq } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { messagingProvider } from "../../db/schema/org-v2"
+import { messagingProvider } from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 
-export function messagingControllerV2(db: Database) {
+export function messagingController(db: Database) {
   return new Elysia({ prefix: "/messaging" }).use(
     ontologyRoutes(db, {
       schema: "org",

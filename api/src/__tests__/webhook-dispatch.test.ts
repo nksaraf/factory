@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import { WebhookService } from "../modules/build/webhook.service"
 import { GitHostService } from "../modules/build/git-host.service"

@@ -77,12 +77,14 @@ export class Compose {
     detach?: boolean // defaults to true
     build?: boolean // defaults to true
     noBuild?: boolean
+    noDeps?: boolean // pass --no-deps (don't start linked services)
     services?: string[]
     profiles?: string[]
   }): void {
     const args = this.baseArgs({ profiles: opts?.profiles })
     args.push("up")
     if (opts?.detach !== false) args.push("-d") // default: detach
+    if (opts?.noDeps) args.push("--no-deps")
     if (opts?.noBuild) {
       args.push("--no-build")
     } else if (opts?.build !== false) {

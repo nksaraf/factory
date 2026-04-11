@@ -1,8 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { createRequire } from "node:module"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 
-const mockExecFile = vi.fn()
+const require = createRequire(import.meta.url)
+const realCp = require("node:child_process") as typeof import("node:child_process")
 
-vi.mock("node:child_process", () => ({
+const mockExecFile = mock()
+
+mock.module("node:child_process", () => ({
+  ...realCp,
   execFile: (...args: any[]) => mockExecFile(...args),
 }))
 
@@ -249,7 +254,7 @@ describe("curlAxiosAdapter", () => {
       method: "POST",
     })
     const args = getCurlArgs()
-    expect(args[args.length - 1]).toBe("https://slack.com/api/v1/auth.test")
+    expect(args[args.length - 1]).toBe("https://slack.com/api/auth.test")
   })
 
   it("handles undefined config.url with baseURL", async () => {

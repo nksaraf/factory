@@ -1,6 +1,7 @@
 import { ExitCodes } from "@smp/factory-shared/exit-codes"
 import { styleMuted } from "../cli-style.js"
 import type { DxFlags } from "../stub.js"
+import { wantsCliJson, writeStdoutJsonDocument } from "./cli-output.js"
 import { DxError } from "./dx-error.js"
 
 /**
@@ -13,18 +14,12 @@ export function exitWithError(
   code: number = ExitCodes.GENERAL_FAILURE,
   suggestions?: Array<{ action: string; description: string }>
 ): never {
-  if (flags.json) {
-    console.log(
-      JSON.stringify(
-        {
-          success: false,
-          error: { message, ...(suggestions ? { suggestions } : {}) },
-          exitCode: code,
-        },
-        null,
-        2
-      )
-    )
+  if (wantsCliJson(flags)) {
+    writeStdoutJsonDocument({
+      success: false,
+      error: { message, ...(suggestions ? { suggestions } : {}) },
+      exitCode: code,
+    })
     process.exit(code)
   }
   console.error(message)
@@ -48,25 +43,19 @@ export function exitWithDxError(
   const isVerbose = flags.verbose || flags.debug
   const ctx = err.context
 
-  if (flags.json) {
-    console.log(
-      JSON.stringify(
-        {
-          success: false,
-          error: {
-            message: err.message,
-            code: ctx.code,
-            operation: ctx.operation,
-            metadata: ctx.metadata,
-            suggestions: ctx.suggestions,
-            ...(isVerbose ? { stack: err.stack } : {}),
-          },
-          exitCode: code,
-        },
-        null,
-        2
-      )
-    )
+  if (wantsCliJson(flags)) {
+    writeStdoutJsonDocument({
+      success: false,
+      error: {
+        message: err.message,
+        code: ctx.code,
+        operation: ctx.operation,
+        metadata: ctx.metadata,
+        suggestions: ctx.suggestions,
+        ...(isVerbose ? { stack: err.stack } : {}),
+      },
+      exitCode: code,
+    })
     process.exit(code)
   }
 

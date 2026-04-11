@@ -9,7 +9,7 @@
 import { and, eq, or } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { secret } from "../../db/schema/org-v2"
+import { secret } from "../../db/schema/org"
 import { encrypt, decrypt } from "./crypto"
 import type {
   SecretBackend,

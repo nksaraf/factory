@@ -3,12 +3,12 @@
  * Diff two OpenAPI specs (or route dumps) to find missing/changed/new endpoints.
  *
  * Usage:
- *   bun run scripts/diff-api-surface.ts snapshots/v1-openapi.json snapshots/v2-openapi.json
+ *   bun run scripts/diff-api-surface.ts <baseline-openapi.json> <candidate-openapi.json>
  *
  * Reports:
- *   - Missing endpoints (in v1 but not v2)
+ *   - Missing endpoints (in baseline but not candidate)
  *   - Changed endpoints (same path, different methods or shapes)
- *   - New endpoints (in v2 but not v1)
+ *   - New endpoints (candidate only)
  */
 
 import { readFileSync } from "fs"
@@ -17,7 +17,7 @@ const [, , v1Path, v2Path] = process.argv
 
 if (!v1Path || !v2Path) {
   console.error(
-    "Usage: bun run scripts/diff-api-surface.ts <v1-spec.json> <v2-spec.json>"
+    "Usage: bun run scripts/diff-api-surface.ts <baseline-spec.json> <candidate-spec.json>"
   )
   process.exit(1)
 }

@@ -15,7 +15,8 @@ import {
   networkLink,
   realm,
   route,
-} from "../../db/schema/infra-v2"
+  service,
+} from "../../db/schema/infra"
 import { componentDeployment } from "../../db/schema/ops"
 import { NotFoundError } from "../../lib/errors"
 
@@ -28,6 +29,8 @@ interface LinkRow {
   type: string
   sourceKind: string
   sourceId: string
+  viaKind?: string | null
+  viaId?: string | null
   targetKind: string
   targetId: string
   spec: Record<string, unknown>
@@ -52,6 +55,7 @@ export interface GraphReader {
 
 export interface TraceHop {
   link: LinkRow
+  via?: EntityRow
   entity: EntityRow
 }
 
@@ -128,7 +132,12 @@ export async function traceFrom(
     const entity = await reader.findEntity(nextKind, nextId)
     if (!entity) break
 
-    hops.push({ link, entity })
+    const via =
+      link.viaKind && link.viaId
+        ? (await reader.findEntity(link.viaKind, link.viaId)) ?? undefined
+        : undefined
+
+    hops.push({ link, via, entity })
     currentKind = nextKind
     currentId = nextId
   }
@@ -142,6 +151,7 @@ const ENTITY_TABLES: Record<string, { table: any; idCol: any }> = {
   estate: { table: estate, idCol: estate.id },
   host: { table: host, idCol: host.id },
   realm: { table: realm, idCol: realm.id },
+  service: { table: service, idCol: service.id },
   "ip-address": { table: ipAddress, idCol: ipAddress.id },
   "dns-domain": { table: dnsDomain, idCol: dnsDomain.id },
   route: { table: route, idCol: route.id },

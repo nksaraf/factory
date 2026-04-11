@@ -4,10 +4,10 @@
 import { PGlite } from "@electric-sql/pglite"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/pglite"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
-import { workflowRun } from "../db/schema/org-v2"
+import { workflowRun } from "../db/schema/org"
 import {
   createWorkflowRun,
   getWorkflowDb,

@@ -318,6 +318,8 @@ export const networkLink = infraSchema.table(
     type: text("type").notNull(),
     sourceKind: text("source_kind").notNull(),
     sourceId: text("source_id").notNull(),
+    viaKind: text("via_kind"),
+    viaId: text("via_id"),
     targetKind: text("target_kind").notNull(),
     targetId: text("target_id").notNull(),
     spec: specCol<NetworkLinkSpec>(),

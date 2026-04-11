@@ -4,7 +4,7 @@ import type { Database } from "../../db/connection"
 import { intervention } from "../../db/schema/ops"
 
 // ---------------------------------------------------------------------------
-// Interventions — v2: type is column; action, principalId, reason → spec JSONB
+// Interventions — type is column; action, principalId, reason → spec JSONB
 // ---------------------------------------------------------------------------
 
 export async function createIntervention(

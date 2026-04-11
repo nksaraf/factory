@@ -1,12 +1,11 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-import { Elysia } from "elysia"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import type { PGlite } from "@electric-sql/pglite"
-import { createPgliteDb, migrateWithPglite } from "../factory-core"
-import { truncateAllTables } from "../test-helpers"
+import { Elysia } from "elysia"
+
+import type { Database } from "../db/connection"
 import { configVarController } from "../modules/identity/config-var.controller"
 import { secretController } from "../modules/identity/secret.controller"
-import type { Database } from "../db/connection"
-import path from "node:path"
+import { createMigratedTestPglite, truncateAllTables } from "../test-helpers"
 
 // Helper to make HTTP-like requests to Elysia app
 async function request(
@@ -25,17 +24,16 @@ async function request(
   return { status: res.status, body: json }
 }
 
-describe("Config Var Controller", () => {
+describe("config var & secret controllers", () => {
   let db: Database
   let client: PGlite
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any
 
   beforeAll(async () => {
-    const pglite = await createPgliteDb()
+    const pglite = await createMigratedTestPglite()
     db = pglite.db as unknown as Database
     client = pglite.client
-    await migrateWithPglite(client, path.join(process.cwd(), "drizzle"))
     app = new Elysia().use(configVarController(db)).use(secretController(db))
   })
 
@@ -43,9 +41,10 @@ describe("Config Var Controller", () => {
     await client.close()
   })
 
-  beforeEach(async () => {
-    await truncateAllTables(client)
-  })
+  describe("Config Var Controller", () => {
+    beforeEach(async () => {
+      await truncateAllTables(client)
+    })
 
   describe("POST /vars (upsert)", () => {
     it("creates a new variable", async () => {
@@ -59,10 +58,10 @@ describe("Config Var Controller", () => {
 
     it("upserts an existing variable", async () => {
       await request(app, "POST", "/vars", { slug: "KEY", value: "v1" })
-      await request(app, "POST", "/vars", { slug: "KEY", value: "v2" })
+      await request(app, "POST", "/vars", { slug: "KEY", value: "stored" })
 
       const { body } = await request(app, "GET", "/vars/KEY")
-      expect(body.value).toBe("v2")
+      expect(body.value).toBe("stored")
     })
 
     it("defaults scopeType to org and environment to all", async () => {
@@ -284,29 +283,12 @@ describe("Config Var Controller", () => {
       )
     })
   })
-})
-
-describe("Secret Controller (v2)", () => {
-  let db: Database
-  let client: PGlite
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let app: any
-
-  beforeAll(async () => {
-    const pglite = await createPgliteDb()
-    db = pglite.db as unknown as Database
-    client = pglite.client
-    await migrateWithPglite(client, path.join(process.cwd(), "drizzle"))
-    app = new Elysia().use(configVarController(db)).use(secretController(db))
   })
 
-  afterAll(async () => {
-    await client.close()
-  })
-
-  beforeEach(async () => {
-    await truncateAllTables(client)
-  })
+  describe("Secret Controller", () => {
+    beforeEach(async () => {
+      await truncateAllTables(client)
+    })
 
   describe("POST /secrets + GET /secrets/:slug (roundtrip)", () => {
     it("encrypts on set and decrypts on get", async () => {
@@ -320,9 +302,9 @@ describe("Secret Controller (v2)", () => {
 
     it("upserts existing secret", async () => {
       await request(app, "POST", "/secrets", { slug: "K", value: "v1" })
-      await request(app, "POST", "/secrets", { slug: "K", value: "v2" })
+      await request(app, "POST", "/secrets", { slug: "K", value: "stored" })
       const { body } = await request(app, "GET", "/secrets/K")
-      expect(body.value).toBe("v2")
+      expect(body.value).toBe("stored")
     })
 
     it("stores keyVersion in the database", async () => {
@@ -485,5 +467,6 @@ describe("Secret Controller (v2)", () => {
       const token = body.secrets.find((s: any) => s.slug === "API_TOKEN")
       expect(token.value).toBe("project-prod-token")
     })
+  })
   })
 })

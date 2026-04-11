@@ -7,7 +7,7 @@ import {
   secret,
   toolCredential,
   toolUsage,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { allocateSlug } from "../../lib/slug"
 import type { PrincipalProfile } from "@smp/factory-shared"
 
@@ -487,7 +487,7 @@ export class IdentityService {
   }
 
   async revokeToolCredential(principalId: string, credentialId: string) {
-    // In v2, toolCredential doesn't have a status column — delete instead
+    // toolCredential has no status column — delete instead
     const [row] = await this.db
       .delete(toolCredential)
       .where(

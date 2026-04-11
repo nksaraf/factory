@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import * as pipelineRunSvc from "../services/build/pipeline-run.service"
 import type { Database } from "../db/connection"
@@ -23,7 +23,7 @@ interface PipelineStepSpecStored {
   stepName?: string
 }
 
-describe("Pipeline Run Service (v2)", () => {
+describe("Pipeline Run Service", () => {
   let db: Database
   let client: PGlite
 

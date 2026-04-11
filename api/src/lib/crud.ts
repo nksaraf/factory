@@ -26,6 +26,19 @@ import {
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core"
 import type { ZodType } from "zod"
 
+import type { EntityPrefix } from "./id"
+
+export interface SlugRefConfig {
+  /** The FK column name on this entity (e.g. "estateId") */
+  fk: string
+  /** Drizzle table to look up the referenced entity in */
+  lookupTable: any
+  /** The slug column on that lookup table */
+  lookupSlugCol: any
+  /** The id column on that lookup table (used by the inventory reconciler) */
+  lookupIdCol: any
+}
+
 import type { Database } from "../db/connection"
 import {
   currentRow,
@@ -155,6 +168,12 @@ export interface OntologyRouteConfig<T extends PgTable = PgTable> {
    * on LIST queries — ANDed with any explicit baseFilter.
    */
   bitemporal?: Pick<BitemporalTable, "validTo" | "systemTo">
+  /** Entity prefix for newId() — single source of truth for ID generation */
+  prefix?: EntityPrefix
+  /** Slug-ref fields for YAML inventory: key = YAML field (e.g. "estateSlug"), value = resolution config */
+  slugRefs?: Record<string, SlugRefConfig>
+  /** YAML kind alias when the singular of entity name doesn't match the YAML kind. E.g. "dns-domains" → "dns-domain" */
+  kindAlias?: string
 }
 
 // ── Helpers ────────────────────────────────────────────────

@@ -176,7 +176,7 @@ export async function destroySystemDeployment(db: Database, id: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Dependency Workloads — v2: stored in systemDeployment.spec.dependencies
+// Dependency Workloads — stored in systemDeployment.spec.dependencies
 // ---------------------------------------------------------------------------
 
 export async function listDependencyWorkloads(

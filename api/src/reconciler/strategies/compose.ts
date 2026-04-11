@@ -12,7 +12,7 @@ import type {
  * controller-reported state to detect drift and report status.
  */
 export class ComposeStrategy implements ReconcilerStrategy {
-  readonly runtime = "compose"
+  readonly runtime = "docker-compose"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     const controllerState = (ctx.workload as any).controllerReportedState as

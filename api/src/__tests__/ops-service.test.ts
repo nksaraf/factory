@@ -12,10 +12,10 @@ import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import type { ReleaseSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
-import { estate, realm } from "../db/schema/infra-v2"
+import { estate, realm } from "../db/schema/infra"
 import {
   componentDeployment,
   intervention,
@@ -24,13 +24,13 @@ import {
   systemDeployment,
   workbench,
 } from "../db/schema/ops"
-import { principal } from "../db/schema/org-v2"
-// v2 schema imports — direct DB operations instead of v1 service calls
-import { system } from "../db/schema/software-v2"
-import { release } from "../db/schema/software-v2"
+import { principal } from "../db/schema/org"
+// Direct DB operations on ops/software schema tables
+import { system } from "../db/schema/software"
+import { release } from "../db/schema/software"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
-describe("Ops service (v2)", () => {
+describe("Ops service", () => {
   let db: Database
   let client: PGlite
 
@@ -221,8 +221,8 @@ describe("Ops service (v2)", () => {
           spec: stagingSpec,
         },
         {
-          name: "v2.0.0",
-          slug: "v2-0-0",
+          name: "1.2.0",
+          slug: "1-2-0",
           systemId: sys.id,
           spec: draftSpec,
         },

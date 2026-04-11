@@ -1,0 +1,231 @@
+version: "1"
+
+# Hosts — physical machines not discovered by Proxmox sync
+entities:
+  # ── Firewall ─────────────────────────────────────────────────
+  - kind: host
+    slug: gajshield-fw
+    name: Gajshield Firewall
+    type: network-appliance
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: gajshield
+      os: linux
+      arch: amd64
+      ipAddress: "192.168.1.5"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: root
+      sshPort: 22
+      model: Gajshield
+      managementUrl: "https://192.168.1.5"
+
+  # ── Windows bare-metal servers (1.x subnet, not in Proxmox) ──
+  - kind: host
+    slug: windows-nthchfq
+    name: Legacy server
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: WINDOWS-NTHCHFQ
+      os: windows
+      arch: amd64
+      cpu: 16
+      memoryMb: 32768
+      ipAddress: "192.168.1.3"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HP ProLiant DL180 Gen9
+
+  - kind: host
+    slug: lepdomindia
+    name: IT Domain controller
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: LEPDOMINDIA
+      os: windows
+      arch: amd64
+      cpu: 8
+      memoryMb: 8192
+      ipAddress: "192.168.1.11"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HP ProLiant DL380 G6
+
+  - kind: host
+    slug: win-4uj6erfk323
+    name: Neo360 server (Umang)
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: WIN-4UJ6ERFK323
+      os: windows
+      arch: amd64
+      cpu: 40
+      memoryMb: 65536
+      ipAddress: "192.168.1.14"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HPE DL360 Gen10
+
+  - kind: host
+    slug: win-j4leo1c57sn
+    name: Telecom server (Mandeep)
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: WIN-J4LEO1C57SN
+      os: windows
+      arch: amd64
+      cpu: 40
+      memoryMb: 65536
+      ipAddress: "192.168.1.25"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HPE DL360 Gen10
+
+  - kind: host
+    slug: ftp-server
+    name: FTP Server
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: FTP-Server
+      os: windows
+      arch: amd64
+      cpu: 8
+      memoryMb: 8192
+      ipAddress: "192.168.1.26"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HP ProLiant DL380 G6
+
+  - kind: host
+    slug: win-m6nplp2fvj7
+    name: Server-40
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: WIN-M6NPLP2FVJ7
+      os: windows
+      arch: amd64
+      cpu: 48
+      memoryMb: 131072
+      ipAddress: "192.168.1.40"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HPE DL380 Gen10
+
+  - kind: host
+    slug: win-8ou5hbq7gnf
+    name: Server-41
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: WIN-8OU5HBQ7GNF
+      os: windows
+      arch: amd64
+      cpu: 48
+      memoryMb: 131072
+      ipAddress: "192.168.1.41"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HPE DL380 Gen10
+
+  - kind: host
+    slug: lep-ggn-dc
+    name: Legacy DC server
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: LEP-GGN-DC
+      os: windows
+      arch: amd64
+      cpu: 12
+      memoryMb: 16384
+      ipAddress: "192.168.1.197"
+      lifecycle: active
+      accessMethod: rdp
+      accessUser: Administrator
+      sshPort: 22
+      model: HP ProLiant DL360 G7
+
+  # ── Storage devices ───────────────────────────────────────────
+  - kind: host
+    slug: dell-emc-storage-1
+    name: Dell EMC Storage 1
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: Dell EMC Storage 1
+      os: linux
+      arch: amd64
+      ipAddress: "192.168.1.12"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: root
+      sshPort: 22
+      role: storage
+
+  - kind: host
+    slug: dell-emc-storage-2
+    name: Dell EMC Storage 2
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: Dell EMC Storage 2
+      os: linux
+      arch: amd64
+      ipAddress: "192.168.1.13"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: root
+      sshPort: 22
+      role: storage
+
+  - kind: host
+    slug: dell-emc-storage-3
+    name: Dell EMC Storage 3
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: Dell EMC Storage 3
+      os: linux
+      arch: amd64
+      ipAddress: "192.168.1.16"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: root
+      sshPort: 22
+      role: storage
+
+  - kind: host
+    slug: netgear-storage
+    name: Netgear Storage
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: Netgear Storage
+      os: linux
+      arch: amd64
+      ipAddress: "192.168.1.30"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: root
+      sshPort: 22
+      role: storage

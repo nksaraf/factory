@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, mock } from "bun:test"
 
 import { FactoryAuthzClient } from "../lib/authz-client"
 
 const BASE = "http://auth:3000/api/v1/auth"
 
 function mockFetch(response: Partial<Response> = { ok: true }) {
-  const spy = vi.fn().mockResolvedValue({
+  const spy = mock().mockResolvedValue({
     ok: true,
     json: async () => ({}),
     ...response,
@@ -59,9 +59,9 @@ describe("FactoryAuthzClient", () => {
     })
 
     it("returns false on network error", async () => {
-      globalThis.fetch = vi
-        .fn()
-        .mockRejectedValue(new Error("network")) as unknown as typeof fetch
+      globalThis.fetch = mock().mockRejectedValue(
+        new Error("network")
+      ) as unknown as typeof fetch
       const client = new FactoryAuthzClient(BASE)
       const result = await client.checkPermission({
         principal: "user-1",
@@ -129,9 +129,9 @@ describe("FactoryAuthzClient", () => {
     })
 
     it("returns all-false on network error", async () => {
-      globalThis.fetch = vi
-        .fn()
-        .mockRejectedValue(new Error("network")) as unknown as typeof fetch
+      globalThis.fetch = mock().mockRejectedValue(
+        new Error("network")
+      ) as unknown as typeof fetch
       const client = new FactoryAuthzClient(BASE)
       const results = await client.checkPermissionBatch({
         principal: "user-1",
@@ -164,9 +164,9 @@ describe("FactoryAuthzClient", () => {
     })
 
     it("returns empty on error", async () => {
-      globalThis.fetch = vi
-        .fn()
-        .mockRejectedValue(new Error("network")) as unknown as typeof fetch
+      globalThis.fetch = mock().mockRejectedValue(
+        new Error("network")
+      ) as unknown as typeof fetch
       const client = new FactoryAuthzClient(BASE)
       const ids = await client.listAccessible({
         principal: "user-1",
@@ -217,9 +217,9 @@ describe("FactoryAuthzClient", () => {
     })
 
     it("swallows network errors", async () => {
-      globalThis.fetch = vi
-        .fn()
-        .mockRejectedValue(new Error("network")) as unknown as typeof fetch
+      globalThis.fetch = mock().mockRejectedValue(
+        new Error("network")
+      ) as unknown as typeof fetch
       const client = new FactoryAuthzClient(BASE)
       await client.registerResource({
         id: "sb-1",
@@ -423,9 +423,9 @@ describe("FactoryAuthzClient", () => {
     })
 
     it("returns empty on error", async () => {
-      globalThis.fetch = vi
-        .fn()
-        .mockRejectedValue(new Error("network")) as unknown as typeof fetch
+      globalThis.fetch = mock().mockRejectedValue(
+        new Error("network")
+      ) as unknown as typeof fetch
       const client = new FactoryAuthzClient(BASE)
       const result = await client.resolveScope({
         principal: "user-1",

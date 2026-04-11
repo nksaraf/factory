@@ -15,7 +15,7 @@ import type {
  * should refresh it via the refresh token before calling this adapter.
  *
  * API endpoints used:
- * - fetchUserProfile: GET https://www.googleapis.com/oauth2/v2/userinfo
+ * - fetchUserProfile: Google OAuth2 userinfo (see `fetch` URL below; path is defined by Google).
  */
 export class GoogleIdentityProviderAdapter implements IdentityProviderAdapter {
   readonly provider = "google" as const

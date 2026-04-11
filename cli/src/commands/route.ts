@@ -251,6 +251,11 @@ export function routeCommand(app: DxBase) {
                         type: string
                         spec: Record<string, unknown>
                       }
+                      via?: {
+                        slug: string
+                        name: string
+                        type: string
+                      }
                       entity: {
                         slug: string
                         name: string
@@ -322,12 +327,13 @@ export function routeCommand(app: DxBase) {
                 const protocol = hop.link.spec?.egressProtocol ?? ""
                 const portStr = port ? `:${port}` : ""
                 const protoStr = protocol ? `${protocol}` : ""
+                const viaStr = hop.via ? ` (via ${hop.via.slug})` : ""
                 const label = [hop.link.type, protoStr, portStr]
                   .filter(Boolean)
                   .join(" ")
 
                 lines.push(
-                  `    ${styleMuted("──")} ${label} ${styleMuted("──▶")}`
+                  `    ${styleMuted("──")} ${label}${viaStr} ${styleMuted("──▶")}`
                 )
                 lines.push(
                   `  ${styleSuccess(hop.entity.slug)} ${styleMuted(`[${hop.entity.type}]`)}`

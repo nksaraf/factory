@@ -9,6 +9,11 @@ import {
   styleWarn,
 } from "../cli-style.js"
 import { exitWithDxError, exitWithError } from "../lib/cli-exit.js"
+import {
+  cliLine,
+  wantsCliJson,
+  writeStdoutJsonDocument,
+} from "../lib/cli-output.js"
 import { DxError } from "../lib/dx-error.js"
 import { type ColumnOpt, printTable } from "../output.js"
 import { toDxFlags } from "./dx-flags.js"
@@ -134,8 +139,8 @@ export async function apiCall<T>(
 
 export function jsonOut(flags: Record<string, unknown>, data: unknown) {
   const f = toDxFlags(flags)
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2))
+  if (wantsCliJson(f)) {
+    writeStdoutJsonDocument({ success: true, data })
   } else {
     console.log(JSON.stringify(data, null, 2))
   }
@@ -220,8 +225,8 @@ export function tableOrJson<T = Record<string, unknown>>(
   opts?: { emptyMessage?: string }
 ) {
   const f = toDxFlags(flags)
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2))
+  if (wantsCliJson(f)) {
+    writeStdoutJsonDocument({ success: true, data })
     return
   }
   const items = unwrapList<T>(data)
@@ -287,8 +292,8 @@ export function detailView<T = Record<string, unknown>>(
   fieldMap: [label: string, getter: (r: T) => string][]
 ) {
   const f = toDxFlags(flags)
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2))
+  if (wantsCliJson(f)) {
+    writeStdoutJsonDocument({ success: true, data })
     return
   }
   const obj =
@@ -296,7 +301,7 @@ export function detailView<T = Record<string, unknown>>(
       ? ((data as Record<string, unknown>).data as T)
       : (data as T)
   if (!obj) {
-    console.log("Not found.")
+    cliLine("Not found.")
     return
   }
   const maxLabel = Math.max(...fieldMap.map(([l]) => l.length))
@@ -315,8 +320,8 @@ export function actionResult(
   message: string
 ) {
   const f = toDxFlags(flags)
-  if (f.json) {
-    console.log(JSON.stringify({ success: true, data }, null, 2))
+  if (wantsCliJson(f)) {
+    writeStdoutJsonDocument({ success: true, data })
     return
   }
   console.error(message)

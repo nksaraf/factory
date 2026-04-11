@@ -34,7 +34,7 @@ function mockExecutor(
   healthResults: Record<string, HealthStatus>
 ): Pick<Executor, "healthCheckAll" | "type"> {
   return {
-    type: "compose",
+    type: "docker-compose",
     healthCheckAll: mock().mockResolvedValue(healthResults),
   }
 }

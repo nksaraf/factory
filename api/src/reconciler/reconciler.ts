@@ -616,6 +616,7 @@ export class Reconciler {
         topic: "ops.workbench.ready",
         source: "reconciler",
         severity: "info",
+        schemaVersion: 1,
         entityKind: "workbench",
         entityId: workbenchId,
         data: { workbenchId, status: "active" },

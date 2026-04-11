@@ -1,0 +1,272 @@
+version: "1"
+
+# Network links — NAT mappings and IP-to-host assignments
+#
+# NAT links:
+#   source = public ip-address being NATted
+#   via    = host doing the NAT (gajshield-fw)
+#   target = private host (if registered) or private ip-address
+#
+# host-local links:
+#   source = private ip-address
+#   target = host it is assigned to
+#   Enables tracer to continue: public IP → (nat) → private IP → (host-local) → host
+entities:
+
+  # ── IP → Host assignments (host-local) ───────────────────────
+  - kind: network-link
+    slug: assign-192-168-1-5-gajshield
+    name: "192.168.1.5 → gajshield-fw"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.5"
+    targetKind: host
+    targetSlug: gajshield-fw
+    spec:
+      description: Management IP assigned to Gajshield Firewall
+
+  - kind: network-link
+    slug: assign-192-168-1-3-windows-nthchfq
+    name: "192.168.1.3 → windows-nthchfq"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.3"
+    targetKind: host
+    targetSlug: windows-nthchfq
+    spec:
+      description: Management IP assigned to legacy HP DL180
+
+  - kind: network-link
+    slug: assign-192-168-1-11-lepdomindia
+    name: "192.168.1.11 → lepdomindia"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.11"
+    targetKind: host
+    targetSlug: lepdomindia
+    spec:
+      description: Management IP assigned to IT domain controller
+
+  - kind: network-link
+    slug: assign-192-168-1-12-dell-emc-storage-1
+    name: "192.168.1.12 → dell-emc-storage-1"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.12"
+    targetKind: host
+    targetSlug: dell-emc-storage-1
+    spec:
+      description: Management IP assigned to Dell EMC Storage 1
+
+  - kind: network-link
+    slug: assign-192-168-1-13-dell-emc-storage-2
+    name: "192.168.1.13 → dell-emc-storage-2"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.13"
+    targetKind: host
+    targetSlug: dell-emc-storage-2
+    spec:
+      description: Management IP assigned to Dell EMC Storage 2
+
+  - kind: network-link
+    slug: assign-192-168-1-14-win-4uj6erfk323
+    name: "192.168.1.14 → win-4uj6erfk323"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.14"
+    targetKind: host
+    targetSlug: win-4uj6erfk323
+    spec:
+      description: Management IP assigned to Neo360 HPE DL360
+
+  - kind: network-link
+    slug: assign-192-168-1-16-dell-emc-storage-3
+    name: "192.168.1.16 → dell-emc-storage-3"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.16"
+    targetKind: host
+    targetSlug: dell-emc-storage-3
+    spec:
+      description: Management IP assigned to Dell EMC Storage 3
+
+  - kind: network-link
+    slug: assign-192-168-1-25-win-j4leo1c57sn
+    name: "192.168.1.25 → win-j4leo1c57sn"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.25"
+    targetKind: host
+    targetSlug: win-j4leo1c57sn
+    spec:
+      description: Management IP assigned to Telecom HPE DL360
+
+  - kind: network-link
+    slug: assign-192-168-1-26-ftp-server
+    name: "192.168.1.26 → ftp-server"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.26"
+    targetKind: host
+    targetSlug: ftp-server
+    spec:
+      description: Management IP assigned to FTP Server
+
+  - kind: network-link
+    slug: assign-192-168-1-30-netgear-storage
+    name: "192.168.1.30 → netgear-storage"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.30"
+    targetKind: host
+    targetSlug: netgear-storage
+    spec:
+      description: Management IP assigned to Netgear Storage
+
+  - kind: network-link
+    slug: assign-192-168-1-40-win-m6nplp2fvj7
+    name: "192.168.1.40 → win-m6nplp2fvj7"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.40"
+    targetKind: host
+    targetSlug: win-m6nplp2fvj7
+    spec:
+      description: Management IP assigned to Server-40 HPE DL380
+
+  - kind: network-link
+    slug: assign-192-168-1-41-win-8ou5hbq7gnf
+    name: "192.168.1.41 → win-8ou5hbq7gnf"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.41"
+    targetKind: host
+    targetSlug: win-8ou5hbq7gnf
+    spec:
+      description: Management IP assigned to Server-41 HPE DL380
+
+  - kind: network-link
+    slug: assign-192-168-1-197-lep-ggn-dc
+    name: "192.168.1.197 → lep-ggn-dc"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.197"
+    targetKind: host
+    targetSlug: lep-ggn-dc
+    spec:
+      description: Management IP assigned to Legacy DC HP DL360 G7
+
+  # ── Airtel NAT ───────────────────────────────────────────────
+  - kind: network-link
+    slug: nat-182-71-49-114-to-192-168-1-64
+    name: "NAT 182.71.49.114 → 192.168.1.64 (ADTRAN POC)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "182.71.49.114"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: ip-address
+    targetSlug: "192.168.1.64"
+    spec:
+      description: "AIRTEL: 182.71.49.114 → 192.168.1.64 (ADTRAN POC)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  - kind: network-link
+    slug: nat-182-71-49-115-to-192-168-1-26
+    name: "NAT 182.71.49.115 → 192.168.1.26 (FTP Server)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "182.71.49.115"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: host
+    targetSlug: ftp-server
+    spec:
+      description: "AIRTEL: 182.71.49.115 → 192.168.1.26 (FTP Server)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  - kind: network-link
+    slug: nat-182-71-49-117-to-192-168-1-59
+    name: "NAT 182.71.49.117 → 192.168.1.59 (Nikhil/Umang Server)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "182.71.49.117"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: ip-address
+    targetSlug: "192.168.1.59"
+    spec:
+      description: "AIRTEL: 182.71.49.117 → 192.168.1.59 (Nikhil/Umang Server lepton-59)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  - kind: network-link
+    slug: nat-182-71-49-118-to-192-168-1-124
+    name: "NAT 182.71.49.118 → 192.168.1.124 (Neo360 Demo)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "182.71.49.118"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: ip-address
+    targetSlug: "192.168.1.124"
+    spec:
+      description: "AIRTEL: 182.71.49.118 → 192.168.1.124 (Neo360 Demo)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  # ── Tata NAT ─────────────────────────────────────────────────
+  - kind: network-link
+    slug: nat-14-98-61-195-to-192-168-1-14
+    name: "NAT 14.98.61.195 → 192.168.1.14 (Neo360 Dev/Demo)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "14.98.61.195"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: host
+    targetSlug: win-4uj6erfk323
+    spec:
+      description: "TATA: 14.98.61.195 → 192.168.1.14 (Neo360 Dev/Demo)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  - kind: network-link
+    slug: nat-14-98-61-196-to-192-168-1-31
+    name: "NAT 14.98.61.196 → 192.168.1.31 (Relyon Biometric Server)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "14.98.61.196"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: ip-address
+    targetSlug: "192.168.1.31"
+    spec:
+      description: "TATA: 14.98.61.196 → 192.168.1.31 (Relyon Biometric Server)"
+      enabled: true
+      priority: 0
+      middlewares: []
+
+  - kind: network-link
+    slug: nat-14-98-61-197-to-192-168-1-41
+    name: "NAT 14.98.61.197 → 192.168.1.41 (JIO App SIT/Presales)"
+    type: nat
+    sourceKind: ip-address
+    sourceSlug: "14.98.61.197"
+    viaKind: host
+    viaSlug: gajshield-fw
+    targetKind: host
+    targetSlug: win-8ou5hbq7gnf
+    spec:
+      description: "TATA: 14.98.61.197 → 192.168.1.41 (JIO App SIT/Presales)"
+      enabled: true
+      priority: 0
+      middlewares: []

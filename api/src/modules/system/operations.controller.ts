@@ -4,10 +4,14 @@
  * Exposes background operation runner status, history, and manual triggers.
  */
 
+import { eq } from "drizzle-orm"
 import { Elysia, t } from "elysia"
+
+import type { Database } from "../../db/connection"
+import { operationRun } from "../../db/schema/ops"
 import { allRunners, getRunner } from "../../lib/operations"
 
-export function operationsController() {
+export function operationsController(db: Database) {
   return new Elysia({ prefix: "/system/operations" })
     .get(
       "/",
@@ -39,6 +43,40 @@ export function operationsController() {
         detail: {
           tags: ["System"],
           summary: "List all operations with last run status",
+        },
+      }
+    )
+    .get(
+      "/runs/:runId",
+      async ({ params, set }) => {
+        const [row] = await db
+          .select()
+          .from(operationRun)
+          .where(eq(operationRun.id, params.runId))
+          .limit(1)
+        if (!row) {
+          set.status = 404
+          return { error: "Run not found" }
+        }
+        return {
+          run: {
+            id: row.id,
+            name: row.name,
+            trigger: row.trigger,
+            status: row.status,
+            startedAt: row.startedAt,
+            completedAt: row.completedAt,
+            durationMs: row.durationMs,
+            summary: row.summary,
+            error: row.error,
+          },
+        }
+      },
+      {
+        params: t.Object({ runId: t.String() }),
+        detail: {
+          tags: ["System"],
+          summary: "Get a single operation run by id (for polling)",
         },
       }
     )

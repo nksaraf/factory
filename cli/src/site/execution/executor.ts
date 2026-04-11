@@ -2,7 +2,7 @@
  * Executor interface — how the site controller makes changes happen.
  *
  * Separated from the controller core so the execution method can grow from
- * "run compose locally" to "reach out to other nodes" without
+ * "run Docker Compose locally" to "reach out to other nodes" without
  * rewriting the orchestration logic.
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"

@@ -12,7 +12,7 @@ import {
   identityLink,
   thread,
   threadChannel,
-} from "../../db/schema/org-v2"
+} from "../../db/schema/org"
 import { logger } from "../../logger"
 import { adapters, bot } from "../chat/bot"
 import { ensureChannel, parseSlackThreadId } from "../chat/handlers"

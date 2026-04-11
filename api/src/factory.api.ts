@@ -10,7 +10,7 @@ import { NoopGatewayAdapter } from "./adapters/gateway-adapter-noop"
 import { resolveFactorySettings } from "./config/resolve-settings"
 import { type Connection, type Database, connection } from "./db/connection"
 import { migrate, migrationsDir } from "./db/migrator"
-import { gitHostProvider } from "./db/schema/build-v2"
+import { gitHostProvider } from "./db/schema/build"
 import { FactoryAuthzClient } from "./lib/authz-client"
 import { startGitHostSyncLoop } from "./lib/git-host-sync-loop"
 import { startIdentitySyncLoop } from "./lib/identity-sync-loop"
@@ -26,32 +26,34 @@ import {
 } from "./lib/workflow-engine"
 import { setWorkflowDb } from "./lib/workflow-helpers"
 import { logger } from "./logger"
-import { agentControllerV2 } from "./modules/agent/index.v2"
+import { agentController } from "./modules/agent/index"
 import { seedPlatformPresets } from "./modules/agent/preset.service"
 import { deployCiController } from "./modules/build/deploy-ci.controller"
 import { resolveGitHostAdapterConfig } from "./modules/build/git-host.service"
-import { buildControllerV2 } from "./modules/build/index.v2"
+import { buildController } from "./modules/build/index"
 import { webhookController } from "./modules/build/webhook.controller"
 import { catalogController } from "./modules/catalog/catalog.controller"
 import { setChatDb } from "./modules/chat/db"
-import { commerceControllerV2 } from "./modules/commerce/index.v2"
+import { commerceController } from "./modules/commerce/index"
 import { documentsController } from "./modules/documents/index"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
 import { configVarController } from "./modules/identity/config-var.controller"
-import { identityControllerV2 } from "./modules/identity/index.v2"
+import { identityController } from "./modules/identity/index"
 import { secretController } from "./modules/identity/secret.controller"
-import { infraControllerV2 } from "./modules/infra/index.v2"
+import { infraController } from "./modules/infra/index"
 import { previewCiController } from "./modules/infra/preview-ci.controller"
 import { installController } from "./modules/install/index"
-import { messagingWebhookController } from "./modules/messaging/index"
-import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import {
+  messagingController,
+  messagingWebhookController,
+} from "./modules/messaging/index"
 import { observabilityController } from "./modules/observability/index"
-import { opsControllerV2 } from "./modules/ops/index.v2"
+import { opsController } from "./modules/ops/index"
 import { presenceController } from "./modules/presence/index"
-import { productControllerV2 } from "./modules/product/index.v2"
+import { productController } from "./modules/product/index"
 import { threadSurfacesController } from "./modules/thread-surfaces/thread-surfaces.controller"
-import { threadsControllerV2 } from "./modules/threads/index.v2"
+import { threadsController } from "./modules/threads/index"
 import { jiraWebhookTrigger } from "./modules/workflow/triggers/jira-webhook"
 import { workflowController } from "./modules/workflow/triggers/rest"
 
@@ -130,23 +132,23 @@ export class FactoryAPI {
     // Split controller registration into batches to reduce type chain depth
     // (tsgo hits "excessively deep" with 38+ chained .use() calls)
     const batch1 = new Elysia()
-      .use(productControllerV2(db))
-      .use(buildControllerV2(db))
-      .use(commerceControllerV2(db))
-      .use(opsControllerV2(db))
+      .use(productController(db))
+      .use(buildController(db))
+      .use(commerceController(db))
+      .use(opsController(db))
 
     const batch2 = new Elysia()
-      .use(infraControllerV2(db))
-      .use(agentControllerV2(db))
-      .use(identityControllerV2(db))
+      .use(infraController(db))
+      .use(agentController(db))
+      .use(identityController(db))
       .use(secretController(db))
       .use(configVarController(db))
-      .use(messagingControllerV2(db))
+      .use(messagingController(db))
       .use(observabilityController(this.observabilityAdapter))
-      .use(operationsController())
+      .use(operationsController(db))
       .use(workflowController(db))
       .use(ideHookController(db))
-      .use(threadsControllerV2(db))
+      .use(threadsController(db))
       .use(threadSurfacesController(db))
       .use(documentsController(db))
       .use(catalogController(db))

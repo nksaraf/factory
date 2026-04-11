@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, jest } from "bun:test"
 import { StreamManager } from "./tunnel-streams"
 import {
   decodeFrame,
@@ -176,7 +176,7 @@ describe("Tunnel Relay E2E (in-process)", () => {
   })
 
   it("timeout when client never responds", async () => {
-    vi.useFakeTimers()
+    jest.useFakeTimers()
 
     // StreamManager sends to a black hole
     const sm = new StreamManager(() => {})
@@ -186,9 +186,9 @@ describe("Tunnel Relay E2E (in-process)", () => {
       { timeoutMs: 5_000 }
     )
 
-    vi.advanceTimersByTime(6_000)
+    jest.advanceTimersByTime(6_000)
     await expect(promise).rejects.toThrow("timed out")
 
-    vi.useRealTimers()
+    jest.useRealTimers()
   })
 })

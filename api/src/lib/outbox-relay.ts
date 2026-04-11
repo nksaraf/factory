@@ -9,7 +9,7 @@
 import { eq } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { event, eventOutbox } from "../db/schema/org-v2"
+import { event, eventOutbox } from "../db/schema/org"
 import { logger } from "../logger"
 import { publishToNats } from "./nats"
 import { type OperationRunner, createOperationRunner } from "./operations"

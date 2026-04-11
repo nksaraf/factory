@@ -193,6 +193,19 @@ export class FactoryClient {
     )
   }
 
+  // Infra API — inventory scanner
+  async inventoryScan(
+    entities: unknown[],
+    dryRun = false,
+  ): Promise<unknown> {
+    return this.request("POST", "/api/v1/factory/infra/inventory", { entities, dryRun })
+  }
+
+  // Infra API — inventory export (reads DB, returns YAML-ready entity groups)
+  async inventoryExport(kinds?: string[]): Promise<unknown> {
+    return this.request("POST", "/api/v1/factory/infra/inventory/export", kinds?.length ? { kinds } : {})
+  }
+
   // Infra API — ip-addresses (hyphenated path, Eden can't see ontologyRoutes CRUD)
   async listIpAddresses(query?: Record<string, string | undefined>) {
     const params = new URLSearchParams()

@@ -5,11 +5,11 @@ import type {
   RealmSpec,
 } from "@smp/factory-shared/schemas/infra"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
 // schema imports — direct DB operations
-import { estate, host, realm } from "../db/schema/infra-v2"
+import { estate, host, realm } from "../db/schema/infra"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
 describe("Infra Services", () => {

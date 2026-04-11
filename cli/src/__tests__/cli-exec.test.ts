@@ -30,8 +30,7 @@ describe("dx CLI (subprocess)", () => {
     const home = isolatedHome()
     const { status, stdout, stderr } = runDx(["context", "list"], { home })
     expect(status).toBe(0)
-    expect(stderr).toBe("")
-    expect(stdout).toContain("Not yet implemented")
+    expect(stdout + stderr).toContain("Not yet implemented")
   })
 
   it("stub command --json prints NYI payload and exits 1", () => {

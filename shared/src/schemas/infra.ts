@@ -638,6 +638,9 @@ export const NetworkLinkSpecSchema = z.object({
   externalTarget: z.string().optional(),
   externalId: z.string().optional(),
 
+  // Topology
+  bidirectional: z.boolean().default(false),
+
   // Control
   description: z.string().optional(),
   priority: z.number().int().default(0),
@@ -661,6 +664,8 @@ export const NetworkLinkSchema = z
     type: NetworkLinkTypeSchema,
     sourceKind: NetworkLinkEndpointKindSchema,
     sourceId: z.string(),
+    viaKind: NetworkLinkEndpointKindSchema.nullable().optional(),
+    viaId: z.string().nullable().optional(),
     targetKind: NetworkLinkEndpointKindSchema,
     targetId: z.string(),
     spec: NetworkLinkSpecSchema,
@@ -763,6 +768,8 @@ export const CreateNetworkLinkSchema = z.object({
   type: NetworkLinkTypeSchema,
   sourceKind: NetworkLinkEndpointKindSchema,
   sourceId: z.string().min(1),
+  viaKind: NetworkLinkEndpointKindSchema.optional(),
+  viaId: z.string().optional(),
   targetKind: NetworkLinkEndpointKindSchema,
   targetId: z.string().min(1),
   spec: NetworkLinkSpecSchema.default({}),
@@ -784,7 +791,7 @@ export type HostScanPort = z.infer<typeof HostScanPortSchema>
 export const HostScanServiceSchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
-  realmType: z.enum(["docker", "systemd", "iis", "windows-service", "process"]),
+  realmType: z.enum(["docker-compose", "systemd", "iis", "windows-service", "process"]),
   status: z.string(),
   ports: z.array(z.number().int()).default([]),
   image: z.string().optional(),

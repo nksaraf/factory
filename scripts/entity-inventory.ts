@@ -3,10 +3,9 @@
  * Extract a machine-diffable inventory of all Drizzle table definitions.
  *
  * Usage:
- *   bun run scripts/entity-inventory.ts              # v1 schemas
- *   bun run scripts/entity-inventory.ts --v2         # v2 schemas
+ *   bun run scripts/entity-inventory.ts
  *
- * Outputs JSON: { tables: [{ schema, name, columns: [{ name, type, nullable, primaryKey, references?, defaultFn? }], indexes: [...] }] }
+ * Outputs JSON: { tables: [{ schema, name, columns: [...], indexes: [...] }] }
  *
  * Strategy: import all schema files and use drizzle-orm's getTableColumns() / getTableName()
  * to extract the full structure.
@@ -14,8 +13,6 @@
 
 import { getTableColumns, getTableName, is } from "drizzle-orm"
 import { PgTable } from "drizzle-orm/pg-core"
-
-const isV2 = process.argv.includes("--v2")
 
 interface ColumnInfo {
   name: string
@@ -36,27 +33,22 @@ interface TableInfo {
 async function extractTables(): Promise<TableInfo[]> {
   const tables: TableInfo[] = []
 
-  if (isV2) {
-    // V2 schemas
-    const softwareV2 = await import("../api/src/db/schema/software-v2")
-    const orgV2 = await import("../api/src/db/schema/org-v2")
-    const infraV2 = await import("../api/src/db/schema/infra-v2")
-    const ops = await import("../api/src/db/schema/ops")
-    const buildV2 = await import("../api/src/db/schema/build-v2")
-    const commerceV2 = await import("../api/src/db/schema/commerce-v2")
+  const software = await import("../api/src/db/schema/software")
+  const org = await import("../api/src/db/schema/org")
+  const infra = await import("../api/src/db/schema/infra")
+  const ops = await import("../api/src/db/schema/ops")
+  const build = await import("../api/src/db/schema/build")
+  const commerce = await import("../api/src/db/schema/commerce")
 
-    for (const [label, mod] of Object.entries({
-      software: softwareV2,
-      org: orgV2,
-      infra: infraV2,
-      ops,
-      build: buildV2,
-      commerce: commerceV2,
-    })) {
-      extractFromModule(mod, label, tables)
-    }
-  } else {
-    throw new Error("entity-inventory requires --v2")
+  for (const [label, mod] of Object.entries({
+    software,
+    org,
+    infra,
+    ops,
+    build,
+    commerce,
+  })) {
+    extractFromModule(mod, label, tables)
   }
 
   tables.sort(
@@ -107,7 +99,6 @@ function extractFromModule(
 async function main() {
   const tables = await extractTables()
   const summary = {
-    version: isV2 ? "v2" : "v1",
     capturedAt: new Date().toISOString(),
     tableCount: tables.length,
     tables,

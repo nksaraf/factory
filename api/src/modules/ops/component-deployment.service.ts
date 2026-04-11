@@ -142,7 +142,7 @@ export async function deleteComponentDeployment(db: Database, id: string) {
 export const deleteWorkload = deleteComponentDeployment
 
 // ---------------------------------------------------------------------------
-// Workload Overrides — v2: stored in componentDeployment.spec.overrides
+// Workload Overrides — stored in componentDeployment.spec.overrides
 // ---------------------------------------------------------------------------
 
 export async function createWorkloadOverride(

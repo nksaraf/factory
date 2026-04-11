@@ -1,9 +1,9 @@
 import { and, desc, eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { realm } from "../../db/schema/infra-v2"
+import { realm } from "../../db/schema/infra"
 import { workbench as workbenchTable } from "../../db/schema/ops"
-import { principal } from "../../db/schema/org-v2"
+import { principal } from "../../db/schema/org"
 import { allocateSlug } from "../../lib/slug"
 import { removeSystemDeploymentRoutes } from "../infra/gateway.service"
 import { parseTtlToMs } from "./utils"

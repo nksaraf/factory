@@ -4,8 +4,8 @@ import {
   identityLink,
   principal,
   messagingProvider,
-} from "../../db/schema/org-v2"
-import { gitHostProvider, workTrackerProvider } from "../../db/schema/build-v2"
+} from "../../db/schema/org"
+import { gitHostProvider, workTrackerProvider } from "../../db/schema/build"
 import { IdentityService } from "./identity.service"
 import { getIdentityProviderAdapter } from "../../adapters/adapter-registry"
 import type {
@@ -477,7 +477,7 @@ export class IdentitySyncService {
   private async runProfileRefresh(
     skipProviders?: Set<IdentityProviderType>
   ): Promise<void> {
-    // In v2, syncStatus is inside spec JSONB
+    // syncStatus is inside spec JSONB
     const links = await this.db
       .select()
       .from(identityLink)
