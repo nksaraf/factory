@@ -122,16 +122,11 @@ export async function autoAttachSlackSurface(
     return null
   }
 
-  // 3. Open DM (or use configured channel override)
-  let dmThread
-  const overrideChannelId = payload.slackChannelId
-  if (overrideChannelId) {
-    // Post to a specific channel instead of DM
-    dmThread = await bot.openDM(slackUserId) // still need a thread context
-    // TODO: channel override — for now, always DM
-  } else {
-    dmThread = await bot.openDM(slackUserId)
-  }
+  // 3. Ensure Chat SDK is initialized (normally lazy-init'd via webhooks)
+  await bot.initialize()
+
+  // 4. Open DM
+  const dmThread = await bot.openDM(slackUserId)
 
   // 4. Post "Session started" message — this creates the Slack thread
   const startMsg = formatStartMessage(source, payload)
