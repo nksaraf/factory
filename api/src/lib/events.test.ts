@@ -7,7 +7,7 @@ import { createTestContext, truncateAllTables } from "../test-helpers"
 import { emitEvent, emitExternalEvent } from "./events"
 import { newId } from "./id"
 
-describe("emitEvent", () => {
+describe("events", () => {
   let ctx: Awaited<ReturnType<typeof createTestContext>>
 
   beforeAll(async () => {
@@ -18,200 +18,182 @@ describe("emitEvent", () => {
     await ctx.client.close()
   })
 
-  it("inserts into org.event and org.event_outbox", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
+  describe("emitEvent", () => {
+    it("inserts into org.event and org.event_outbox", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-    const eventId = await emitEvent(db, {
-      topic: "ops.workbench.created",
-      source: "test",
-      severity: "info",
-      entityKind: "workbench",
-      entityId: "wbnch-test-1",
-      data: { workbenchId: "wbnch-test-1", name: "test workbench" },
+      const eventId = await emitEvent(db, {
+        topic: "ops.workbench.created",
+        source: "test",
+        severity: "info",
+        entityKind: "workbench",
+        entityId: "wbnch-test-1",
+        data: { workbenchId: "wbnch-test-1", name: "test workbench" },
+      })
+
+      expect(eventId).toMatch(/^evt_/)
+
+      // Verify event row
+      const [eventRow] = await db
+        .select()
+        .from(event)
+        .where(eq(event.id, eventId!))
+        .limit(1)
+
+      expect(eventRow).toBeDefined()
+      expect(eventRow.topic).toBe("ops.workbench.created")
+      expect(eventRow.source).toBe("test")
+      expect(eventRow.severity).toBe("info")
+      expect(eventRow.entityKind).toBe("workbench")
+      expect(eventRow.entityId).toBe("wbnch-test-1")
+      expect(eventRow.scopeKind).toBe("org")
+      expect(eventRow.scopeId).toBe("default")
+      expect(eventRow.spec).toEqual({
+        data: { workbenchId: "wbnch-test-1", name: "test workbench" },
+      })
+
+      // Verify outbox row
+      const [outboxRow] = await db
+        .select()
+        .from(eventOutbox)
+        .where(eq(eventOutbox.eventId, eventId!))
+        .limit(1)
+
+      expect(outboxRow).toBeDefined()
+      expect(outboxRow.status).toBe("pending")
+      expect(outboxRow.attempts).toBe(0)
     })
 
-    expect(eventId).toMatch(/^evt_/)
+    it("deduplicates by idempotencyKey", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-    // Verify event row
-    const [eventRow] = await db
-      .select()
-      .from(event)
-      .where(eq(event.id, eventId!))
-      .limit(1)
+      const id1 = await emitEvent(db, {
+        topic: "ops.workbench.created",
+        source: "test",
+        data: { foo: "bar" },
+        idempotencyKey: "test:dedup:1",
+      })
 
-    expect(eventRow).toBeDefined()
-    expect(eventRow.topic).toBe("ops.workbench.created")
-    expect(eventRow.source).toBe("test")
-    expect(eventRow.severity).toBe("info")
-    expect(eventRow.entityKind).toBe("workbench")
-    expect(eventRow.entityId).toBe("wbnch-test-1")
-    expect(eventRow.scopeKind).toBe("org")
-    expect(eventRow.scopeId).toBe("default")
-    expect(eventRow.spec).toEqual({
-      data: { workbenchId: "wbnch-test-1", name: "test workbench" },
+      const id2 = await emitEvent(db, {
+        topic: "ops.workbench.created",
+        source: "test",
+        data: { foo: "bar" },
+        idempotencyKey: "test:dedup:1",
+      })
+
+      expect(id1).toMatch(/^evt_/)
+      expect(id2).toBeNull()
     })
 
-    // Verify outbox row
-    const [outboxRow] = await db
-      .select()
-      .from(eventOutbox)
-      .where(eq(eventOutbox.eventId, eventId!))
-      .limit(1)
+    it("stores rawEventType and rawPayload when provided", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-    expect(outboxRow).toBeDefined()
-    expect(outboxRow.status).toBe("pending")
-    expect(outboxRow.attempts).toBe(0)
-  })
+      const eventId = await emitEvent(db, {
+        topic: "org.agent.session_started",
+        source: "claude-code",
+        rawEventType: "session.start",
+        rawPayload: { original: "payload" },
+        data: { threadId: "thrd_123" },
+      })
 
-  it("deduplicates by idempotencyKey", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
+      const [row] = await db
+        .select()
+        .from(event)
+        .where(eq(event.id, eventId!))
+        .limit(1)
 
-    const id1 = await emitEvent(db, {
-      topic: "ops.workbench.created",
-      source: "test",
-      data: { foo: "bar" },
-      idempotencyKey: "test:dedup:1",
-    })
-
-    const id2 = await emitEvent(db, {
-      topic: "ops.workbench.created",
-      source: "test",
-      data: { foo: "bar" },
-      idempotencyKey: "test:dedup:1",
-    })
-
-    expect(id1).toMatch(/^evt_/)
-    expect(id2).toBeNull()
-  })
-
-  it("stores rawEventType and rawPayload when provided", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
-
-    const eventId = await emitEvent(db, {
-      topic: "org.agent.session_started",
-      source: "claude-code",
-      rawEventType: "session.start",
-      rawPayload: { original: "payload" },
-      data: { threadId: "thrd_123" },
-    })
-
-    const [row] = await db
-      .select()
-      .from(event)
-      .where(eq(event.id, eventId!))
-      .limit(1)
-
-    expect(row.rawEventType).toBe("session.start")
-    expect(row.spec).toEqual({
-      data: { threadId: "thrd_123" },
-      rawPayload: { original: "payload" },
-    })
-  })
-})
-
-describe("emitExternalEvent", () => {
-  let ctx: Awaited<ReturnType<typeof createTestContext>>
-
-  beforeAll(async () => {
-    ctx = await createTestContext()
-  })
-
-  afterAll(async () => {
-    await ctx.client.close()
-  })
-
-  it("canonicalizes a GitHub push event", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
-
-    const eventId = await emitExternalEvent(db, {
-      source: "github",
-      eventType: "push",
-      payload: { ref: "refs/heads/main", commits: [{ id: "abc123" }] },
-      providerId: "repo-123",
-      deliveryId: "delivery-456",
-    })
-
-    expect(eventId).toMatch(/^evt_/)
-
-    const [row] = await db
-      .select()
-      .from(event)
-      .where(eq(event.id, eventId!))
-      .limit(1)
-
-    expect(row.topic).toBe("ext.github.push")
-    expect(row.source).toBe("github")
-    expect(row.rawEventType).toBe("push")
-    expect(row.idempotencyKey).toBe("github:repo-123:delivery-456")
-    expect(row.spec.rawPayload).toEqual({
-      ref: "refs/heads/main",
-      commits: [{ id: "abc123" }],
+      expect(row.rawEventType).toBe("session.start")
+      expect(row.spec).toEqual({
+        data: { threadId: "thrd_123" },
+        rawPayload: { original: "payload" },
+      })
     })
   })
 
-  it("deduplicates external events by source+providerId+deliveryId", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
+  describe("emitExternalEvent", () => {
+    it("canonicalizes a GitHub push event", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-    const id1 = await emitExternalEvent(db, {
-      source: "github",
-      eventType: "push",
-      payload: { ref: "refs/heads/main" },
-      providerId: "repo-123",
-      deliveryId: "delivery-789",
+      const eventId = await emitExternalEvent(db, {
+        source: "github",
+        eventType: "push",
+        payload: { ref: "refs/heads/main", commits: [{ id: "abc123" }] },
+        providerId: "repo-123",
+        deliveryId: "delivery-456",
+      })
+
+      expect(eventId).toMatch(/^evt_/)
+
+      const [row] = await db
+        .select()
+        .from(event)
+        .where(eq(event.id, eventId!))
+        .limit(1)
+
+      expect(row.topic).toBe("build.push.received")
+      expect(row.source).toBe("github")
+      expect(row.rawEventType).toBe("push")
+      expect(row.idempotencyKey).toBe("github:repo-123:delivery-456")
+      expect(row.spec.rawPayload).toEqual({
+        ref: "refs/heads/main",
+        commits: [{ id: "abc123" }],
+      })
     })
 
-    const id2 = await emitExternalEvent(db, {
-      source: "github",
-      eventType: "push",
-      payload: { ref: "refs/heads/main" },
-      providerId: "repo-123",
-      deliveryId: "delivery-789",
-    })
+    it("deduplicates external events by source+providerId+deliveryId", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-    expect(id1).toMatch(/^evt_/)
-    expect(id2).toBeNull()
+      const id1 = await emitExternalEvent(db, {
+        source: "github",
+        eventType: "push",
+        payload: { ref: "refs/heads/main" },
+        providerId: "repo-123",
+        deliveryId: "delivery-789",
+      })
+
+      const id2 = await emitExternalEvent(db, {
+        source: "github",
+        eventType: "push",
+        payload: { ref: "refs/heads/main" },
+        providerId: "repo-123",
+        deliveryId: "delivery-789",
+      })
+
+      expect(id1).toMatch(/^evt_/)
+      expect(id2).toBeNull()
+    })
   })
-})
 
-describe("subscription matching", () => {
-  let ctx: Awaited<ReturnType<typeof createTestContext>>
+  describe("subscription matching", () => {
+    it("wakes workflow triggers when canonical event matches topic filter", async () => {
+      await truncateAllTables(ctx.client)
+      const db = ctx.db as unknown as Database
 
-  beforeAll(async () => {
-    ctx = await createTestContext()
-  })
+      // A trigger waiting on the canonical topic
+      await db.insert(eventSubscription).values({
+        id: newId("esub"),
+        kind: "trigger",
+        status: "active",
+        topicFilter: "ops.workbench.ready",
+        matchFields: { workbenchId: "wb-test" },
+        ownerKind: "workflow",
+        ownerId: "wf-bridge-test",
+        expiresAt: new Date(Date.now() + 600_000),
+      })
 
-  afterAll(async () => {
-    await ctx.client.close()
-  })
+      // Emit canonical event — topic matches directly
+      const eventId = await emitEvent(db, {
+        topic: "ops.workbench.ready",
+        source: "test",
+        data: { workbenchId: "wb-test", status: "active" },
+      })
 
-  it("wakes workflow triggers when canonical event matches via domain-stripped fallback", async () => {
-    await truncateAllTables(ctx.client)
-    const db = ctx.db as unknown as Database
-
-    // A trigger waiting on "workbench.ready" (legacy name)
-    await db.insert(eventSubscription).values({
-      id: newId("esub"),
-      kind: "trigger",
-      status: "active",
-      topicFilter: "workbench.ready",
-      matchFields: { workbenchId: "wb-test" },
-      ownerKind: "workflow",
-      ownerId: "wf-bridge-test",
-      expiresAt: new Date(Date.now() + 600_000),
+      expect(eventId).toBeTruthy()
     })
-
-    // Emit canonical event with domain prefix
-    const eventId = await emitEvent(db, {
-      topic: "ops.workbench.ready",
-      source: "test",
-      data: { workbenchId: "wb-test", status: "active" },
-    })
-
-    expect(eventId).toBeTruthy()
   })
 })

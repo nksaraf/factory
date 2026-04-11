@@ -193,16 +193,9 @@ async function matchSubscriptions(
       )
     )
 
-  // Also try domain-stripped version for backward compat with legacy triggers
-  const parts = topic.split(".")
-  const strippedTopic = parts.length >= 3 ? parts.slice(1).join(".") : null
-
   const matched = subs.filter((sub) => {
-    // Topic filter — try full topic first, then domain-stripped
-    const topicMatch =
-      matchTopic(sub.topicFilter, topic) ||
-      (strippedTopic != null && matchTopic(sub.topicFilter, strippedTopic))
-    if (!topicMatch) return false
+    // Topic filter
+    if (!matchTopic(sub.topicFilter, topic)) return false
 
     // Severity filter
     if (sub.minSeverity) {
