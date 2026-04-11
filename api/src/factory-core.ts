@@ -35,25 +35,59 @@ import { DemoObservabilityAdapter } from "./adapters/observability-adapter-demo"
 import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
 import type { Database } from "./db/connection"
 import * as schema from "./db/schema"
-import { estate, realm } from "./db/schema/infra-v2"
-import { principal } from "./db/schema/org-v2"
+import { estate, realm } from "./db/schema/infra"
+import { principal } from "./db/schema/org"
 import { KubeClientImpl } from "./lib/kube-client-impl"
-import { agentControllerV2 } from "./modules/agent/index.v2"
-import { buildControllerV2 } from "./modules/build/index.v2"
-import { commerceControllerV2 } from "./modules/commerce/index.v2"
+import { agentController } from "./modules/agent/index"
+import { buildController } from "./modules/build/index"
+import { commerceController } from "./modules/commerce/index"
 import { healthController } from "./modules/health/index"
 import { configVarController } from "./modules/identity/config-var.controller"
-import { identityControllerV2 } from "./modules/identity/index.v2"
+import { identityController } from "./modules/identity/index"
 import { secretController } from "./modules/identity/secret.controller"
 import { startGateway } from "./modules/infra/gateway-proxy"
-import { infraControllerV2 } from "./modules/infra/index.v2"
-import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { infraController } from "./modules/infra/index"
+import { messagingController } from "./modules/messaging/index"
 import { observabilityController } from "./modules/observability/index"
-import { opsControllerV2 } from "./modules/ops/index.v2"
-import { productControllerV2 } from "./modules/product/index.v2"
+import { opsController } from "./modules/ops/index"
+import { productController } from "./modules/product/index"
 import { operationsController } from "./modules/system/operations.controller"
+import { eventController } from "./modules/events"
 import { workflowController } from "./modules/workflow/triggers/rest"
 import { Reconciler } from "./reconciler/reconciler"
+
+/** Parsed statements per migration SQL file path (speeds repeated test DB setup). */
+const migrationStatementsBySqlPath = new Map<string, string[]>()
+
+type MigrationJournal = { entries: { tag: string }[] }
+
+/** Parsed _journal.json per migrations folder (avoids re-reading during migrate). */
+const migrationJournalByFolder = new Map<string, MigrationJournal>()
+
+function parseMigrationStatements(content: string): string[] {
+  const hasBreakpoints = content.includes("--> statement-breakpoint")
+  const raw = hasBreakpoints
+    ? content.split(/-->\s*statement-breakpoint/)
+    : content.split(/;\s*\n/)
+  return raw
+    .map((s) =>
+      s
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("--"))
+        .join("\n")
+        .trim()
+    )
+    .filter((s) => s.length > 0)
+}
+
+function getCachedMigrationStatements(sqlFile: string, content: string) {
+  let statements = migrationStatementsBySqlPath.get(sqlFile)
+  if (!statements) {
+    statements = parseMigrationStatements(content)
+    migrationStatementsBySqlPath.set(sqlFile, statements)
+  }
+  return statements
+}
 
 /**
  * PGlite cannot handle multi-statement SQL in a single prepared statement.
@@ -64,8 +98,16 @@ export async function migrateWithPglite(
   client: PGlite,
   migrationsFolder: string
 ) {
-  const journalPath = path.join(migrationsFolder, "meta", "_journal.json")
-  const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"))
+  const folderKey = path.resolve(migrationsFolder)
+  let journal: MigrationJournal | undefined =
+    migrationJournalByFolder.get(folderKey)
+  if (!journal) {
+    const journalPath = path.join(folderKey, "meta", "_journal.json")
+    journal = JSON.parse(
+      fs.readFileSync(journalPath, "utf-8")
+    ) as MigrationJournal
+    migrationJournalByFolder.set(folderKey, journal)
+  }
 
   // Ensure migration tracking table exists
   await client.query(`CREATE SCHEMA IF NOT EXISTS public`)
@@ -82,28 +124,15 @@ export async function migrateWithPglite(
   )
   const appliedHashes = new Set(applied.rows.map((r) => r.hash))
 
-  for (const entry of journal.entries) {
-    if (appliedHashes.has(entry.tag)) continue
+  const pending = journal.entries.filter((e) => !appliedHashes.has(e.tag))
+  if (pending.length === 0) return
 
-    const sqlFile = path.join(migrationsFolder, `${entry.tag}.sql`)
+  for (const entry of pending) {
+    const sqlFile = path.resolve(folderKey, `${entry.tag}.sql`)
     if (!fs.existsSync(sqlFile)) continue
 
     const content = fs.readFileSync(sqlFile, "utf-8")
-    // Drizzle migrations use --> statement-breakpoint as delimiter;
-    // some hand-written migrations use plain semicolons instead.
-    const hasBreakpoints = content.includes("--> statement-breakpoint")
-    const raw = hasBreakpoints
-      ? content.split(/-->\s*statement-breakpoint/)
-      : content.split(/;\s*\n/)
-    const statements = raw
-      .map((s) =>
-        s
-          .split("\n")
-          .filter((line) => !line.trimStart().startsWith("--"))
-          .join("\n")
-          .trim()
-      )
-      .filter((s) => s.length > 0)
+    const statements = getCachedMigrationStatements(sqlFile, content)
 
     for (const stmt of statements) {
       try {
@@ -269,18 +298,19 @@ export function createLocalApp(
 ) {
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", db)
-    .use(productControllerV2(db))
-    .use(buildControllerV2(db))
-    .use(commerceControllerV2(db))
-    .use(opsControllerV2(db))
-    .use(infraControllerV2(db))
-    .use(agentControllerV2(db))
-    .use(identityControllerV2(db))
+    .use(productController(db))
+    .use(buildController(db))
+    .use(commerceController(db))
+    .use(opsController(db))
+    .use(infraController(db))
+    .use(agentController(db))
+    .use(identityController(db))
     .use(secretController(db))
     .use(configVarController(db))
-    .use(messagingControllerV2(db))
+    .use(messagingController(db))
     .use(operationsController())
     .use(workflowController(db))
+    .use(eventController(db))
 
   if (opts?.full) {
     factoryRoutes.use(
