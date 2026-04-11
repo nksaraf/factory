@@ -1,14 +1,21 @@
-import { describe, expect, it } from "vitest"
-import type { LogEntry, TraceSpan, TraceSummary, MetricSummaryRow, Alert } from "@smp/factory-shared/observability-types"
+import type {
+  Alert,
+  LogEntry,
+  MetricSummaryRow,
+  TraceSpan,
+  TraceSummary,
+} from "@smp/factory-shared/observability-types"
+import { describe, expect, it } from "bun:test"
+
+import { parseDockerLogLine } from "../lib/docker-logs.js"
 import {
+  formatAlertTable,
   formatLogEntry,
   formatLogEntryJson,
-  renderTraceWaterfall,
-  formatTraceSummaryTable,
   formatMetricsSummaryTable,
-  formatAlertTable,
+  formatTraceSummaryTable,
+  renderTraceWaterfall,
 } from "../lib/log-formatter.js"
-import { parseDockerLogLine } from "../lib/docker-logs.js"
 
 // ---------------------------------------------------------------------------
 // formatLogEntry
@@ -74,7 +81,9 @@ describe("formatLogEntryJson", () => {
 
 describe("parseDockerLogLine", () => {
   it("parses container | message format", () => {
-    const entry = parseDockerLogLine("my-container  | Starting server on port 3000")
+    const entry = parseDockerLogLine(
+      "my-container  | Starting server on port 3000"
+    )
     expect(entry.source).toBe("my-container")
     expect(entry.message).toBe("Starting server on port 3000")
     expect(entry.level).toBe("info")
@@ -104,7 +113,9 @@ describe("parseDockerLogLine", () => {
   })
 
   it("handles line without pipe separator", () => {
-    const entry = parseDockerLogLine("plain log output without container prefix")
+    const entry = parseDockerLogLine(
+      "plain log output without container prefix"
+    )
     expect(entry.source).toBe("")
     expect(entry.message).toBe("plain log output without container prefix")
   })

@@ -172,10 +172,10 @@ elif [ "$MODE" = "dev" ]; then
   AUTH_URL="http://localhost:$AUTH_PORT"
   echo "  Waiting for auth service at $AUTH_URL ..."
   for _i in $(seq 1 45); do
-    if curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then break; fi
+    if curl -sf "$AUTH_URL/api/auth/.well-known/jwks.json" >/dev/null 2>&1; then break; fi
     sleep 2
   done
-  if ! curl -sf "$AUTH_URL/api/v1/auth/.well-known/jwks.json" >/dev/null 2>&1; then
+  if ! curl -sf "$AUTH_URL/api/auth/.well-known/jwks.json" >/dev/null 2>&1; then
     fail "auth: service at $AUTH_URL did not become ready within 90s"
     (cd "$REPO_ROOT" && docker compose logs infra-auth --tail=30 2>/dev/null) || true
     echo ""
@@ -187,14 +187,14 @@ elif [ "$MODE" = "dev" ]; then
   CI_PASSWORD="CiSmoke2026-xZ"
 
   # Sign up (ignore error if user already exists from a previous run)
-  curl -s -X POST "$AUTH_URL/api/v1/auth/sign-up/email" \
+  curl -s -X POST "$AUTH_URL/api/auth/sign-up/email" \
     -H "Content-Type: application/json" \
     -H "Origin: $AUTH_URL" \
     -d "{\"name\":\"CI Smoke\",\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}" \
     >/dev/null 2>&1 || true
 
   # Sign in — capture response headers + body
-  SIGNIN_RESP=$(curl -s -i -X POST "$AUTH_URL/api/v1/auth/sign-in/email" \
+  SIGNIN_RESP=$(curl -s -i -X POST "$AUTH_URL/api/auth/sign-in/email" \
     -H "Content-Type: application/json" \
     -H "Origin: $AUTH_URL" \
     -d "{\"email\":\"$CI_EMAIL\",\"password\":\"$CI_PASSWORD\"}")
@@ -206,7 +206,7 @@ elif [ "$MODE" = "dev" ]; then
 
   # If no JWT yet, fetch it via /get-session using the bearer token
   if [ -z "$JWT" ] && [ -n "$BEARER" ]; then
-    SESSION_RESP=$(curl -s -i "$AUTH_URL/api/v1/auth/get-session" \
+    SESSION_RESP=$(curl -s -i "$AUTH_URL/api/auth/get-session" \
       -H "Authorization: Bearer $BEARER" \
       -H "Origin: $AUTH_URL")
     JWT=$(echo "$SESSION_RESP" | grep -i '^set-auth-jwt:' | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n' || true)

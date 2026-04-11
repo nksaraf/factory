@@ -1,34 +1,34 @@
-import type { TemplateVars, GeneratedFile } from "./types.js";
-import { generate as generateNodeApi } from "./standalone/node-api.js";
-import { generate as generateWebApp } from "./standalone/web-app.js";
-import { generate as generatePostgresResource } from "./resource/postgres.js";
-import { generate as generateAuthResource } from "./resource/auth.js";
-import { generate as generateGatewayResource } from "./resource/gateway.js";
 import {
-  nodeOxlintConfig,
-  nodeQualityPackageJson,
-  vscodeExtensionsNode,
-  vscodeSettingsNode,
-  editorConfig,
-  dxConventionsYaml,
-} from "./quality-configs.js";
-import {
+  cursorRules,
   dxHookFiles,
   dxPackageJsonKey,
   gitattributes,
   githubWorkflow,
-  prTemplate,
-  cursorRules,
-  npmrc,
-  nodeVersion,
   gitignore,
-} from "./dx-scaffold.js";
+  nodeVersion,
+  npmrc,
+  prTemplate,
+} from "./dx-scaffold.js"
+import {
+  dxConventionsYaml,
+  editorConfig,
+  nodeOxlintConfig,
+  nodeQualityPackageJson,
+  vscodeExtensionsNode,
+  vscodeSettingsNode,
+} from "./quality-configs.js"
+import { generate as generateAuthResource } from "./resource/auth.js"
+import { generate as generateGatewayResource } from "./resource/gateway.js"
+import { generate as generatePostgresResource } from "./resource/postgres.js"
+import { generate as generateNodeApi } from "./standalone/node-api.js"
+import { generate as generateWebApp } from "./standalone/web-app.js"
+import type { GeneratedFile, TemplateVars } from "./types.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, owner, description } = vars;
-  const desc = description || `${name} platform`;
+  const { name, owner, description } = vars
+  const desc = description || `${name} platform`
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // ── Root files ──────────────────────────────────────────────────────
 
@@ -59,9 +59,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // pnpm-workspace.yaml
   files.push({
@@ -71,7 +71,7 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
   - "services/*"
   - "apps/*"
 `,
-  });
+  })
 
   // docker-compose.yaml (the project catalog — catalog info is derived from labels)
   files.push({
@@ -91,10 +91,10 @@ include:
   # Apps
   - path: compose/${name}-app.yml
 `,
-  });
+  })
 
   // .gitignore (dx-aware)
-  files.push(gitignore());
+  files.push(gitignore())
 
   // .prettierrc
   files.push({
@@ -102,20 +102,20 @@ include:
     content: JSON.stringify(
       { semi: true, singleQuote: false, trailingComma: "all" },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // ── compose/ directory ──────────────────────────────────────────────
 
   // compose/postgres.yml — from resource template
-  files.push(...generatePostgresResource({ owner, projectName: name }));
+  files.push(...generatePostgresResource({ owner, projectName: name }))
 
   // compose/auth.yml — from resource template
-  files.push(...generateAuthResource({ owner, projectName: name }));
+  files.push(...generateAuthResource({ owner, projectName: name }))
 
   // compose/gateway.yml — from resource template
-  files.push(...generateGatewayResource({ owner, projectName: name }));
+  files.push(...generateGatewayResource({ owner, projectName: name }))
 
   // compose/{name}-api.yml
   files.push({
@@ -134,7 +134,7 @@ include:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://\${POSTGRES_USER:-postgres}:\${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/\${POSTGRES_DB:-${name}}
-      AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+      AUTH_JWKS_URL: http://infra-auth:3000/api/auth/.well-known/jwks.json
     healthcheck:
       test: ["CMD-SHELL", "node -e \\"fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\\""]
       interval: 10s
@@ -149,7 +149,7 @@ include:
       catalog.port.3000.protocol: http
       dx.runtime: node
 `,
-  });
+  })
 
   // compose/{name}-app.yml
   files.push({
@@ -172,70 +172,70 @@ include:
       catalog.port.3000.protocol: http
       dx.runtime: node
 `,
-  });
+  })
 
   // ── Starter service: services/{name}-api/ ───────────────────────────
 
-  const apiFiles = generateNodeApi(vars);
+  const apiFiles = generateNodeApi(vars)
   for (const file of apiFiles) {
     // Skip docker-compose.yaml — it lives in compose/ instead
-    if (file.path === "docker-compose.yaml") continue;
+    if (file.path === "docker-compose.yaml") continue
     files.push({
       path: `services/${name}-api/${file.path}`,
       content: file.content,
-    });
+    })
   }
 
   // ── Starter app: apps/{name}-app/ ──────────────────────────────────
 
-  const appFiles = generateWebApp(vars);
+  const appFiles = generateWebApp(vars)
   for (const file of appFiles) {
     files.push({
       path: `apps/${name}-app/${file.path}`,
       content: file.content,
-    });
+    })
   }
 
   // ── Quality tooling + conventions ──────────────────────────────────
 
-  files.push(nodeOxlintConfig());
-  files.push(editorConfig());
-  files.push(vscodeExtensionsNode());
-  files.push(vscodeSettingsNode());
-  files.push(dxConventionsYaml(owner));
+  files.push(nodeOxlintConfig())
+  files.push(editorConfig())
+  files.push(vscodeExtensionsNode())
+  files.push(vscodeSettingsNode())
+  files.push(dxConventionsYaml(owner))
 
   // ── Placeholder directories ─────────────────────────────────────────
 
-  files.push({ path: "packages/npm/.gitkeep", content: "" });
-  files.push({ path: "packages/java/.gitkeep", content: "" });
-  files.push({ path: "packages/python/.gitkeep", content: "" });
-  files.push({ path: "docs/.gitkeep", content: "" });
-  files.push({ path: "scripts/.gitkeep", content: "" });
+  files.push({ path: "packages/npm/.gitkeep", content: "" })
+  files.push({ path: "packages/java/.gitkeep", content: "" })
+  files.push({ path: "packages/python/.gitkeep", content: "" })
+  files.push({ path: "docs/.gitkeep", content: "" })
+  files.push({ path: "scripts/.gitkeep", content: "" })
 
   // ── dx scaffold files ──────────────────────────────────────────────
 
   // .dx/hooks/ — git hook scripts (commit-msg, pre-commit, pre-push, etc.)
-  files.push(...dxHookFiles());
+  files.push(...dxHookFiles())
 
   // .dx/ state files
-  files.push({ path: ".dx/ports.json", content: "{}" });
-  files.push({ path: ".dx/packages.json", content: "{}" });
+  files.push({ path: ".dx/ports.json", content: "{}" })
+  files.push({ path: ".dx/packages.json", content: "{}" })
 
   // .gitattributes — line endings, binary detection
-  files.push(gitattributes());
+  files.push(gitattributes())
 
   // .github/ — CI workflow and PR template
-  files.push(githubWorkflow());
-  files.push(prTemplate());
+  files.push(githubWorkflow())
+  files.push(prTemplate())
 
   // .cursor/rules — AI agent context
-  files.push(cursorRules(name));
+  files.push(cursorRules(name))
 
   // .npmrc — registry defaults
-  files.push(npmrc());
+  files.push(npmrc())
 
   // .node-version — Node version for fnm
-  files.push(nodeVersion());
+  files.push(nodeVersion())
 
-  return files;
+  return files
 }

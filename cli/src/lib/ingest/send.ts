@@ -160,7 +160,7 @@ export async function sendEvent(
     payload: event.payload ? truncatePayload(event.payload) : {},
   }
 
-  const res = await fetch(`${auth.url}/api/v1/factory/ide-hooks/events`, {
+  const res = await fetch(`${auth.url}/api/factory/ide-hooks/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -224,7 +224,7 @@ export async function uploadDocument(opts: {
     body.sizeBytes = Buffer.byteLength(opts.content, "utf-8")
   }
 
-  const res = await fetch(`${auth.url}/api/v1/factory/documents/upsert`, {
+  const res = await fetch(`${auth.url}/api/factory/documents/upsert`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -281,7 +281,7 @@ export async function uploadDocumentVersion(opts: {
   if (opts.spec) body.spec = opts.spec
 
   const res = await fetch(
-    `${auth.url}/api/v1/factory/documents/documents/${encodeURIComponent(opts.slug)}/versions`,
+    `${auth.url}/api/factory/documents/documents/${encodeURIComponent(opts.slug)}/versions`,
     {
       method: "POST",
       headers: {

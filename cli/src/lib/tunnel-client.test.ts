@@ -12,7 +12,7 @@ import {
   decodeFrame,
   encodeFrame,
 } from "@smp/factory-shared/tunnel-protocol"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 
 import {
   type PendingBodies,
@@ -29,10 +29,10 @@ function decodeSent(raw: unknown): ReturnType<typeof decodeFrame> {
 }
 
 describe("handleBinaryFrame", () => {
-  let ws: { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }
+  let ws: { send: ReturnType<typeof mock>; close: ReturnType<typeof mock> }
 
   beforeEach(() => {
-    ws = { send: vi.fn(), close: vi.fn() }
+    ws = { send: mock(), close: mock() }
   })
 
   it("responds to PING with PONG", () => {
@@ -47,7 +47,7 @@ describe("handleBinaryFrame", () => {
   it("forwards HTTP_REQ to localhost and sends back HTTP_RES + DATA", async () => {
     // Mock global fetch to simulate localhost response
     const originalFetch = globalThis.fetch
-    globalThis.fetch = vi.fn().mockResolvedValue(
+    globalThis.fetch = mock().mockResolvedValue(
       new Response("hello from local", {
         status: 200,
         headers: { "content-type": "text/plain" },
@@ -107,9 +107,9 @@ describe("handleBinaryFrame", () => {
 
   it("sends RST_STREAM when localhost is unreachable", async () => {
     const originalFetch = globalThis.fetch
-    globalThis.fetch = vi
-      .fn()
-      .mockRejectedValue(new Error("ECONNREFUSED")) as any
+    globalThis.fetch = mock().mockRejectedValue(
+      new Error("ECONNREFUSED")
+    ) as any
 
     const reqFrame = buildHttpReqFrame(4, {
       method: "GET",
@@ -142,16 +142,16 @@ describe("handleBinaryFrame", () => {
     const mockLocalWs = {
       readyState: 0, // CONNECTING
       binaryType: "arraybuffer",
-      send: vi.fn((data: any) => {
+      send: mock((data: any) => {
         localWsSentMessages.push({ data, type: typeof data })
       }),
-      close: vi.fn(),
-      addEventListener: vi.fn((event: string, handler: any) => {
+      close: mock(),
+      addEventListener: mock((event: string, handler: any) => {
         ;(eventHandlers[event] ??= []).push(handler)
       }),
     }
 
-    const MockWS: any = vi.fn(function (this: any) {
+    const MockWS: any = mock(function (this: any) {
       Object.assign(this, mockLocalWs)
       this.addEventListener = mockLocalWs.addEventListener
       this.send = mockLocalWs.send
@@ -240,7 +240,7 @@ describe("handleBinaryFrame", () => {
     const originalFetch = globalThis.fetch
     let bodyStream: ReadableStream<Uint8Array> | null = null
 
-    globalThis.fetch = vi.fn(async (_url: string, init: any) => {
+    globalThis.fetch = mock(async (_url: string, init: any) => {
       bodyStream = init?.body ?? null
       // Don't consume the body yet — let it buffer
       return new Response("ok", { status: 200 })

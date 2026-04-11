@@ -1,4 +1,4 @@
-export interface WorkspacePreset {
+export interface WorkbenchPreset {
   label: string
   cpu: string
   memory: string
@@ -6,7 +6,7 @@ export interface WorkspacePreset {
   description: string
 }
 
-export const WORKSPACE_PRESETS: Record<string, WorkspacePreset> = {
+export const WORKBENCH_PRESETS: Record<string, WorkbenchPreset> = {
   small: {
     label: "Small",
     cpu: "1",

@@ -4,6 +4,7 @@ import { and, eq, isNull, or } from "drizzle-orm"
 import type { Database } from "../../db/connection"
 import { host, realm } from "../../db/schema/infra-v2"
 import { workbench } from "../../db/schema/ops"
+import { getEntityIps } from "./ipam.service"
 
 /**
  * Unified SSH target resolved from a slug.
@@ -77,7 +78,7 @@ export async function resolveTarget(
     .where(or(eq(host.slug, slug), eq(host.id, slug)))
   const hostRow = hostRows[0]
   const hostSpec = hostRow?.spec as HostSpec | undefined
-  const hostIp = hostSpec?.ipAddress ?? hostSpec?.hostname
+  const hostIp = await resolveHostIp(db, hostRow?.id, hostSpec)
   if (hostRow && hostIp) {
     return {
       kind: "host",
@@ -153,7 +154,7 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
   const allHosts = await db.select().from(host)
   for (const hostRow of allHosts) {
     const spec = hostRow.spec as HostSpec | undefined
-    const ip = spec?.ipAddress ?? spec?.hostname
+    const ip = await resolveHostIp(db, hostRow.id, spec)
     const accessMethod = spec?.accessMethod ?? "ssh"
     const lifecycle = spec?.lifecycle ?? "active"
     if (ip && accessMethod === "ssh" && lifecycle === "active") {
@@ -178,6 +179,20 @@ export async function listTargets(db: Database): Promise<SshTarget[]> {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+
+async function resolveHostIp(
+  db: Database,
+  hostId: string | undefined,
+  spec: HostSpec | undefined
+): Promise<string | undefined> {
+  if (hostId) {
+    const ips = await getEntityIps(db, "host", hostId)
+    const primaryIp = ips.find((ip) => ip.spec.primary)?.address
+    if (primaryIp) return primaryIp
+    if (ips[0]?.address) return ips[0].address
+  }
+  return spec?.ipAddress ?? spec?.hostname
+}
 
 function isLoopback(host: string): boolean {
   return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0"

@@ -48,6 +48,6 @@ dx open my-feature --editor code
 
 ## Related Commands
 
-- [`dx workspace`](/cli/workspace) — Create, list, and manage workspaces
+- [`dx workbench`](/cli/workbench) — Create, list, and manage workbenches
 - [`dx ssh`](/cli/ssh) — Interactive SSH picker
 - [`dx exec`](/cli/exec) — Run a command in a remote workspace

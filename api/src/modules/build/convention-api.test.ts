@@ -1,21 +1,21 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-import { createTestContext } from "../../test-helpers";
+import { createTestContext } from "../../test-helpers"
 
 describe("conventions validate API", () => {
-  let ctx: Awaited<ReturnType<typeof createTestContext>>;
+  let ctx: Awaited<ReturnType<typeof createTestContext>>
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-  });
+    ctx = await createTestContext()
+  })
 
   afterAll(async () => {
-    await ctx.client.close();
-  });
+    await ctx.client.close()
+  })
 
   it("validates branch names with optional conventions payload", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/factory/build/conventions/validate", {
+      new Request("http://localhost/api/factory/build/conventions/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -30,19 +30,19 @@ describe("conventions validate API", () => {
           },
         }),
       })
-    );
-    expect(res.status).toBe(200);
+    )
+    expect(res.status).toBe(200)
     const json = (await res.json()) as {
-      success: boolean;
-      data: { valid: boolean };
-    };
-    expect(json.success).toBe(true);
-    expect(json.data.valid).toBe(true);
-  });
+      success: boolean
+      data: { valid: boolean }
+    }
+    expect(json.success).toBe(true)
+    expect(json.data.valid).toBe(true)
+  })
 
   it("rejects invalid commits when conventional format required", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/v1/factory/build/conventions/validate", {
+      new Request("http://localhost/api/factory/build/conventions/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -53,10 +53,10 @@ describe("conventions validate API", () => {
           },
         }),
       })
-    );
+    )
     const json = (await res.json()) as {
-      data: { valid: boolean };
-    };
-    expect(json.data.valid).toBe(false);
-  });
-});
+      data: { valid: boolean }
+    }
+    expect(json.data.valid).toBe(false)
+  })
+})

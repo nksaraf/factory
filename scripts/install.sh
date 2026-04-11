@@ -1,6 +1,6 @@
 #!/bin/sh
 # Install script for dx CLI (lepton-dx)
-# Usage: curl -fsSL https://factory.lepton.software/api/v1/factory/install | bash
+# Usage: curl -fsSL https://factory.lepton.software/api/factory/install | bash
 set -e
 
 PACKAGE_NAME="lepton-dx"

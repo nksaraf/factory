@@ -4,7 +4,7 @@ import { Button } from "@rio.js/ui/button"
 import { Icon } from "@rio.js/ui/icon"
 
 import { useWorkspaces } from "../../data/use-workspaces"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -14,20 +14,20 @@ function getGreeting() {
 }
 
 export function WorkspaceHomeHeader() {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
   const { data: workspaces } = useWorkspaces()
-  const workspace = workspaces?.find((w) => w.id === workspaceId)
+  const activeWorkbench = workspaces?.find((w) => w.id === workspaceId)
 
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="text-sm text-muted-foreground">{getGreeting()}</p>
         <h1 className="mt-0.5 text-xl font-semibold tracking-tight">
-          {workspace?.name ?? "Workspace"}
+          {activeWorkbench?.name ?? "Workbench"}
         </h1>
-        {workspace?.description && (
+        {activeWorkbench?.description && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {workspace.description}
+            {activeWorkbench.description}
           </p>
         )}
       </div>

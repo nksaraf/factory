@@ -11,7 +11,7 @@ services:
     environment:
       DATABASE_URL: postgres://app:app@postgres:5432/app
       REDIS_URL: redis://redis:6379
-      AUTH_URL: http://auth:8080/api/v1
+      AUTH_URL: http://auth:8080/api
     depends_on:
       postgres:
         condition: service_healthy

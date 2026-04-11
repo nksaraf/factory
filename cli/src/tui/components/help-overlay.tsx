@@ -6,7 +6,7 @@ const SHORTCUTS = [
     "Tabs",
     [
       ["1", "Infra — estates, realms, hosts"],
-      ["2", "Fleet — sites, releases"],
+      ["2", "Ops — sites, releases"],
       ["3", "Workbench — workbenches, previews"],
       ["4", "Build — modules, CI runs"],
       ["5", "Gateway — routes, domains"],

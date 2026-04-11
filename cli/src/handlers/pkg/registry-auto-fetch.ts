@@ -35,7 +35,7 @@ export async function tryFetchRegistryCredentialsFromFactory(): Promise<AutoFetc
     if (!factoryUrl) return { fetched: false }
 
     const res = await fetch(
-      `${factoryUrl}/api/v1/factory/secrets/${SECRET_SLUG}?scopeType=org&scopeId=default`,
+      `${factoryUrl}/api/factory/secrets/${SECRET_SLUG}?scopeType=org&scopeId=default`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

@@ -25,8 +25,8 @@ interface ApiResponse<T = Record<string, unknown>> {
   data: T
 }
 
-const BUILD_BASE = "http://localhost/api/v1/factory/build"
-const ORG_BASE = "http://localhost/api/v1/factory/org"
+const BUILD_BASE = "http://localhost/api/factory/build"
+const ORG_BASE = "http://localhost/api/factory/org"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {

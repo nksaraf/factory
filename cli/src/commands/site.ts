@@ -26,7 +26,7 @@ setExamples("site", [
 ])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getFleetApi(): Promise<any> {
+async function getFactoryOpsApi(): Promise<any> {
   return getFactoryClient()
 }
 
@@ -36,7 +36,7 @@ export function siteCommand(app: DxBase) {
       .sub("site")
       .meta({ description: "Site management and controller" })
 
-      // ---- Fleet API commands (control plane) ----
+      // ---- Factory ops API (control plane) ----
 
       .command("list", (c) =>
         c
@@ -63,9 +63,9 @@ export function siteCommand(app: DxBase) {
             },
           })
           .run(async ({ flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet.sites.get({
+              api.api.v1.factory.ops.sites.get({
                 query: {
                   product: flags.product as string | undefined,
                   status: flags.status as string | undefined,
@@ -102,9 +102,9 @@ export function siteCommand(app: DxBase) {
             },
           ])
           .run(async ({ args, flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet.sites({ name: args.name }).get()
+              api.api.v1.factory.ops.sites({ name: args.name }).get()
             )
             detailView(flags, result, [
               ["ID", (r) => styleMuted(String(r.siteId ?? ""))],
@@ -142,9 +142,9 @@ export function siteCommand(app: DxBase) {
             },
           })
           .run(async ({ args, flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet.sites.post({
+              api.api.v1.factory.ops.sites.post({
                 name: args.name,
                 product: flags.product as string,
                 clusterId: flags.cluster as string | undefined,
@@ -170,9 +170,9 @@ export function siteCommand(app: DxBase) {
             },
           ])
           .run(async ({ args, flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet.sites.delete({
+              api.api.v1.factory.ops.sites.delete({
                 query: { name: args.name },
               })
             )
@@ -202,9 +202,9 @@ export function siteCommand(app: DxBase) {
             },
           ])
           .run(async ({ args, flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet
+              api.api.v1.factory.ops
                 .sites({ name: args.name })
                 ["assign-release"].post({
                   releaseVersion: args["release-version"],
@@ -232,9 +232,9 @@ export function siteCommand(app: DxBase) {
             },
           ])
           .run(async ({ args, flags }) => {
-            const api = await getFleetApi()
+            const api = await getFactoryOpsApi()
             const result = await apiCall(flags, () =>
-              api.api.v1.fleet.sites({ name: args.name }).checkin.post({
+              api.api.v1.factory.ops.sites({ name: args.name }).checkin.post({
                 healthSnapshot: {
                   status: "healthy",
                   timestamp: new Date().toISOString(),
@@ -342,7 +342,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/status`)
+            const res = await fetch(`${url}/api/site/status`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             detailView(flags, data.data, [
@@ -362,7 +362,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/reconcile`, {
+            const res = await fetch(`${url}/api/site/reconcile`, {
               method: "POST",
             })
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
@@ -381,7 +381,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/catalog`)
+            const res = await fetch(`${url}/api/site/catalog`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             if (toDxFlags(flags).json) {
@@ -428,7 +428,7 @@ export function siteCommand(app: DxBase) {
             const url = await getSiteApiUrl()
 
             if (flags.all) {
-              const res = await fetch(`${url}/api/v1/site/reconcile`, {
+              const res = await fetch(`${url}/api/site/reconcile`, {
                 method: "POST",
               })
               if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
@@ -440,7 +440,7 @@ export function siteCommand(app: DxBase) {
               )
             } else if (args.component) {
               const res = await fetch(
-                `${url}/api/v1/site/components/${args.component}/deploy`,
+                `${url}/api/site/components/${args.component}/deploy`,
                 {
                   method: "POST",
                 }
@@ -488,7 +488,7 @@ export function siteCommand(app: DxBase) {
             if (flags.since) params.set("since", String(flags.since))
             const qs = params.toString() ? `?${params}` : ""
             const res = await fetch(
-              `${url}/api/v1/site/components/${args.component}/logs${qs}`
+              `${url}/api/site/components/${args.component}/logs${qs}`
             )
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
@@ -510,10 +510,9 @@ export function siteCommand(app: DxBase) {
           .run(async ({ args, flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(
-              `${url}/api/v1/site/init/${args.name}/run`,
-              { method: "POST" }
-            )
+            const res = await fetch(`${url}/api/site/init/${args.name}/run`, {
+              method: "POST",
+            })
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             console.log(data.data?.output ?? "")
@@ -537,7 +536,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/health`)
+            const res = await fetch(`${url}/api/site/health`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             if (toDxFlags(flags).json) {
@@ -575,7 +574,7 @@ export function siteCommand(app: DxBase) {
             const content = fs.readFileSync(args.file, "utf-8")
             const manifest = JSON.parse(content)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/manifest`, {
+            const res = await fetch(`${url}/api/site/manifest`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(manifest),
@@ -603,7 +602,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/manifest`)
+            const res = await fetch(`${url}/api/site/manifest`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             const json = JSON.stringify(data.data, null, 2)
@@ -639,7 +638,7 @@ export function siteCommand(app: DxBase) {
             const content = fs.readFileSync(args.file, "utf-8")
             const manifest = JSON.parse(content)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/manifest`, {
+            const res = await fetch(`${url}/api/site/manifest`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(manifest),
@@ -660,7 +659,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/crds`)
+            const res = await fetch(`${url}/api/site/crds`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             tableOrJson(

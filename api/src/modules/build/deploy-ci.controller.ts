@@ -15,7 +15,7 @@ import { componentDeployment } from "../../db/schema/ops"
 import { logger } from "../../logger"
 
 export function deployCiController(db: Database) {
-  return new Elysia({ prefix: "/api/v1/factory/build/ci" }).post(
+  return new Elysia({ prefix: "/api/factory/build/ci" }).post(
     "/image",
     async ({ body, set, request }) => {
       const ciToken = process.env.FACTORY_CI_TOKEN

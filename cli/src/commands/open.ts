@@ -4,7 +4,7 @@ import type { DxBase } from "../dx-root.js"
 import {
   listLocalWorkbenches,
   showLocalWorkbench,
-} from "../handlers/workspace/local-workspace.js"
+} from "../handlers/workbench/local-workbench.js"
 import { EntityFinder } from "../lib/entity-finder.js"
 import type { ResolvedEntity } from "../lib/entity-finder.js"
 import { capture } from "../lib/subprocess.js"

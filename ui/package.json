@@ -19,7 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "openapi-ts": "openapi-ts",
-    "openapi:fetch": "curl -s \"${OPENAPI_SPEC_URL:-http://localhost:8084/api/v1/data/openapi}\" -o openapi.json"
+    "openapi:fetch": "curl -s \"${OPENAPI_SPEC_URL:-http://localhost:8084/api/data/openapi}\" -o openapi.json"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.29",

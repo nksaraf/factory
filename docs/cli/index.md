@@ -86,7 +86,7 @@ Commands for the software catalog.
 | [`dx catalog`](/cli/catalog)     | Browse the software catalog |
 | [`dx open`](/cli/open)           | Open resources in browser   |
 | [`dx route`](/cli/route)         | Manage routes               |
-| [`dx workspace`](/cli/workspace) | Manage workspaces           |
+| [`dx workbench`](/cli/workbench) | Manage workbenches          |
 
 ## For AI Agents
 

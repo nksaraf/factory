@@ -12,6 +12,10 @@ At the end of any session where work was discussed but not completed, prompt the
 - **No "was X" comments.** Don't leave comments explaining what something used to be called (e.g. "was runtime", "formerly substrate"). The current name is the only name. Historical context belongs in git history, not in comments.
 - **No `v2:` prefixes in comments.** Everything is the current version. Don't annotate transitions.
 
+## Type Checking
+
+- **Use `tsgo` for type checking, not `tsc`.** This project uses the native Go port of the TypeScript compiler. Always use `tsgo --noEmit` instead of `tsc --noEmit`. All `typecheck` scripts in `package.json` should invoke `tsgo`.
+
 ## Testing
 
 - Never assert broken behavior in tests. Tests should always assert the correct/expected behavior. If the code doesn't match yet, leave the test failing — that's fine. A failing test is a signal to fix the code, not to weaken the test.

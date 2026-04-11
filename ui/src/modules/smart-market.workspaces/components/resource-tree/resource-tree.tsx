@@ -25,7 +25,7 @@ import { Icon } from "@rio.js/ui/icon"
 import { useMoveResource } from "../../data/use-move-resource"
 import type { Resource } from "../../types"
 import { compareSortKeys } from "../../utils/sort-keys"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 import { TreeItem } from "./tree-item"
 
 interface TreeDataMap {
@@ -86,7 +86,7 @@ const ITEM_HEIGHT = 32
 
 export function ResourceTree({ searchQuery = "" }: { searchQuery?: string }) {
   "use no memo"
-  const { resources } = useWorkspace()
+  const { resources } = useWorkbench()
   const { workspaceId, resourceId } = useParams<{
     workspaceId: string
     resourceId: string

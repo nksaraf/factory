@@ -1,3 +1,4 @@
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test"
 import {
   mkdirSync,
   mkdtempSync,
@@ -5,9 +6,12 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
+import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest"
+
+const require = createRequire(import.meta.url)
+const realOs = require("node:os") as typeof import("node:os")
 
 // Create a stable temp dir BEFORE the mock is evaluated, so module-level
 // constants in forward-state.ts resolve to our test directory.
@@ -15,17 +19,17 @@ const TEST_HOME = mkdtempSync(join(tmpdir(), "fwd-state-"))
 const STATE_DIR = join(TEST_HOME, ".config", "dx")
 const STATE_FILE = join(STATE_DIR, "forwards.json")
 
-vi.mock("node:os", async (importOriginal) => {
-  const original = await importOriginal<typeof import("node:os")>()
-  return { ...original, homedir: () => TEST_HOME }
-})
+mock.module("node:os", () => ({
+  ...realOs,
+  homedir: () => TEST_HOME,
+}))
 
 // Import after mock setup so module-level constants use our TEST_HOME
 const { ForwardState, findFreePort } = await import("./forward-state.js")
 
 afterAll(() => {
   rmSync(TEST_HOME, { recursive: true, force: true })
-  vi.restoreAllMocks()
+  mock.restore()
 })
 
 function writeState(entries: unknown[]) {

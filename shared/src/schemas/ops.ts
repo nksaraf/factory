@@ -172,8 +172,9 @@ export const SystemDeploymentSchema = z
     type: DeploymentKindSchema,
     systemId: z.string(),
     siteId: z.string().nullable(),
-    tenantId: z.string().nullable(), // null = shared across all tenants on this site
+    tenantId: z.string().nullable(),
     realmId: z.string().nullable(),
+    workbenchId: z.string().nullable(),
     spec: SystemDeploymentSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -196,6 +197,20 @@ export type ComponentDeploymentStatus = z.infer<
   typeof ComponentDeploymentStatusSchema
 >
 
+export const DataLifecycleSchema = z
+  .object({
+    backupSchedule: z.string().optional(),
+    retentionPolicy: z.string().optional(),
+    snapshotStrategy: z.string().optional(),
+    migrationVersion: z.string().optional(),
+    replicationMode: z.string().optional(),
+    anonymization: z.string().optional(),
+    recoveryPointObjective: z.string().optional(),
+    recoveryTimeObjective: z.string().optional(),
+  })
+  .optional()
+export type DataLifecycle = z.infer<typeof DataLifecycleSchema>
+
 export const ComponentDeploymentSpecSchema = z.object({
   replicas: z.number().int().default(1),
   envOverrides: z.record(z.string()).default({}),
@@ -212,6 +227,7 @@ export const ComponentDeploymentSpecSchema = z.object({
   status: ComponentDeploymentStatusSchema.default("provisioning"),
   lastReconciledAt: z.coerce.date().optional(),
   statusMessage: z.string().optional(),
+  dataLifecycle: DataLifecycleSchema,
 })
 export type ComponentDeploymentSpec = z.infer<
   typeof ComponentDeploymentSpecSchema
@@ -221,9 +237,11 @@ export const ComponentDeploymentSchema = z
   .object({
     id: z.string(),
     systemDeploymentId: z.string(),
-    deploymentSetId: z.string().nullable(), // null = shared/pinned component (e.g., DB)
+    deploymentSetId: z.string().nullable(),
     componentId: z.string(),
     artifactId: z.string().nullable(),
+    workbenchId: z.string().nullable(),
+    serviceId: z.string().nullable(),
     spec: ComponentDeploymentSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -236,6 +254,8 @@ export const CreateComponentDeploymentSchema = z.object({
   deploymentSetId: z.string().nullable().optional(),
   componentId: z.string().min(1),
   artifactId: z.string().nullable().optional(),
+  workbenchId: z.string().nullable().optional(),
+  serviceId: z.string().nullable().optional(),
   spec: ComponentDeploymentSpecSchema.partial().default({}),
 })
 export type CreateComponentDeployment = z.infer<
@@ -328,12 +348,18 @@ export const WorkbenchSpecSchema = z.object({
   realmType: WorkbenchRealmTypeSchema.default("container"),
   devcontainerConfig: z.record(z.unknown()).default({}),
   repos: z.array(WorkbenchRepoSchema).default([]),
-  cpu: z.string().optional(), // e.g., "2"
-  memory: z.string().optional(), // e.g., "4Gi"
+  cpu: z.string().optional(),
+  memory: z.string().optional(),
   storageGb: z.number().int().optional(),
   dockerCacheGb: z.number().int().optional(),
   ownerType: z.enum(["user", "agent"]).default("user"),
   authMode: z.enum(["public", "team", "private"]).default("private"),
+  accessMethod: z
+    .string()
+    .optional()
+    .describe(
+      "Common: ssh, kubectl-exec, docker-exec, console-logs, web-terminal, none"
+    ),
   sshHost: z.string().optional(),
   sshPort: z.number().int().optional(),
   webTerminalUrl: z.string().optional(),
@@ -346,6 +372,11 @@ export const WorkbenchSpecSchema = z.object({
     .enum(["provisioning", "active", "suspended", "destroying", "destroyed"])
     .default("provisioning"),
   expiresAt: z.coerce.date().optional(),
+  sourceBranch: z.string().optional(),
+  prNumber: z.number().int().optional(),
+  commitSha: z.string().optional(),
+  imageRef: z.string().optional(),
+  runtimeClass: z.string().optional(),
 })
 export type WorkbenchSpec = z.infer<typeof WorkbenchSpecSchema>
 
@@ -355,8 +386,11 @@ export const WorkbenchSchema = z
     slug: z.string(),
     name: z.string(),
     type: WorkbenchTypeSchema,
+    siteId: z.string().nullable(),
     hostId: z.string().nullable(),
     realmId: z.string().nullable(),
+    serviceId: z.string().nullable(),
+    parentWorkbenchId: z.string().nullable(),
     templateId: z.string().nullable(),
     ownerId: z.string(),
     spec: WorkbenchSpecSchema,
@@ -714,6 +748,7 @@ export const CreateSystemDeploymentSchema = z.object({
   siteId: z.string(),
   tenantId: z.string().optional(),
   realmId: z.string().optional(),
+  workbenchId: z.string().optional(),
   spec: SystemDeploymentSpecSchema.default({}),
 })
 export const UpdateSystemDeploymentSchema =
@@ -731,8 +766,11 @@ export const CreateWorkbenchSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: WorkbenchTypeSchema,
+  siteId: z.string().optional(),
   hostId: z.string().optional(),
   realmId: z.string().optional(),
+  serviceId: z.string().optional(),
+  parentWorkbenchId: z.string().optional(),
   templateId: z.string().optional(),
   ownerId: z.string(),
   spec: WorkbenchSpecSchema.default({}),

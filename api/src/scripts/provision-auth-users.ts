@@ -9,28 +9,30 @@
  *
  * Env vars:
  *   FACTORY_DATABASE_URL — Database connection string
- *   AUTH_BASE_URL        — Better-auth base URL (default: http://localhost:8180/api/v1/auth)
+ *   AUTH_BASE_URL        — Better-auth base URL (default: http://localhost:8180/api/auth)
  *   DEFAULT_PASSWORD     — Default password for all users (default: changeme123)
  */
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, sql } from "drizzle-orm";
-import { principal } from "../db/schema/org-v2";
+import { eq, sql } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
+import pg from "pg"
 
-const DB_URL = process.env.FACTORY_DATABASE_URL ?? process.env.DATABASE_URL;
+import { principal } from "../db/schema/org-v2"
+
+const DB_URL = process.env.FACTORY_DATABASE_URL ?? process.env.DATABASE_URL
 if (!DB_URL) {
-  console.error("FACTORY_DATABASE_URL is required");
-  process.exit(1);
+  console.error("FACTORY_DATABASE_URL is required")
+  process.exit(1)
 }
 
-const AUTH_BASE_URL = process.env.AUTH_BASE_URL ?? "http://localhost:8180/api/v1/auth";
-const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "changeme123";
+const AUTH_BASE_URL =
+  process.env.AUTH_BASE_URL ?? "http://localhost:8180/api/auth"
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "changeme123"
 
-const pool = new pg.Pool({ connectionString: DB_URL });
-await pool.query("SELECT 1");
-console.log("✓ Database connected");
+const pool = new pg.Pool({ connectionString: DB_URL })
+await pool.query("SELECT 1")
+console.log("✓ Database connected")
 
-const db = drizzle(pool) as any;
+const db = drizzle(pool) as any
 
 // Get all principals with emails that need auth provisioning
 const principals = await db
@@ -41,24 +43,26 @@ const principals = await db
     spec: principal.spec,
   })
   .from(principal)
-  .where(sql`${principal.spec}->>'email' IS NOT NULL AND ${principal.spec}->>'email' != ''`);
+  .where(
+    sql`${principal.spec}->>'email' IS NOT NULL AND ${principal.spec}->>'email' != ''`
+  )
 
-console.log(`Found ${principals.length} principals with emails\n`);
+console.log(`Found ${principals.length} principals with emails\n`)
 
-let created = 0;
-let skipped = 0;
-let errors = 0;
+let created = 0
+let skipped = 0
+let errors = 0
 
 for (const p of principals) {
-  const spec = p.spec as Record<string, unknown>;
-  const email = spec.email as string;
-  const name = (spec.displayName as string) ?? p.name ?? email.split("@")[0];
-  const authUserId = spec.authUserId as string | undefined;
+  const spec = p.spec as Record<string, unknown>
+  const email = spec.email as string
+  const name = (spec.displayName as string) ?? p.name ?? email.split("@")[0]
+  const authUserId = spec.authUserId as string | undefined
 
   // Skip if already has a real (non-pending) authUserId
   if (authUserId && !authUserId.startsWith("pending:")) {
-    skipped++;
-    continue;
+    skipped++
+    continue
   }
 
   try {
@@ -66,23 +70,27 @@ for (const p of principals) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password: DEFAULT_PASSWORD }),
-    });
+    })
 
     if (!res.ok) {
-      const body = await res.text();
+      const body = await res.text()
       // If user already exists, try to look them up
-      if (res.status === 422 || body.includes("already exists") || body.includes("UNIQUE")) {
-        console.log(`  [skip] ${email} — already registered`);
-        skipped++;
-        continue;
+      if (
+        res.status === 422 ||
+        body.includes("already exists") ||
+        body.includes("UNIQUE")
+      ) {
+        console.log(`  [skip] ${email} — already registered`)
+        skipped++
+        continue
       }
-      console.error(`  [error] ${email} — ${res.status}: ${body}`);
-      errors++;
-      continue;
+      console.error(`  [error] ${email} — ${res.status}: ${body}`)
+      errors++
+      continue
     }
 
-    const result = await res.json() as { user: { id: string } };
-    const newAuthUserId = result.user.id;
+    const result = (await res.json()) as { user: { id: string } }
+    const newAuthUserId = result.user.id
 
     // Update principal spec with the real authUserId
     await db
@@ -91,15 +99,15 @@ for (const p of principals) {
         spec: sql`${principal.spec} || ${JSON.stringify({ authUserId: newAuthUserId })}::jsonb`,
         updatedAt: new Date(),
       })
-      .where(eq(principal.id, p.id));
+      .where(eq(principal.id, p.id))
 
-    console.log(`  [ok] ${email} → ${newAuthUserId}`);
-    created++;
+    console.log(`  [ok] ${email} → ${newAuthUserId}`)
+    created++
   } catch (err) {
-    console.error(`  [error] ${email}:`, err);
-    errors++;
+    console.error(`  [error] ${email}:`, err)
+    errors++
   }
 }
 
-console.log(`\n✓ Done: created=${created} skipped=${skipped} errors=${errors}`);
-await pool.end();
+console.log(`\n✓ Done: created=${created} skipped=${skipped} errors=${errors}`)
+await pool.end()

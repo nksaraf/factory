@@ -24,7 +24,7 @@ import {
   type ResourceTypeConfig,
 } from "../../constants/resource-config"
 import { useCreateResource } from "../../data/use-create-resource"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 // ─── Mention types & popover ────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ function MentionPopover({
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export function WorkspaceChatInput() {
-  const { workspaceId, resources } = useWorkspace()
+  const { workspaceId, resources } = useWorkbench()
   const navigate = useNavigate()
   const createResource = useCreateResource(workspaceId)
   const [isSubmitting, setIsSubmitting] = useState(false)

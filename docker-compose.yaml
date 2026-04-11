@@ -43,11 +43,12 @@ services:
     environment:
       PORT: 4100
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
-      FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
+      FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/auth/.well-known/jwks.json
       DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
       LOKI_URL: ${LOKI_URL:-http://infra-loki:3100}
@@ -55,7 +56,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'node -e "fetch(''http://localhost:4100/api/v1/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+          'node -e "fetch(''http://localhost:4100/api/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
         ]
       interval: 10s
       timeout: 5s
@@ -73,7 +74,7 @@ services:
       catalog.api.provides: "factory-api"
       catalog.api.type: openapi
       catalog.api.consumes: "auth-api"
-      catalog.docs.api: "/api/v1/factory/openapi"
+      catalog.docs.api: "/api/factory/openapi"
       catalog.docs.url: "https://docs.internal/factory"
       dx.dev.command: "pnpm --filter @smp/factory-api dev"
       dx.dev.sync: "./api/src,./shared/src"
@@ -154,7 +155,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'node -e "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+          'node -e "fetch(''http://localhost:3000/api/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
         ]
       interval: 10s
       timeout: 5s
@@ -170,7 +171,7 @@ services:
       catalog.port.3000.protocol: http
       catalog.api.provides: "auth-api"
       catalog.docs.url: "https://www.better-auth.com/docs"
-      catalog.docs.api: "/api/v1/auth/reference"
+      catalog.docs.api: "/api/auth/reference"
 
   infra-gateway:
     image: apache/apisix:3.11.0-debian
@@ -274,7 +275,7 @@ services:
       - ./infra/powersync/powersync.yaml:/config/powersync.yaml:ro
     environment:
       POWERSYNC_CONFIG_PATH: /config/powersync.yaml
-      POWERSYNC_JWKS_URL: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}
+      POWERSYNC_JWKS_URL: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/auth/.well-known/jwks.json}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/health || exit 1"]
       interval: 10s

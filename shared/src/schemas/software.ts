@@ -84,6 +84,9 @@ export type System = z.infer<typeof SystemSchema>
 
 const BaseComponentSpec = z.object({
   description: z.string().optional(),
+  statefulness: z
+    .enum(["stateless", "stateful-ephemeral", "stateful-persistent"])
+    .optional(),
 })
 
 export const ServiceComponentSpecSchema = BaseComponentSpec.extend({

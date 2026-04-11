@@ -29,7 +29,7 @@ export function useWorkbenches() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.fleet.workbenches.get()
+      const res = await api.api.v1.factory.ops.workbenches.get()
       return unwrap(res)
     },
     [],
@@ -53,7 +53,7 @@ export function usePreviews() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.fleet.previews.get()
+      const res = await api.api.v1.factory.ops.previews.get()
       return unwrap(res)
     },
     [],

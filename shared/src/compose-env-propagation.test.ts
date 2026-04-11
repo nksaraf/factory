@@ -133,10 +133,9 @@ describe("resolveTemplate", () => {
     })
 
     it("replaces hostname in URL without matching port", () => {
-      const template =
-        "http://infra-auth:3000/api/v1/auth/.well-known/jwks.json"
+      const template = "http://infra-auth:3000/api/auth/.well-known/jwks.json"
       expect(resolveTemplate(template, authEndpoint, false)).toBe(
-        "http://192.168.2.88:8180/api/v1/auth/.well-known/jwks.json"
+        "http://192.168.2.88:8180/api/auth/.well-known/jwks.json"
       )
     })
 
@@ -327,7 +326,7 @@ describe("deriveServiceEnvOverrides", () => {
             },
             "infra-auth": {
               FACTORY_AUTH_JWKS_URL:
-                "http://infra-auth:3000/api/v1/auth/.well-known/jwks.json",
+                "http://infra-auth:3000/api/auth/.well-known/jwks.json",
             },
           },
         }),
@@ -361,7 +360,7 @@ describe("deriveServiceEnvOverrides", () => {
       "postgres://postgres:factory-prod-2026@192.168.2.88:54111/postgres"
     )
     expect(factory.overrides.FACTORY_AUTH_JWKS_URL).toBe(
-      "http://192.168.2.88:8180/api/v1/auth/.well-known/jwks.json"
+      "http://192.168.2.88:8180/api/auth/.well-known/jwks.json"
     )
     expect(factory.warnings).toHaveLength(0)
   })
@@ -753,7 +752,7 @@ describe("full propagation scenarios", () => {
             },
             "infra-auth": {
               FACTORY_AUTH_JWKS_URL:
-                "http://infra-auth:3000/api/v1/auth/.well-known/jwks.json",
+                "http://infra-auth:3000/api/auth/.well-known/jwks.json",
             },
           },
         }),
@@ -802,7 +801,7 @@ describe("full propagation scenarios", () => {
           depEnv: {
             "infra-auth": {
               POWERSYNC_JWKS_URL:
-                "http://infra-auth:3000/api/v1/auth/.well-known/jwks.json",
+                "http://infra-auth:3000/api/auth/.well-known/jwks.json",
             },
           },
         }),

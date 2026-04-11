@@ -1,40 +1,54 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 
-import { EntityFinder, type ResolvedEntity } from "./entity-finder.js"
+import { EntityFinder } from "./entity-finder.js"
 
-// ─── Mock the factory client ────────────────────────────────────
-// We intercept getFactoryClient so EntityFinder talks to our fake API.
+// ─── Mock the factory client (Bun: mock.module + live ref for beforeEach) ───
 
-type MockEndpoint = {
-  sandboxes: { get: ReturnType<typeof vi.fn>; [k: string]: any }
-  vms: { get: ReturnType<typeof vi.fn>; [k: string]: any }
-  hosts: { get: ReturnType<typeof vi.fn>; [k: string]: any }
+type MockCtx = {
+  workbenchesListGet: ReturnType<typeof mock>
+  workbenchesByIdGet: ReturnType<typeof mock>
+  hostsListGet: ReturnType<typeof mock>
+  hostsByIdGet: ReturnType<typeof mock>
+  accessResolveGet: ReturnType<typeof mock>
 }
 
-let mockEndpoints: MockEndpoint
+const mockClientCtx: { api: MockCtx | null } = { api: null }
 
-vi.mock("../client.js", () => ({
+function workbenchesCollection(ctx: MockCtx) {
+  function workbenches(_opts: { slugOrId: string }) {
+    return { get: ctx.workbenchesByIdGet }
+  }
+  ;(workbenches as { get: ReturnType<typeof mock> }).get =
+    ctx.workbenchesListGet
+  return workbenches
+}
+
+function hostsCollection(ctx: MockCtx) {
+  function hosts(_opts: { slugOrId: string }) {
+    return { get: ctx.hostsByIdGet }
+  }
+  ;(hosts as { get: ReturnType<typeof mock> }).get = ctx.hostsListGet
+  return hosts
+}
+
+mock.module("../client.js", () => ({
   getFactoryClient: () => {
-    // Each endpoint supports .get({ query }) for list and (id).get() for by-ID
-    const makeEndpoint = (ep: { get: ReturnType<typeof vi.fn> }) => {
-      const fn = (opts: { id: string }) => ({
-        get: vi.fn().mockRejectedValue(new Error("not found")),
-      })
-      fn.get = ep.get
-      return fn
+    const ctx = mockClientCtx.api
+    if (!ctx) {
+      throw new Error("entity-finder test: mockClientCtx.api not set")
     }
-
     return Promise.resolve({
       api: {
         v1: {
           factory: {
+            fleet: {
+              workbenches: workbenchesCollection(ctx),
+            },
             infra: {
-              sandboxes: makeEndpoint(mockEndpoints.sandboxes),
-              vms: makeEndpoint(mockEndpoints.vms),
-              hosts: makeEndpoint(mockEndpoints.hosts),
+              hosts: hostsCollection(ctx),
               access: {
-                resolve: () => ({
-                  get: vi.fn().mockRejectedValue(new Error("not found")),
+                resolve: (_opts: { slug: string }) => ({
+                  get: ctx.accessResolveGet,
                 }),
               },
             },
@@ -45,37 +59,42 @@ vi.mock("../client.js", () => ({
   },
 }))
 
-// ─── Helpers ─────────────────────────────────────────────────────
+let mockApi: MockCtx
 
 function emptyResponse() {
   return { data: { data: [] } }
 }
 
-function listResponse(items: any[]) {
+function listResponse(items: unknown[]) {
   return { data: { data: items } }
 }
 
-// ─── Tests ───────────────────────────────────────────────────────
+function notFoundGet() {
+  return mock().mockRejectedValue(new Error("not found"))
+}
 
 describe("EntityFinder", () => {
   beforeEach(() => {
-    mockEndpoints = {
-      sandboxes: { get: vi.fn().mockResolvedValue(emptyResponse()) },
-      vms: { get: vi.fn().mockResolvedValue(emptyResponse()) },
-      hosts: { get: vi.fn().mockResolvedValue(emptyResponse()) },
+    mockApi = {
+      workbenchesListGet: mock().mockResolvedValue(emptyResponse()),
+      workbenchesByIdGet: notFoundGet(),
+      hostsListGet: mock().mockResolvedValue(emptyResponse()),
+      hostsByIdGet: notFoundGet(),
+      accessResolveGet: notFoundGet(),
     }
+    mockClientCtx.api = mockApi
   })
 
   describe("resolve() — transport type assignment", () => {
     it("resolves a VM as SSH transport", async () => {
-      mockEndpoints.vms.get.mockResolvedValue(
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            vmId: "vm_123",
+            id: "vm_123",
             name: "lepton-59",
             slug: "lepton-59",
-            status: "running",
-            ipAddress: "192.168.1.59",
+            type: "vm",
+            spec: { lifecycle: "running", ipAddress: "192.168.1.59" },
           },
         ])
       )
@@ -91,14 +110,14 @@ describe("EntityFinder", () => {
     })
 
     it("resolves a host as SSH transport", async () => {
-      mockEndpoints.hosts.get.mockResolvedValue(
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            hostId: "host_456",
+            id: "host_456",
             name: "lepton-squirtle",
             slug: "lepton-squirtle",
-            status: "active",
-            ipAddress: "192.168.1.1",
+            type: "bare-metal",
+            spec: { lifecycle: "active", ipAddress: "192.168.1.1" },
           },
         ])
       )
@@ -112,16 +131,14 @@ describe("EntityFinder", () => {
       expect(entity!.sshHost).toBe("192.168.1.1")
     })
 
-    it("resolves a container sandbox as kubectl transport", async () => {
-      mockEndpoints.sandboxes.get.mockResolvedValue(
+    it("resolves a container workbench as kubectl transport", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(
         listResponse([
           {
-            sandboxId: "sbx_789",
+            id: "sbx_789",
             name: "Maria Network Access Dev",
             slug: "maria-network-access-dev",
-            status: "running",
-            realmType: "container",
-            ownerType: "user",
+            spec: { realmType: "container", lifecycle: "running" },
           },
         ])
       )
@@ -135,17 +152,18 @@ describe("EntityFinder", () => {
       expect(entity!.podName).toBeDefined()
     })
 
-    it("resolves a VM-backed sandbox as SSH transport", async () => {
-      mockEndpoints.sandboxes.get.mockResolvedValue(
+    it("resolves a VM-backed workbench as SSH transport", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(
         listResponse([
           {
-            sandboxId: "sbx_vm1",
+            id: "sbx_vm1",
             name: "VM Sandbox",
             slug: "vm-sandbox",
-            status: "running",
-            realmType: "vm",
-            ownerType: "user",
-            ipAddress: "10.0.0.5",
+            spec: {
+              realmType: "vm",
+              lifecycle: "running",
+              ipAddress: "10.0.0.5",
+            },
           },
         ])
       )
@@ -161,28 +179,29 @@ describe("EntityFinder", () => {
   })
 
   describe("resolve() — priority order", () => {
-    it("sandbox match takes priority over VM with same slug", async () => {
-      mockEndpoints.sandboxes.get.mockResolvedValue(
+    it("workbench match takes priority over host with same slug", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(
         listResponse([
           {
-            sandboxId: "sbx_1",
+            id: "sbx_1",
             name: "dev-box",
             slug: "dev-box",
-            realmType: "vm",
-            ownerType: "user",
-            status: "running",
-            ipAddress: "10.0.0.1",
+            spec: {
+              realmType: "vm",
+              lifecycle: "running",
+              ipAddress: "10.0.0.1",
+            },
           },
         ])
       )
-      mockEndpoints.vms.get.mockResolvedValue(
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            vmId: "vm_1",
+            id: "vm_1",
             name: "dev-box",
             slug: "dev-box",
-            status: "running",
-            ipAddress: "10.0.0.2",
+            type: "vm",
+            spec: { ipAddress: "10.0.0.2" },
           },
         ])
       )
@@ -190,20 +209,18 @@ describe("EntityFinder", () => {
       const finder = new EntityFinder()
       const entity = await finder.resolve("dev-box")
 
-      // Sandbox wins because it's checked first
       expect(entity!.id).toBe("sbx_1")
     })
 
-    it("falls through to VMs when no sandbox matches", async () => {
-      // sandboxes returns empty
-      mockEndpoints.vms.get.mockResolvedValue(
+    it("falls through to hosts when no workbench matches", async () => {
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            vmId: "vm_lepton59",
+            id: "vm_lepton59",
             name: "lepton-59",
             slug: "lepton-59",
-            status: "running",
-            ipAddress: "192.168.1.59",
+            type: "vm",
+            spec: { ipAddress: "192.168.1.59" },
           },
         ])
       )
@@ -215,16 +232,15 @@ describe("EntityFinder", () => {
       expect(entity!.transport).toBe("ssh")
     })
 
-    it("falls through to hosts when no sandbox or VM matches", async () => {
-      // sandboxes and vms return empty
-      mockEndpoints.hosts.get.mockResolvedValue(
+    it("uses host list when workbench phase finds nothing", async () => {
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            hostId: "host_59",
+            id: "host_59",
             name: "lepton-59",
             slug: "lepton-59",
-            status: "active",
-            ipAddress: "192.168.1.59",
+            type: "bare-metal",
+            spec: { ipAddress: "192.168.1.59" },
           },
         ])
       )
@@ -244,49 +260,43 @@ describe("EntityFinder", () => {
     })
   })
 
-  describe("resolve() — slug filtering is passed to API", () => {
-    it("passes slug query param to sandbox endpoint", async () => {
+  describe("resolve() — list endpoints (no server-side slug filter)", () => {
+    it("loads workbenches via list get()", async () => {
       const finder = new EntityFinder()
       await finder.resolve("lepton-59")
 
-      expect(mockEndpoints.sandboxes.get).toHaveBeenCalledWith({
-        query: { slug: "lepton-59" },
-      })
+      expect(mockApi.workbenchesListGet).toHaveBeenCalled()
     })
 
-    it("passes slug query param to VM endpoint", async () => {
+    it("loads hosts via list get() when resolving", async () => {
+      mockApi.hostsListGet.mockResolvedValue(
+        listResponse([
+          {
+            id: "h1",
+            slug: "lepton-59",
+            name: "lepton-59",
+            spec: { ipAddress: "10.0.0.1" },
+          },
+        ])
+      )
       const finder = new EntityFinder()
       await finder.resolve("lepton-59")
 
-      expect(mockEndpoints.vms.get).toHaveBeenCalledWith({
-        query: { slug: "lepton-59" },
-      })
-    })
-
-    it("passes slug query param to host endpoint", async () => {
-      const finder = new EntityFinder()
-      await finder.resolve("lepton-59")
-
-      expect(mockEndpoints.hosts.get).toHaveBeenCalledWith({
-        query: { slug: "lepton-59" },
-      })
+      expect(mockApi.hostsListGet).toHaveBeenCalled()
     })
   })
 
   describe("resolve() — the lepton-59 bug scenario", () => {
-    it("does NOT resolve lepton-59 as a sandbox when slug filter works correctly", async () => {
-      // Scenario: sandbox endpoint correctly filters by slug and returns empty
-      // (no sandbox named lepton-59 exists), but there IS a VM/host named lepton-59
-      mockEndpoints.sandboxes.get.mockResolvedValue(emptyResponse())
-      mockEndpoints.vms.get.mockResolvedValue(emptyResponse())
-      mockEndpoints.hosts.get.mockResolvedValue(
+    it("does NOT resolve lepton-59 as an unrelated workbench", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(emptyResponse())
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            hostId: "host_lepton59",
+            id: "host_lepton59",
             name: "lepton-59",
             slug: "lepton-59",
-            status: "active",
-            ipAddress: "192.168.1.59",
+            type: "bare-metal",
+            spec: { ipAddress: "192.168.1.59" },
           },
         ])
       )
@@ -297,34 +307,28 @@ describe("EntityFinder", () => {
       expect(entity!.type).toBe("host")
       expect(entity!.transport).toBe("ssh")
       expect(entity!.sshHost).toBe("192.168.1.59")
-      // Should NOT be kubectl
       expect(entity!.transport).not.toBe("kubectl")
     })
 
-    it("correctly falls through when sandbox endpoint returns unrelated results (slug filter ignored)", async () => {
-      // Scenario: sandbox endpoint ignores slug filter and returns ALL sandboxes.
-      // This was the bug — lepton-59 resolved to "Maria Network Access Dev" via kubectl.
-      // The fix: EntityFinder now verifies the slug matches client-side before accepting.
-      mockEndpoints.sandboxes.get.mockResolvedValue(
+    it("correctly falls through when list includes unrelated workbenches", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(
         listResponse([
           {
-            sandboxId: "sbx_maria",
+            id: "sbx_maria",
             name: "Maria Network Access Dev",
             slug: "maria-network-access-dev",
-            realmType: "container",
-            ownerType: "user",
-            status: "running",
+            spec: { realmType: "container", lifecycle: "running" },
           },
         ])
       )
-      mockEndpoints.hosts.get.mockResolvedValue(
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            hostId: "host_lepton59",
+            id: "host_lepton59",
             name: "lepton-59",
             slug: "lepton-59",
-            status: "active",
-            ipAddress: "192.168.1.59",
+            type: "bare-metal",
+            spec: { ipAddress: "192.168.1.59" },
           },
         ])
       )
@@ -332,7 +336,6 @@ describe("EntityFinder", () => {
       const finder = new EntityFinder()
       const entity = await finder.resolve("lepton-59")
 
-      // Should correctly resolve as host with SSH — not the unrelated sandbox
       expect(entity!.type).toBe("host")
       expect(entity!.slug).toBe("lepton-59")
       expect(entity!.transport).toBe("ssh")
@@ -341,16 +344,14 @@ describe("EntityFinder", () => {
   })
 
   describe("default transport values", () => {
-    it("sandbox without realmType defaults to container/kubectl", async () => {
-      mockEndpoints.sandboxes.get.mockResolvedValue(
+    it("workbench without realmType defaults to container/kubectl", async () => {
+      mockApi.workbenchesListGet.mockResolvedValue(
         listResponse([
           {
-            sandboxId: "sbx_no_rt",
+            id: "sbx_no_rt",
             name: "no-runtime",
             slug: "no-runtime",
-            status: "running",
-            ownerType: "user",
-            // realmType omitted — should default to 'container'
+            spec: { lifecycle: "running" },
           },
         ])
       )
@@ -362,16 +363,18 @@ describe("EntityFinder", () => {
       expect(entity!.transport).toBe("kubectl")
     })
 
-    it("VM always gets SSH transport regardless of fields", async () => {
-      mockEndpoints.vms.get.mockResolvedValue(
+    it("VM host always gets SSH transport", async () => {
+      mockApi.hostsListGet.mockResolvedValue(
         listResponse([
           {
-            vmId: "vm_win",
+            id: "vm_win",
             name: "windows-vm",
             slug: "windows-vm",
-            status: "running",
-            ipAddress: "192.168.2.90",
-            accessUser: "Administrator",
+            type: "vm",
+            spec: {
+              ipAddress: "192.168.2.90",
+              accessUser: "Administrator",
+            },
           },
         ])
       )

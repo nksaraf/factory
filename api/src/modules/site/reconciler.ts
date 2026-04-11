@@ -1,8 +1,9 @@
-import type { GatewayAdapter, GatewayCRD } from "../../adapters/gateway-adapter"
 import type { ManifestV1 } from "@smp/factory-shared/types"
+
+import type { GatewayAdapter, GatewayCRD } from "../../adapters/gateway-adapter"
 import { manifestToCRDs } from "../../lib/crd-generator"
 import { logger } from "../../logger"
-import type { SiteStatus, ReconcileResult } from "./state"
+import type { ReconcileResult, SiteStatus } from "./state"
 
 export interface SiteReconcilerConfig {
   siteName: string
@@ -27,12 +28,15 @@ export class SiteReconciler {
   }
 
   async reconcileOnce(): Promise<ReconcileResult> {
-    const checkinUrl = `${this.config.factoryUrl}/api/v1/fleet/sites/${this.config.siteName}/checkin`
+    const checkinUrl = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/checkin`
     const checkinRes = await fetch(checkinUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        healthSnapshot: { status: "healthy", timestamp: new Date().toISOString() },
+        healthSnapshot: {
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+        },
         lastAppliedManifestVersion: this.currentManifestVersion,
       }),
     })
@@ -52,9 +56,10 @@ export class SiteReconciler {
       }
     }
 
-    const manifestUrl = `${this.config.factoryUrl}/api/v1/fleet/sites/${this.config.siteName}/manifest`
+    const manifestUrl = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/manifest`
     const manifestRes = await fetch(manifestUrl)
-    if (!manifestRes.ok) throw new Error(`Manifest fetch failed: ${manifestRes.status}`)
+    if (!manifestRes.ok)
+      throw new Error(`Manifest fetch failed: ${manifestRes.status}`)
     const manifestData = (await manifestRes.json()) as { data: ManifestV1 }
     const manifest: ManifestV1 = manifestData.data
 
@@ -82,7 +87,7 @@ export class SiteReconciler {
       .filter(
         (c) =>
           c.metadata.labels["managed-by"] === "dx" &&
-          !desiredNames.has(c.metadata.name),
+          !desiredNames.has(c.metadata.name)
       )
       .map((c) => c.metadata.name)
 
@@ -111,7 +116,7 @@ export class SiteReconciler {
         applied: applyResult.applied,
         deleted: staleNames.length,
       },
-      "site reconciler: manifest applied",
+      "site reconciler: manifest applied"
     )
 
     return result
@@ -123,7 +128,7 @@ export class SiteReconciler {
         siteName: this.config.siteName,
         intervalMs: this.config.pollIntervalMs,
       },
-      "site reconciler: starting poll loop",
+      "site reconciler: starting poll loop"
     )
     const tick = async () => {
       try {

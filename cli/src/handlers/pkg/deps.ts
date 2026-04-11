@@ -6,31 +6,30 @@
  * --external: list all non-workspace deps per package.
  * --json: machine-readable adjacency list.
  */
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-
-import { capture } from "../../lib/subprocess.js";
+import { styleBold, styleInfo, styleMuted } from "../../cli-style.js"
 import {
-  fromCwd,
+  type MavenManifest,
+  type MonorepoPackage,
   type MonorepoTopology,
-  type WorkspacePackage,
   type NpmManifest,
   type PythonManifest,
-  type MavenManifest,
-} from "../../lib/workspace-context.js";
-import { printTable } from "../../output.js";
-import { styleBold, styleMuted, styleInfo } from "../../cli-style.js";
+  fromCwd,
+} from "../../lib/monorepo-topology.js"
+import { capture } from "../../lib/subprocess.js"
+import { printTable } from "../../output.js"
 
 // ---------------------------------------------------------------------------
 // Options
 // ---------------------------------------------------------------------------
 
 export interface DepsOptions {
-  why?: string;
-  external?: boolean;
-  json?: boolean;
-  verbose?: boolean;
+  why?: string
+  external?: boolean
+  json?: boolean
+  verbose?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -38,61 +37,62 @@ export interface DepsOptions {
 // ---------------------------------------------------------------------------
 
 interface DepEdge {
-  from: string;
-  to: string;
-  version: string;
+  from: string
+  to: string
+  version: string
 }
 
-function buildWorkspaceGraph(
-  ws: MonorepoTopology,
-): { adjacency: Map<string, string[]>; edges: DepEdge[] } {
-  const pkgNames = new Set(ws.packages.map((p) => p.name));
-  const adjacency = new Map<string, string[]>();
-  const edges: DepEdge[] = [];
+function buildWorkspaceGraph(ws: MonorepoTopology): {
+  adjacency: Map<string, string[]>
+  edges: DepEdge[]
+} {
+  const pkgNames = new Set(ws.packages.map((p) => p.name))
+  const adjacency = new Map<string, string[]>()
+  const edges: DepEdge[] = []
 
   for (const pkg of ws.packages) {
-    const deps: string[] = [];
+    const deps: string[] = []
 
     if (pkg.type === "npm") {
-      const manifest = pkg.manifest as NpmManifest;
+      const manifest = pkg.manifest as NpmManifest
       for (const [dep, ver] of Object.entries({
         ...manifest.dependencies,
         ...manifest.devDependencies,
       })) {
         if (pkgNames.has(dep)) {
-          deps.push(dep);
-          edges.push({ from: pkg.name, to: dep, version: ver });
+          deps.push(dep)
+          edges.push({ from: pkg.name, to: dep, version: ver })
         }
       }
     } else if (pkg.type === "python") {
-      const manifest = pkg.manifest as PythonManifest;
+      const manifest = pkg.manifest as PythonManifest
       for (const depStr of manifest.dependencies) {
         // Python deps are like "package-name>=1.0"
-        const depName = depStr.split(/[><=!~\s]/)[0].trim();
+        const depName = depStr.split(/[><=!~\s]/)[0].trim()
         if (pkgNames.has(depName)) {
-          deps.push(depName);
-          edges.push({ from: pkg.name, to: depName, version: depStr });
+          deps.push(depName)
+          edges.push({ from: pkg.name, to: depName, version: depStr })
         }
       }
     } else if (pkg.type === "java") {
-      const manifest = pkg.manifest as MavenManifest;
+      const manifest = pkg.manifest as MavenManifest
       for (const dep of manifest.dependencies) {
-        const depName = dep.artifactId;
+        const depName = dep.artifactId
         if (pkgNames.has(depName)) {
-          deps.push(depName);
+          deps.push(depName)
           edges.push({
             from: pkg.name,
             to: depName,
             version: dep.version,
-          });
+          })
         }
       }
     }
 
-    adjacency.set(pkg.name, deps);
+    adjacency.set(pkg.name, deps)
   }
 
-  return { adjacency, edges };
+  return { adjacency, edges }
 }
 
 // ---------------------------------------------------------------------------
@@ -101,49 +101,49 @@ function buildWorkspaceGraph(
 
 function renderTree(
   adjacency: Map<string, string[]>,
-  ws: MonorepoTopology,
+  ws: MonorepoTopology
 ): string {
-  const lines: string[] = [];
+  const lines: string[] = []
   const roots = [...adjacency.keys()].filter((name) => {
     // Roots are packages that no other package depends on
     for (const deps of adjacency.values()) {
-      if (deps.includes(name)) return false;
+      if (deps.includes(name)) return false
     }
-    return true;
-  });
+    return true
+  })
 
   // If no roots found (all circular), just list everything
-  const startNodes = roots.length > 0 ? roots : [...adjacency.keys()];
+  const startNodes = roots.length > 0 ? roots : [...adjacency.keys()]
 
-  const visited = new Set<string>();
+  const visited = new Set<string>()
 
   function printNode(name: string, prefix: string, isLast: boolean): void {
-    const connector = isLast ? "└── " : "├── ";
-    const pkg = ws.packages.find((p) => p.name === name);
-    const typeTag = pkg ? styleMuted(` [${pkg.type}]`) : "";
-    lines.push(`${prefix}${connector}${styleBold(name)}${typeTag}`);
+    const connector = isLast ? "└── " : "├── "
+    const pkg = ws.packages.find((p) => p.name === name)
+    const typeTag = pkg ? styleMuted(` [${pkg.type}]`) : ""
+    lines.push(`${prefix}${connector}${styleBold(name)}${typeTag}`)
 
     if (visited.has(name)) {
-      const childPrefix = prefix + (isLast ? "    " : "│   ");
-      lines.push(`${childPrefix}${styleMuted("(circular)")}`);
-      return;
+      const childPrefix = prefix + (isLast ? "    " : "│   ")
+      lines.push(`${childPrefix}${styleMuted("(circular)")}`)
+      return
     }
-    visited.add(name);
+    visited.add(name)
 
-    const deps = adjacency.get(name) ?? [];
-    const childPrefix = prefix + (isLast ? "    " : "│   ");
+    const deps = adjacency.get(name) ?? []
+    const childPrefix = prefix + (isLast ? "    " : "│   ")
     for (let i = 0; i < deps.length; i++) {
-      printNode(deps[i], childPrefix, i === deps.length - 1);
+      printNode(deps[i], childPrefix, i === deps.length - 1)
     }
   }
 
-  lines.push(styleBold("Workspace dependency tree:"));
+  lines.push(styleBold("Workspace dependency tree:"))
   for (let i = 0; i < startNodes.length; i++) {
-    visited.clear();
-    printNode(startNodes[i], "", i === startNodes.length - 1);
+    visited.clear()
+    printNode(startNodes[i], "", i === startNodes.length - 1)
   }
 
-  return lines.join("\n");
+  return lines.join("\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -153,33 +153,33 @@ function renderTree(
 async function whyPackage(
   ws: MonorepoTopology,
   target: string,
-  opts: DepsOptions,
+  opts: DepsOptions
 ): Promise<void> {
   // For npm, try pnpm why first
   if (existsSync(join(ws.root, "pnpm-workspace.yaml"))) {
     const result = await capture(["pnpm", "why", target, "-r"], {
       cwd: ws.root,
-    });
+    })
     if (result.exitCode === 0 && result.stdout.trim()) {
-      console.log(result.stdout);
-      return;
+      console.log(result.stdout)
+      return
     }
   }
 
   // Fallback: manual reverse lookup
-  const { adjacency } = buildWorkspaceGraph(ws);
-  const dependents: string[] = [];
+  const { adjacency } = buildWorkspaceGraph(ws)
+  const dependents: string[] = []
 
   for (const [name, deps] of adjacency) {
-    if (deps.includes(target)) dependents.push(name);
+    if (deps.includes(target)) dependents.push(name)
   }
 
   if (dependents.length === 0) {
-    console.log(`No workspace packages depend on ${target}`);
+    console.log(`No workspace packages depend on ${target}`)
   } else {
     console.log(
-      `${styleInfo(target)} is depended on by:\n${dependents.map((d) => `  ${d}`).join("\n")}`,
-    );
+      `${styleInfo(target)} is depended on by:\n${dependents.map((d) => `  ${d}`).join("\n")}`
+    )
   }
 }
 
@@ -188,49 +188,49 @@ async function whyPackage(
 // ---------------------------------------------------------------------------
 
 function showExternalDeps(ws: MonorepoTopology, opts: DepsOptions): void {
-  const pkgNames = new Set(ws.packages.map((p) => p.name));
-  const rows: string[][] = [];
+  const pkgNames = new Set(ws.packages.map((p) => p.name))
+  const rows: string[][] = []
 
   for (const pkg of ws.packages) {
-    const externalDeps: string[] = [];
+    const externalDeps: string[] = []
 
     if (pkg.type === "npm") {
-      const manifest = pkg.manifest as NpmManifest;
+      const manifest = pkg.manifest as NpmManifest
       for (const dep of Object.keys(manifest.dependencies)) {
         if (!dep.startsWith("workspace:") && !pkgNames.has(dep)) {
-          externalDeps.push(dep);
+          externalDeps.push(dep)
         }
       }
     } else if (pkg.type === "python") {
-      const manifest = pkg.manifest as PythonManifest;
+      const manifest = pkg.manifest as PythonManifest
       for (const depStr of manifest.dependencies) {
-        const depName = depStr.split(/[><=!~\s]/)[0].trim();
-        if (!pkgNames.has(depName)) externalDeps.push(depName);
+        const depName = depStr.split(/[><=!~\s]/)[0].trim()
+        if (!pkgNames.has(depName)) externalDeps.push(depName)
       }
     } else if (pkg.type === "java") {
-      const manifest = pkg.manifest as MavenManifest;
+      const manifest = pkg.manifest as MavenManifest
       for (const dep of manifest.dependencies) {
         if (!pkgNames.has(dep.artifactId)) {
-          externalDeps.push(`${dep.groupId}:${dep.artifactId}`);
+          externalDeps.push(`${dep.groupId}:${dep.artifactId}`)
         }
       }
     }
 
     if (externalDeps.length > 0) {
-      rows.push([pkg.name, pkg.type, externalDeps.join(", ")]);
+      rows.push([pkg.name, pkg.type, externalDeps.join(", ")])
     }
   }
 
   if (opts.json) {
-    const data: Record<string, string[]> = {};
+    const data: Record<string, string[]> = {}
     for (const [name, , deps] of rows) {
-      data[name] = deps.split(", ");
+      data[name] = deps.split(", ")
     }
-    console.log(JSON.stringify({ success: true, data }, null, 2));
+    console.log(JSON.stringify({ success: true, data }, null, 2))
   } else if (rows.length > 0) {
-    console.log(printTable(["Package", "Type", "External Dependencies"], rows));
+    console.log(printTable(["Package", "Type", "External Dependencies"], rows))
   } else {
-    console.log("No external dependencies found.");
+    console.log("No external dependencies found.")
   }
 }
 
@@ -238,36 +238,33 @@ function showExternalDeps(ws: MonorepoTopology, opts: DepsOptions): void {
 // Main handler
 // ---------------------------------------------------------------------------
 
-export async function pkgDeps(
-  root: string,
-  opts: DepsOptions,
-): Promise<void> {
-  const ws = fromCwd(root);
+export async function pkgDeps(root: string, opts: DepsOptions): Promise<void> {
+  const ws = fromCwd(root)
 
   if (ws.packages.length === 0) {
-    console.log("No workspace packages found.");
-    return;
+    console.log("No workspace packages found.")
+    return
   }
 
   if (opts.why) {
-    await whyPackage(ws, opts.why, opts);
-    return;
+    await whyPackage(ws, opts.why, opts)
+    return
   }
 
   if (opts.external) {
-    showExternalDeps(ws, opts);
-    return;
+    showExternalDeps(ws, opts)
+    return
   }
 
-  const { adjacency } = buildWorkspaceGraph(ws);
+  const { adjacency } = buildWorkspaceGraph(ws)
 
   if (opts.json) {
-    const data: Record<string, string[]> = {};
+    const data: Record<string, string[]> = {}
     for (const [name, deps] of adjacency) {
-      data[name] = deps;
+      data[name] = deps
     }
-    console.log(JSON.stringify({ success: true, data }, null, 2));
+    console.log(JSON.stringify({ success: true, data }, null, 2))
   } else {
-    console.log(renderTree(adjacency, ws));
+    console.log(renderTree(adjacency, ws))
   }
 }

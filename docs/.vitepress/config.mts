@@ -202,7 +202,7 @@ export default withMermaid(
               { text: "dx catalog", link: "/cli/catalog" },
               { text: "dx open", link: "/cli/open" },
               { text: "dx route", link: "/cli/route" },
-              { text: "dx workspace", link: "/cli/workspace" },
+              { text: "dx workbench", link: "/cli/workbench" },
             ],
           },
         ],

@@ -1,8 +1,7 @@
 import { getFactoryClient, getFactoryRestClient } from "../client.js"
-import type { FactoryClient } from "../lib/api-client.js"
 import {
-  apiCall,
   actionResult,
+  apiCall,
   colorStatus,
   detailView,
   styleBold,
@@ -11,6 +10,7 @@ import {
   tableOrJson,
   unwrapList,
 } from "../commands/list-helpers.js"
+import type { FactoryClient } from "../lib/api-client.js"
 import type { DxFlags } from "../stub.js"
 
 // ── Types ────────────────────────────────────────────────────
@@ -44,10 +44,10 @@ type SyncResult = {
 
 function providerTag(provider: string): string {
   const colors: Record<string, string> = {
-    github: "\x1b[37m",  // white
-    slack: "\x1b[35m",   // magenta
-    jira: "\x1b[36m",    // cyan
-    google: "\x1b[33m",  // yellow
+    github: "\x1b[37m", // white
+    slack: "\x1b[35m", // magenta
+    jira: "\x1b[36m", // cyan
+    google: "\x1b[33m", // yellow
   }
   const reset = "\x1b[0m"
   return `${colors[provider] ?? ""}${provider}${reset}`
@@ -68,11 +68,11 @@ function unwrapSingle<T>(data: unknown): T | undefined {
 
 async function fetchIdentities(
   rest: FactoryClient,
-  principalId: string,
+  principalId: string
 ): Promise<IdentityLinkRow[]> {
   const res = await rest.request<{ data: IdentityLinkRow[] }>(
     "GET",
-    `/api/v1/factory/org/principals/${principalId}/identities`,
+    `/api/factory/org/principals/${principalId}/identities`
   )
   return res?.data ?? []
 }
@@ -83,7 +83,7 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
   const api = await getFactoryClient()
   const rest = await getFactoryRestClient()
   const data = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals.get({ query: { limit: 500 } }),
+    api.api.v1.factory.org.principals.get({ query: { limit: 500 } })
   )
 
   const principals = unwrapList<Principal>(data)
@@ -97,7 +97,7 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
       batch.map(async (p) => {
         const links = await fetchIdentities(rest, p.id)
         return { id: p.id, links }
-      }),
+      })
     )
     for (const r of results) {
       if (r.status === "fulfilled") {
@@ -153,12 +153,12 @@ export async function runIdentityList(flags: DxFlags): Promise<void> {
 
 export async function runIdentityShow(
   flags: DxFlags,
-  slugOrId: string,
+  slugOrId: string
 ): Promise<void> {
   const api = await getFactoryClient()
   const rest = await getFactoryRestClient()
   const data = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals({ slugOrId }).get(),
+    api.api.v1.factory.org.principals({ slugOrId }).get()
   )
 
   const principal = unwrapSingle<Principal>(data)
@@ -171,7 +171,13 @@ export async function runIdentityShow(
   const links = await fetchIdentities(rest, principal.id)
 
   if (flags.json) {
-    console.log(JSON.stringify({ success: true, data: { ...principal, identities: links } }, null, 2))
+    console.log(
+      JSON.stringify(
+        { success: true, data: { ...principal, identities: links } },
+        null,
+        2
+      )
+    )
     return
   }
 
@@ -179,7 +185,9 @@ export async function runIdentityShow(
   console.log(`${styleMuted("ID")}     ${principal.id}`)
   console.log(`${styleMuted("Slug")}   ${principal.slug}`)
   console.log(`${styleMuted("Type")}   ${principal.type}`)
-  console.log(`${styleMuted("Email")}  ${specString(principal.spec, "email") || styleMuted("-")}`)
+  console.log(
+    `${styleMuted("Email")}  ${specString(principal.spec, "email") || styleMuted("-")}`
+  )
   console.log()
 
   if (links.length === 0) {
@@ -188,7 +196,9 @@ export async function runIdentityShow(
     console.log(styleBold("Linked Identities:"))
     for (const link of links) {
       const login = specString(link.spec, "displayName") || link.externalId
-      console.log(`  ${providerTag(link.type).padEnd(20)} ${login} ${styleMuted(`(${link.externalId})`)}`)
+      console.log(
+        `  ${providerTag(link.type).padEnd(20)} ${login} ${styleMuted(`(${link.externalId})`)}`
+      )
     }
   }
 }
@@ -200,15 +210,19 @@ export async function runIdentityLink(
   principalSlug: string,
   provider: string,
   externalId: string,
-  displayName?: string,
+  displayName?: string
 ): Promise<void> {
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/v1/factory/org/principals/${principalSlug}/link-identity`,
-    { type: provider, externalId, displayName },
+    `/api/factory/org/principals/${principalSlug}/link-identity`,
+    { type: provider, externalId, displayName }
   )
-  actionResult(flags, data, styleSuccess(`Linked ${provider}:${externalId} to ${principalSlug}`))
+  actionResult(
+    flags,
+    data,
+    styleSuccess(`Linked ${provider}:${externalId} to ${principalSlug}`)
+  )
 }
 
 // ── Unlink ───────────────────────────────────────────────────
@@ -216,15 +230,19 @@ export async function runIdentityLink(
 export async function runIdentityUnlink(
   flags: DxFlags,
   principalSlug: string,
-  provider: string,
+  provider: string
 ): Promise<void> {
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/v1/factory/org/principals/${principalSlug}/unlink-identity`,
-    { provider },
+    `/api/factory/org/principals/${principalSlug}/unlink-identity`,
+    { provider }
   )
-  actionResult(flags, data, styleSuccess(`Unlinked ${provider} from ${principalSlug}`))
+  actionResult(
+    flags,
+    data,
+    styleSuccess(`Unlinked ${provider} from ${principalSlug}`)
+  )
 }
 
 // ── Merge ────────────────────────────────────────────────────
@@ -232,12 +250,12 @@ export async function runIdentityUnlink(
 export async function runIdentityMerge(
   flags: DxFlags,
   keepSlug: string,
-  duplicateSlug: string,
+  duplicateSlug: string
 ): Promise<void> {
   // Resolve the duplicate's ID first
   const api = await getFactoryClient()
   const dupData = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals({ slugOrId: duplicateSlug }).get(),
+    api.api.v1.factory.org.principals({ slugOrId: duplicateSlug }).get()
   )
   const dup = unwrapSingle<{ id: string }>(dupData)
 
@@ -249,10 +267,14 @@ export async function runIdentityMerge(
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/v1/factory/org/principals/${keepSlug}/merge`,
-    { duplicateId: dup.id },
+    `/api/factory/org/principals/${keepSlug}/merge`,
+    { duplicateId: dup.id }
   )
-  actionResult(flags, data, styleSuccess(`Merged ${duplicateSlug} into ${keepSlug}`))
+  actionResult(
+    flags,
+    data,
+    styleSuccess(`Merged ${duplicateSlug} into ${keepSlug}`)
+  )
 }
 
 // ── Sync ─────────────────────────────────────────────────────
@@ -262,8 +284,8 @@ export async function runIdentitySync(flags: DxFlags): Promise<void> {
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ status: string; data: SyncResult[] }>(
     "POST",
-    "/api/v1/factory/org/sync/identities",
-    {},
+    "/api/factory/org/sync/identities",
+    {}
   )
 
   if (flags.json) {
@@ -295,12 +317,12 @@ export async function runIdentitySync(flags: DxFlags): Promise<void> {
 
 export async function runIdentityUnmatched(
   flags: DxFlags,
-  opts?: { provider?: string },
+  opts?: { provider?: string }
 ): Promise<void> {
   const api = await getFactoryClient()
   const rest = await getFactoryRestClient()
   const data = await apiCall(flags, () =>
-    api.api.v1.factory.org.principals.get({ query: { limit: 500 } }),
+    api.api.v1.factory.org.principals.get({ query: { limit: 500 } })
   )
 
   const principals = unwrapList<Principal>(data)
@@ -314,7 +336,7 @@ export async function runIdentityUnmatched(
       batch.map(async (p) => {
         const links = await fetchIdentities(rest, p.id)
         return { id: p.id, links }
-      }),
+      })
     )
     for (const r of results) {
       if (r.status === "fulfilled") {
@@ -350,7 +372,9 @@ export async function runIdentityUnmatched(
     return
   }
 
-  const label = targetProvider ? `missing ${targetProvider}` : "with single provider"
+  const label = targetProvider
+    ? `missing ${targetProvider}`
+    : "with single provider"
   console.log(`${styleBold(String(unmatched.length))} principals ${label}:\n`)
 
   const providers = ["github", "slack", "jira", "google"]

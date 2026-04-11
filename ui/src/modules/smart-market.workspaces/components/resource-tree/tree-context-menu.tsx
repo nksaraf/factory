@@ -26,10 +26,10 @@ import { useCreateResource } from "../../data/use-create-resource"
 import { useDeleteResource } from "../../data/use-delete-resource"
 import { useUpdateResource } from "../../data/use-update-resource"
 import type { Resource } from "../../types"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 function useResourceActions(resource: Resource) {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
   const updateResource = useUpdateResource(workspaceId)
   const deleteResource = useDeleteResource(workspaceId)
   const createResource = useCreateResource(workspaceId)

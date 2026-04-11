@@ -5,12 +5,15 @@ export class SiteSimulator {
 
   constructor(
     private siteName: string,
-    private apiBaseUrl: string,
+    private apiBaseUrl: string
   ) {}
 
-  async checkin(): Promise<{ manifestChanged: boolean; manifest?: ManifestV1 }> {
+  async checkin(): Promise<{
+    manifestChanged: boolean
+    manifest?: ManifestV1
+  }> {
     const res = await fetch(
-      `${this.apiBaseUrl}/api/v1/fleet/sites/${this.siteName}/checkin`,
+      `${this.apiBaseUrl}/api/factory/ops/sites/${this.siteName}/checkin`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,9 +29,12 @@ export class SiteSimulator {
     if (!res.ok) throw new Error(`Checkin failed: ${res.status}`)
     const data = await res.json()
 
-    if (data.manifestChanged && data.latestVersion > this.currentManifestVersion) {
+    if (
+      data.manifestChanged &&
+      data.latestVersion > this.currentManifestVersion
+    ) {
       const manifestRes = await fetch(
-        `${this.apiBaseUrl}/api/v1/fleet/sites/${this.siteName}/manifest`
+        `${this.apiBaseUrl}/api/factory/ops/sites/${this.siteName}/manifest`
       )
       if (!manifestRes.ok)
         throw new Error(`Manifest fetch failed: ${manifestRes.status}`)

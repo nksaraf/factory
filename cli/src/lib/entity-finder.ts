@@ -54,13 +54,13 @@ export class EntityFinder {
 
     // 1. Try workbenches
     try {
-      const result = await api.api.v1.factory.fleet.workbenches.get()
+      const result = await api.api.v1.factory.ops.workbenches.get()
       const items = (result?.data?.data ?? []).filter(
         (w) => w.slug === target || w.id === target
       )
       if (items.length === 0) {
         try {
-          const byId = await api.api.v1.factory.fleet
+          const byId = await api.api.v1.factory.ops
             .workbenches({ slugOrId: target })
             .get()
           const wksData = byId?.data?.data ?? byId?.data
@@ -182,7 +182,7 @@ export class EntityFinder {
   ): Promise<{ kubeconfig?: string; endpoint?: string }> {
     try {
       // 1. Get system deployment → realmId
-      const sdResult = await api.api.v1.factory.fleet["system-deployments"]({
+      const sdResult = await api.api.v1.factory.ops["system-deployments"]({
         slugOrId: systemDeploymentId,
       }).get()
       const sdRaw = sdResult?.data?.data ?? sdResult?.data
@@ -259,9 +259,7 @@ export class EntityFinder {
 
     // Fetch in parallel: workbenches + hosts
     const [workbenches, hosts] = await Promise.allSettled([
-      api.api.v1.factory.fleet.workbenches
-        .get()
-        .then((r) => r?.data?.data ?? []),
+      api.api.v1.factory.ops.workbenches.get().then((r) => r?.data?.data ?? []),
       api.api.v1.factory.infra.hosts.get().then((r) => r?.data?.data ?? []),
     ])
 

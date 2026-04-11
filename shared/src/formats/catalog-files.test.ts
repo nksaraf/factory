@@ -172,7 +172,7 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     )
     // healthchecks (not old healthcheck)
     expect(api.spec.healthchecks.ready.http).toMatchObject({
-      path: "/api/v1/factory/openapi",
+      path: "/api/factory/openapi",
       port: 3000,
     })
   })
@@ -266,16 +266,16 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     const hc = api.spec.healthchecks
     expect(hc).toBeDefined()
 
-    expect(hc.live.http).toMatchObject({ path: "/api/v1/health", port: 3000 })
+    expect(hc.live.http).toMatchObject({ path: "/health", port: 3000 })
     expect(hc.live.delay).toBe(10)
     expect(hc.live.retries).toBe(3)
 
     expect(hc.ready.http).toMatchObject({
-      path: "/api/v1/factory/openapi",
+      path: "/api/factory/openapi",
       port: 3000,
     })
 
-    expect(hc.start.http).toMatchObject({ path: "/api/v1/health", port: 3000 })
+    expect(hc.start.http).toMatchObject({ path: "/health", port: 3000 })
     expect(hc.start.retries).toBe(12)
   })
 
@@ -317,7 +317,7 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     expect(api.spec.routes).toHaveLength(1)
     expect(api.spec.routes[0]).toMatchObject({
       host: "factory.internal",
-      path: "/api/v1/factory",
+      path: "/api/factory",
       pathMatch: "prefix",
       portName: "http",
       tls: { enabled: true, secretName: "factory-tls" },
@@ -331,7 +331,7 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     expect(auth.spec.routes).toHaveLength(1)
     expect(auth.spec.routes[0]).toMatchObject({
       host: "factory.internal",
-      path: "/api/v1/auth",
+      path: "/api/auth",
       portName: "http",
     })
   })

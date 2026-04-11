@@ -11,7 +11,7 @@ import {
   deleteLocalWorkbench,
   listLocalWorkbenches,
   showLocalWorkbench,
-} from "../handlers/workspace/local-workspace.js"
+} from "../handlers/workbench/local-workbench.js"
 import type { FactoryClient } from "../lib/api-client.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { addHostEntry, removeHostEntry } from "../lib/hosts-manager.js"
@@ -42,7 +42,7 @@ setExamples("workbench", [
   "$ dx workbench delete my-ws                   Delete a workbench",
 ])
 
-const WS_BASE = "/api/v1/factory/fleet/workbenches"
+const WS_BASE = "/api/factory/ops/workbenches"
 function wsPath(id?: string, action?: string): string {
   let p = WS_BASE
   if (id) p += `/${id}`
@@ -50,7 +50,7 @@ function wsPath(id?: string, action?: string): string {
   return p
 }
 
-const SNAP_BASE = "/api/v1/factory/fleet/workbench-snapshots"
+const SNAP_BASE = "/api/factory/ops/workbench-snapshots"
 function snapPath(id?: string, action?: string): string {
   let p = SNAP_BASE
   if (id) p += `/${id}`
@@ -65,7 +65,7 @@ async function getApi() {
   return getFactoryClient()
 }
 // Shorthand to reach the workbenches sub-path on the Eden proxy.
-const S = (api: FactoryEdenClient) => api.api.v1.factory.fleet.workbenches
+const S = (api: FactoryEdenClient) => api.api.v1.factory.ops.workbenches
 
 async function waitForStatus(
   rest: FactoryClient,
@@ -303,7 +303,7 @@ export function workbenchCommand(app: DxBase) {
   return (
     app
       .sub("workbench")
-      .meta({ description: "Manage workspaces" })
+      .meta({ description: "Manage workbenches" })
 
       // --- create ---
       .command("create", (c) =>
@@ -417,7 +417,7 @@ export function workbenchCommand(app: DxBase) {
               }
 
               const { input, select, filter } = await import("@crustjs/prompts")
-              const { WORKSPACE_PRESETS } =
+              const { WORKBENCH_PRESETS } =
                 await import("../lib/workbench-presets.js")
 
               // 1. Name
@@ -428,7 +428,7 @@ export function workbenchCommand(app: DxBase) {
 
               // 2. Size
               const sizeChoices = [
-                ...Object.entries(WORKSPACE_PRESETS).map(([key, p]) => ({
+                ...Object.entries(WORKBENCH_PRESETS).map(([key, p]) => ({
                   label: `${p.label.padEnd(8)} ${styleMuted(p.description)}`,
                   value: key,
                 })),
@@ -455,7 +455,7 @@ export function workbenchCommand(app: DxBase) {
                 })
                 overrides.storage = parseInt(storageStr, 10)
               } else {
-                const preset = WORKSPACE_PRESETS[sizeChoice]!
+                const preset = WORKBENCH_PRESETS[sizeChoice]!
                 overrides.cpu = preset.cpu
                 overrides.memory = preset.memory
                 overrides.storage = preset.storageGb
@@ -503,9 +503,9 @@ export function workbenchCommand(app: DxBase) {
 
             // ── Size preset (non-interactive shorthand) ──
             if (flags.size && !flags.cpu && !flags.memory) {
-              const { WORKSPACE_PRESETS } =
+              const { WORKBENCH_PRESETS } =
                 await import("../lib/workbench-presets.js")
-              const preset = WORKSPACE_PRESETS[flags.size as string]
+              const preset = WORKBENCH_PRESETS[flags.size as string]
               if (preset) {
                 overrides.cpu = preset.cpu
                 overrides.memory = preset.memory
@@ -519,7 +519,7 @@ export function workbenchCommand(app: DxBase) {
               try {
                 const branch =
                   overrides.branch ?? (flags.branch as string) ?? name
-                const result = await createLocalWorkspace({
+                const result = await createLocalWorkbench({
                   name: name!,
                   branch,
                   path: flags.path as string | undefined,
@@ -699,7 +699,7 @@ export function workbenchCommand(app: DxBase) {
       // --- list ---
       .command("list", (c) =>
         c
-          .meta({ description: "List workspaces" })
+          .meta({ description: "List workbenches" })
           .flags({
             tier: {
               type: "string",
@@ -708,7 +708,7 @@ export function workbenchCommand(app: DxBase) {
             all: {
               type: "boolean",
               alias: "a",
-              description: "Include stopped/destroyed workspaces",
+              description: "Include stopped/destroyed workbenches",
             },
             status: {
               type: "string",
@@ -753,23 +753,23 @@ export function workbenchCommand(app: DxBase) {
             }
 
             // Collect data from both local and remote sources
-            const localWorkspaces: Awaited<
-              ReturnType<typeof listLocalWorkspaces>
+            const localWorkbenches: Awaited<
+              ReturnType<typeof listLocalWorkbenches>
             > = []
             const remoteItems: Record<string, unknown>[] = []
 
             // Local worktrees
             if (!tier || tier === "worktree") {
               try {
-                localWorkspaces.push(
-                  ...(await listLocalWorkspaces({ project }))
+                localWorkbenches.push(
+                  ...(await listLocalWorkbenches({ project }))
                 )
               } catch {
                 // No git repo or detection failed — skip local
               }
             }
 
-            // Remote workspaces
+            // Remote workbenches
             if (!tier || tier !== "worktree") {
               try {
                 const api = await getApi()
@@ -791,7 +791,7 @@ export function workbenchCommand(app: DxBase) {
                 // Factory API unavailable — skip remote
                 if (tier && tier !== "worktree") {
                   console.error(
-                    "Failed to connect to Factory API for remote workspaces."
+                    "Failed to connect to Factory API for remote workbenches."
                   )
                   process.exit(1)
                 }
@@ -800,7 +800,7 @@ export function workbenchCommand(app: DxBase) {
 
             if (f.json) {
               const data = [
-                ...localWorkspaces,
+                ...localWorkbenches,
                 ...remoteItems.map((r: Record<string, unknown>) => {
                   const spec = (
                     r.spec && typeof r.spec === "object" ? r.spec : {}
@@ -821,7 +821,7 @@ export function workbenchCommand(app: DxBase) {
 
             // Build table rows
             const rows: string[][] = []
-            for (const w of localWorkspaces) {
+            for (const w of localWorkbenches) {
               rows.push([
                 styleBold(w.name),
                 "worktree",
@@ -846,7 +846,7 @@ export function workbenchCommand(app: DxBase) {
             }
 
             if (rows.length === 0) {
-              console.log("No workspaces found.")
+              console.log("No workbenches found.")
               return
             }
 
@@ -882,7 +882,7 @@ export function workbenchCommand(app: DxBase) {
 
             // Try local worktree first
             try {
-              const local = await showLocalWorkspace(args.id)
+              const local = await showLocalWorkbench(args.id)
               if (local) {
                 if (f.json) {
                   console.log(
@@ -1040,10 +1040,10 @@ export function workbenchCommand(app: DxBase) {
 
             // Try local worktree first
             try {
-              const local = await showLocalWorkspace(args.id)
+              const local = await showLocalWorkbench(args.id)
               if (local) {
                 try {
-                  await deleteLocalWorkspace(args.id, {
+                  await deleteLocalWorkbench(args.id, {
                     force: flags.force as boolean,
                     resolved: local,
                   })

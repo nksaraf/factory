@@ -37,7 +37,7 @@ import {
   specCol,
   updatedAt,
 } from "./helpers"
-import { host, realm } from "./infra-v2"
+import { host, realm, service } from "./infra-v2"
 import { principal } from "./org-v2"
 import { artifact, component, release, system, template } from "./software-v2"
 
@@ -104,7 +104,7 @@ export const systemDeployment = opsSchema.table(
       .$defaultFn(() => newId("sdp")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
-    type: text("type").notNull(), // production, staging, dev
+    type: text("type").notNull(),
     systemId: text("system_id")
       .notNull()
       .references(() => system.id),
@@ -117,6 +117,7 @@ export const systemDeployment = opsSchema.table(
     realmId: text("realm_id").references(() => realm.id, {
       onDelete: "set null",
     }),
+    workbenchId: text("workbench_id"),
     spec: specCol<SystemDeploymentSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
@@ -125,11 +126,11 @@ export const systemDeployment = opsSchema.table(
     ...reconciliationCols(),
   },
   (t) => [
-    // Partial unique index in migration (bitemporal)
     index("ops_system_deployment_site_slug_idx").on(t.siteId, t.slug),
     index("ops_system_deployment_system_idx").on(t.systemId),
     index("ops_system_deployment_tenant_idx").on(t.tenantId),
     index("ops_system_deployment_realm_idx").on(t.realmId),
+    index("ops_system_deployment_workbench_idx").on(t.workbenchId),
   ]
 )
 
@@ -184,15 +185,16 @@ export const componentDeployment = opsSchema.table(
     artifactId: text("artifact_id").references(() => artifact.id, {
       onDelete: "set null",
     }),
+    workbenchId: text("workbench_id"),
+    serviceId: text("service_id").references(() => service.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<ComponentDeploymentSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...reconciliationCols(),
   },
   (t) => [
-    // Partial unique indexes added in migration:
-    // UNIQUE(system_deployment_id, deployment_set_id, component_id) WHERE deployment_set_id IS NOT NULL
-    // UNIQUE(system_deployment_id, component_id) WHERE deployment_set_id IS NULL
     index("ops_component_deployment_sd_dset_component_idx").on(
       t.systemDeploymentId,
       t.deploymentSetId,
@@ -202,6 +204,8 @@ export const componentDeployment = opsSchema.table(
     index("ops_component_deployment_dset_idx").on(t.deploymentSetId),
     index("ops_component_deployment_component_idx").on(t.componentId),
     index("ops_component_deployment_artifact_idx").on(t.artifactId),
+    index("ops_component_deployment_workbench_idx").on(t.workbenchId),
+    index("ops_component_deployment_service_idx").on(t.serviceId),
   ]
 )
 
@@ -215,11 +219,16 @@ export const workbench = opsSchema.table(
       .$defaultFn(() => newId("wbnch")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
-    type: text("type").notNull(), // developer, agent, ci, playground
+    type: text("type").notNull(),
+    siteId: text("site_id").references(() => site.id, { onDelete: "cascade" }),
     hostId: text("host_id").references(() => host.id, { onDelete: "set null" }),
     realmId: text("realm_id").references(() => realm.id, {
       onDelete: "set null",
     }),
+    serviceId: text("service_id").references(() => service.id, {
+      onDelete: "set null",
+    }),
+    parentWorkbenchId: text("parent_workbench_id"),
     templateId: text("template_id").references(() => template.id, {
       onDelete: "set null",
     }),
@@ -234,11 +243,13 @@ export const workbench = opsSchema.table(
     ...reconciliationCols(),
   },
   (t) => [
-    // Partial unique index in migration (bitemporal)
     index("ops_workbench_slug_idx").on(t.slug),
     index("ops_workbench_type_idx").on(t.type),
+    index("ops_workbench_site_idx").on(t.siteId),
     index("ops_workbench_host_idx").on(t.hostId),
     index("ops_workbench_realm_idx").on(t.realmId),
+    index("ops_workbench_service_idx").on(t.serviceId),
+    index("ops_workbench_parent_idx").on(t.parentWorkbenchId),
     index("ops_workbench_owner_idx").on(t.ownerId),
   ]
 )

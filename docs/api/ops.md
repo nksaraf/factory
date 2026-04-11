@@ -2,7 +2,7 @@
 
 The `ops` domain models everything that is currently running. It owns the "what is deployed" layer: **Sites** (deployment targets), **Tenants** (customer-isolated slices of a site), **Workspaces** (ephemeral developer/agent compute), **Workbenches** (registered developer machines), **System Deployments** (a system running on a site), **Deployment Sets** (versioned subsets for blue-green/canary), **Component Deployments** (per-component runtime status), **Previews** (ephemeral PR-linked environments), and **Databases** (per-deployment database instances).
 
-**Base prefix:** `/api/v1/factory/ops`
+**Base prefix:** `/api/factory/ops`
 
 ## Endpoints
 
@@ -103,7 +103,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/sites"
+  "https://factory.example.com/api/factory/ops/sites"
 ```
 
 ### Create a tenant
@@ -134,7 +134,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/tenants"
+  "https://factory.example.com/api/factory/ops/tenants"
 ```
 
 ### Create a system deployment
@@ -162,7 +162,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "labels": { "team": "commerce", "tier": "critical" }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/system-deployments"
+  "https://factory.example.com/api/factory/ops/system-deployments"
 ```
 
 ### Create a deployment set (blue-green)
@@ -182,7 +182,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "testUrl": "https://payments-green.internal.example.com"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/deployment-sets"
+  "https://factory.example.com/api/factory/ops/deployment-sets"
 ```
 
 ### Create a component deployment
@@ -208,7 +208,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/component-deployments"
+  "https://factory.example.com/api/factory/ops/component-deployments"
 ```
 
 ### Create a preview environment
@@ -233,7 +233,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/previews"
+  "https://factory.example.com/api/factory/ops/previews"
 ```
 
 ### Create a workspace
@@ -259,7 +259,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "lifecycle": "provisioning"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/workspaces"
+  "https://factory.example.com/api/factory/ops/workspaces"
 ```
 
 ### Extend a workspace TTL
@@ -268,7 +268,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "minutes": 120 }' \
-  "https://factory.example.com/api/v1/factory/ops/workspaces/alice-payments-ws/extend"
+  "https://factory.example.com/api/factory/ops/workspaces/alice-payments-ws/extend"
 ```
 
 ### Site controller check-in
@@ -289,7 +289,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/ops/sites/prod-us-east/checkin"
+  "https://factory.example.com/api/factory/ops/sites/prod-us-east/checkin"
 ```
 
 ## CLI equivalent
@@ -299,5 +299,5 @@ dx ops sites list --json
 dx ops system-deployments list --system payments-platform --json
 dx ops workspaces list --json
 dx ops previews list --site prod-us-east --json
-dx workspace extend alice-payments-ws --minutes 60
+dx workbench extend alice-payments-ws --minutes 60
 ```

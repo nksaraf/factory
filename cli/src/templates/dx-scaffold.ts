@@ -3,16 +3,16 @@
  * Generates .dx/hooks, .gitattributes, .github/workflows, .cursor/rules,
  * and the package.json dx key.
  */
-import type { GeneratedFile } from "./types.js";
+import type { GeneratedFile } from "./types.js"
 
 // ─── .dx/hooks ──────────────────────────────────────────────
 
 function hookScript(hookName: string, dxSubcommand: string): string {
   return `#!/bin/sh
 # dx git-hook: ${hookName}
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/factory/install | sh"; exit 1; }
 exec dx git-hook ${dxSubcommand}
-`;
+`
 }
 
 export function dxHookFiles(): GeneratedFile[] {
@@ -21,7 +21,7 @@ export function dxHookFiles(): GeneratedFile[] {
       path: ".dx/hooks/commit-msg",
       content: `#!/bin/sh
 # dx git-hook: validate commit message conventions
-command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"; exit 1; }
+command -v dx >/dev/null 2>&1 || { echo "dx not found. Install: curl -fsSL https://factory.lepton.software/api/factory/install | sh"; exit 1; }
 exec dx git-hook commit-msg "$1"
 `,
     },
@@ -50,7 +50,7 @@ command -v dx >/dev/null 2>&1 || exit 0
 exec dx sync --quiet
 `,
     },
-  ];
+  ]
 }
 
 // ─── .gitattributes ─────────────────────────────────────────
@@ -85,7 +85,7 @@ export function gitattributes(): GeneratedFile {
 *.gz binary
 *.tar binary
 `,
-  };
+  }
 }
 
 // ─── .github/workflows/dx.yaml ─────────────────────────────
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: dx deploy prod
 `,
-  };
+  }
 }
 
 // ─── .github/pull_request_template.md ───────────────────────
@@ -150,7 +150,7 @@ export function prTemplate(): GeneratedFile {
 - [ ] Tests added/updated for new behavior
 - [ ] Breaking changes documented (if any)
 `,
-  };
+  }
 }
 
 // ─── .cursor/rules ──────────────────────────────────────────
@@ -168,7 +168,7 @@ export function cursorRules(name: string): GeneratedFile {
 - Run \`dx status --json\` for structured project state
 - Run \`dx config --json\` for detected tools and pipeline configuration
 `,
-  };
+  }
 }
 
 // ─── .npmrc ─────────────────────────────────────────────────
@@ -181,7 +181,7 @@ engine-strict=true
 fund=false
 audit-level=high
 `,
-  };
+  }
 }
 
 // ─── .node-version ──────────────────────────────────────────
@@ -190,18 +190,20 @@ export function nodeVersion(): GeneratedFile {
   return {
     path: ".node-version",
     content: "22\n",
-  };
+  }
 }
 
 // ─── dx key for package.json ────────────────────────────────
 
 export interface DxPackageJsonOptions {
-  name: string;
-  owner: string;
-  type: "monorepo" | "service" | "frontend" | "library";
+  name: string
+  owner: string
+  type: "monorepo" | "service" | "frontend" | "library"
 }
 
-export function dxPackageJsonKey(opts: DxPackageJsonOptions): Record<string, any> {
+export function dxPackageJsonKey(
+  opts: DxPackageJsonOptions
+): Record<string, any> {
   return {
     version: "1.0.0",
     type: opts.type,
@@ -220,7 +222,7 @@ export function dxPackageJsonKey(opts: DxPackageJsonOptions): Record<string, any
         approval: true,
       },
     },
-  };
+  }
 }
 
 // ─── Updated .gitignore ─────────────────────────────────────
@@ -267,5 +269,5 @@ Thumbs.db
 # Logs
 *.log
 `,
-  };
+  }
 }

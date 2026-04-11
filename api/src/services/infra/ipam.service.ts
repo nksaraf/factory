@@ -233,6 +233,55 @@ export async function getIpamStats(db: Database, subnetId?: string) {
   }
 }
 
+export async function getEntityIps(
+  db: Database,
+  entityType: string,
+  entityId: string
+) {
+  const rows = await db
+    .select()
+    .from(ipAddress)
+    .where(
+      and(
+        sql`${ipAddress.spec}->>'assignedToType' = ${entityType}`,
+        sql`${ipAddress.spec}->>'assignedToId' = ${entityId}`
+      )
+    )
+  return rows.map(mapIpRow)
+}
+
+export async function ensureIp(
+  db: Database,
+  data: { address: string; subnetId?: string; spec?: Partial<IpAddressSpec> }
+) {
+  const existing = await lookupIp(db, data.address)
+  if (existing) return { ...existing, created: false as const }
+
+  const [row] = await db
+    .insert(ipAddress)
+    .values({
+      address: data.address,
+      subnetId: data.subnetId ?? null,
+      spec: toIpSpec({
+        status: "available",
+        version: data.address.includes(":") ? "v6" : "v4",
+        ...data.spec,
+      }),
+    })
+    .onConflictDoNothing({ target: ipAddress.address })
+    .returning()
+
+  if (!row) {
+    const refetched = await lookupIp(db, data.address)
+    if (!refetched) {
+      throw new Error(`Failed to ensure IP '${data.address}'`)
+    }
+    return { ...refetched, created: false as const }
+  }
+
+  return { ...mapIpRow(row), created: true as const }
+}
+
 // ── Errors ──────────────────────────────────────────────────────────────────
 
 export class NoAvailableIpsError extends Error {

@@ -3,7 +3,7 @@ import React from "react"
 
 export type TabId =
   | "infra"
-  | "fleet"
+  | "ops"
   | "workbench"
   | "build"
   | "gateway"
@@ -18,7 +18,7 @@ interface TabBarProps {
 
 const TABS: { id: TabId; label: string; key: string }[] = [
   { id: "infra", label: "Infra", key: "1" },
-  { id: "fleet", label: "Fleet", key: "2" },
+  { id: "ops", label: "Ops", key: "2" },
   { id: "workbench", label: "Workbench", key: "3" },
   { id: "build", label: "Build", key: "4" },
   { id: "gateway", label: "Gateway", key: "5" },

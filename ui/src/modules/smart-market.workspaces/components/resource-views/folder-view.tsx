@@ -4,10 +4,10 @@ import { Icon } from "@rio.js/ui/icon"
 
 import { RESOURCE_TYPE_CONFIG } from "../../constants/resource-config"
 import type { ResourceDetail } from "../../types"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 export default function FolderView({ resource }: { resource: ResourceDetail }) {
-  const { resources } = useWorkspace()
+  const { resources } = useWorkbench()
   const { workspaceId } = useParams<{ workspaceId: string }>()
   const navigate = useNavigate()
 

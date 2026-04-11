@@ -74,7 +74,7 @@ const DEFAULT_PROVIDER = {
       config: { token: "ghp_xxx" },
     },
     defaultBaseBranch: "main",
-    workspaceTtl: "4h",
+    workbenchTtl: "4h",
   },
 }
 

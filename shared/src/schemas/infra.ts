@@ -418,12 +418,31 @@ export const DnsDomainTypeSchema = z.enum([
 ])
 export type DnsDomainType = z.infer<typeof DnsDomainTypeSchema>
 
+export const DnsRecordSchema = z.object({
+  type: z.string(),
+  name: z.string(),
+  value: z.string(),
+  ttl: z.number().int().optional(),
+  priority: z.number().int().optional(),
+  externalId: z.string().optional(),
+})
+export type DnsRecord = z.infer<typeof DnsRecordSchema>
+
 export const DnsDomainSpecSchema = z.object({
-  registrar: z.string().optional(),
-  verified: z.boolean().default(false),
+  zoneEstateId: z.string().optional(),
   dnsProvider: z.string().optional(),
-  txtRecordValue: z.string().optional(),
+  registrar: z.string().optional(),
+  externalId: z.string().optional(),
+  verificationToken: z.string().optional(),
+  verified: z.boolean().default(false),
   verifiedAt: z.coerce.date().optional(),
+  status: z.string().optional(),
+  createdBy: z.string().optional(),
+  tlsCertRef: z.string().optional(),
+  tlsMode: z.string().optional(),
+  records: z.array(DnsRecordSchema).default([]),
+  lastSyncedAt: z.coerce.date().optional(),
+  syncError: z.string().optional(),
 })
 export type DnsDomainSpec = z.infer<typeof DnsDomainSpecSchema>
 
@@ -611,6 +630,13 @@ export const NetworkLinkSpecSchema = z.object({
       failureThreshold: z.number().int().default(3),
     })
     .optional(),
+
+  // DNS resolution metadata (dns-resolution/cdn-forward)
+  recordType: z.string().optional(),
+  ttl: z.number().int().optional(),
+  proxied: z.boolean().optional(),
+  externalTarget: z.string().optional(),
+  externalId: z.string().optional(),
 
   // Control
   description: z.string().optional(),

@@ -18,7 +18,7 @@ import { getWorkflowDb, updateRun } from "../../../lib/workflow-helpers"
 import { createAgentJob, routeCommentToAgent } from "../steps/agent"
 import { createBranch, postPRComment } from "../steps/git"
 import { fetchIssue, updateIssueStatus } from "../steps/work-tracker"
-import { provisionWorkbench } from "../steps/workspace"
+import { provisionWorkbench } from "../steps/workbench"
 
 // ── Input schema ─────────────────────────────────────────
 

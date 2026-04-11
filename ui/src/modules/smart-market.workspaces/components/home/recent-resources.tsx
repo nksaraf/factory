@@ -5,10 +5,10 @@ import { Icon } from "@rio.js/ui/icon"
 import { fromNow } from "@rio.js/ui/lib/fromnow"
 
 import { RESOURCE_TYPE_CONFIG } from "../../constants/resource-config"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 export function RecentResources() {
-  const { workspaceId, resources } = useWorkspace()
+  const { workspaceId, resources } = useWorkbench()
 
   const recent = useMemo(() => {
     return resources

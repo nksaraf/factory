@@ -22,7 +22,6 @@ import { entitlementCommand } from "./commands/entitlement.js"
 import { envCommand } from "./commands/env.js"
 import { execCommand } from "./commands/exec.js"
 import { factoryCommand } from "./commands/factory.js"
-import { fleetCommand } from "./commands/fleet.js"
 // ─── New commands (dx CLI redesign) ─────────────────────────
 import { formatCommand } from "./commands/format.js"
 import { forwardCommand } from "./commands/forward.js"
@@ -141,7 +140,6 @@ export function registerCommands(app: DxBase): DxBase {
       .command(entitlementCommand(app))
       .command(execCommand(app))
       .command(factoryCommand(app))
-      .command(fleetCommand(app))
       .command(gitCommand(app))
       .command(scanCommand(app))
       .command(metricsCommand(app))

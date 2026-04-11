@@ -9,11 +9,11 @@ import { createPgliteDb, migrateWithPglite } from "./factory-core"
 import { agentControllerV2 } from "./modules/agent/index.v2"
 import { buildControllerV2 } from "./modules/build/index.v2"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
-import { fleetControllerV2 } from "./modules/fleet/index.v2"
 import { healthController } from "./modules/health/index"
 import { identityControllerV2 } from "./modules/identity/index.v2"
 import { infraControllerV2 } from "./modules/infra/index.v2"
 import { messagingControllerV2 } from "./modules/messaging/index.v2"
+import { opsControllerV2 } from "./modules/ops/index.v2"
 import { productControllerV2 } from "./modules/product/index.v2"
 import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
 
@@ -25,14 +25,14 @@ export async function createTestContext() {
 
   const database = db as unknown as Database
 
-  const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
+  const factoryRoutes = new Elysia({ prefix: "/api/factory" })
     .use(errorHandlerPlugin())
     .decorate("db", database)
     .use(productControllerV2(database))
     .use(buildControllerV2(database))
     .use(agentControllerV2(database))
     .use(commerceControllerV2(database))
-    .use(fleetControllerV2(database))
+    .use(opsControllerV2(database))
     .use(infraControllerV2(database))
     .use(identityControllerV2(database))
     .use(messagingControllerV2(database))
@@ -196,7 +196,7 @@ export async function seedTestParents(client: PGlite) {
     /* table may not exist */
   }
 
-  // Seed a default realm for workbench creation (fleet beforeCreate hook requires it)
+  // Seed a default realm for workbench creation (workbench beforeCreate hook requires it)
   try {
     await client.query(
       `INSERT INTO infra.realm (id, slug, name, type, spec)

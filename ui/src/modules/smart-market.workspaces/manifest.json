@@ -1,20 +1,20 @@
 {
   "id": "smart-market.workspaces",
-  "displayName": "Workspaces",
-  "description": "Workspace management for Smart Market Platform",
+  "displayName": "Workbenches",
+  "description": "Workbench management for Smart Market Platform",
   "version": "0.0.1",
   "publisher": "rio.js",
   "engines": {
     "rio": ">=0.0.1"
   },
   "category": "platform",
-  "tags": ["workspaces", "files"],
+  "tags": ["workbenches", "files"],
   "categories": ["core"],
   "main": "extension.ts",
   "module": {
     "sidebar": {
       "icon": "icon-[ph--folders-duotone]",
-      "label": "Workspaces",
+      "label": "Workbenches",
       "order": 1
     },
     "routePrefix": "/w",
@@ -27,17 +27,17 @@
     "routes": [
       {
         "id": "smart-market.workspaces.route.list.page",
-        "displayName": "Workspaces",
+        "displayName": "Workbenches",
         "path": "/(root)/(app)/w/"
       },
       {
         "id": "smart-market.workspaces.route.workspace.layout",
-        "displayName": "Workspace",
+        "displayName": "Workbench",
         "path": "/(root)/(app)/w/:workspaceId"
       },
       {
         "id": "smart-market.workspaces.route.workspace.page",
-        "displayName": "Workspace",
+        "displayName": "Workbench",
         "path": "/(root)/(app)/w/:workspaceId/"
       },
       {

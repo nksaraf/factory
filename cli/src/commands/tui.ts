@@ -14,7 +14,8 @@ export function tuiCommand(app: DxBase) {
     .flags({
       tab: {
         type: "string",
-        description: "Open to a specific tab (infra, fleet, sandbox, build, gateway, commerce, alerts, logs)",
+        description:
+          "Open to a specific tab (infra, ops, sandbox, build, gateway, commerce, alerts, logs)",
       },
       api: {
         type: "string",

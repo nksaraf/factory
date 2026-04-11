@@ -1,21 +1,22 @@
-import type { ObservabilityAdapter } from "./observability-adapter"
 import type {
+  Alert,
+  AlertQuery,
+  AlertRule,
+  InfraMetricRow,
+  LogEntry,
   LogQuery,
   LogQueryResult,
-  LogEntry,
-  TraceQuery,
-  TraceSummary,
-  TraceSpan,
-  TraceFindQuery,
-  MetricsQuery,
-  MetricSummaryRow,
   MetricSeries,
-  InfraMetricRow,
-  AlertQuery,
-  Alert,
-  AlertRule,
+  MetricSummaryRow,
+  MetricsQuery,
   SilenceSpec,
+  TraceFindQuery,
+  TraceQuery,
+  TraceSpan,
+  TraceSummary,
 } from "@smp/factory-shared/observability-types"
+
+import type { ObservabilityAdapter } from "./observability-adapter"
 
 const DEMO_ALERTS: Alert[] = [
   {
@@ -82,26 +83,88 @@ const DEMO_ALERTS: Alert[] = [
     module: "network-access-api",
     description: "P99 latency >500ms (resolved)",
     since: new Date(Date.now() - 6 * 3600_000).toISOString(),
-    labels: { endpoint: "/api/v1/sessions" },
+    labels: { endpoint: "/api/sessions" },
   },
 ]
 
 const LOG_TEMPLATES: Array<Pick<LogEntry, "level" | "message" | "source">> = [
-  { level: "info", message: "Request handled: GET /api/v1/factory/infra/providers 200 12ms", source: "factory-api" },
-  { level: "info", message: "Reconciler tick: 3 sandboxes checked, 0 drifted", source: "reconciler" },
-  { level: "warn", message: "Slow query detected: SELECT * FROM factory_fleet.sandbox (340ms)", source: "db" },
-  { level: "info", message: "Gateway route updated: na-api.verizon.lepton.io -> cls-prod-us-east:30080", source: "gateway" },
-  { level: "error", message: "Pod smartops-collector-9x2f entered CrashLoopBackOff", source: "k8s-watcher" },
-  { level: "info", message: "Health check passed for sandbox sbx-bob-staging", source: "health-checker" },
-  { level: "debug", message: "WebSocket connection established for tunnel tnl-alice-3000", source: "tunnel-broker" },
-  { level: "info", message: "Build pipeline prun-abc123 completed: success (2m 34s)", source: "ci-runner" },
-  { level: "warn", message: "Rate limit approaching for GitHub API (4800/5000 remaining)", source: "git-host" },
-  { level: "info", message: "Preview deployment prev-feat-auth deployed to preview-us-east", source: "preview-controller" },
-  { level: "info", message: "Release v2.14.0 promoted to production across 5 sites", source: "fleet-controller" },
-  { level: "error", message: "Connection refused to proxmox node pve-node-03.internal:8006", source: "proxmox-adapter" },
-  { level: "info", message: "Sandbox sbx-charlie-dev provisioned in 42s (container runtime)", source: "sandbox-controller" },
-  { level: "debug", message: "DNS verification passed for domain smartmarket.acme.lepton.io", source: "domain-verifier" },
-  { level: "info", message: "Customer entitlement synced: walmart -> smart-inventory (12 modules)", source: "commerce" },
+  {
+    level: "info",
+    message: "Request handled: GET /api/factory/infra/providers 200 12ms",
+    source: "factory-api",
+  },
+  {
+    level: "info",
+    message: "Reconciler tick: 3 sandboxes checked, 0 drifted",
+    source: "reconciler",
+  },
+  {
+    level: "warn",
+    message: "Slow query detected: SELECT * FROM ops.workbench (340ms)",
+    source: "db",
+  },
+  {
+    level: "info",
+    message:
+      "Gateway route updated: na-api.verizon.lepton.io -> cls-prod-us-east:30080",
+    source: "gateway",
+  },
+  {
+    level: "error",
+    message: "Pod smartops-collector-9x2f entered CrashLoopBackOff",
+    source: "k8s-watcher",
+  },
+  {
+    level: "info",
+    message: "Health check passed for sandbox sbx-bob-staging",
+    source: "health-checker",
+  },
+  {
+    level: "debug",
+    message: "WebSocket connection established for tunnel tnl-alice-3000",
+    source: "tunnel-broker",
+  },
+  {
+    level: "info",
+    message: "Build pipeline prun-abc123 completed: success (2m 34s)",
+    source: "ci-runner",
+  },
+  {
+    level: "warn",
+    message: "Rate limit approaching for GitHub API (4800/5000 remaining)",
+    source: "git-host",
+  },
+  {
+    level: "info",
+    message: "Preview deployment prev-feat-auth deployed to preview-us-east",
+    source: "preview-controller",
+  },
+  {
+    level: "info",
+    message: "Release v2.14.0 promoted to production across 5 sites",
+    source: "ops-controller",
+  },
+  {
+    level: "error",
+    message: "Connection refused to proxmox node pve-node-03.internal:8006",
+    source: "proxmox-adapter",
+  },
+  {
+    level: "info",
+    message: "Sandbox sbx-charlie-dev provisioned in 42s (container runtime)",
+    source: "sandbox-controller",
+  },
+  {
+    level: "debug",
+    message: "DNS verification passed for domain smartmarket.acme.lepton.io",
+    source: "domain-verifier",
+  },
+  {
+    level: "info",
+    message:
+      "Customer entitlement synced: walmart -> smart-inventory (12 modules)",
+    source: "commerce",
+  },
 ]
 
 export class DemoObservabilityAdapter implements ObservabilityAdapter {
@@ -112,8 +175,13 @@ export class DemoObservabilityAdapter implements ObservabilityAdapter {
     const limit = query.limit ?? 50
     const entries: LogEntry[] = []
     for (let i = 0; i < limit; i++) {
-      const template = LOG_TEMPLATES[(this.logCounter + i) % LOG_TEMPLATES.length]
-      if (query.level && levelPriority(template.level) < levelPriority(query.level)) continue
+      const template =
+        LOG_TEMPLATES[(this.logCounter + i) % LOG_TEMPLATES.length]
+      if (
+        query.level &&
+        levelPriority(template.level) < levelPriority(query.level)
+      )
+        continue
       entries.push({
         ...template,
         timestamp: new Date(Date.now() - (limit - i) * 2000).toISOString(),
@@ -162,7 +230,10 @@ export class DemoObservabilityAdapter implements ObservabilityAdapter {
     return []
   }
 
-  async runQuery(_promql: string, _query: MetricsQuery): Promise<MetricSeries[]> {
+  async runQuery(
+    _promql: string,
+    _query: MetricsQuery
+  ): Promise<MetricSeries[]> {
     return []
   }
 
@@ -201,10 +272,15 @@ export class DemoObservabilityAdapter implements ObservabilityAdapter {
 
 function levelPriority(level: string): number {
   switch (level) {
-    case "error": return 4
-    case "warn": return 3
-    case "info": return 2
-    case "debug": return 1
-    default: return 0
+    case "error":
+      return 4
+    case "warn":
+      return 3
+    case "info":
+      return 2
+    case "debug":
+      return 1
+    default:
+      return 0
   }
 }

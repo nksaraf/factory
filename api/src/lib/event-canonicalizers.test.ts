@@ -29,7 +29,7 @@ describe("canonicalize", () => {
     const result = canonicalize({
       source: "cursor",
       eventType: "session.begin",
-      payload: { workspaceId: "ws-1" },
+      payload: { workbenchId: "wb-1" },
     })
     expect(result.topic).toBe("org.agent.session_started")
     expect(result.data.source).toBe("cursor")

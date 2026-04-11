@@ -8,10 +8,10 @@
  *   - Reports errors per-step without aborting
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
+import { afterEach, describe, expect, it } from "bun:test"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { SiteController } from "../site/controller.js"
 import type {

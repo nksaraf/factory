@@ -8,11 +8,14 @@ import * as previewSvc from "../../services/preview/preview.service"
  * Mounted outside the auth boundary so GitHub Actions can call them.
  */
 export function previewCiController(db: Database) {
-  return new Elysia({ prefix: "/api/v1/factory/build/ci/previews" })
-
-    .post("/:slug/image", async ({ params, body, set }) => {
+  return new Elysia({ prefix: "/api/factory/build/ci/previews" }).post(
+    "/:slug/image",
+    async ({ params, body, set }) => {
       const row = await previewSvc.getPreviewBySlug(db, params.slug)
-      if (!row) { set.status = 404; return { success: false, error: "not_found" } }
+      if (!row) {
+        set.status = 404
+        return { success: false, error: "not_found" }
+      }
       if (row.phase !== "pending_image" && row.phase !== "building") {
         set.status = 409
         return {
@@ -26,9 +29,14 @@ export function previewCiController(db: Database) {
         status: "deploying",
       })
       return { success: true, data: updated }
-    }, {
+    },
+    {
       params: t.Object({ slug: t.String() }),
       body: t.Object({ imageRef: t.String() }),
-      detail: { tags: ["CI"], summary: "Deliver built image for preview (unauthenticated, CI use)" },
-    })
+      detail: {
+        tags: ["CI"],
+        summary: "Deliver built image for preview (unauthenticated, CI use)",
+      },
+    }
+  )
 }

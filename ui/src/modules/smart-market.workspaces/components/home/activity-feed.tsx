@@ -3,10 +3,10 @@ import { fromNow } from "@rio.js/ui/lib/fromnow"
 
 import { RESOURCE_TYPE_CONFIG } from "../../constants/resource-config"
 import { useWorkspaceActivity } from "../../data/use-workspace-activity"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 export function ActivityFeed() {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
   const { data: activity } = useWorkspaceActivity(workspaceId)
 
   if (!activity?.length) return null

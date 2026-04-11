@@ -1,7 +1,8 @@
-import React from "react"
 import { Box, Text } from "ink"
-import { DataTable, type Column, timeAgo } from "../components/data-table.js"
-import { useAlerts } from "../hooks/use-fleet-data.js"
+import React from "react"
+
+import { type Column, DataTable, timeAgo } from "../components/data-table.js"
+import { useAlerts } from "../hooks/use-ops-data.js"
 
 interface AlertsTabProps {
   focused: boolean
@@ -31,7 +32,9 @@ export function AlertsTab({ focused }: AlertsTabProps) {
 
   const firingCount = alerts.filter((a: any) => a.status === "firing").length
   const ackCount = alerts.filter((a: any) => a.status === "acknowledged").length
-  const criticalCount = alerts.filter((a: any) => a.severity === "critical").length
+  const criticalCount = alerts.filter(
+    (a: any) => a.severity === "critical"
+  ).length
 
   return (
     <Box flexGrow={1} flexDirection="column">

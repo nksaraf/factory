@@ -51,7 +51,7 @@ import {
   type ResourceTypeConfig,
 } from "../../../constants/resource-config"
 import type { Resource, ResourceDetail } from "../../../types"
-import { useWorkspace } from "../../workspace-context"
+import { useWorkbench } from "../../workbench-context"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -489,7 +489,7 @@ export default function AgentSessionDetailView({
   const location = useLocation()
   const initialMessageSent = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const { resources } = useWorkspace()
+  const { resources } = useWorkbench()
 
   const chatId = meta.chatId ?? resource.id
   const isCompleted = meta.status === "completed" || meta.status === "error"
@@ -497,7 +497,7 @@ export default function AgentSessionDetailView({
   const { messages, status, sendMessage, stop, isLoadingHistory } =
     useAgentChat({
       sessionId: chatId,
-      api: "/api/v1/chat/",
+      api: "/api/chat/",
     })
 
   // Auto-send initial message passed via navigation state (e.g. from home chat input)

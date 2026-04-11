@@ -30,108 +30,98 @@ export class FactoryClient {
     return res.json()
   }
 
-  // Fleet API methods — releases
+  // Ops API methods — releases
   async listReleases(opts?: { status?: string }) {
     return this.request(
       "GET",
-      `/api/v1/factory/fleet/releases${opts?.status ? `?status=${opts.status}` : ""}`
+      `/api/factory/ops/releases${opts?.status ? `?status=${opts.status}` : ""}`
     )
   }
   async createRelease(body: { version: string }) {
-    return this.request("POST", "/api/v1/factory/fleet/releases", body)
+    return this.request("POST", "/api/factory/ops/releases", body)
   }
   async getRelease(version: string) {
-    return this.request("GET", `/api/v1/factory/fleet/releases/${version}`)
+    return this.request("GET", `/api/factory/ops/releases/${version}`)
   }
   async promoteRelease(version: string, body: { target?: string }) {
     return this.request(
       "POST",
-      `/api/v1/factory/fleet/releases/${version}/promote`,
+      `/api/factory/ops/releases/${version}/promote`,
       body
     )
   }
 
-  // Fleet API methods — sites
+  // Ops API methods — sites
   async listSites() {
-    return this.request("GET", "/api/v1/factory/fleet/sites")
+    return this.request("GET", "/api/factory/ops/sites")
   }
   async createSite(body: { name: string; product: string }) {
-    return this.request("POST", "/api/v1/factory/fleet/sites", body)
+    return this.request("POST", "/api/factory/ops/sites", body)
   }
   async getSite(name: string) {
-    return this.request("GET", `/api/v1/factory/fleet/sites/${name}`)
+    return this.request("GET", `/api/factory/ops/sites/${name}`)
   }
   async deleteSite(name: string) {
-    return this.request("POST", `/api/v1/factory/fleet/sites/${name}/delete`)
+    return this.request("POST", `/api/factory/ops/sites/${name}/delete`)
   }
   async assignReleaseToSite(name: string, body: { releaseVersion: string }) {
     return this.request(
       "POST",
-      `/api/v1/factory/fleet/sites/${name}/assign-release`,
+      `/api/factory/ops/sites/${name}/assign-release`,
       body
     )
   }
   async siteCheckin(name: string, body: Record<string, unknown>) {
-    return this.request(
-      "POST",
-      `/api/v1/factory/fleet/sites/${name}/checkin`,
-      body
-    )
+    return this.request("POST", `/api/factory/ops/sites/${name}/checkin`, body)
   }
   async getSiteManifest(name: string) {
-    return this.request("GET", `/api/v1/factory/fleet/sites/${name}/manifest`)
+    return this.request("GET", `/api/factory/ops/sites/${name}/manifest`)
   }
 
-  // Fleet API methods — workbenches
+  // Ops API methods — workbenches
   async listWorkbenches(opts?: { all?: boolean }) {
     return this.request(
       "GET",
-      `/api/v1/factory/fleet/workbenches${opts?.all ? "?all=true" : ""}`
+      `/api/factory/ops/workbenches${opts?.all ? "?all=true" : ""}`
     )
   }
   async createWorkbench(body: Record<string, unknown>) {
-    return this.request("POST", "/api/v1/factory/fleet/workbenches", body)
+    return this.request("POST", "/api/factory/ops/workbenches", body)
   }
   async destroyWorkbench(id: string) {
-    return this.request(
-      "POST",
-      `/api/v1/factory/fleet/workbenches/${id}/delete`
-    )
+    return this.request("POST", `/api/factory/ops/workbenches/${id}/delete`)
   }
 
-  // Fleet API methods — rollouts
+  // Ops API methods — rollouts
   async listRollouts() {
-    return this.request("GET", "/api/v1/factory/fleet/rollouts")
+    return this.request("GET", "/api/factory/ops/rollouts")
   }
   async createRollout(body: { releaseId: string; systemDeploymentId: string }) {
-    return this.request("POST", "/api/v1/factory/fleet/rollouts", body)
+    return this.request("POST", "/api/factory/ops/rollouts", body)
   }
   async getRollout(id: string) {
-    return this.request("GET", `/api/v1/factory/fleet/rollouts/${id}`)
+    return this.request("GET", `/api/factory/ops/rollouts/${id}`)
   }
 
-  // Fleet API methods — system deployments
+  // Ops API methods — system deployments
   async listSystemDeployments(opts?: { kind?: string; status?: string }) {
-    return this.request("GET", `/api/v1/factory/fleet/system-deployments`)
+    return this.request("GET", `/api/factory/ops/system-deployments`)
   }
   async getSystemDeployment(id: string) {
-    return this.request("GET", `/api/v1/factory/fleet/system-deployments/${id}`)
+    return this.request("GET", `/api/factory/ops/system-deployments/${id}`)
   }
 
-  // Fleet API methods — workbench snapshots
+  // Ops API methods — workbench snapshots
   async listWorkbenchSnapshots() {
-    return this.request("GET", "/api/v1/factory/fleet/workbench-snapshots")
+    return this.request("GET", "/api/factory/ops/workbench-snapshots")
   }
   async getWorkbenchSnapshot(id: string) {
-    return this.request(
-      "GET",
-      `/api/v1/factory/fleet/workbench-snapshots/${id}`
-    )
+    return this.request("GET", `/api/factory/ops/workbench-snapshots/${id}`)
   }
   async deleteWorkbenchSnapshot(id: string) {
     return this.request(
       "POST",
-      `/api/v1/factory/fleet/workbench-snapshots/${id}/delete`
+      `/api/factory/ops/workbench-snapshots/${id}/delete`
     )
   }
 
@@ -141,23 +131,20 @@ export class FactoryClient {
     entity: string,
     slugOrId: string
   ): Promise<{ data: Record<string, unknown> | null }> {
-    return this.request(
-      "GET",
-      `/api/v1/factory/${module}/${entity}/${slugOrId}`
-    )
+    return this.request("GET", `/api/factory/${module}/${entity}/${slugOrId}`)
   }
   async listEntities(
     module: string,
     entity: string
   ): Promise<{ data: Record<string, unknown>[] }> {
-    return this.request("GET", `/api/v1/factory/${module}/${entity}`)
+    return this.request("GET", `/api/factory/${module}/${entity}`)
   }
   async createEntity(
     module: string,
     entity: string,
     body: Record<string, unknown>
   ): Promise<{ data: unknown }> {
-    return this.request("POST", `/api/v1/factory/${module}/${entity}`, body)
+    return this.request("POST", `/api/factory/${module}/${entity}`, body)
   }
   async updateEntity(
     module: string,
@@ -167,7 +154,7 @@ export class FactoryClient {
   ): Promise<{ data: unknown }> {
     return this.request(
       "POST",
-      `/api/v1/factory/${module}/${entity}/${slugOrId}/update`,
+      `/api/factory/${module}/${entity}/${slugOrId}/update`,
       body
     )
   }
@@ -180,7 +167,7 @@ export class FactoryClient {
   ): Promise<{ data: unknown; action: string }> {
     return this.request(
       "POST",
-      `/api/v1/factory/${module}/${entity}/${slugOrId}/${action}`,
+      `/api/factory/${module}/${entity}/${slugOrId}/${action}`,
       body ?? {}
     )
   }
@@ -194,7 +181,7 @@ export class FactoryClient {
   ) {
     return this.request<{ data: unknown }>(
       "POST",
-      `/api/v1/factory/infra/${entity}/${slugOrId}/${action}`,
+      `/api/factory/infra/${entity}/${slugOrId}/${action}`,
       body ?? {}
     )
   }
@@ -209,7 +196,7 @@ export class FactoryClient {
     const qs = params.toString()
     return this.request<{ data: unknown[] }>(
       "GET",
-      `/api/v1/factory/infra/ip-addresses${qs ? `?${qs}` : ""}`
+      `/api/factory/infra/ip-addresses${qs ? `?${qs}` : ""}`
     )
   }
   async listAvailableIps(query?: Record<string, string | undefined>) {
@@ -221,13 +208,13 @@ export class FactoryClient {
     const qs = params.toString()
     return this.request<{ data: unknown[] }>(
       "GET",
-      `/api/v1/factory/infra/ip-addresses/available${qs ? `?${qs}` : ""}`
+      `/api/factory/infra/ip-addresses/available${qs ? `?${qs}` : ""}`
     )
   }
   async registerIpAddress(body: Record<string, unknown>) {
     return this.request<{ data: unknown }>(
       "POST",
-      "/api/v1/factory/infra/ip-addresses",
+      "/api/factory/infra/ip-addresses",
       body
     )
   }
@@ -238,7 +225,7 @@ export class FactoryClient {
   ) {
     return this.request<{ data: unknown }>(
       "POST",
-      `/api/v1/factory/infra/ip-addresses/${slugOrId}/${action}`,
+      `/api/factory/infra/ip-addresses/${slugOrId}/${action}`,
       body ?? {}
     )
   }

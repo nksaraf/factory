@@ -3,21 +3,20 @@
  *
  * Inngest-style content-based routing on top of DBOS send/recv.
  *
- * Workflows call:   waitForEvent("workspace.ready", { workspaceId: "ws-123" }, 600)
- * External code:    emitEvent(db, "workspace.ready", { workspaceId: "ws-123", status: "active" })
+ * Workflows call:   waitForEvent("workbench.ready", { workbenchId: "wb-123" }, 600)
+ * External code:    emitEvent(db, "workbench.ready", { workbenchId: "wb-123", status: "active" })
  *
  * Matching uses Postgres JSONB containment (<@): the subscription's matchFields
  * must be a subset of the emitted event data. This is GIN-indexable.
  */
+import { and, eq, gt, lt, sql } from "drizzle-orm"
 
-import { and, eq, gt, lt, sql } from "drizzle-orm";
-
-import type { Database } from "../db/connection";
-import { eventSubscription } from "../db/schema/org-v2";
-import { newId } from "./id";
-import { getWorkflowId, recv, send } from "./workflow-engine";
-import { getWorkflowDb } from "./workflow-helpers";
-import { logger } from "../logger";
+import type { Database } from "../db/connection"
+import { eventSubscription } from "../db/schema/org-v2"
+import { logger } from "../logger"
+import { newId } from "./id"
+import { getWorkflowId, recv, send } from "./workflow-engine"
+import { getWorkflowDb } from "./workflow-helpers"
 
 // ── waitForEvent (workflow side) ──────────────────────────
 
@@ -30,19 +29,22 @@ import { logger } from "../logger";
  *
  * Uses getWorkflowDb() internally — no db parameter needed.
  *
- * @param eventName  - Event name to wait for (e.g. "workspace.ready")
+ * @param eventName  - Event name to wait for (e.g. "workbench.ready")
  * @param match      - Fields to match against emitted event data
  * @param timeoutSec - Max seconds to wait before returning null
  */
 export async function waitForEvent<T>(
   eventName: string,
   match: Record<string, string>,
-  timeoutSec: number,
+  timeoutSec: number
 ): Promise<T | null> {
-  const db = getWorkflowDb();
-  const wfId = getWorkflowId();
+  const db = getWorkflowDb()
+  const wfId = getWorkflowId()
 
-  logger.info({ eventName, match, workflowRunId: wfId, timeoutSec }, `waitForEvent: subscribing to ${eventName}`);
+  logger.info(
+    { eventName, match, workflowRunId: wfId, timeoutSec },
+    `waitForEvent: subscribing to ${eventName}`
+  )
 
   // Register subscription
   await db.insert(eventSubscription).values({
@@ -51,10 +53,10 @@ export async function waitForEvent<T>(
     eventName,
     matchFields: match,
     expiresAt: new Date(Date.now() + timeoutSec * 1000),
-  });
+  })
 
   // Durable suspend — zero CPU, survives crashes
-  const result = await recv<T>(eventName, timeoutSec);
+  const result = await recv<T>(eventName, timeoutSec)
 
   // Clean up subscription (best-effort, may already be gone on timeout)
   await db
@@ -62,12 +64,12 @@ export async function waitForEvent<T>(
     .where(
       and(
         eq(eventSubscription.workflowRunId, wfId),
-        eq(eventSubscription.eventName, eventName),
-      ),
+        eq(eventSubscription.eventName, eventName)
+      )
     )
-    .catch(() => {});
+    .catch(() => {})
 
-  return result;
+  return result
 }
 
 // ── emitEvent (external side) ─────────────────────────────
@@ -80,16 +82,16 @@ export async function waitForEvent<T>(
  * so requires an explicit db parameter.
  *
  * Matching uses Postgres JSONB containment: subscription.matchFields <@ data.
- * So { workspaceId: "ws-123" } matches { workspaceId: "ws-123", status: "active", cpu: 4 }.
+ * So { workbenchId: "wb-123" } matches { workbenchId: "wb-123", status: "active", cpu: 4 }.
  *
  * @param db        - Database connection
- * @param eventName - Event name (e.g. "workspace.ready")
+ * @param eventName - Event name (e.g. "workbench.ready")
  * @param data      - Event payload — must contain all fields that subscriptions match on
  */
 export async function emitEvent(
   db: Database,
   eventName: string,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ) {
   // Find non-expired subscriptions where matchFields ⊆ data
   const subs = await db
@@ -99,16 +101,22 @@ export async function emitEvent(
       and(
         eq(eventSubscription.eventName, eventName),
         sql`${eventSubscription.matchFields} <@ ${JSON.stringify(data)}::jsonb`,
-        gt(eventSubscription.expiresAt, new Date()),
-      ),
-    );
+        gt(eventSubscription.expiresAt, new Date())
+      )
+    )
 
-  logger.info({ eventName, matchCount: subs.length }, `emitEvent: ${eventName} (${subs.length} match${subs.length === 1 ? "" : "es"})`);
+  logger.info(
+    { eventName, matchCount: subs.length },
+    `emitEvent: ${eventName} (${subs.length} match${subs.length === 1 ? "" : "es"})`
+  )
 
   // Wake each matching workflow
   for (const sub of subs) {
-    logger.info({ eventName, workflowRunId: sub.workflowRunId }, "emitEvent: waking workflow");
-    await send(sub.workflowRunId, data, eventName);
+    logger.info(
+      { eventName, workflowRunId: sub.workflowRunId },
+      "emitEvent: waking workflow"
+    )
+    await send(sub.workflowRunId, data, eventName)
   }
 }
 
@@ -121,5 +129,5 @@ export async function emitEvent(
 export async function cleanupExpiredSubscriptions(db: Database) {
   await db
     .delete(eventSubscription)
-    .where(lt(eventSubscription.expiresAt, new Date()));
+    .where(lt(eventSubscription.expiresAt, new Date()))
 }

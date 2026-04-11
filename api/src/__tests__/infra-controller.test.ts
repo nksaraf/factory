@@ -14,7 +14,7 @@ interface ApiListResponse<T = Record<string, unknown>> {
   data: T[]
 }
 
-const BASE = "http://localhost/api/v1/factory/infra"
+const BASE = "http://localhost/api/factory/infra"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {

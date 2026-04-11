@@ -493,7 +493,7 @@ export async function runWorkbenchSetup(
     try {
       const token = await getFactoryApiToken()
       if (token) {
-        const url = `${config.factoryUrl.replace(/\/$/, "")}/api/v1/factory/fleet/workbenches`
+        const url = `${config.factoryUrl.replace(/\/$/, "")}/api/factory/ops/workbenches`
         const res = await fetch(url, {
           method: "POST",
           headers: {

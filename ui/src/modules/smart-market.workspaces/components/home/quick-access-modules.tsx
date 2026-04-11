@@ -2,7 +2,7 @@ import { Link } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
 
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 const MODULES = [
   {
@@ -36,7 +36,7 @@ const MODULES = [
 ] as const
 
 export function QuickAccessModules() {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
 
   const modules = [
     ...MODULES,

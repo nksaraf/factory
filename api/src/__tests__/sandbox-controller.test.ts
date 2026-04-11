@@ -1,7 +1,7 @@
 /**
  * Workbench Controller Tests
  *
- * Tests workbench CRUD via /fleet/workbenches endpoints.
+ * Tests workbench CRUD via /ops/workbenches endpoints.
  */
 import type { PGlite } from "@electric-sql/pglite"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -19,7 +19,7 @@ interface ApiListResponse<T = Record<string, unknown>> {
   data: T[]
 }
 
-const BASE = "http://localhost/api/v1/factory/fleet/workbenches"
+const BASE = "http://localhost/api/factory/ops/workbenches"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {

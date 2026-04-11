@@ -66,4 +66,4 @@ dx fleet discover --on lepton-59 --json
 
 - [`dx infra`](/cli/infra) — Manage hosts, estates, and realms
 - [`dx scan`](/cli/scan) — Scan infrastructure and sync IDE sessions to Factory
-- [`dx workspace`](/cli/workspace) — Manage developer workspaces
+- [`dx workbench`](/cli/workbench) — Manage developer workbenches

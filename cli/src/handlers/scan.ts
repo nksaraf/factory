@@ -357,7 +357,7 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
 
       if (rest) {
         try {
-          await rest.request("POST", "/api/v1/factory/infra/hosts", {
+          await rest.request("POST", "/api/factory/infra/hosts", {
             slug: registration.slug,
             name: registration.name,
             type: "bare-metal",

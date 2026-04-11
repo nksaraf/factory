@@ -12,35 +12,34 @@ export interface ModuleGroup {
   entities: EntityDef[]
 }
 
-const fleet: EntityDef[] = [
-  { module: "fleet", entity: "sites", label: "Sites" },
-  { module: "fleet", entity: "tenants", label: "Tenants" },
+const ops: EntityDef[] = [
+  { module: "ops", entity: "sites", label: "Sites" },
+  { module: "ops", entity: "tenants", label: "Tenants" },
   {
-    module: "fleet",
+    module: "ops",
     entity: "system-deployments",
     label: "System Deployments",
   },
   {
-    module: "fleet",
+    module: "ops",
     entity: "component-deployments",
     label: "Component Deployments",
   },
-  { module: "fleet", entity: "deployment-sets", label: "Deployment Sets" },
-  { module: "fleet", entity: "rollouts", label: "Rollouts" },
-  { module: "fleet", entity: "workspaces", label: "Workspaces" },
-  { module: "fleet", entity: "workbenches", label: "Workbenches" },
-  { module: "fleet", entity: "previews", label: "Previews" },
-  { module: "fleet", entity: "interventions", label: "Interventions" },
-  { module: "fleet", entity: "databases", label: "Databases" },
-  { module: "fleet", entity: "install-manifests", label: "Install Manifests" },
-  { module: "fleet", entity: "site-manifests", label: "Site Manifests" },
+  { module: "ops", entity: "deployment-sets", label: "Deployment Sets" },
+  { module: "ops", entity: "rollouts", label: "Rollouts" },
+  { module: "ops", entity: "workbenches", label: "Workbenches" },
+  { module: "ops", entity: "previews", label: "Previews" },
+  { module: "ops", entity: "interventions", label: "Interventions" },
+  { module: "ops", entity: "databases", label: "Databases" },
+  { module: "ops", entity: "install-manifests", label: "Install Manifests" },
+  { module: "ops", entity: "site-manifests", label: "Site Manifests" },
   {
-    module: "fleet",
+    module: "ops",
     entity: "anonymization-profiles",
     label: "Anonymization Profiles",
   },
-  { module: "fleet", entity: "forwarded-ports", label: "Forwarded Ports" },
-  { module: "fleet", entity: "connection-audit", label: "Connection Audit" },
+  { module: "ops", entity: "forwarded-ports", label: "Forwarded Ports" },
+  { module: "ops", entity: "connection-audit", label: "Connection Audit" },
 ]
 
 const infra: EntityDef[] = [
@@ -52,6 +51,7 @@ const infra: EntityDef[] = [
   { module: "infra", entity: "tunnels", label: "Tunnels" },
   { module: "infra", entity: "ip-addresses", label: "IP Addresses" },
   { module: "infra", entity: "secrets", label: "Secrets" },
+  { module: "infra", entity: "services", label: "Services" },
   { module: "infra", entity: "network-links", label: "Network Links" },
 ]
 
@@ -116,7 +116,7 @@ const commerce: EntityDef[] = [
 ]
 
 export const MODULE_GROUPS: ModuleGroup[] = [
-  { module: "fleet", label: "Fleet", entities: fleet },
+  { module: "ops", label: "Ops", entities: ops },
   { module: "infra", label: "Infra", entities: infra },
   { module: "org", label: "Org", entities: org },
   { module: "build", label: "Build", entities: build },
@@ -144,6 +144,7 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   tnl: { module: "infra", entity: "tunnels", label: "Tunnels" },
   ipa: { module: "infra", entity: "ip-addresses", label: "IP Addresses" },
   sec: { module: "infra", entity: "secrets", label: "Secrets" },
+  svc: { module: "infra", entity: "services", label: "Services" },
   nlnk: { module: "infra", entity: "network-links", label: "Network Links" },
   // org
   team: { module: "org", entity: "teams", label: "Teams" },
@@ -168,36 +169,35 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   tmpl: { module: "product", entity: "templates", label: "Templates" },
   prod: { module: "product", entity: "products", label: "Products" },
   cap: { module: "product", entity: "capabilities", label: "Capabilities" },
-  // fleet / ops
-  site: { module: "fleet", entity: "sites", label: "Sites" },
-  tnt: { module: "fleet", entity: "tenants", label: "Tenants" },
+  // ops
+  site: { module: "ops", entity: "sites", label: "Sites" },
+  tnt: { module: "ops", entity: "tenants", label: "Tenants" },
   sdp: {
-    module: "fleet",
+    module: "ops",
     entity: "system-deployments",
     label: "System Deployments",
   },
   cdp: {
-    module: "fleet",
+    module: "ops",
     entity: "component-deployments",
     label: "Component Deployments",
   },
   dset: {
-    module: "fleet",
+    module: "ops",
     entity: "deployment-sets",
     label: "Deployment Sets",
   },
-  rout: { module: "fleet", entity: "rollouts", label: "Rollouts" },
-  wks: { module: "fleet", entity: "workspaces", label: "Workspaces" },
-  wbnch: { module: "fleet", entity: "workbenches", label: "Workbenches" },
-  prev: { module: "fleet", entity: "previews", label: "Previews" },
-  intv: { module: "fleet", entity: "interventions", label: "Interventions" },
-  db: { module: "fleet", entity: "databases", label: "Databases" },
+  rout: { module: "ops", entity: "rollouts", label: "Rollouts" },
+  wbnch: { module: "ops", entity: "workbenches", label: "Workbenches" },
+  prev: { module: "ops", entity: "previews", label: "Previews" },
+  intv: { module: "ops", entity: "interventions", label: "Interventions" },
+  db: { module: "ops", entity: "databases", label: "Databases" },
   aprf: {
-    module: "fleet",
+    module: "ops",
     entity: "anonymization-profiles",
     label: "Anonymization Profiles",
   },
-  fp: { module: "fleet", entity: "forwarded-ports", label: "Forwarded Ports" },
+  fp: { module: "ops", entity: "forwarded-ports", label: "Forwarded Ports" },
   // build
   repo: { module: "build", entity: "repos", label: "Repos" },
   ghp: {

@@ -7,7 +7,7 @@
  *   - Edge cases: orphaned containers, stopped desired, init containers
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import type { ComponentState } from "../site/execution/executor.js"
 import type {

@@ -422,12 +422,12 @@ var CLI_JOURNEYS = [
     { cmd: 'dx agent skill add', desc: 'Install a new skill from registry', entities: 'Agent' },
     { cmd: 'dx work', desc: 'View and manage work items from Jira/Linear', entities: 'Work Item, Work Tracker' },
   ]},
-  { title: 'Workspace & Environment', who: 'Developer or CI system', color: '#64748b', steps: [
-    { cmd: 'dx workspace', desc: 'Manage developer sandboxes', entities: 'Workspace, Principal' },
+  { title: 'Workbench & Environment', who: 'Developer or CI system', color: '#64748b', steps: [
+    { cmd: 'dx workbench', desc: 'Manage developer workbenches', entities: 'Workbench, Principal' },
     { cmd: 'dx env', desc: 'View and set environment variables', entities: 'Config Var, Secret' },
-    { cmd: 'dx forward', desc: 'Forward a port from workspace to local', entities: 'Workspace, Route' },
-    { cmd: 'dx doctor', desc: 'Diagnose environment health issues', entities: 'Workspace, Runtime' },
-    { cmd: 'dx down --volumes', desc: 'Clean reset of local infrastructure', entities: 'Runtime, Host' },
+    { cmd: 'dx forward', desc: 'Forward a port from workbench to local', entities: 'Workbench, Route' },
+    { cmd: 'dx doctor', desc: 'Diagnose environment health issues', entities: 'Workbench, Host' },
+    { cmd: 'dx down --volumes', desc: 'Clean reset of local infrastructure', entities: 'Compose, Host' },
   ]},
 ];
 

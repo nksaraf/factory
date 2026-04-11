@@ -6,14 +6,14 @@
  */
 import type {
   AbstractPowerSyncDatabase,
-  PowerSyncBackendConnector,
   CrudEntry,
+  PowerSyncBackendConnector,
 } from "@powersync/web"
 
 export interface PowerSyncConnectorOptions {
   /** PowerSync service URL (e.g. http://localhost:8090) */
   powersyncUrl: string
-  /** Factory API base URL for write-through (e.g. http://localhost:8181/api/v1/factory) */
+  /** Factory API base URL for write-through (e.g. http://localhost:8181/api/factory) */
   factoryApiUrl: string
 }
 

@@ -30,23 +30,23 @@
 
 ### New command groups
 
-| Command group | Purpose |
-|---------------|---------|
-| `dx factory` | Replaces `dx auth`. Factory authentication, host management, registry credentials. |
-| `dx work` | Work item management, branching, worktrees, PR stacking, agent orchestration. |
-| `dx tunnel` | Expose local ports publicly (ngrok/cloudflared mental model). |
-| `dx forward` | Bring remote ports to localhost (SSH port forwarding). |
+| Command group | Purpose                                                                            |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `dx factory`  | Replaces `dx auth`. Factory authentication, host management, registry credentials. |
+| `dx work`     | Work item management, branching, worktrees, PR stacking, agent orchestration.      |
+| `dx tunnel`   | Expose local ports publicly (ngrok/cloudflared mental model).                      |
+| `dx forward`  | Bring remote ports to localhost (SSH port forwarding).                             |
 
 ### Removed/renamed from original handoff
 
-| Original | Change | Reason |
-|----------|--------|--------|
-| `dx auth login` | → `dx factory login` | "auth with what?" — `dx factory` is explicit |
-| `dx auth ci` | → `dx factory login --ci` | Same operation, just non-interactive |
-| `dx auth refresh-hosts` | → `dx factory sync hosts` | Natural verb under factory namespace |
-| `dx connect <env>` | **Dropped entirely** | Over-engineered. Replaced by `dx forward` for specific ports |
-| `dx tunnel <host>:<port>` | → `dx forward <host>:<port>` | `dx tunnel` now means expose (matching industry convention) |
-| `dx tunnel --expose <port>` | → `dx tunnel <port>` | Expose is the default meaning of "tunnel" |
+| Original                    | Change                       | Reason                                                       |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------ |
+| `dx auth login`             | → `dx factory login`         | "auth with what?" — `dx factory` is explicit                 |
+| `dx auth ci`                | → `dx factory login --ci`    | Same operation, just non-interactive                         |
+| `dx auth refresh-hosts`     | → `dx factory sync hosts`    | Natural verb under factory namespace                         |
+| `dx connect <env>`          | **Dropped entirely**         | Over-engineered. Replaced by `dx forward` for specific ports |
+| `dx tunnel <host>:<port>`   | → `dx forward <host>:<port>` | `dx tunnel` now means expose (matching industry convention)  |
+| `dx tunnel --expose <port>` | → `dx tunnel <port>`         | Expose is the default meaning of "tunnel"                    |
 
 ### Design principles reaffirmed
 
@@ -188,8 +188,18 @@ With `--json` for agents:
 ```json
 {
   "hosts": [
-    { "name": "staging", "ip": "10.0.1.42", "user": "deploy", "status": "reachable" },
-    { "name": "prod-1", "ip": "10.0.1.43", "user": "deploy", "status": "reachable" }
+    {
+      "name": "staging",
+      "ip": "10.0.1.42",
+      "user": "deploy",
+      "status": "reachable"
+    },
+    {
+      "name": "prod-1",
+      "ip": "10.0.1.43",
+      "user": "deploy",
+      "status": "reachable"
+    }
   ]
 }
 ```
@@ -225,6 +235,7 @@ Examples:
 ```
 
 Rules:
+
 - All lowercase
 - Ticket prefix: Jira project key + number, lowercased
 - Description: auto-slugified from ticket title (truncated to ~50 chars)
@@ -479,14 +490,14 @@ Configurable thresholds in `package.json` (see [New package.json Config](#12-new
 
 ### Short-lived branch enforcement
 
-| Mechanism | What it does |
-|-----------|-------------|
-| `dx work start` | Always creates from `main` HEAD — no stale starting point |
-| `dx work check-age` in CI | Warns at configurable threshold (default 3 days), errors at 7 days |
-| `dx work list` | Shows age with ⚠ indicator for stale branches |
-| Branch protection (squash merge) | Ensures clean history on main, no merge commits |
-| `git config --global fetch.prune true` | Dead remote branches cleaned up on every fetch |
-| `gh pr merge --delete-branch` | Auto-delete branch after merge |
+| Mechanism                              | What it does                                                       |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `dx work start`                        | Always creates from `main` HEAD — no stale starting point          |
+| `dx work check-age` in CI              | Warns at configurable threshold (default 3 days), errors at 7 days |
+| `dx work list`                         | Shows age with ⚠ indicator for stale branches                      |
+| Branch protection (squash merge)       | Ensures clean history on main, no merge commits                    |
+| `git config --global fetch.prune true` | Dead remote branches cleaned up on every fetch                     |
+| `gh pr merge --delete-branch`          | Auto-delete branch after merge                                     |
 
 ---
 
@@ -516,6 +527,7 @@ Configurable thresholds in `package.json` (see [New package.json Config](#12-new
 ```
 
 Key properties:
+
 - All worktrees share a single `.git` database (in the main worktree)
 - Each worktree is a full, independent file system checkout
 - Changes in one worktree don't affect any other
@@ -734,9 +746,9 @@ $ dx work pr
 
   Creating PR...
   Base: traf-142/data-model (from stack metadata)
-  
+
   → gh pr create --base traf-142/data-model --fill
-  
+
   PR #48 created.
   Stack metadata updated.
 ```
@@ -812,6 +824,7 @@ The agent can't bypass conventions because:
 
 ```markdown
 # .dx/local/ticket-context.md (in the worktree, gitignored)
+
 # Auto-generated by dx work start --agent
 
 ## TRAF-305: Add search endpoint
@@ -822,12 +835,14 @@ The agent can't bypass conventions because:
 As a user, I want to search for products by name so that I can quickly find what I'm looking for.
 
 **Acceptance criteria:**
-- GET /api/v1/search?q=<query> returns matching products
+
+- GET /api/search?q=<query> returns matching products
 - Results are paginated (default 20 per page)
 - Search is case-insensitive
 - Response time < 200ms for up to 1M products
 
 **Related tickets:**
+
 - TRAF-142: Search data model (merged)
 - TRAF-306: Search UI (in progress)
 ```
@@ -1004,13 +1019,13 @@ dx NEVER wraps the `ssh` command. It configures SSH to work well and provides na
 
 ### What dx manages
 
-| Concern | dx command | What it does |
-|---------|-----------|-------------|
-| SSH defaults | `dx install` | Writes ControlMaster, keepalive, compression to `~/.ssh/config` |
-| Host aliases | `dx factory login` | Writes name → IP mappings to SSH config |
-| Host key management | `dx factory sync hosts` | Clears stale entries from known_hosts |
-| Manual host update | `dx factory hosts update` | Updates single alias + clears host key |
-| Key distribution | `dx factory login` | Future: short-lived certificates. Now: manual key management |
+| Concern             | dx command                | What it does                                                    |
+| ------------------- | ------------------------- | --------------------------------------------------------------- |
+| SSH defaults        | `dx install`              | Writes ControlMaster, keepalive, compression to `~/.ssh/config` |
+| Host aliases        | `dx factory login`        | Writes name → IP mappings to SSH config                         |
+| Host key management | `dx factory sync hosts`   | Clears stale entries from known_hosts                           |
+| Manual host update  | `dx factory hosts update` | Updates single alias + clears host key                          |
+| Key distribution    | `dx factory login`        | Future: short-lived certificates. Now: manual key management    |
 
 ### What developers do directly
 
@@ -1263,29 +1278,29 @@ ssh staging, scp, sftp
 
     "conventions": {
       "commits": "conventional",
-      "branching": "trunk"
+      "branching": "trunk",
     },
 
     "work": {
-      "tracker": "jira",                    // jira | linear | github-issues
-      "project": "TRAF",                    // default project for --quick ticket creation
-      "branch_max_age_days": 7,             // dx work check-age error threshold
-      "branch_warn_age_days": 3,            // dx work check-age warn threshold
-      "agent_strict_checks": true,          // use dx check --strict for agent worktrees
-      "default_worktree": true              // dx work start creates worktree by default
+      "tracker": "jira", // jira | linear | github-issues
+      "project": "TRAF", // default project for --quick ticket creation
+      "branch_max_age_days": 7, // dx work check-age error threshold
+      "branch_warn_age_days": 3, // dx work check-age warn threshold
+      "agent_strict_checks": true, // use dx check --strict for agent worktrees
+      "default_worktree": true, // dx work start creates worktree by default
     },
 
     "deploy": {
       "preview": {
         "trigger": "pull-request",
-        "ttl": "72h"
+        "ttl": "72h",
       },
       "production": {
         "trigger": "release-tag",
-        "approval": true
-      }
-    }
-  }
+        "approval": true,
+      },
+    },
+  },
 }
 ```
 
@@ -1293,14 +1308,14 @@ ssh staging, scp, sftp
 
 All `dx.work` settings have defaults:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `tracker` | `"jira"` | Work item tracker integration |
-| `project` | auto-detect from repo name | Jira project key |
-| `branch_max_age_days` | `7` | Error threshold in CI |
-| `branch_warn_age_days` | `3` | Warning threshold in CI |
-| `agent_strict_checks` | `true` | Stricter quality for agent worktrees |
-| `default_worktree` | `true` | `dx work start` creates worktree (use `--no-worktree` to skip) |
+| Setting                | Default                    | Description                                                    |
+| ---------------------- | -------------------------- | -------------------------------------------------------------- |
+| `tracker`              | `"jira"`                   | Work item tracker integration                                  |
+| `project`              | auto-detect from repo name | Jira project key                                               |
+| `branch_max_age_days`  | `7`                        | Error threshold in CI                                          |
+| `branch_warn_age_days` | `3`                        | Warning threshold in CI                                        |
+| `agent_strict_checks`  | `true`                     | Stricter quality for agent worktrees                           |
+| `default_worktree`     | `true`                     | `dx work start` creates worktree (use `--no-worktree` to skip) |
 
 ---
 
@@ -1308,24 +1323,24 @@ All `dx.work` settings have defaults:
 
 ### Complete enforcement matrix (original + new)
 
-| Convention | Enforcement mechanism | Who enforces |
-|---|---|---|
-| Commit messages (conventional) | `commit-msg` hook → `dx hook commit-msg` | Git hook |
-| Code formatting | `pre-commit` hook → lint-staged | Git hook |
-| Quality gates before push | `pre-push` hook → `dx check` | Git hook |
-| Stricter quality for agents | `pre-push` hook → `dx check --strict` (in agent worktrees) | Git hook |
-| Branch naming (`<ticket>/<slug>`) | `dx work start` generates it; `pre-push` validates | dx + Git hook |
-| One branch per ticket | `dx work start` checks for existing branch | dx |
-| Short-lived branches | `dx work check-age` in CI (warn 3d, error 7d) | CI |
-| Squash merge only | GitHub branch protection (configured by `dx init`) | GitHub |
-| PR reviews required | GitHub branch protection (configured by `dx init`) | GitHub |
-| CI must pass before merge | GitHub branch protection (configured by `dx init`) | GitHub |
-| PR has linked ticket | PR template + CI validation | Template + CI |
-| Stack integrity | `dx work restack` keeps stack coherent | Developer/dx |
-| Environment sync after branch change | `post-merge`/`post-checkout` hooks → `dx sync` | Git hook |
-| Dependencies match lockfile | `dx sync` runs install if lockfile changed | Git hook (via dx sync) |
-| No secrets in git | `.gitignore` + `.env` generated at runtime | dx |
-| Line endings (LF) | `.gitattributes` + `core.autocrlf` | Git config |
+| Convention                           | Enforcement mechanism                                      | Who enforces           |
+| ------------------------------------ | ---------------------------------------------------------- | ---------------------- |
+| Commit messages (conventional)       | `commit-msg` hook → `dx hook commit-msg`                   | Git hook               |
+| Code formatting                      | `pre-commit` hook → lint-staged                            | Git hook               |
+| Quality gates before push            | `pre-push` hook → `dx check`                               | Git hook               |
+| Stricter quality for agents          | `pre-push` hook → `dx check --strict` (in agent worktrees) | Git hook               |
+| Branch naming (`<ticket>/<slug>`)    | `dx work start` generates it; `pre-push` validates         | dx + Git hook          |
+| One branch per ticket                | `dx work start` checks for existing branch                 | dx                     |
+| Short-lived branches                 | `dx work check-age` in CI (warn 3d, error 7d)              | CI                     |
+| Squash merge only                    | GitHub branch protection (configured by `dx init`)         | GitHub                 |
+| PR reviews required                  | GitHub branch protection (configured by `dx init`)         | GitHub                 |
+| CI must pass before merge            | GitHub branch protection (configured by `dx init`)         | GitHub                 |
+| PR has linked ticket                 | PR template + CI validation                                | Template + CI          |
+| Stack integrity                      | `dx work restack` keeps stack coherent                     | Developer/dx           |
+| Environment sync after branch change | `post-merge`/`post-checkout` hooks → `dx sync`             | Git hook               |
+| Dependencies match lockfile          | `dx sync` runs install if lockfile changed                 | Git hook (via dx sync) |
+| No secrets in git                    | `.gitignore` + `.env` generated at runtime                 | dx                     |
+| Line endings (LF)                    | `.gitattributes` + `core.autocrlf`                         | Git config             |
 
 ---
 

@@ -2,10 +2,10 @@
  * Ingestion client — POSTs events to the Factory IDE hooks endpoint.
  * Reuses auth logic from scripts/ide-hooks/lib/send-event.ts.
  */
-
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
 import { homedir } from "node:os"
+import { join } from "node:path"
+
 import type { IngestEvent } from "./common"
 
 const MAX_PAYLOAD_BYTES = 64 * 1024
@@ -36,7 +36,9 @@ function isJwtExpired(jwt: string): boolean {
   try {
     const parts = jwt.split(".")
     if (parts.length !== 3) return true
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")))
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+    )
     return !payload.exp || Date.now() / 1000 > payload.exp - 60
   } catch {
     return true
@@ -54,10 +56,13 @@ function getFactoryUrl(): string {
 
 function getAuthBasePath(): string {
   const config = readJsonFile(join(getDxConfigDir(), "config.json"))
-  return (config?.authBasePath as string) || "/api/v1/auth"
+  return (config?.authBasePath as string) || "/api/auth"
 }
 
-async function refreshJwt(factoryUrl: string, bearerToken: string): Promise<string | null> {
+async function refreshJwt(
+  factoryUrl: string,
+  bearerToken: string
+): Promise<string | null> {
   try {
     const res = await fetch(`${factoryUrl}${getAuthBasePath()}/get-session`, {
       method: "GET",
@@ -96,7 +101,9 @@ async function getAuthToken(factoryUrl: string): Promise<string | null> {
   return jwt ?? null
 }
 
-function truncatePayload(payload: Record<string, unknown>): Record<string, unknown> {
+function truncatePayload(
+  payload: Record<string, unknown>
+): Record<string, unknown> {
   const json = JSON.stringify(payload)
   if (json.length <= MAX_PAYLOAD_BYTES) return payload
   return {
@@ -109,7 +116,7 @@ function truncatePayload(payload: Record<string, unknown>): Record<string, unkno
           return [k, `[truncated: ${valStr.length} bytes]`]
         }
         return [k, v]
-      }),
+      })
     ),
   }
 }
@@ -124,16 +131,19 @@ async function ensureAuth(): Promise<{ url: string; token: string } | null> {
   return { url: _factoryUrl, token: _authToken }
 }
 
-export async function sendEvent(event: IngestEvent): Promise<{ success: boolean; duplicate?: boolean }> {
+export async function sendEvent(
+  event: IngestEvent
+): Promise<{ success: boolean; duplicate?: boolean }> {
   const auth = await ensureAuth()
-  if (!auth) throw new Error("No dx session token found. Run `dx auth login` first.")
+  if (!auth)
+    throw new Error("No dx session token found. Run `dx auth login` first.")
 
   const body = {
     ...event,
     payload: event.payload ? truncatePayload(event.payload) : {},
   }
 
-  const res = await fetch(`${auth.url}/api/v1/factory/ide-hooks/events`, {
+  const res = await fetch(`${auth.url}/api/factory/ide-hooks/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -154,7 +164,7 @@ export async function sendEvent(event: IngestEvent): Promise<{ success: boolean;
 
 export async function sendBatch(
   events: IngestEvent[],
-  opts: { dryRun: boolean; verbose: boolean },
+  opts: { dryRun: boolean; verbose: boolean }
 ): Promise<{ sent: number; duplicates: number; errors: number }> {
   let sent = 0
   let duplicates = 0

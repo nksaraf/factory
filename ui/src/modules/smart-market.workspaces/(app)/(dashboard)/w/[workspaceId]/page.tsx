@@ -6,10 +6,10 @@ import { RecentResources } from "../../../../components/home/recent-resources"
 import { WorkspaceChatInput } from "../../../../components/home/workspace-chat-input"
 import { WorkspaceEmptyState } from "../../../../components/home/workspace-empty-state"
 import { WorkspaceHomeHeader } from "../../../../components/home/workspace-home-header"
-import { useWorkspace } from "../../../../components/workspace-context"
+import { useWorkbench } from "../../../../components/workbench-context"
 
 export default function WorkspaceHomePage() {
-  const { resources } = useWorkspace()
+  const { resources } = useWorkbench()
   const hasResources = resources.some(
     (r) => r.resourceType !== "folder" && !r.deletedAt
   )

@@ -2,7 +2,7 @@
 
 The `infra` domain models the physical and virtual infrastructure where software runs. It owns the "where" of the platform: **Estates** (ownership hierarchy — accounts, VPCs, datacenters), **Hosts** (individual machines), **Realms** (active governance scopes like Kubernetes clusters or Compose projects), and **Services** (consumed protocol endpoints like databases, queues, and SaaS providers).
 
-**Base prefix:** `/api/v1/factory/infra`
+**Base prefix:** `/api/factory/infra`
 
 ## Endpoints
 
@@ -78,7 +78,7 @@ Additional per-resource filters:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/v1/factory/infra/hosts?type=vm&lifecycle=active"
+  "https://factory.example.com/api/factory/infra/hosts?type=vm&lifecycle=active"
 ```
 
 ```json
@@ -139,7 +139,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "identityFile": "/home/ops/.ssh/edge_nyc_rsa"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/infra/hosts"
+  "https://factory.example.com/api/factory/infra/hosts"
 ```
 
 ### Create a Proxmox estate
@@ -162,7 +162,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "location": "homelab-rack-1"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/infra/estates"
+  "https://factory.example.com/api/factory/infra/estates"
 ```
 
 ### Create a Kubernetes realm
@@ -190,7 +190,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/infra/realms"
+  "https://factory.example.com/api/factory/infra/realms"
 ```
 
 ### Add a host to a realm
@@ -203,7 +203,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
     "hostId": "host_01hxprodworker01",
     "role": "worker"
   }' \
-  "https://factory.example.com/api/v1/factory/infra/realm-hosts"
+  "https://factory.example.com/api/factory/infra/realm-hosts"
 ```
 
 ### Register a database service
@@ -229,7 +229,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/infra/services"
+  "https://factory.example.com/api/factory/infra/services"
 ```
 
 ### Trigger a host scan
@@ -238,7 +238,7 @@ Scans collect OS, CPU, memory, disk, running processes, open ports, and installe
 
 ```bash
 curl -X POST -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/v1/factory/infra/hosts/prod-worker-01/scan"
+  "https://factory.example.com/api/factory/infra/hosts/prod-worker-01/scan"
 ```
 
 ```json

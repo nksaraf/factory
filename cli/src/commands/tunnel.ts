@@ -160,7 +160,7 @@ export function tunnelCommand(app: DxBase) {
             const rest = await getFactoryRestClient()
             await rest.request(
               "POST",
-              `/api/v1/factory/infra/tunnels/${id}/close`,
+              `/api/factory/infra/tunnels/${id}/close`,
               {}
             )
             actionResult(

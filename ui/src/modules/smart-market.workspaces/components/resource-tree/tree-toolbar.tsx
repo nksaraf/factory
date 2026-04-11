@@ -13,7 +13,7 @@ import {
   RESOURCE_TYPE_CONFIG,
 } from "../../constants/resource-config"
 import { useCreateResource } from "../../data/use-create-resource"
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 export function TreeToolbar({
   searchQuery,
@@ -22,7 +22,7 @@ export function TreeToolbar({
   searchQuery: string
   onSearchChange: (query: string) => void
 }) {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
   const createResource = useCreateResource(workspaceId)
 
   return (

@@ -425,7 +425,7 @@ The CLI uses two distinct tokens. Using the wrong one is a common source of 401 
 | Token                                  | Function                      | Audience                                          |
 | -------------------------------------- | ----------------------------- | ------------------------------------------------- |
 | **Auth service token** (opaque bearer) | Session token for Better Auth | Auth endpoints only (`/get-session`, `/sign-out`) |
-| **Factory API token** (JWT)            | JWKS-validated JWT            | All `/api/v1/factory/*` endpoints                 |
+| **Factory API token** (JWT)            | JWKS-validated JWT            | All `/api/factory/*` endpoints                    |
 
 **For CLI contributors:**
 
@@ -466,7 +466,7 @@ The JWT is refreshed automatically by calling `/get-session` with the bearer tok
 
 ### Infrastructure
 
-`dx tunnel` | `dx connect` | `dx infra` | `dx cluster` | `dx kube` | `dx workspace` | `dx site`
+`dx tunnel` | `dx connect` | `dx infra` | `dx cluster` | `dx kube` | `dx workbench` | `dx site`
 
 ### Platform
 

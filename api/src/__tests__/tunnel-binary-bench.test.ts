@@ -412,10 +412,10 @@ describe.skipIf(skipBench)(
         const tokenParam = authToken ? `?token=${authToken}` : ""
         const wsUrl =
           FACTORY_URL!.replace(/^http/, "ws") +
-          "/api/v1/factory/infra/tunnel-broker" +
+          "/api/factory/infra/tunnel-broker" +
           tokenParam
         console.log(
-          `\n  Connecting tunnel to ${FACTORY_URL}/api/v1/factory/infra/tunnel-broker`
+          `\n  Connecting tunnel to ${FACTORY_URL}/api/factory/infra/tunnel-broker`
         )
         console.log(`  Auth: ${authToken ? "JWT from session" : "none"}`)
         console.log(`  Subdomain: ${SUBDOMAIN}`)

@@ -1,14 +1,14 @@
-# Workspace Isolation Tiers
+# Workbench isolation tiers
 
-Factory workspaces support three isolation tiers, each offering a different tradeoff between resource efficiency and isolation.
+Factory **workbenches** support three isolation tiers, each offering a different tradeoff between resource efficiency and isolation.
 
 ## Tiers
 
-| Tier | Shared | Isolated | Use case |
-|------|--------|----------|----------|
-| **Worktree** | Filesystem, Docker daemon, network | Git working tree, ports, compose project, `.dx/` state | Laptop development, parallel agents (Conductor) |
-| **Container** | Docker daemon, host network (bridged) | Filesystem (except mounted source), process namespace | CI runners, heavier agent workloads |
-| **VM** | Nothing | Everything | Production-like environments, untrusted code |
+| Tier          | Shared                                | Isolated                                               | Use case                                        |
+| ------------- | ------------------------------------- | ------------------------------------------------------ | ----------------------------------------------- |
+| **Worktree**  | Filesystem, Docker daemon, network    | Git working tree, ports, compose project, `.dx/` state | Laptop development, parallel agents (Conductor) |
+| **Container** | Docker daemon, host network (bridged) | Filesystem (except mounted source), process namespace  | CI runners, heavier agent workloads             |
+| **VM**        | Nothing                               | Everything                                             | Production-like environments, untrusted code    |
 
 ## Worktree Tier
 
@@ -39,39 +39,40 @@ This is the lowest-overhead tier — no containers or VMs, just separate directo
 ### Commands
 
 ```bash
-# Create a worktree workspace (installs deps, allocates ports, sets up hooks)
-dx workspace create my-feature --tier worktree --branch feat/my-feature
+# Create a worktree workbench (installs deps, allocates ports, sets up hooks)
+dx workbench create my-feature --tier worktree --branch feat/my-feature
 
-# List all workspaces (local worktrees + remote)
-dx workspace list
+# List all workbenches (local worktrees + remote)
+dx workbench list
 
-# List only local worktree workspaces
-dx workspace list --tier worktree
+# List only local worktree workbenches
+dx workbench list --tier worktree
 
-# Show details for a workspace
-dx workspace show colombo
+# Show details for a workbench
+dx workbench show colombo
 
-# Delete a worktree workspace (stops compose, removes worktree)
-dx workspace delete my-feature
+# Delete a worktree workbench (stops compose, removes worktree)
+dx workbench delete my-feature
 
 # Force delete even with uncommitted changes
-dx workspace delete my-feature --force
+dx workbench delete my-feature --force
 ```
 
 ### Configuration
 
-Workspace paths can be configured in `~/.config/dx/config.json`:
+Conductor-style repo and worktree base paths can be configured in `~/.config/dx/config.json`:
 
 ```json
 {
-  "workspaceReposDir": "~/conductor/repos",
-  "workspaceWorktreesDir": "~/conductor/workspaces"
+  "workbenchReposDir": "~/conductor/repos",
+  "workbenchWorktreesDir": "~/conductor/workspaces"
 }
 ```
 
 Or via environment variables:
+
 - `DX_REPOS_DIR` — base directory for main repo checkouts
-- `DX_WORKTREES_DIR` — base directory for worktree workspaces
+- `DX_WORKTREES_DIR` — base directory for worktree checkouts
 
 When not configured, the CLI auto-detects the Conductor layout from the current directory.
 
@@ -83,23 +84,23 @@ The docker-compose project name defaults to `basename(worktreeDir)` (e.g., `colo
 
 ### Discovery
 
-`dx workspace list --tier worktree` discovers **all** existing git worktrees for the current project, including ones created outside of `dx` (e.g., by Conductor directly, or manually via `git worktree add`). No migration step is required.
+`dx workbench list --tier worktree` discovers **all** existing git worktrees for the current project, including ones created outside of `dx` (e.g., by Conductor directly, or manually via `git worktree add`). No migration step is required.
 
 ## Container Tier
 
-Container-based workspaces run inside Kubernetes pods via the Factory API. They provide filesystem and process isolation while sharing the host's Docker daemon.
+Container-based workbenches run inside Kubernetes pods via the Factory API. They provide filesystem and process isolation while sharing the host's Docker daemon.
 
 ```bash
-dx workspace create my-ws
-dx workspace create my-ws --type container --cpu 2 --memory 4Gi
+dx workbench create my-ws
+dx workbench create my-ws --type container --cpu 2 --memory 4Gi
 ```
 
-See `dx workspace --help` for the full set of remote workspace commands (start, stop, resize, snapshot, etc.).
+See `dx workbench --help` for the full set of remote workbench commands (start, stop, resize, snapshot, etc.).
 
 ## VM Tier
 
-VM-based workspaces provide full machine isolation. Used for production-like environments or running untrusted code.
+VM-based workbenches provide full machine isolation. Used for production-like environments or running untrusted code.
 
 ```bash
-dx workspace create my-ws --type vm
+dx workbench create my-ws --type vm
 ```

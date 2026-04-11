@@ -3,10 +3,10 @@ import { Link } from "react-router"
 import { Button } from "@rio.js/ui/button"
 import { Icon } from "@rio.js/ui/icon"
 
-import { useWorkspace } from "../workspace-context"
+import { useWorkbench } from "../workbench-context"
 
 export function WorkspaceEmptyState() {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId } = useWorkbench()
 
   return (
     <div className="flex flex-col items-center py-16 text-center">

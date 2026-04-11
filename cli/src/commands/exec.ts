@@ -65,7 +65,7 @@ export function execCommand(app: DxBase) {
 
       if (!entity) {
         console.error(styleError(`No machine found for "${args.target}".`))
-        console.log(styleMuted("\nSearched workspaces, VMs, and hosts. Try:"))
+        console.log(styleMuted("\nSearched workbenches, VMs, and hosts. Try:"))
         console.log(styleMuted("  dx ssh    — interactive picker"))
         process.exit(1)
       }

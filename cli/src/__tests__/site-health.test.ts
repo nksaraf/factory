@@ -5,33 +5,41 @@
  *   - HealthMonitor: snapshot building, degradation detection
  *   - Start/stop lifecycle
  */
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, mock } from "bun:test"
 
 import type { Executor, HealthStatus } from "../site/execution/executor.js"
 import { HealthMonitor, type HealthSnapshot } from "../site/health.js"
 
-// ---------------------------------------------------------------------------
-// Mock executor
-// ---------------------------------------------------------------------------
+async function waitForAssertion(
+  fn: () => void,
+  opts: { timeoutMs?: number; intervalMs?: number } = {}
+): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? 10_000
+  const intervalMs = opts.intervalMs ?? 50
+  const start = Date.now()
+  let lastErr: unknown
+  while (Date.now() - start < timeoutMs) {
+    try {
+      fn()
+      return
+    } catch (e) {
+      lastErr = e
+      await new Promise((r) => setTimeout(r, intervalMs))
+    }
+  }
+  throw lastErr
+}
 
 function mockExecutor(
   healthResults: Record<string, HealthStatus>
 ): Pick<Executor, "healthCheckAll" | "type"> {
   return {
     type: "compose",
-    healthCheckAll: vi.fn().mockResolvedValue(healthResults),
+    healthCheckAll: mock().mockResolvedValue(healthResults),
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("HealthMonitor", () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it("reports healthy when all components are healthy", async () => {
     const executor = mockExecutor({
       api: "healthy",
@@ -42,7 +50,7 @@ describe("HealthMonitor", () => {
     const monitor = new HealthMonitor(executor as any, { intervalMs: 60_000 })
     const stop = monitor.start()
 
-    await vi.waitFor(() => {
+    await waitForAssertion(() => {
       expect(monitor.getLastSnapshot()).not.toBeNull()
     })
 
@@ -64,7 +72,7 @@ describe("HealthMonitor", () => {
     const monitor = new HealthMonitor(executor as any, { intervalMs: 60_000 })
     const stop = monitor.start()
 
-    await vi.waitFor(() => {
+    await waitForAssertion(() => {
       expect(monitor.getLastSnapshot()).not.toBeNull()
     })
 
@@ -81,7 +89,7 @@ describe("HealthMonitor", () => {
     const monitor = new HealthMonitor(executor as any, { intervalMs: 60_000 })
     const stop = monitor.start()
 
-    await vi.waitFor(() => {
+    await waitForAssertion(() => {
       expect(monitor.getLastSnapshot()).not.toBeNull()
     })
 
@@ -94,7 +102,7 @@ describe("HealthMonitor", () => {
       api: "unhealthy",
     })
 
-    const onDegradation = vi.fn()
+    const onDegradation = mock()
     const monitor = new HealthMonitor(
       executor as any,
       { intervalMs: 60_000 },
@@ -102,7 +110,7 @@ describe("HealthMonitor", () => {
     )
     const stop = monitor.start()
 
-    await vi.waitFor(() => {
+    await waitForAssertion(() => {
       expect(onDegradation).toHaveBeenCalled()
     })
 
@@ -118,7 +126,7 @@ describe("HealthMonitor", () => {
       web: "healthy",
     })
 
-    const onDegradation = vi.fn()
+    const onDegradation = mock()
     const monitor = new HealthMonitor(
       executor as any,
       { intervalMs: 60_000 },
@@ -126,7 +134,7 @@ describe("HealthMonitor", () => {
     )
     const stop = monitor.start()
 
-    await vi.waitFor(() => {
+    await waitForAssertion(() => {
       expect(monitor.getLastSnapshot()).not.toBeNull()
     })
 
@@ -139,10 +147,8 @@ describe("HealthMonitor", () => {
     const monitor = new HealthMonitor(executor as any, { intervalMs: 60_000 })
 
     expect(monitor.isRunning()).toBe(false)
-
     const stop = monitor.start()
     expect(monitor.isRunning()).toBe(true)
-
     stop()
     expect(monitor.isRunning()).toBe(false)
   })

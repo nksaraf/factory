@@ -104,4 +104,4 @@ dx agent skill init my-skill
 
 - [`dx run`](/cli/run) — Run scripts and recipes (agent-friendly)
 - [`dx catalog`](/cli/catalog) — Browse the software catalog (context for agents)
-- [`dx workspace`](/cli/workspace) — Manage workspaces where agents operate
+- [`dx workbench`](/cli/workbench) — Manage workbenches where agents operate

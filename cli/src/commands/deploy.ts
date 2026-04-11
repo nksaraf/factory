@@ -1,28 +1,27 @@
-import type { DxBase } from "../dx-root.js";
-
-import { getFactoryClient } from "../client.js";
+import { getFactoryClient } from "../client.js"
+import type { DxBase } from "../dx-root.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 import {
-  apiCall,
-  tableOrJson,
-  detailView,
   actionResult,
+  apiCall,
   colorStatus,
+  detailView,
   styleBold,
   styleMuted,
   styleSuccess,
+  tableOrJson,
   timeAgo,
-} from "./list-helpers.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+} from "./list-helpers.js"
 
 setExamples("deploy", [
   "$ dx deploy list                   List deployments",
   "$ dx deploy create --release <id>  Create deployment",
   "$ dx deploy status <id>            Check deployment status",
-]);
+])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getFleetApi(): Promise<any> {
-  return getFactoryClient();
+async function getFactoryOpsApi(): Promise<any> {
+  return getFactoryClient()
 }
 
 export function deployCommand(app: DxBase) {
@@ -50,14 +49,18 @@ export function deployCommand(app: DxBase) {
           },
         })
         .run(async ({ args, flags }) => {
-          const api = await getFleetApi();
+          const api = await getFactoryOpsApi()
           const result = await apiCall(flags, () =>
-            api.api.v1.fleet.rollouts.post({
+            api.api.v1.factory.ops.rollouts.post({
               releaseId: args["release-id"],
               systemDeploymentId: flags.target as string,
             })
-          );
-          actionResult(flags, result, styleSuccess(`Rollout created for release ${args["release-id"]}.`));
+          )
+          actionResult(
+            flags,
+            result,
+            styleSuccess(`Rollout created for release ${args["release-id"]}.`)
+          )
         })
     )
 
@@ -73,18 +76,21 @@ export function deployCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getFleetApi();
+          const api = await getFactoryOpsApi()
           const result = await apiCall(flags, () =>
-            api.api.v1.fleet.rollouts({ id: args.id }).get()
-          );
+            api.api.v1.factory.ops.rollouts({ id: args.id }).get()
+          )
           detailView(flags, result, [
             ["ID", (r) => styleMuted(String(r.rolloutId ?? ""))],
             ["Release", (r) => styleBold(String(r.releaseId ?? ""))],
             ["Target", (r) => String(r.systemDeploymentId ?? "")],
             ["Status", (r) => colorStatus(String(r.status ?? ""))],
             ["Started", (r) => timeAgo(r.startedAt as string)],
-            ["Completed", (r) => r.completedAt ? timeAgo(r.completedAt as string) : "-"],
-          ]);
+            [
+              "Completed",
+              (r) => (r.completedAt ? timeAgo(r.completedAt as string) : "-"),
+            ],
+          ])
         })
     )
 
@@ -92,14 +98,22 @@ export function deployCommand(app: DxBase) {
       c
         .meta({ description: "List rollouts" })
         .flags({
-          status: { type: "string", alias: "s", description: "Filter by status" },
-          limit: { type: "number", alias: "n", description: "Limit results (default: 50)" },
+          status: {
+            type: "string",
+            alias: "s",
+            description: "Filter by status",
+          },
+          limit: {
+            type: "number",
+            alias: "n",
+            description: "Limit results (default: 50)",
+          },
         })
         .run(async ({ flags }) => {
-          const api = await getFleetApi();
+          const api = await getFactoryOpsApi()
           const result = await apiCall(flags, () =>
-            api.api.v1.fleet.rollouts.get()
-          );
+            api.api.v1.factory.ops.rollouts.get()
+          )
           tableOrJson(
             flags,
             result,
@@ -110,11 +124,13 @@ export function deployCommand(app: DxBase) {
               String(r.systemDeploymentId ?? ""),
               colorStatus(String(r.status ?? "")),
               timeAgo(r.startedAt as string),
-              r.completedAt ? timeAgo(r.completedAt as string) : styleMuted("-"),
+              r.completedAt
+                ? timeAgo(r.completedAt as string)
+                : styleMuted("-"),
             ],
             undefined,
-            { emptyMessage: "No rollouts found." },
-          );
+            { emptyMessage: "No rollouts found." }
+          )
         })
-    );
+    )
 }

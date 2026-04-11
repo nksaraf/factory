@@ -31,27 +31,27 @@ const registry: SchemaRegistry = {
       })
       .passthrough(),
   },
-  "ops.workspace.created": {
+  "ops.workbench.created": {
     1: z
       .object({
-        workspaceId: z.string(),
+        workbenchId: z.string(),
         name: z.string().optional(),
       })
       .passthrough(),
   },
-  "ops.workspace.health_changed": {
+  "ops.workbench.health_changed": {
     1: z
       .object({
-        workspaceId: z.string(),
+        workbenchId: z.string(),
         previousHealth: z.string().optional(),
         newHealth: z.string(),
       })
       .passthrough(),
   },
-  "ops.workspace.ready": {
+  "ops.workbench.ready": {
     1: z
       .object({
-        workspaceId: z.string(),
+        workbenchId: z.string(),
         status: z.string(),
       })
       .passthrough(),

@@ -401,7 +401,7 @@ export type CatalogSystem = z.infer<typeof catalogSystemSchema>
 
 // ── Catalog sync result ──────────────────────────────────────
 
-/** Response shape for POST /api/v1/factory/catalog/sync */
+/** Response shape for POST /api/factory/catalog/sync */
 export interface CatalogSyncResult {
   systemId: string
   systemSlug: string

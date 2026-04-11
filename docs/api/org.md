@@ -2,7 +2,7 @@
 
 The `org` domain covers the people, agents, and coordination primitives that make up your organization. It owns the "who" of the platform: teams, principals (human, agent, and service-account), memberships, the agent model (agents, jobs, memory), and conversational threads.
 
-**Base prefix:** `/api/v1/factory/org`
+**Base prefix:** `/api/factory/org`
 
 ## Endpoints
 
@@ -82,7 +82,7 @@ Additional per-resource filters:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/v1/factory/org/teams?limit=20&search=platform"
+  "https://factory.example.com/api/factory/org/teams?limit=20&search=platform"
 ```
 
 ```json
@@ -126,7 +126,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "slackChannel": "#data-platform"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/org/teams"
+  "https://factory.example.com/api/factory/org/teams"
 ```
 
 ### Create a principal (human)
@@ -145,7 +145,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "avatarUrl": "https://avatars.example.com/alice"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/org/principals"
+  "https://factory.example.com/api/factory/org/principals"
 ```
 
 ### Create an agent
@@ -174,7 +174,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/v1/factory/org/agents"
+  "https://factory.example.com/api/factory/org/agents"
 ```
 
 ### Complete a job
@@ -189,7 +189,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
     },
     "costCents": 14
   }' \
-  "https://factory.example.com/api/v1/factory/org/jobs/job_01hx4k9p5r/complete"
+  "https://factory.example.com/api/factory/org/jobs/job_01hx4k9p5r/complete"
 ```
 
 ### Propose a memory record
@@ -207,7 +207,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "source": "conversation:thread_01hx4k9p7t"
     }
   }' \
-  "https://factory.example.com/api/v1/factory/org/memory"
+  "https://factory.example.com/api/factory/org/memory"
 ```
 
 ### Approve a proposed memory
@@ -216,7 +216,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "approvedByPrincipalId": "prin_01hx4k9p3q" }' \
-  "https://factory.example.com/api/v1/factory/org/memory/mem_01hx4k9p8u/approve"
+  "https://factory.example.com/api/factory/org/memory/mem_01hx4k9p8u/approve"
 ```
 
 ## CLI equivalent

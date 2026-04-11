@@ -25,14 +25,6 @@ import type { KubeClient, KubeResource } from "../lib/kube-client"
 import { emitEvent } from "../lib/workflow-events"
 import { logger } from "../logger"
 import {
-  getSnapshot,
-  updateSnapshotStatus,
-} from "../modules/fleet/snapshot.service"
-import {
-  expireStale,
-  updateWorkbenchHealth,
-} from "../modules/fleet/workbench.service"
-import {
   createRoute,
   lookupRouteByDomain,
   updateRoute,
@@ -41,6 +33,14 @@ import {
   drizzleDbReader,
   resolveRouteTargets,
 } from "../modules/infra/route-resolver"
+import {
+  getSnapshot,
+  updateSnapshotStatus,
+} from "../modules/ops/snapshot.service"
+import {
+  expireStale,
+  updateWorkbenchHealth,
+} from "../modules/ops/workbench.service"
 import { PreviewReconciler } from "./preview-reconciler"
 import {
   type ReconcileContext,

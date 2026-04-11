@@ -1,6 +1,6 @@
 /**
  * Production seed — org root team + real infrastructure only (v2 schemas).
- * No fleet test data, no catalog, no commerce.
+ * No synthetic test data, no catalog, no commerce.
  *
  * Run: FACTORY_DATABASE_URL=postgres://... bun run api/src/db/seed-prod.ts
  */

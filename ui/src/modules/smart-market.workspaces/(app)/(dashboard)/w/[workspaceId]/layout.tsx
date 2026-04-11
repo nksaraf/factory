@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { useParams } from "react-router"
 
-import { WorkspaceProvider } from "../../../../components/workspace-context"
+import { WorkbenchProvider } from "../../../../components/workbench-context"
 
 export default function WorkspaceLayout({
   children,
@@ -25,6 +25,6 @@ export default function WorkspaceLayout({
   }
 
   return (
-    <WorkspaceProvider workspaceId={workspaceId}>{children}</WorkspaceProvider>
+    <WorkbenchProvider workspaceId={workspaceId}>{children}</WorkbenchProvider>
   )
 }

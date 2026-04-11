@@ -1,10 +1,10 @@
-import { z } from "zod";
+import { z } from "zod"
 
 /** Installation role: workbench (developer), site (edge), or factory (control plane). */
-export type InstallRole = "workbench" | "site" | "factory";
+export type InstallRole = "workbench" | "site" | "factory"
 
 /** Install connectivity mode. */
-export type InstallMode = "connected" | "offline";
+export type InstallMode = "connected" | "offline"
 
 /** Phases of the 6-phase install sequence. */
 export const InstallPhase = {
@@ -14,53 +14,53 @@ export const InstallPhase = {
   PLATFORM_INSTALL: "platform-install",
   POST_INSTALL: "post-install",
   HEALTH_VERIFY: "health-verify",
-} as const;
+} as const
 
-export type InstallPhase = (typeof InstallPhase)[keyof typeof InstallPhase];
+export type InstallPhase = (typeof InstallPhase)[keyof typeof InstallPhase]
 
 /** Structured result from preflight checks. */
 export interface PreflightCheck {
-  name: string;
-  passed: boolean;
-  message: string;
-  required: boolean;
+  name: string
+  passed: boolean
+  message: string
+  required: boolean
 }
 
 export interface PreflightResult {
-  passed: boolean;
-  checks: PreflightCheck[];
-  role: InstallRole;
+  passed: boolean
+  checks: PreflightCheck[]
+  role: InstallRole
 }
 
 /** Node entry in the install manifest. */
 export interface ManifestNode {
-  name: string;
-  role: "server" | "agent";
-  joinedAt: string;
-  ip: string;
+  name: string
+  role: "server" | "agent"
+  joinedAt: string
+  ip: string
 }
 
 /** Upgrade record in the install manifest. */
 export interface ManifestUpgrade {
-  fromVersion: string;
-  toVersion: string;
-  upgradedAt: string;
+  fromVersion: string
+  toVersion: string
+  upgradedAt: string
 }
 
 /** Stored as ConfigMap `dx-install-manifest` in `dx-system` namespace. */
 export interface InstallManifest {
-  version: 1;
-  role: InstallRole;
-  installedAt: string;
-  dxVersion: string;
-  installMode: InstallMode;
-  k3sVersion: string;
-  helmChartVersion: string;
-  siteName: string;
-  domain: string;
-  enabledPlanes: string[];
-  nodes: ManifestNode[];
-  upgrades: ManifestUpgrade[];
+  version: 1
+  role: InstallRole
+  installedAt: string
+  dxVersion: string
+  installMode: InstallMode
+  k3sVersion: string
+  helmChartVersion: string
+  siteName: string
+  domain: string
+  enabledPlanes: string[]
+  nodes: ManifestNode[]
+  upgrades: ManifestUpgrade[]
 }
 
 /** Manifest for an offline bundle (bundle/manifest.json). Cluster-only — workbenches don't use bundles. */
@@ -79,29 +79,29 @@ export const bundleManifestSchema = z.object({
     })
   ),
   createdAt: z.string(),
-});
+})
 
-export type BundleManifest = z.infer<typeof bundleManifestSchema>;
+export type BundleManifest = z.infer<typeof bundleManifestSchema>
 
 /** Planes enabled per role. */
-export const SITE_PLANES = ["control", "service", "data"] as const;
+export const SITE_PLANES = ["control", "service", "data"] as const
 export const FACTORY_PLANES = [
   ...SITE_PLANES,
   "build",
-  "fleet",
+  "ops",
   "commerce",
   "product",
   "observability",
   "gateway",
   "agent",
   "sandbox",
-] as const;
-export const WORKBENCH_PLANES = [] as const;
+] as const
+export const WORKBENCH_PLANES = [] as const
 
 export function planesForRole(role: InstallRole): string[] {
-  if (role === "factory") return [...FACTORY_PLANES];
-  if (role === "site") return [...SITE_PLANES];
-  return [...WORKBENCH_PLANES];
+  if (role === "factory") return [...FACTORY_PLANES]
+  if (role === "site") return [...SITE_PLANES]
+  return [...WORKBENCH_PLANES]
 }
 
 // ---------------------------------------------------------------------------
@@ -109,62 +109,68 @@ export function planesForRole(role: InstallRole): string[] {
 // ---------------------------------------------------------------------------
 
 /** Workbench subtype for tracking and behavioral differences. */
-export type WorkbenchType = "developer" | "ci" | "agent" | "sandbox" | "build" | "testbed";
+export type WorkbenchType =
+  | "developer"
+  | "ci"
+  | "agent"
+  | "sandbox"
+  | "build"
+  | "testbed"
 
 /** Result of a single toolchain check (e.g. node, java, docker). */
 export interface ToolchainCheck {
-  name: string;
-  cmd: string;
-  passed: boolean;
-  required: boolean;
-  version?: string;
-  minVersion?: string;
-  message: string;
+  name: string
+  cmd: string
+  passed: boolean
+  required: boolean
+  version?: string
+  minVersion?: string
+  message: string
 }
 
 /** Aggregate result of all toolchain checks. */
 export interface ToolchainResult {
-  passed: boolean;
-  checks: ToolchainCheck[];
+  passed: boolean
+  checks: ToolchainCheck[]
 }
 
 /** Persisted workbench config at `<root>/.dx/workbench.json`. */
 export interface WorkbenchConfig {
-  workbenchId: string;
-  type: WorkbenchType;
-  hostname: string;
-  ips: string[];
-  os: string;
-  arch: string;
-  dxVersion: string;
-  authProfile?: string;
-  factoryUrl?: string;
+  workbenchId: string
+  type: WorkbenchType
+  hostname: string
+  ips: string[]
+  os: string
+  arch: string
+  dxVersion: string
+  authProfile?: string
+  factoryUrl?: string
   /** How the workbench connects: "local" (embedded daemon), "connected" (remote factory). */
-  installMode?: "local" | "connected";
-  factoryRegistered: boolean;
-  registeredAt?: string;
-  createdAt: string;
-  lastInstallAt: string;
-  toolchainVersions: Record<string, string>;
+  installMode?: "local" | "connected"
+  factoryRegistered: boolean
+  registeredAt?: string
+  createdAt: string
+  lastInstallAt: string
+  toolchainVersions: Record<string, string>
 }
 
 /** Payload sent on every `dx` command to factory. */
 export interface WorkbenchPingPayload {
-  workbenchId: string;
-  command: string;
-  dxVersion: string;
-  timestamp: string;
-  workbenchType: WorkbenchType;
+  workbenchId: string
+  command: string
+  dxVersion: string
+  timestamp: string
+  workbenchType: WorkbenchType
 }
 
 /** Payload sent on `dx install` to register workbench with factory. */
 export interface WorkbenchRegistrationPayload {
-  workbenchId: string;
-  type: WorkbenchType;
-  hostname: string;
-  ips: string[];
-  os: string;
-  arch: string;
-  dxVersion: string;
-  userId?: string;
+  workbenchId: string
+  type: WorkbenchType
+  hostname: string
+  ips: string[]
+  os: string
+  arch: string
+  dxVersion: string
+  userId?: string
 }

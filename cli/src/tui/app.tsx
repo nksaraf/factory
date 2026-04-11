@@ -14,10 +14,10 @@ import { AlertsTab } from "./tabs/alerts-tab.js"
 import { BuildTab } from "./tabs/build-tab.js"
 import { CommerceTab } from "./tabs/commerce-tab.js"
 import { ExplorerTab } from "./tabs/explorer/explorer-tab.js"
-import { FleetTab } from "./tabs/fleet-tab.js"
 import { GatewayTab } from "./tabs/gateway-tab.js"
 import { InfraTab } from "./tabs/infra-tab.js"
 import { LogsTab } from "./tabs/logs-tab.js"
+import { OpsTab } from "./tabs/ops-tab.js"
 import { WorkbenchTab } from "./tabs/workbench-tab.js"
 
 function resolveInitialTab(tab?: string): TabId {
@@ -133,7 +133,7 @@ function Dashboard({ initialTab }: AppProps) {
               focused={tabFocused}
             />
           )}
-          {activeTab === "fleet" && <FleetTab focused={tabFocused} />}
+          {activeTab === "ops" && <OpsTab focused={tabFocused} />}
           {activeTab === "workbench" && <WorkbenchTab focused={tabFocused} />}
           {activeTab === "build" && <BuildTab focused={tabFocused} />}
           {activeTab === "gateway" && <GatewayTab focused={tabFocused} />}

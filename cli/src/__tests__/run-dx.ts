@@ -1,26 +1,32 @@
-import { spawnSync } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** factory/cli root (directory containing `bin/`). */
-export const CLI_ROOT = path.join(__dirname, "..", "..");
+export const CLI_ROOT = path.join(__dirname, "..", "..")
 
-export const RUN_JS = path.join(CLI_ROOT, "bin", "run.js");
+export const RUN_JS = path.join(CLI_ROOT, "bin", "run.js")
 
 export type RunDxResult = {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-};
+  status: number | null
+  stdout: string
+  stderr: string
+}
 
 export function runDx(
   args: string[],
-  options: { home: string; env?: NodeJS.ProcessEnv; input?: string }
+  options: {
+    home: string
+    /** Defaults to CLI_ROOT. Use an empty temp dir to avoid picking up this repo's compose. */
+    cwd?: string
+    env?: NodeJS.ProcessEnv
+    input?: string
+  }
 ): RunDxResult {
   const result = spawnSync("bun", [RUN_JS, ...args], {
-    cwd: CLI_ROOT,
+    cwd: options.cwd ?? CLI_ROOT,
     encoding: "utf-8",
     env: { ...process.env, ...options.env, HOME: options.home },
     input: options.input,
@@ -29,10 +35,10 @@ export function runDx(
       options.input !== undefined
         ? "pipe"
         : (["ignore", "pipe", "pipe"] as const),
-  });
+  })
   return {
     status: result.status,
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
-  };
+  }
 }

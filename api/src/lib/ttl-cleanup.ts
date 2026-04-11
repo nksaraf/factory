@@ -7,11 +7,11 @@ import { and, lt } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { operationRun } from "../db/schema/ops"
-import { cleanupExpiredWorkbenches } from "../modules/fleet/service"
 import {
   cleanupExpiredRoutes,
   cleanupStaleTunnels,
 } from "../modules/infra/gateway.service"
+import { cleanupExpiredWorkbenches } from "../modules/ops/service"
 import { runPreviewCleanup } from "../services/preview/preview.service"
 import { type OperationRunner, createOperationRunner } from "./operations"
 

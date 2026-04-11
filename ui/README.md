@@ -132,13 +132,13 @@ trafficure/
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start development server with hot reload |
-| `pnpm build` | Build for production |
-| `pnpm start` | Run production build |
-| `pnpm openapi:fetch` | Download OpenAPI spec from data service (set `OPENAPI_SPEC_URL` or uses `http://localhost:8084/api/v1/data/openapi`) |
-| `pnpm openapi-ts` | Generate API client + TanStack Query hooks from `openapi.json` into `src/client` |
+| Command              | Description                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`           | Start development server with hot reload                                                                          |
+| `pnpm build`         | Build for production                                                                                              |
+| `pnpm start`         | Run production build                                                                                              |
+| `pnpm openapi:fetch` | Download OpenAPI spec from data service (set `OPENAPI_SPEC_URL` or uses `http://localhost:8084/api/data/openapi`) |
+| `pnpm openapi-ts`    | Generate API client + TanStack Query hooks from `openapi.json` into `src/client`                                  |
 
 ### OpenAPI codegen (TanStack Query)
 
@@ -151,7 +151,9 @@ The app uses [@hey-api/openapi-ts](https://heyapi.dev/openapi-ts) with the [TanS
 ## Key Configuration Files
 
 ### `app.config.ts`
+
 Configures Vinxi routers:
+
 - **Public router**: Static assets
 - **API router**: Server-side API endpoints (`/api/*`)
 - **React Client router**: Client-side rendering with MDX support
@@ -159,11 +161,14 @@ Configures Vinxi routers:
 - **Server Functions router**: RPC-style server functions
 
 ### `app.settings.ts`
+
 Typed environment configuration using Zod schemas. Divided into:
+
 - **PUBLIC**: Client-accessible variables (API URLs, keys)
 - **PRIVATE**: Server-only variables (database URLs, secrets)
 
 ### Path Aliases
+
 ```typescript
 @/           → ./src/
 ~/           → ./
@@ -173,7 +178,9 @@ Typed environment configuration using Zod schemas. Divided into:
 ## Architecture Overview
 
 ### Rio.js Framework
+
 The app is built on the Rio.js ecosystem which provides:
+
 - **@rio.js/client**: Core client with service registration
 - **@rio.js/enterprise**: Authentication, workspaces, multi-tenancy
 - **@rio.js/gis**: Geographic information system capabilities
@@ -182,12 +189,15 @@ The app is built on the Rio.js ecosystem which provides:
 - **@rio.js/workflows**: Workflow automation
 
 ### Modules System
+
 Features are organized as "modules" with:
+
 - `manifest.json`: Module metadata and configuration
 - `extension.ts`: Module initialization and hooks
 - Route directories for pages
 
 ### Authentication Flow
+
 1. Landing page (`/`) checks for existing session
 2. Authenticated users redirect to `/command-center`
 3. Auth handled via Better Auth with Supabase backend
@@ -195,14 +205,17 @@ Features are organized as "modules" with:
 ## Development Workflow
 
 ### Adding a new page
+
 1. Create a new file in `src/routes/` following the file-based routing convention
 2. Export a default React component and optionally a `loader` function
 
 ### Adding API endpoints
+
 1. Create files in `src/routes/api/`
 2. Export handler functions (`GET`, `POST`, etc.)
 
 ### Working with GIS data
+
 ```typescript
 import { RioClient } from "@rio.js/client"
 
@@ -223,12 +236,14 @@ Configuration is in `playwright.config.ts`.
 ## Deployment
 
 ### Vercel (Recommended)
+
 ```bash
 pnpm deploy       # Preview deployment
 pnpm deploy:prod  # Production deployment
 ```
 
 ### Docker
+
 ```bash
 docker-compose up
 ```
@@ -238,6 +253,7 @@ See `docker-compose.yaml` for configuration.
 ## Documentation Links
 
 ### Core Technologies
+
 - [Vinxi Documentation](https://vinxi.vercel.app/)
 - [React 19 Documentation](https://react.dev/)
 - [TanStack Query](https://tanstack.com/query/latest)
@@ -245,32 +261,40 @@ See `docker-compose.yaml` for configuration.
 - [TypeScript](https://www.typescriptlang.org/docs/)
 
 ### Mapping & GIS
+
 - [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/)
 - [Google Maps Platform](https://developers.google.com/maps/documentation)
 - [Turf.js (Geospatial Analysis)](https://turfjs.org/)
 - [Deck.gl (Large-scale Data Viz)](https://deck.gl/)
 
 ### Authentication & Backend
+
 - [Supabase Documentation](https://supabase.com/docs)
 - [Better Auth](https://www.better-auth.com/)
 
 ### Testing & Deployment
+
 - [Playwright](https://playwright.dev/)
 - [Vercel](https://vercel.com/docs)
 
 ## Troubleshooting
 
 ### Memory issues during build
+
 The build uses increased memory allocation:
+
 ```bash
 NODE_OPTIONS=--max-old-space-size=16384
 ```
 
 ### Package installation fails
+
 Ensure you've set up your service account in the `.env` file and run the npm setup script:
+
 ```bash
 npx vinxi run scripts/setup-npm.ts
 ```
 
 ### Type errors with Rio.js packages
+
 Path aliases are configured in `tsconfig.json`. Ensure your IDE uses the workspace TypeScript version.

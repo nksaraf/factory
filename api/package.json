@@ -13,7 +13,7 @@
   },
   "scripts": {
     "lint": "oxlint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:smoke": "bun test src/__tests__/tunnel-smoke.test.ts",
     "db:generate": "drizzle-kit generate",

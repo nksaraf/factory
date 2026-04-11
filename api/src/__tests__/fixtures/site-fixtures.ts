@@ -1,4 +1,8 @@
-import type { ManifestV1, ManifestRoute, ManifestDomain } from "@smp/factory-shared/types"
+import type {
+  ManifestDomain,
+  ManifestRoute,
+  ManifestV1,
+} from "@smp/factory-shared/types"
 
 // ---- simple-saas: Basic production site ----
 // 2 ingress routes (api + web), 1 platform domain, TLS auto, no middlewares
@@ -55,7 +59,6 @@ export const simpleSaasExpected = {
   middlewares: 0,
 }
 
-
 // ---- multi-tenant: Complex production site ----
 // 5 routes (2 ingress + 2 sandbox + 1 preview)
 // 3 domains (1 platform + 2 custom)
@@ -66,7 +69,7 @@ const multiTenantRoutes: ManifestRoute[] = [
     routeId: "rte_mt_api",
     kind: "ingress",
     domain: "api.multi-tenant.dx.dev",
-    pathPrefix: "/api/v1",
+    pathPrefix: "/api",
     targetService: "api-gateway",
     targetPort: 8080,
     protocol: "http",
@@ -167,7 +170,6 @@ export const multiTenantExpected = {
   certificates: 2,
   middlewares: 2,
 }
-
 
 // ---- air-gapped: Offline site ----
 // 1 ingress route, 1 custom domain, TLS custom (self-signed)

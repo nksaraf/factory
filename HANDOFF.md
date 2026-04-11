@@ -8,12 +8,12 @@
 
 ## What's Done (Phases 0-6)
 
-| Phase | Status | Summary |
-|-------|--------|---------|
-| 0-4 | Done | 6 v2 Drizzle schemas (~55 tables), CRUD factory (`ontologyRoutes()`), v2 controllers for all 8 domains, Zod schemas, action body schemas |
-| 5-pre | Done | Snapshots captured: `snapshots/v1-openapi.json`, `snapshots/v1-entities.json`, `snapshots/v1-cli-commands.txt`, `snapshots/v2-entities.json` |
-| 5 | Done | Tests updated to v2 vocabulary (4 core suites pass: fleet, gateway x2, infra) |
-| 6a-6f | Done | Services migrated: gateway, access, git-host, build, fleet/workspace/snapshot/workbench, install-manifest, reconciler, agent executor, kubernetes strategy |
+| Phase | Status | Summary                                                                                                                                                    |
+| ----- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0-4   | Done   | 6 v2 Drizzle schemas (~55 tables), CRUD factory (`ontologyRoutes()`), v2 controllers for all 8 domains, Zod schemas, action body schemas                   |
+| 5-pre | Done   | Snapshots captured: `snapshots/v1-openapi.json`, `snapshots/v1-entities.json`, `snapshots/v1-cli-commands.txt`, `snapshots/v2-entities.json`               |
+| 5     | Done   | Tests updated to v2 vocabulary (4 core suites pass: fleet, gateway x2, infra)                                                                              |
+| 6a-6f | Done   | Services migrated: gateway, access, git-host, build, fleet/workspace/snapshot/workbench, install-manifest, reconciler, agent executor, kubernetes strategy |
 
 ---
 
@@ -31,22 +31,22 @@ File: `api/src/factory.api.ts`
 2. Remove `buildV2App()` private method
 3. In `mountFactoryControllers()`, replace v1 controller mounts with v2:
 
-| Remove (v1) | Replace with (v2) |
-|---|---|
-| `productController(db)` | `productControllerV2(db)` |
-| `buildController(db)` | `buildControllerV2(db)` |
-| `agentController(db)` | `agentControllerV2(db)` |
-| `memoryController(db)` | (fold into `agentControllerV2` or keep separate) |
-| `commerceController(db)` | `commerceControllerV2(db)` |
-| `fleetController(db)` | `fleetControllerV2(db)` |
-| `identityController(db)` | `identityControllerV2(db)` |
-| `messagingController(db)` | `messagingControllerV2(db)` |
-| `infraController(db)` | `infraControllerV2(db)` |
-| `sandboxController(db, ...)` | (covered by fleet workspaces in v2) |
-| `gatewayController(db)` | (covered by infra v2) |
-| `accessController(db)` | (covered by infra v2) |
-| `previewController(db)` | (covered by infra v2) |
-| `releaseContentController(db)` | (no v2 yet -- see Step 4) |
+| Remove (v1)                    | Replace with (v2)                                |
+| ------------------------------ | ------------------------------------------------ |
+| `productController(db)`        | `productControllerV2(db)`                        |
+| `buildController(db)`          | `buildControllerV2(db)`                          |
+| `agentController(db)`          | `agentControllerV2(db)`                          |
+| `memoryController(db)`         | (fold into `agentControllerV2` or keep separate) |
+| `commerceController(db)`       | `commerceControllerV2(db)`                       |
+| `fleetController(db)`          | `fleetControllerV2(db)`                          |
+| `identityController(db)`       | `identityControllerV2(db)`                       |
+| `messagingController(db)`      | `messagingControllerV2(db)`                      |
+| `infraController(db)`          | `infraControllerV2(db)`                          |
+| `sandboxController(db, ...)`   | (covered by fleet workspaces in v2)              |
+| `gatewayController(db)`        | (covered by infra v2)                            |
+| `accessController(db)`         | (covered by infra v2)                            |
+| `previewController(db)`        | (covered by infra v2)                            |
+| `releaseContentController(db)` | (no v2 yet -- see Step 4)                        |
 
 4. Keep these mounted as-is (no v2 equivalent needed):
    - `healthController` (stateless)
@@ -60,18 +60,19 @@ File: `api/src/factory.api.ts`
 
 These v1 controllers have no `index.v2.ts` yet:
 
-| Module | Action needed |
-|--------|--------------|
-| `modules/memory/index.ts` | Create `index.v2.ts` using `ontologyRoutes()` against `org-v2.memory` table. Actions: approve, supersede, promote (schemas already in `shared/src/schemas/actions.ts`) |
-| `modules/release-content/index.ts` | Create `index.v2.ts` using `ontologyRoutes()` against `software-v2.release` + `software-v2.component` tables |
-| `modules/observability/index.ts` | Low priority -- adapter-based, minimal schema coupling. Can stay as-is for now |
-| `modules/presence/index.ts` | No migration needed -- WebSocket, no schema dependency |
-| `modules/health/index.ts` | No migration needed -- stateless |
-| `modules/site/index.ts` | No migration needed -- site-mode only |
+| Module                             | Action needed                                                                                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules/memory/index.ts`          | Create `index.v2.ts` using `ontologyRoutes()` against `org-v2.memory` table. Actions: approve, supersede, promote (schemas already in `shared/src/schemas/actions.ts`) |
+| `modules/release-content/index.ts` | Create `index.v2.ts` using `ontologyRoutes()` against `software-v2.release` + `software-v2.component` tables                                                           |
+| `modules/observability/index.ts`   | Low priority -- adapter-based, minimal schema coupling. Can stay as-is for now                                                                                         |
+| `modules/presence/index.ts`        | No migration needed -- WebSocket, no schema dependency                                                                                                                 |
+| `modules/health/index.ts`          | No migration needed -- stateless                                                                                                                                       |
+| `modules/site/index.ts`            | No migration needed -- site-mode only                                                                                                                                  |
 
 #### Step 3: Rename v2 files
 
 After v1 controllers are removed:
+
 ```
 modules/product/index.v2.ts   → modules/product/index.ts
 modules/build/index.v2.ts     → modules/build/index.ts
@@ -143,6 +144,7 @@ File: `db/schema/index.ts` -- remove `-v2` suffixes from all re-exports, remove 
 #### Step 4: Global import fixup
 
 Find-and-replace across codebase:
+
 ```
 from "../../db/schema/software-v2"  → from "../../db/schema/software"
 from "../../db/schema/org-v2"       → from "../../db/schema/org"
@@ -161,70 +163,70 @@ These services still import from v1 schema files and need migration:
 
 #### Infra services (largest batch -- 11 files)
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `services/infra/provider.service.ts` | `schema/infra` (provider) | `infra-v2` (substrate) | Medium -- rename provider→substrate, flat cols→spec JSONB |
-| `services/infra/cluster.service.ts` | `schema/infra` (cluster) | `infra-v2` (runtime) | Medium -- rename cluster→runtime, flat cols→spec JSONB |
-| `services/infra/vm.service.ts` | `schema/infra` (vm) | `infra-v2` (host) | Medium -- vm→host, 1 TS error |
-| `services/infra/host.service.ts` | `schema/infra` (host) | `infra-v2` (host) | Low -- same entity, just JSONB |
-| `services/infra/ipam.service.ts` | `schema/infra` (subnet) | Remove or fold into substrate | Medium -- subnet removed in v2 |
-| `services/infra/region.service.ts` | `schema/infra` (region) | `infra-v2` (region) | Low |
-| `services/infra/kube-node.service.ts` | `schema/infra` (kubeNode) | `infra-v2` (kubeNode) | Low |
-| `services/infra/ssh-key.service.ts` | `schema/infra` | `infra-v2` | Low |
-| `services/infra/vm-cluster.service.ts` | `schema/infra` | `infra-v2` | Low |
-| `services/infra/assets.service.ts` | `schema/infra` | `infra-v2` | Low |
-| `lib/proxmox/sync-loop.ts` | `schema/infra` | `infra-v2` (substrate) | Medium -- provider→substrate |
+| File                                   | v1 Import                 | v2 Target                     | Complexity                                                |
+| -------------------------------------- | ------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `services/infra/provider.service.ts`   | `schema/infra` (provider) | `infra-v2` (substrate)        | Medium -- rename provider→substrate, flat cols→spec JSONB |
+| `services/infra/cluster.service.ts`    | `schema/infra` (cluster)  | `infra-v2` (runtime)          | Medium -- rename cluster→runtime, flat cols→spec JSONB    |
+| `services/infra/vm.service.ts`         | `schema/infra` (vm)       | `infra-v2` (host)             | Medium -- vm→host, 1 TS error                             |
+| `services/infra/host.service.ts`       | `schema/infra` (host)     | `infra-v2` (host)             | Low -- same entity, just JSONB                            |
+| `services/infra/ipam.service.ts`       | `schema/infra` (subnet)   | Remove or fold into substrate | Medium -- subnet removed in v2                            |
+| `services/infra/region.service.ts`     | `schema/infra` (region)   | `infra-v2` (region)           | Low                                                       |
+| `services/infra/kube-node.service.ts`  | `schema/infra` (kubeNode) | `infra-v2` (kubeNode)         | Low                                                       |
+| `services/infra/ssh-key.service.ts`    | `schema/infra`            | `infra-v2`                    | Low                                                       |
+| `services/infra/vm-cluster.service.ts` | `schema/infra`            | `infra-v2`                    | Low                                                       |
+| `services/infra/assets.service.ts`     | `schema/infra`            | `infra-v2`                    | Low                                                       |
+| `lib/proxmox/sync-loop.ts`             | `schema/infra`            | `infra-v2` (substrate)        | Medium -- provider→substrate                              |
 
 #### Product/Build services
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `services/product/work-tracker.service.ts` | `schema/build` | `build-v2` (workTrackerProvider) | Medium |
-| `lib/work-tracker/sync-loop.ts` | `schema/build` | `build-v2` | Medium |
-| `services/build/pipeline-run.service.ts` | Check if already migrated | `build-v2` | Low |
+| File                                       | v1 Import                 | v2 Target                        | Complexity |
+| ------------------------------------------ | ------------------------- | -------------------------------- | ---------- |
+| `services/product/work-tracker.service.ts` | `schema/build`            | `build-v2` (workTrackerProvider) | Medium     |
+| `lib/work-tracker/sync-loop.ts`            | `schema/build`            | `build-v2`                       | Medium     |
+| `services/build/pipeline-run.service.ts`   | Check if already migrated | `build-v2`                       | Low        |
 
 #### Fleet service (v1 remnant)
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `modules/fleet/service.ts` | `schema/fleet` | Delete (replaced by domain-scoped services) | Low -- just delete |
-| `modules/fleet/plane.service.ts` | `schema/fleet` (releaseBundle) | Keep as v1 compat or migrate | Medium |
+| File                             | v1 Import                      | v2 Target                                   | Complexity         |
+| -------------------------------- | ------------------------------ | ------------------------------------------- | ------------------ |
+| `modules/fleet/service.ts`       | `schema/fleet`                 | Delete (replaced by domain-scoped services) | Low -- just delete |
+| `modules/fleet/plane.service.ts` | `schema/fleet` (releaseBundle) | Keep as v1 compat or migrate                | Medium             |
 
 #### Org + Agent services (9 files on v1 `schema/org`, 5 on `schema/agent`)
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `modules/messaging/messaging.service.ts` | `schema/org` | `org-v2` (messagingProvider) | Medium |
-| `modules/identity/identity.service.ts` | `schema/org` | `org-v2` (principal, orgMembership) | Medium |
+| File                                        | v1 Import                                        | v2 Target                             | Complexity           |
+| ------------------------------------------- | ------------------------------------------------ | ------------------------------------- | -------------------- |
+| `modules/messaging/messaging.service.ts`    | `schema/org`                                     | `org-v2` (messagingProvider)          | Medium               |
+| `modules/identity/identity.service.ts`      | `schema/org`                                     | `org-v2` (principal, orgMembership)   | Medium               |
 | `modules/identity/identity-sync.service.ts` | `schema/org` + `schema/build` + `schema/product` | `org-v2` + `build-v2` + `software-v2` | High -- multi-schema |
-| `modules/identity/secret.controller.ts` | `schema/org` | `org-v2` (secret) | Low |
-| `modules/memory/memory.model.ts` | `schema/org` | `org-v2` (memory) | Low |
-| `modules/agent/service.ts` | `schema/agent` | `org-v2` (agent) | Medium |
-| `modules/agent/preset.service.ts` | `schema/agent` | `org-v2` (agentRolePreset) | Low |
-| `modules/agent/job.model.ts` | `schema/agent` | `org-v2` (job) | Low |
-| `modules/agent/dispatch.ts` | `schema/agent` | `org-v2` (job, agent) | Medium |
-| `lib/secrets/postgres-backend.ts` | `schema/org` | `org-v2` (secret) | Low |
-| `lib/messaging-sync-loop.ts` | `schema/org` | `org-v2` | Medium |
-| `lib/identity-sync-loop.ts` | implicit via identity service | `org-v2` | Low |
+| `modules/identity/secret.controller.ts`     | `schema/org`                                     | `org-v2` (secret)                     | Low                  |
+| `modules/memory/memory.model.ts`            | `schema/org`                                     | `org-v2` (memory)                     | Low                  |
+| `modules/agent/service.ts`                  | `schema/agent`                                   | `org-v2` (agent)                      | Medium               |
+| `modules/agent/preset.service.ts`           | `schema/agent`                                   | `org-v2` (agentRolePreset)            | Low                  |
+| `modules/agent/job.model.ts`                | `schema/agent`                                   | `org-v2` (job)                        | Low                  |
+| `modules/agent/dispatch.ts`                 | `schema/agent`                                   | `org-v2` (job, agent)                 | Medium               |
+| `lib/secrets/postgres-backend.ts`           | `schema/org`                                     | `org-v2` (secret)                     | Low                  |
+| `lib/messaging-sync-loop.ts`                | `schema/org`                                     | `org-v2`                              | Medium               |
+| `lib/identity-sync-loop.ts`                 | implicit via identity service                    | `org-v2`                              | Low                  |
 
 #### Commerce services (2 files on v1 `schema/commerce`)
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `modules/commerce/plane.service.ts` | `schema/commerce` | `commerce-v2` | Medium |
-| `modules/commerce/bundle.service.ts` | `schema/commerce` | `commerce-v2` | Low |
+| File                                 | v1 Import         | v2 Target     | Complexity |
+| ------------------------------------ | ----------------- | ------------- | ---------- |
+| `modules/commerce/plane.service.ts`  | `schema/commerce` | `commerce-v2` | Medium     |
+| `modules/commerce/bundle.service.ts` | `schema/commerce` | `commerce-v2` | Low        |
 
 #### Other
 
-| File | v1 Import | v2 Target | Complexity |
-|------|-----------|-----------|------------|
-| `modules/release-content/service.ts` | `schema/product`/`schema/catalog` | `software-v2` | Medium |
-| `modules/product/service.ts` | `schema/product` | `software-v2` | Medium |
-| `modules/build/plane.service.ts` | `schema/build` + `schema/product` | `build-v2` + `software-v2` | Medium |
-| `lib/proxmox/resolve-vm.ts` | `schema/infra` | `infra-v2` | Low |
-| `adapters/vm-provider-adapter-proxmox.ts` | `schema/infra` | `infra-v2` | Low -- 1 TS error |
-| `adapters/observability-adapter-demo.ts` | Broken types | Fix types | Low -- 7 TS errors |
-| `factory-core.ts` seed functions | `schema/fleet`, `schema/infra` | v2 tables | Medium |
+| File                                      | v1 Import                         | v2 Target                  | Complexity         |
+| ----------------------------------------- | --------------------------------- | -------------------------- | ------------------ |
+| `modules/release-content/service.ts`      | `schema/product`/`schema/catalog` | `software-v2`              | Medium             |
+| `modules/product/service.ts`              | `schema/product`                  | `software-v2`              | Medium             |
+| `modules/build/plane.service.ts`          | `schema/build` + `schema/product` | `build-v2` + `software-v2` | Medium             |
+| `lib/proxmox/resolve-vm.ts`               | `schema/infra`                    | `infra-v2`                 | Low                |
+| `adapters/vm-provider-adapter-proxmox.ts` | `schema/infra`                    | `infra-v2`                 | Low -- 1 TS error  |
+| `adapters/observability-adapter-demo.ts`  | Broken types                      | Fix types                  | Low -- 7 TS errors |
+| `factory-core.ts` seed functions          | `schema/fleet`, `schema/infra`    | v2 tables                  | Medium             |
 
 ---
 
@@ -232,23 +234,23 @@ These services still import from v1 schema files and need migration:
 
 Current: **79 TS errors**. Breakdown by file:
 
-| File | Errors | Fix |
-|------|--------|-----|
-| `__tests__/sandbox-authz.test.ts` | 11 | Cast `.handle()` to `any`, update sandbox→workspace |
-| `__tests__/reconciler.test.ts` | 8 | Already updated vocabulary -- fix remaining type mismatches |
-| `__tests__/manual-preview-e2e.ts` | 8 | Update preview test to v2 tables |
-| `adapters/observability-adapter-demo.ts` | 7 | Fix adapter interface types |
-| `__tests__/auth-resource-client.test.ts` | 7 | Cast fetch mock to `typeof fetch` |
-| `__tests__/authz-client.test.ts` | 6 | Cast fetch mock to `typeof fetch` |
-| `services/catalog/catalog-sync.service.ts` | 5 | Delete (v1 only, replaced by v2 ontology) |
-| `__tests__/manifest.test.ts` | 5 | Update manifest fixture shapes |
-| `__tests__/e2e-preview-lifecycle.test.ts` | 5 | Full vocabulary update |
-| `modules/build/build-api.integration.test.ts` | 3 | Update build test to v2 paths |
-| `handler.ts` | 3 | Update imports after schema renames |
-| `__tests__/webhook-dispatch.test.ts` | 3 | Update webhook fixtures |
-| `__tests__/sandbox-service.test.ts` | 2 | workspace vocabulary update |
-| `__tests__/runtime-strategies.test.ts` | 2 | cluster→runtime |
-| Remaining (4 files, 1 each) | 4 | Various fixes |
+| File                                          | Errors | Fix                                                         |
+| --------------------------------------------- | ------ | ----------------------------------------------------------- |
+| `__tests__/sandbox-authz.test.ts`             | 11     | Cast `.handle()` to `any`, update sandbox→workspace         |
+| `__tests__/reconciler.test.ts`                | 8      | Already updated vocabulary -- fix remaining type mismatches |
+| `__tests__/manual-preview-e2e.ts`             | 8      | Update preview test to v2 tables                            |
+| `adapters/observability-adapter-demo.ts`      | 7      | Fix adapter interface types                                 |
+| `__tests__/auth-resource-client.test.ts`      | 7      | Cast fetch mock to `typeof fetch`                           |
+| `__tests__/authz-client.test.ts`              | 6      | Cast fetch mock to `typeof fetch`                           |
+| `services/catalog/catalog-sync.service.ts`    | 5      | Delete (v1 only, replaced by v2 ontology)                   |
+| `__tests__/manifest.test.ts`                  | 5      | Update manifest fixture shapes                              |
+| `__tests__/e2e-preview-lifecycle.test.ts`     | 5      | Full vocabulary update                                      |
+| `modules/build/build-api.integration.test.ts` | 3      | Update build test to v2 paths                               |
+| `handler.ts`                                  | 3      | Update imports after schema renames                         |
+| `__tests__/webhook-dispatch.test.ts`          | 3      | Update webhook fixtures                                     |
+| `__tests__/sandbox-service.test.ts`           | 2      | workspace vocabulary update                                 |
+| `__tests__/runtime-strategies.test.ts`        | 2      | cluster→runtime                                             |
+| Remaining (4 files, 1 each)                   | 4      | Various fixes                                               |
 
 ---
 
@@ -268,23 +270,23 @@ After all v1 code is removed:
 
 #### Command renames
 
-| Old file | New file | Old command | New command |
-|----------|----------|-------------|-------------|
-| `cli/src/commands/module.ts` | `cli/src/commands/system.ts` | `dx module` | `dx system` |
-| `cli/src/commands/sandbox.ts` | `cli/src/commands/workspace.ts` | `dx sandbox` | `dx workspace` |
-| `cli/src/commands/cluster.ts` | `cli/src/commands/runtime.ts` | `dx cluster` | `dx runtime` |
+| Old file                          | New file                           | Old command      | New command       |
+| --------------------------------- | ---------------------------------- | ---------------- | ----------------- |
+| `cli/src/commands/module.ts`      | `cli/src/commands/system.ts`       | `dx module`      | `dx system`       |
+| `cli/src/commands/sandbox.ts`     | `cli/src/commands/workbench.ts`    | `dx sandbox`     | `dx workbench`    |
+| `cli/src/commands/cluster.ts`     | `cli/src/commands/runtime.ts`      | `dx cluster`     | `dx runtime`      |
 | `cli/src/commands/entitlement.ts` | `cli/src/commands/subscription.ts` | `dx entitlement` | `dx subscription` |
 
 #### API path updates inside commands
 
-| Command | Old path | New path |
-|---------|----------|----------|
-| module/system | `/product/modules` | `/product/systems` |
-| sandbox/workspace | `/infra/sandboxes` | `/fleet/workspaces` |
-| cluster/runtime | `/infra/clusters` | `/infra/runtimes` |
-| entitlement/subscription | `/commerce/entitlements` | `/commerce/subscriptions` |
-| infra | `/infra/providers` | `/infra/substrates` |
-| infra | `/infra/subnets` | Remove (folded into substrate spec) |
+| Command                  | Old path                 | New path                            |
+| ------------------------ | ------------------------ | ----------------------------------- |
+| module/system            | `/product/modules`       | `/product/systems`                  |
+| sandbox/workspace        | `/infra/sandboxes`       | `/fleet/workspaces`                 |
+| cluster/runtime          | `/infra/clusters`        | `/infra/runtimes`                   |
+| entitlement/subscription | `/commerce/entitlements` | `/commerce/subscriptions`           |
+| infra                    | `/infra/providers`       | `/infra/substrates`                 |
+| infra                    | `/infra/subnets`         | Remove (folded into substrate spec) |
 
 #### Other CLI updates
 
@@ -308,20 +310,21 @@ After all v1 code is removed:
 
 Global search-and-replace across `docs/`:
 
-| Old | New |
-|-----|-----|
-| module (as entity) | system |
-| sandbox | workspace |
-| cluster (as entity) | runtime |
-| deployment target | system deployment |
-| provider (infra) | substrate |
-| subnet | (remove or "substrate network config") |
-| entitlement | subscription |
-| module version | release |
-| component spec | component |
-| workload | component deployment |
+| Old                 | New                                    |
+| ------------------- | -------------------------------------- |
+| module (as entity)  | system                                 |
+| sandbox             | workspace                              |
+| cluster (as entity) | runtime                                |
+| deployment target   | system deployment                      |
+| provider (infra)    | substrate                              |
+| subnet              | (remove or "substrate network config") |
+| entitlement         | subscription                           |
+| module version      | release                                |
+| component spec      | component                              |
+| workload            | component deployment                   |
 
 Key files:
+
 - `docs/reference/unified-entity-map.md`
 - `docs/guides/dx-developer-guide.md`
 - `docs/software-factory/*.md`
@@ -348,6 +351,7 @@ Key files:
 ```
 
 **Each step should end with:**
+
 - `npx tsc --noEmit` -- error count decreasing
 - `dx test` -- no regressions
 - `MIGRATION.md` updated
@@ -375,17 +379,20 @@ Key files:
 Final code review identified these issues to address during remaining phases:
 
 ### Critical (tracked in phases above)
+
 1. **factory-core.ts split-brain**: Local dev (`dx dev`) mounts v1 controllers + seeds v1 tables. V2 services read v2 tables = data divergence. Fix in Phase 7A Step 1.
 2. **install-manifest.service.ts v1 dependency**: `releaseBundle` from `fleet` schema. Either migrate to v2 ops or explicitly defer. Tracked in Phase 7C.
 3. ~~**Deprecated alias in reconciler**~~: Fixed -- `reconcileSandbox` call replaced with `reconcileWorkspace`.
 
 ### Important (fix during Phase 7)
+
 4. **~30 files still import v1 schemas**: org (9 files), agent (5), infra (14), build (6), product (6), fleet (3), commerce (2). Full inventory in Phase 7C tables above.
 5. **workspace.service.ts uses v1 adapter interface**: `SandboxAdapter.provision()` with `deploymentTargetId`. Rename adapter interface in Phase 7 or 8.
 6. **Gateway stores workspace ID as `systemDeploymentId`**: Semantically incorrect but functional. Clean up when gateway route model is revisited.
 7. **Reconciler `v2Route.status` vs gateway `spec.status`**: Verify these are the same table or document the distinction.
 
 ### Suggestions
+
 8. **Typed spec helpers**: Consider `readSpec<T>(entity)` instead of `(entity.spec as any)` everywhere.
 9. **Clone snapshot returns 501**: `cloneFromSnapshot()` is implemented in service but controller returns "not implemented". Wire it or document why.
 
@@ -393,15 +400,15 @@ Final code review identified these issues to address during remaining phases:
 
 ## Quick Reference: File Locations
 
-| What | Where |
-|------|-------|
-| v2 CRUD factory | `api/src/lib/crud.ts` |
-| v2 controllers | `api/src/modules/*/index.v2.ts` |
-| v2 schemas | `api/src/db/schema/{ops,infra-v2,build-v2,software-v2,org-v2,commerce-v2}.ts` |
-| Zod body schemas | `shared/src/schemas/actions.ts` |
-| Zod CRUD schemas | `shared/src/schemas/{ops,infra,build,software,org,commerce}.ts` |
-| v1 snapshots | `snapshots/v1-*.json`, `snapshots/v1-cli-commands.txt` |
-| Migration manifest | `MIGRATION.md` |
-| Test helpers | `api/src/test-helpers.ts` |
-| Main assembly | `api/src/factory.api.ts` |
-| v2 switch (to delete) | `api/src/plugins/v2-switch.plugin.ts` |
+| What                  | Where                                                                         |
+| --------------------- | ----------------------------------------------------------------------------- |
+| v2 CRUD factory       | `api/src/lib/crud.ts`                                                         |
+| v2 controllers        | `api/src/modules/*/index.v2.ts`                                               |
+| v2 schemas            | `api/src/db/schema/{ops,infra-v2,build-v2,software-v2,org-v2,commerce-v2}.ts` |
+| Zod body schemas      | `shared/src/schemas/actions.ts`                                               |
+| Zod CRUD schemas      | `shared/src/schemas/{ops,infra,build,software,org,commerce}.ts`               |
+| v1 snapshots          | `snapshots/v1-*.json`, `snapshots/v1-cli-commands.txt`                        |
+| Migration manifest    | `MIGRATION.md`                                                                |
+| Test helpers          | `api/src/test-helpers.ts`                                                     |
+| Main assembly         | `api/src/factory.api.ts`                                                      |
+| v2 switch (to delete) | `api/src/plugins/v2-switch.plugin.ts`                                         |

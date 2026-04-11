@@ -129,12 +129,12 @@ See `plans/hazy-mapping-lollipop.md` for the build plane architecture design.
 > Plan: `.claude/plans/majestic-napping-coral.md` — four-tier context hierarchy (Host → Project → Workspace → Package)
 
 - [x] `DxContext` type definitions + `resolveDxContext({ need })` typed resolver (`cli/src/lib/dx-context.ts`)
-- [x] `WorkspaceContext` → `MonorepoTopology` rename in `workspace-context.ts` + 5 consumer files
+- [x] Monorepo discovery in `monorepo-topology.ts` (`MonorepoPackage`, `MonorepoTopology`) + pkg handlers
 - [x] `HostContext` resolver (global config, session, layout, factory mode)
-- [x] `WorkspaceContextData` resolver (worktree detection, ports, local config, auth profile)
+- [x] `WorkbenchContextData` resolver (worktree detection, ports, local config, auth profile); `ctx.workbench`, `need: "workbench"`
 - [x] `PackageContextData` resolver (single-package + monorepo matching, per-package toolchain)
 - [x] Machine-wide worktree discovery (`discoverAllLocalWorkspaces` in `worktree-detect.ts`)
-- [x] `dx workspace list` default machine-wide, `--project` flag for scoping
+- [x] `dx workbench list` default machine-wide, `--project` flag for scoping
 - [x] 18 fixture-based tests for all four context tiers (`cli/src/__tests__/dx-context.test.ts`)
 - [x] Migrate `dx up` / `dx dev` / `dx down` to use `resolveDxContext({ need: "project" })` instead of ad-hoc `ProjectContext.fromCwd()`
 - [x] Migrate `dx lint` / `dx test` / `dx format` / `dx typecheck` to use `resolveDxContext({ need: "host" })` + `ctx.package` for per-package toolchain
@@ -698,8 +698,8 @@ Multi-provider identity sync across GitHub, Slack, Jira, Google with cross-provi
 ## Bugs Found in Smoke Testing
 
 - [ ] **Reconciler marks workspace active before containers are ready** — workspace pod shows `ContainerCreating 0/2` but reconciler already set `lifecycle: active`. Should check pod phase/conditions for readiness.
-- [ ] **Bitemporal workspace delete fails** — `dx workspace delete` tries to re-insert the full row (bitemporal soft delete) but fails with a constraint violation. The `ontologyRoutes` delete handler may not be correct for PGlite.
-- [ ] **`dx workspace create` sends wrong body shape** — CLI was sending `type` and `ownerId` nested in `spec` instead of at the top level. Fixed: now sends `slug`, `type`, `ownerId` at root.
+- [ ] **Bitemporal workbench delete fails** — `dx workbench delete` tries to re-insert the full row (bitemporal soft delete) but fails with a constraint violation. The `ontologyRoutes` delete handler may not be correct for PGlite.
+- [ ] **`dx workbench create` sends wrong body shape** — CLI was sending `type` and `ownerId` nested in `spec` instead of at the top level. Fixed: now sends `slug`, `type`, `ownerId` at root.
 - [ ] **Demo seed missing principals** — `seedDemoData()` inserts workspaces referencing alice/bob/charlie but never creates those principals. Fixed: added principal inserts before workspace inserts.
 - [ ] **`dx ssh` kubectl exec container name mismatch** — attempts `kubectl exec` with container name "workspace" but the pod may use a different container name. Needs investigation.
 - [ ] **PGlite migration fails on re-run** — `CREATE SCHEMA "build"` fails with "already exists" when PGlite data persists across schema changes. Need `IF NOT EXISTS` or migration state tracking.
@@ -849,7 +849,7 @@ These commands are registered but return "Not yet implemented":
 ### Deferred
 
 - [ ] Migrate existing `exitWithError(flags, message)` call sites to `exitWithDxError(flags, DxError)` with operation context
-- [ ] `dx workspace create --wait` timeout UX: query workspace status on timeout, show actionable guidance ("still provisioning", "reconciler error")
+- [ ] `dx workbench create --wait` timeout UX: query workbench status on timeout, show actionable guidance ("still provisioning", "reconciler error")
 - [ ] Typed response schemas exported from ontology routes so Eden clients carry proper types (eliminates `as unknown as` casts)
 - [ ] `dx doctor --category local --fix` — auto-fix mode that runs recovery actions instead of just showing fix suggestions
 
@@ -1029,4 +1029,4 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] **`dx factory logs` grep/sandbox filtering** — `--grep` and `--sandbox` flags exist but need end-to-end verification with Loki label-based filtering.
 - [x] **Slack sync fails under Bun runtime** — Fixed: replaced `@slack/web-api` SDK with direct curl subprocess calls (`slack-client.ts`). Bun's fetch AND node:https polyfill both drop sockets; curl bypasses Bun's networking entirely.
 - [ ] **Remove `@slack/web-api` dependency** — No longer imported anywhere in `api/src/`. Can be removed from `api/package.json` to reduce install size. Verify no other packages depend on it first.
-- [ ] **Validation error on `POST /api/v1/factory/infra/hosts/:slug/update`** — Recurring error: `spec.hostname` required but undefined. Investigate caller sending incomplete payloads.
+- [ ] **Validation error on `POST /api/factory/infra/hosts/:slug/update`** — Recurring error: `spec.hostname` required but undefined. Investigate caller sending incomplete payloads.

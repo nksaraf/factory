@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@rio.js/ui/tooltip"
 
 import { ResourceTree } from "./resource-tree/resource-tree"
 import { TreeToolbar } from "./resource-tree/tree-toolbar"
-import { useWorkspace } from "./workspace-context"
+import { useWorkbench } from "./workbench-context"
 import { WorkspacePicker } from "./workspace-picker"
 
 function TreeSkeleton() {
@@ -43,7 +43,7 @@ function TreeSkeleton() {
 }
 
 export function WorkspaceSidebar({ onCollapse }: { onCollapse?: () => void }) {
-  const { isLoading } = useWorkspace()
+  const { isLoading } = useWorkbench()
   const [searchQuery, setSearchQuery] = useState("")
 
   return (

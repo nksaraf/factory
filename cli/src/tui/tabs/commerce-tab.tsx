@@ -1,7 +1,8 @@
-import React from "react"
 import { Box, Text } from "ink"
-import { DataTable, type Column, timeAgo } from "../components/data-table.js"
-import { useCustomers } from "../hooks/use-fleet-data.js"
+import React from "react"
+
+import { type Column, DataTable, timeAgo } from "../components/data-table.js"
+import { useCustomers } from "../hooks/use-ops-data.js"
 
 interface CommerceTabProps {
   focused: boolean
@@ -10,7 +11,12 @@ interface CommerceTabProps {
 const CUSTOMER_COLUMNS: Column[] = [
   { header: "Name", key: "name", width: 36, slugKey: "slug" },
   { header: "Status", key: "status", width: 14 },
-  { header: "Created", key: "createdAt", width: 14, format: (v: any) => timeAgo(v) },
+  {
+    header: "Created",
+    key: "createdAt",
+    width: 14,
+    format: (v: any) => timeAgo(v),
+  },
 ]
 
 export function CommerceTab({ focused }: CommerceTabProps) {

@@ -1,10 +1,13 @@
+import type { DnsDomainSpec } from "@smp/factory-shared/schemas/infra"
 import { and, count, desc, eq, isNotNull, lt, sql } from "drizzle-orm"
 import crypto from "node:crypto"
 import dns from "node:dns/promises"
 
 import type { Database } from "../../db/connection"
-import { dnsDomain, route, tunnel } from "../../db/schema/infra-v2"
+import { dnsDomain, networkLink, route, tunnel } from "../../db/schema/infra-v2"
 import { principal } from "../../db/schema/org-v2"
+import { newId } from "../../lib/id"
+import { ensureIp } from "../../services/infra/ipam.service"
 
 /**
  * Route change listener for cache invalidation.
@@ -282,7 +285,7 @@ export async function listDomains(
 
   // status is in spec JSONB
   if (opts?.status) {
-    rows = rows.filter((r) => (r.spec as any)?.status === opts.status)
+    rows = rows.filter((r) => (r.spec as DnsDomainSpec)?.status === opts.status)
   }
 
   return { data: rows, total: rows.length }

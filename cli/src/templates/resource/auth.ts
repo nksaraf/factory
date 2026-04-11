@@ -1,8 +1,8 @@
-import type { GeneratedFile } from "../types.js";
-import type { ResourceOpts } from "./index.js";
+import type { GeneratedFile } from "../types.js"
+import type { ResourceOpts } from "./index.js"
 
 export function generate(opts: ResourceOpts): GeneratedFile[] {
-  const { owner, projectName } = opts;
+  const { owner, projectName } = opts
   return [
     {
       path: "compose/auth.yml",
@@ -18,7 +18,7 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
     environment:
       DATABASE_URL: postgres://\${POSTGRES_USER:-postgres}:\${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/\${POSTGRES_DB:-${projectName}}
     healthcheck:
-      test: ["CMD-SHELL", "node -e \\"fetch('http://localhost:3000/api/v1/auth/ok').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\\""]
+      test: ["CMD-SHELL", "node -e \\"fetch('http://localhost:3000/api/auth/ok').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,5 +37,5 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
 # See https://www.better-auth.com for documentation
 `,
     },
-  ];
+  ]
 }

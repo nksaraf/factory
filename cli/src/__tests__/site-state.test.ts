@@ -7,6 +7,7 @@
  *   - Corruption recovery (falls back to fresh state)
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
+import { afterEach, describe, expect, it } from "bun:test"
 import {
   existsSync,
   mkdirSync,
@@ -17,7 +18,6 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
 
 import type { SiteManifest } from "../site/manifest.js"
 import { StateStore } from "../site/state.js"

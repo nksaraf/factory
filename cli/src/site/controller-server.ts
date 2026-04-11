@@ -1,7 +1,7 @@
 /**
  * Site controller HTTP API server.
  *
- * Exposes operational endpoints under /api/v1/site/ for operators
+ * Exposes operational endpoints under /api/site/ for operators
  * and Factory to interact with the running controller.
  */
 import { Elysia, t } from "elysia"
@@ -17,7 +17,7 @@ export function createControllerServer(
   controller: SiteController,
   config: ControllerServerConfig
 ) {
-  const app = new Elysia({ prefix: "/api/v1/site" })
+  const app = new Elysia({ prefix: "/api/site" })
 
     .get("/status", () => {
       return { data: controller.getStatus() }

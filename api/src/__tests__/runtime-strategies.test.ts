@@ -13,7 +13,7 @@ import {
   WindowsServiceStrategy,
 } from "../reconciler/strategies/windows"
 
-describe("Runtime Strategy Registry", () => {
+describe("Reconciler strategy registry", () => {
   beforeEach(() => {
     clearReconcilerStrategies()
     registerReconcilerStrategy("compose", () => new ComposeStrategy())

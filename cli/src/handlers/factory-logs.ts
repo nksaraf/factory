@@ -1,102 +1,113 @@
-import { styleBold, styleMuted, styleError, styleWarn, styleSuccess } from "../cli-style.js";
-import { getFactoryRestClient } from "../client.js";
-import { exitWithError } from "../lib/cli-exit.js";
-import type { DxFlags } from "../stub.js";
-import type { LogEntry, LogQueryResult } from "@smp/factory-shared/observability-types";
+import type {
+  LogEntry,
+  LogQueryResult,
+} from "@smp/factory-shared/observability-types"
+
+import {
+  styleBold,
+  styleError,
+  styleMuted,
+  styleSuccess,
+  styleWarn,
+} from "../cli-style.js"
+import { getFactoryRestClient } from "../client.js"
+import { exitWithError } from "../lib/cli-exit.js"
+import type { DxFlags } from "../stub.js"
 
 function formatLevel(level: string): string {
   switch (level) {
     case "error":
     case "fatal":
-      return styleError(level.padEnd(5));
+      return styleError(level.padEnd(5))
     case "warn":
-      return styleWarn(level.padEnd(5));
+      return styleWarn(level.padEnd(5))
     case "info":
-      return styleSuccess(level.padEnd(5));
+      return styleSuccess(level.padEnd(5))
     case "debug":
-      return styleMuted(level.padEnd(5));
+      return styleMuted(level.padEnd(5))
     default:
-      return level.padEnd(5);
+      return level.padEnd(5)
   }
 }
 
 function formatTimestamp(ts: string): string {
   try {
-    return new Date(ts).toISOString().slice(11, 23);
+    return new Date(ts).toISOString().slice(11, 23)
   } catch {
-    return ts;
+    return ts
   }
 }
 
 function formatLogLine(entry: LogEntry): string {
-  const ts = styleMuted(formatTimestamp(entry.timestamp));
-  const level = formatLevel(entry.level);
-  const msg = entry.message;
+  const ts = styleMuted(formatTimestamp(entry.timestamp))
+  const level = formatLevel(entry.level)
+  const msg = entry.message
 
-  const attrs: string[] = [];
-  if (entry.attributes.op) attrs.push(styleBold(entry.attributes.op));
-  if (entry.attributes.runId) attrs.push(styleMuted(entry.attributes.runId));
-  if (entry.attributes.durationMs) attrs.push(styleMuted(`${entry.attributes.durationMs}ms`));
+  const attrs: string[] = []
+  if (entry.attributes.op) attrs.push(styleBold(entry.attributes.op))
+  if (entry.attributes.runId) attrs.push(styleMuted(entry.attributes.runId))
+  if (entry.attributes.durationMs)
+    attrs.push(styleMuted(`${entry.attributes.durationMs}ms`))
 
-  const suffix = attrs.length > 0 ? `  ${attrs.join(" ")}` : "";
-  let line = `${ts}  ${level}  ${msg}${suffix}`;
+  const suffix = attrs.length > 0 ? `  ${attrs.join(" ")}` : ""
+  let line = `${ts}  ${level}  ${msg}${suffix}`
 
   // Show error details (Pino serializes err as err_type/err_message/err_stack via json stage)
-  const errMsg = entry.attributes.err_message;
-  const errStack = entry.attributes.err_stack;
+  const errMsg = entry.attributes.err_message
+  const errStack = entry.attributes.err_stack
   if (errMsg) {
-    line += `\n         ${styleError(errMsg)}`;
+    line += `\n         ${styleError(errMsg)}`
     if (errStack) {
-      const frames = errStack.split("\n").slice(1, 4); // first 3 stack frames
+      const frames = errStack.split("\n").slice(1, 4) // first 3 stack frames
       for (const frame of frames) {
-        line += `\n         ${styleMuted(frame.trim())}`;
+        line += `\n         ${styleMuted(frame.trim())}`
       }
     }
   }
 
-  return line;
+  return line
 }
 
 export async function runFactoryLogs(
   flags: DxFlags,
   args?: {
-    op?: string;
-    run?: string;
-    since?: string;
-    level?: string;
-    grep?: string;
-    follow?: boolean;
-    limit?: number;
-  },
+    op?: string
+    run?: string
+    since?: string
+    level?: string
+    grep?: string
+    follow?: boolean
+    limit?: number
+  }
 ): Promise<void> {
-  const rest = await getFactoryRestClient();
+  const rest = await getFactoryRestClient()
 
-  const params = new URLSearchParams();
-  if (args?.op) params.set("sandbox", args.op); // sandbox field maps to op filter
-  if (args?.level) params.set("level", args.level);
-  if (args?.grep) params.set("grep", args.grep);
-  if (args?.since) params.set("since", args.since);
-  if (args?.limit) params.set("limit", String(args.limit));
+  const params = new URLSearchParams()
+  if (args?.op) params.set("sandbox", args.op) // sandbox field maps to op filter
+  if (args?.level) params.set("level", args.level)
+  if (args?.grep) params.set("grep", args.grep)
+  if (args?.since) params.set("since", args.since)
+  if (args?.limit) params.set("limit", String(args.limit))
 
   // If filtering by run ID, add as grep filter
   if (args?.run) {
-    const existing = params.get("grep");
-    params.set("grep", existing ? `${existing}|${args.run}` : args.run);
+    const existing = params.get("grep")
+    params.set("grep", existing ? `${existing}|${args.run}` : args.run)
   }
 
-  const qs = params.toString();
-  const basePath = `/api/v1/factory/observability/logs`;
-  const path = `${basePath}${qs ? `?${qs}` : ""}`;
-  const streamPath = `${basePath}/stream${qs ? `?${qs}` : ""}`;
+  const qs = params.toString()
+  const basePath = `/api/factory/observability/logs`
+  const path = `${basePath}${qs ? `?${qs}` : ""}`
+  const streamPath = `${basePath}/stream${qs ? `?${qs}` : ""}`
 
   try {
     if (args?.follow) {
-      await streamLogs(rest, streamPath, flags);
+      await streamLogs(rest, streamPath, flags)
     } else {
-      await queryLogs(rest, path, flags, args);
+      await queryLogs(rest, path, flags, args)
     }
   } catch (err) {
-    exitWithError(flags, err instanceof Error ? err.message : String(err));
+    exitWithError(flags, err instanceof Error ? err.message : String(err))
   }
 }
 
@@ -104,82 +115,84 @@ async function queryLogs(
   rest: Awaited<ReturnType<typeof getFactoryRestClient>>,
   path: string,
   flags: DxFlags,
-  args?: { since?: string },
+  args?: { since?: string }
 ): Promise<void> {
-  const result = await rest.request<LogQueryResult>("GET", path);
+  const result = await rest.request<LogQueryResult>("GET", path)
 
   if (flags.json) {
-    console.log(JSON.stringify(result, null, 2));
-    return;
+    console.log(JSON.stringify(result, null, 2))
+    return
   }
 
   if (result.entries.length === 0) {
-    console.log(styleMuted("No log entries found"));
+    console.log(styleMuted("No log entries found"))
     if (!args?.since) {
-      console.log(styleMuted("  Tip: use --since 1h to search a wider window"));
+      console.log(styleMuted("  Tip: use --since 1h to search a wider window"))
     }
-    return;
+    return
   }
 
   for (const entry of result.entries) {
-    console.log(formatLogLine(entry));
+    console.log(formatLogLine(entry))
   }
 
   if (result.hasMore) {
-    console.log(styleMuted(`\n  ... more entries available (use --limit to increase)`));
+    console.log(
+      styleMuted(`\n  ... more entries available (use --limit to increase)`)
+    )
   }
 }
 
 async function streamLogs(
   rest: Awaited<ReturnType<typeof getFactoryRestClient>>,
   path: string,
-  flags: DxFlags,
+  flags: DxFlags
 ): Promise<void> {
-  const url = rest.url + path;
+  const url = rest.url + path
   const headers: Record<string, string> = {
     Accept: "text/event-stream",
     ...rest.authHeaders(),
-  };
+  }
 
-  const res = await fetch(url, { headers });
+  const res = await fetch(url, { headers })
   if (!res.ok) {
-    throw new Error(`Log stream failed: ${res.status} ${res.statusText}`);
+    throw new Error(`Log stream failed: ${res.status} ${res.statusText}`)
   }
   if (!res.body) {
-    throw new Error("No response body for log stream");
+    throw new Error("No response body for log stream")
   }
 
-  console.log(styleMuted("Streaming logs (Ctrl+C to stop)...\n"));
+  console.log(styleMuted("Streaming logs (Ctrl+C to stop)...\n"))
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
 
   const cleanup = () => {
-    reader.cancel().catch(() => {});
-    process.exit(0);
-  };
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
+    reader.cancel().catch(() => {})
+    process.exit(0)
+  }
+  process.on("SIGINT", cleanup)
+  process.on("SIGTERM", cleanup)
 
   try {
     while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
 
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          const json = line.slice(6);
+          const json = line.slice(6)
           try {
-            const entry = JSON.parse(json) as LogEntry;
+            const entry = JSON.parse(json) as LogEntry
             if (flags.json) {
-              console.log(json);
+              console.log(json)
             } else {
-              console.log(formatLogLine(entry));
+              console.log(formatLogLine(entry))
             }
           } catch {
             // skip unparseable SSE data
@@ -189,7 +202,7 @@ async function streamLogs(
       }
     }
   } finally {
-    process.off("SIGINT", cleanup);
-    process.off("SIGTERM", cleanup);
+    process.off("SIGINT", cleanup)
+    process.off("SIGTERM", cleanup)
   }
 }

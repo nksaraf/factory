@@ -36,7 +36,6 @@ import { catalogController } from "./modules/catalog/catalog.controller"
 import { setChatDb } from "./modules/chat/db"
 import { commerceControllerV2 } from "./modules/commerce/index.v2"
 import { documentsController } from "./modules/documents/index"
-import { fleetControllerV2 } from "./modules/fleet/index.v2"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
 import { configVarController } from "./modules/identity/config-var.controller"
@@ -48,6 +47,7 @@ import { installController } from "./modules/install/index"
 import { messagingWebhookController } from "./modules/messaging/index"
 import { messagingControllerV2 } from "./modules/messaging/index.v2"
 import { observabilityController } from "./modules/observability/index"
+import { opsControllerV2 } from "./modules/ops/index.v2"
 import { presenceController } from "./modules/presence/index"
 import { productControllerV2 } from "./modules/product/index.v2"
 import { threadSurfacesController } from "./modules/thread-surfaces/thread-surfaces.controller"
@@ -133,7 +133,7 @@ export class FactoryAPI {
       .use(productControllerV2(db))
       .use(buildControllerV2(db))
       .use(commerceControllerV2(db))
-      .use(fleetControllerV2(db))
+      .use(opsControllerV2(db))
 
     const batch2 = new Elysia()
       .use(infraControllerV2(db))
@@ -151,7 +151,7 @@ export class FactoryAPI {
       .use(documentsController(db))
       .use(catalogController(db))
 
-    const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
+    const planeRoutes = new Elysia({ prefix: "/api/factory" })
       .decorate("db", db)
       .use(errorHandlerPlugin())
       .use(batch1)
@@ -183,9 +183,7 @@ export class FactoryAPI {
       },
       adapter
     )
-    return new Elysia({ prefix: "/api/v1/site" }).use(
-      siteController(reconciler)
-    )
+    return new Elysia({ prefix: "/api/site" }).use(siteController(reconciler))
   }
 
   createApp() {
@@ -230,7 +228,7 @@ export class FactoryAPI {
       .use(this.mountSiteControllers())
       .use(
         openapi({
-          path: "/api/v1/factory/openapi",
+          path: "/api/factory/openapi",
           documentation: {
             info: {
               title: "Factory API",

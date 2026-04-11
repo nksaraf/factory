@@ -1083,7 +1083,7 @@ services:
       auth:
         condition: service_healthy
     environment:
-      AUTH_JWKS_URL: "http://auth:3000/api/v1/auth/.well-known/jwks.json"
+      AUTH_JWKS_URL: "http://auth:3000/api/auth/.well-known/jwks.json"
   auth:
     image: auth:latest
     ports:

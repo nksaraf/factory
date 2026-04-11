@@ -71,7 +71,7 @@ const DEFAULT_RECONNECT: ReconnectConfig = {
  * Opens a WebSocket tunnel to the factory broker with auto-reconnect.
  *
  * Protocol:
- *  1. Connect to ws(s)://<api>/api/v1/factory/infra/tunnel-broker
+ *  1. Connect to ws(s)://<api>/api/factory/infra/tunnel-broker
  *  2. Send JSON: { type: "register", localAddr, subdomain?, principalId }
  *  3. Receive JSON: { type: "registered", tunnelId, subdomain, url }
  *  4. After registration, handle binary frames:
@@ -98,7 +98,7 @@ export async function openTunnel(
   const tokenParam = jwt ? `?token=${encodeURIComponent(jwt)}` : ""
   const wsUrl =
     base.replace(/^http/, "ws") +
-    "/api/v1/factory/infra/tunnel-broker" +
+    "/api/factory/infra/tunnel-broker" +
     tokenParam
   const rc = { ...DEFAULT_RECONNECT, ...reconnectConfig }
 

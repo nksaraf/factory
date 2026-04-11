@@ -46,4 +46,4 @@ dx exec my-workspace --container workspace -- ls /home
 - [`dx ssh`](/cli/ssh) — Interactive SSH picker with fuzzy search
 - [`dx forward`](/cli/forward) — Port forward from a remote host to localhost
 - [`dx run`](/cli/run) — Run scripts and recipes on remote machines
-- [`dx workspace`](/cli/workspace) — Manage workspaces
+- [`dx workbench`](/cli/workbench) — Manage workbenches

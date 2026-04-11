@@ -80,5 +80,5 @@ dx cluster list --json
 ## Related Commands
 
 - [`dx infra`](/cli/infra) — Manage estates, realms, and hosts
-- [`dx workspace`](/cli/workspace) — Deploy workspaces to a cluster
+- [`dx workbench`](/cli/workbench) — Deploy workbenches to a cluster
 - [`dx infra realm`](/cli/infra) — Realms are the underlying model for clusters

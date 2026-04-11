@@ -36,7 +36,6 @@ const CATEGORIES: [category: string, commands: string[]][] = [
       "plan",
       "domain",
       "route",
-      "fleet",
       "work",
       "alert",
       "artifact",

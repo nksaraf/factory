@@ -1,13 +1,17 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { toJavaPackage } from "../types.js";
-import { componentLabels, resourceLabels, labelsToYaml } from "../compose-labels.js";
-import { javaMavenPlugins, javaQualityFiles } from "../quality-configs.js";
+import {
+  componentLabels,
+  labelsToYaml,
+  resourceLabels,
+} from "../compose-labels.js"
+import { javaMavenPlugins, javaQualityFiles } from "../quality-configs.js"
+import type { GeneratedFile, TemplateVars } from "../types.js"
+import { toJavaPackage } from "../types.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, owner, description } = vars;
-  const javaName = toJavaPackage(name);
+  const { name, owner, description } = vars
+  const javaName = toJavaPackage(name)
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // pom.xml (parent)
   files.push({
@@ -41,7 +45,7 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
   </modules>
 </project>
 `,
-  });
+  })
 
   // server/pom.xml
   files.push({
@@ -114,7 +118,7 @@ ${javaMavenPlugins()}
   </build>
 </project>
 `,
-  });
+  })
 
   // Application.java
   files.push({
@@ -132,7 +136,7 @@ public class Application {
     }
 }
 `,
-  });
+  })
 
   // HealthController.java
   files.push({
@@ -153,7 +157,7 @@ public class HealthController {
     }
 }
 `,
-  });
+  })
 
   // application.yml
   files.push({
@@ -161,7 +165,7 @@ public class HealthController {
     content: `server:
   port: 8080
   servlet:
-    context-path: /api/v1/${name}
+    context-path: /api/${name}
 
 spring:
   datasource:
@@ -175,7 +179,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 `,
-  });
+  })
 
   // V1__init.sql
   files.push({
@@ -183,7 +187,7 @@ spring:
     content: `-- Initial migration placeholder
 -- Add your schema definitions here
 `,
-  });
+  })
 
   // Dockerfile
   files.push({
@@ -210,7 +214,7 @@ EXPOSE 8080
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 `,
-  });
+  })
 
   // docker-compose.yaml
   const svcLabels = componentLabels({
@@ -219,14 +223,14 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
     description,
     runtime: "java",
     port: { number: 8080, name: "http", protocol: "tcp" },
-  });
+  })
 
   const pgLabels = resourceLabels({
     type: "database",
     owner,
     description: `PostgreSQL database for ${name}`,
     port: { number: 5432, name: "postgresql", protocol: "tcp" },
-  });
+  })
 
   files.push({
     path: "docker-compose.yaml",
@@ -266,7 +270,7 @@ ${labelsToYaml(pgLabels, 6)}
 volumes:
   ${name}-pgdata:
 `,
-  });
+  })
 
   // .gitignore
   files.push({
@@ -293,10 +297,10 @@ Thumbs.db
 .env
 *.log
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(...javaQualityFiles());
+  files.push(...javaQualityFiles())
 
-  return files;
+  return files
 }

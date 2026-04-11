@@ -70,7 +70,7 @@ async function boot() {
     baseURL: import.meta.env.DEV
       ? "http://localhost:8180"
       : "https://dev.trafficure.rio.software",
-    basePath: "/api/v1/auth",
+    basePath: "/api/auth",
     bearer: true,
   })
 

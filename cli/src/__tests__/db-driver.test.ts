@@ -1,62 +1,67 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test"
 
-import type { DbResourceConfig } from "../lib/db-driver.js";
+import type { DbResourceConfig } from "../lib/db-driver.js"
 import {
   detectDbType,
   findDbDependencies,
   getDriver,
   registerDriver,
-} from "../lib/db-driver.js";
+} from "../lib/db-driver.js"
+
 // Register postgres driver
-import "../lib/db-driver-postgres.js";
+import "../lib/db-driver-postgres.js"
 
 // ── detectDbType ─────────────────────────────────────────────────────────────
 
 describe("detectDbType", () => {
   function dep(image: string): DbResourceConfig {
-    return { image, port: 5432, env: {} };
+    return { image, port: 5432, env: {} }
   }
 
   it("detects postgres from key name", () => {
-    expect(detectDbType("postgres", dep("some-custom-image"))).toBe("postgres");
-    expect(detectDbType("postgresql", dep("anything"))).toBe("postgres");
-    expect(detectDbType("pg", dep("anything"))).toBe("postgres");
-  });
+    expect(detectDbType("postgres", dep("some-custom-image"))).toBe("postgres")
+    expect(detectDbType("postgresql", dep("anything"))).toBe("postgres")
+    expect(detectDbType("pg", dep("anything"))).toBe("postgres")
+  })
 
   it("detects postgres from image name", () => {
-    expect(detectDbType("mydb", dep("postgres:16-alpine"))).toBe("postgres");
-    expect(detectDbType("mydb", dep("postgis/postgis:16-3.4"))).toBe("postgres");
-    expect(detectDbType("mydb", dep("timescaledb/timescaledb:latest"))).toBe("postgres");
-  });
+    expect(detectDbType("mydb", dep("postgres:16-alpine"))).toBe("postgres")
+    expect(detectDbType("mydb", dep("postgis/postgis:16-3.4"))).toBe("postgres")
+    expect(detectDbType("mydb", dep("timescaledb/timescaledb:latest"))).toBe(
+      "postgres"
+    )
+  })
 
   it("detects mysql from key name", () => {
-    expect(detectDbType("mysql", dep("anything"))).toBe("mysql");
-    expect(detectDbType("mariadb", dep("anything"))).toBe("mysql");
-  });
+    expect(detectDbType("mysql", dep("anything"))).toBe("mysql")
+    expect(detectDbType("mariadb", dep("anything"))).toBe("mysql")
+  })
 
   it("detects mysql from image name", () => {
-    expect(detectDbType("mydb", dep("mysql:8"))).toBe("mysql");
-    expect(detectDbType("mydb", dep("mariadb:11"))).toBe("mysql");
-  });
+    expect(detectDbType("mydb", dep("mysql:8"))).toBe("mysql")
+    expect(detectDbType("mydb", dep("mariadb:11"))).toBe("mysql")
+  })
 
   it("detects clickhouse from key name", () => {
-    expect(detectDbType("clickhouse", dep("anything"))).toBe("clickhouse");
-  });
+    expect(detectDbType("clickhouse", dep("anything"))).toBe("clickhouse")
+  })
 
   it("detects clickhouse from image name", () => {
-    expect(detectDbType("mydb", dep("clickhouse/clickhouse-server:24"))).toBe("clickhouse");
-  });
+    expect(detectDbType("mydb", dep("clickhouse/clickhouse-server:24"))).toBe(
+      "clickhouse"
+    )
+  })
 
   it("detects sqlite from key name", () => {
-    expect(detectDbType("sqlite", dep("anything"))).toBe("sqlite");
-  });
+    expect(detectDbType("sqlite", dep("anything"))).toBe("sqlite")
+  })
 
   it("returns null for non-database dependencies", () => {
-    expect(detectDbType("redis", dep("redis:7-alpine"))).toBeNull();
-    expect(detectDbType("rabbitmq", dep("rabbitmq:3-management"))).toBeNull();
-    expect(detectDbType("nginx", dep("nginx:alpine"))).toBeNull();
-  });
-});
+    expect(detectDbType("redis", dep("redis:7-alpine"))).toBeNull()
+    expect(detectDbType("rabbitmq", dep("rabbitmq:3-management"))).toBeNull()
+    expect(detectDbType("nginx", dep("nginx:alpine"))).toBeNull()
+  })
+})
 
 // ── findDbDependencies ───────────────────────────────────────────────────────
 
@@ -83,14 +88,14 @@ describe("findDbDependencies", () => {
           },
         },
       },
-    } as any;
+    } as any
 
-    const dbs = findDbDependencies(ctx);
-    expect(dbs).toHaveLength(1);
-    expect(dbs[0].name).toBe("postgres");
-    expect(dbs[0].dbType).toBe("postgres");
-    expect(dbs[0].res.port).toBe(5433);
-  });
+    const dbs = findDbDependencies(ctx.catalog)
+    expect(dbs).toHaveLength(1)
+    expect(dbs[0].name).toBe("postgres")
+    expect(dbs[0].dbType).toBe("postgres")
+    expect(dbs[0].res.port).toBe(5433)
+  })
 
   it("finds multiple database dependencies", () => {
     const ctx = {
@@ -133,12 +138,12 @@ describe("findDbDependencies", () => {
           },
         },
       },
-    } as any;
+    } as any
 
-    const dbs = findDbDependencies(ctx);
-    expect(dbs).toHaveLength(2);
-    expect(dbs.map((d) => d.name)).toEqual(["postgres", "clickhouse"]);
-  });
+    const dbs = findDbDependencies(ctx.catalog)
+    expect(dbs).toHaveLength(2)
+    expect(dbs.map((d) => d.name)).toEqual(["postgres", "clickhouse"])
+  })
 
   it("returns empty when no database dependencies exist", () => {
     const ctx = {
@@ -157,23 +162,23 @@ describe("findDbDependencies", () => {
           },
         },
       },
-    } as any;
+    } as any
 
-    const dbs = findDbDependencies(ctx);
-    expect(dbs).toHaveLength(0);
-  });
-});
+    const dbs = findDbDependencies(ctx.catalog)
+    expect(dbs).toHaveLength(0)
+  })
+})
 
 // ── Postgres driver ──────────────────────────────────────────────────────────
 
 describe("postgres driver", () => {
   it("is registered and retrievable", () => {
-    const driver = getDriver("postgres");
-    expect(driver.type).toBe("postgres");
-  });
+    const driver = getDriver("postgres")
+    expect(driver.type).toBe("postgres")
+  })
 
   it("builds URL from dependency config", () => {
-    const driver = getDriver("postgres");
+    const driver = getDriver("postgres")
     const dep: DbResourceConfig = {
       image: "postgres:16-alpine",
       port: 5433,
@@ -182,26 +187,26 @@ describe("postgres driver", () => {
         POSTGRES_USER: "appuser",
         POSTGRES_PASSWORD: "secret",
       },
-    };
+    }
 
-    const url = driver.buildUrl(dep, "postgres");
-    expect(url).toBe("postgresql://appuser:secret@localhost:5433/myapp");
-  });
+    const url = driver.buildUrl(dep, "postgres")
+    expect(url).toBe("postgresql://appuser:secret@localhost:5433/myapp")
+  })
 
   it("uses default credentials when env vars are missing", () => {
-    const driver = getDriver("postgres");
+    const driver = getDriver("postgres")
     const dep: DbResourceConfig = {
       image: "postgres:16",
       port: 5432,
       env: {},
-    };
+    }
 
-    const url = driver.buildUrl(dep, "postgres");
-    expect(url).toBe("postgresql://postgres:postgres@localhost:5432/postgres");
-  });
+    const url = driver.buildUrl(dep, "postgres")
+    expect(url).toBe("postgresql://postgres:postgres@localhost:5432/postgres")
+  })
 
   it("URL-encodes special characters in credentials", () => {
-    const driver = getDriver("postgres");
+    const driver = getDriver("postgres")
     const dep: DbResourceConfig = {
       image: "postgres:16",
       port: 5432,
@@ -210,20 +215,20 @@ describe("postgres driver", () => {
         POSTGRES_USER: "user@org",
         POSTGRES_PASSWORD: "p@ss/w#rd",
       },
-    };
+    }
 
-    const url = driver.buildUrl(dep, "postgres");
-    expect(url).toContain("user%40org");
-    expect(url).toContain("p%40ss%2Fw%23rd");
-    expect(url).toContain("localhost:5432/mydb");
-  });
+    const url = driver.buildUrl(dep, "postgres")
+    expect(url).toContain("user%40org")
+    expect(url).toContain("p%40ss%2Fw%23rd")
+    expect(url).toContain("localhost:5432/mydb")
+  })
 
   it("throws for unregistered driver type", () => {
     expect(() => getDriver("cockroachdb")).toThrow(
       /No driver registered for database type "cockroachdb"/
-    );
-  });
-});
+    )
+  })
+})
 
 // ── Driver registry ──────────────────────────────────────────────────────────
 
@@ -244,11 +249,11 @@ describe("driver registry", () => {
       listLocks: async () => [],
       listLongQueries: async () => [],
       killQuery: async () => true,
-    };
+    }
 
-    registerDriver("test-db", () => mockDriver as any);
-    const driver = getDriver("test-db");
-    expect(driver.type).toBe("test-db");
-    expect(driver.buildUrl({} as any, "x")).toBe("test://localhost");
-  });
-});
+    registerDriver("test-db", () => mockDriver as any)
+    const driver = getDriver("test-db")
+    expect(driver.type).toBe("test-db")
+    expect(driver.buildUrl({} as any, "x")).toBe("test://localhost")
+  })
+})
