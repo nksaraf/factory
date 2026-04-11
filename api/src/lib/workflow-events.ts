@@ -12,7 +12,7 @@
 import { and, eq, gt, lt, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { eventSubscription } from "../db/schema/org-v2"
+import { eventSubscription } from "../db/schema/org"
 import { logger } from "../logger"
 import { newId } from "./id"
 import { getWorkflowId, recv, send } from "./workflow-engine"
@@ -49,9 +49,12 @@ export async function waitForEvent<T>(
   // Register subscription
   await db.insert(eventSubscription).values({
     id: newId("esub"),
-    workflowRunId: wfId,
-    eventName,
+    kind: "trigger",
+    status: "active",
+    topicFilter: eventName,
     matchFields: match,
+    ownerKind: "workflow",
+    ownerId: wfId,
     expiresAt: new Date(Date.now() + timeoutSec * 1000),
   })
 
@@ -63,8 +66,9 @@ export async function waitForEvent<T>(
     .delete(eventSubscription)
     .where(
       and(
-        eq(eventSubscription.workflowRunId, wfId),
-        eq(eventSubscription.eventName, eventName)
+        eq(eventSubscription.ownerId, wfId),
+        eq(eventSubscription.topicFilter, eventName),
+        eq(eventSubscription.kind, "trigger")
       )
     )
     .catch(() => {})
@@ -93,14 +97,16 @@ export async function emitEvent(
   eventName: string,
   data: Record<string, unknown>
 ) {
-  // Find non-expired subscriptions where matchFields ⊆ data
+  // Find non-expired, active trigger subscriptions where matchFields ⊆ data
   const subs = await db
     .select()
     .from(eventSubscription)
     .where(
       and(
-        eq(eventSubscription.eventName, eventName),
-        sql`${eventSubscription.matchFields} <@ ${JSON.stringify(data)}::jsonb`,
+        eq(eventSubscription.topicFilter, eventName),
+        eq(eventSubscription.kind, "trigger"),
+        eq(eventSubscription.status, "active"),
+        sql`COALESCE(${eventSubscription.matchFields}, '{}') <@ ${JSON.stringify(data)}::jsonb`,
         gt(eventSubscription.expiresAt, new Date())
       )
     )
@@ -113,10 +119,16 @@ export async function emitEvent(
   // Wake each matching workflow
   for (const sub of subs) {
     logger.info(
-      { eventName, workflowRunId: sub.workflowRunId },
+      { eventName, ownerId: sub.ownerId },
       "emitEvent: waking workflow"
     )
-    await send(sub.workflowRunId, data, eventName)
+    await send(sub.ownerId, data, eventName)
+
+    // Mark trigger as fired
+    await db
+      .update(eventSubscription)
+      .set({ status: "fired" })
+      .where(eq(eventSubscription.id, sub.id))
   }
 }
 
@@ -129,5 +141,10 @@ export async function emitEvent(
 export async function cleanupExpiredSubscriptions(db: Database) {
   await db
     .delete(eventSubscription)
-    .where(lt(eventSubscription.expiresAt, new Date()))
+    .where(
+      and(
+        eq(eventSubscription.kind, "trigger"),
+        lt(eventSubscription.expiresAt, new Date())
+      )
+    )
 }
