@@ -1,8 +1,8 @@
 /**
- * Local workspace backend — worktree tier.
+ * Local workbench backend — worktree tier.
  *
- * Implements create/list/show/delete for git worktree-based workspaces.
- * Used by `dx workspace` when --tier=worktree.
+ * Implements create/list/show/delete for git worktree-based workbenches.
+ * Used by `dx workbench` when --tier=worktree.
  */
 import {
   type ComposeDiscoveryOptions,
@@ -30,7 +30,7 @@ import {
 } from "../../lib/port-manager.js"
 import { detectToolchain } from "../../lib/toolchain-detector.js"
 import {
-  type LocalWorkspaceInfo,
+  type LocalWorkbenchInfo,
   type WorkspacePaths,
   discoverAllLocalWorkspaces,
   discoverLocalWorkspaces,
@@ -41,7 +41,7 @@ import {
 // Create
 // ---------------------------------------------------------------------------
 
-export interface CreateLocalWorkspaceOpts {
+export interface CreateLocalWorkbenchOpts {
   name: string
   branch: string
   path?: string
@@ -49,9 +49,9 @@ export interface CreateLocalWorkspaceOpts {
   force?: boolean
 }
 
-export async function createLocalWorkspace(
-  opts: CreateLocalWorkspaceOpts
-): Promise<LocalWorkspaceInfo> {
+export async function createLocalWorkbench(
+  opts: CreateLocalWorkbenchOpts
+): Promise<LocalWorkbenchInfo> {
   const paths = await resolveWorkspacePaths()
 
   // Validate branch name against conventions
@@ -108,9 +108,9 @@ export async function createLocalWorkspace(
 
   // Register in Conductor DB (best-effort)
   try {
-    const { registerWorkspaceInConductorDb } =
+    const { registerWorkbenchInConductorDb } =
       await import("../../lib/conductor-db.js")
-    registerWorkspaceInConductorDb({
+    registerWorkbenchInConductorDb({
       name: opts.name,
       branch: opts.branch,
       worktreePath,
@@ -129,7 +129,7 @@ export async function createLocalWorkspace(
     ports: setupResult.ports,
     composeProject: basename(worktreePath),
     createdAt: meta.createdAt,
-  }
+  } as LocalWorkbenchInfo
 }
 
 // ---------------------------------------------------------------------------
@@ -226,9 +226,9 @@ function resolveInstallCommand(
 // List
 // ---------------------------------------------------------------------------
 
-export async function listLocalWorkspaces(opts?: {
+export async function listLocalWorkbenches(opts?: {
   project?: string
-}): Promise<LocalWorkspaceInfo[]> {
+}): Promise<LocalWorkbenchInfo[]> {
   const paths = await resolveWorkspacePaths()
 
   // If a specific project was requested, scope to that project
@@ -243,18 +243,18 @@ export async function listLocalWorkspaces(opts?: {
   }
 
   // Default: scan all projects across the machine
-  return discoverAllLocalWorkspaces(paths.reposDir, paths.worktreesDir)
+  return discoverAllLocalWorkbenches(paths.reposDir, paths.worktreesDir)
 }
 
 // ---------------------------------------------------------------------------
 // Show
 // ---------------------------------------------------------------------------
 
-export async function showLocalWorkspace(
+export async function showLocalWorkbench(
   nameOrPath: string
-): Promise<LocalWorkspaceInfo | null> {
-  const workspaces = await listLocalWorkspaces()
-  const matches = workspaces.filter(
+): Promise<LocalWorkbenchInfo | null> {
+  const workbenches = await listLocalWorkbenches()
+  const matches = workbenches.filter(
     (w) => w.name === nameOrPath || w.path === nameOrPath
   )
 
@@ -263,7 +263,7 @@ export async function showLocalWorkspace(
   if (matches.length > 1) {
     const paths = matches.map((w) => `  ${w.path}`).join("\n")
     throw new Error(
-      `Ambiguous workspace name "${nameOrPath}" — found in multiple projects:\n${paths}\nUse the full path to disambiguate.`
+      `Ambiguous workbench name "${nameOrPath}" — found in multiple projects:\n${paths}\nUse the full path to disambiguate.`
     )
   }
 
@@ -274,29 +274,29 @@ export async function showLocalWorkspace(
 // Delete
 // ---------------------------------------------------------------------------
 
-export interface DeleteLocalWorkspaceOpts {
+export interface DeleteLocalWorkbenchOpts {
   force?: boolean
 }
 
-export async function deleteLocalWorkspace(
+export async function deleteLocalWorkbench(
   nameOrPath: string,
-  opts: DeleteLocalWorkspaceOpts & { resolved?: LocalWorkspaceInfo } = {}
+  opts: DeleteLocalWorkbenchOpts & { resolved?: LocalWorkbenchInfo } = {}
 ): Promise<void> {
-  const workspace = opts.resolved ?? (await showLocalWorkspace(nameOrPath))
-  if (!workspace) {
-    throw new Error(`Local workspace "${nameOrPath}" not found.`)
+  const workbench = opts.resolved ?? (await showLocalWorkbench(nameOrPath))
+  if (!workbench) {
+    throw new Error(`Local workbench "${nameOrPath}" not found.`)
   }
 
   // Safety check for uncommitted changes
-  if (!opts.force && hasUncommittedChanges(workspace.path)) {
+  if (!opts.force && hasUncommittedChanges(workbench.path)) {
     throw new Error(
-      `Workspace "${workspace.name}" has uncommitted changes. Use --force to delete anyway.`
+      `Workbench "${workbench.name}" has uncommitted changes. Use --force to delete anyway.`
     )
   }
 
   // Stop compose project if running
   try {
-    const dxConfig = loadDxProjectConfigOrDefaults(workspace.path)
+    const dxConfig = loadDxProjectConfigOrDefaults(workbench.path)
     const composeOpts: ComposeDiscoveryOptions = {
       environment: process.env.DX_ENVIRONMENT ?? "local",
     }
@@ -306,11 +306,11 @@ export async function deleteLocalWorkspace(
     ) {
       composeOpts.explicitFiles = dxConfig.raw.compose
     }
-    const composeRoot = findComposeRoot(workspace.path, composeOpts)
+    const composeRoot = findComposeRoot(workbench.path, composeOpts)
     if (composeRoot) {
       const composeFiles = discoverComposeFiles(composeRoot, composeOpts)
-      console.log(`Stopping compose project "${workspace.composeProject}"...`)
-      new Compose(composeFiles, workspace.composeProject).down({
+      console.log(`Stopping compose project "${workbench.composeProject}"...`)
+      new Compose(composeFiles, workbench.composeProject).down({
         volumes: true,
       })
     }
@@ -319,17 +319,17 @@ export async function deleteLocalWorkspace(
   }
 
   // Remove the git worktree (must run from inside the same git repo)
-  const paths = await resolveWorkspacePaths(workspace.path)
+  const paths = await resolveWorkspacePaths(workbench.path)
 
   // Unregister from Conductor DB (best-effort)
   try {
-    const { unregisterWorkspaceFromConductorDb } =
+    const { unregisterWorkbenchFromConductorDb } =
       await import("../../lib/conductor-db.js")
-    unregisterWorkspaceFromConductorDb(workspace.name, paths.projectRepoDir)
+    unregisterWorkbenchFromConductorDb(workbench.name, paths.projectRepoDir)
   } catch {
     // Non-fatal
   }
-  const gitArgs = ["worktree", "remove", workspace.path]
+  const gitArgs = ["worktree", "remove", workbench.path]
   if (opts.force) gitArgs.push("--force")
 
   const proc = spawnSync("git", gitArgs, {

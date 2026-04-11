@@ -45,6 +45,9 @@ services:
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
       DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
       LOKI_URL: ${LOKI_URL:-http://infra-loki:3100}
