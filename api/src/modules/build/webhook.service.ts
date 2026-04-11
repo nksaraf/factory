@@ -4,9 +4,9 @@ import { and, eq, sql } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../../adapters/git-host-adapter"
 import type { Database } from "../../db/connection"
-import { webhookEvent } from "../../db/schema/build-v2"
+import { webhookEvent } from "../../db/schema/build"
 import { site } from "../../db/schema/ops"
-import { emitEvent } from "../../lib/workflow-events"
+import { emitEvent } from "../../lib/events"
 import { logger } from "../../logger"
 import * as pipelineRunSvc from "../../services/build/pipeline-run.service"
 import * as previewSvc from "../../services/preview/preview.service"
@@ -46,7 +46,7 @@ export class WebhookService {
       return { accepted: false, reason: "duplicate" }
     }
 
-    // 3. Insert webhook event — v2: eventType, action, payload, status → spec JSONB
+    // 3. Insert webhook event — eventType, action, payload, status → spec JSONB
     const [event] = await this.db
       .insert(webhookEvent)
       .values({
@@ -195,15 +195,20 @@ export class WebhookService {
 
         // Emit workflow event for PR opened
         const prUrl = (pr.html_url as string) ?? ""
-        await emitEvent(this.db, "pr.opened", {
-          repoFullName,
-          branchName: headBranch,
-          prNumber: String(prNumber),
-          prUrl,
+        await emitEvent(this.db, {
+          topic: "build.pr.opened",
+          source: "github",
+          severity: "info",
+          data: {
+            repoFullName,
+            branchName: headBranch,
+            prNumber: String(prNumber),
+            prUrl,
+          },
         }).catch((err) => {
           logger.warn(
             { repo: repoFullName, pr: prNumber, error: err },
-            "Failed to emit pr.opened event"
+            "Failed to emit build.pr.opened event"
           )
         })
 
@@ -436,15 +441,20 @@ export class WebhookService {
     const author =
       ((comment.user as Record<string, unknown>)?.login as string) ?? "unknown"
 
-    await emitEvent(this.db, "pr.comment", {
-      repoFullName,
-      prNumber: String(prNumber),
-      comment: commentBody,
-      author,
+    await emitEvent(this.db, {
+      topic: "build.pr.commented",
+      source: "github",
+      severity: "info",
+      data: {
+        repoFullName,
+        prNumber: String(prNumber),
+        comment: commentBody,
+        author,
+      },
     }).catch((err) => {
       logger.warn(
         { repo: repoFullName, pr: prNumber, error: err },
-        "Failed to emit pr.comment event"
+        "Failed to emit build.pr.commented event"
       )
     })
   }

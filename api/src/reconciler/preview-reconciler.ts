@@ -7,10 +7,10 @@ import { eq } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
-import { realm } from "../db/schema/infra-v2"
+import { realm } from "../db/schema/infra"
 import { preview, site, systemDeployment, workbench } from "../db/schema/ops"
 import type { KubeClient } from "../lib/kube-client"
-import { emitEvent } from "../lib/workflow-events"
+import { emitEvent } from "../lib/events"
 import { logger } from "../logger"
 import {
   createRoute,
@@ -212,7 +212,7 @@ export class PreviewReconciler {
       return
     }
 
-    // In v2, preview can reference a realm directly via spec.realmId
+    // Preview can reference a realm directly via spec.realmId
     // or via spec.systemDeploymentId → systemDeployment.realmId
     const realmId =
       spec.realmId ?? (await this.resolveRealmId(spec.systemDeploymentId))
@@ -557,10 +557,16 @@ export class PreviewReconciler {
 
     // Emit workflow event for preview activation
     const spec = pspec(prev)
-    await emitEvent(this.db, "preview.ready", {
-      branchName: prev.sourceBranch,
-      previewUrl,
-      previewSlug: spec.slug ?? "",
+    await emitEvent(this.db, {
+      topic: "ops.preview.ready",
+      source: "reconciler",
+      severity: "info",
+      entityKind: "preview",
+      data: {
+        branchName: prev.sourceBranch,
+        previewUrl,
+        previewSlug: spec.slug ?? "",
+      },
     }).catch((err) => {
       logger.warn(
         { previewId: prev.id, error: err },

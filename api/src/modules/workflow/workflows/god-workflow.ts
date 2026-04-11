@@ -108,7 +108,7 @@ export const godWorkflow = createWorkflow({
     await updateRun(db, wfId, { state: { workbenchId: workbench.id } })
 
     const wsEvent = await waitForEvent<{ workbenchId: string; status: string }>(
-      "workbench.ready",
+      "ops.workbench.ready",
       { workbenchId: workbench.id },
       600
     )
@@ -134,7 +134,11 @@ export const godWorkflow = createWorkflow({
       prNumber: number
       prUrl: string
       branchName: string
-    }>("pr.opened", { repoFullName: input.repoFullName, branchName }, 3600)
+    }>(
+      "build.pr.opened",
+      { repoFullName: input.repoFullName, branchName },
+      3600
+    )
     if (!prEvent) throw new Error("Agent did not create PR within 1 hour")
     await updateRun(db, wfId, {
       phase: "preview_deploying",
@@ -145,7 +149,7 @@ export const godWorkflow = createWorkflow({
     const pvEvent = await waitForEvent<{
       previewUrl: string
       previewSlug: string
-    }>("preview.ready", { branchName }, 600)
+    }>("ops.preview.ready", { branchName }, 600)
     if (pvEvent) {
       await updateRun(db, wfId, {
         phase: "preview_active",
@@ -181,7 +185,7 @@ export const godWorkflow = createWorkflow({
         author: string
         prNumber: number
       }>(
-        "pr.comment",
+        "build.pr.commented",
         {
           repoFullName: input.repoFullName,
           prNumber: String(prEvent.prNumber),

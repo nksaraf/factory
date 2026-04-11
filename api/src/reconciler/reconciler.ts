@@ -9,8 +9,7 @@ import { and, eq, isNull, ne, notInArray, or, sql } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
-import { route as v2Route } from "../db/schema/infra-v2"
-import { realm } from "../db/schema/infra-v2"
+import { realm, route as infraRoute } from "../db/schema/infra"
 import {
   componentDeployment,
   preview,
@@ -18,11 +17,9 @@ import {
   workbench,
   workbenchSnapshot,
 } from "../db/schema/ops"
-import { component } from "../db/schema/software-v2"
-import { release } from "../db/schema/software-v2"
-import { system } from "../db/schema/software-v2"
+import { component, release, system } from "../db/schema/software"
 import type { KubeClient, KubeResource } from "../lib/kube-client"
-import { emitEvent } from "../lib/workflow-events"
+import { emitEvent } from "../lib/events"
 import { logger } from "../logger"
 import {
   createRoute,
@@ -100,7 +97,7 @@ export class Reconciler {
   ) {
     this.previewReconciler = new PreviewReconciler(db, kube, gitHost)
     registerReconcilerStrategy("kubernetes", () => new KubernetesStrategy(kube))
-    registerReconcilerStrategy("compose", () => new ComposeStrategy())
+    registerReconcilerStrategy("docker-compose", () => new ComposeStrategy())
     registerReconcilerStrategy("systemd", () => new SystemdStrategy())
     registerReconcilerStrategy(
       "windows_service",
@@ -615,9 +612,13 @@ export class Reconciler {
 
     // Emit workflow event when workbench becomes active
     if (newLifecycle === "active" && wksSpec.lifecycle !== "active") {
-      await emitEvent(this.db, "workbench.ready", {
-        workbenchId,
-        status: "active",
+      await emitEvent(this.db, {
+        topic: "ops.workbench.ready",
+        source: "reconciler",
+        severity: "info",
+        entityKind: "workbench",
+        entityId: workbenchId,
+        data: { workbenchId, status: "active" },
       }).catch((err) => {
         logger.warn(
           { workbenchId, err },
@@ -1110,13 +1111,13 @@ export class Reconciler {
 
     const staleRoutes = await this.db
       .select()
-      .from(v2Route)
+      .from(infraRoute)
       .where(
         or(
-          ne(v2Route.generation, v2Route.observedGeneration),
-          sql`${v2Route.status}->>'phase' IN ('pending', 'stale', 'error')`,
-          sql`${v2Route.status}->>'resolvedAt' IS NULL`,
-          sql`(${v2Route.status}->>'resolvedAt')::timestamptz < NOW() - INTERVAL '5 minutes'`
+          ne(infraRoute.generation, infraRoute.observedGeneration),
+          sql`${infraRoute.status}->>'phase' IN ('pending', 'stale', 'error')`,
+          sql`${infraRoute.status}->>'resolvedAt' IS NULL`,
+          sql`(${infraRoute.status}->>'resolvedAt')::timestamptz < NOW() - INTERVAL '5 minutes'`
         )
       )
 
@@ -1132,13 +1133,13 @@ export class Reconciler {
         )
 
         await this.db
-          .update(v2Route)
+          .update(infraRoute)
           .set({
             status: newStatus as Record<string, unknown>,
             observedGeneration: r.generation,
             updatedAt: new Date(),
           })
-          .where(eq(v2Route.id, r.id))
+          .where(eq(infraRoute.id, r.id))
 
         if (newStatus.phase === "resolved") resolved++
         else errors++
