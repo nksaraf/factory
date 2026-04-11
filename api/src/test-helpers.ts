@@ -1,8 +1,8 @@
 import type { PGlite } from "@electric-sql/pglite"
 import { cors } from "@elysiajs/cors"
-import { Elysia } from "elysia"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { Elysia } from "elysia"
 
 import type { Database } from "./db/connection"
 import { createPgliteDb, migrateWithPglite } from "./factory-core"
@@ -17,11 +17,25 @@ import { opsController } from "./modules/ops/index"
 import { productController } from "./modules/product/index"
 import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
 
-export async function createTestContext() {
-  const { client, db } = await createPgliteDb()
+/** Absolute drizzle migrations dir (for tests and ad-hoc PGlite setup). */
+export const TEST_DRIZZLE_MIGRATIONS_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "drizzle"
+)
 
-  const srcDir = path.dirname(fileURLToPath(import.meta.url))
-  await migrateWithPglite(client, path.join(srcDir, "..", "drizzle"))
+/** In-memory PGlite + migrations (shared path with createTestContext). */
+export async function createMigratedTestPglite(): Promise<{
+  client: PGlite
+  db: Database
+}> {
+  const { client, db } = await createPgliteDb()
+  await migrateWithPglite(client, TEST_DRIZZLE_MIGRATIONS_DIR)
+  return { client, db }
+}
+
+export async function createTestContext() {
+  const { client, db } = await createMigratedTestPglite()
 
   const database = db as unknown as Database
 
@@ -93,6 +107,9 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE org.event_outbox RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.event RESTART IDENTITY CASCADE`,
   // org
+  `TRUNCATE TABLE org.event_alert RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.event_delivery RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE org.event_aggregate RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.event_subscription_channel RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.event_subscription RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.workflow_run RESTART IDENTITY CASCADE`,

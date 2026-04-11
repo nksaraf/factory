@@ -122,6 +122,9 @@ export type EntityPrefix =
   | "esch" // event_subscription_channel
   | "evt" // event
   | "eob" // event_outbox
+  | "edlv" // event_delivery
+  | "eagg" // event_aggregate
+  | "ealt" // event_alert
   // operations
   | "opr" // operation_run
   // interaction

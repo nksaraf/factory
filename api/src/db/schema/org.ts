@@ -26,6 +26,7 @@ import type {
 } from "@smp/factory-shared/schemas/org"
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   check,
   index,
   integer,
@@ -1054,6 +1055,104 @@ export const eventSubscriptionChannel = orgSchema.table(
     index("org_esch_sub_idx").on(t.subscriptionId),
     index("org_esch_channel_idx").on(t.channelId),
     index("org_esch_delivery_idx").on(t.delivery),
+  ]
+)
+
+// ─── Event Delivery ─────────────────────────────────────────────
+// Tracks delivery status for each event × subscription channel combination.
+
+export const eventDelivery = orgSchema.table(
+  "event_delivery",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("edlv")),
+    eventId: text("event_id").notNull(),
+    subscriptionChannelId: text("subscription_channel_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    spec: jsonb("spec").$type<{
+      error?: string
+      retryCount?: number
+      renderOutput?: unknown
+    }>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_edlv_status_idx")
+      .on(t.status)
+      .where(sql`${t.status} IN ('pending', 'buffered')`),
+    index("org_edlv_event_idx").on(t.eventId),
+    index("org_edlv_channel_idx").on(t.subscriptionChannelId),
+  ]
+)
+
+// ─── Event Aggregate ────────────────────────────────────────────
+// Collects events during storm conditions into summary records.
+
+export const eventAggregate = orgSchema.table(
+  "event_aggregate",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("eagg")),
+    correlationId: text("correlation_id"),
+    topicPrefix: text("topic_prefix").notNull(),
+    scopeId: text("scope_id"),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    windowEnd: timestamp("window_end", { withTimezone: true }),
+    eventCount: bigint("event_count", { mode: "number" }).notNull().default(0),
+    sampleEventId: text("sample_event_id"),
+    maxSeverity: text("max_severity").notNull().default("info"),
+    status: text("status").notNull().default("open"),
+    spec: jsonb("spec").$type<{
+      summary?: string
+      eventIds?: string[]
+    }>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_eagg_status_idx")
+      .on(t.status)
+      .where(sql`${t.status} = 'open'`),
+    index("org_eagg_topic_scope_idx").on(t.topicPrefix, t.scopeId),
+  ]
+)
+
+// ─── Event Alert ────────────────────────────────────────────────
+// Tracks acknowledgment and escalation for warning+ severity events.
+
+export const eventAlert = orgSchema.table(
+  "event_alert",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("ealt")),
+    eventId: text("event_id"),
+    aggregateId: text("aggregate_id"),
+    subscriptionId: text("subscription_id").notNull(),
+    severity: text("severity").notNull(),
+    status: text("status").notNull().default("firing"),
+    acknowledgedBy: text("acknowledged_by"),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    escalationStep: bigint("escalation_step", { mode: "number" })
+      .notNull()
+      .default(0),
+    nextEscalation: timestamp("next_escalation", { withTimezone: true }),
+    spec: jsonb("spec").$type<{
+      escalationPolicy?: unknown
+      notificationHistory?: Array<{ channel: string; deliveredAt: string }>
+    }>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_ealt_status_idx")
+      .on(t.status)
+      .where(sql`${t.status} IN ('firing', 'escalated')`),
+    index("org_ealt_escalation_idx")
+      .on(t.nextEscalation)
+      .where(sql`${t.status} IN ('firing', 'escalated')`),
   ]
 )
 
