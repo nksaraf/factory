@@ -365,7 +365,7 @@ async function seedISPEstates() {
         spec: {
           version: "v4" as const,
           status: "assigned" as const,
-          scope: "public",
+          scope: "public" as const,
           purpose: ip.note,
         },
       }))

@@ -248,7 +248,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
   describe("WebSocket proxy", () => {
     it("relays text messages bidirectionally", async () => {
       const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
-        headers: { host: WORKSPACE_DOMAIN },
+        headers: { host: WORKBENCH_DOMAIN },
       } as unknown as string[])
 
       const messages: string[] = []
@@ -271,7 +271,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
     it("relays binary messages", async () => {
       const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
-        headers: { host: WORKSPACE_DOMAIN },
+        headers: { host: WORKBENCH_DOMAIN },
       } as unknown as string[])
       ws.binaryType = "arraybuffer"
 
@@ -334,7 +334,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
     it("closes browser WS when backend closes", async () => {
       const ws = new WebSocket(`ws://localhost:${GATEWAY_PORT}/ws`, {
-        headers: { host: WORKSPACE_DOMAIN },
+        headers: { host: WORKBENCH_DOMAIN },
       } as unknown as string[])
 
       const opened = new Promise<void>((resolve) => {
