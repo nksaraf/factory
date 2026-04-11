@@ -15,7 +15,7 @@ import { Elysia, t } from "elysia"
 import { desc, eq, and } from "drizzle-orm"
 
 import type { Database } from "../../../db/connection"
-import { workflowRun } from "../../../db/schema/org-v2"
+import { workflowRun } from "../../../db/schema/org"
 import { newId } from "../../../lib/id"
 import {
   listWorkflowDefinitions,
@@ -24,7 +24,7 @@ import {
 } from "../../../lib/workflow-engine"
 import { createWorkflowRun, updateRun } from "../../../lib/workflow-helpers"
 import { emitEvent } from "../../../lib/workflow-events"
-import { eventSubscription } from "../../../db/schema/org-v2"
+import { eventSubscription } from "../../../db/schema/org"
 
 export function workflowController(db: Database) {
   return (
@@ -227,7 +227,10 @@ export function workflowController(db: Database) {
           const conditions = []
           if (query.workflowRunId) {
             conditions.push(
-              eq(eventSubscription.workflowRunId, query.workflowRunId)
+              and(
+                eq(eventSubscription.ownerId, query.workflowRunId),
+                eq(eventSubscription.ownerKind, "workflow")
+              )
             )
           }
 
