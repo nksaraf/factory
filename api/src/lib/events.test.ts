@@ -1,10 +1,10 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import type { Database } from "../db/connection"
-import { event, eventOutbox } from "../db/schema/org-v2"
+import { event, eventOutbox, eventSubscription } from "../db/schema/org-v2"
 import { createTestContext, truncateAllTables } from "../test-helpers"
-import { emitEvent } from "./events"
+import { emitEvent, emitExternalEvent } from "./events"
 
 describe("emitEvent", () => {
   let ctx: Awaited<ReturnType<typeof createTestContext>>
@@ -108,5 +108,110 @@ describe("emitEvent", () => {
       data: { threadId: "thrd_123" },
       rawPayload: { original: "payload" },
     })
+  })
+})
+
+describe("emitExternalEvent", () => {
+  let ctx: Awaited<ReturnType<typeof createTestContext>>
+
+  beforeAll(async () => {
+    ctx = await createTestContext()
+  })
+
+  afterAll(async () => {
+    await ctx.client.close()
+  })
+
+  it("canonicalizes a GitHub push event", async () => {
+    await truncateAllTables(ctx.client)
+    const db = ctx.db as unknown as Database
+
+    const eventId = await emitExternalEvent(db, {
+      source: "github",
+      eventType: "push",
+      payload: { ref: "refs/heads/main", commits: [{ id: "abc123" }] },
+      providerId: "repo-123",
+      deliveryId: "delivery-456",
+    })
+
+    expect(eventId).toMatch(/^evt_/)
+
+    const [row] = await db
+      .select()
+      .from(event)
+      .where(eq(event.id, eventId!))
+      .limit(1)
+
+    expect(row.topic).toBe("ext.github.push")
+    expect(row.source).toBe("github")
+    expect(row.rawEventType).toBe("push")
+    expect(row.idempotencyKey).toBe("github:repo-123:delivery-456")
+    expect(row.spec.rawPayload).toEqual({
+      ref: "refs/heads/main",
+      commits: [{ id: "abc123" }],
+    })
+  })
+
+  it("deduplicates external events by source+providerId+deliveryId", async () => {
+    await truncateAllTables(ctx.client)
+    const db = ctx.db as unknown as Database
+
+    const id1 = await emitExternalEvent(db, {
+      source: "github",
+      eventType: "push",
+      payload: { ref: "refs/heads/main" },
+      providerId: "repo-123",
+      deliveryId: "delivery-789",
+    })
+
+    const id2 = await emitExternalEvent(db, {
+      source: "github",
+      eventType: "push",
+      payload: { ref: "refs/heads/main" },
+      providerId: "repo-123",
+      deliveryId: "delivery-789",
+    })
+
+    expect(id1).toMatch(/^evt_/)
+    expect(id2).toBeNull()
+  })
+})
+
+describe("workflow bridge", () => {
+  let ctx: Awaited<ReturnType<typeof createTestContext>>
+
+  beforeAll(async () => {
+    ctx = await createTestContext()
+  })
+
+  afterAll(async () => {
+    await ctx.client.close()
+  })
+
+  it("bridges new topic to legacy workflow subscriptions", async () => {
+    await truncateAllTables(ctx.client)
+    const db = ctx.db as unknown as Database
+
+    await db.insert(eventSubscription).values({
+      id: "esub_test_bridge",
+      workflowRunId: "wfr_test_bridge",
+      eventName: "workbench.ready",
+      matchFields: { workbenchId: "wbnch-bridge-test" },
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const eventId = await emitEvent(db, {
+      topic: "ops.workbench.ready",
+      source: "reconciler",
+      data: { workbenchId: "wbnch-bridge-test", status: "active" },
+    })
+
+    expect(eventId).toMatch(/^evt_/)
+    const [row] = await db
+      .select()
+      .from(event)
+      .where(eq(event.id, eventId!))
+      .limit(1)
+    expect(row.topic).toBe("ops.workbench.ready")
   })
 })
