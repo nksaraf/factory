@@ -8,15 +8,15 @@ Version 1.0 · March 2026
 
 ## 1. Stack
 
-| Concern | Component | Notes |
-|---------|-----------|-------|
-| Identity, sessions, org management | **better-auth** | Embedded library. PostgreSQL adapter. Organization plugin for multi-tenancy. SSO/SAML, SCIM, 2FA, API keys, passkeys, JWT via plugins. |
-| Structural authorization (ReBAC) | **SpiceDB** | Evaluates scope hierarchies, org membership, classification clearances, resource relationships. Sub-5ms cached checks. |
-| Source of truth | **PostgreSQL** | All auth state. better-auth tables + IAM extensions + Ontology Registry + constraint state. |
-| PostgreSQL → SpiceDB sync | **Transactional outbox** | Outbox event written in same transaction as business write. Background consumer writes SpiceDB tuples. |
-| Decision composition | **Custom Runtime** (TypeScript) | Composes better-auth sessions + SpiceDB checks + Ontology Registry + constraint evaluation. |
-| Edge auth | **Traefik ForwardAuth** | Intercepts requests, calls custom runtime, passes auth context to services via headers. |
-| Audit storage | **ClickHouse** | Authorization decisions emitted via OpenTelemetry structured events. |
+| Concern                            | Component                       | Notes                                                                                                                                  |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity, sessions, org management | **better-auth**                 | Embedded library. PostgreSQL adapter. Organization plugin for multi-tenancy. SSO/SAML, SCIM, 2FA, API keys, passkeys, JWT via plugins. |
+| Structural authorization (ReBAC)   | **SpiceDB**                     | Evaluates scope hierarchies, org membership, classification clearances, resource relationships. Sub-5ms cached checks.                 |
+| Source of truth                    | **PostgreSQL**                  | All auth state. better-auth tables + IAM extensions + Ontology Registry + constraint state.                                            |
+| PostgreSQL → SpiceDB sync          | **Transactional outbox**        | Outbox event written in same transaction as business write. Background consumer writes SpiceDB tuples.                                 |
+| Decision composition               | **Custom Runtime** (TypeScript) | Composes better-auth sessions + SpiceDB checks + Ontology Registry + constraint evaluation.                                            |
+| Edge auth                          | **Traefik ForwardAuth**         | Intercepts requests, calls custom runtime, passes auth context to services via headers.                                                |
+| Audit storage                      | **ClickHouse**                  | Authorization decisions emitted via OpenTelemetry structured events.                                                                   |
 
 ### Why better-auth
 
@@ -90,18 +90,18 @@ PostgreSQL
 ## 3. better-auth Configuration
 
 ```typescript
-import { betterAuth } from "better-auth";
-import { organization } from "better-auth/plugins";
-import { twoFactor } from "better-auth/plugins";
-import { apiKey } from "better-auth/plugins";
-import { bearer } from "better-auth/plugins";
-import { sso } from "better-auth/plugins";
-import { scim } from "better-auth/plugins";
-import { admin } from "better-auth/plugins";
-import { jwt } from "better-auth/plugins";
-import { Pool } from "pg";
-import { spicedbSyncPlugin } from "./plugins/spicedb-sync";
-import { ac } from "./permissions";
+import { betterAuth } from "better-auth"
+import { organization } from "better-auth/plugins"
+import { twoFactor } from "better-auth/plugins"
+import { apiKey } from "better-auth/plugins"
+import { bearer } from "better-auth/plugins"
+import { sso } from "better-auth/plugins"
+import { scim } from "better-auth/plugins"
+import { admin } from "better-auth/plugins"
+import { jwt } from "better-auth/plugins"
+import { Pool } from "pg"
+import { spicedbSyncPlugin } from "./plugins/spicedb-sync"
+import { ac } from "./permissions"
 
 export const auth = betterAuth({
   database: new Pool({
@@ -114,7 +114,7 @@ export const auth = betterAuth({
 
   session: {
     expiresIn: 60 * 60 * 24, // 24 hours
-    updateAge: 60 * 60,       // refresh every hour
+    updateAge: 60 * 60, // refresh every hour
   },
 
   user: {
@@ -179,7 +179,7 @@ export const auth = betterAuth({
     admin(),
     spicedbSyncPlugin(), // custom: syncs auth changes to SpiceDB via outbox
   ],
-});
+})
 ```
 
 ---
@@ -577,108 +577,232 @@ definition module {}
 The only component that writes to SpiceDB. Polls `iam.authz_outbox` for unprocessed events, translates them to SpiceDB tuple operations, and marks them processed.
 
 ```typescript
-import { SpiceDBClient } from "@authzed/authzed-node";
-import { Pool } from "pg";
+import { SpiceDBClient } from "@authzed/authzed-node"
+import { Pool } from "pg"
 
 export class OutboxConsumer {
-  constructor(private db: Pool, private spicedb: SpiceDBClient) {}
+  constructor(
+    private db: Pool,
+    private spicedb: SpiceDBClient
+  ) {}
 
   async start() {
     while (true) {
-      const events = await this.poll(100);
-      if (events.length === 0) { await sleep(100); continue; }
+      const events = await this.poll(100)
+      if (events.length === 0) {
+        await sleep(100)
+        continue
+      }
 
-      const writes = events.flatMap(e => this.toTupleWrites(e));
-      const deletes = events.flatMap(e => this.toTupleDeletions(e));
+      const writes = events.flatMap((e) => this.toTupleWrites(e))
+      const deletes = events.flatMap((e) => this.toTupleDeletions(e))
 
       try {
         await this.spicedb.writeRelationships({
           updates: [
-            ...writes.map(t => ({ operation: "OPERATION_TOUCH", relationship: t })),
-            ...deletes.map(t => ({ operation: "OPERATION_DELETE", relationship: t })),
+            ...writes.map((t) => ({
+              operation: "OPERATION_TOUCH",
+              relationship: t,
+            })),
+            ...deletes.map((t) => ({
+              operation: "OPERATION_DELETE",
+              relationship: t,
+            })),
           ],
-        });
-        await this.markProcessed(events.map(e => e.id));
+        })
+        await this.markProcessed(events.map((e) => e.id))
       } catch (err) {
-        await this.markRetry(events.map(e => e.id), String(err));
+        await this.markRetry(
+          events.map((e) => e.id),
+          String(err)
+        )
       }
     }
   }
 
   private toTupleWrites(event: OutboxEvent) {
-    const { event_type: type, payload: p } = event;
-    const rel = (resType: string, resId: string, relation: string, subType: string, subId: string) => ({
+    const { event_type: type, payload: p } = event
+    const rel = (
+      resType: string,
+      resId: string,
+      relation: string,
+      subType: string,
+      subId: string
+    ) => ({
       resource: { objectType: resType, objectId: resId },
       relation,
       subject: { object: { objectType: subType, objectId: subId } },
-    });
+    })
 
     switch (type) {
       case "MEMBER_ADDED":
-        return [rel("organization", p.org_id, p.membership_type === "guest" ? "guest" : "member", "principal", p.user_id)];
+        return [
+          rel(
+            "organization",
+            p.org_id,
+            p.membership_type === "guest" ? "guest" : "member",
+            "principal",
+            p.user_id
+          ),
+        ]
       case "SCOPE_ASSIGNED":
-        return [rel("scope_node", p.scope_node_id, "assigned", "principal", p.principal_id)];
+        return [
+          rel(
+            "scope_node",
+            p.scope_node_id,
+            "assigned",
+            "principal",
+            p.principal_id
+          ),
+        ]
       case "SCOPE_EXCLUDED":
-        return [rel("scope_node", p.scope_node_id, "excluded", "principal", p.principal_id)];
+        return [
+          rel(
+            "scope_node",
+            p.scope_node_id,
+            "excluded",
+            "principal",
+            p.principal_id
+          ),
+        ]
       case "SCOPE_NODE_CREATED":
-        return p.parent_id ? [rel("scope_node", p.node_id, "parent", "scope_node", p.parent_id)] : [];
+        return p.parent_id
+          ? [rel("scope_node", p.node_id, "parent", "scope_node", p.parent_id)]
+          : []
       case "SCOPE_NODE_MOVED":
-        return [rel("scope_node", p.node_id, "parent", "scope_node", p.new_parent_id)];
+        return [
+          rel("scope_node", p.node_id, "parent", "scope_node", p.new_parent_id),
+        ]
       case "CLASSIFICATION_GRANTED":
-        return [rel("organization", p.org_id, `cls_${p.slot_number}_holder`, "principal", p.principal_id)];
+        return [
+          rel(
+            "organization",
+            p.org_id,
+            `cls_${p.slot_number}_holder`,
+            "principal",
+            p.principal_id
+          ),
+        ]
       case "TEAM_MEMBER_ADDED":
-        return [rel("team", p.team_id, "member", "principal", p.user_id)];
+        return [rel("team", p.team_id, "member", "principal", p.user_id)]
       case "ENTITLEMENT_GRANTED":
-        return [rel("organization", p.org_id, "entitled_product", "product", p.product_id)];
+        return [
+          rel(
+            "organization",
+            p.org_id,
+            "entitled_product",
+            "product",
+            p.product_id
+          ),
+        ]
       case "ONTOLOGY_OBJECT_CREATED":
         return [
           rel("ontology_object", p.object_id, "org", "organization", p.org_id),
-          rel("ontology_object", p.object_id, "scope", "scope_node", p.scope_node_id),
-          rel("ontology_object", p.object_id, "dataset", "dataset", p.dataset_id),
-        ];
+          rel(
+            "ontology_object",
+            p.object_id,
+            "scope",
+            "scope_node",
+            p.scope_node_id
+          ),
+          rel(
+            "ontology_object",
+            p.object_id,
+            "dataset",
+            "dataset",
+            p.dataset_id
+          ),
+        ]
       case "RESOURCE_SHARED":
-        return [rel("ontology_object", p.resource_id, p.grant_level, "principal", p.grantee_id)];
-      default: return [];
+        return [
+          rel(
+            "ontology_object",
+            p.resource_id,
+            p.grant_level,
+            "principal",
+            p.grantee_id
+          ),
+        ]
+      default:
+        return []
     }
   }
 
   private toTupleDeletions(event: OutboxEvent) {
-    const { event_type: type, payload: p } = event;
-    const rel = (resType: string, resId: string, relation: string, subType: string, subId: string) => ({
+    const { event_type: type, payload: p } = event
+    const rel = (
+      resType: string,
+      resId: string,
+      relation: string,
+      subType: string,
+      subId: string
+    ) => ({
       resource: { objectType: resType, objectId: resId },
       relation,
       subject: { object: { objectType: subType, objectId: subId } },
-    });
+    })
 
     switch (type) {
       case "MEMBER_REMOVED":
-        return [rel("organization", p.org_id, p.membership_type === "guest" ? "guest" : "member", "principal", p.user_id)];
+        return [
+          rel(
+            "organization",
+            p.org_id,
+            p.membership_type === "guest" ? "guest" : "member",
+            "principal",
+            p.user_id
+          ),
+        ]
       case "SCOPE_REMOVED":
-        return [rel("scope_node", p.scope_node_id, "assigned", "principal", p.principal_id)];
+        return [
+          rel(
+            "scope_node",
+            p.scope_node_id,
+            "assigned",
+            "principal",
+            p.principal_id
+          ),
+        ]
       case "CLASSIFICATION_REVOKED":
-        return [rel("organization", p.org_id, `cls_${p.slot_number}_holder`, "principal", p.principal_id)];
+        return [
+          rel(
+            "organization",
+            p.org_id,
+            `cls_${p.slot_number}_holder`,
+            "principal",
+            p.principal_id
+          ),
+        ]
       case "TEAM_MEMBER_REMOVED":
-        return [rel("team", p.team_id, "member", "principal", p.user_id)];
-      default: return [];
+        return [rel("team", p.team_id, "member", "principal", p.user_id)]
+      default:
+        return []
     }
   }
 
   private async poll(limit: number) {
-    return (await this.db.query(
-      `SELECT id, event_type, payload, org_id FROM iam.authz_outbox
+    return (
+      await this.db.query(
+        `SELECT id, event_type, payload, org_id FROM iam.authz_outbox
        WHERE processed_at IS NULL AND retry_count < 5
-       ORDER BY id ASC LIMIT $1 FOR UPDATE SKIP LOCKED`, [limit]
-    )).rows;
+       ORDER BY id ASC LIMIT $1 FOR UPDATE SKIP LOCKED`,
+        [limit]
+      )
+    ).rows
   }
 
   private async markProcessed(ids: number[]) {
-    await this.db.query(`UPDATE iam.authz_outbox SET processed_at = now() WHERE id = ANY($1)`, [ids]);
+    await this.db.query(
+      `UPDATE iam.authz_outbox SET processed_at = now() WHERE id = ANY($1)`,
+      [ids]
+    )
   }
 
   private async markRetry(ids: number[], error: string) {
     await this.db.query(
-      `UPDATE iam.authz_outbox SET retry_count = retry_count + 1, error = $2 WHERE id = ANY($1)`, [ids, error]
-    );
+      `UPDATE iam.authz_outbox SET retry_count = retry_count + 1, error = $2 WHERE id = ANY($1)`,
+      [ids, error]
+    )
   }
 }
 ```
@@ -690,40 +814,43 @@ export class OutboxConsumer {
 The authorization decision engine. Sits behind Traefik ForwardAuth.
 
 ```typescript
-import { SpiceDBClient } from "@authzed/authzed-node";
-import { auth } from "./auth";
-import { OntologyRegistry } from "./ontology-registry";
-import { ConstraintEvaluator } from "./constraint-evaluator";
-import { RoleLatticeCache } from "./role-lattice-cache";
+import { SpiceDBClient } from "@authzed/authzed-node"
+import { auth } from "./auth"
+import { OntologyRegistry } from "./ontology-registry"
+import { ConstraintEvaluator } from "./constraint-evaluator"
+import { RoleLatticeCache } from "./role-lattice-cache"
 
 export class AuthzRuntime {
   constructor(
     private spicedb: SpiceDBClient,
     private registry: OntologyRegistry,
     private constraints: ConstraintEvaluator,
-    private lattice: RoleLatticeCache,
+    private lattice: RoleLatticeCache
   ) {}
 
   async authorize(req: AuthzRequest): Promise<AuthzDecision> {
-
     // ① Resolve session (better-auth)
     const session = await auth.api.getSession({
       headers: { authorization: `Bearer ${req.token}` },
-    });
-    if (!session?.user) return deny("authentication");
-    const { user, session: sess } = session;
-    const orgId = sess.activeOrganizationId;
-    if (!orgId) return deny("no_active_org");
+    })
+    if (!session?.user) return deny("authentication")
+    const { user, session: sess } = session
+    const orgId = sess.activeOrganizationId
+    if (!orgId) return deny("no_active_org")
 
     // ② Org entitlement (SpiceDB)
     if (req.product) {
-      const entitled = await this.checkEntitlement(orgId, req.product, req.module);
-      if (!entitled) return deny("entitlement");
+      const entitled = await this.checkEntitlement(
+        orgId,
+        req.product,
+        req.module
+      )
+      if (!entitled) return deny("entitlement")
     }
 
     // ⑦ Time constraints (runtime → Postgres)
-    const timeOk = await this.constraints.checkTimeWindows(user.id, orgId);
-    if (!timeOk) return deny("time_constraint");
+    const timeOk = await this.constraints.checkTimeWindows(user.id, orgId)
+    if (!timeOk) return deny("time_constraint")
 
     // ③ Scope (SpiceDB — if resource has scope)
     if (req.resourceId) {
@@ -731,67 +858,97 @@ export class AuthzRuntime {
         resource: { objectType: "ontology_object", objectId: req.resourceId },
         permission: req.action === "read" ? "view" : "edit",
         subject: { object: { objectType: "principal", objectId: user.id } },
-      });
-      if (!scopeOk.permissionship) return deny("scope");
+      })
+      if (!scopeOk.permissionship) return deny("scope")
     }
 
     // ④ Role (cached lattice)
     if (req.product && req.module && req.resourceType && req.action) {
-      const perm = `${req.product}:${req.module}:${req.resourceType}:${req.action}`;
-      if (!this.lattice.has(user.id, orgId, perm)) return deny("role_permission");
+      const perm = `${req.product}:${req.module}:${req.resourceType}:${req.action}`
+      if (!this.lattice.has(user.id, orgId, perm))
+        return deny("role_permission")
     }
 
     // ⑦ Constraints (skill, workflow state, financial, approval)
     if (req.resourceId) {
-      const c = await this.constraints.evaluateAll(user.id, orgId, req.resourceType, req.resourceId, req.action);
-      if (!c.passed) return deny(c.failedConstraint);
+      const c = await this.constraints.evaluateAll(
+        user.id,
+        orgId,
+        req.resourceType,
+        req.resourceId,
+        req.action
+      )
+      if (!c.passed) return deny(c.failedConstraint)
     }
 
     // ⑤ Property filter (SpiceDB bulk check for classification slots)
-    let propertyFilter: Record<string, boolean> | undefined;
+    let propertyFilter: Record<string, boolean> | undefined
     if (req.resourceId && req.action === "read") {
-      propertyFilter = await this.resolvePropertyVisibility(user.id, req.resourceId, req.resourceType, orgId);
+      propertyFilter = await this.resolvePropertyVisibility(
+        user.id,
+        req.resourceId,
+        req.resourceType,
+        orgId
+      )
     }
 
     // ⑦ Explicit deny
-    const denyCheck = await this.constraints.checkExplicitDenies(user.id, orgId, req.resourceType, req.resourceId);
-    if (denyCheck) return deny("explicit_deny");
+    const denyCheck = await this.constraints.checkExplicitDenies(
+      user.id,
+      orgId,
+      req.resourceType,
+      req.resourceId
+    )
+    if (denyCheck) return deny("explicit_deny")
 
-    return { allowed: true, principalId: user.id, orgId, propertyFilter };
+    return { allowed: true, principalId: user.id, orgId, propertyFilter }
   }
 
-  private async resolvePropertyVisibility(principalId: string, objectId: string, objectType: string, orgId: string) {
-    const meta = this.registry.getType(objectType, orgId);
-    if (!meta) return undefined;
+  private async resolvePropertyVisibility(
+    principalId: string,
+    objectId: string,
+    objectType: string,
+    orgId: string
+  ) {
+    const meta = this.registry.getType(objectType, orgId)
+    if (!meta) return undefined
 
-    const usedSlots = new Set(meta.properties.filter(p => p.cls_slot).map(p => p.cls_slot));
-    const slotResults: Record<number, boolean> = {};
+    const usedSlots = new Set(
+      meta.properties.filter((p) => p.cls_slot).map((p) => p.cls_slot)
+    )
+    const slotResults: Record<number, boolean> = {}
 
     for (const slot of usedSlots) {
       const check = await this.spicedb.checkPermission({
         resource: { objectType: "ontology_object", objectId },
         permission: `view_cls_${slot}`,
         subject: { object: { objectType: "principal", objectId: principalId } },
-      });
-      slotResults[slot] = !!check.permissionship;
+      })
+      slotResults[slot] = !!check.permissionship
     }
 
-    const filter: Record<string, boolean> = {};
+    const filter: Record<string, boolean> = {}
     for (const prop of meta.properties) {
-      filter[prop.name] = prop.cls_slot ? (slotResults[prop.cls_slot] ?? false) : true;
+      filter[prop.name] = prop.cls_slot
+        ? (slotResults[prop.cls_slot] ?? false)
+        : true
     }
-    return filter;
+    return filter
   }
 
-  private async checkEntitlement(orgId: string, product: string, module?: string): Promise<boolean> {
+  private async checkEntitlement(
+    orgId: string,
+    product: string,
+    module?: string
+  ): Promise<boolean> {
     // Check Postgres entitlement table (cached)
     // This is faster than SpiceDB for simple lookups
-    return this.registry.hasEntitlement(orgId, product, module);
+    return this.registry.hasEntitlement(orgId, product, module)
   }
 }
 
 function deny(step: string): AuthzDecision {
-  return { allowed: false, failedStep: step };
+  return { allowed: false, failedStep: step }
 }
 ```
 
@@ -822,27 +979,29 @@ http:
 The ForwardAuth endpoint:
 
 ```typescript
-import { Hono } from "hono";
-import { AuthzRuntime } from "./runtime";
+import { Hono } from "hono"
+import { AuthzRuntime } from "./runtime"
 
-const app = new Hono();
-const runtime = new AuthzRuntime(/* ... */);
+const app = new Hono()
+const runtime = new AuthzRuntime(/* ... */)
 
 app.all("/authorize", async (c) => {
   const decision = await runtime.authorize({
     token: c.req.header("Authorization")?.replace("Bearer ", "") || "",
     method: c.req.header("X-Forwarded-Method") || "GET",
     path: c.req.header("X-Forwarded-Uri") || "/",
-  });
+  })
 
-  if (!decision.allowed) return c.text("Forbidden", 403);
+  if (!decision.allowed) return c.text("Forbidden", 403)
 
   return c.text("OK", 200, {
     "X-Principal-Id": decision.principalId,
     "X-Org-Id": decision.orgId,
-    "X-Property-Filter": decision.propertyFilter ? JSON.stringify(decision.propertyFilter) : "",
-  });
-});
+    "X-Property-Filter": decision.propertyFilter
+      ? JSON.stringify(decision.propertyFilter)
+      : "",
+  })
+})
 ```
 
 ---
@@ -882,17 +1041,17 @@ CONSISTENCY
 
 ## 10. Schema Growth
 
-| Event | SpiceDB schema change? |
-|-------|----------------------|
-| New tenant signs up | No |
-| Tenant creates new object type | No |
-| Tenant adds clearance-gated property | No |
-| New scope dimension (e.g., cost center) | No |
-| New classification category fits existing slot | No |
-| Need 5th classification slot | Yes (adds 3 lines, one-time) |
-| New resource type (e.g., Notebook) | Yes (rare, platform-level) |
-| Object type needs specialized auth (e.g., self-access) | Yes (very rare) |
-| New constraint category | No (runtime code only) |
+| Event                                                  | SpiceDB schema change?       |
+| ------------------------------------------------------ | ---------------------------- |
+| New tenant signs up                                    | No                           |
+| Tenant creates new object type                         | No                           |
+| Tenant adds clearance-gated property                   | No                           |
+| New scope dimension (e.g., cost center)                | No                           |
+| New classification category fits existing slot         | No                           |
+| Need 5th classification slot                           | Yes (adds 3 lines, one-time) |
+| New resource type (e.g., Notebook)                     | Yes (rare, platform-level)   |
+| Object type needs specialized auth (e.g., self-access) | Yes (very rare)              |
+| New constraint category                                | No (runtime code only)       |
 
 SpiceDB schema is an infrastructure artifact that changes quarterly at most. Dynamic growth happens in the Ontology Registry and constraint tables.
 

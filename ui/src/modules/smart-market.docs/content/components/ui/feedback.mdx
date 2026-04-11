@@ -3,7 +3,11 @@
 Components for communicating status, information, and context to users.
 
 ```tsx
-import { Alert, AlertDescription, AlertTitle } from "@rio.js/ui-next/components/alert"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@rio.js/ui-next/components/alert"
 ```
 
 ---
@@ -41,10 +45,10 @@ A prominent banner for surfacing important messages. Use for inline feedback lik
 
 ### Variants
 
-| Variant | Use case |
-|---------|----------|
-| `default` | General information, tips, or neutral notices |
-| `destructive` | Errors, failures, or critical warnings |
+| Variant       | Use case                                      |
+| ------------- | --------------------------------------------- |
+| `default`     | General information, tips, or neutral notices |
+| `destructive` | Errors, failures, or critical warnings        |
 
 ### When to use
 
@@ -59,7 +63,12 @@ A prominent banner for surfacing important messages. Use for inline feedback lik
 A small popup that appears on hover to provide additional context. Use for icon-only buttons, truncated text, or brief explanations.
 
 ```tsx
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rio.js/ui-next/components/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@rio.js/ui-next/components/tooltip"
 ```
 
 <ComponentPreview>
@@ -120,7 +129,11 @@ Wrap your app or a section in `TooltipProvider` to share delay and configuration
 A floating panel anchored to a trigger element. Use for rich content that requires interaction — filters, settings, or mini-forms.
 
 ```tsx
-import { Popover, PopoverContent, PopoverTrigger } from "@rio.js/ui-next/components/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@rio.js/ui-next/components/popover"
 ```
 
 <ComponentPreview>
@@ -144,9 +157,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@rio.js/ui-next/compone
   <PopoverTrigger asChild>
     <Button>Open Popover</Button>
   </PopoverTrigger>
-  <PopoverContent className="w-64">
-    {/* Rich content here */}
-  </PopoverContent>
+  <PopoverContent className="w-64">{/* Rich content here */}</PopoverContent>
 </Popover>
 ```
 
@@ -161,33 +172,33 @@ import { Popover, PopoverContent, PopoverTrigger } from "@rio.js/ui-next/compone
 
 ### Alert Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `"default" \| "destructive"` | `"default"` | Visual style |
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type                         | Default     | Description            |
+| ----------- | ---------------------------- | ----------- | ---------------------- |
+| `variant`   | `"default" \| "destructive"` | `"default"` | Visual style           |
+| `className` | `string`                     | —           | Additional CSS classes |
 
 ### TooltipContent Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"top"` | Preferred placement |
-| `sideOffset` | `number` | `4` | Distance from trigger in pixels |
-| `align` | `"start" \| "center" \| "end"` | `"center"` | Alignment along the side |
-| `color` | `"popover" \| "accent"` | `"popover"` | Background color style |
-| `arrow` | `boolean` | `true` | Whether to show the tooltip arrow |
+| Prop         | Type                                     | Default     | Description                       |
+| ------------ | ---------------------------------------- | ----------- | --------------------------------- |
+| `side`       | `"top" \| "right" \| "bottom" \| "left"` | `"top"`     | Preferred placement               |
+| `sideOffset` | `number`                                 | `4`         | Distance from trigger in pixels   |
+| `align`      | `"start" \| "center" \| "end"`           | `"center"`  | Alignment along the side          |
+| `color`      | `"popover" \| "accent"`                  | `"popover"` | Background color style            |
+| `arrow`      | `boolean`                                | `true`      | Whether to show the tooltip arrow |
 
 ### TooltipProvider Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `delayDuration` | `number` | `200` | Delay in ms before tooltip appears |
-| `skipDelayDuration` | `number` | `300` | Time in ms before resetting delay after leaving |
+| Prop                | Type     | Default | Description                                     |
+| ------------------- | -------- | ------- | ----------------------------------------------- |
+| `delayDuration`     | `number` | `200`   | Delay in ms before tooltip appears              |
+| `skipDelayDuration` | `number` | `300`   | Time in ms before resetting delay after leaving |
 
 ### PopoverContent Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"bottom"` | Preferred placement |
-| `sideOffset` | `number` | `4` | Distance from trigger in pixels |
-| `align` | `"start" \| "center" \| "end"` | `"center"` | Alignment along the side |
-| `className` | `string` | — | Additional CSS classes |
+| Prop         | Type                                     | Default    | Description                     |
+| ------------ | ---------------------------------------- | ---------- | ------------------------------- |
+| `side`       | `"top" \| "right" \| "bottom" \| "left"` | `"bottom"` | Preferred placement             |
+| `sideOffset` | `number`                                 | `4`        | Distance from trigger in pixels |
+| `align`      | `"start" \| "center" \| "end"`           | `"center"` | Alignment along the side        |
+| `className`  | `string`                                 | —          | Additional CSS classes          |

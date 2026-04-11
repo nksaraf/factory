@@ -82,10 +82,7 @@ export class NoopObservabilityAdapter implements ObservabilityAdapter {
     return []
   }
 
-  async runQuery(
-    promql: string,
-    query: MetricsQuery
-  ): Promise<MetricSeries[]> {
+  async runQuery(promql: string, query: MetricsQuery): Promise<MetricSeries[]> {
     logger.debug({ promql, query }, "noop observability adapter: runQuery")
     return []
   }
@@ -110,9 +107,7 @@ export class NoopObservabilityAdapter implements ObservabilityAdapter {
     logger.debug({ id, reason }, "noop observability adapter: resolveAlert")
   }
 
-  async silenceAlerts(
-    spec: SilenceSpec
-  ): Promise<{ silenceId: string }> {
+  async silenceAlerts(spec: SilenceSpec): Promise<{ silenceId: string }> {
     logger.debug({ spec }, "noop observability adapter: silenceAlerts")
     return { silenceId: `silence_noop_${Date.now()}` }
   }
@@ -134,9 +129,7 @@ export class NoopObservabilityAdapter implements ObservabilityAdapter {
     )
   }
 
-  async createAlertRule(
-    rule: Omit<AlertRule, "id">
-  ): Promise<AlertRule> {
+  async createAlertRule(rule: Omit<AlertRule, "id">): Promise<AlertRule> {
     logger.debug({ rule }, "noop observability adapter: createAlertRule")
     return { ...rule, id: `rule_noop_${Date.now()}` }
   }

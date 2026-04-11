@@ -7,4 +7,4 @@ export {
   InvalidSlugError,
   validateExplicitSlug,
   allocateSlug,
-} from "@smp/factory-shared/slug";
+} from "@smp/factory-shared/slug"

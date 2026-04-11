@@ -4,7 +4,7 @@ export default function RoutesPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Routes & Domains"
         description="Ingress routes, custom domains, and tunnels"
       />

@@ -14,7 +14,7 @@ interface ApiListResponse<T = Record<string, unknown>> {
   data: T[]
 }
 
-const BASE = "http://localhost/api/factory/infra"
+const BASE = "http://localhost/api/v1/factory/infra"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {
@@ -472,7 +472,7 @@ describe("Infra Controller", () => {
       expect(data).toHaveLength(1)
     })
 
-    it("POST /dns-domains/:id/verify marks domain verified", async () => {
+    it("POST /dns-domains/:id/verify runs DNS verification flow", async () => {
       const createRes = await app.handle(
         post(`${BASE}/dns-domains`, {
           name: "verify-test",
@@ -489,10 +489,11 @@ describe("Infra Controller", () => {
       )
       expect(res.status).toBe(200)
       const { data } = (await res.json()) as ApiResponse<{
-        spec: { verified: boolean; verifiedAt: string }
+        verified: boolean
+        error?: string
       }>
-      expect(data.spec.verified).toBe(true)
-      expect(data.spec.verifiedAt).toBeTruthy()
+      expect(data.verified).toBe(false)
+      expect(data.error).toBeTruthy()
     })
   })
 

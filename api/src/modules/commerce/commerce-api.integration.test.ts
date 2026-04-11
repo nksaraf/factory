@@ -16,7 +16,7 @@ describe("commerce plane API", () => {
   it("creates a customer with cust_ ID prefix and trial status in spec", async () => {
     await truncateAllTables(ctx.client)
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -41,7 +41,7 @@ describe("commerce plane API", () => {
 
     // Create two customers
     const res1 = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -56,7 +56,7 @@ describe("commerce plane API", () => {
     }
 
     await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ slug: "beta-llc", name: "Beta LLC", spec: {} }),
@@ -65,7 +65,7 @@ describe("commerce plane API", () => {
 
     // List
     const listRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers")
+      new Request("http://localhost/api/v1/factory/commerce/customers")
     )
     expect(listRes.status).toBe(200)
     const listJson = (await listRes.json()) as {
@@ -78,7 +78,7 @@ describe("commerce plane API", () => {
     // Get by ID
     const getRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/factory/commerce/customers/${cust1.data.id}`
+        `http://localhost/api/v1/factory/commerce/customers/${cust1.data.id}`
       )
     )
     expect(getRes.status).toBe(200)
@@ -92,7 +92,7 @@ describe("commerce plane API", () => {
     await truncateAllTables(ctx.client)
     const res = await ctx.app.handle(
       new Request(
-        "http://localhost/api/factory/commerce/customers/cust_nonexistent"
+        "http://localhost/api/v1/factory/commerce/customers/cust_nonexistent"
       )
     )
     expect(res.status).toBe(404)
@@ -103,7 +103,7 @@ describe("commerce plane API", () => {
   it("updates customer status in spec from trial to active", async () => {
     await truncateAllTables(ctx.client)
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -120,7 +120,7 @@ describe("commerce plane API", () => {
 
     const patchRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/factory/commerce/customers/${created.data.id}/update`,
+        `http://localhost/api/v1/factory/commerce/customers/${created.data.id}/update`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -138,7 +138,7 @@ describe("commerce plane API", () => {
   it("creates and lists plans", async () => {
     await truncateAllTables(ctx.client)
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/plans", {
+      new Request("http://localhost/api/v1/factory/commerce/plans", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -176,7 +176,7 @@ describe("commerce plane API", () => {
     ])
 
     const listRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/plans")
+      new Request("http://localhost/api/v1/factory/commerce/plans")
     )
     expect(listRes.status).toBe(200)
     const listed = (await listRes.json()) as {
@@ -190,7 +190,7 @@ describe("commerce plane API", () => {
   it("soft-deletes a customer via bitemporal delete", async () => {
     await truncateAllTables(ctx.client)
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers", {
+      new Request("http://localhost/api/v1/factory/commerce/customers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ describe("commerce plane API", () => {
 
     const deleteRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/factory/commerce/customers/${created.data.id}/delete`,
+        `http://localhost/api/v1/factory/commerce/customers/${created.data.id}/delete`,
         { method: "POST" }
       )
     )
@@ -215,7 +215,7 @@ describe("commerce plane API", () => {
 
     // After bitemporal delete, the customer should no longer appear in the list
     const listRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/commerce/customers")
+      new Request("http://localhost/api/v1/factory/commerce/customers")
     )
     const list = (await listRes.json()) as {
       data: unknown[]

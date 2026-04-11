@@ -1,8 +1,8 @@
-import type { DxBase } from "../dx-root.js";
+import type { DxBase } from "../dx-root.js"
 
-import { exitWithError } from "../lib/cli-exit.js";
-import { toDxFlags } from "./dx-flags.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+import { exitWithError } from "../lib/cli-exit.js"
+import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("var", [
   "$ dx var set APP_NAME myapp              Set a variable (org scope)",
@@ -13,7 +13,7 @@ setExamples("var", [
   "$ dx var rm APP_NAME                     Remove a variable",
   "$ dx var set KEY val --scope team --team platform   Set team-scoped variable",
   "$ dx var set KEY val --env production    Set production-only variable",
-]);
+])
 
 const SCOPE_FLAGS = {
   local: {
@@ -37,7 +37,7 @@ const SCOPE_FLAGS = {
     type: "string" as const,
     description: "Environment: production, development, preview",
   },
-};
+}
 
 export function varCommand(app: DxBase) {
   return app
@@ -47,14 +47,24 @@ export function varCommand(app: DxBase) {
       c
         .meta({ description: "Set a variable" })
         .args([
-          { name: "key", type: "string", required: true, description: "Variable key (env var name)" },
-          { name: "value", type: "string", required: true, description: "Variable value" },
+          {
+            name: "key",
+            type: "string",
+            required: true,
+            description: "Variable key (env var name)",
+          },
+          {
+            name: "value",
+            type: "string",
+            required: true,
+            description: "Variable value",
+          },
         ])
         .flags(SCOPE_FLAGS)
         .run(async ({ args, flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
           try {
-            const { varSet } = await import("../handlers/var.js");
+            const { varSet } = await import("../handlers/var.js")
             await varSet(args.key as string, args.value as string, {
               local: flags.local as boolean | undefined,
               scope: flags.scope as string | undefined,
@@ -62,23 +72,28 @@ export function varCommand(app: DxBase) {
               project: flags.project as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
-            });
+            })
           } catch (err) {
-            exitWithError(f, err instanceof Error ? err.message : String(err));
+            exitWithError(f, err instanceof Error ? err.message : String(err))
           }
-        }),
+        })
     )
     .command("get", (c) =>
       c
         .meta({ description: "Get a variable value" })
         .args([
-          { name: "key", type: "string", required: true, description: "Variable key" },
+          {
+            name: "key",
+            type: "string",
+            required: true,
+            description: "Variable key",
+          },
         ])
         .flags(SCOPE_FLAGS)
         .run(async ({ args, flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
           try {
-            const { varGet } = await import("../handlers/var.js");
+            const { varGet } = await import("../handlers/var.js")
             await varGet(args.key as string, {
               local: flags.local as boolean | undefined,
               scope: flags.scope as string | undefined,
@@ -86,20 +101,20 @@ export function varCommand(app: DxBase) {
               project: flags.project as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
-            });
+            })
           } catch (err) {
-            exitWithError(f, err instanceof Error ? err.message : String(err));
+            exitWithError(f, err instanceof Error ? err.message : String(err))
           }
-        }),
+        })
     )
     .command("list", (c) =>
       c
         .meta({ description: "List variables" })
         .flags(SCOPE_FLAGS)
         .run(async ({ flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
           try {
-            const { varList } = await import("../handlers/var.js");
+            const { varList } = await import("../handlers/var.js")
             await varList({
               local: flags.local as boolean | undefined,
               scope: flags.scope as string | undefined,
@@ -107,23 +122,28 @@ export function varCommand(app: DxBase) {
               project: flags.project as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
-            });
+            })
           } catch (err) {
-            exitWithError(f, err instanceof Error ? err.message : String(err));
+            exitWithError(f, err instanceof Error ? err.message : String(err))
           }
-        }),
+        })
     )
     .command("rm", (c) =>
       c
         .meta({ description: "Remove a variable" })
         .args([
-          { name: "key", type: "string", required: true, description: "Variable key" },
+          {
+            name: "key",
+            type: "string",
+            required: true,
+            description: "Variable key",
+          },
         ])
         .flags(SCOPE_FLAGS)
         .run(async ({ args, flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
           try {
-            const { varRemove } = await import("../handlers/var.js");
+            const { varRemove } = await import("../handlers/var.js")
             await varRemove(args.key as string, {
               local: flags.local as boolean | undefined,
               scope: flags.scope as string | undefined,
@@ -131,10 +151,10 @@ export function varCommand(app: DxBase) {
               project: flags.project as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
-            });
+            })
           } catch (err) {
-            exitWithError(f, err instanceof Error ? err.message : String(err));
+            exitWithError(f, err instanceof Error ? err.message : String(err))
           }
-        }),
-    );
+        })
+    )
 }

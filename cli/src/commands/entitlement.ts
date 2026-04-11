@@ -88,12 +88,25 @@ export function entitlementCommand(app: DxBase) {
     )
     .command("bundle", (c) =>
       c
-        .meta({ description: "Generate signed entitlement bundle for air-gapped site" })
+        .meta({
+          description: "Generate signed entitlement bundle for air-gapped site",
+        })
         .flags({
-          "customer-id": { type: "string", description: "Customer ID", required: true },
+          "customer-id": {
+            type: "string",
+            description: "Customer ID",
+            required: true,
+          },
           "site-id": { type: "string", description: "Site ID", required: true },
-          "expires-at": { type: "string", description: "Expiry date (ISO)", required: true },
-          "grace-days": { type: "number", description: "Grace period days (default 30)" },
+          "expires-at": {
+            type: "string",
+            description: "Expiry date (ISO)",
+            required: true,
+          },
+          "grace-days": {
+            type: "number",
+            description: "Grace period days (default 30)",
+          },
         })
         .run(({ flags }) => {
           return runBundleGenerate(toDxFlags(flags), {

@@ -22,15 +22,15 @@ The goal is not validation — it's stress-testing.
 
 **Mapping:**
 
-| Concept | Primitive | Notes |
-|---------|-----------|-------|
-| Organization (Lepton Software) | ② Organization | Clean fit. Single org boundary. |
-| Team members (Admin, Analyst) | ④ Role | Org-scoped role assignment. |
-| Project access (Owner/Editor/Viewer) | ⑥ Relationship | Per-resource binding, not org-wide capability. |
-| Private/Public project visibility | ⑤ Classification | Binary gate: visible to org or invite-only. |
-| Analyst license count (51/100) | ② Organization | Entitlement/seat limit on org. |
-| Labels ("tes 123", "intern") | — | Not an authz concept today. Informational tagging. |
-| Shared Projects view | ⑥ Relationship | Projects shared with you = relationship exists. |
+| Concept                              | Primitive        | Notes                                              |
+| ------------------------------------ | ---------------- | -------------------------------------------------- |
+| Organization (Lepton Software)       | ② Organization   | Clean fit. Single org boundary.                    |
+| Team members (Admin, Analyst)        | ④ Role           | Org-scoped role assignment.                        |
+| Project access (Owner/Editor/Viewer) | ⑥ Relationship   | Per-resource binding, not org-wide capability.     |
+| Private/Public project visibility    | ⑤ Classification | Binary gate: visible to org or invite-only.        |
+| Analyst license count (51/100)       | ② Organization   | Entitlement/seat limit on org.                     |
+| Labels ("tes 123", "intern")         | —                | Not an authz concept today. Informational tagging. |
+| Shared Projects view                 | ⑥ Relationship   | Projects shared with you = relationship exists.    |
 
 **What works well:** SmartMarket is the simplest internal product from an authz perspective. Org → Project → Data is a clean two-level container hierarchy. The SpiceDB `project` definition with owner/editor/viewer relations handles this directly. The "Manage Access" panel (screenshot 1) maps exactly to writing `editor` and `viewer` relations on a project in SpiceDB.
 
@@ -59,7 +59,7 @@ definition project {
 
 Zero schema changes to the core model. The `folder` definition is structurally identical to `workspace` — it's a container that sets defaults.
 
-**The override question:** Can a project inside a folder *remove* access that the folder grants? The model as written says no — folder permission is additive (the `+` operator). If you need subtractive overrides (folder grants Editor, project revokes it for a specific user), you need an exclusion mechanism. Two options: (a) add an `excluded` relation on `project` like scope_node has, or (b) accept that overrides are only additive (you can add more access at the project level but not remove inherited access). Option (b) is simpler and matches Google Drive's behavior. Recommendation: start with additive-only, add exclusions later if customer demand justifies the complexity.
+**The override question:** Can a project inside a folder _remove_ access that the folder grants? The model as written says no — folder permission is additive (the `+` operator). If you need subtractive overrides (folder grants Editor, project revokes it for a specific user), you need an exclusion mechanism. Two options: (a) add an `excluded` relation on `project` like scope_node has, or (b) accept that overrides are only additive (you can add more access at the project level but not remove inherited access). Option (b) is simpler and matches Google Drive's behavior. Recommendation: start with additive-only, add exclusions later if customer demand justifies the complexity.
 
 **Gap: Labels are not authorization.** The "Label" column (screenshot 4: "tes 123", "intern") appears to be a free-form tag on team members. If labels are purely informational, they're outside the model. If they later need to drive access decisions (e.g., "interns cannot access production projects"), they become either a ③ Scope dimension (intern is a department/team node) or a ⑤ Classification slot (intern as a clearance level). Don't pre-model this — wait until the use case is real.
 
@@ -73,23 +73,23 @@ Zero schema changes to the core model. The `folder` definition is structurally i
 
 **Mapping:**
 
-| Concept | Primitive | Notes |
-|---------|-----------|-------|
-| Role hierarchy (Commissioner → Constable) | ④ Role | Linear lattice. Each level inherits parent permissions. |
-| Geographic zones (North/South/Central/East/West) | ③ Scope | Regional scope dimension. Zone directory = scope_node tree. |
-| City-wide vs. zone-scoped data visibility | ③ Scope | Commissioner assigned at root, ACP assigned at zone node. |
-| Proximity-based access (Constable) | ⑦ Constraint | Runtime GPS check. Not a static scope assignment. |
-| Per-role feature toggles (Can View Analytics) | ④ Role | Permissions on the role definition. |
-| Notification thresholds per role | — | Not authorization. Service Plane configuration. |
-| Report distribution settings | — | Not authorization. Service Plane configuration. |
-| User status (Active/Suspended/Deactivated) | ① Principal | Principal validity check. |
-| Reporting manager | ⑥ Relationship | Manager relation on principal. |
+| Concept                                          | Primitive      | Notes                                                       |
+| ------------------------------------------------ | -------------- | ----------------------------------------------------------- |
+| Role hierarchy (Commissioner → Constable)        | ④ Role         | Linear lattice. Each level inherits parent permissions.     |
+| Geographic zones (North/South/Central/East/West) | ③ Scope        | Regional scope dimension. Zone directory = scope_node tree. |
+| City-wide vs. zone-scoped data visibility        | ③ Scope        | Commissioner assigned at root, ACP assigned at zone node.   |
+| Proximity-based access (Constable)               | ⑦ Constraint   | Runtime GPS check. Not a static scope assignment.           |
+| Per-role feature toggles (Can View Analytics)    | ④ Role         | Permissions on the role definition.                         |
+| Notification thresholds per role                 | —              | Not authorization. Service Plane configuration.             |
+| Report distribution settings                     | —              | Not authorization. Service Plane configuration.             |
+| User status (Active/Suspended/Deactivated)       | ① Principal    | Principal validity check.                                   |
+| Reporting manager                                | ⑥ Relationship | Manager relation on principal.                              |
 
 **Where the model shines:** The TrafiCure deployment screenshots are almost a perfect illustration of ③ Scope and ④ Role working together. The "Zones & Regions" page (screenshot 6) shows exactly what scope_node models — a geographic hierarchy with users assigned at nodes and road segments as the protected resources below. The "Role Hierarchy" page (screenshot 7) shows the five-level linear role lattice.
 
-The critical insight: TrafiCure's current UI *conflates* role and scope into a single concept ("Level 1: Commissioner = City-Wide"). The model correctly separates them. A Commissioner has the `senior_officer` role AND a city-wide scope assignment. An ACP has the `zone_officer` role AND a specific zone scope assignment. Today they're bound 1:1, but separation enables future flexibility — imagine a DCP who is restricted to only North Zone for a transfer period, or a temporary Commissioner with zone-only scope during an investigation.
+The critical insight: TrafiCure's current UI _conflates_ role and scope into a single concept ("Level 1: Commissioner = City-Wide"). The model correctly separates them. A Commissioner has the `senior_officer` role AND a city-wide scope assignment. An ACP has the `zone_officer` role AND a specific zone scope assignment. Today they're bound 1:1, but separation enables future flexibility — imagine a DCP who is restricted to only North Zone for a transfer period, or a temporary Commissioner with zone-only scope during an investigation.
 
-**The reporting manager problem:** Screenshot 10 (SmartInventory) shows a "Reporting Manager" field, and from the TrafiCure context, this relationship serves multiple purposes: (a) determines approval chains for leave/overtime, (b) determines who sees whose reports, (c) determines escalation paths for incidents. In the model, this is ⑥ Relationship (`manager` relation on principal). But it also feeds into ⑦ Constraint (approval workflows require manager sign-off). The model handles this, but it's worth noting that the manager relationship is *on the principal*, not on a resource. The SpiceDB schema currently models relationships on resources (ontology_object has owner/editor/viewer). For manager-subordinate relationships, you'd add:
+**The reporting manager problem:** Screenshot 10 (SmartInventory) shows a "Reporting Manager" field, and from the TrafiCure context, this relationship serves multiple purposes: (a) determines approval chains for leave/overtime, (b) determines who sees whose reports, (c) determines escalation paths for incidents. In the model, this is ⑥ Relationship (`manager` relation on principal). But it also feeds into ⑦ Constraint (approval workflows require manager sign-off). The model handles this, but it's worth noting that the manager relationship is _on the principal_, not on a resource. The SpiceDB schema currently models relationships on resources (ontology_object has owner/editor/viewer). For manager-subordinate relationships, you'd add:
 
 ```
 definition principal {
@@ -115,17 +115,17 @@ This lets you write permission checks like "can view subordinate's reports" as a
 
 **Mapping:**
 
-| Concept | Primitive | Notes |
-|---------|-----------|-------|
-| User Role (View Dashboard) | ④ Role | Named role with permission set. |
-| Module Rights matrix (entity × state × CRUD) | ④ Role | Permissions aggregated into roles. **This is the hard case.** |
-| Lifecycle states (Planned/As-Built/Dormant) | ⑤ Classification OR ④ Role | See analysis below. |
-| Work Area (Step 3 of user creation) | ③ Scope | Geographic/topology scope assignment. |
-| Reporting Manager | ⑥ Relationship | Manager relation on principal. |
-| User Type (Partner) | ① Principal | Principal trait (type field). |
-| Application Access (Web/Mobile/Both) | ⑦ Constraint | Runtime constraint on access channel. |
-| Vendor ID | ② Organization | Vendor sub-namespace binding. |
-| Is Admin Rights Allowed? | ④ Role | Boolean permission ceiling. |
+| Concept                                      | Primitive                  | Notes                                                         |
+| -------------------------------------------- | -------------------------- | ------------------------------------------------------------- |
+| User Role (View Dashboard)                   | ④ Role                     | Named role with permission set.                               |
+| Module Rights matrix (entity × state × CRUD) | ④ Role                     | Permissions aggregated into roles. **This is the hard case.** |
+| Lifecycle states (Planned/As-Built/Dormant)  | ⑤ Classification OR ④ Role | See analysis below.                                           |
+| Work Area (Step 3 of user creation)          | ③ Scope                    | Geographic/topology scope assignment.                         |
+| Reporting Manager                            | ⑥ Relationship             | Manager relation on principal.                                |
+| User Type (Partner)                          | ① Principal                | Principal trait (type field).                                 |
+| Application Access (Web/Mobile/Both)         | ⑦ Constraint               | Runtime constraint on access channel.                         |
+| Vendor ID                                    | ② Organization             | Vendor sub-namespace binding.                                 |
+| Is Admin Rights Allowed?                     | ④ Role                     | Boolean permission ceiling.                                   |
 
 **The entity × lifecycle × CRUD matrix (screenshot 11) — the model's hardest test.**
 
@@ -134,11 +134,13 @@ This matrix shows entity types on rows (ADB, Antenna, Area, Building, Cabinet, C
 This produces a permission space of: `entity_count × lifecycle_states × CRUD_operations`. With ~30 entity types × 3 states × 4 operations = ~360 individual permission bits per role.
 
 **Option A — Flatten into permissions:** Each bit becomes a permission string:
+
 ```
 smartinventory:network:antenna:planned:edit
 smartinventory:network:antenna:asbuilt:view
 smartinventory:network:cabinet:dormant:delete
 ```
+
 Roles aggregate these permissions. The lattice closure computes effective permissions. This is semantically correct but produces very large permission sets per role. At 360 permissions per role × N roles, the cached lattice closure is heavy but bounded. This is fine for a product with < 20 roles.
 
 **Option B — Treat lifecycle state as classification:** Lifecycle state (Planned/As-Built/Dormant) becomes three classification slots. A user needs both the role permission (antenna:edit) AND the classification clearance (planned_holder) to edit a planned antenna. This reduces the permission space to ~120 (entity × CRUD) plus 3 classification slots per user. Cleaner, but lifecycle state isn't really about sensitivity — it's about data maturity.
@@ -163,20 +165,20 @@ Roles aggregate these permissions. The lattice closure computes effective permis
 
 **Mapping:**
 
-| Concept | Primitive | Fit quality |
-|---------|-----------|-------------|
-| Organization | ② Organization | Direct. |
-| Teams | team definition | Groups with member/lead relations. |
-| Org roles (Owner/Member) | ④ Role | Org-scoped. |
-| Repo roles (Admin/Write/Triage/Read) | ⑥ Relationship | Per-resource binding (not org-wide). |
-| Repo visibility (Public/Private/Internal) | ⑤ Classification | Binary/ternary gate. |
-| Branch protection | ⑦ Constraint | Conditional rules on specific branches. |
-| Required reviewers (CODEOWNERS) | ⑦ Constraint | Multi-party approval requirement. |
-| Fine-grained PATs | ④ Role + ③ Scope | Token has a permission set AND a resource scope (specific repos). |
-| GitHub Apps | ① Principal | Service account with declared capabilities. |
-| Deploy keys | ① Principal | Machine identity scoped to repo. |
+| Concept                                   | Primitive        | Fit quality                                                       |
+| ----------------------------------------- | ---------------- | ----------------------------------------------------------------- |
+| Organization                              | ② Organization   | Direct.                                                           |
+| Teams                                     | team definition  | Groups with member/lead relations.                                |
+| Org roles (Owner/Member)                  | ④ Role           | Org-scoped.                                                       |
+| Repo roles (Admin/Write/Triage/Read)      | ⑥ Relationship   | Per-resource binding (not org-wide).                              |
+| Repo visibility (Public/Private/Internal) | ⑤ Classification | Binary/ternary gate.                                              |
+| Branch protection                         | ⑦ Constraint     | Conditional rules on specific branches.                           |
+| Required reviewers (CODEOWNERS)           | ⑦ Constraint     | Multi-party approval requirement.                                 |
+| Fine-grained PATs                         | ④ Role + ③ Scope | Token has a permission set AND a resource scope (specific repos). |
+| GitHub Apps                               | ① Principal      | Service account with declared capabilities.                       |
+| Deploy keys                               | ① Principal      | Machine identity scoped to repo.                                  |
 
-**Analysis:** GitHub fits well with one interesting nuance. GitHub's team-based permissions are *additive* — if you're in two teams, you get the union of both teams' access. This matches the model's `permission view = ... + team->member_access`. GitHub does NOT support exclusions (you can't say "Team A has Write, but Bob in Team A is restricted to Read"). The model's `excluded` relation on scope_node goes further than GitHub does, which is fine — it means the model can express everything GitHub does plus more.
+**Analysis:** GitHub fits well with one interesting nuance. GitHub's team-based permissions are _additive_ — if you're in two teams, you get the union of both teams' access. This matches the model's `permission view = ... + team->member_access`. GitHub does NOT support exclusions (you can't say "Team A has Write, but Bob in Team A is restricted to Read"). The model's `excluded` relation on scope_node goes further than GitHub does, which is fine — it means the model can express everything GitHub does plus more.
 
 The fine-grained PAT case is worth noting. A PAT combines a permission set (what operations) with a resource scope (which repos). This is ④ Role × ③ Scope intersected on a service identity (① Principal). The model handles this if you treat the PAT as a principal with a role binding scoped to specific repositories.
 
@@ -192,26 +194,26 @@ The fine-grained PAT case is worth noting. A PAT combines a permission set (what
 
 **Mapping:**
 
-| Concept | Primitive | Fit quality |
-|---------|-----------|-------------|
-| Jira site | ② Organization | Top-level boundary. |
-| Projects | project definition | Container with role bindings. |
-| Permission schemes | ④ Role | Templates of permissions applied to projects. Exactly role aliasing. |
-| Issue security levels | ⑤ Classification | Mandatory gate on issue visibility. |
-| Workflow transitions | ⑦ Constraint | State machine position → allowed actions per role. |
-| Field-level security | ⑤ Classification | Property-level classification. |
-| Groups | team definition | Groups for bulk assignment. |
-| Project roles (Admin/Member/Viewer) | ⑥ Relationship | Per-project bindings. |
-| Global permissions | ④ Role | Site-scoped role permissions. |
-| Reporter/Assignee/Watcher | ⑥ Relationship | Per-issue resource relationships. |
+| Concept                             | Primitive          | Fit quality                                                          |
+| ----------------------------------- | ------------------ | -------------------------------------------------------------------- |
+| Jira site                           | ② Organization     | Top-level boundary.                                                  |
+| Projects                            | project definition | Container with role bindings.                                        |
+| Permission schemes                  | ④ Role             | Templates of permissions applied to projects. Exactly role aliasing. |
+| Issue security levels               | ⑤ Classification   | Mandatory gate on issue visibility.                                  |
+| Workflow transitions                | ⑦ Constraint       | State machine position → allowed actions per role.                   |
+| Field-level security                | ⑤ Classification   | Property-level classification.                                       |
+| Groups                              | team definition    | Groups for bulk assignment.                                          |
+| Project roles (Admin/Member/Viewer) | ⑥ Relationship     | Per-project bindings.                                                |
+| Global permissions                  | ④ Role             | Site-scoped role permissions.                                        |
+| Reporter/Assignee/Watcher           | ⑥ Relationship     | Per-issue resource relationships.                                    |
 
-**Analysis:** Jira's "permission scheme" concept is the most interesting mapping. A permission scheme is a named template that defines which project roles get which permissions. When you apply a scheme to a project, it instantiates role bindings. This is *exactly* the role aliasing layer in the model — backend uses generic scheme IDs, each project maps to specific role-permission combinations.
+**Analysis:** Jira's "permission scheme" concept is the most interesting mapping. A permission scheme is a named template that defines which project roles get which permissions. When you apply a scheme to a project, it instantiates role bindings. This is _exactly_ the role aliasing layer in the model — backend uses generic scheme IDs, each project maps to specific role-permission combinations.
 
 Jira's issue security levels are a direct classification case. A "Confidential" issue is only visible to users with the corresponding security level clearance. This maps to the classification slots on organization, with the semantics defined per-Jira-site.
 
 Workflow transitions gated by permissions are a clean ⑦ Constraint case. "Only Approvers can transition from Review to Done" is a workflow-state constraint.
 
-**What pushes the model:** Jira's "scheme" pattern (permission scheme, notification scheme, workflow scheme) applies configuration templates at the project level. The model handles the *authorization* scheme (permission schemes → role aliasing). The notification and workflow schemes are Service Plane configuration, not authorization. The model correctly excludes them.
+**What pushes the model:** Jira's "scheme" pattern (permission scheme, notification scheme, workflow scheme) applies configuration templates at the project level. The model handles the _authorization_ scheme (permission schemes → role aliasing). The notification and workflow schemes are Service Plane configuration, not authorization. The model correctly excludes them.
 
 **Verdict: Strong fit. Permission schemes map directly to role aliasing. Issue security levels are classification. Workflow transitions are constraints.**
 
@@ -223,21 +225,21 @@ Workflow transitions gated by permissions are a clean ⑦ Constraint case. "Only
 
 **Mapping:**
 
-| Concept | Primitive | Fit quality |
-|---------|-----------|-------------|
-| Google Workspace org | ② Organization | Direct. |
-| Organizational Units (OUs) | ③ Scope | Admin delegation hierarchy. |
-| Shared Drives | Container (like workspace) | Collaboration boundary. |
-| Folders | Container (like folder) | Intermediate container with inheritance. |
-| Files | Resource (like dataset) | Leaf resource. |
-| File roles (Owner/Editor/Commenter/Viewer) | ⑥ Relationship | Per-resource bindings. |
-| Folder inheritance | Container hierarchy | "Containers set defaults, resources override." |
-| Link sharing (anyone with link) | ⑥ Relationship | Special anonymous/org-wide relation. |
-| Admin roles | ④ Role | Org-scoped administrative capabilities. |
-| DLP labels | ⑤ Classification | Mandatory control on sensitive data. |
-| Target audiences | ③ Scope OR team | Named groups for sharing suggestions. |
+| Concept                                    | Primitive                  | Fit quality                                    |
+| ------------------------------------------ | -------------------------- | ---------------------------------------------- |
+| Google Workspace org                       | ② Organization             | Direct.                                        |
+| Organizational Units (OUs)                 | ③ Scope                    | Admin delegation hierarchy.                    |
+| Shared Drives                              | Container (like workspace) | Collaboration boundary.                        |
+| Folders                                    | Container (like folder)    | Intermediate container with inheritance.       |
+| Files                                      | Resource (like dataset)    | Leaf resource.                                 |
+| File roles (Owner/Editor/Commenter/Viewer) | ⑥ Relationship             | Per-resource bindings.                         |
+| Folder inheritance                         | Container hierarchy        | "Containers set defaults, resources override." |
+| Link sharing (anyone with link)            | ⑥ Relationship             | Special anonymous/org-wide relation.           |
+| Admin roles                                | ④ Role                     | Org-scoped administrative capabilities.        |
+| DLP labels                                 | ⑤ Classification           | Mandatory control on sensitive data.           |
+| Target audiences                           | ③ Scope OR team            | Named groups for sharing suggestions.          |
 
-**Analysis:** Google Drive's folder → file inheritance is the canonical case for "containers set defaults, resources override." When you share a folder with Editor access, all files inside inherit it. When you share a specific file with a different role, that *adds* to the inherited access (it doesn't replace it — same as the model's additive `+` operator).
+**Analysis:** Google Drive's folder → file inheritance is the canonical case for "containers set defaults, resources override." When you share a folder with Editor access, all files inside inherit it. When you share a specific file with a different role, that _adds_ to the inherited access (it doesn't replace it — same as the model's additive `+` operator).
 
 Google Drive's "link sharing" modes are interesting. "Anyone with the link" creates an anonymous relationship — in SpiceDB terms, a relation to a special `everyone` principal. "Anyone in the organization" creates a relation to the org itself. "Specific people" creates individual relations. All three are ⑥ Relationship, just with different principal targets.
 
@@ -255,29 +257,29 @@ Google Drive's "link sharing" modes are interesting. "Anyone with the link" crea
 
 **Mapping:**
 
-| Concept | Primitive | Fit quality |
-|---------|-----------|-------------|
-| Salesforce org | ② Organization | Direct. |
-| Profiles | ④ Role | Base role assignment (one per user). |
-| Permission Sets | ④ Role | Additive role extensions (many per user). |
-| Role Hierarchy (for visibility) | ③ Scope | This IS a scope hierarchy — managers see subordinates' records. |
-| Organization-Wide Defaults | ⑤ Classification | Object-level baseline visibility setting. |
-| Sharing Rules (ownership-based) | ⑥ Relationship | Owner shares with group based on ownership. |
-| Sharing Rules (criteria-based) | ⑦ Constraint | Runtime criteria evaluation (e.g., region = "West"). |
-| Field-Level Security | ⑤ Classification | Property-level classification gate. |
-| Territory Management | ③ Scope | Geographic scope dimension. |
-| Record ownership | ⑥ Relationship | Owner relation on record. |
-| Manual sharing | ⑥ Relationship | Discretionary per-record grant. |
+| Concept                         | Primitive        | Fit quality                                                     |
+| ------------------------------- | ---------------- | --------------------------------------------------------------- |
+| Salesforce org                  | ② Organization   | Direct.                                                         |
+| Profiles                        | ④ Role           | Base role assignment (one per user).                            |
+| Permission Sets                 | ④ Role           | Additive role extensions (many per user).                       |
+| Role Hierarchy (for visibility) | ③ Scope          | This IS a scope hierarchy — managers see subordinates' records. |
+| Organization-Wide Defaults      | ⑤ Classification | Object-level baseline visibility setting.                       |
+| Sharing Rules (ownership-based) | ⑥ Relationship   | Owner shares with group based on ownership.                     |
+| Sharing Rules (criteria-based)  | ⑦ Constraint     | Runtime criteria evaluation (e.g., region = "West").            |
+| Field-Level Security            | ⑤ Classification | Property-level classification gate.                             |
+| Territory Management            | ③ Scope          | Geographic scope dimension.                                     |
+| Record ownership                | ⑥ Relationship   | Owner relation on record.                                       |
+| Manual sharing                  | ⑥ Relationship   | Discretionary per-record grant.                                 |
 
 **Analysis:** Salesforce is the most complex authorization system in common enterprise use, and it maps surprisingly well to the seven primitives.
 
-The key insight: **Salesforce's "role hierarchy" is not a role lattice — it's a scope hierarchy.** In Salesforce, if Alice is above Bob in the role hierarchy, Alice can see all of Bob's records. The hierarchy determines *visibility*, not *capability*. Alice and Bob might have identical Permission Sets (same actions), but Alice sees more records because of her position. This is exactly ③ Scope — a hierarchy where assignment at a node grants visibility downward.
+The key insight: **Salesforce's "role hierarchy" is not a role lattice — it's a scope hierarchy.** In Salesforce, if Alice is above Bob in the role hierarchy, Alice can see all of Bob's records. The hierarchy determines _visibility_, not _capability_. Alice and Bob might have identical Permission Sets (same actions), but Alice sees more records because of her position. This is exactly ③ Scope — a hierarchy where assignment at a node grants visibility downward.
 
-Salesforce's OWD (Organization-Wide Default) per object type is a classification-like concept. Setting an object's OWD to "Private" means no one sees others' records by default — then the role hierarchy, sharing rules, and manual sharing *open up* access. Setting it to "Public Read/Write" means everyone sees everything — then field-level security and sharing rules *restrict* access. This is the mandatory/discretionary split from the model: OWD is the mandatory baseline, sharing rules are discretionary extensions.
+Salesforce's OWD (Organization-Wide Default) per object type is a classification-like concept. Setting an object's OWD to "Private" means no one sees others' records by default — then the role hierarchy, sharing rules, and manual sharing _open up_ access. Setting it to "Public Read/Write" means everyone sees everything — then field-level security and sharing rules _restrict_ access. This is the mandatory/discretionary split from the model: OWD is the mandatory baseline, sharing rules are discretionary extensions.
 
-**Where Salesforce stresses the model:** Salesforce's criteria-based sharing rules are the most complex constraint type. "Share all Opportunities where Amount > $1M and Region = 'West' with the VP-West group." This is a ⑦ Constraint that combines resource properties (Amount, Region) with group membership. The model's constraint evaluator handles this — it evaluates conditions against live PostgreSQL state — but the *rule definition* needs to be stored somewhere. In the model, this would be a `policy` record in the Control Plane that the constraint evaluator loads.
+**Where Salesforce stresses the model:** Salesforce's criteria-based sharing rules are the most complex constraint type. "Share all Opportunities where Amount > $1M and Region = 'West' with the VP-West group." This is a ⑦ Constraint that combines resource properties (Amount, Region) with group membership. The model's constraint evaluator handles this — it evaluates conditions against live PostgreSQL state — but the _rule definition_ needs to be stored somewhere. In the model, this would be a `policy` record in the Control Plane that the constraint evaluator loads.
 
-**Territory Management is a second scope dimension.** Salesforce allows both role hierarchy AND territory hierarchy to independently determine record visibility. Users can be assigned to territories, and records can be assigned to territories. Visibility flows through both hierarchies independently, then results are unioned. This maps to the model's orthogonal scope intersection — except in Salesforce the scopes are *unioned* (you see records if you're authorized by role hierarchy OR territory), while the authz model's scopes are *intersected* (you must be authorized by ALL applicable scope dimensions). This is a significant difference.
+**Territory Management is a second scope dimension.** Salesforce allows both role hierarchy AND territory hierarchy to independently determine record visibility. Users can be assigned to territories, and records can be assigned to territories. Visibility flows through both hierarchies independently, then results are unioned. This maps to the model's orthogonal scope intersection — except in Salesforce the scopes are _unioned_ (you see records if you're authorized by role hierarchy OR territory), while the authz model's scopes are _intersected_ (you must be authorized by ALL applicable scope dimensions). This is a significant difference.
 
 **The union vs. intersection question:** Salesforce uses union (scope A OR scope B grants access). The authz model uses intersection (scope A AND scope B required). Both are valid but serve different purposes. Union is more permissive — good for "multiple paths to access." Intersection is more restrictive — good for "multi-dimensional security clearance." The model should acknowledge that some products need union semantics for scopes. This could be a per-scope-dimension configuration: some dimensions intersect, some union.
 
@@ -291,17 +293,17 @@ Salesforce's OWD (Organization-Wide Default) per object type is a classification
 
 **Mapping:**
 
-| Concept | Primitive | Fit quality |
-|---------|-----------|-------------|
-| Organization | ② Organization | Direct. Hard tenant wall. |
-| Space | Container (like workspace) | Collaboration scope. |
-| Project | project definition | Primary security boundary. |
-| Markings | ⑤ Classification | This is where the model borrowed from. Exact match. |
-| Project roles (Owner/Editor/Viewer/Discoverer) | ⑥ Relationship | Per-project bindings. |
-| Object security (row-level) | ontology_object definition | Row-level access on domain entities. |
-| Property security (column-level) | ⑤ Classification | Classification gates specific properties. |
-| Groups | team definition | Groups with role inheritance. |
-| Discoverer role | ⑥ Relationship | Can see resource exists, cannot read content. |
+| Concept                                        | Primitive                  | Fit quality                                         |
+| ---------------------------------------------- | -------------------------- | --------------------------------------------------- |
+| Organization                                   | ② Organization             | Direct. Hard tenant wall.                           |
+| Space                                          | Container (like workspace) | Collaboration scope.                                |
+| Project                                        | project definition         | Primary security boundary.                          |
+| Markings                                       | ⑤ Classification           | This is where the model borrowed from. Exact match. |
+| Project roles (Owner/Editor/Viewer/Discoverer) | ⑥ Relationship             | Per-project bindings.                               |
+| Object security (row-level)                    | ontology_object definition | Row-level access on domain entities.                |
+| Property security (column-level)               | ⑤ Classification           | Classification gates specific properties.           |
+| Groups                                         | team definition            | Groups with role inheritance.                       |
+| Discoverer role                                | ⑥ Relationship             | Can see resource exists, cannot read content.       |
 
 **Analysis:** Foundry maps almost perfectly because the model was partially derived from studying it. The four classification slots were directly inspired by Foundry's Markings system.
 
@@ -340,7 +342,7 @@ This is a useful addition for any product where resource discovery and resource 
 
 **③ Scope — union vs. intersection semantics.** The model assumes scope dimensions intersect (AND). Salesforce uses union (OR) for role hierarchy vs. territory. The fix is to make the combination operator configurable per scope dimension pair.
 
-**⑤ Classification — sensitivity vs. state vs. visibility.** Classification is used for three different things across products: data sensitivity (Foundry Markings, DLP labels), data lifecycle state (SmartInventory: Planned/As-Built/Dormant), and visibility baseline (Salesforce OWD, GitHub repo visibility). The model's four generic slots handle all three, but the *semantics* vary significantly. The Ontology Registry mapping each slot to org-specific meaning is the right approach — just be explicit that classification slots aren't only about "sensitivity."
+**⑤ Classification — sensitivity vs. state vs. visibility.** Classification is used for three different things across products: data sensitivity (Foundry Markings, DLP labels), data lifecycle state (SmartInventory: Planned/As-Built/Dormant), and visibility baseline (Salesforce OWD, GitHub repo visibility). The model's four generic slots handle all three, but the _semantics_ vary significantly. The Ontology Registry mapping each slot to org-specific meaning is the right approach — just be explicit that classification slots aren't only about "sensitivity."
 
 **⑦ Constraint — the catch-all.** Constraints handle everything from GPS proximity (TrafiCure) to criteria-based sharing rules (Salesforce) to branch protection (GitHub) to workflow transitions (Jira). This is by design — the constraint primitive is intentionally broad. But it means the constraint evaluator needs to be extensible. Each product will need product-specific constraint types. The model should provide the framework (evaluate constraints against live state, short-circuit on failure, audit the result) and let each product register its constraint types.
 
@@ -370,16 +372,16 @@ This is a useful addition for any product where resource discovery and resource 
 
 ## 5. Scorecard
 
-| Product | Primitives Used | Clean Fit | Stretch | Breaks |
-|---------|:-:|:-:|:-:|:-:|
-| **SmartMarket** | ①②④⑤⑥ | 5/5 | — | — |
-| **TrafiCure** | ①②③④⑥⑦ | 6/6 | Proximity constraint | — |
-| **SmartInventory** | ①②③④⑤⑥⑦ | 5/7 | Lifecycle state, entity matrix | — |
-| **GitHub** | ①②④⑤⑥⑦ | 6/6 | Fine-grained PATs | — |
-| **Jira** | ①②④⑤⑥⑦ | 6/6 | — | — |
-| **Google Workspace** | ①②③④⑤⑥ | 5/6 | Subtractive overrides | — |
-| **Salesforce** | ①②③④⑤⑥⑦ | 5/7 | Scope union, criteria sharing | — |
-| **Palantir Foundry** | ①②④⑤⑥ | 5/5 | — | — |
+| Product              | Primitives Used | Clean Fit |            Stretch             | Breaks |
+| -------------------- | :-------------: | :-------: | :----------------------------: | :----: |
+| **SmartMarket**      |      ①②④⑤⑥      |    5/5    |               —                |   —    |
+| **TrafiCure**        |     ①②③④⑥⑦      |    6/6    |      Proximity constraint      |   —    |
+| **SmartInventory**   |     ①②③④⑤⑥⑦     |    5/7    | Lifecycle state, entity matrix |   —    |
+| **GitHub**           |     ①②④⑤⑥⑦      |    6/6    |       Fine-grained PATs        |   —    |
+| **Jira**             |     ①②④⑤⑥⑦      |    6/6    |               —                |   —    |
+| **Google Workspace** |     ①②③④⑤⑥      |    5/6    |     Subtractive overrides      |   —    |
+| **Salesforce**       |     ①②③④⑤⑥⑦     |    5/7    | Scope union, criteria sharing  |   —    |
+| **Palantir Foundry** |      ①②④⑤⑥      |    5/5    |               —                |   —    |
 
 Nothing breaks. The model handles every product tested with at most two "stretch" cases per product. The five recommended adjustments (discover permission, configurable scope operators, exclusions on containers, manager relation, public access targets) are additions, not redesigns.
 

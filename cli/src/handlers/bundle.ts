@@ -5,7 +5,12 @@ import type { DxFlags } from "../stub.js"
 
 export async function runBundleGenerate(
   flags: DxFlags,
-  opts: { customerId: string; siteId: string; expiresAt: string; gracePeriodDays?: number }
+  opts: {
+    customerId: string
+    siteId: string
+    expiresAt: string
+    gracePeriodDays?: number
+  }
 ): Promise<void> {
   try {
     const api = await getFactoryClient()

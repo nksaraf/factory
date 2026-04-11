@@ -16,7 +16,13 @@ import type { Column } from "drizzle-orm"
 // Valid scope types
 // ---------------------------------------------------------------------------
 
-export const VALID_SCOPE_TYPES = ["org", "team", "project", "principal", "system"] as const
+export const VALID_SCOPE_TYPES = [
+  "org",
+  "team",
+  "project",
+  "principal",
+  "system",
+] as const
 export type ScopeType = (typeof VALID_SCOPE_TYPES)[number]
 
 // ---------------------------------------------------------------------------
@@ -45,8 +51,13 @@ export const ResolveBody = t.Object({
 /**
  * Validate scopeType. Returns an error string if invalid, undefined if ok.
  */
-export function validateScopeType(scopeType: string | undefined): string | undefined {
-  if (scopeType && !(VALID_SCOPE_TYPES as readonly string[]).includes(scopeType)) {
+export function validateScopeType(
+  scopeType: string | undefined
+): string | undefined {
+  if (
+    scopeType &&
+    !(VALID_SCOPE_TYPES as readonly string[]).includes(scopeType)
+  ) {
     return `Invalid scopeType "${scopeType}". Must be one of: ${VALID_SCOPE_TYPES.join(", ")}`
   }
 }
@@ -75,12 +86,12 @@ export function scopeCondition(
   cols: { scopeType: Column; scopeId: Column; environment: Column },
   scopeType: string,
   scopeId: string,
-  environment: string,
+  environment: string
 ) {
   return and(
     eq(cols.scopeType, scopeType),
     eq(cols.scopeId, scopeId),
-    eq(cols.environment, environment),
+    eq(cols.environment, environment)
   )
 }
 
@@ -89,20 +100,30 @@ export function scopeCondition(
  */
 export function buildResolveScopeConditions(
   cols: { scopeType: Column; scopeId: Column },
-  body: { teamId?: string | null; projectId?: string | null; principalId?: string | null },
+  body: {
+    teamId?: string | null
+    projectId?: string | null
+    principalId?: string | null
+  }
 ) {
   const conditions = [
     and(eq(cols.scopeType, "system"), eq(cols.scopeId, "default")),
     and(eq(cols.scopeType, "org"), eq(cols.scopeId, "default")),
   ]
   if (body.teamId) {
-    conditions.push(and(eq(cols.scopeType, "team"), eq(cols.scopeId, body.teamId)))
+    conditions.push(
+      and(eq(cols.scopeType, "team"), eq(cols.scopeId, body.teamId))
+    )
   }
   if (body.projectId) {
-    conditions.push(and(eq(cols.scopeType, "project"), eq(cols.scopeId, body.projectId)))
+    conditions.push(
+      and(eq(cols.scopeType, "project"), eq(cols.scopeId, body.projectId))
+    )
   }
   if (body.principalId) {
-    conditions.push(and(eq(cols.scopeType, "principal"), eq(cols.scopeId, body.principalId)))
+    conditions.push(
+      and(eq(cols.scopeType, "principal"), eq(cols.scopeId, body.principalId))
+    )
   }
   return conditions
 }
@@ -110,13 +131,8 @@ export function buildResolveScopeConditions(
 /**
  * Build environment filter condition for resolve queries.
  */
-export function buildEnvCondition(
-  envCol: Column,
-  environment?: string | null,
-) {
-  return environment
-    ? inArray(envCol, ["all", environment])
-    : eq(envCol, "all")
+export function buildEnvCondition(envCol: Column, environment?: string | null) {
+  return environment ? inArray(envCol, ["all", environment]) : eq(envCol, "all")
 }
 
 /**
@@ -124,11 +140,13 @@ export function buildEnvCondition(
  * with higher-priority scopes overriding lower ones, and env-specific
  * entries getting a +10 bonus over 'all'.
  */
-export function mergeWithScopePriority<T extends { scopeType: string; environment: string }>(
+export function mergeWithScopePriority<
+  T extends { scopeType: string; environment: string },
+>(
   rows: T[],
   environment: string | null | undefined,
   getSlug: (row: T) => string,
-  getValue: (row: T) => string,
+  getValue: (row: T) => string
 ): Map<string, string> {
   const merged = new Map<string, { value: string; priority: number }>()
 
@@ -145,5 +163,7 @@ export function mergeWithScopePriority<T extends { scopeType: string; environmen
     }
   }
 
-  return new Map(Array.from(merged.entries()).map(([k, { value }]) => [k, value]))
+  return new Map(
+    Array.from(merged.entries()).map(([k, { value }]) => [k, value])
+  )
 }

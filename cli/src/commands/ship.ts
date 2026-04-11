@@ -97,7 +97,7 @@ export function shipCommand(app: DxBase) {
           const ctx = await resolveRepoContext(cwd)
           const branch = getCurrentBranch(cwd)
           const rest = await getFactoryRestClient()
-          const pullsBase = `/api/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`
+          const pullsBase = `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`
 
           // Check for existing open PR on this branch
           const listRes = await rest.request<{

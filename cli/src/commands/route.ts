@@ -266,7 +266,7 @@ export function routeCommand(app: DxBase) {
             try {
               result = await rest.request<DomainTraceResponse>(
                 "GET",
-                `/api/factory/infra/trace/domain?domain=${encodeURIComponent(domain)}`
+                `/api/v1/factory/infra/trace/domain?domain=${encodeURIComponent(domain)}`
               )
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err)

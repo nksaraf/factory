@@ -1,6 +1,6 @@
-import type { DxBase } from "../dx-root.js";
+import type { DxBase } from "../dx-root.js"
 
-import { getFactoryClient } from "../client.js";
+import { getFactoryClient } from "../client.js"
 import {
   apiCall,
   tableOrJson,
@@ -10,18 +10,18 @@ import {
   styleMuted,
   styleSuccess,
   timeAgo,
-} from "./list-helpers.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+} from "./list-helpers.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("artifact", [
   "$ dx artifact list                 List build artifacts",
   "$ dx artifact show <id>            Artifact details",
   "$ dx artifact create --image img   Register artifact",
-]);
+])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
-  return getFactoryClient();
+  return getFactoryClient()
 }
 
 export function artifactCommand(app: DxBase) {
@@ -40,12 +40,12 @@ export function artifactCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
             api.api.v1.factory.build.artifacts.get({
               query: { limit: flags.limit as number | undefined },
-            }),
-          );
+            })
+          )
           tableOrJson(
             flags,
             result,
@@ -57,9 +57,9 @@ export function artifactCommand(app: DxBase) {
               timeAgo(r.createdAt as string),
             ],
             undefined,
-            { emptyMessage: "No artifacts found." },
-          );
-        }),
+            { emptyMessage: "No artifacts found." }
+          )
+        })
     )
 
     .command("show", (c) =>
@@ -74,17 +74,17 @@ export function artifactCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
-            api.api.v1.factory.build.artifacts[args.id].get(),
-          );
+            api.api.v1.factory.build.artifacts[args.id].get()
+          )
           detailView(flags, result, [
             ["ID", (r) => styleMuted(String(r.artifactId ?? r.id ?? ""))],
             ["Image", (r) => styleBold(String(r.imageRef ?? r.image ?? ""))],
             ["Digest", (r) => String(r.digest ?? "")],
             ["Created At", (r) => timeAgo(r.createdAt as string)],
-          ]);
-        }),
+          ])
+        })
     )
 
     .command("create", (c) =>
@@ -103,15 +103,15 @@ export function artifactCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
             api.api.v1.factory.build.artifacts.post({
               imageRef: flags.image as string,
               imageDigest: flags.digest as string,
-            }),
-          );
-          actionResult(flags, result, styleSuccess("Artifact created."));
-        }),
+            })
+          )
+          actionResult(flags, result, styleSuccess("Artifact created."))
+        })
     )
 
     .command("link", (c) =>
@@ -135,15 +135,19 @@ export function artifactCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
             api.api.v1.factory.build["component-artifacts"].post({
               moduleVersionId: flags.moduleVersion as string,
               componentId: flags.component as string,
               artifactId: flags.artifact as string,
-            }),
-          );
-          actionResult(flags, result, styleSuccess("Artifact linked to component."));
-        }),
-    );
+            })
+          )
+          actionResult(
+            flags,
+            result,
+            styleSuccess("Artifact linked to component.")
+          )
+        })
+    )
 }

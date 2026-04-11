@@ -1,4 +1,6 @@
 {
   "name": "test",
-  "scripts": { "test": "vitest run --pool=forks --reporter=verbose" }
+  "scripts": {
+    "test": "vitest run --pool=forks --reporter=verbose"
+  }
 }

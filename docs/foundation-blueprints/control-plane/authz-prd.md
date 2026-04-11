@@ -15,6 +15,7 @@ Version 1.0 · March 2026 · CONFIDENTIAL
 This document specifies the authorization requirements for the Platform Fabric product family. All products share a common IAM backbone. The authorization model converges RBAC, ABAC, and ReBAC into a unified evaluation chain built on seven composable primitives (defined in the companion Mental Model document) and implemented via better-auth, SpiceDB, and PostgreSQL (defined in the companion Technical Architecture document).
 
 **Companion Documents:**
+
 - Authorization Mental Model (`authz-mental-model.md`) — the seven-primitive conceptual framework
 - Authorization Technical Architecture (`authz-technical-architecture.md`) — implementation with better-auth + SpiceDB + PostgreSQL
 
@@ -57,13 +58,13 @@ This document specifies the authorization requirements for the Platform Fabric p
 
 The system supports an unbounded set of principal types. The architecture does not enumerate types — it accommodates them. Known types at design time:
 
-| Principal Type | Identity Source | Key Characteristics |
-|---------------|----------------|---------------------|
-| Human User | better-auth (email/password, social login, SSO, passkey) | Belongs to one or more orgs; interactive sessions |
-| Service Account | Platform-provisioned (API key or bearer token via better-auth) | Non-interactive; scoped to an org; may act on behalf of a user |
-| AI Agent | Platform-provisioned with agent identity | Autonomous or semi-autonomous; bounded by delegated permission ceiling; audit-linked to sponsoring principal |
-| External/Vendor | Federated identity (better-auth SSO/SAML) or scoped invitation | Operates within a vendor sub-namespace; time-bounded access; restricted to explicitly shared resources |
-| Future Entity | TBD | The principal model supports new types without IAM schema migration |
+| Principal Type  | Identity Source                                                | Key Characteristics                                                                                          |
+| --------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Human User      | better-auth (email/password, social login, SSO, passkey)       | Belongs to one or more orgs; interactive sessions                                                            |
+| Service Account | Platform-provisioned (API key or bearer token via better-auth) | Non-interactive; scoped to an org; may act on behalf of a user                                               |
+| AI Agent        | Platform-provisioned with agent identity                       | Autonomous or semi-autonomous; bounded by delegated permission ceiling; audit-linked to sponsoring principal |
+| External/Vendor | Federated identity (better-auth SSO/SAML) or scoped invitation | Operates within a vendor sub-namespace; time-bounded access; restricted to explicitly shared resources       |
+| Future Entity   | TBD                                                            | The principal model supports new types without IAM schema migration                                          |
 
 **Key design rule:** Principal type is a trait on the `user` record (`principalType` field), not a schema partition. Adding a new principal type means registering identities with a new trait value and writing standard SpiceDB tuples for org, scope, role, and classification bindings. No schema change. No code change in the auth layer.
 
@@ -87,23 +88,23 @@ The organization is the outermost mandatory gate. Evaluated first in every autho
 
 ### 5.1 Organization Types
 
-| Type | Description |
-|------|-------------|
-| `personal` | Auto-created for individual users. Single member. Same schema as team orgs. |
-| `team` | Standard multi-user organization. |
-| `enterprise` | Enterprise org with SSO/SAML, SCIM, advanced policies. |
+| Type               | Description                                                                                               |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `personal`         | Auto-created for individual users. Single member. Same schema as team orgs.                               |
+| `team`             | Standard multi-user organization.                                                                         |
+| `enterprise`       | Enterprise org with SSO/SAML, SCIM, advanced policies.                                                    |
 | `vendor_namespace` | Scoped boundary within a host org for vendor/partner access. Has permission ceiling and mandatory expiry. |
 
 ### 5.2 Cross-Organization Patterns
 
 The system supports four collaboration patterns:
 
-| Pattern | Mechanism | Example |
-|---------|-----------|---------|
-| Resource sharing | Directed grant from Org A to Org B on a specific resource | MTP shares an incident report with RTO |
-| Guest membership | Principal from Org B gets a limited role within Org A | RTO officer gets Viewer role in MTP's enforcement workspace |
-| Joint ownership | Resource carries multiple org relations | Joint safety investigation co-owned by two agencies |
-| Org hierarchy | Parent org has configurable visibility into child orgs | Holding company sees subsidiary data per policy |
+| Pattern          | Mechanism                                                 | Example                                                     |
+| ---------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| Resource sharing | Directed grant from Org A to Org B on a specific resource | MTP shares an incident report with RTO                      |
+| Guest membership | Principal from Org B gets a limited role within Org A     | RTO officer gets Viewer role in MTP's enforcement workspace |
+| Joint ownership  | Resource carries multiple org relations                   | Joint safety investigation co-owned by two agencies         |
+| Org hierarchy    | Parent org has configurable visibility into child orgs    | Holding company sees subsidiary data per policy             |
 
 ### 5.3 Vendor Sub-Namespace
 
@@ -129,26 +130,26 @@ The requirements call for four independent hierarchies: regional (geography), to
 
 A Scope is an org-defined hierarchy of arbitrary depth where principals are assigned at nodes and access inherits downward through the subtree, with optional exclusion overrides.
 
-| Scope Dimension | Examples | Used By |
-|----------------|----------|---------|
-| Region | Country → Circle → Zone → Division | All products |
-| Topology | Core → Aggregation → Distribution → Access → CPE | SmartInventory |
-| Channel | Direct → National Dist → Regional Dist → Reseller → Sub-dealer | SmartMarket |
-| Department | Engineering → Platforms → Frontend | All products |
-| Skill Family | Fiber → Advanced Fiber → Specialized Fiber | SmartOps (field force) |
-| Future | Cost Center, Security Zone, Project Portfolio | Any |
+| Scope Dimension | Examples                                                       | Used By                |
+| --------------- | -------------------------------------------------------------- | ---------------------- |
+| Region          | Country → Circle → Zone → Division                             | All products           |
+| Topology        | Core → Aggregation → Distribution → Access → CPE               | SmartInventory         |
+| Channel         | Direct → National Dist → Regional Dist → Reseller → Sub-dealer | SmartMarket            |
+| Department      | Engineering → Platforms → Frontend                             | All products           |
+| Skill Family    | Fiber → Advanced Fiber → Specialized Fiber                     | SmartOps (field force) |
+| Future          | Cost Center, Security Zone, Project Portfolio                  | Any                    |
 
 All use the same SpiceDB definition (`scope_node`), the same PostgreSQL table (`iam.scope_node`), the same admin UI, and the same inheritance resolution. The `scope_type` differentiates them.
 
 ### 6.2 Data Model Requirements
 
-| Attribute | Requirement |
-|-----------|-------------|
-| Node Identity | Globally unique ID (within org), display name, optional code/slug |
-| Level Naming | Org-defined level name at each depth (e.g., "Country", "Circle"). Metadata, not structural constraint. |
-| Parent Reference | Each non-root node references exactly one parent. Root nodes have no parent. |
-| Multi-Root | An org may define multiple root nodes per scope type |
-| Depth Limit | No hardcoded limit. Must perform well to 10+ levels with 1000+ nodes per org |
+| Attribute        | Requirement                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| Node Identity    | Globally unique ID (within org), display name, optional code/slug                                      |
+| Level Naming     | Org-defined level name at each depth (e.g., "Country", "Circle"). Metadata, not structural constraint. |
+| Parent Reference | Each non-root node references exactly one parent. Root nodes have no parent.                           |
+| Multi-Root       | An org may define multiple root nodes per scope type                                                   |
+| Depth Limit      | No hardcoded limit. Must perform well to 10+ levels with 1000+ nodes per org                           |
 
 ### 6.3 Permission Inheritance
 
@@ -194,15 +195,15 @@ Examples: `trafficure:planning:simulation:create`, `smartops:fieldforce:ticket:e
 
 ### 7.3 Role Requirements
 
-| Requirement | Detail |
-|-------------|--------|
-| DAG enforcement | Cycles are rejected at write time |
-| Multiple inheritance | Union of all parent permissions |
-| Conflict resolution | Explicit deny wins |
-| Org-scoped | Each org defines its own role lattice. Platform Super Admin exists outside org scope. |
-| Role composability | Custom roles by composing permissions from existing roles |
-| Dynamic lattice | Modifiable at runtime by org admins. Changes propagate on next evaluation. |
-| Module-scoped assignment | A principal may hold different roles in different modules |
+| Requirement              | Detail                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| DAG enforcement          | Cycles are rejected at write time                                                     |
+| Multiple inheritance     | Union of all parent permissions                                                       |
+| Conflict resolution      | Explicit deny wins                                                                    |
+| Org-scoped               | Each org defines its own role lattice. Platform Super Admin exists outside org scope. |
+| Role composability       | Custom roles by composing permissions from existing roles                             |
+| Dynamic lattice          | Modifiable at runtime by org admins. Changes propagate on next evaluation.            |
+| Module-scoped assignment | A principal may hold different roles in different modules                             |
 
 ### 7.4 Role Evaluation
 
@@ -220,12 +221,12 @@ Classifications are mandatory labels on resources, inspired by Palantir's Markin
 
 ### 8.2 Classification Categories
 
-| Category | Labels (org-extensible) | Behavior |
-|----------|------------------------|----------|
-| Data classification | Public, Internal, Restricted | Conjunctive (must hold all labels) |
-| Jurisdiction | India, State-specific, EU/GDPR | Hard gate — no bypass |
-| Regulatory tags | PII, Subscriber Data, Financial, Location | Additional constraints per tag |
-| Asset criticality | P1 (Critical), P2 (High), P3 (Medium), P4 (Low) | Minimum authority level per tier |
+| Category            | Labels (org-extensible)                         | Behavior                           |
+| ------------------- | ----------------------------------------------- | ---------------------------------- |
+| Data classification | Public, Internal, Restricted                    | Conjunctive (must hold all labels) |
+| Jurisdiction        | India, State-specific, EU/GDPR                  | Hard gate — no bypass              |
+| Regulatory tags     | PII, Subscriber Data, Financial, Location       | Additional constraints per tag     |
+| Asset criticality   | P1 (Critical), P2 (High), P3 (Medium), P4 (Low) | Minimum authority level per tier   |
 
 ### 8.3 Clearance Slot System
 
@@ -259,14 +260,14 @@ When a pipeline transforms a dataset, output classifications inherit from inputs
 
 Relationships bind a principal to a specific resource instance. While Roles grant broad capability and Scopes limit where, Relationships connect a principal to a specific resource.
 
-| Relationship | Effect |
-|-------------|--------|
-| Owner | Full CRUD + share + transfer + delete |
-| Team member | Inherits owner-level access for team-owned resources |
-| Shared viewer | Read access to a specifically shared resource |
-| Shared editor | Read + write access |
-| Assignee | Action authority on an assigned work item |
-| Approver | Authority to approve a pending action |
+| Relationship  | Effect                                               |
+| ------------- | ---------------------------------------------------- |
+| Owner         | Full CRUD + share + transfer + delete                |
+| Team member   | Inherits owner-level access for team-owned resources |
+| Shared viewer | Read access to a specifically shared resource        |
+| Shared editor | Read + write access                                  |
+| Assignee      | Action authority on an assigned work item            |
+| Approver      | Authority to approve a pending action                |
 
 ### 9.2 Ownership
 
@@ -287,13 +288,13 @@ Constraints are runtime-evaluated conditions that depend on the current state of
 
 ### 10.1 Time-Based Access
 
-| Pattern | Requirement |
-|---------|-------------|
-| Contract period | Vendor/partner access bound to start/end dates. Auto-revoked on expiry. |
-| Shift-based | Principals restricted to time windows (e.g., 06:00–18:00 IST, weekdays). |
-| Temporary elevation | JIT access grants, time-bounded (e.g., 4 hours for incident response). Auto-expire. |
-| Seasonal | Recurring cron-like windows (e.g., audit season, planning cycles). |
-| Grace period | Configurable grace (e.g., 15 minutes) for in-flight operations when a window expires. |
+| Pattern             | Requirement                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| Contract period     | Vendor/partner access bound to start/end dates. Auto-revoked on expiry.               |
+| Shift-based         | Principals restricted to time windows (e.g., 06:00–18:00 IST, weekdays).              |
+| Temporary elevation | JIT access grants, time-bounded (e.g., 4 hours for incident response). Auto-expire.   |
+| Seasonal            | Recurring cron-like windows (e.g., audit season, planning cycles).                    |
+| Grace period        | Configurable grace (e.g., 15 minutes) for in-flight operations when a window expires. |
 
 ### 10.2 Workflow State
 
@@ -308,15 +309,15 @@ Resources move through org-defined state machines. The current state changes who
 
 ### 10.3 Skill and Certification
 
-| Requirement | Detail |
-|-------------|--------|
-| Skill registry | Org-defined catalog of skills/certifications with grouping into families |
-| Principal-skill binding | Active certifications with issue date, expiry date, issuing authority |
-| Resource-skill requirement | Service tickets, work orders, asset types declare required skills |
-| Expiry enforcement | Expired certifications treated as absent |
-| Skill hierarchy | Parent skills satisfy child requirements |
-| Multi-skill requirements | All required skills must be held (conjunctive AND) |
-| Skill-based dispatch | "Which principals in scope X hold skills Y and Z in time window T?" |
+| Requirement                | Detail                                                                   |
+| -------------------------- | ------------------------------------------------------------------------ |
+| Skill registry             | Org-defined catalog of skills/certifications with grouping into families |
+| Principal-skill binding    | Active certifications with issue date, expiry date, issuing authority    |
+| Resource-skill requirement | Service tickets, work orders, asset types declare required skills        |
+| Expiry enforcement         | Expired certifications treated as absent                                 |
+| Skill hierarchy            | Parent skills satisfy child requirements                                 |
+| Multi-skill requirements   | All required skills must be held (conjunctive AND)                       |
+| Skill-based dispatch       | "Which principals in scope X hold skills Y and Z in time window T?"      |
 
 ### 10.4 Support Tier Hierarchy
 
@@ -328,53 +329,53 @@ Tier assignment is per skill-domain: `(principal, domain, tier)` tuples. A techn
 
 ### 10.5 Asset Criticality
 
-| Level | Impact | Authorization |
-|-------|--------|--------------|
+| Level         | Impact                            | Authorization                                               |
+| ------------- | --------------------------------- | ----------------------------------------------------------- |
 | P1 (Critical) | >100K subscribers or revenue loss | Senior engineer + manager approval. Read restricted to L2+. |
-| P2 (High) | 10K–100K subscribers | L2+ for modifications. Change-window approval. |
-| P3 (Medium) | <10K subscribers | L1+ within scope and skill. Standard workflow. |
-| P4 (Low) | Individual subscriber | Field technicians with relevant skills. Minimal approval. |
+| P2 (High)     | 10K–100K subscribers              | L2+ for modifications. Change-window approval.              |
+| P3 (Medium)   | <10K subscribers                  | L1+ within scope and skill. Standard workflow.              |
+| P4 (Low)      | Individual subscriber             | Field technicians with relevant skills. Minimal approval.   |
 
 Dynamic criticality: context can elevate (P3 switch becomes P1 during major event). Criticality inheritance: degraded higher-tier element elevates dependents.
 
 ### 10.6 Financial Authority
 
-| Requirement | Detail |
-|-------------|--------|
-| Threshold-based | Each role/principal has a maximum monetary authority |
-| Cumulative tracking | Running totals per principal per cost center per time window |
-| Delegation with ceiling | Delegated authority cannot exceed delegator's ceiling |
-| Cost center scoping | Authority scoped to cost centers |
-| Budget exhaustion | Exhausted budget suspends all financial approvals for that cost center |
+| Requirement             | Detail                                                                 |
+| ----------------------- | ---------------------------------------------------------------------- |
+| Threshold-based         | Each role/principal has a maximum monetary authority                   |
+| Cumulative tracking     | Running totals per principal per cost center per time window           |
+| Delegation with ceiling | Delegated authority cannot exceed delegator's ceiling                  |
+| Cost center scoping     | Authority scoped to cost centers                                       |
+| Budget exhaustion       | Exhausted budget suspends all financial approvals for that cost center |
 
 ### 10.7 Separation of Duties and Multi-Party Approval
 
-| Requirement | Detail |
-|-------------|--------|
-| N-of-M approval | Configurable per action type and criticality level |
-| Role separation | Requester and approver must hold different roles. Self-approval prohibited. |
-| Dual control | Two principals must act within a bounded window |
-| Approval expiry | Time-bounded. Lapsed approvals must be re-obtained. |
-| Break-glass | Emergency override with mandatory high-priority alerting and post-incident review |
+| Requirement     | Detail                                                                            |
+| --------------- | --------------------------------------------------------------------------------- |
+| N-of-M approval | Configurable per action type and criticality level                                |
+| Role separation | Requester and approver must hold different roles. Self-approval prohibited.       |
+| Dual control    | Two principals must act within a bounded window                                   |
+| Approval expiry | Time-bounded. Lapsed approvals must be re-obtained.                               |
+| Break-glass     | Emergency override with mandatory high-priority alerting and post-incident review |
 
 ### 10.8 Data Sovereignty
 
-| Requirement | Detail |
-|-------------|--------|
-| Jurisdictional tagging | Resources tagged with jurisdiction(s) |
-| Principal jurisdiction clearance | Must hold clearance for resource's jurisdiction |
-| Cross-jurisdiction denial | Hard constraint — no bypass regardless of other permissions |
-| Regulatory tags | PII, subscriber data, financial, location — each imposes additional constraints |
-| Processing location | Certain data restricted to specific data centers |
+| Requirement                      | Detail                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| Jurisdictional tagging           | Resources tagged with jurisdiction(s)                                           |
+| Principal jurisdiction clearance | Must hold clearance for resource's jurisdiction                                 |
+| Cross-jurisdiction denial        | Hard constraint — no bypass regardless of other permissions                     |
+| Regulatory tags                  | PII, subscriber data, financial, location — each imposes additional constraints |
+| Processing location              | Certain data restricted to specific data centers                                |
 
 ### 10.9 Channel Visibility (SmartMarket)
 
-| Requirement | Detail |
-|-------------|--------|
-| Channel-scoped visibility | Principals see only data at their channel tier and below |
-| Pricing tier access | Different tiers see different pricing |
-| Commission/margin visibility | Each tier sees own margin, not tiers above |
-| Quota/target access | Scoped by channel tier and region |
+| Requirement                  | Detail                                                   |
+| ---------------------------- | -------------------------------------------------------- |
+| Channel-scoped visibility    | Principals see only data at their channel tier and below |
+| Pricing tier access          | Different tiers see different pricing                    |
+| Commission/margin visibility | Each tier sees own margin, not tiers above               |
+| Quota/target access          | Scoped by channel tier and region                        |
 
 ### 10.10 SLA/Priority-Driven Dynamic Access
 
@@ -408,24 +409,24 @@ Ontology object types are created by tenants at runtime. The SpiceDB schema uses
 
 Every authorization request flows through this chain. Seven primitives, evaluated in order. Short-circuit on first failure.
 
-| Step | Check | Primitive | Evaluator |
-|------|-------|-----------|-----------|
-| 1 | Org entitlement (product + module) | ② Organization | SpiceDB |
-| 2 | Principal validity (active, member of org) | ① Principal + ② Organization | better-auth session + SpiceDB |
-| 3 | Time constraints (contract, shift, JIT, seasonal) | ⑦ Constraint | Custom Runtime |
-| 4 | Jurisdiction (hard gate) | ⑤ Classification | SpiceDB + Runtime |
-| 5 | Regional scope | ③ Scope | SpiceDB |
-| 6 | Topology/channel/department scope (if applicable) | ③ Scope | SpiceDB |
-| 7 | Role permission (lattice transitive closure) | ④ Role | Runtime (cached) |
-| 8 | Skill/certification (if applicable) | ⑦ Constraint | Runtime → PostgreSQL |
-| 9 | Workflow state (if applicable) | ⑦ Constraint | Runtime → PostgreSQL |
-| 10 | Data classification + regulatory tags | ⑤ Classification | SpiceDB |
-| 11 | Asset criticality (if applicable) | ⑤ Classification | SpiceDB |
-| 12 | Financial authority (if applicable) | ⑦ Constraint | Runtime → PostgreSQL |
-| 13 | Resource relationship (ownership, team, sharing) | ⑥ Relationship | SpiceDB |
-| 14 | Multi-party approval (if applicable) | ⑦ Constraint | Runtime → PostgreSQL |
-| 15 | Explicit deny check | ⑦ Constraint | Runtime |
-| → | **ALLOW** (all applicable steps passed) | | |
+| Step | Check                                             | Primitive                    | Evaluator                     |
+| ---- | ------------------------------------------------- | ---------------------------- | ----------------------------- |
+| 1    | Org entitlement (product + module)                | ② Organization               | SpiceDB                       |
+| 2    | Principal validity (active, member of org)        | ① Principal + ② Organization | better-auth session + SpiceDB |
+| 3    | Time constraints (contract, shift, JIT, seasonal) | ⑦ Constraint                 | Custom Runtime                |
+| 4    | Jurisdiction (hard gate)                          | ⑤ Classification             | SpiceDB + Runtime             |
+| 5    | Regional scope                                    | ③ Scope                      | SpiceDB                       |
+| 6    | Topology/channel/department scope (if applicable) | ③ Scope                      | SpiceDB                       |
+| 7    | Role permission (lattice transitive closure)      | ④ Role                       | Runtime (cached)              |
+| 8    | Skill/certification (if applicable)               | ⑦ Constraint                 | Runtime → PostgreSQL          |
+| 9    | Workflow state (if applicable)                    | ⑦ Constraint                 | Runtime → PostgreSQL          |
+| 10   | Data classification + regulatory tags             | ⑤ Classification             | SpiceDB                       |
+| 11   | Asset criticality (if applicable)                 | ⑤ Classification             | SpiceDB                       |
+| 12   | Financial authority (if applicable)               | ⑦ Constraint                 | Runtime → PostgreSQL          |
+| 13   | Resource relationship (ownership, team, sharing)  | ⑥ Relationship               | SpiceDB                       |
+| 14   | Multi-party approval (if applicable)              | ⑦ Constraint                 | Runtime → PostgreSQL          |
+| 15   | Explicit deny check                               | ⑦ Constraint                 | Runtime                       |
+| →    | **ALLOW** (all applicable steps passed)           |                              |                               |
 
 Not all steps apply to every request. The runtime skips irrelevant steps. Financial authority is only checked for monetary actions. Topology scope is only checked for network elements. The chain is the maximum; most requests evaluate a subset.
 
@@ -433,74 +434,74 @@ Not all steps apply to every request. The runtime skips irrelevant steps. Financ
 
 ## 13. Product and Module Scoping
 
-| Requirement | Detail |
-|-------------|--------|
-| Product as dimension | Product identity is a first-class dimension in the permission model |
-| Module registry | Central registry defines which modules belong to which products. A module may belong to multiple products. |
-| Cross-product modules | Shared modules have a single permission definition, scoped differently per product |
-| Product entitlement | Org subscription determines accessible products/modules. Checked before fine-grained permissions. |
-| Module-level RBAC | Roles can be scoped to specific modules |
+| Requirement           | Detail                                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Product as dimension  | Product identity is a first-class dimension in the permission model                                        |
+| Module registry       | Central registry defines which modules belong to which products. A module may belong to multiple products. |
+| Cross-product modules | Shared modules have a single permission definition, scoped differently per product                         |
+| Product entitlement   | Org subscription determines accessible products/modules. Checked before fine-grained permissions.          |
+| Module-level RBAC     | Roles can be scoped to specific modules                                                                    |
 
 ---
 
 ## 14. Audit and Compliance
 
-| Requirement | Detail |
-|-------------|--------|
-| Decision logging | Every ALLOW and DENY with full evaluation context |
+| Requirement          | Detail                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| Decision logging     | Every ALLOW and DENY with full evaluation context                                                 |
 | Admin action logging | Role creation, assignment changes, hierarchy mutations, vendor namespace creation, policy changes |
-| Immutability | Append-only. No principal can delete or modify audit entries. |
-| Retention | Configurable per org (minimum 1 year). Archived after 90 days. |
-| Query capability | By principal, resource, action, time range, decision outcome, collaboration pattern |
-| Export | Structured format (JSON, CSV) for SIEM integration |
-| Cross-org tagging | Vendor/cross-org actions tagged with source org, target org, pattern |
-| Access reviews | Periodic review with auto-revoke for uncertified access |
+| Immutability         | Append-only. No principal can delete or modify audit entries.                                     |
+| Retention            | Configurable per org (minimum 1 year). Archived after 90 days.                                    |
+| Query capability     | By principal, resource, action, time range, decision outcome, collaboration pattern               |
+| Export               | Structured format (JSON, CSV) for SIEM integration                                                |
+| Cross-org tagging    | Vendor/cross-org actions tagged with source org, target org, pattern                              |
+| Access reviews       | Periodic review with auto-revoke for uncertified access                                           |
 
 ---
 
 ## 15. Non-Functional Requirements
 
-| Category | Target | Notes |
-|----------|--------|-------|
-| Latency P50 | < 5ms | SpiceDB with warm cache; cached role lattice |
-| Latency P99 | < 50ms | Including cold cache and complex traversals |
-| Throughput | > 10,000 decisions/sec | SpiceDB horizontal scaling; stateless runtime |
-| Availability | 99.99% | Fail-open vs fail-closed configurable per endpoint |
-| Consistency lag | < 500ms target, 5s max | PostgreSQL → SpiceDB outbox sync |
-| Hierarchy depth | 10+ levels | 1000+ nodes per org, no degradation |
-| Role lattice | 100+ roles per org | Arbitrary DAG depth. Sub-10ms lattice traversal. |
-| Multi-tenancy | 1000+ orgs | Org relation on every resource. No cross-tenant leakage. |
+| Category        | Target                 | Notes                                                    |
+| --------------- | ---------------------- | -------------------------------------------------------- |
+| Latency P50     | < 5ms                  | SpiceDB with warm cache; cached role lattice             |
+| Latency P99     | < 50ms                 | Including cold cache and complex traversals              |
+| Throughput      | > 10,000 decisions/sec | SpiceDB horizontal scaling; stateless runtime            |
+| Availability    | 99.99%                 | Fail-open vs fail-closed configurable per endpoint       |
+| Consistency lag | < 500ms target, 5s max | PostgreSQL → SpiceDB outbox sync                         |
+| Hierarchy depth | 10+ levels             | 1000+ nodes per org, no degradation                      |
+| Role lattice    | 100+ roles per org     | Arbitrary DAG depth. Sub-10ms lattice traversal.         |
+| Multi-tenancy   | 1000+ orgs             | Org relation on every resource. No cross-tenant leakage. |
 
 ---
 
 ## 16. Technology Stack
 
-| Requirement Domain | Component | Role |
-|-------------------|-----------|------|
-| Identity + sessions + org membership | better-auth (PostgreSQL adapter) | Embedded library. Manages user lifecycle, sessions, org membership, teams, invitations, SSO/SAML, SCIM, 2FA, API keys. |
-| Structural authorization (ReBAC) | SpiceDB | Derived view of PostgreSQL state. Evaluates scope hierarchies, org membership, classification clearances, resource relationships. |
-| Auth data source of truth | PostgreSQL | All auth state. better-auth tables + IAM extensions + Ontology Registry + Constraint state. |
-| PostgreSQL → SpiceDB sync | Transactional outbox | Outbox event written in same transaction as business write. Background consumer writes SpiceDB tuples. |
-| Decision composition | Custom Runtime (TypeScript) | Composes better-auth sessions + SpiceDB checks + Ontology Registry + constraint evaluation. Trafficure's core IP. |
-| Edge auth | Traefik ForwardAuth | API gateway intercepts requests, calls custom runtime, passes auth context to services via headers. |
-| Audit | OpenTelemetry → ClickHouse | Authorization decisions emitted as structured events. Stored in ClickHouse for queryable audit. |
+| Requirement Domain                   | Component                        | Role                                                                                                                              |
+| ------------------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Identity + sessions + org membership | better-auth (PostgreSQL adapter) | Embedded library. Manages user lifecycle, sessions, org membership, teams, invitations, SSO/SAML, SCIM, 2FA, API keys.            |
+| Structural authorization (ReBAC)     | SpiceDB                          | Derived view of PostgreSQL state. Evaluates scope hierarchies, org membership, classification clearances, resource relationships. |
+| Auth data source of truth            | PostgreSQL                       | All auth state. better-auth tables + IAM extensions + Ontology Registry + Constraint state.                                       |
+| PostgreSQL → SpiceDB sync            | Transactional outbox             | Outbox event written in same transaction as business write. Background consumer writes SpiceDB tuples.                            |
+| Decision composition                 | Custom Runtime (TypeScript)      | Composes better-auth sessions + SpiceDB checks + Ontology Registry + constraint evaluation. Trafficure's core IP.                 |
+| Edge auth                            | Traefik ForwardAuth              | API gateway intercepts requests, calls custom runtime, passes auth context to services via headers.                               |
+| Audit                                | OpenTelemetry → ClickHouse       | Authorization decisions emitted as structured events. Stored in ClickHouse for queryable audit.                                   |
 
 ---
 
 ## 17. Glossary
 
-| Term | Definition |
-|------|-----------|
-| Principal | Any entity that can authenticate and make requests (human, service account, AI agent, vendor) |
-| Organization | Tenant boundary. Outermost mandatory gate. `orgId` is the universal tenant key. |
-| Scope | An org-defined hierarchy (region, topology, channel, department) where principals are assigned at nodes and access inherits downward |
-| Role | A node in a DAG-structured lattice that aggregates permissions (`product:module:resource:action`) |
-| Classification | A mandatory label on a resource that the principal must be cleared for. Cannot be bypassed by discretionary grants. |
-| Relationship | A principal's connection to a specific resource instance (owner, team member, assignee, approver) |
-| Constraint | A runtime-evaluated condition (time, workflow state, skill, financial authority, approval) |
-| Ontology Object | A domain entity (road segment, incident, network element) that lives inside a dataset and is authorized independently |
-| Resource | A structural platform container (project, dataset, dashboard, pipeline) that organizes work |
-| Clearance Slot | A numbered position (1–4) on the organization that maps to an org-specific classification label |
-| Permission Ceiling | Maximum privilege set for a vendor sub-namespace. No assignment within can exceed it. |
-| Transactional Outbox | Pattern where database changes and corresponding SpiceDB sync events are written in the same PostgreSQL transaction |
-| Ontology Registry | PostgreSQL-based metadata service that maps dynamic object types to the generic SpiceDB schema |
+| Term                 | Definition                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Principal            | Any entity that can authenticate and make requests (human, service account, AI agent, vendor)                                        |
+| Organization         | Tenant boundary. Outermost mandatory gate. `orgId` is the universal tenant key.                                                      |
+| Scope                | An org-defined hierarchy (region, topology, channel, department) where principals are assigned at nodes and access inherits downward |
+| Role                 | A node in a DAG-structured lattice that aggregates permissions (`product:module:resource:action`)                                    |
+| Classification       | A mandatory label on a resource that the principal must be cleared for. Cannot be bypassed by discretionary grants.                  |
+| Relationship         | A principal's connection to a specific resource instance (owner, team member, assignee, approver)                                    |
+| Constraint           | A runtime-evaluated condition (time, workflow state, skill, financial authority, approval)                                           |
+| Ontology Object      | A domain entity (road segment, incident, network element) that lives inside a dataset and is authorized independently                |
+| Resource             | A structural platform container (project, dataset, dashboard, pipeline) that organizes work                                          |
+| Clearance Slot       | A numbered position (1–4) on the organization that maps to an org-specific classification label                                      |
+| Permission Ceiling   | Maximum privilege set for a vendor sub-namespace. No assignment within can exceed it.                                                |
+| Transactional Outbox | Pattern where database changes and corresponding SpiceDB sync events are written in the same PostgreSQL transaction                  |
+| Ontology Registry    | PostgreSQL-based metadata service that maps dynamic object types to the generic SpiceDB schema                                       |

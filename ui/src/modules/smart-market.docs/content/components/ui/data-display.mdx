@@ -40,7 +40,11 @@ Compact labels for status, categories, and counts.
 A circular image with a text fallback for user or entity representation.
 
 ```tsx
-import { Avatar, AvatarFallback, AvatarImage } from "@rio.js/ui-next/components/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@rio.js/ui-next/components/avatar"
 ```
 
 <VariantGrid>
@@ -164,7 +168,14 @@ Match skeleton shapes to the content they replace for a smooth loading transitio
 A structured data table built on native HTML table elements with consistent styling.
 
 ```tsx
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rio.js/ui-next/components/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@rio.js/ui-next/components/table"
 ```
 
 <ComponentPreview className="block">
@@ -179,17 +190,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
     <TableBody>
       <TableRow>
         <TableCell>Alice Johnson</TableCell>
-        <TableCell><Badge>Active</Badge></TableCell>
+        <TableCell>
+          <Badge>Active</Badge>
+        </TableCell>
         <TableCell>Admin</TableCell>
       </TableRow>
       <TableRow>
         <TableCell>Bob Smith</TableCell>
-        <TableCell><Badge variant="secondary">Inactive</Badge></TableCell>
+        <TableCell>
+          <Badge variant="secondary">Inactive</Badge>
+        </TableCell>
         <TableCell>Editor</TableCell>
       </TableRow>
       <TableRow>
         <TableCell>Carol Williams</TableCell>
-        <TableCell><Badge variant="outline">Pending</Badge></TableCell>
+        <TableCell>
+          <Badge variant="outline">Pending</Badge>
+        </TableCell>
         <TableCell>Viewer</TableCell>
       </TableRow>
     </TableBody>
@@ -208,7 +225,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
   <TableBody>
     <TableRow>
       <TableCell>Alice Johnson</TableCell>
-      <TableCell><Badge>Active</Badge></TableCell>
+      <TableCell>
+        <Badge>Active</Badge>
+      </TableCell>
       <TableCell>Admin</TableCell>
     </TableRow>
   </TableBody>
@@ -217,14 +236,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 ### Table structure
 
-| Component | Maps to | Purpose |
-|-----------|---------|---------|
-| `Table` | `<table>` | Root container |
+| Component     | Maps to   | Purpose          |
+| ------------- | --------- | ---------------- |
+| `Table`       | `<table>` | Root container   |
 | `TableHeader` | `<thead>` | Header row group |
-| `TableBody` | `<tbody>` | Body row group |
-| `TableRow` | `<tr>` | A single row |
-| `TableHead` | `<th>` | Header cell |
-| `TableCell` | `<td>` | Body cell |
+| `TableBody`   | `<tbody>` | Body row group   |
+| `TableRow`    | `<tr>`    | A single row     |
+| `TableHead`   | `<th>`    | Header cell      |
+| `TableCell`   | `<td>`    | Body cell        |
 
 ---
 
@@ -232,40 +251,40 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 ### Badge Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `"default" \| "secondary" \| "destructive" \| "outline"` | `"default"` | Visual style |
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type                                                     | Default     | Description            |
+| ----------- | -------------------------------------------------------- | ----------- | ---------------------- |
+| `variant`   | `"default" \| "secondary" \| "destructive" \| "outline"` | `"default"` | Visual style           |
+| `className` | `string`                                                 | —           | Additional CSS classes |
 
 ### Avatar Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type     | Default | Description            |
+| ----------- | -------- | ------- | ---------------------- |
+| `className` | `string` | —       | Additional CSS classes |
 
 ### AvatarImage Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `src` | `string` | — | Image URL |
-| `alt` | `string` | — | Alt text for accessibility |
+| Prop  | Type     | Default | Description                |
+| ----- | -------- | ------- | -------------------------- |
+| `src` | `string` | —       | Image URL                  |
+| `alt` | `string` | —       | Alt text for accessibility |
 
 ### Progress Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `number` | — | Current progress (0-100). Omit for indeterminate |
-| `max` | `number` | `100` | Maximum value |
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type     | Default | Description                                      |
+| ----------- | -------- | ------- | ------------------------------------------------ |
+| `value`     | `number` | —       | Current progress (0-100). Omit for indeterminate |
+| `max`       | `number` | `100`   | Maximum value                                    |
+| `className` | `string` | —       | Additional CSS classes                           |
 
 ### Skeleton Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `className` | `string` | — | Width, height, and border-radius via Tailwind |
+| Prop        | Type     | Default | Description                                   |
+| ----------- | -------- | ------- | --------------------------------------------- |
+| `className` | `string` | —       | Width, height, and border-radius via Tailwind |
 
 ### Table Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
+| Prop      | Type                               | Default     | Description                                                                    |
+| --------- | ---------------------------------- | ----------- | ------------------------------------------------------------------------------ |
 | `variant` | `"default" \| "grid" \| "compact"` | `"default"` | `grid` adds borders to all cells, `compact` reduces padding and uses `text-xs` |

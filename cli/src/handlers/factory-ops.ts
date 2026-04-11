@@ -86,7 +86,7 @@ export async function runFactoryOps(
     try {
       const result = await rest.request<{ runId: string }>(
         "POST",
-        `/api/factory/system/operations/${name}/trigger`
+        `/api/v1/factory/system/operations/${name}/trigger`
       )
       if (flags.json) {
         console.log(JSON.stringify({ success: true, ...result }, null, 2))
@@ -106,7 +106,7 @@ export async function runFactoryOps(
     try {
       const detail = await rest.request<OperationDetail>(
         "GET",
-        `/api/factory/system/operations/${name}`
+        `/api/v1/factory/system/operations/${name}`
       )
       if (flags.json) {
         console.log(JSON.stringify(detail, null, 2))
@@ -152,7 +152,7 @@ export async function runFactoryOps(
   try {
     const result = await rest.request<{ operations: OperationInfo[] }>(
       "GET",
-      "/api/factory/system/operations"
+      "/api/v1/factory/system/operations"
     )
 
     if (flags.json) {

@@ -188,4 +188,9 @@ export interface SilenceSpec {
 // Backend discriminant
 // ---------------------------------------------------------------------------
 
-export type ObservabilityBackendType = "noop" | "loki" | "clickstack" | "signoz" | "demo"
+export type ObservabilityBackendType =
+  | "noop"
+  | "loki"
+  | "clickstack"
+  | "signoz"
+  | "demo"

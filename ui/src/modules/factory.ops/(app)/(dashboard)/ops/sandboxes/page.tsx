@@ -1,4 +1,4 @@
-import { useSandboxes } from "@/lib/fleet"
+import { useSandboxes } from "@/lib/ops"
 import { useState } from "react"
 
 import { Icon } from "@rio.js/ui/icon"
@@ -17,7 +17,7 @@ export default function SandboxesPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Sandbox Manager"
         description="Ephemeral development environments"
       />

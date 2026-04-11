@@ -1,8 +1,8 @@
-import { eq, and, isNull } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { rolePreset } from "../../db/schema/org-v2";
-import type { RolePresetSpec } from "@smp/factory-shared/schemas/org";
-import { allocateSlug } from "../../lib/slug";
+import { eq, and, isNull } from "drizzle-orm"
+import type { Database } from "../../db/connection"
+import { rolePreset } from "../../db/schema/org-v2"
+import type { RolePresetSpec } from "@smp/factory-shared/schemas/org"
+import { allocateSlug } from "../../lib/slug"
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -10,40 +10,40 @@ import { allocateSlug } from "../../lib/slug";
 
 export async function listRolePresets(
   db: Database,
-  filters?: { orgId?: string },
+  filters?: { orgId?: string }
 ) {
   const rows = filters?.orgId
     ? await db
         .select()
         .from(rolePreset)
         .where(eq(rolePreset.orgId, filters.orgId))
-    : await db.select().from(rolePreset);
-  return { data: rows, total: rows.length };
+    : await db.select().from(rolePreset)
+  return { data: rows, total: rows.length }
 }
 
 export async function getRolePreset(db: Database, idOrSlug: string) {
   let rows = await db
     .select()
     .from(rolePreset)
-    .where(eq(rolePreset.id, idOrSlug));
+    .where(eq(rolePreset.id, idOrSlug))
   if (rows.length === 0) {
     rows = await db
       .select()
       .from(rolePreset)
-      .where(eq(rolePreset.slug, idOrSlug));
+      .where(eq(rolePreset.slug, idOrSlug))
   }
-  return rows[0] ?? null;
+  return rows[0] ?? null
 }
 
 export async function createRolePreset(
   db: Database,
   data: {
-    name: string;
-    slug?: string;
-    orgId?: string;
-    description?: string;
-    defaults: Record<string, unknown>;
-  },
+    name: string
+    slug?: string
+    orgId?: string
+    description?: string
+    defaults: Record<string, unknown>
+  }
 ) {
   const slug = await allocateSlug({
     baseLabel: data.name,
@@ -52,10 +52,10 @@ export async function createRolePreset(
       const existing = await db
         .select()
         .from(rolePreset)
-        .where(eq(rolePreset.slug, s));
-      return existing.length > 0;
+        .where(eq(rolePreset.slug, s))
+      return existing.length > 0
     },
-  });
+  })
 
   const rows = await db
     .insert(rolePreset)
@@ -68,28 +68,28 @@ export async function createRolePreset(
         defaults: data.defaults,
       } as RolePresetSpec,
     })
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function updateRolePreset(
   db: Database,
   id: string,
   data: {
-    name?: string;
-    description?: string;
-    defaults?: Record<string, unknown>;
-  },
+    name?: string
+    description?: string
+    defaults?: Record<string, unknown>
+  }
 ) {
-  const existing = await getRolePreset(db, id);
-  if (!existing) return null;
+  const existing = await getRolePreset(db, id)
+  if (!existing) return null
 
-  const currentSpec = (existing.spec ?? {}) as RolePresetSpec;
+  const currentSpec = (existing.spec ?? {}) as RolePresetSpec
   const updatedSpec: RolePresetSpec = {
     ...currentSpec,
     ...(data.description !== undefined && { description: data.description }),
     ...(data.defaults !== undefined && { defaults: data.defaults }),
-  };
+  }
 
   const rows = await db
     .update(rolePreset)
@@ -98,12 +98,12 @@ export async function updateRolePreset(
       spec: updatedSpec,
     })
     .where(eq(rolePreset.id, id))
-    .returning();
-  return rows[0] ?? null;
+    .returning()
+  return rows[0] ?? null
 }
 
 export async function deleteRolePreset(db: Database, id: string) {
-  await db.delete(rolePreset).where(eq(rolePreset.id, id));
+  await db.delete(rolePreset).where(eq(rolePreset.id, id))
 }
 
 // ---------------------------------------------------------------------------
@@ -231,17 +231,15 @@ const PLATFORM_PRESETS = [
       },
     },
   },
-];
+]
 
 export async function seedPlatformPresets(db: Database) {
   for (const preset of PLATFORM_PRESETS) {
     const existing = await db
       .select()
       .from(rolePreset)
-      .where(
-        and(eq(rolePreset.slug, preset.slug), isNull(rolePreset.orgId)),
-      )
-      .limit(1);
+      .where(and(eq(rolePreset.slug, preset.slug), isNull(rolePreset.orgId)))
+      .limit(1)
 
     if (existing.length === 0) {
       await db.insert(rolePreset).values({
@@ -249,7 +247,7 @@ export async function seedPlatformPresets(db: Database) {
         slug: preset.slug,
         orgId: null,
         spec: preset.spec as unknown as RolePresetSpec,
-      });
+      })
     }
   }
 }

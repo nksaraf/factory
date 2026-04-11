@@ -1,715 +1,2660 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Factory — How We Run a Software Company</title>
-<style>
-:root {
-  --bg: #ffffff; --bg-alt: #f8fafc; --surface: #f1f5f9;
-  --text: #1e293b; --text-secondary: #64748b; --border: #e2e8f0;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-lg: 0 4px 20px rgba(0,0,0,0.1);
-  --radius: 12px;
-  --plane-product: #6366f1; --plane-build: #f59e0b; --plane-agent: #10b981;
-  --plane-commerce: #ec4899; --plane-ops: #3b82f6; --plane-infra: #ef4444;
-  --plane-org: #64748b; --plane-control: #8b5cf6; --plane-service: #14b8a6; --plane-data: #f97316;
-}
-[data-theme="dark"] {
-  --bg: #0f172a; --bg-alt: #1e293b; --surface: #334155;
-  --text: #f1f5f9; --text-secondary: #94a3b8; --border: #475569;
-  --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-lg: 0 4px 20px rgba(0,0,0,0.4);
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; scroll-behavior: smooth; }
-nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; backdrop-filter: blur(8px); }
-nav .logo { font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
-nav .nav-links { display: flex; gap: 4px; }
-nav .nav-links a { text-decoration: none; color: var(--text-secondary); font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 6px; transition: all 0.2s; }
-nav .nav-links a:hover, nav .nav-links a.active { color: var(--text); background: var(--surface); }
-.theme-toggle { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 14px; color: var(--text); }
-.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-.plane-icon { width: 18px; height: 18px; flex-shrink: 0; }
-.plane-icon-lg { width: 22px; height: 22px; flex-shrink: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Factory — How We Run a Software Company</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-alt: #f8fafc;
+        --surface: #f1f5f9;
+        --text: #1e293b;
+        --text-secondary: #64748b;
+        --border: #e2e8f0;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.1);
+        --radius: 12px;
+        --plane-product: #6366f1;
+        --plane-build: #f59e0b;
+        --plane-agent: #10b981;
+        --plane-commerce: #ec4899;
+        --plane-ops: #3b82f6;
+        --plane-infra: #ef4444;
+        --plane-org: #64748b;
+        --plane-control: #8b5cf6;
+        --plane-service: #14b8a6;
+        --plane-data: #f97316;
+      }
+      [data-theme="dark"] {
+        --bg: #0f172a;
+        --bg-alt: #1e293b;
+        --surface: #334155;
+        --text: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --border: #475569;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        scroll-behavior: smooth;
+      }
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        height: 56px;
+        backdrop-filter: blur(8px);
+      }
+      nav .logo {
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: -0.5px;
+      }
+      nav .nav-links {
+        display: flex;
+        gap: 4px;
+      }
+      nav .nav-links a {
+        text-decoration: none;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: all 0.2s;
+      }
+      nav .nav-links a:hover,
+      nav .nav-links a.active {
+        color: var(--text);
+        background: var(--surface);
+      }
+      .theme-toggle {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--text);
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      .plane-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .plane-icon-lg {
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+      }
 
-/* Hero */
-#hero { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 80px 24px; }
-#hero h1 { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 16px; line-height: 1.1; }
-#hero .subtitle { font-size: 20px; color: var(--text-secondary); max-width: 680px; margin-bottom: 48px; }
-.hero-diagram { display: flex; gap: 48px; align-items: center; flex-wrap: wrap; justify-content: center; }
-.hero-half { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; min-width: 280px; text-align: left; }
-.hero-half h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 16px; }
-.hero-half .plane-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin: 3px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-.hero-half .plane-pill:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
-.hero-arrow { color: var(--text-secondary); }
+      /* Hero */
+      #hero {
+        min-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 80px 24px;
+      }
+      #hero h1 {
+        font-size: 48px;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        margin-bottom: 16px;
+        line-height: 1.1;
+      }
+      #hero .subtitle {
+        font-size: 20px;
+        color: var(--text-secondary);
+        max-width: 680px;
+        margin-bottom: 48px;
+      }
+      .hero-diagram {
+        display: flex;
+        gap: 48px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .hero-half {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px;
+        min-width: 280px;
+        text-align: left;
+      }
+      .hero-half h3 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+      }
+      .hero-half .plane-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 3px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+      }
+      .hero-half .plane-pill:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow);
+      }
+      .hero-arrow {
+        color: var(--text-secondary);
+      }
 
-/* Two Halves */
-#halves { padding: 80px 24px; background: var(--bg-alt); }
-.section-title { font-size: 32px; font-weight: 700; text-align: center; margin-bottom: 12px; }
-.section-sub { text-align: center; color: var(--text-secondary); margin-bottom: 48px; font-size: 16px; max-width: 600px; margin-left: auto; margin-right: auto; }
-.halves-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 32px; align-items: start; max-width: 1000px; margin: 0 auto; }
-.half-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; box-shadow: var(--shadow); }
-.half-card h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-.half-card .half-desc { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
-.half-card .plane-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-.half-card .plane-row:hover { background: var(--bg-alt); border-color: var(--border); }
-.plane-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.plane-row .plane-name { font-weight: 600; font-size: 14px; }
-.plane-row .plane-tag { font-size: 12px; color: var(--text-secondary); }
-.halves-connector { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding-top: 60px; }
-.halves-connector .conn-line { width: 2px; height: 40px; background: var(--border); }
-.halves-connector .conn-label { font-size: 11px; color: var(--text-secondary); writing-mode: vertical-rl; text-orientation: mixed; }
+      /* Two Halves */
+      #halves {
+        padding: 80px 24px;
+        background: var(--bg-alt);
+      }
+      .section-title {
+        font-size: 32px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 12px;
+      }
+      .section-sub {
+        text-align: center;
+        color: var(--text-secondary);
+        margin-bottom: 48px;
+        font-size: 16px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .halves-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 32px;
+        align-items: start;
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .half-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px;
+        box-shadow: var(--shadow);
+      }
+      .half-card h3 {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .half-card .half-desc {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+      .half-card .plane-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+      }
+      .half-card .plane-row:hover {
+        background: var(--bg-alt);
+        border-color: var(--border);
+      }
+      .plane-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .plane-row .plane-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .plane-row .plane-tag {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .halves-connector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding-top: 60px;
+      }
+      .halves-connector .conn-line {
+        width: 2px;
+        height: 40px;
+        background: var(--border);
+      }
+      .halves-connector .conn-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+      }
 
-/* Planes */
-#planes { padding: 80px 24px; }
-.plane-card { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; transition: all 0.3s; }
-.plane-card-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; cursor: pointer; transition: background 0.2s; }
-.plane-card-header:hover { background: var(--surface); }
-.plane-color-bar { width: 4px; height: 40px; border-radius: 2px; flex-shrink: 0; }
-.plane-card-header .plane-info { flex: 1; display: flex; align-items: center; gap: 12px; }
-.plane-card-header .plane-label { font-size: 18px; font-weight: 700; }
-.plane-card-header .plane-tagline { font-size: 13px; color: var(--text-secondary); }
-.plane-card-header .entity-count { background: var(--surface); border-radius: 12px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-.plane-card-header .expand-icon { font-size: 18px; color: var(--text-secondary); transition: transform 0.3s; }
-.plane-card.expanded .expand-icon { transform: rotate(180deg); }
-.plane-card-body { display: none; padding: 0 24px 24px 24px; }
-.plane-card.expanded .plane-card-body { display: block; }
-.plane-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; padding-left: 20px; border-left: 2px solid var(--border); }
-.entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.entity-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s; }
-.entity-card:hover { border-color: var(--text-secondary); box-shadow: var(--shadow); transform: translateY(-1px); }
-.entity-card .entity-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.entity-card .entity-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
-.entity-card .entity-prefix { font-size: 11px; font-family: monospace; color: var(--text-secondary); opacity: 0.7; }
+      /* Planes */
+      #planes {
+        padding: 80px 24px;
+      }
+      .plane-card {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+        overflow: hidden;
+        transition: all 0.3s;
+      }
+      .plane-card-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 24px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .plane-card-header:hover {
+        background: var(--surface);
+      }
+      .plane-color-bar {
+        width: 4px;
+        height: 40px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+      .plane-card-header .plane-info {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .plane-card-header .plane-label {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .plane-card-header .plane-tagline {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .plane-card-header .entity-count {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 4px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .plane-card-header .expand-icon {
+        font-size: 18px;
+        color: var(--text-secondary);
+        transition: transform 0.3s;
+      }
+      .plane-card.expanded .expand-icon {
+        transform: rotate(180deg);
+      }
+      .plane-card-body {
+        display: none;
+        padding: 0 24px 24px 24px;
+      }
+      .plane-card.expanded .plane-card-body {
+        display: block;
+      }
+      .plane-desc {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        padding-left: 20px;
+        border-left: 2px solid var(--border);
+      }
+      .entity-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 12px;
+      }
+      .entity-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .entity-card:hover {
+        border-color: var(--text-secondary);
+        box-shadow: var(--shadow);
+        transform: translateY(-1px);
+      }
+      .entity-card .entity-name {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+      .entity-card .entity-desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+      .entity-card .entity-prefix {
+        font-size: 11px;
+        font-family: monospace;
+        color: var(--text-secondary);
+        opacity: 0.7;
+      }
 
-/* Graph */
-#graph { padding: 80px 24px; background: var(--bg-alt); }
-.graph-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
-.graph-controls button { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; transition: all 0.2s; }
-.graph-controls button:hover { background: var(--surface); }
-.graph-controls button.active { border-color: currentColor; }
-.journey-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 24px; }
-.journey-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; transition: all 0.2s; }
-.journey-btn:hover { background: var(--surface); }
-.journey-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
-.graph-container { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; position: relative; box-shadow: var(--shadow); }
-.graph-container svg { width: 100%; display: block; cursor: grab; }
-.graph-container svg:active { cursor: grabbing; }
-.graph-container svg .node { cursor: pointer; }
-.graph-container svg .node circle { transition: r 0.2s, opacity 0.3s; }
-.graph-container svg .node text { pointer-events: none; }
-.graph-container svg .edge { transition: opacity 0.3s; }
-.graph-container svg .edge path { fill: none; stroke-width: 1.5; }
-.dimmed { opacity: 0.1 !important; }
-.highlighted { opacity: 1 !important; }
+      /* Graph */
+      #graph {
+        padding: 80px 24px;
+        background: var(--bg-alt);
+      }
+      .graph-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 16px;
+      }
+      .graph-controls button {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .graph-controls button:hover {
+        background: var(--surface);
+      }
+      .graph-controls button.active {
+        border-color: currentColor;
+      }
+      .journey-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+      .journey-btn {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .journey-btn:hover {
+        background: var(--surface);
+      }
+      .journey-btn.active {
+        background: var(--text);
+        color: var(--bg);
+        border-color: var(--text);
+      }
+      .graph-container {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        position: relative;
+        box-shadow: var(--shadow);
+      }
+      .graph-container svg {
+        width: 100%;
+        display: block;
+        cursor: grab;
+      }
+      .graph-container svg:active {
+        cursor: grabbing;
+      }
+      .graph-container svg .node {
+        cursor: pointer;
+      }
+      .graph-container svg .node circle {
+        transition:
+          r 0.2s,
+          opacity 0.3s;
+      }
+      .graph-container svg .node text {
+        pointer-events: none;
+      }
+      .graph-container svg .edge {
+        transition: opacity 0.3s;
+      }
+      .graph-container svg .edge path {
+        fill: none;
+        stroke-width: 1.5;
+      }
+      .dimmed {
+        opacity: 0.1 !important;
+      }
+      .highlighted {
+        opacity: 1 !important;
+      }
 
-/* CLI Journeys */
-#journeys { padding: 80px 24px; }
-.journey-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
-.journey-card { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; transition: all 0.2s; }
-.journey-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-.journey-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-.journey-card .journey-who { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; font-weight: 500; }
-.journey-step { display: flex; gap: 12px; margin-bottom: 12px; position: relative; }
-.journey-step:last-child { margin-bottom: 0; }
-.step-line { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0; }
-.step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
-.step-connector { width: 2px; flex: 1; min-height: 8px; margin-top: 4px; }
-.step-content { flex: 1; }
-.step-cmd { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: var(--surface); display: inline-block; margin-bottom: 2px; }
-.step-desc { font-size: 12px; color: var(--text-secondary); }
-.step-entities { font-size: 11px; color: var(--text-secondary); opacity: 0.7; font-style: italic; }
+      /* CLI Journeys */
+      #journeys {
+        padding: 80px 24px;
+      }
+      .journey-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .journey-card {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        transition: all 0.2s;
+      }
+      .journey-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+      }
+      .journey-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .journey-card .journey-who {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        font-weight: 500;
+      }
+      .journey-step {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+        position: relative;
+      }
+      .journey-step:last-child {
+        margin-bottom: 0;
+      }
+      .step-line {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 20px;
+        flex-shrink: 0;
+      }
+      .step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 6px;
+      }
+      .step-connector {
+        width: 2px;
+        flex: 1;
+        min-height: 8px;
+        margin-top: 4px;
+      }
+      .step-content {
+        flex: 1;
+      }
+      .step-cmd {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: var(--surface);
+        display: inline-block;
+        margin-bottom: 2px;
+      }
+      .step-desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .step-entities {
+        font-size: 11px;
+        color: var(--text-secondary);
+        opacity: 0.7;
+        font-style: italic;
+      }
 
-/* Detail panel */
-.detail-panel { position: fixed; right: -400px; top: 56px; bottom: 0; width: 380px; background: var(--bg); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg); transition: right 0.3s ease; z-index: 50; overflow-y: auto; padding: 24px; }
-.detail-panel.open { right: 0; }
-.detail-panel .close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
-.detail-panel h3 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-.detail-panel .detail-plane { font-size: 13px; font-weight: 600; margin-bottom: 16px; }
-.detail-panel .detail-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
-.detail-panel .detail-section { margin-bottom: 16px; }
-.detail-panel .detail-section h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px; }
-.detail-panel .rel-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
-.detail-panel .rel-item:hover { color: var(--plane-product); }
-.rel-arrow { color: var(--text-secondary); font-size: 11px; }
+      /* Detail panel */
+      .detail-panel {
+        position: fixed;
+        right: -400px;
+        top: 56px;
+        bottom: 0;
+        width: 380px;
+        background: var(--bg);
+        border-left: 1px solid var(--border);
+        box-shadow: var(--shadow-lg);
+        transition: right 0.3s ease;
+        z-index: 50;
+        overflow-y: auto;
+        padding: 24px;
+      }
+      .detail-panel.open {
+        right: 0;
+      }
+      .detail-panel .close-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: var(--text-secondary);
+      }
+      .detail-panel h3 {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .detail-panel .detail-plane {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      .detail-panel .detail-desc {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .detail-panel .detail-section {
+        margin-bottom: 16px;
+      }
+      .detail-panel .detail-section h4 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+      .detail-panel .rel-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .detail-panel .rel-item:hover {
+        color: var(--plane-product);
+      }
+      .rel-arrow {
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
 
-/* Reference table */
-#reference { padding: 80px 24px; background: var(--bg-alt); }
-.search-box { display: block; width: 100%; max-width: 500px; margin: 0 auto 24px; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 14px; color: var(--text); outline: none; transition: border-color 0.2s; }
-.search-box:focus { border-color: var(--plane-product); }
-.ref-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ref-table th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); cursor: pointer; }
-.ref-table th:hover { color: var(--text); }
-.ref-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.ref-table tr:hover td { background: var(--surface); }
-.ref-table .plane-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
+      /* Reference table */
+      #reference {
+        padding: 80px 24px;
+        background: var(--bg-alt);
+      }
+      .search-box {
+        display: block;
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto 24px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        font-size: 14px;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .search-box:focus {
+        border-color: var(--plane-product);
+      }
+      .ref-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .ref-table th {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 2px solid var(--border);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+      .ref-table th:hover {
+        color: var(--text);
+      }
+      .ref-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ref-table tr:hover td {
+        background: var(--surface);
+      }
+      .ref-table .plane-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+      }
 
-@media (max-width: 768px) {
-  #hero h1 { font-size: 32px; }
-  .halves-grid { grid-template-columns: 1fr; }
-  .halves-connector { flex-direction: row; padding-top: 0; }
-  .halves-connector .conn-line { width: 40px; height: 2px; }
-  .halves-connector .conn-label { writing-mode: horizontal-tb; }
-  .entity-grid, .journey-cards { grid-template-columns: 1fr; }
-  .detail-panel { width: 100%; right: -100%; }
-}
-</style>
-</head>
-<body>
-<nav>
-  <div class="logo">Factory</div>
-  <div class="nav-links">
-    <a href="#hero">Overview</a>
-    <a href="#halves">Architecture</a>
-    <a href="#planes">Planes</a>
-    <a href="#graph">Graph</a>
-    <a href="#journeys">CLI Journeys</a>
-    <a href="#reference">Reference</a>
-  </div>
-  <button class="theme-toggle" onclick="toggleTheme()">Dark</button>
-</nav>
+      @media (max-width: 768px) {
+        #hero h1 {
+          font-size: 32px;
+        }
+        .halves-grid {
+          grid-template-columns: 1fr;
+        }
+        .halves-connector {
+          flex-direction: row;
+          padding-top: 0;
+        }
+        .halves-connector .conn-line {
+          width: 40px;
+          height: 2px;
+        }
+        .halves-connector .conn-label {
+          writing-mode: horizontal-tb;
+        }
+        .entity-grid,
+        .journey-cards {
+          grid-template-columns: 1fr;
+        }
+        .detail-panel {
+          width: 100%;
+          right: -100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="logo">Factory</div>
+      <div class="nav-links">
+        <a href="#hero">Overview</a>
+        <a href="#halves">Architecture</a>
+        <a href="#planes">Planes</a>
+        <a href="#graph">Graph</a>
+        <a href="#journeys">CLI Journeys</a>
+        <a href="#reference">Reference</a>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()">Dark</button>
+    </nav>
 
-<section id="hero">
-  <h1>How Factory Runs<br>a Software Company</h1>
-  <p class="subtitle">Factory is the operating architecture that designs, builds, deploys, and monetizes all of your software products. It organizes the entire company into 6 planes &mdash; from product definition to infrastructure &mdash; with ~55 interconnected entities forming a complete digital twin of your business.</p>
-  <div class="hero-diagram">
-    <div class="hero-half"><h3>Factory (Central)</h3><div id="hero-factory-pills"></div></div>
-    <div class="hero-arrow"><svg width="48" height="48" viewBox="0 0 48 48"><path d="M12 24h24M30 18l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
-    <div class="hero-half"><h3>Site (Per Customer)</h3><div id="hero-site-pills"></div></div>
-  </div>
-</section>
+    <section id="hero">
+      <h1>How Factory Runs<br />a Software Company</h1>
+      <p class="subtitle">
+        Factory is the operating architecture that designs, builds, deploys, and
+        monetizes all of your software products. It organizes the entire company
+        into 6 planes &mdash; from product definition to infrastructure &mdash;
+        with ~55 interconnected entities forming a complete digital twin of your
+        business.
+      </p>
+      <div class="hero-diagram">
+        <div class="hero-half">
+          <h3>Factory (Central)</h3>
+          <div id="hero-factory-pills"></div>
+        </div>
+        <div class="hero-arrow">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <path
+              d="M12 24h24M30 18l6 6-6 6"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+            />
+          </svg>
+        </div>
+        <div class="hero-half">
+          <h3>Site (Per Customer)</h3>
+          <div id="hero-site-pills"></div>
+        </div>
+      </div>
+    </section>
 
-<section id="halves">
-  <div class="container">
-    <h2 class="section-title">Two Halves of the Platform</h2>
-    <p class="section-sub">Factory produces and manages Sites. Each Site governs itself &mdash; even in air-gapped or disconnected environments.</p>
-    <div class="halves-grid">
-      <div class="half-card"><h3>Factory</h3><p class="half-desc">The company-wide system that designs, builds, and operates all products. Runs once, centrally.</p><div id="factory-planes-list"></div></div>
-      <div class="halves-connector"><div class="conn-line"></div><div class="conn-label">Manifests &amp; Entitlements</div><div class="conn-line"></div></div>
-      <div class="half-card"><h3>Site</h3><p class="half-desc">A running instance of a product at a customer. Self-governing at runtime &mdash; capable of operating independently.</p><div id="site-planes-list"></div></div>
+    <section id="halves">
+      <div class="container">
+        <h2 class="section-title">Two Halves of the Platform</h2>
+        <p class="section-sub">
+          Factory produces and manages Sites. Each Site governs itself &mdash;
+          even in air-gapped or disconnected environments.
+        </p>
+        <div class="halves-grid">
+          <div class="half-card">
+            <h3>Factory</h3>
+            <p class="half-desc">
+              The company-wide system that designs, builds, and operates all
+              products. Runs once, centrally.
+            </p>
+            <div id="factory-planes-list"></div>
+          </div>
+          <div class="halves-connector">
+            <div class="conn-line"></div>
+            <div class="conn-label">Manifests &amp; Entitlements</div>
+            <div class="conn-line"></div>
+          </div>
+          <div class="half-card">
+            <h3>Site</h3>
+            <p class="half-desc">
+              A running instance of a product at a customer. Self-governing at
+              runtime &mdash; capable of operating independently.
+            </p>
+            <div id="site-planes-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="planes">
+      <div class="container">
+        <h2 class="section-title">The Six Planes</h2>
+        <p class="section-sub">
+          Each plane handles a distinct concern of the business. Click to
+          explore the entities within.
+        </p>
+        <div id="plane-cards"></div>
+      </div>
+    </section>
+
+    <section id="graph">
+      <div class="container">
+        <h2 class="section-title">Entity Relationship Graph</h2>
+        <p class="section-sub">
+          The connected graph of everything Factory tracks. Click nodes for
+          details, or follow a story journey.
+        </p>
+        <div class="graph-controls" id="plane-filters"></div>
+        <div class="journey-controls" id="journey-buttons"></div>
+        <div class="graph-container">
+          <svg
+            id="graph-svg"
+            viewBox="0 0 1200 800"
+            preserveAspectRatio="xMidYMid meet"
+          ></svg>
+        </div>
+      </div>
+    </section>
+
+    <section id="journeys">
+      <div class="container">
+        <h2 class="section-title">User Journeys Through the CLI</h2>
+        <p class="section-sub">
+          How developers and agents interact with Factory through
+          <code
+            style="
+              background: var(--surface);
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 14px;
+            "
+            >dx</code
+          >
+          commands &mdash; and the entities each command touches.
+        </p>
+        <div class="journey-cards" id="journey-cards"></div>
+      </div>
+    </section>
+
+    <section id="reference">
+      <div class="container">
+        <h2 class="section-title">Entity Reference</h2>
+        <p class="section-sub">
+          Search and browse all entities across every plane.
+        </p>
+        <input
+          type="text"
+          class="search-box"
+          placeholder="Search entities..."
+          id="entity-search"
+        />
+        <table class="ref-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Plane</th>
+              <th>Schema</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="ref-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="detail-panel" id="detail-panel">
+      <button class="close-btn" id="close-detail-btn">&times;</button>
+      <div id="detail-content"></div>
     </div>
-  </div>
-</section>
 
-<section id="planes">
-  <div class="container">
-    <h2 class="section-title">The Six Planes</h2>
-    <p class="section-sub">Each plane handles a distinct concern of the business. Click to explore the entities within.</p>
-    <div id="plane-cards"></div>
-  </div>
-</section>
+    <script>
+      // ============ ICONS (Lucide SVG bodies) ============
+      var ICONS = {
+        product:
+          '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7l8.7 5l8.7-5M12 22V12"/></g>',
+        build:
+          '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 12l-9.373 9.373a1 1 0 0 1-3.001-3L12 9m6 6l4-4"/><path d="m21.5 11.5l-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></g>',
+        agent:
+          '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2m16 0h2m-7-1v2m-6-2v2"/></g>',
+        commerce:
+          '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></g>',
+        ops: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></g>',
+        infra:
+          '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 6h.01M6 18h.01"/></g>',
+        org: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.128a4 4 0 0 1 0 7.744M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></g>',
+        control:
+          '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+        service:
+          '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19h8M4 17l6-6l-6-6"/>',
+        data: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></g>',
+      }
 
-<section id="graph">
-  <div class="container">
-    <h2 class="section-title">Entity Relationship Graph</h2>
-    <p class="section-sub">The connected graph of everything Factory tracks. Click nodes for details, or follow a story journey.</p>
-    <div class="graph-controls" id="plane-filters"></div>
-    <div class="journey-controls" id="journey-buttons"></div>
-    <div class="graph-container"><svg id="graph-svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet"></svg></div>
-  </div>
-</section>
+      function iconSvg(key, cls) {
+        return (
+          '<svg class="' +
+          (cls || "plane-icon") +
+          '" viewBox="0 0 24 24">' +
+          (ICONS[key] || "") +
+          "</svg>"
+        )
+      }
 
-<section id="journeys">
-  <div class="container">
-    <h2 class="section-title">User Journeys Through the CLI</h2>
-    <p class="section-sub">How developers and agents interact with Factory through <code style="background:var(--surface);padding:2px 6px;border-radius:4px;font-size:14px">dx</code> commands &mdash; and the entities each command touches.</p>
-    <div class="journey-cards" id="journey-cards"></div>
-  </div>
-</section>
+      // ============ DATA MODEL ============
+      var PLANES = {
+        product: {
+          color: "#6366f1",
+          label: "Product",
+          tagline: "What we build",
+          desc: "System of record for what gets built, why, and when it ships. Defines products, their components, APIs, and capabilities.",
+          scope: "factory",
+          icon: "product",
+        },
+        build: {
+          color: "#f59e0b",
+          label: "Build",
+          tagline: "How we build it",
+          desc: "Governs how software is constructed, tested, versioned, and packaged. Manages source code, CI/CD pipelines, and work tracking.",
+          scope: "factory",
+          icon: "build",
+        },
+        agent: {
+          color: "#10b981",
+          label: "Agent",
+          tagline: "AI workforce",
+          desc: "Infrastructure for AI agents that operate across the platform \u2014 writing code, reviewing PRs, triaging work, and monitoring systems.",
+          scope: "factory",
+          icon: "agent",
+        },
+        commerce: {
+          color: "#ec4899",
+          label: "Commerce",
+          tagline: "How we monetize",
+          desc: "Manages commercial relationships: customers, pricing plans, subscriptions, entitlements, and usage-based billing.",
+          scope: "factory",
+          icon: "commerce",
+        },
+        ops: {
+          color: "#3b82f6",
+          label: "Fleet / Ops",
+          tagline: "Where we deploy",
+          desc: "Manages what runs where \u2014 sites, deployments, workspaces, previews, databases, and the full deployment lifecycle.",
+          scope: "factory",
+          icon: "ops",
+        },
+        infra: {
+          color: "#ef4444",
+          label: "Infrastructure",
+          tagline: "What it runs on",
+          desc: "The substrate everything runs on \u2014 cloud accounts, hosts, container runtimes, networking, DNS, and tunnels.",
+          scope: "factory",
+          icon: "infra",
+        },
+        org: {
+          color: "#64748b",
+          label: "Organization",
+          tagline: "People & teams",
+          desc: "Cross-cutting organizational layer: teams, people, agents as unified actors, conversations, and the generic relationship graph.",
+          scope: "factory",
+          icon: "org",
+        },
+        control: {
+          color: "#8b5cf6",
+          label: "Control",
+          tagline: "Identity & access",
+          desc: "Per-site identity management, RBAC, policies, and audit trails.",
+          scope: "site",
+          icon: "control",
+        },
+        service: {
+          color: "#14b8a6",
+          label: "Service",
+          tagline: "Business logic",
+          desc: "Per-site business logic execution, jobs, workflows, and events.",
+          scope: "site",
+          icon: "service",
+        },
+        data: {
+          color: "#f97316",
+          label: "Data",
+          tagline: "Storage & analytics",
+          desc: "Per-site data storage, backups, analytics pipelines, and data governance.",
+          scope: "site",
+          icon: "data",
+        },
+      }
 
-<section id="reference">
-  <div class="container">
-    <h2 class="section-title">Entity Reference</h2>
-    <p class="section-sub">Search and browse all entities across every plane.</p>
-    <input type="text" class="search-box" placeholder="Search entities..." id="entity-search">
-    <table class="ref-table"><thead><tr><th>Name</th><th>Plane</th><th>Schema</th><th>Description</th></tr></thead><tbody id="ref-tbody"></tbody></table>
-  </div>
-</section>
+      var ENTITIES = [
+        {
+          id: "system",
+          name: "System",
+          plane: "product",
+          schema: "software",
+          prefix: "sys",
+          primary: true,
+          desc: 'A major product area your company builds and maintains \u2014 like "Traffic Management" or "Network Access"',
+        },
+        {
+          id: "component",
+          name: "Component",
+          plane: "product",
+          schema: "software",
+          prefix: "cmp",
+          primary: true,
+          desc: "A deployable piece of a system \u2014 a backend service, a website, a worker process, a database",
+        },
+        {
+          id: "api",
+          name: "API",
+          plane: "product",
+          schema: "software",
+          prefix: "api",
+          primary: false,
+          desc: "An interface contract (REST, gRPC, GraphQL) that a component exposes for others to use",
+        },
+        {
+          id: "artifact",
+          name: "Artifact",
+          plane: "product",
+          schema: "software",
+          prefix: "art",
+          primary: true,
+          desc: "A built output \u2014 a container image, binary, or package ready to deploy",
+        },
+        {
+          id: "release",
+          name: "Release",
+          plane: "product",
+          schema: "software",
+          prefix: "rel",
+          primary: true,
+          desc: "A versioned snapshot of a system that has been tested and approved for deployment",
+        },
+        {
+          id: "product",
+          name: "Product",
+          plane: "product",
+          schema: "software",
+          prefix: "prod",
+          primary: true,
+          desc: "A business offering sold to customers \u2014 composed of one or more systems",
+        },
+        {
+          id: "capability",
+          name: "Capability",
+          plane: "product",
+          schema: "software",
+          prefix: "cap",
+          primary: false,
+          desc: "A specific feature or function that can be enabled, billed, or entitled per customer",
+        },
+        {
+          id: "template",
+          name: "Template",
+          plane: "product",
+          schema: "software",
+          prefix: "tmpl",
+          primary: false,
+          desc: "A reusable scaffold for quickly creating new systems, components, or workspaces",
+        },
+        {
+          id: "repo",
+          name: "Repository",
+          plane: "build",
+          schema: "build",
+          prefix: "repo",
+          primary: true,
+          desc: "A source code repository containing the code for a system or library",
+        },
+        {
+          id: "gitHostProvider",
+          name: "Git Host",
+          plane: "build",
+          schema: "build",
+          prefix: "ghp",
+          primary: false,
+          desc: "A connected code hosting service \u2014 GitHub, GitLab, Gitea, or Bitbucket",
+        },
+        {
+          id: "pipelineRun",
+          name: "Pipeline Run",
+          plane: "build",
+          schema: "build",
+          prefix: "prun",
+          primary: false,
+          desc: "A single execution of a CI/CD pipeline \u2014 building, testing, and packaging code",
+        },
+        {
+          id: "systemVersion",
+          name: "System Version",
+          plane: "build",
+          schema: "build",
+          prefix: "sver",
+          primary: false,
+          desc: "A specific version of a system, with defined component artifacts",
+        },
+        {
+          id: "workTrackerProvider",
+          name: "Work Tracker",
+          plane: "build",
+          schema: "build",
+          prefix: "wtp",
+          primary: false,
+          desc: "A connected issue tracker \u2014 Jira or Linear \u2014 for syncing work items",
+        },
+        {
+          id: "workItem",
+          name: "Work Item",
+          plane: "build",
+          schema: "build",
+          prefix: "wi",
+          primary: true,
+          desc: "A unit of trackable work \u2014 an epic, story, task, or bug from your issue tracker",
+        },
+        {
+          id: "agent",
+          name: "Agent",
+          plane: "agent",
+          schema: "org",
+          prefix: "agt",
+          primary: true,
+          desc: "An AI worker \u2014 a first-class team member that writes code, reviews PRs, triages bugs, or monitors systems",
+        },
+        {
+          id: "job",
+          name: "Job",
+          plane: "agent",
+          schema: "org",
+          prefix: "job",
+          primary: true,
+          desc: "A discrete unit of work assigned to an agent \u2014 with status tracking, delegation, and cost reporting",
+        },
+        {
+          id: "memory",
+          name: "Memory",
+          plane: "agent",
+          schema: "org",
+          prefix: "mem",
+          primary: false,
+          desc: "Persistent knowledge an agent accumulates \u2014 facts, decisions, patterns learned across work sessions",
+        },
+        {
+          id: "rolePreset",
+          name: "Role Preset",
+          plane: "agent",
+          schema: "org",
+          prefix: "rpre",
+          primary: false,
+          desc: "A named configuration for agent behavior \u2014 engineer, reviewer, PM, QA, ops, etc.",
+        },
+        {
+          id: "toolCredential",
+          name: "Tool Credential",
+          plane: "agent",
+          schema: "org",
+          prefix: "tcred",
+          primary: false,
+          desc: "API keys and credentials that agents use to access external tools and services",
+        },
+        {
+          id: "customer",
+          name: "Customer",
+          plane: "commerce",
+          schema: "commerce",
+          prefix: "cust",
+          primary: true,
+          desc: "A company or organization that buys your products \u2014 one account across all products",
+        },
+        {
+          id: "plan",
+          name: "Plan",
+          plane: "commerce",
+          schema: "commerce",
+          prefix: "pln",
+          primary: true,
+          desc: "A pricing tier \u2014 base, add-on, or suite \u2014 defining what customers get at each price point",
+        },
+        {
+          id: "subscription",
+          name: "Subscription",
+          plane: "commerce",
+          schema: "commerce",
+          prefix: "sub",
+          primary: true,
+          desc: "A customer's active agreement to a plan \u2014 the commercial relationship that generates revenue",
+        },
+        {
+          id: "subscriptionItem",
+          name: "Entitlement",
+          plane: "commerce",
+          schema: "commerce",
+          prefix: "subi",
+          primary: false,
+          desc: "A specific capability granted to a customer through their subscription",
+        },
+        {
+          id: "billableMetric",
+          name: "Billable Metric",
+          plane: "commerce",
+          schema: "commerce",
+          prefix: "bmet",
+          primary: false,
+          desc: "A usage-based billing unit \u2014 API calls, storage, compute hours \u2014 tied to a capability",
+        },
+        {
+          id: "site",
+          name: "Site",
+          plane: "ops",
+          schema: "ops",
+          prefix: "site",
+          primary: true,
+          desc: "A deployed environment for a purpose \u2014 production, staging, or a customer-specific instance",
+        },
+        {
+          id: "tenant",
+          name: "Tenant",
+          plane: "ops",
+          schema: "ops",
+          prefix: "tnt",
+          primary: true,
+          desc: "A customer's isolated space within a shared site \u2014 their data, config, and access boundary",
+        },
+        {
+          id: "systemDeployment",
+          name: "System Deployment",
+          plane: "ops",
+          schema: "ops",
+          prefix: "sdp",
+          primary: true,
+          desc: "A system running at a specific site \u2014 the bridge between what you build and where it runs",
+        },
+        {
+          id: "componentDeployment",
+          name: "Component Deployment",
+          plane: "ops",
+          schema: "ops",
+          prefix: "cdp",
+          primary: false,
+          desc: "A single running component \u2014 the actual process serving traffic or processing work",
+        },
+        {
+          id: "workspace",
+          name: "Workspace",
+          plane: "ops",
+          schema: "ops",
+          prefix: "wks",
+          primary: true,
+          desc: "A developer or agent sandbox \u2014 a personal environment for building, testing, and experimenting",
+        },
+        {
+          id: "preview",
+          name: "Preview",
+          plane: "ops",
+          schema: "ops",
+          prefix: "prev",
+          primary: false,
+          desc: "A temporary deployment for reviewing a pull request before merging",
+        },
+        {
+          id: "rollout",
+          name: "Rollout",
+          plane: "ops",
+          schema: "ops",
+          prefix: "rout",
+          primary: false,
+          desc: "The act of deploying a release to a site \u2014 progressive, canary, or instant",
+        },
+        {
+          id: "opsDatabase",
+          name: "Database",
+          plane: "ops",
+          schema: "ops",
+          prefix: "db",
+          primary: false,
+          desc: "A managed database instance associated with a deployed system",
+        },
+        {
+          id: "substrate",
+          name: "Substrate",
+          plane: "infra",
+          schema: "infra",
+          prefix: "subs",
+          primary: true,
+          desc: "A layer of infrastructure \u2014 a cloud account, region, datacenter, VPC, or subnet",
+        },
+        {
+          id: "host",
+          name: "Host",
+          plane: "infra",
+          schema: "infra",
+          prefix: "host",
+          primary: true,
+          desc: "A physical or virtual machine that runs workloads \u2014 a bare-metal server, VM, or cloud instance",
+        },
+        {
+          id: "runtime",
+          name: "Runtime",
+          plane: "infra",
+          schema: "infra",
+          prefix: "rt",
+          primary: true,
+          desc: "An execution environment \u2014 a Kubernetes cluster, Docker engine, or systemd process manager",
+        },
+        {
+          id: "route",
+          name: "Route",
+          plane: "infra",
+          schema: "infra",
+          prefix: "rte",
+          primary: false,
+          desc: "A network path that exposes a service to users \u2014 an ingress rule, custom domain, or tunnel endpoint",
+        },
+        {
+          id: "dnsDomain",
+          name: "DNS Domain",
+          plane: "infra",
+          schema: "infra",
+          prefix: "dom",
+          primary: false,
+          desc: "A domain name record \u2014 the human-readable address users type to reach your services",
+        },
+        {
+          id: "tunnel",
+          name: "Tunnel",
+          plane: "infra",
+          schema: "infra",
+          prefix: "tun",
+          primary: false,
+          desc: "A secure bridge connecting a developer's local machine to the cloud for testing",
+        },
+        {
+          id: "networkLink",
+          name: "Network Link",
+          plane: "infra",
+          schema: "infra",
+          prefix: "nwl",
+          primary: false,
+          desc: "A connection between infrastructure elements \u2014 proxy, mesh, peering, or firewall rule",
+        },
+        {
+          id: "team",
+          name: "Team",
+          plane: "org",
+          schema: "org",
+          prefix: "team",
+          primary: true,
+          desc: "An organizational unit \u2014 a team, business unit, or product area that owns systems and people",
+        },
+        {
+          id: "principal",
+          name: "Principal",
+          plane: "org",
+          schema: "org",
+          prefix: "prin",
+          primary: true,
+          desc: "Any actor in the system \u2014 a human user, an AI agent, or a service account \u2014 unified under one identity model",
+        },
+        {
+          id: "channel",
+          name: "Channel",
+          plane: "org",
+          schema: "org",
+          prefix: "chan",
+          primary: false,
+          desc: "A communication surface \u2014 an IDE session, Slack channel, GitHub PR, or terminal where work happens",
+        },
+        {
+          id: "thread",
+          name: "Thread",
+          plane: "org",
+          schema: "org",
+          prefix: "thrd",
+          primary: false,
+          desc: "A conversation between people and/or agents \u2014 in an IDE, chat, code review, or autonomous session",
+        },
+        {
+          id: "entityRelationship",
+          name: "Entity Link",
+          plane: "org",
+          schema: "org",
+          prefix: "erel",
+          primary: false,
+          desc: 'A generic graph edge connecting any two entities \u2014 "depends on", "consumes", "owns", "triggers"',
+        },
+        {
+          id: "configVar",
+          name: "Config Var",
+          plane: "org",
+          schema: "org",
+          prefix: "cvar",
+          primary: false,
+          desc: "A configuration setting scoped to an org, team, project, or person \u2014 with environment awareness",
+        },
+        {
+          id: "secret",
+          name: "Secret",
+          plane: "org",
+          schema: "org",
+          prefix: "sec",
+          primary: false,
+          desc: "An encrypted secret (API key, password) with rotation support and scope-based access control",
+        },
+      ]
 
-<div class="detail-panel" id="detail-panel">
-  <button class="close-btn" id="close-detail-btn">&times;</button>
-  <div id="detail-content"></div>
-</div>
+      var EDGES = [
+        { source: "product", target: "system", ceoLabel: "is made of" },
+        { source: "system", target: "component", ceoLabel: "is made of" },
+        { source: "component", target: "api", ceoLabel: "exposes" },
+        { source: "component", target: "artifact", ceoLabel: "produces" },
+        { source: "system", target: "release", ceoLabel: "ships as" },
+        { source: "product", target: "capability", ceoLabel: "offers" },
+        { source: "repo", target: "system", ceoLabel: "holds code for" },
+        { source: "repo", target: "pipelineRun", ceoLabel: "triggers" },
+        { source: "pipelineRun", target: "artifact", ceoLabel: "builds" },
+        { source: "system", target: "systemVersion", ceoLabel: "versions as" },
+        { source: "workItem", target: "system", ceoLabel: "is work for" },
+        {
+          source: "workTrackerProvider",
+          target: "workItem",
+          ceoLabel: "syncs",
+        },
+        { source: "agent", target: "principal", ceoLabel: "is a type of" },
+        { source: "agent", target: "job", ceoLabel: "works on" },
+        { source: "job", target: "thread", ceoLabel: "communicates via" },
+        { source: "thread", target: "channel", ceoLabel: "happens in" },
+        { source: "agent", target: "memory", ceoLabel: "remembers" },
+        {
+          source: "customer",
+          target: "subscription",
+          ceoLabel: "subscribes to",
+        },
+        { source: "subscription", target: "plan", ceoLabel: "is on" },
+        {
+          source: "subscription",
+          target: "subscriptionItem",
+          ceoLabel: "includes",
+        },
+        {
+          source: "subscriptionItem",
+          target: "capability",
+          ceoLabel: "unlocks",
+        },
+        {
+          source: "capability",
+          target: "billableMetric",
+          ceoLabel: "is metered by",
+        },
+        { source: "site", target: "tenant", ceoLabel: "hosts" },
+        { source: "tenant", target: "customer", ceoLabel: "belongs to" },
+        { source: "site", target: "systemDeployment", ceoLabel: "runs" },
+        { source: "systemDeployment", target: "system", ceoLabel: "deploys" },
+        {
+          source: "systemDeployment",
+          target: "componentDeployment",
+          ceoLabel: "contains",
+        },
+        {
+          source: "componentDeployment",
+          target: "component",
+          ceoLabel: "runs",
+        },
+        { source: "componentDeployment", target: "artifact", ceoLabel: "uses" },
+        { source: "rollout", target: "release", ceoLabel: "ships" },
+        { source: "rollout", target: "systemDeployment", ceoLabel: "targets" },
+        { source: "systemDeployment", target: "runtime", ceoLabel: "runs on" },
+        { source: "workspace", target: "host", ceoLabel: "runs on" },
+        { source: "substrate", target: "host", ceoLabel: "contains" },
+        { source: "host", target: "runtime", ceoLabel: "runs" },
+        { source: "runtime", target: "route", ceoLabel: "exposes via" },
+        { source: "route", target: "dnsDomain", ceoLabel: "serves at" },
+        { source: "route", target: "tunnel", ceoLabel: "connects via" },
+        { source: "team", target: "system", ceoLabel: "owns" },
+        { source: "team", target: "repo", ceoLabel: "owns" },
+        { source: "team", target: "principal", ceoLabel: "has members" },
+        { source: "principal", target: "workspace", ceoLabel: "uses" },
+        { source: "dnsDomain", target: "site", ceoLabel: "points to" },
+      ]
 
-<script>
-// ============ ICONS (Lucide SVG bodies) ============
-var ICONS = {
-  product: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7l8.7 5l8.7-5M12 22V12"/></g>',
-  build: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 12l-9.373 9.373a1 1 0 0 1-3.001-3L12 9m6 6l4-4"/><path d="m21.5 11.5l-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></g>',
-  agent: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2m16 0h2m-7-1v2m-6-2v2"/></g>',
-  commerce: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></g>',
-  ops: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></g>',
-  infra: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 6h.01M6 18h.01"/></g>',
-  org: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.128a4 4 0 0 1 0 7.744M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></g>',
-  control: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
-  service: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19h8M4 17l6-6l-6-6"/>',
-  data: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></g>',
-};
+      var JOURNEYS = [
+        {
+          id: "idea-to-customer",
+          label: "Idea \u2192 Customer",
+          nodes: [
+            "product",
+            "system",
+            "component",
+            "artifact",
+            "release",
+            "rollout",
+            "systemDeployment",
+            "site",
+            "tenant",
+            "customer",
+          ],
+          color: "#6366f1",
+        },
+        {
+          id: "code-to-prod",
+          label: "Code \u2192 Production",
+          nodes: [
+            "repo",
+            "pipelineRun",
+            "artifact",
+            "release",
+            "rollout",
+            "systemDeployment",
+            "componentDeployment",
+          ],
+          color: "#f59e0b",
+        },
+        {
+          id: "revenue",
+          label: "Revenue Flow",
+          nodes: [
+            "customer",
+            "subscription",
+            "plan",
+            "subscriptionItem",
+            "capability",
+            "billableMetric",
+            "product",
+          ],
+          color: "#ec4899",
+        },
+        {
+          id: "infra-stack",
+          label: "Infrastructure Stack",
+          nodes: ["substrate", "host", "runtime", "route", "dnsDomain", "site"],
+          color: "#ef4444",
+        },
+        {
+          id: "ai-work",
+          label: "AI Work Execution",
+          nodes: ["agent", "principal", "job", "thread", "channel", "memory"],
+          color: "#10b981",
+        },
+        {
+          id: "ownership",
+          label: "Ownership Chain",
+          nodes: [
+            "team",
+            "principal",
+            "system",
+            "component",
+            "repo",
+            "workspace",
+          ],
+          color: "#64748b",
+        },
+      ]
 
-function iconSvg(key, cls) {
-  return '<svg class="' + (cls || 'plane-icon') + '" viewBox="0 0 24 24">' + (ICONS[key] || '') + '</svg>';
-}
+      // CLI Journeys data
+      var CLI_JOURNEYS = [
+        {
+          title: "New Developer Onboarding",
+          who: "Developer, first day",
+          color: "#6366f1",
+          steps: [
+            {
+              cmd: "dx init",
+              desc: "Scaffold a new project from a template",
+              entities: "Template, System, Component",
+            },
+            {
+              cmd: "dx sync",
+              desc: "Install hooks, deps, codegen, and env files",
+              entities: "Repo, Workspace",
+            },
+            {
+              cmd: "dx up",
+              desc: "Start infrastructure (Postgres, Redis, etc.)",
+              entities: "Runtime, Host",
+            },
+            {
+              cmd: "dx dev",
+              desc: "Start dev servers with hot reload",
+              entities: "Workspace, Component",
+            },
+            {
+              cmd: "dx status",
+              desc: "Verify everything is healthy",
+              entities: "Workspace, Runtime",
+            },
+          ],
+        },
+        {
+          title: "Daily Development Loop",
+          who: "Developer or Agent",
+          color: "#f59e0b",
+          steps: [
+            {
+              cmd: "dx dev",
+              desc: "Start local dev environment",
+              entities: "Workspace, Component",
+            },
+            {
+              cmd: "dx db migrate status",
+              desc: "Check for pending schema changes",
+              entities: "Database",
+            },
+            {
+              cmd: "dx test",
+              desc: "Run auto-detected test suite",
+              entities: "Pipeline Run, Repo",
+            },
+            {
+              cmd: "dx lint && dx typecheck",
+              desc: "Run linter and type checker",
+              entities: "Repo",
+            },
+            {
+              cmd: "dx check",
+              desc: "Run all quality gates at once",
+              entities: "Pipeline Run",
+            },
+            {
+              cmd: "git commit && git push",
+              desc: "dx hooks enforce conventions",
+              entities: "Repo, System Version",
+            },
+          ],
+        },
+        {
+          title: "Code Review & Preview",
+          who: "Developer or Review Agent",
+          color: "#3b82f6",
+          steps: [
+            {
+              cmd: "git push (PR opened)",
+              desc: "Triggers CI pipeline and preview build",
+              entities: "Pipeline Run, Artifact",
+            },
+            {
+              cmd: "dx preview deploy",
+              desc: "Deploy a live preview of the PR",
+              entities: "Preview, Site, Route",
+            },
+            {
+              cmd: "dx preview status",
+              desc: "Check preview deployment progress",
+              entities: "Preview, Component Deployment",
+            },
+            {
+              cmd: "dx preview open",
+              desc: "Open preview URL in browser",
+              entities: "Route, DNS Domain",
+            },
+            {
+              cmd: "dx agent run reviewer",
+              desc: "Run AI code review agent on the PR",
+              entities: "Agent, Job, Thread",
+            },
+            {
+              cmd: "dx preview destroy",
+              desc: "Tear down after merge",
+              entities: "Preview",
+            },
+          ],
+        },
+        {
+          title: "Database Operations",
+          who: "Developer or DBA Agent",
+          color: "#14b8a6",
+          steps: [
+            {
+              cmd: "dx db connect",
+              desc: "Open interactive database shell",
+              entities: "Database",
+            },
+            {
+              cmd: "dx db table",
+              desc: "List tables with row counts and sizes",
+              entities: "Database",
+            },
+            {
+              cmd: "dx db migrate create add-users",
+              desc: "Create a new migration",
+              entities: "Database, System Version",
+            },
+            {
+              cmd: "dx db migrate up",
+              desc: "Apply pending migrations",
+              entities: "Database",
+            },
+            {
+              cmd: "dx db backup create",
+              desc: "Snapshot the database",
+              entities: "Database",
+            },
+            {
+              cmd: "dx db seed",
+              desc: "Load seed data for development",
+              entities: "Database",
+            },
+          ],
+        },
+        {
+          title: "Release & Deploy",
+          who: "Release Manager or Ops Agent",
+          color: "#ec4899",
+          steps: [
+            {
+              cmd: "dx release create",
+              desc: "Create a versioned release bundle",
+              entities: "Release, System Version, Artifact",
+            },
+            {
+              cmd: "dx deploy create --site staging",
+              desc: "Roll out to staging site",
+              entities: "Rollout, System Deployment, Site",
+            },
+            {
+              cmd: "dx deploy status",
+              desc: "Monitor rollout progress",
+              entities: "Rollout, Component Deployment",
+            },
+            {
+              cmd: "dx deploy create --site prod",
+              desc: "Promote to production",
+              entities: "Rollout, Site, Tenant",
+            },
+            {
+              cmd: "dx site list",
+              desc: "View all deployed sites",
+              entities: "Site, System Deployment",
+            },
+          ],
+        },
+        {
+          title: "Infrastructure Management",
+          who: "Platform Engineer or Infra Agent",
+          color: "#ef4444",
+          steps: [
+            {
+              cmd: "dx infra",
+              desc: "View infrastructure inventory",
+              entities: "Substrate, Host, Runtime",
+            },
+            {
+              cmd: "dx tunnel",
+              desc: "Open a secure tunnel for local testing",
+              entities: "Tunnel, Route",
+            },
+            {
+              cmd: "dx domain",
+              desc: "Manage DNS domains and routing",
+              entities: "DNS Domain, Route",
+            },
+            {
+              cmd: "dx secret",
+              desc: "Manage encrypted secrets by scope",
+              entities: "Secret",
+            },
+            {
+              cmd: "dx var",
+              desc: "Manage config vars by environment",
+              entities: "Config Var",
+            },
+            {
+              cmd: "dx ssh",
+              desc: "SSH into a host or container",
+              entities: "Host, Workspace",
+            },
+          ],
+        },
+        {
+          title: "Agent Operations",
+          who: "Team Lead or Agent Supervisor",
+          color: "#10b981",
+          steps: [
+            {
+              cmd: "dx agent list",
+              desc: "View registered AI agents and their status",
+              entities: "Agent, Principal",
+            },
+            {
+              cmd: "dx agent run engineer",
+              desc: "Assign a coding task to an agent",
+              entities: "Agent, Job, Role Preset",
+            },
+            {
+              cmd: "dx agent skill list",
+              desc: "View installed agent skills",
+              entities: "Agent, Tool Credential",
+            },
+            {
+              cmd: "dx agent skill add",
+              desc: "Install a new skill from registry",
+              entities: "Agent",
+            },
+            {
+              cmd: "dx work",
+              desc: "View and manage work items from Jira/Linear",
+              entities: "Work Item, Work Tracker",
+            },
+          ],
+        },
+        {
+          title: "Workbench & Environment",
+          who: "Developer or CI system",
+          color: "#64748b",
+          steps: [
+            {
+              cmd: "dx workbench",
+              desc: "Manage developer workbenches",
+              entities: "Workbench, Principal",
+            },
+            {
+              cmd: "dx env",
+              desc: "View and set environment variables",
+              entities: "Config Var, Secret",
+            },
+            {
+              cmd: "dx forward",
+              desc: "Forward a port from workbench to local",
+              entities: "Workbench, Route",
+            },
+            {
+              cmd: "dx doctor",
+              desc: "Diagnose environment health issues",
+              entities: "Workbench, Host",
+            },
+            {
+              cmd: "dx down --volumes",
+              desc: "Clean reset of local infrastructure",
+              entities: "Compose, Host",
+            },
+          ],
+        },
+      ]
 
-// ============ DATA MODEL ============
-var PLANES = {
-  product:  { color: '#6366f1', label: 'Product',        tagline: 'What we build',      desc: 'System of record for what gets built, why, and when it ships. Defines products, their components, APIs, and capabilities.', scope: 'factory', icon: 'product' },
-  build:    { color: '#f59e0b', label: 'Build',           tagline: 'How we build it',    desc: 'Governs how software is constructed, tested, versioned, and packaged. Manages source code, CI/CD pipelines, and work tracking.', scope: 'factory', icon: 'build' },
-  agent:    { color: '#10b981', label: 'Agent',           tagline: 'AI workforce',       desc: 'Infrastructure for AI agents that operate across the platform \u2014 writing code, reviewing PRs, triaging work, and monitoring systems.', scope: 'factory', icon: 'agent' },
-  commerce: { color: '#ec4899', label: 'Commerce',        tagline: 'How we monetize',    desc: 'Manages commercial relationships: customers, pricing plans, subscriptions, entitlements, and usage-based billing.', scope: 'factory', icon: 'commerce' },
-  ops:      { color: '#3b82f6', label: 'Fleet / Ops',     tagline: 'Where we deploy',    desc: 'Manages what runs where \u2014 sites, deployments, workspaces, previews, databases, and the full deployment lifecycle.', scope: 'factory', icon: 'ops' },
-  infra:    { color: '#ef4444', label: 'Infrastructure',  tagline: 'What it runs on',    desc: 'The substrate everything runs on \u2014 cloud accounts, hosts, container runtimes, networking, DNS, and tunnels.', scope: 'factory', icon: 'infra' },
-  org:      { color: '#64748b', label: 'Organization',    tagline: 'People & teams',     desc: 'Cross-cutting organizational layer: teams, people, agents as unified actors, conversations, and the generic relationship graph.', scope: 'factory', icon: 'org' },
-  control:  { color: '#8b5cf6', label: 'Control',         tagline: 'Identity & access',  desc: 'Per-site identity management, RBAC, policies, and audit trails.', scope: 'site', icon: 'control' },
-  service:  { color: '#14b8a6', label: 'Service',         tagline: 'Business logic',     desc: 'Per-site business logic execution, jobs, workflows, and events.', scope: 'site', icon: 'service' },
-  data:     { color: '#f97316', label: 'Data',            tagline: 'Storage & analytics', desc: 'Per-site data storage, backups, analytics pipelines, and data governance.', scope: 'site', icon: 'data' },
-};
+      // ============ RENDERING HELPERS ============
+      function el(tag, attrs, children) {
+        var e = document.createElement(tag)
+        if (attrs)
+          Object.keys(attrs).forEach(function (k) {
+            if (k === "text") e.textContent = attrs[k]
+            else if (k === "html") e.innerHTML = attrs[k]
+            else if (k === "style" && typeof attrs[k] === "object")
+              Object.assign(e.style, attrs[k])
+            else if (k.indexOf("on") === 0)
+              e.addEventListener(k.slice(2), attrs[k])
+            else e.setAttribute(k, attrs[k])
+          })
+        if (children)
+          children.forEach(function (c) {
+            if (c)
+              e.appendChild(
+                typeof c === "string" ? document.createTextNode(c) : c
+              )
+          })
+        return e
+      }
 
-var ENTITIES = [
-  { id: 'system',       name: 'System',       plane: 'product', schema: 'software', prefix: 'sys',  primary: true,  desc: 'A major product area your company builds and maintains \u2014 like "Traffic Management" or "Network Access"' },
-  { id: 'component',    name: 'Component',    plane: 'product', schema: 'software', prefix: 'cmp',  primary: true,  desc: 'A deployable piece of a system \u2014 a backend service, a website, a worker process, a database' },
-  { id: 'api',          name: 'API',          plane: 'product', schema: 'software', prefix: 'api',  primary: false, desc: 'An interface contract (REST, gRPC, GraphQL) that a component exposes for others to use' },
-  { id: 'artifact',     name: 'Artifact',     plane: 'product', schema: 'software', prefix: 'art',  primary: true,  desc: 'A built output \u2014 a container image, binary, or package ready to deploy' },
-  { id: 'release',      name: 'Release',      plane: 'product', schema: 'software', prefix: 'rel',  primary: true,  desc: 'A versioned snapshot of a system that has been tested and approved for deployment' },
-  { id: 'product',      name: 'Product',      plane: 'product', schema: 'software', prefix: 'prod', primary: true,  desc: 'A business offering sold to customers \u2014 composed of one or more systems' },
-  { id: 'capability',   name: 'Capability',   plane: 'product', schema: 'software', prefix: 'cap',  primary: false, desc: 'A specific feature or function that can be enabled, billed, or entitled per customer' },
-  { id: 'template',     name: 'Template',     plane: 'product', schema: 'software', prefix: 'tmpl', primary: false, desc: 'A reusable scaffold for quickly creating new systems, components, or workspaces' },
-  { id: 'repo',              name: 'Repository',     plane: 'build', schema: 'build', prefix: 'repo', primary: true,  desc: 'A source code repository containing the code for a system or library' },
-  { id: 'gitHostProvider',   name: 'Git Host',       plane: 'build', schema: 'build', prefix: 'ghp',  primary: false, desc: 'A connected code hosting service \u2014 GitHub, GitLab, Gitea, or Bitbucket' },
-  { id: 'pipelineRun',       name: 'Pipeline Run',   plane: 'build', schema: 'build', prefix: 'prun', primary: false, desc: 'A single execution of a CI/CD pipeline \u2014 building, testing, and packaging code' },
-  { id: 'systemVersion',     name: 'System Version', plane: 'build', schema: 'build', prefix: 'sver', primary: false, desc: 'A specific version of a system, with defined component artifacts' },
-  { id: 'workTrackerProvider', name: 'Work Tracker', plane: 'build', schema: 'build', prefix: 'wtp',  primary: false, desc: 'A connected issue tracker \u2014 Jira or Linear \u2014 for syncing work items' },
-  { id: 'workItem',          name: 'Work Item',      plane: 'build', schema: 'build', prefix: 'wi',   primary: true,  desc: 'A unit of trackable work \u2014 an epic, story, task, or bug from your issue tracker' },
-  { id: 'agent',        name: 'Agent',        plane: 'agent', schema: 'org', prefix: 'agt',  primary: true,  desc: 'An AI worker \u2014 a first-class team member that writes code, reviews PRs, triages bugs, or monitors systems' },
-  { id: 'job',          name: 'Job',          plane: 'agent', schema: 'org', prefix: 'job',  primary: true,  desc: 'A discrete unit of work assigned to an agent \u2014 with status tracking, delegation, and cost reporting' },
-  { id: 'memory',       name: 'Memory',       plane: 'agent', schema: 'org', prefix: 'mem',  primary: false, desc: 'Persistent knowledge an agent accumulates \u2014 facts, decisions, patterns learned across work sessions' },
-  { id: 'rolePreset',   name: 'Role Preset',  plane: 'agent', schema: 'org', prefix: 'rpre', primary: false, desc: 'A named configuration for agent behavior \u2014 engineer, reviewer, PM, QA, ops, etc.' },
-  { id: 'toolCredential', name: 'Tool Credential', plane: 'agent', schema: 'org', prefix: 'tcred', primary: false, desc: 'API keys and credentials that agents use to access external tools and services' },
-  { id: 'customer',         name: 'Customer',        plane: 'commerce', schema: 'commerce', prefix: 'cust', primary: true,  desc: 'A company or organization that buys your products \u2014 one account across all products' },
-  { id: 'plan',             name: 'Plan',            plane: 'commerce', schema: 'commerce', prefix: 'pln',  primary: true,  desc: 'A pricing tier \u2014 base, add-on, or suite \u2014 defining what customers get at each price point' },
-  { id: 'subscription',     name: 'Subscription',    plane: 'commerce', schema: 'commerce', prefix: 'sub',  primary: true,  desc: 'A customer\'s active agreement to a plan \u2014 the commercial relationship that generates revenue' },
-  { id: 'subscriptionItem', name: 'Entitlement',     plane: 'commerce', schema: 'commerce', prefix: 'subi', primary: false, desc: 'A specific capability granted to a customer through their subscription' },
-  { id: 'billableMetric',   name: 'Billable Metric', plane: 'commerce', schema: 'commerce', prefix: 'bmet', primary: false, desc: 'A usage-based billing unit \u2014 API calls, storage, compute hours \u2014 tied to a capability' },
-  { id: 'site',              name: 'Site',               plane: 'ops', schema: 'ops', prefix: 'site', primary: true,  desc: 'A deployed environment for a purpose \u2014 production, staging, or a customer-specific instance' },
-  { id: 'tenant',            name: 'Tenant',             plane: 'ops', schema: 'ops', prefix: 'tnt',  primary: true,  desc: 'A customer\'s isolated space within a shared site \u2014 their data, config, and access boundary' },
-  { id: 'systemDeployment',  name: 'System Deployment',  plane: 'ops', schema: 'ops', prefix: 'sdp',  primary: true,  desc: 'A system running at a specific site \u2014 the bridge between what you build and where it runs' },
-  { id: 'componentDeployment', name: 'Component Deployment', plane: 'ops', schema: 'ops', prefix: 'cdp', primary: false, desc: 'A single running component \u2014 the actual process serving traffic or processing work' },
-  { id: 'workspace',         name: 'Workspace',          plane: 'ops', schema: 'ops', prefix: 'wks',  primary: true,  desc: 'A developer or agent sandbox \u2014 a personal environment for building, testing, and experimenting' },
-  { id: 'preview',           name: 'Preview',            plane: 'ops', schema: 'ops', prefix: 'prev', primary: false, desc: 'A temporary deployment for reviewing a pull request before merging' },
-  { id: 'rollout',           name: 'Rollout',            plane: 'ops', schema: 'ops', prefix: 'rout', primary: false, desc: 'The act of deploying a release to a site \u2014 progressive, canary, or instant' },
-  { id: 'opsDatabase',       name: 'Database',           plane: 'ops', schema: 'ops', prefix: 'db',   primary: false, desc: 'A managed database instance associated with a deployed system' },
-  { id: 'substrate',   name: 'Substrate',    plane: 'infra', schema: 'infra', prefix: 'subs', primary: true,  desc: 'A layer of infrastructure \u2014 a cloud account, region, datacenter, VPC, or subnet' },
-  { id: 'host',        name: 'Host',         plane: 'infra', schema: 'infra', prefix: 'host', primary: true,  desc: 'A physical or virtual machine that runs workloads \u2014 a bare-metal server, VM, or cloud instance' },
-  { id: 'runtime',     name: 'Runtime',      plane: 'infra', schema: 'infra', prefix: 'rt',   primary: true,  desc: 'An execution environment \u2014 a Kubernetes cluster, Docker engine, or systemd process manager' },
-  { id: 'route',       name: 'Route',        plane: 'infra', schema: 'infra', prefix: 'rte',  primary: false, desc: 'A network path that exposes a service to users \u2014 an ingress rule, custom domain, or tunnel endpoint' },
-  { id: 'dnsDomain',   name: 'DNS Domain',   plane: 'infra', schema: 'infra', prefix: 'dom',  primary: false, desc: 'A domain name record \u2014 the human-readable address users type to reach your services' },
-  { id: 'tunnel',      name: 'Tunnel',       plane: 'infra', schema: 'infra', prefix: 'tun',  primary: false, desc: 'A secure bridge connecting a developer\'s local machine to the cloud for testing' },
-  { id: 'networkLink', name: 'Network Link', plane: 'infra', schema: 'infra', prefix: 'nwl',  primary: false, desc: 'A connection between infrastructure elements \u2014 proxy, mesh, peering, or firewall rule' },
-  { id: 'team',        name: 'Team',         plane: 'org', schema: 'org', prefix: 'team', primary: true,  desc: 'An organizational unit \u2014 a team, business unit, or product area that owns systems and people' },
-  { id: 'principal',   name: 'Principal',    plane: 'org', schema: 'org', prefix: 'prin', primary: true,  desc: 'Any actor in the system \u2014 a human user, an AI agent, or a service account \u2014 unified under one identity model' },
-  { id: 'channel',     name: 'Channel',      plane: 'org', schema: 'org', prefix: 'chan', primary: false, desc: 'A communication surface \u2014 an IDE session, Slack channel, GitHub PR, or terminal where work happens' },
-  { id: 'thread',      name: 'Thread',       plane: 'org', schema: 'org', prefix: 'thrd', primary: false, desc: 'A conversation between people and/or agents \u2014 in an IDE, chat, code review, or autonomous session' },
-  { id: 'entityRelationship', name: 'Entity Link', plane: 'org', schema: 'org', prefix: 'erel', primary: false, desc: 'A generic graph edge connecting any two entities \u2014 "depends on", "consumes", "owns", "triggers"' },
-  { id: 'configVar',   name: 'Config Var',   plane: 'org', schema: 'org', prefix: 'cvar', primary: false, desc: 'A configuration setting scoped to an org, team, project, or person \u2014 with environment awareness' },
-  { id: 'secret',      name: 'Secret',       plane: 'org', schema: 'org', prefix: 'sec',  primary: false, desc: 'An encrypted secret (API key, password) with rotation support and scope-based access control' },
-];
+      function toggleTheme() {
+        var isDark =
+          document.documentElement.getAttribute("data-theme") === "dark"
+        document.documentElement.setAttribute(
+          "data-theme",
+          isDark ? "" : "dark"
+        )
+        document.querySelector(".theme-toggle").textContent = isDark
+          ? "Dark"
+          : "Light"
+        renderGraph()
+      }
 
-var EDGES = [
-  { source: 'product',    target: 'system',      ceoLabel: 'is made of' },
-  { source: 'system',     target: 'component',   ceoLabel: 'is made of' },
-  { source: 'component',  target: 'api',         ceoLabel: 'exposes' },
-  { source: 'component',  target: 'artifact',    ceoLabel: 'produces' },
-  { source: 'system',     target: 'release',     ceoLabel: 'ships as' },
-  { source: 'product',    target: 'capability',  ceoLabel: 'offers' },
-  { source: 'repo',        target: 'system',      ceoLabel: 'holds code for' },
-  { source: 'repo',        target: 'pipelineRun', ceoLabel: 'triggers' },
-  { source: 'pipelineRun', target: 'artifact',    ceoLabel: 'builds' },
-  { source: 'system',      target: 'systemVersion', ceoLabel: 'versions as' },
-  { source: 'workItem',    target: 'system',      ceoLabel: 'is work for' },
-  { source: 'workTrackerProvider', target: 'workItem', ceoLabel: 'syncs' },
-  { source: 'agent',   target: 'principal', ceoLabel: 'is a type of' },
-  { source: 'agent',   target: 'job',       ceoLabel: 'works on' },
-  { source: 'job',     target: 'thread',    ceoLabel: 'communicates via' },
-  { source: 'thread',  target: 'channel',   ceoLabel: 'happens in' },
-  { source: 'agent',   target: 'memory',    ceoLabel: 'remembers' },
-  { source: 'customer',     target: 'subscription',     ceoLabel: 'subscribes to' },
-  { source: 'subscription', target: 'plan',              ceoLabel: 'is on' },
-  { source: 'subscription', target: 'subscriptionItem',  ceoLabel: 'includes' },
-  { source: 'subscriptionItem', target: 'capability',    ceoLabel: 'unlocks' },
-  { source: 'capability',   target: 'billableMetric',    ceoLabel: 'is metered by' },
-  { source: 'site',             target: 'tenant',            ceoLabel: 'hosts' },
-  { source: 'tenant',           target: 'customer',           ceoLabel: 'belongs to' },
-  { source: 'site',             target: 'systemDeployment',   ceoLabel: 'runs' },
-  { source: 'systemDeployment', target: 'system',             ceoLabel: 'deploys' },
-  { source: 'systemDeployment', target: 'componentDeployment', ceoLabel: 'contains' },
-  { source: 'componentDeployment', target: 'component',       ceoLabel: 'runs' },
-  { source: 'componentDeployment', target: 'artifact',        ceoLabel: 'uses' },
-  { source: 'rollout',          target: 'release',            ceoLabel: 'ships' },
-  { source: 'rollout',          target: 'systemDeployment',   ceoLabel: 'targets' },
-  { source: 'systemDeployment', target: 'runtime',            ceoLabel: 'runs on' },
-  { source: 'workspace',        target: 'host',               ceoLabel: 'runs on' },
-  { source: 'substrate', target: 'host',        ceoLabel: 'contains' },
-  { source: 'host',      target: 'runtime',     ceoLabel: 'runs' },
-  { source: 'runtime',   target: 'route',       ceoLabel: 'exposes via' },
-  { source: 'route',     target: 'dnsDomain',   ceoLabel: 'serves at' },
-  { source: 'route',     target: 'tunnel',      ceoLabel: 'connects via' },
-  { source: 'team',      target: 'system',    ceoLabel: 'owns' },
-  { source: 'team',      target: 'repo',      ceoLabel: 'owns' },
-  { source: 'team',      target: 'principal', ceoLabel: 'has members' },
-  { source: 'principal', target: 'workspace', ceoLabel: 'uses' },
-  { source: 'dnsDomain', target: 'site',      ceoLabel: 'points to' },
-];
+      // Hero pills
+      function renderHeroPills() {
+        var fEl = document.getElementById("hero-factory-pills")
+        var sEl = document.getElementById("hero-site-pills")
+        Object.keys(PLANES).forEach(function (key) {
+          var p = PLANES[key]
+          var pill = el("span", {
+            class: "plane-pill",
+            style: { background: p.color + "18", color: p.color },
+            html: iconSvg(p.icon) + " " + p.label,
+            onclick: function () {
+              scrollToPlane(key)
+            },
+          })
+          if (p.scope === "factory") fEl.appendChild(pill)
+          else sEl.appendChild(pill)
+        })
+      }
 
-var JOURNEYS = [
-  { id: 'idea-to-customer',  label: 'Idea \u2192 Customer',     nodes: ['product','system','component','artifact','release','rollout','systemDeployment','site','tenant','customer'], color: '#6366f1' },
-  { id: 'code-to-prod',      label: 'Code \u2192 Production',   nodes: ['repo','pipelineRun','artifact','release','rollout','systemDeployment','componentDeployment'], color: '#f59e0b' },
-  { id: 'revenue',           label: 'Revenue Flow',             nodes: ['customer','subscription','plan','subscriptionItem','capability','billableMetric','product'], color: '#ec4899' },
-  { id: 'infra-stack',       label: 'Infrastructure Stack',     nodes: ['substrate','host','runtime','route','dnsDomain','site'], color: '#ef4444' },
-  { id: 'ai-work',           label: 'AI Work Execution',        nodes: ['agent','principal','job','thread','channel','memory'], color: '#10b981' },
-  { id: 'ownership',         label: 'Ownership Chain',          nodes: ['team','principal','system','component','repo','workspace'], color: '#64748b' },
-];
+      function renderHalvesLists() {
+        var fEl = document.getElementById("factory-planes-list")
+        var sEl = document.getElementById("site-planes-list")
+        Object.keys(PLANES).forEach(function (key) {
+          var p = PLANES[key]
+          if (key === "org") return
+          var iconEl = el("span", {
+            html: iconSvg(p.icon, "plane-icon-lg"),
+            style: { color: p.color, display: "flex" },
+          })
+          var row = el(
+            "div",
+            {
+              class: "plane-row",
+              onclick: function () {
+                scrollToPlane(key)
+              },
+            },
+            [
+              iconEl,
+              el("div", null, [
+                el("div", { class: "plane-name", text: p.label }),
+                el("div", { class: "plane-tag", text: p.tagline }),
+              ]),
+            ]
+          )
+          if (p.scope === "factory") fEl.appendChild(row)
+          else sEl.appendChild(row)
+        })
+      }
 
-// CLI Journeys data
-var CLI_JOURNEYS = [
-  { title: 'New Developer Onboarding', who: 'Developer, first day', color: '#6366f1', steps: [
-    { cmd: 'dx init', desc: 'Scaffold a new project from a template', entities: 'Template, System, Component' },
-    { cmd: 'dx sync', desc: 'Install hooks, deps, codegen, and env files', entities: 'Repo, Workspace' },
-    { cmd: 'dx up', desc: 'Start infrastructure (Postgres, Redis, etc.)', entities: 'Runtime, Host' },
-    { cmd: 'dx dev', desc: 'Start dev servers with hot reload', entities: 'Workspace, Component' },
-    { cmd: 'dx status', desc: 'Verify everything is healthy', entities: 'Workspace, Runtime' },
-  ]},
-  { title: 'Daily Development Loop', who: 'Developer or Agent', color: '#f59e0b', steps: [
-    { cmd: 'dx dev', desc: 'Start local dev environment', entities: 'Workspace, Component' },
-    { cmd: 'dx db migrate status', desc: 'Check for pending schema changes', entities: 'Database' },
-    { cmd: 'dx test', desc: 'Run auto-detected test suite', entities: 'Pipeline Run, Repo' },
-    { cmd: 'dx lint && dx typecheck', desc: 'Run linter and type checker', entities: 'Repo' },
-    { cmd: 'dx check', desc: 'Run all quality gates at once', entities: 'Pipeline Run' },
-    { cmd: 'git commit && git push', desc: 'dx hooks enforce conventions', entities: 'Repo, System Version' },
-  ]},
-  { title: 'Code Review & Preview', who: 'Developer or Review Agent', color: '#3b82f6', steps: [
-    { cmd: 'git push (PR opened)', desc: 'Triggers CI pipeline and preview build', entities: 'Pipeline Run, Artifact' },
-    { cmd: 'dx preview deploy', desc: 'Deploy a live preview of the PR', entities: 'Preview, Site, Route' },
-    { cmd: 'dx preview status', desc: 'Check preview deployment progress', entities: 'Preview, Component Deployment' },
-    { cmd: 'dx preview open', desc: 'Open preview URL in browser', entities: 'Route, DNS Domain' },
-    { cmd: 'dx agent run reviewer', desc: 'Run AI code review agent on the PR', entities: 'Agent, Job, Thread' },
-    { cmd: 'dx preview destroy', desc: 'Tear down after merge', entities: 'Preview' },
-  ]},
-  { title: 'Database Operations', who: 'Developer or DBA Agent', color: '#14b8a6', steps: [
-    { cmd: 'dx db connect', desc: 'Open interactive database shell', entities: 'Database' },
-    { cmd: 'dx db table', desc: 'List tables with row counts and sizes', entities: 'Database' },
-    { cmd: 'dx db migrate create add-users', desc: 'Create a new migration', entities: 'Database, System Version' },
-    { cmd: 'dx db migrate up', desc: 'Apply pending migrations', entities: 'Database' },
-    { cmd: 'dx db backup create', desc: 'Snapshot the database', entities: 'Database' },
-    { cmd: 'dx db seed', desc: 'Load seed data for development', entities: 'Database' },
-  ]},
-  { title: 'Release & Deploy', who: 'Release Manager or Ops Agent', color: '#ec4899', steps: [
-    { cmd: 'dx release create', desc: 'Create a versioned release bundle', entities: 'Release, System Version, Artifact' },
-    { cmd: 'dx deploy create --site staging', desc: 'Roll out to staging site', entities: 'Rollout, System Deployment, Site' },
-    { cmd: 'dx deploy status', desc: 'Monitor rollout progress', entities: 'Rollout, Component Deployment' },
-    { cmd: 'dx deploy create --site prod', desc: 'Promote to production', entities: 'Rollout, Site, Tenant' },
-    { cmd: 'dx site list', desc: 'View all deployed sites', entities: 'Site, System Deployment' },
-  ]},
-  { title: 'Infrastructure Management', who: 'Platform Engineer or Infra Agent', color: '#ef4444', steps: [
-    { cmd: 'dx infra', desc: 'View infrastructure inventory', entities: 'Substrate, Host, Runtime' },
-    { cmd: 'dx tunnel', desc: 'Open a secure tunnel for local testing', entities: 'Tunnel, Route' },
-    { cmd: 'dx domain', desc: 'Manage DNS domains and routing', entities: 'DNS Domain, Route' },
-    { cmd: 'dx secret', desc: 'Manage encrypted secrets by scope', entities: 'Secret' },
-    { cmd: 'dx var', desc: 'Manage config vars by environment', entities: 'Config Var' },
-    { cmd: 'dx ssh', desc: 'SSH into a host or container', entities: 'Host, Workspace' },
-  ]},
-  { title: 'Agent Operations', who: 'Team Lead or Agent Supervisor', color: '#10b981', steps: [
-    { cmd: 'dx agent list', desc: 'View registered AI agents and their status', entities: 'Agent, Principal' },
-    { cmd: 'dx agent run engineer', desc: 'Assign a coding task to an agent', entities: 'Agent, Job, Role Preset' },
-    { cmd: 'dx agent skill list', desc: 'View installed agent skills', entities: 'Agent, Tool Credential' },
-    { cmd: 'dx agent skill add', desc: 'Install a new skill from registry', entities: 'Agent' },
-    { cmd: 'dx work', desc: 'View and manage work items from Jira/Linear', entities: 'Work Item, Work Tracker' },
-  ]},
-  { title: 'Workbench & Environment', who: 'Developer or CI system', color: '#64748b', steps: [
-    { cmd: 'dx workbench', desc: 'Manage developer workbenches', entities: 'Workbench, Principal' },
-    { cmd: 'dx env', desc: 'View and set environment variables', entities: 'Config Var, Secret' },
-    { cmd: 'dx forward', desc: 'Forward a port from workbench to local', entities: 'Workbench, Route' },
-    { cmd: 'dx doctor', desc: 'Diagnose environment health issues', entities: 'Workbench, Host' },
-    { cmd: 'dx down --volumes', desc: 'Clean reset of local infrastructure', entities: 'Compose, Host' },
-  ]},
-];
+      function scrollToPlane(planeId) {
+        var card = document.getElementById("plane-" + planeId)
+        if (card) {
+          card.classList.add("expanded")
+          card.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+      }
 
-// ============ RENDERING HELPERS ============
-function el(tag, attrs, children) {
-  var e = document.createElement(tag);
-  if (attrs) Object.keys(attrs).forEach(function(k) {
-    if (k === 'text') e.textContent = attrs[k];
-    else if (k === 'html') e.innerHTML = attrs[k];
-    else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
-    else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), attrs[k]);
-    else e.setAttribute(k, attrs[k]);
-  });
-  if (children) children.forEach(function(c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
-  return e;
-}
+      function renderPlaneCards() {
+        var container = document.getElementById("plane-cards")
+        ;[
+          "product",
+          "build",
+          "agent",
+          "commerce",
+          "ops",
+          "infra",
+          "org",
+        ].forEach(function (key) {
+          var p = PLANES[key],
+            entities = ENTITIES.filter(function (e) {
+              return e.plane === key
+            })
+          var entityCards = entities.map(function (e) {
+            return el(
+              "div",
+              {
+                class: "entity-card",
+                onclick: function () {
+                  showEntityDetail(e.id)
+                },
+              },
+              [
+                el("div", { class: "entity-name", text: e.name }),
+                el("div", { class: "entity-desc", text: e.desc }),
+                el("div", { class: "entity-prefix", text: e.prefix + "_" }),
+              ]
+            )
+          })
+          var body = el("div", { class: "plane-card-body" }, [
+            el("p", { class: "plane-desc", text: p.desc }),
+            el("div", { class: "entity-grid" }, entityCards),
+          ])
+          var iconEl = el("span", {
+            html: iconSvg(p.icon, "plane-icon-lg"),
+            style: { color: p.color, display: "flex" },
+          })
+          var infoWrap = el("div", null, [
+            el("div", { class: "plane-label", text: p.label }),
+            el("div", { class: "plane-tagline", text: p.tagline }),
+          ])
+          var header = el("div", { class: "plane-card-header" }, [
+            el("div", {
+              class: "plane-color-bar",
+              style: { background: p.color },
+            }),
+            el("div", { class: "plane-info" }, [iconEl, infoWrap]),
+            el("span", {
+              class: "entity-count",
+              text: entities.length + " entities",
+            }),
+            el("span", { class: "expand-icon", text: "\u25BE" }),
+          ])
+          var card = el("div", { class: "plane-card", id: "plane-" + key }, [
+            header,
+            body,
+          ])
+          header.addEventListener("click", function () {
+            card.classList.toggle("expanded")
+          })
+          container.appendChild(card)
+        })
+      }
 
-function toggleTheme() {
-  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
-  document.querySelector('.theme-toggle').textContent = isDark ? 'Dark' : 'Light';
-  renderGraph();
-}
+      // CLI Journeys
+      function renderCLIJourneys() {
+        var container = document.getElementById("journey-cards")
+        CLI_JOURNEYS.forEach(function (j) {
+          var stepsEls = j.steps.map(function (step, idx) {
+            var isLast = idx === j.steps.length - 1
+            return el("div", { class: "journey-step" }, [
+              el("div", { class: "step-line" }, [
+                el("div", {
+                  class: "step-dot",
+                  style: { background: j.color },
+                }),
+                isLast
+                  ? null
+                  : el("div", {
+                      class: "step-connector",
+                      style: { background: j.color + "30" },
+                    }),
+              ]),
+              el("div", { class: "step-content" }, [
+                el("div", { class: "step-cmd", text: step.cmd }),
+                el("div", { class: "step-desc", text: step.desc }),
+                el("div", {
+                  class: "step-entities",
+                  text: "\u2192 " + step.entities,
+                }),
+              ]),
+            ])
+          })
+          var card = el(
+            "div",
+            { class: "journey-card" },
+            [
+              el("h3", {
+                html:
+                  iconSvg(
+                    j.color === "#10b981"
+                      ? "agent"
+                      : j.color === "#ef4444"
+                        ? "infra"
+                        : j.color === "#f59e0b"
+                          ? "build"
+                          : j.color === "#3b82f6"
+                            ? "ops"
+                            : j.color === "#ec4899"
+                              ? "commerce"
+                              : j.color === "#14b8a6"
+                                ? "data"
+                                : j.color === "#64748b"
+                                  ? "org"
+                                  : "product"
+                  ) +
+                  " " +
+                  j.title,
+              }),
+              el("div", { class: "journey-who", text: j.who }),
+            ].concat(stepsEls)
+          )
+          card.querySelector("h3 svg").style.color = j.color
+          container.appendChild(card)
+        })
+      }
 
-// Hero pills
-function renderHeroPills() {
-  var fEl = document.getElementById('hero-factory-pills');
-  var sEl = document.getElementById('hero-site-pills');
-  Object.keys(PLANES).forEach(function(key) {
-    var p = PLANES[key];
-    var pill = el('span', { class: 'plane-pill', style: { background: p.color + '18', color: p.color }, html: iconSvg(p.icon) + ' ' + p.label, onclick: function() { scrollToPlane(key); } });
-    if (p.scope === 'factory') fEl.appendChild(pill); else sEl.appendChild(pill);
-  });
-}
+      // Reference table
+      function renderRefTable() {
+        var tbody = document.getElementById("ref-tbody")
+        ENTITIES.forEach(function (e) {
+          var p = PLANES[e.plane]
+          var tr = el(
+            "tr",
+            {
+              "data-entity": e.id,
+              style: { cursor: "pointer" },
+              onclick: function () {
+                showEntityDetail(e.id)
+              },
+            },
+            [
+              el("td", null, [el("strong", { text: e.name })]),
+              el("td", null, [
+                el("span", {
+                  class: "plane-badge",
+                  style: { background: p.color },
+                  text: p.label,
+                }),
+              ]),
+              el("td", {
+                style: {
+                  fontFamily: "monospace",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                },
+                text: e.schema,
+              }),
+              el("td", {
+                style: { fontSize: "12px", color: "var(--text-secondary)" },
+                text: e.desc,
+              }),
+            ]
+          )
+          tbody.appendChild(tr)
+        })
+      }
 
-function renderHalvesLists() {
-  var fEl = document.getElementById('factory-planes-list');
-  var sEl = document.getElementById('site-planes-list');
-  Object.keys(PLANES).forEach(function(key) {
-    var p = PLANES[key];
-    if (key === 'org') return;
-    var iconEl = el('span', { html: iconSvg(p.icon, 'plane-icon-lg'), style: { color: p.color, display: 'flex' } });
-    var row = el('div', { class: 'plane-row', onclick: function() { scrollToPlane(key); } }, [
-      iconEl,
-      el('div', null, [ el('div', { class: 'plane-name', text: p.label }), el('div', { class: 'plane-tag', text: p.tagline }) ])
-    ]);
-    if (p.scope === 'factory') fEl.appendChild(row); else sEl.appendChild(row);
-  });
-}
+      document
+        .getElementById("entity-search")
+        .addEventListener("input", function () {
+          var q = this.value.toLowerCase()
+          var rows = document.querySelectorAll("#ref-tbody tr")
+          for (var i = 0; i < rows.length; i++)
+            rows[i].style.display =
+              rows[i].textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none"
+        })
+      document.querySelectorAll(".ref-table th").forEach(function (th, idx) {
+        th.addEventListener("click", function () {
+          sortTable(idx)
+        })
+      })
+      var sortDir = 1
+      function sortTable(col) {
+        var tbody = document.getElementById("ref-tbody"),
+          rows = Array.from(tbody.querySelectorAll("tr"))
+        rows.sort(function (a, b) {
+          return (
+            a.children[col].textContent.localeCompare(
+              b.children[col].textContent
+            ) * sortDir
+          )
+        })
+        sortDir *= -1
+        rows.forEach(function (r) {
+          tbody.appendChild(r)
+        })
+      }
 
-function scrollToPlane(planeId) {
-  var card = document.getElementById('plane-' + planeId);
-  if (card) { card.classList.add('expanded'); card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-}
+      // Detail panel
+      function showEntityDetail(entityId) {
+        var e = ENTITIES.find(function (x) {
+          return x.id === entityId
+        })
+        if (!e) return
+        var p = PLANES[e.plane]
+        var outEdges = EDGES.filter(function (edge) {
+          return edge.source === entityId
+        })
+        var inEdges = EDGES.filter(function (edge) {
+          return edge.target === entityId
+        })
+        var content = document.getElementById("detail-content")
+        while (content.firstChild) content.removeChild(content.firstChild)
+        content.appendChild(el("h3", { text: e.name }))
+        content.appendChild(
+          el("div", {
+            class: "detail-plane",
+            style: { color: p.color },
+            text:
+              p.label +
+              " Plane \u00b7 " +
+              e.schema +
+              " schema \u00b7 " +
+              e.prefix +
+              "_",
+          })
+        )
+        content.appendChild(el("div", { class: "detail-desc", text: e.desc }))
+        if (outEdges.length) {
+          var sec = el("div", { class: "detail-section" }, [
+            el("h4", { text: "Connects To" }),
+          ])
+          outEdges.forEach(function (edge) {
+            var t = ENTITIES.find(function (x) {
+              return x.id === edge.target
+            })
+            if (!t) return
+            sec.appendChild(
+              el(
+                "div",
+                {
+                  class: "rel-item",
+                  onclick: function () {
+                    showEntityDetail(edge.target)
+                  },
+                },
+                [
+                  el("span", { class: "rel-arrow", text: "\u2192" }),
+                  el("strong", { text: " " + t.name + " " }),
+                  el("span", {
+                    style: { color: "var(--text-secondary)" },
+                    text: edge.ceoLabel,
+                  }),
+                ]
+              )
+            )
+          })
+          content.appendChild(sec)
+        }
+        if (inEdges.length) {
+          var sec2 = el("div", { class: "detail-section" }, [
+            el("h4", { text: "Connected From" }),
+          ])
+          inEdges.forEach(function (edge) {
+            var s = ENTITIES.find(function (x) {
+              return x.id === edge.source
+            })
+            if (!s) return
+            sec2.appendChild(
+              el(
+                "div",
+                {
+                  class: "rel-item",
+                  onclick: function () {
+                    showEntityDetail(edge.source)
+                  },
+                },
+                [
+                  el("span", { class: "rel-arrow", text: "\u2190" }),
+                  el("strong", { text: " " + s.name + " " }),
+                  el("span", {
+                    style: { color: "var(--text-secondary)" },
+                    text: edge.ceoLabel,
+                  }),
+                ]
+              )
+            )
+          })
+          content.appendChild(sec2)
+        }
+        document.getElementById("detail-panel").classList.add("open")
+        highlightNode(entityId)
+      }
+      function closeDetail() {
+        document.getElementById("detail-panel").classList.remove("open")
+        clearHighlights()
+      }
+      document
+        .getElementById("close-detail-btn")
+        .addEventListener("click", closeDetail)
 
-function renderPlaneCards() {
-  var container = document.getElementById('plane-cards');
-  ['product', 'build', 'agent', 'commerce', 'ops', 'infra', 'org'].forEach(function(key) {
-    var p = PLANES[key], entities = ENTITIES.filter(function(e) { return e.plane === key; });
-    var entityCards = entities.map(function(e) {
-      return el('div', { class: 'entity-card', onclick: function() { showEntityDetail(e.id); } }, [
-        el('div', { class: 'entity-name', text: e.name }), el('div', { class: 'entity-desc', text: e.desc }), el('div', { class: 'entity-prefix', text: e.prefix + '_' })
-      ]);
-    });
-    var body = el('div', { class: 'plane-card-body' }, [ el('p', { class: 'plane-desc', text: p.desc }), el('div', { class: 'entity-grid' }, entityCards) ]);
-    var iconEl = el('span', { html: iconSvg(p.icon, 'plane-icon-lg'), style: { color: p.color, display: 'flex' } });
-    var infoWrap = el('div', null, [ el('div', { class: 'plane-label', text: p.label }), el('div', { class: 'plane-tagline', text: p.tagline }) ]);
-    var header = el('div', { class: 'plane-card-header' }, [
-      el('div', { class: 'plane-color-bar', style: { background: p.color } }),
-      el('div', { class: 'plane-info' }, [iconEl, infoWrap]),
-      el('span', { class: 'entity-count', text: entities.length + ' entities' }),
-      el('span', { class: 'expand-icon', text: '\u25BE' })
-    ]);
-    var card = el('div', { class: 'plane-card', id: 'plane-' + key }, [header, body]);
-    header.addEventListener('click', function() { card.classList.toggle('expanded'); });
-    container.appendChild(card);
-  });
-}
+      // ============ GRAPH ============
+      var nodePositions = {},
+        activeJourney = null,
+        activePlaneFilters = new Set(Object.keys(PLANES))
 
-// CLI Journeys
-function renderCLIJourneys() {
-  var container = document.getElementById('journey-cards');
-  CLI_JOURNEYS.forEach(function(j) {
-    var stepsEls = j.steps.map(function(step, idx) {
-      var isLast = idx === j.steps.length - 1;
-      return el('div', { class: 'journey-step' }, [
-        el('div', { class: 'step-line' }, [
-          el('div', { class: 'step-dot', style: { background: j.color } }),
-          isLast ? null : el('div', { class: 'step-connector', style: { background: j.color + '30' } })
-        ]),
-        el('div', { class: 'step-content' }, [
-          el('div', { class: 'step-cmd', text: step.cmd }),
-          el('div', { class: 'step-desc', text: step.desc }),
-          el('div', { class: 'step-entities', text: '\u2192 ' + step.entities })
-        ])
-      ]);
-    });
-    var card = el('div', { class: 'journey-card' }, [
-      el('h3', { html: iconSvg(j.color === '#10b981' ? 'agent' : j.color === '#ef4444' ? 'infra' : j.color === '#f59e0b' ? 'build' : j.color === '#3b82f6' ? 'ops' : j.color === '#ec4899' ? 'commerce' : j.color === '#14b8a6' ? 'data' : j.color === '#64748b' ? 'org' : 'product') + ' ' + j.title }),
-      el('div', { class: 'journey-who', text: j.who })
-    ].concat(stepsEls));
-    card.querySelector('h3 svg').style.color = j.color;
-    container.appendChild(card);
-  });
-}
+      function computeLayout() {
+        var planeOrder = [
+          "org",
+          "product",
+          "build",
+          "agent",
+          "ops",
+          "infra",
+          "commerce",
+        ]
+        var colWidth = 1200 / (planeOrder.length + 1),
+          positions = {}
+        planeOrder.forEach(function (plane, colIdx) {
+          var entities = ENTITIES.filter(function (e) {
+            return e.plane === plane
+          })
+          var colX = (colIdx + 1) * colWidth,
+            rowHeight = 720 / (entities.length + 1)
+          entities.forEach(function (e, rowIdx) {
+            positions[e.id] = {
+              x: colX + Math.sin(colIdx * 7 + rowIdx * 3) * 15,
+              y: 60 + (rowIdx + 0.5) * rowHeight,
+            }
+          })
+        })
+        return positions
+      }
 
-// Reference table
-function renderRefTable() {
-  var tbody = document.getElementById('ref-tbody');
-  ENTITIES.forEach(function(e) {
-    var p = PLANES[e.plane];
-    var tr = el('tr', { 'data-entity': e.id, style: { cursor: 'pointer' }, onclick: function() { showEntityDetail(e.id); } }, [
-      el('td', null, [el('strong', { text: e.name })]),
-      el('td', null, [el('span', { class: 'plane-badge', style: { background: p.color }, text: p.label })]),
-      el('td', { style: { fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)' }, text: e.schema }),
-      el('td', { style: { fontSize: '12px', color: 'var(--text-secondary)' }, text: e.desc })
-    ]);
-    tbody.appendChild(tr);
-  });
-}
+      function renderGraph() {
+        var svg = document.getElementById("graph-svg")
+        nodePositions = computeLayout()
+        var isDark =
+          document.documentElement.getAttribute("data-theme") === "dark"
+        var textColor = isDark ? "#f1f5f9" : "#1e293b",
+          edgeColor = isDark ? "#475569" : "#cbd5e1"
+        while (svg.firstChild) svg.removeChild(svg.firstChild)
+        var defs = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "defs"
+        )
+        var marker = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "marker"
+        )
+        marker.setAttribute("id", "arrowhead")
+        marker.setAttribute("markerWidth", "8")
+        marker.setAttribute("markerHeight", "6")
+        marker.setAttribute("refX", "8")
+        marker.setAttribute("refY", "3")
+        marker.setAttribute("orient", "auto")
+        var poly = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "polygon"
+        )
+        poly.setAttribute("points", "0 0, 8 3, 0 6")
+        poly.setAttribute("fill", edgeColor)
+        marker.appendChild(poly)
+        defs.appendChild(marker)
+        svg.appendChild(defs)
 
-document.getElementById('entity-search').addEventListener('input', function() {
-  var q = this.value.toLowerCase();
-  var rows = document.querySelectorAll('#ref-tbody tr');
-  for (var i = 0; i < rows.length; i++) rows[i].style.display = rows[i].textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
-});
-document.querySelectorAll('.ref-table th').forEach(function(th, idx) { th.addEventListener('click', function() { sortTable(idx); }); });
-var sortDir = 1;
-function sortTable(col) {
-  var tbody = document.getElementById('ref-tbody'), rows = Array.from(tbody.querySelectorAll('tr'));
-  rows.sort(function(a, b) { return a.children[col].textContent.localeCompare(b.children[col].textContent) * sortDir; });
-  sortDir *= -1; rows.forEach(function(r) { tbody.appendChild(r); });
-}
+        var planeOrder = [
+          "org",
+          "product",
+          "build",
+          "agent",
+          "ops",
+          "infra",
+          "commerce",
+        ]
+        var colWidth = 1200 / (planeOrder.length + 1)
+        planeOrder.forEach(function (plane, colIdx) {
+          var p = PLANES[plane]
+          var lbl = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text"
+          )
+          lbl.setAttribute("x", (colIdx + 1) * colWidth)
+          lbl.setAttribute("y", 24)
+          lbl.setAttribute("text-anchor", "middle")
+          lbl.setAttribute("fill", p.color)
+          lbl.setAttribute("font-size", "11")
+          lbl.setAttribute("font-weight", "700")
+          lbl.setAttribute("opacity", "0.5")
+          lbl.textContent = p.label.toUpperCase()
+          svg.appendChild(lbl)
+        })
 
-// Detail panel
-function showEntityDetail(entityId) {
-  var e = ENTITIES.find(function(x) { return x.id === entityId; });
-  if (!e) return;
-  var p = PLANES[e.plane];
-  var outEdges = EDGES.filter(function(edge) { return edge.source === entityId; });
-  var inEdges = EDGES.filter(function(edge) { return edge.target === entityId; });
-  var content = document.getElementById('detail-content');
-  while (content.firstChild) content.removeChild(content.firstChild);
-  content.appendChild(el('h3', { text: e.name }));
-  content.appendChild(el('div', { class: 'detail-plane', style: { color: p.color }, text: p.label + ' Plane \u00b7 ' + e.schema + ' schema \u00b7 ' + e.prefix + '_' }));
-  content.appendChild(el('div', { class: 'detail-desc', text: e.desc }));
-  if (outEdges.length) {
-    var sec = el('div', { class: 'detail-section' }, [el('h4', { text: 'Connects To' })]);
-    outEdges.forEach(function(edge) { var t = ENTITIES.find(function(x) { return x.id === edge.target; }); if (!t) return;
-      sec.appendChild(el('div', { class: 'rel-item', onclick: function() { showEntityDetail(edge.target); } }, [ el('span', { class: 'rel-arrow', text: '\u2192' }), el('strong', { text: ' ' + t.name + ' ' }), el('span', { style: { color: 'var(--text-secondary)' }, text: edge.ceoLabel }) ]));
-    }); content.appendChild(sec);
-  }
-  if (inEdges.length) {
-    var sec2 = el('div', { class: 'detail-section' }, [el('h4', { text: 'Connected From' })]);
-    inEdges.forEach(function(edge) { var s = ENTITIES.find(function(x) { return x.id === edge.source; }); if (!s) return;
-      sec2.appendChild(el('div', { class: 'rel-item', onclick: function() { showEntityDetail(edge.source); } }, [ el('span', { class: 'rel-arrow', text: '\u2190' }), el('strong', { text: ' ' + s.name + ' ' }), el('span', { style: { color: 'var(--text-secondary)' }, text: edge.ceoLabel }) ]));
-    }); content.appendChild(sec2);
-  }
-  document.getElementById('detail-panel').classList.add('open');
-  highlightNode(entityId);
-}
-function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); clearHighlights(); }
-document.getElementById('close-detail-btn').addEventListener('click', closeDetail);
+        var edgesG = document.createElementNS("http://www.w3.org/2000/svg", "g")
+        edgesG.setAttribute("class", "edges")
+        EDGES.forEach(function (edge) {
+          var s = nodePositions[edge.source],
+            t = nodePositions[edge.target]
+          if (!s || !t) return
+          var se = ENTITIES.find(function (e) {
+              return e.id === edge.source
+            }),
+            te = ENTITIES.find(function (e) {
+              return e.id === edge.target
+            })
+          if (
+            !activePlaneFilters.has(se.plane) ||
+            !activePlaneFilters.has(te.plane)
+          )
+            return
+          var dx = t.x - s.x,
+            dy = t.y - s.y,
+            dist = Math.sqrt(dx * dx + dy * dy) || 1,
+            off = Math.min(30, dist * 0.15)
+          var mx = (s.x + t.x) / 2,
+            my = (s.y + t.y) / 2,
+            cx = mx - (dy / dist) * off,
+            cy = my + (dx / dist) * off
+          var g = document.createElementNS("http://www.w3.org/2000/svg", "g")
+          g.setAttribute("class", "edge")
+          g.setAttribute("data-source", edge.source)
+          g.setAttribute("data-target", edge.target)
+          var path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          )
+          path.setAttribute(
+            "d",
+            "M" + s.x + "," + s.y + " Q" + cx + "," + cy + " " + t.x + "," + t.y
+          )
+          path.setAttribute("stroke", edgeColor)
+          path.setAttribute("marker-end", "url(#arrowhead)")
+          g.appendChild(path)
+          edgesG.appendChild(g)
+        })
+        svg.appendChild(edgesG)
 
-// ============ GRAPH ============
-var nodePositions = {}, activeJourney = null, activePlaneFilters = new Set(Object.keys(PLANES));
+        var nodesG = document.createElementNS("http://www.w3.org/2000/svg", "g")
+        nodesG.setAttribute("class", "nodes")
+        ENTITIES.forEach(function (e) {
+          var pos = nodePositions[e.id]
+          if (!pos || !activePlaneFilters.has(e.plane)) return
+          var p = PLANES[e.plane],
+            r = e.primary ? 16 : 10
+          var g = document.createElementNS("http://www.w3.org/2000/svg", "g")
+          g.setAttribute("class", "node")
+          g.setAttribute("data-id", e.id)
+          g.style.cursor = "pointer"
+          var circle = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle"
+          )
+          circle.setAttribute("cx", pos.x)
+          circle.setAttribute("cy", pos.y)
+          circle.setAttribute("r", r)
+          circle.setAttribute("fill", p.color)
+          circle.setAttribute("opacity", "0.85")
+          var text = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text"
+          )
+          text.setAttribute("x", pos.x)
+          text.setAttribute("y", pos.y + r + 14)
+          text.setAttribute("text-anchor", "middle")
+          text.setAttribute("fill", textColor)
+          text.setAttribute("font-size", e.primary ? "11" : "9")
+          text.setAttribute("font-weight", e.primary ? "600" : "400")
+          text.style.pointerEvents = "none"
+          text.textContent = e.name
+          g.appendChild(circle)
+          g.appendChild(text)
+          g.addEventListener("click", function () {
+            showEntityDetail(e.id)
+          })
+          g.addEventListener("mouseenter", function () {
+            highlightNode(e.id)
+          })
+          g.addEventListener("mouseleave", function () {
+            clearHighlights()
+          })
+          nodesG.appendChild(g)
+        })
+        svg.appendChild(nodesG)
+      }
 
-function computeLayout() {
-  var planeOrder = ['org', 'product', 'build', 'agent', 'ops', 'infra', 'commerce'];
-  var colWidth = 1200 / (planeOrder.length + 1), positions = {};
-  planeOrder.forEach(function(plane, colIdx) {
-    var entities = ENTITIES.filter(function(e) { return e.plane === plane; });
-    var colX = (colIdx + 1) * colWidth, rowHeight = 720 / (entities.length + 1);
-    entities.forEach(function(e, rowIdx) { positions[e.id] = { x: colX + (Math.sin(colIdx * 7 + rowIdx * 3) * 15), y: 60 + (rowIdx + 0.5) * rowHeight }; });
-  });
-  return positions;
-}
+      function highlightNode(entityId) {
+        var conn = {}
+        conn[entityId] = true
+        EDGES.forEach(function (edge) {
+          if (edge.source === entityId) conn[edge.target] = true
+          if (edge.target === entityId) conn[edge.source] = true
+        })
+        document.querySelectorAll("#graph-svg .node").forEach(function (el) {
+          var id = el.getAttribute("data-id")
+          if (conn[id]) {
+            el.classList.remove("dimmed")
+            el.classList.add("highlighted")
+          } else {
+            el.classList.add("dimmed")
+            el.classList.remove("highlighted")
+          }
+        })
+        document.querySelectorAll("#graph-svg .edge").forEach(function (el) {
+          var s = el.getAttribute("data-source"),
+            t = el.getAttribute("data-target")
+          if (s === entityId || t === entityId) {
+            el.classList.remove("dimmed")
+            el.classList.add("highlighted")
+          } else {
+            el.classList.add("dimmed")
+            el.classList.remove("highlighted")
+          }
+        })
+      }
+      function clearHighlights() {
+        if (activeJourney) return
+        document.querySelectorAll("#graph-svg .dimmed").forEach(function (el) {
+          el.classList.remove("dimmed")
+        })
+        document
+          .querySelectorAll("#graph-svg .highlighted")
+          .forEach(function (el) {
+            el.classList.remove("highlighted")
+          })
+      }
+      function highlightJourney(journeyId) {
+        if (activeJourney === journeyId) {
+          activeJourney = null
+          clearHighlights()
+          document.querySelectorAll(".journey-btn").forEach(function (b) {
+            b.classList.remove("active")
+          })
+          return
+        }
+        activeJourney = journeyId
+        var journey = JOURNEYS.find(function (j) {
+          return j.id === journeyId
+        })
+        if (!journey) return
+        var nodeSet = {}
+        journey.nodes.forEach(function (n) {
+          nodeSet[n] = true
+        })
+        var edgeSet = {}
+        for (var i = 0; i < journey.nodes.length - 1; i++) {
+          var a = journey.nodes[i],
+            b = journey.nodes[i + 1]
+          EDGES.forEach(function (edge) {
+            if (
+              (edge.source === a && edge.target === b) ||
+              (edge.source === b && edge.target === a)
+            )
+              edgeSet[edge.source + "-" + edge.target] = true
+          })
+        }
+        document.querySelectorAll("#graph-svg .node").forEach(function (el) {
+          var id = el.getAttribute("data-id")
+          if (nodeSet[id]) {
+            el.classList.remove("dimmed")
+            el.classList.add("highlighted")
+          } else {
+            el.classList.add("dimmed")
+            el.classList.remove("highlighted")
+          }
+        })
+        document.querySelectorAll("#graph-svg .edge").forEach(function (el) {
+          var key =
+              el.getAttribute("data-source") +
+              "-" +
+              el.getAttribute("data-target"),
+            kr =
+              el.getAttribute("data-target") +
+              "-" +
+              el.getAttribute("data-source")
+          if (edgeSet[key] || edgeSet[kr]) {
+            el.classList.remove("dimmed")
+            el.classList.add("highlighted")
+          } else {
+            el.classList.add("dimmed")
+            el.classList.remove("highlighted")
+          }
+        })
+        document.querySelectorAll(".journey-btn").forEach(function (b) {
+          b.classList.toggle(
+            "active",
+            b.getAttribute("data-journey") === journeyId
+          )
+        })
+      }
 
-function renderGraph() {
-  var svg = document.getElementById('graph-svg');
-  nodePositions = computeLayout();
-  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  var textColor = isDark ? '#f1f5f9' : '#1e293b', edgeColor = isDark ? '#475569' : '#cbd5e1';
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
-  var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-  marker.setAttribute('id', 'arrowhead'); marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '6'); marker.setAttribute('refX', '8'); marker.setAttribute('refY', '3'); marker.setAttribute('orient', 'auto');
-  var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  poly.setAttribute('points', '0 0, 8 3, 0 6'); poly.setAttribute('fill', edgeColor);
-  marker.appendChild(poly); defs.appendChild(marker); svg.appendChild(defs);
+      function renderPlaneFilters() {
+        var container = document.getElementById("plane-filters")
+        Object.keys(PLANES).forEach(function (key) {
+          var p = PLANES[key]
+          if (p.scope === "site") return
+          var btn = el("button", {
+            class: "active",
+            html: iconSvg(p.icon) + " " + p.label,
+            style: {
+              color: p.color,
+              borderColor: p.color,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            },
+            onclick: function () {
+              if (activePlaneFilters.has(key)) {
+                activePlaneFilters.delete(key)
+                btn.classList.remove("active")
+                btn.style.borderColor = "var(--border)"
+                btn.style.color = "var(--text-secondary)"
+              } else {
+                activePlaneFilters.add(key)
+                btn.classList.add("active")
+                btn.style.borderColor = p.color
+                btn.style.color = p.color
+              }
+              renderGraph()
+            },
+          })
+          container.appendChild(btn)
+        })
+      }
+      function renderJourneyButtons() {
+        var container = document.getElementById("journey-buttons")
+        JOURNEYS.forEach(function (j) {
+          container.appendChild(
+            el("button", {
+              class: "journey-btn",
+              "data-journey": j.id,
+              text: j.label,
+              onclick: function () {
+                highlightJourney(j.id)
+              },
+            })
+          )
+        })
+      }
 
-  var planeOrder = ['org', 'product', 'build', 'agent', 'ops', 'infra', 'commerce'];
-  var colWidth = 1200 / (planeOrder.length + 1);
-  planeOrder.forEach(function(plane, colIdx) {
-    var p = PLANES[plane]; var lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    lbl.setAttribute('x', (colIdx + 1) * colWidth); lbl.setAttribute('y', 24); lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('fill', p.color); lbl.setAttribute('font-size', '11'); lbl.setAttribute('font-weight', '700'); lbl.setAttribute('opacity', '0.5');
-    lbl.textContent = p.label.toUpperCase(); svg.appendChild(lbl);
-  });
+      // Zoom/pan
+      ;(function () {
+        var svg = document.getElementById("graph-svg"),
+          vb = { x: 0, y: 0, w: 1200, h: 800 },
+          isPan = false,
+          sp = { x: 0, y: 0 }
+        svg.addEventListener(
+          "wheel",
+          function (e) {
+            e.preventDefault()
+            var sc = e.deltaY > 0 ? 1.1 : 0.9,
+              r = svg.getBoundingClientRect()
+            var mx = ((e.clientX - r.left) / r.width) * vb.w + vb.x,
+              my = ((e.clientY - r.top) / r.height) * vb.h + vb.y
+            vb.w *= sc
+            vb.h *= sc
+            vb.x = mx - ((e.clientX - r.left) / r.width) * vb.w
+            vb.y = my - ((e.clientY - r.top) / r.height) * vb.h
+            svg.setAttribute(
+              "viewBox",
+              vb.x + " " + vb.y + " " + vb.w + " " + vb.h
+            )
+          },
+          { passive: false }
+        )
+        svg.addEventListener("mousedown", function (e) {
+          if (e.target.closest(".node")) return
+          isPan = true
+          sp = { x: e.clientX, y: e.clientY }
+        })
+        svg.addEventListener("mousemove", function (e) {
+          if (!isPan) return
+          var r = svg.getBoundingClientRect()
+          vb.x -= ((e.clientX - sp.x) / r.width) * vb.w
+          vb.y -= ((e.clientY - sp.y) / r.height) * vb.h
+          sp = { x: e.clientX, y: e.clientY }
+          svg.setAttribute(
+            "viewBox",
+            vb.x + " " + vb.y + " " + vb.w + " " + vb.h
+          )
+        })
+        svg.addEventListener("mouseup", function () {
+          isPan = false
+        })
+        svg.addEventListener("mouseleave", function () {
+          isPan = false
+        })
+      })()
 
-  var edgesG = document.createElementNS('http://www.w3.org/2000/svg', 'g'); edgesG.setAttribute('class', 'edges');
-  EDGES.forEach(function(edge) {
-    var s = nodePositions[edge.source], t = nodePositions[edge.target]; if (!s || !t) return;
-    var se = ENTITIES.find(function(e) { return e.id === edge.source; }), te = ENTITIES.find(function(e) { return e.id === edge.target; });
-    if (!activePlaneFilters.has(se.plane) || !activePlaneFilters.has(te.plane)) return;
-    var dx = t.x - s.x, dy = t.y - s.y, dist = Math.sqrt(dx*dx + dy*dy) || 1, off = Math.min(30, dist * 0.15);
-    var mx = (s.x+t.x)/2, my = (s.y+t.y)/2, cx = mx - (dy/dist)*off, cy = my + (dx/dist)*off;
-    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('class', 'edge'); g.setAttribute('data-source', edge.source); g.setAttribute('data-target', edge.target);
-    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M'+s.x+','+s.y+' Q'+cx+','+cy+' '+t.x+','+t.y); path.setAttribute('stroke', edgeColor); path.setAttribute('marker-end', 'url(#arrowhead)');
-    g.appendChild(path); edgesG.appendChild(g);
-  }); svg.appendChild(edgesG);
+      // Active nav
+      var obs = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              document
+                .querySelectorAll("nav .nav-links a")
+                .forEach(function (a) {
+                  a.classList.toggle(
+                    "active",
+                    a.getAttribute("href") === "#" + entry.target.id
+                  )
+                })
+            }
+          })
+        },
+        { threshold: 0.2 }
+      )
+      document.querySelectorAll("section").forEach(function (s) {
+        obs.observe(s)
+      })
 
-  var nodesG = document.createElementNS('http://www.w3.org/2000/svg', 'g'); nodesG.setAttribute('class', 'nodes');
-  ENTITIES.forEach(function(e) {
-    var pos = nodePositions[e.id]; if (!pos || !activePlaneFilters.has(e.plane)) return;
-    var p = PLANES[e.plane], r = e.primary ? 16 : 10;
-    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('class', 'node'); g.setAttribute('data-id', e.id); g.style.cursor = 'pointer';
-    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y); circle.setAttribute('r', r); circle.setAttribute('fill', p.color); circle.setAttribute('opacity', '0.85');
-    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + r + 14); text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', textColor);
-    text.setAttribute('font-size', e.primary ? '11' : '9'); text.setAttribute('font-weight', e.primary ? '600' : '400'); text.style.pointerEvents = 'none'; text.textContent = e.name;
-    g.appendChild(circle); g.appendChild(text);
-    g.addEventListener('click', function() { showEntityDetail(e.id); });
-    g.addEventListener('mouseenter', function() { highlightNode(e.id); });
-    g.addEventListener('mouseleave', function() { clearHighlights(); });
-    nodesG.appendChild(g);
-  }); svg.appendChild(nodesG);
-}
-
-function highlightNode(entityId) {
-  var conn = {}; conn[entityId] = true;
-  EDGES.forEach(function(edge) { if (edge.source === entityId) conn[edge.target] = true; if (edge.target === entityId) conn[edge.source] = true; });
-  document.querySelectorAll('#graph-svg .node').forEach(function(el) { var id = el.getAttribute('data-id'); if (conn[id]) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.add('dimmed'); el.classList.remove('highlighted'); } });
-  document.querySelectorAll('#graph-svg .edge').forEach(function(el) { var s = el.getAttribute('data-source'), t = el.getAttribute('data-target'); if (s === entityId || t === entityId) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.add('dimmed'); el.classList.remove('highlighted'); } });
-}
-function clearHighlights() {
-  if (activeJourney) return;
-  document.querySelectorAll('#graph-svg .dimmed').forEach(function(el) { el.classList.remove('dimmed'); });
-  document.querySelectorAll('#graph-svg .highlighted').forEach(function(el) { el.classList.remove('highlighted'); });
-}
-function highlightJourney(journeyId) {
-  if (activeJourney === journeyId) { activeJourney = null; clearHighlights(); document.querySelectorAll('.journey-btn').forEach(function(b) { b.classList.remove('active'); }); return; }
-  activeJourney = journeyId;
-  var journey = JOURNEYS.find(function(j) { return j.id === journeyId; }); if (!journey) return;
-  var nodeSet = {}; journey.nodes.forEach(function(n) { nodeSet[n] = true; });
-  var edgeSet = {};
-  for (var i = 0; i < journey.nodes.length - 1; i++) { var a = journey.nodes[i], b = journey.nodes[i+1]; EDGES.forEach(function(edge) { if ((edge.source === a && edge.target === b) || (edge.source === b && edge.target === a)) edgeSet[edge.source+'-'+edge.target] = true; }); }
-  document.querySelectorAll('#graph-svg .node').forEach(function(el) { var id = el.getAttribute('data-id'); if (nodeSet[id]) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.add('dimmed'); el.classList.remove('highlighted'); } });
-  document.querySelectorAll('#graph-svg .edge').forEach(function(el) { var key = el.getAttribute('data-source')+'-'+el.getAttribute('data-target'), kr = el.getAttribute('data-target')+'-'+el.getAttribute('data-source'); if (edgeSet[key] || edgeSet[kr]) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.add('dimmed'); el.classList.remove('highlighted'); } });
-  document.querySelectorAll('.journey-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-journey') === journeyId); });
-}
-
-function renderPlaneFilters() {
-  var container = document.getElementById('plane-filters');
-  Object.keys(PLANES).forEach(function(key) {
-    var p = PLANES[key]; if (p.scope === 'site') return;
-    var btn = el('button', { class: 'active', html: iconSvg(p.icon) + ' ' + p.label, style: { color: p.color, borderColor: p.color, display: 'inline-flex', alignItems: 'center', gap: '4px' },
-      onclick: function() { if (activePlaneFilters.has(key)) { activePlaneFilters.delete(key); btn.classList.remove('active'); btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--text-secondary)'; } else { activePlaneFilters.add(key); btn.classList.add('active'); btn.style.borderColor = p.color; btn.style.color = p.color; } renderGraph(); }
-    }); container.appendChild(btn);
-  });
-}
-function renderJourneyButtons() {
-  var container = document.getElementById('journey-buttons');
-  JOURNEYS.forEach(function(j) { container.appendChild(el('button', { class: 'journey-btn', 'data-journey': j.id, text: j.label, onclick: function() { highlightJourney(j.id); } })); });
-}
-
-// Zoom/pan
-(function() {
-  var svg = document.getElementById('graph-svg'), vb = { x: 0, y: 0, w: 1200, h: 800 }, isPan = false, sp = { x: 0, y: 0 };
-  svg.addEventListener('wheel', function(e) { e.preventDefault(); var sc = e.deltaY > 0 ? 1.1 : 0.9, r = svg.getBoundingClientRect(); var mx = (e.clientX-r.left)/r.width*vb.w+vb.x, my = (e.clientY-r.top)/r.height*vb.h+vb.y; vb.w *= sc; vb.h *= sc; vb.x = mx-(e.clientX-r.left)/r.width*vb.w; vb.y = my-(e.clientY-r.top)/r.height*vb.h; svg.setAttribute('viewBox', vb.x+' '+vb.y+' '+vb.w+' '+vb.h); }, { passive: false });
-  svg.addEventListener('mousedown', function(e) { if (e.target.closest('.node')) return; isPan = true; sp = { x: e.clientX, y: e.clientY }; });
-  svg.addEventListener('mousemove', function(e) { if (!isPan) return; var r = svg.getBoundingClientRect(); vb.x -= (e.clientX-sp.x)/r.width*vb.w; vb.y -= (e.clientY-sp.y)/r.height*vb.h; sp = { x: e.clientX, y: e.clientY }; svg.setAttribute('viewBox', vb.x+' '+vb.y+' '+vb.w+' '+vb.h); });
-  svg.addEventListener('mouseup', function() { isPan = false; }); svg.addEventListener('mouseleave', function() { isPan = false; });
-})();
-
-// Active nav
-var obs = new IntersectionObserver(function(entries) { entries.forEach(function(entry) { if (entry.isIntersecting) { document.querySelectorAll('nav .nav-links a').forEach(function(a) { a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id); }); } }); }, { threshold: 0.2 });
-document.querySelectorAll('section').forEach(function(s) { obs.observe(s); });
-
-// Init
-renderHeroPills(); renderHalvesLists(); renderPlaneCards(); renderCLIJourneys(); renderRefTable(); renderPlaneFilters(); renderJourneyButtons(); renderGraph();
-</script>
-</body>
+      // Init
+      renderHeroPills()
+      renderHalvesLists()
+      renderPlaneCards()
+      renderCLIJourneys()
+      renderRefTable()
+      renderPlaneFilters()
+      renderJourneyButtons()
+      renderGraph()
+    </script>
+  </body>
 </html>

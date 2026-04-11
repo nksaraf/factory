@@ -94,7 +94,7 @@ dx trace show abc123def456
   #
   # Total: 152ms | Spans: 7 | Errors: 0
   # Tenant: samsung | Namespace: ns_samsung
-  # Endpoint: GET /api/analytics/coverage
+  # Endpoint: GET /api/v1/analytics/coverage
 
 dx trace show abc123def456 --json               # full trace as JSON (for piping to tools)
 dx trace show abc123def456 --spans              # flat list of all spans with timing
@@ -120,14 +120,14 @@ The real power: connecting a customer bug report to the exact trace.
 dx trace list --site trafficure-prod-india \
   --tenant samsung \
   --module geoanalytics \
-  --endpoint "/api/analytics/coverage" \
+  --endpoint "/api/v1/analytics/coverage" \
   --min-duration 2s \
   --since "2026-03-24T09:00:00Z" --until "2026-03-24T10:00:00Z"
 
 # TRACE_ID   DURATION  STATUS  ENDPOINT                        TIMESTAMP
-# a1b2c3d4   4.2s      ok      GET /api/analytics/coverage  09:14:32
-# e5f6g7h8   3.8s      ok      GET /api/analytics/coverage  09:22:15
-# i9j0k1l2   8.1s      ok      GET /api/analytics/coverage  09:31:44
+# a1b2c3d4   4.2s      ok      GET /api/v1/analytics/coverage  09:14:32
+# e5f6g7h8   3.8s      ok      GET /api/v1/analytics/coverage  09:22:15
+# i9j0k1l2   8.1s      ok      GET /api/v1/analytics/coverage  09:31:44
 
 # Inspect the slowest one
 dx trace show i9j0k1l2

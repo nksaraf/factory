@@ -1,4 +1,4 @@
-/** HTTP routes under `/api/factory/ops/*` backed by the `ops` Postgres schema. */
+/** HTTP routes under `/api/v1/factory/ops/*` backed by the `ops` Postgres schema. */
 import {
   AssignReleaseBody,
   CloneSnapshotBody,

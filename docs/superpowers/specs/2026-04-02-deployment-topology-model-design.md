@@ -36,14 +36,14 @@ Route (cross-site traffic routing with weights, geo, health)
 
 ### Industry alignment:
 
-| Factory | k8s | Netflix/Spinnaker | Azure | GCP Cloud Run | AWS ECS |
-|---------|-----|-------------------|-------|---------------|---------|
-| Site | Cluster | — | — | — | Cluster |
-| Tenant | Namespace | — | — | — | — |
-| SystemDeployment | Deployment | Cluster | App | Service | Service |
-| DeploymentSet | ReplicaSet | Server Group | Deployment Slot | Revision | Task Set |
-| ComponentDeployment | Pod | Instance | Instance | Instance | Task |
-| Route | Ingress | — | Traffic Manager | URL map | Route 53 |
+| Factory             | k8s        | Netflix/Spinnaker | Azure           | GCP Cloud Run | AWS ECS  |
+| ------------------- | ---------- | ----------------- | --------------- | ------------- | -------- |
+| Site                | Cluster    | —                 | —               | —             | Cluster  |
+| Tenant              | Namespace  | —                 | —               | —             | —        |
+| SystemDeployment    | Deployment | Cluster           | App             | Service       | Service  |
+| DeploymentSet       | ReplicaSet | Server Group      | Deployment Slot | Revision      | Task Set |
+| ComponentDeployment | Pod        | Instance          | Instance        | Instance      | Task     |
+| Route               | Ingress    | —                 | Traffic Manager | URL map       | Route 53 |
 
 ---
 
@@ -61,56 +61,65 @@ export const TenantEnvironmentSchema = z.enum([
   "staging",
   "development",
   "preview",
-]);
+])
 
 export const TenantStatusSchema = z.enum([
   "provisioning",
   "active",
   "suspended",
   "decommissioned",
-]);
+])
 
 export const TenantIsolationSchema = z.enum([
-  "dedicated",   // own infra (single tenant on site)
-  "shared",      // shared infra, app-level isolation (RLS, tenant ID)
-  "siloed",      // shared infra, infra-level isolation (own namespace, own pods)
-]);
+  "dedicated", // own infra (single tenant on site)
+  "shared", // shared infra, app-level isolation (RLS, tenant ID)
+  "siloed", // shared infra, infra-level isolation (own namespace, own pods)
+])
 
 export const TenantSpecSchema = z.object({
   environment: TenantEnvironmentSchema.default("development"),
   isolation: TenantIsolationSchema.default("shared"),
   status: TenantStatusSchema.default("provisioning"),
   k8sNamespace: z.string().optional(),
-  resourceQuota: z.object({
-    cpu: z.string().optional(),       // e.g., "16"
-    memory: z.string().optional(),    // e.g., "32Gi"
-    storage: z.string().optional(),   // e.g., "100Gi"
-  }).optional(),
-  previewConfig: z.object({
-    enabled: z.boolean().default(false),
-    ttlDays: z.number().int().default(7),
-    maxConcurrent: z.number().int().optional(),
-    defaultAuthMode: z.enum(["public", "team", "private"]).default("team"),
-  }).optional(),
-});
+  resourceQuota: z
+    .object({
+      cpu: z.string().optional(), // e.g., "16"
+      memory: z.string().optional(), // e.g., "32Gi"
+      storage: z.string().optional(), // e.g., "100Gi"
+    })
+    .optional(),
+  previewConfig: z
+    .object({
+      enabled: z.boolean().default(false),
+      ttlDays: z.number().int().default(7),
+      maxConcurrent: z.number().int().optional(),
+      defaultAuthMode: z.enum(["public", "team", "private"]).default("team"),
+    })
+    .optional(),
+})
 
-export const TenantSchema = z.object({
-  id: z.string(),
-  slug: z.string(),          // e.g., "trafficure-prod-mumbai"
-  name: z.string(),          // e.g., "Trafficure Production (Mumbai)"
-  siteId: z.string(),        // which Site this tenant lives on
-  customerId: z.string(),    // which Customer (commerce) owns this
-  spec: TenantSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(BitemporalSchema).merge(ReconciliationSchema);
+export const TenantSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(), // e.g., "trafficure-prod-mumbai"
+    name: z.string(), // e.g., "Trafficure Production (Mumbai)"
+    siteId: z.string(), // which Site this tenant lives on
+    customerId: z.string(), // which Customer (commerce) owns this
+    spec: TenantSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(BitemporalSchema)
+  .merge(ReconciliationSchema)
 ```
 
 **Key relationships:**
+
 - `siteId` → `Site` (which infrastructure installation)
 - `customerId` → `Customer` (which customer, from commerce schema)
 
 **Examples:**
+
 - `trafficure-prod-mumbai` — Trafficure's production on shared SaaS Mumbai
 - `trafficure-prod-dublin` — Trafficure's production on shared SaaS Dublin (for HA)
 - `acme-prod` — Acme's production on their dedicated cloud
@@ -130,44 +139,47 @@ Optional — only needed for blue-green, canary, or stateful HA. For simple roll
 // ── DeploymentSet ──────────────────────────────────────────
 
 export const DeploymentSetRoleSchema = z.enum([
-  "active",     // single active (rolling deploy, or post-cutover)
-  "blue",       // blue-green: current live
-  "green",      // blue-green: new version being promoted
-  "stable",     // canary: baseline
-  "canary",     // canary: experimental
-  "primary",    // stateful: write leader
-  "replica",    // stateful: read follower
-  "standby",    // warm standby for failover
-]);
+  "active", // single active (rolling deploy, or post-cutover)
+  "blue", // blue-green: current live
+  "green", // blue-green: new version being promoted
+  "stable", // canary: baseline
+  "canary", // canary: experimental
+  "primary", // stateful: write leader
+  "replica", // stateful: read follower
+  "standby", // warm standby for failover
+])
 
 export const DeploymentSetStatusSchema = z.enum([
   "provisioning",
   "running",
-  "draining",   // traffic being shifted away
+  "draining", // traffic being shifted away
   "stopped",
   "failed",
-]);
+])
 
 export const DeploymentSetSpecSchema = z.object({
   role: DeploymentSetRoleSchema.default("active"),
   trafficWeight: z.number().min(0).max(100).default(100),
   status: DeploymentSetStatusSchema.default("provisioning"),
-  desiredVersion: z.string().optional(),  // overrides SystemDeployment if set
-  testUrl: z.string().optional(),         // per-set URL for pre-switch verification
-});
+  desiredVersion: z.string().optional(), // overrides SystemDeployment if set
+  testUrl: z.string().optional(), // per-set URL for pre-switch verification
+})
 
-export const DeploymentSetSchema = z.object({
-  id: z.string(),
-  slug: z.string(),                // e.g., "blue", "green", "primary"
-  systemDeploymentId: z.string(),  // parent SystemDeployment
-  runtimeId: z.string().nullable(), // can target a different runtime than parent
-  spec: DeploymentSetSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(ReconciliationSchema);
+export const DeploymentSetSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(), // e.g., "blue", "green", "primary"
+    systemDeploymentId: z.string(), // parent SystemDeployment
+    runtimeId: z.string().nullable(), // can target a different runtime than parent
+    spec: DeploymentSetSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
 ```
 
 **Key relationships:**
+
 - `systemDeploymentId` → `SystemDeployment` (parent)
 - `runtimeId` → `Runtime` (optional: allows set-level runtime targeting, e.g., different AZs)
 
@@ -215,10 +227,12 @@ export const DeploymentSetSchema = z.object({
 ```
 
 **`tenantId` semantics:**
+
 - `null` — shared deployment serving all tenants on the Site (app-level isolation via RLS/tenant ID)
 - set — siloed deployment for one specific Tenant (infra-level isolation)
 
 **SystemDeploymentSpec** additions:
+
 ```diff
  export const SystemDeploymentSpecSchema = z.object({
    trigger: DeploymentTriggerSchema.default("manual"),
@@ -254,6 +268,7 @@ export const DeploymentSetSchema = z.object({
 ```
 
 **`deploymentSetId` semantics:**
+
 - `null` — shared component that persists across deployment transitions (e.g., postgres). Not blue-green'd.
 - set — component belongs to this DeploymentSet. Gets created/destroyed with the set.
 
@@ -321,6 +336,7 @@ export const DeploymentSetSchema = z.object({
 ## Unchanged Entities
 
 The following require no schema changes:
+
 - **Database** — still references `systemDeploymentId`
 - **DatabaseOperation** — still references `databaseId`
 - **AnonymizationProfile** — no deployment references
@@ -497,22 +513,23 @@ Steps 1-5 are additive. Steps 6-8 require data migration for existing rows.
 
 ## Change Summary
 
-| Entity | Change | Details |
-|--------|--------|---------|
-| **Tenant** | NEW | Customer isolation per-site, bridges Commerce → Ops |
-| **DeploymentSet** | NEW | Role-based component grouping for blue-green/canary/stateful |
-| **Site** | Refocused | Remove tenant/env, add `type` (shared/dedicated/on-prem/edge) |
-| **SystemDeployment** | Enhanced | Add `tenantId` (nullable), `deploymentStrategy` in spec |
-| **ComponentDeployment** | Enhanced | Add `deploymentSetId` (nullable) |
-| **Route** | Enriched | Multi-target with weights, geo, health, failover policy |
-| **Rollout** | Enhanced | Add from/to DeploymentSet refs |
-| All others | Unchanged | Database, Intervention, Workspace, Preview, infra entities |
+| Entity                  | Change    | Details                                                       |
+| ----------------------- | --------- | ------------------------------------------------------------- |
+| **Tenant**              | NEW       | Customer isolation per-site, bridges Commerce → Ops           |
+| **DeploymentSet**       | NEW       | Role-based component grouping for blue-green/canary/stateful  |
+| **Site**                | Refocused | Remove tenant/env, add `type` (shared/dedicated/on-prem/edge) |
+| **SystemDeployment**    | Enhanced  | Add `tenantId` (nullable), `deploymentStrategy` in spec       |
+| **ComponentDeployment** | Enhanced  | Add `deploymentSetId` (nullable)                              |
+| **Route**               | Enriched  | Multi-target with weights, geo, health, failover policy       |
+| **Rollout**             | Enhanced  | Add from/to DeploymentSet refs                                |
+| All others              | Unchanged | Database, Intervention, Workspace, Preview, infra entities    |
 
 ---
 
 ## Drizzle Table Definitions
 
 Following existing patterns from `api/src/db/schema/ops.ts` and `helpers.ts`:
+
 - `opsSchema.table(...)` for schema namespace
 - `text("id").primaryKey().$defaultFn(() => newId("prefix"))` for IDs
 - `specCol<TypeSpec>()` for JSONB spec columns
@@ -524,8 +541,8 @@ Following existing patterns from `api/src/db/schema/ops.ts` and `helpers.ts`:
 ### New Table: `ops.tenant`
 
 ```typescript
-import type { TenantSpec } from "@smp/factory-shared/schemas/ops";
-import { customer } from "./commerce-v2";
+import type { TenantSpec } from "@smp/factory-shared/schemas/ops"
+import { customer } from "./commerce-v2"
 
 export const tenant = opsSchema.table(
   "tenant",
@@ -538,8 +555,9 @@ export const tenant = opsSchema.table(
     siteId: text("site_id")
       .notNull()
       .references(() => site.id, { onDelete: "cascade" }),
-    customerId: text("customer_id")
-      .references(() => customer.id, { onDelete: "set null" }),
+    customerId: text("customer_id").references(() => customer.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<TenantSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
@@ -551,14 +569,14 @@ export const tenant = opsSchema.table(
     index("ops_tenant_slug_idx").on(t.slug),
     index("ops_tenant_site_idx").on(t.siteId),
     index("ops_tenant_customer_idx").on(t.customerId),
-  ],
-);
+  ]
+)
 ```
 
 ### New Table: `ops.deployment_set`
 
 ```typescript
-import type { DeploymentSetSpec } from "@smp/factory-shared/schemas/ops";
+import type { DeploymentSetSpec } from "@smp/factory-shared/schemas/ops"
 
 export const deploymentSet = opsSchema.table(
   "deployment_set",
@@ -570,8 +588,9 @@ export const deploymentSet = opsSchema.table(
     systemDeploymentId: text("system_deployment_id")
       .notNull()
       .references(() => systemDeployment.id, { onDelete: "cascade" }),
-    runtimeId: text("runtime_id")
-      .references(() => runtime.id, { onDelete: "set null" }),
+    runtimeId: text("runtime_id").references(() => runtime.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<DeploymentSetSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -581,8 +600,8 @@ export const deploymentSet = opsSchema.table(
     index("ops_deployment_set_sd_idx").on(t.systemDeploymentId),
     index("ops_deployment_set_slug_idx").on(t.systemDeploymentId, t.slug),
     index("ops_deployment_set_runtime_idx").on(t.runtimeId),
-  ],
-);
+  ]
+)
 ```
 
 ### Modified Table: `ops.system_deployment`
@@ -631,14 +650,14 @@ in green). The new unique constraint should be
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `shared/src/schemas/ops.ts` | Add Tenant, DeploymentSet Zod schemas; modify SystemDeployment, ComponentDeployment, Rollout |
-| `shared/src/schemas/infra.ts` | Modify Route spec (targets, failover, healthCheck) |
-| `api/src/db/schema/ops.ts` | Add tenant, deployment_set tables; add tenantId/deploymentSetId columns |
-| `api/src/db/schema/infra-v2.ts` | Modify route table (targets in spec JSONB) |
-| `api/src/lib/id.ts` | Add `tnt` and `dset` prefixes |
-| `ontology/_meta.yaml` | Add Tenant, DeploymentSet to entity registry |
+| File                            | Change                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------- |
+| `shared/src/schemas/ops.ts`     | Add Tenant, DeploymentSet Zod schemas; modify SystemDeployment, ComponentDeployment, Rollout |
+| `shared/src/schemas/infra.ts`   | Modify Route spec (targets, failover, healthCheck)                                           |
+| `api/src/db/schema/ops.ts`      | Add tenant, deployment_set tables; add tenantId/deploymentSetId columns                      |
+| `api/src/db/schema/infra-v2.ts` | Modify route table (targets in spec JSONB)                                                   |
+| `api/src/lib/id.ts`             | Add `tnt` and `dset` prefixes                                                                |
+| `ontology/_meta.yaml`           | Add Tenant, DeploymentSet to entity registry                                                 |
 
 ---
 

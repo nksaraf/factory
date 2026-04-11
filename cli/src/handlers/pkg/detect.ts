@@ -3,11 +3,11 @@
  * detection, and git status utilities.
  */
 
-import { existsSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-import { homedir } from "node:os";
-import { capture } from "../../lib/subprocess.js";
-import type { PackageEntry } from "./state.js";
+import { existsSync } from "node:fs"
+import { basename, dirname, join } from "node:path"
+import { homedir } from "node:os"
+import { capture } from "../../lib/subprocess.js"
+import type { PackageEntry } from "./state.js"
 
 /** Expand GitHub shorthand (org/repo) to a full git URL. */
 export function resolveSource(source: string): string {
@@ -17,14 +17,14 @@ export function resolveSource(source: string): string {
     source.startsWith("ssh://") ||
     source.startsWith("http://")
   ) {
-    return source;
+    return source
   }
   if (source.includes("/") && !source.startsWith(".")) {
-    return `https://github.com/${source}.git`;
+    return `https://github.com/${source}.git`
   }
   throw new Error(
     `Cannot resolve source: ${source}\nUse a git URL or GitHub shorthand (e.g. LeptonSoftware/auth-utils)`
-  );
+  )
 }
 
 /** Extract a package name from the URL, path, or override. */
@@ -33,27 +33,27 @@ export function deriveName(
   sourcePath?: string,
   nameOverride?: string
 ): string {
-  if (nameOverride) return nameOverride;
-  if (sourcePath) return basename(sourcePath);
-  const last = source.replace(/\/$/, "").split("/").pop() ?? source;
-  return last.replace(/\.git$/, "");
+  if (nameOverride) return nameOverride
+  if (sourcePath) return basename(sourcePath)
+  const last = source.replace(/\/$/, "").split("/").pop() ?? source
+  return last.replace(/\.git$/, "")
 }
 
 /** Return 'npm', 'java', or 'python' based on manifest files. */
 export function detectPkgType(
   pkgDir: string
 ): "npm" | "java" | "python" | null {
-  if (existsSync(join(pkgDir, "package.json"))) return "npm";
-  if (existsSync(join(pkgDir, "pom.xml"))) return "java";
-  if (existsSync(join(pkgDir, "pyproject.toml"))) return "python";
-  return null;
+  if (existsSync(join(pkgDir, "package.json"))) return "npm"
+  if (existsSync(join(pkgDir, "pom.xml"))) return "java"
+  if (existsSync(join(pkgDir, "pyproject.toml"))) return "python"
+  return null
 }
 
 const TYPE_DIRS: Record<string, string> = {
   npm: "npm",
   java: "java",
   python: "python",
-};
+}
 
 /**
  * Target directory for a package.
@@ -64,11 +64,11 @@ const TYPE_DIRS: Record<string, string> = {
  *   - Otherwise                   → `<name>/` at root (bare directory)
  */
 export function targetDir(root: string, pkgType: string, name: string): string {
-  const typedDir = join(root, "packages", TYPE_DIRS[pkgType]);
-  if (existsSync(typedDir)) return join(typedDir, name);
-  const packagesDir = join(root, "packages");
-  if (existsSync(packagesDir)) return join(packagesDir, name);
-  return join(root, name);
+  const typedDir = join(root, "packages", TYPE_DIRS[pkgType])
+  if (existsSync(typedDir)) return join(typedDir, name)
+  const packagesDir = join(root, "packages")
+  if (existsSync(packagesDir)) return join(packagesDir, name)
+  return join(root, name)
 }
 
 /**
@@ -78,22 +78,22 @@ export function targetDir(root: string, pkgType: string, name: string): string {
  */
 export function resolveExistingPackage(
   root: string,
-  name: string,
+  name: string
 ): { dir: string; type: "npm" | "java" | "python"; name: string } | null {
   for (const typeDir of ["npm", "java", "python"] as const) {
-    const c = join(root, "packages", typeDir, name);
+    const c = join(root, "packages", typeDir, name)
     if (existsSync(c)) {
-      const pt = detectPkgType(c);
-      if (pt) return { dir: c, type: pt, name };
+      const pt = detectPkgType(c)
+      if (pt) return { dir: c, type: pt, name }
     }
   }
   // Flat packages/ layout
-  const flat = join(root, "packages", name);
+  const flat = join(root, "packages", name)
   if (existsSync(flat)) {
-    const pt = detectPkgType(flat);
-    if (pt) return { dir: flat, type: pt, name };
+    const pt = detectPkgType(flat)
+    if (pt) return { dir: flat, type: pt, name }
   }
-  return null;
+  return null
 }
 
 /**
@@ -102,8 +102,8 @@ export function resolveExistingPackage(
  * For whole-repo packages this is the local_path itself.
  */
 export function gitRepoDir(entry: PackageEntry, root: string): string {
-  if (entry.repo_path) return join(root, entry.repo_path);
-  return join(root, entry.local_path);
+  if (entry.repo_path) return join(root, entry.repo_path)
+  return join(root, entry.local_path)
 }
 
 /**
@@ -112,23 +112,21 @@ export function gitRepoDir(entry: PackageEntry, root: string): string {
  */
 export async function gitStatusSummary(
   entry: PackageEntry,
-  root: string,
+  root: string
 ): Promise<{ status: "clean" | "modified" | "unknown"; count: number }> {
-  const repoDir = gitRepoDir(entry, root);
+  const repoDir = gitRepoDir(entry, root)
 
-  const args = ["git", "status", "--porcelain"];
+  const args = ["git", "status", "--porcelain"]
   if (entry.source_path) {
-    args.push("--", entry.source_path);
+    args.push("--", entry.source_path)
   }
 
-  const result = await capture(args, { cwd: repoDir });
-  if (result.exitCode !== 0) return { status: "unknown", count: 0 };
+  const result = await capture(args, { cwd: repoDir })
+  if (result.exitCode !== 0) return { status: "unknown", count: 0 }
 
-  const lines = result.stdout
-    .split("\n")
-    .filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return { status: "clean", count: 0 };
-  return { status: "modified", count: lines.length };
+  const lines = result.stdout.split("\n").filter((l) => l.trim().length > 0)
+  if (lines.length === 0) return { status: "clean", count: 0 }
+  return { status: "modified", count: lines.length }
 }
 
 /**
@@ -138,20 +136,20 @@ export async function gitStatusSummary(
  * from a bare directory.
  */
 export function findPkgRoot(startDir: string): string {
-  const home = homedir();
-  let dir = startDir;
+  const home = homedir()
+  let dir = startDir
   for (;;) {
-    if (existsSync(join(dir, ".dx"))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir || parent === home) break;
-    dir = parent;
+    if (existsSync(join(dir, ".dx"))) return dir
+    const parent = dirname(dir)
+    if (parent === dir || parent === home) break
+    dir = parent
   }
-  return startDir; // fallback: cwd itself
+  return startDir // fallback: cwd itself
 }
 
 /** Shorten a GitHub URL for display. */
 export function shortSource(source: string): string {
-  const m = source.match(/^https:\/\/github\.com\/(.+?)(?:\.git)?$/);
-  if (m) return m[1];
-  return source;
+  const m = source.match(/^https:\/\/github\.com\/(.+?)(?:\.git)?$/)
+  if (m) return m[1]
+  return source
 }

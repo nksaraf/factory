@@ -262,7 +262,7 @@ function generateSortKey(siblings: Resource[]): string {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-const BASE = "http://localhost:8093/api/workspace"
+const BASE = "http://localhost:8093/api/v1/workspace"
 
 export const workspaceHandlers = [
   // GET tree

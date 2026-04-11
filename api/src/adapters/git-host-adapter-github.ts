@@ -1,5 +1,5 @@
-import { Octokit } from "@octokit/rest";
-import { verify } from "@octokit/webhooks-methods";
+import { Octokit } from "@octokit/rest"
+import { verify } from "@octokit/webhooks-methods"
 import type {
   GitHostAdapter,
   GitHostRepoInfo,
@@ -12,46 +12,46 @@ import type {
   GitHostDeploymentStatus,
   GitHostComment,
   WebhookVerification,
-} from "./git-host-adapter";
+} from "./git-host-adapter"
 
 export class GitHubAdapter implements GitHostAdapter {
-  readonly type = "github";
-  private readonly octokit: Octokit;
-  private readonly token: string;
-  private readonly webhookSecret?: string;
-  private readonly org?: string;
+  readonly type = "github"
+  private readonly octokit: Octokit
+  private readonly token: string
+  private readonly webhookSecret?: string
+  private readonly org?: string
 
   constructor(config: {
-    token?: string;
-    apiBaseUrl?: string;
-    webhookSecret?: string;
-    org?: string;
+    token?: string
+    apiBaseUrl?: string
+    webhookSecret?: string
+    org?: string
   }) {
-    this.token = config.token ?? "";
-    this.webhookSecret = config.webhookSecret;
-    this.org = config.org;
+    this.token = config.token ?? ""
+    this.webhookSecret = config.webhookSecret
+    this.org = config.org
     this.octokit = new Octokit({
       auth: this.token,
       ...(config.apiBaseUrl && config.apiBaseUrl !== "https://api.github.com"
         ? { baseUrl: config.apiBaseUrl }
         : {}),
-    });
+    })
   }
 
   async getAccessToken(): Promise<string> {
-    return this.token;
+    return this.token
   }
 
   async listRepos(): Promise<GitHostRepoInfo[]> {
     const repos = this.org
-      ? await this.octokit.paginate(
-          this.octokit.rest.repos.listForOrg,
-          { org: this.org, per_page: 100 },
-        )
+      ? await this.octokit.paginate(this.octokit.rest.repos.listForOrg, {
+          org: this.org,
+          per_page: 100,
+        })
       : await this.octokit.paginate(
           this.octokit.rest.repos.listForAuthenticatedUser,
-          { per_page: 100 },
-        );
+          { per_page: 100 }
+        )
     return repos.map((r) => ({
       externalId: String(r.id),
       fullName: r.full_name,
@@ -62,19 +62,19 @@ export class GitHubAdapter implements GitHostAdapter {
       description: r.description ?? undefined,
       language: r.language ?? undefined,
       topics: r.topics ?? [],
-    }));
+    }))
   }
 
   async getRepo(externalId: string): Promise<GitHostRepoInfo | null> {
     try {
       const [owner, repoName] = externalId.includes("/")
         ? externalId.split("/")
-        : ["", externalId];
-      if (!owner || !repoName) return null;
+        : ["", externalId]
+      if (!owner || !repoName) return null
       const { data: r } = await this.octokit.rest.repos.get({
         owner,
         repo: repoName,
-      });
+      })
       return {
         externalId: String(r.id),
         fullName: r.full_name,
@@ -85,25 +85,26 @@ export class GitHubAdapter implements GitHostAdapter {
         description: r.description ?? undefined,
         language: r.language ?? undefined,
         topics: r.topics ?? [],
-      };
+      }
     } catch (err: any) {
-      if (err.status === 404) return null;
-      throw err;
+      if (err.status === 404) return null
+      throw err
     }
   }
 
   async listOrgMembers(): Promise<GitHostCollaborator[]> {
     try {
-      let org = this.org;
+      let org = this.org
       if (!org) {
-        const { data: orgs } = await this.octokit.rest.orgs.listForAuthenticatedUser();
-        if (orgs.length === 0) return [];
-        org = orgs[0].login;
+        const { data: orgs } =
+          await this.octokit.rest.orgs.listForAuthenticatedUser()
+        if (orgs.length === 0) return []
+        org = orgs[0].login
       }
       const members = await this.octokit.paginate(
         this.octokit.rest.orgs.listMembers,
-        { org, per_page: 100 },
-      );
+        { org, per_page: 100 }
+      )
 
       return members.map((m) => ({
         externalUserId: String(m.id),
@@ -112,21 +113,21 @@ export class GitHubAdapter implements GitHostAdapter {
         name: null,
         avatarUrl: m.avatar_url ?? null,
         role: "member",
-      }));
+      }))
     } catch {
-      return [];
+      return []
     }
   }
 
   async listCollaborators(
-    repoFullName: string,
+    repoFullName: string
   ): Promise<GitHostCollaborator[]> {
     try {
-      const [owner, repoName] = repoFullName.split("/");
+      const [owner, repoName] = repoFullName.split("/")
       const collabs = await this.octokit.paginate(
         this.octokit.rest.repos.listCollaborators,
-        { owner, repo: repoName, per_page: 100 },
-      );
+        { owner, repo: repoName, per_page: 100 }
+      )
       return collabs.map((c) => ({
         externalUserId: String(c.id),
         login: c.login,
@@ -134,47 +135,47 @@ export class GitHubAdapter implements GitHostAdapter {
         name: null,
         avatarUrl: c.avatar_url ?? null,
         role: c.role_name ?? "read",
-      }));
+      }))
     } catch {
-      return [];
+      return []
     }
   }
 
   async verifyWebhook(
     headers: Record<string, string>,
-    body: string,
+    body: string
   ): Promise<WebhookVerification> {
-    const eventType = headers["x-github-event"] ?? "unknown";
-    const deliveryId = headers["x-github-delivery"] ?? "";
-    const signature = headers["x-hub-signature-256"] ?? "";
+    const eventType = headers["x-github-event"] ?? "unknown"
+    const deliveryId = headers["x-github-delivery"] ?? ""
+    const signature = headers["x-hub-signature-256"] ?? ""
 
-    let valid = true;
+    let valid = true
     if (this.webhookSecret && signature) {
       try {
-        valid = await verify(this.webhookSecret, body, signature);
+        valid = await verify(this.webhookSecret, body, signature)
       } catch {
-        valid = false;
+        valid = false
       }
     }
 
-    let payload: Record<string, unknown> = {};
-    let action: string | undefined;
+    let payload: Record<string, unknown> = {}
+    let action: string | undefined
     try {
-      payload = JSON.parse(body);
-      action = typeof payload.action === "string" ? payload.action : undefined;
+      payload = JSON.parse(body)
+      action = typeof payload.action === "string" ? payload.action : undefined
     } catch {
       // invalid JSON
     }
 
-    return { valid, eventType, deliveryId, action, payload };
+    return { valid, eventType, deliveryId, action, payload }
   }
 
   async createWebhook(
     repoFullName: string,
     callbackUrl: string,
-    events: string[],
+    events: string[]
   ): Promise<{ webhookId: string }> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const { data } = await this.octokit.rest.repos.createWebhook({
       owner,
       repo: repoName,
@@ -185,28 +186,25 @@ export class GitHubAdapter implements GitHostAdapter {
       },
       events,
       active: true,
-    });
-    return { webhookId: String(data.id) };
+    })
+    return { webhookId: String(data.id) }
   }
 
-  async deleteWebhook(
-    repoFullName: string,
-    webhookId: string,
-  ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+  async deleteWebhook(repoFullName: string, webhookId: string): Promise<void> {
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.repos.deleteWebhook({
       owner,
       repo: repoName,
       hook_id: Number(webhookId),
-    });
+    })
   }
 
   async postCommitStatus(
     repoFullName: string,
     sha: string,
-    status: GitHostCommitStatus,
+    status: GitHostCommitStatus
   ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.repos.createCommitStatus({
       owner,
       repo: repoName,
@@ -215,14 +213,14 @@ export class GitHubAdapter implements GitHostAdapter {
       target_url: status.targetUrl,
       description: status.description,
       context: status.context,
-    });
+    })
   }
 
   async createCheckRun(
     repoFullName: string,
-    check: GitHostCheckRun,
+    check: GitHostCheckRun
   ): Promise<{ checkRunId: string }> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const { data } = await this.octokit.rest.checks.create({
       owner,
       repo: repoName,
@@ -232,16 +230,16 @@ export class GitHubAdapter implements GitHostAdapter {
       conclusion: check.conclusion,
       details_url: check.detailsUrl,
       output: check.output,
-    });
-    return { checkRunId: String(data.id) };
+    })
+    return { checkRunId: String(data.id) }
   }
 
   async updateCheckRun(
     repoFullName: string,
     checkRunId: string,
-    update: Partial<GitHostCheckRun>,
+    update: Partial<GitHostCheckRun>
   ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.checks.update({
       owner,
       repo: repoName,
@@ -250,18 +248,20 @@ export class GitHubAdapter implements GitHostAdapter {
       ...(update.conclusion ? { conclusion: update.conclusion } : {}),
       ...(update.detailsUrl ? { details_url: update.detailsUrl } : {}),
       ...(update.output ? { output: update.output } : {}),
-    });
+    })
   }
 
   async listPullRequests(
     repoFullName: string,
-    filters?: { state?: "open" | "closed" | "all" },
+    filters?: { state?: "open" | "closed" | "all" }
   ): Promise<GitHostPullRequest[]> {
-    const [owner, repoName] = repoFullName.split("/");
-    const pulls = await this.octokit.paginate(
-      this.octokit.rest.pulls.list,
-      { owner, repo: repoName, state: filters?.state ?? "open", per_page: 100 },
-    );
+    const [owner, repoName] = repoFullName.split("/")
+    const pulls = await this.octokit.paginate(this.octokit.rest.pulls.list, {
+      owner,
+      repo: repoName,
+      state: filters?.state ?? "open",
+      per_page: 100,
+    })
     return pulls.map((pr) => ({
       number: pr.number,
       title: pr.title,
@@ -274,20 +274,20 @@ export class GitHubAdapter implements GitHostAdapter {
       createdAt: pr.created_at,
       updatedAt: pr.updated_at,
       author: { login: pr.user?.login ?? "unknown" },
-    }));
+    }))
   }
 
   async getPullRequest(
     repoFullName: string,
-    prNumber: number,
+    prNumber: number
   ): Promise<GitHostPullRequest | null> {
     try {
-      const [owner, repoName] = repoFullName.split("/");
+      const [owner, repoName] = repoFullName.split("/")
       const { data: pr } = await this.octokit.rest.pulls.get({
         owner,
         repo: repoName,
         pull_number: prNumber,
-      });
+      })
       return {
         number: pr.number,
         title: pr.title,
@@ -300,18 +300,18 @@ export class GitHubAdapter implements GitHostAdapter {
         createdAt: pr.created_at,
         updatedAt: pr.updated_at,
         author: { login: pr.user?.login ?? "unknown" },
-      };
+      }
     } catch (err: any) {
-      if (err.status === 404) return null;
-      throw err;
+      if (err.status === 404) return null
+      throw err
     }
   }
 
   async createPullRequest(
     repoFullName: string,
-    pr: GitHostPullRequestCreate,
+    pr: GitHostPullRequestCreate
   ): Promise<GitHostPullRequest> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const { data } = await this.octokit.rest.pulls.create({
       owner,
       repo: repoName,
@@ -320,7 +320,7 @@ export class GitHubAdapter implements GitHostAdapter {
       head: pr.head,
       base: pr.base,
       draft: pr.draft,
-    });
+    })
     return {
       number: data.number,
       title: data.title,
@@ -333,95 +333,102 @@ export class GitHubAdapter implements GitHostAdapter {
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       author: { login: data.user?.login ?? "unknown" },
-    };
+    }
   }
 
   async mergePullRequest(
     repoFullName: string,
     prNumber: number,
-    method?: "merge" | "squash" | "rebase",
+    method?: "merge" | "squash" | "rebase"
   ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.pulls.merge({
       owner,
       repo: repoName,
       pull_number: prNumber,
       merge_method: method,
-    });
+    })
   }
 
   async getPullRequestChecks(
     repoFullName: string,
-    prNumber: number,
-  ): Promise<Array<{ name: string; status: string; conclusion: string | null; url?: string }>> {
-    const [owner, repoName] = repoFullName.split("/");
+    prNumber: number
+  ): Promise<
+    Array<{
+      name: string
+      status: string
+      conclusion: string | null
+      url?: string
+    }>
+  > {
+    const [owner, repoName] = repoFullName.split("/")
     const { data: pr } = await this.octokit.rest.pulls.get({
       owner,
       repo: repoName,
       pull_number: prNumber,
-    });
+    })
     const { data } = await this.octokit.rest.checks.listForRef({
       owner,
       repo: repoName,
       ref: pr.head.sha,
-    });
+    })
     return data.check_runs.map((run) => ({
       name: run.name,
       status: run.status,
       conclusion: run.conclusion ?? null,
       url: run.details_url ?? undefined,
-    }));
+    }))
   }
 
   async postPRComment(
     repoFullName: string,
     prNumber: number,
-    body: string,
+    body: string
   ): Promise<{ commentId: string }> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const { data } = await this.octokit.rest.issues.createComment({
       owner,
       repo: repoName,
       issue_number: prNumber,
       body,
-    });
-    return { commentId: String(data.id) };
+    })
+    return { commentId: String(data.id) }
   }
 
   async listPRComments(
     repoFullName: string,
-    prNumber: number,
+    prNumber: number
   ): Promise<GitHostComment[]> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const comments = await this.octokit.paginate(
       this.octokit.rest.issues.listComments,
-      { owner, repo: repoName, issue_number: prNumber, per_page: 100 },
-    );
+      { owner, repo: repoName, issue_number: prNumber, per_page: 100 }
+    )
     return comments.map((c) => ({
       commentId: c.id,
       body: c.body ?? "",
-    }));
+    }))
   }
 
   async updatePRComment(
     repoFullName: string,
     commentId: number,
-    body: string,
+    body: string
   ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.issues.updateComment({
       owner,
       repo: repoName,
       comment_id: commentId,
       body,
-    });
+    })
   }
 
   async createDeployment(
     repoFullName: string,
-    deployment: GitHostDeployment,
+    deployment: GitHostDeployment
   ): Promise<{ deploymentId: number }> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     const { data } = await this.octokit.rest.repos.createDeployment({
       owner,
       repo: repoName,
@@ -430,18 +437,18 @@ export class GitHubAdapter implements GitHostAdapter {
       description: deployment.description,
       auto_merge: deployment.autoMerge ?? false,
       required_contexts: deployment.requiredContexts ?? [],
-    });
+    })
     // createDeployment can return a merge conflict response (status 409),
     // but with required_contexts: [] it always creates.
-    return { deploymentId: (data as { id: number }).id };
+    return { deploymentId: (data as { id: number }).id }
   }
 
   async createDeploymentStatus(
     repoFullName: string,
     deploymentId: number,
-    status: GitHostDeploymentStatus,
+    status: GitHostDeploymentStatus
   ): Promise<void> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
     await this.octokit.rest.repos.createDeploymentStatus({
       owner,
       repo: repoName,
@@ -450,23 +457,23 @@ export class GitHubAdapter implements GitHostAdapter {
       environment_url: status.environmentUrl,
       description: status.description,
       log_url: status.logUrl,
-    });
+    })
   }
 
   async createBranch(
     repoFullName: string,
     branchName: string,
-    fromRef: string,
+    fromRef: string
   ): Promise<{ ref: string; sha: string }> {
-    const [owner, repoName] = repoFullName.split("/");
+    const [owner, repoName] = repoFullName.split("/")
 
     // Resolve fromRef to a SHA
     const { data: refData } = await this.octokit.rest.git.getRef({
       owner,
       repo: repoName,
       ref: `heads/${fromRef}`,
-    });
-    const sha = refData.object.sha;
+    })
+    const sha = refData.object.sha
 
     try {
       const { data } = await this.octokit.rest.git.createRef({
@@ -474,19 +481,23 @@ export class GitHubAdapter implements GitHostAdapter {
         repo: repoName,
         ref: `refs/heads/${branchName}`,
         sha,
-      });
-      return { ref: data.ref, sha: data.object.sha };
+      })
+      return { ref: data.ref, sha: data.object.sha }
     } catch (err: unknown) {
       // 422 = Reference already exists — idempotent, return existing
-      if (err instanceof Error && "status" in err && (err as any).status === 422) {
+      if (
+        err instanceof Error &&
+        "status" in err &&
+        (err as any).status === 422
+      ) {
         const { data } = await this.octokit.rest.git.getRef({
           owner,
           repo: repoName,
           ref: `heads/${branchName}`,
-        });
-        return { ref: data.ref, sha: data.object.sha };
+        })
+        return { ref: data.ref, sha: data.object.sha }
       }
-      throw err;
+      throw err
     }
   }
 }

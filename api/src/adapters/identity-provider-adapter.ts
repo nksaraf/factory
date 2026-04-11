@@ -7,39 +7,39 @@
  * from the SecretBackend by the caller and passed as plaintext.
  */
 
-export type IdentityProviderType = "github" | "slack" | "jira" | "google";
+export type IdentityProviderType = "github" | "slack" | "jira" | "google"
 
 export interface ExternalIdentityUser {
-  externalUserId: string;
-  email: string | null;
-  login: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-  bio: string | null;
-  profileData: Record<string, unknown>;
-  isBot: boolean;
-  deleted: boolean;
+  externalUserId: string
+  email: string | null
+  login: string | null
+  displayName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  profileData: Record<string, unknown>
+  isBot: boolean
+  deleted: boolean
 }
 
 export interface IdentityProviderConfig {
   /** Plaintext token — resolved from SecretBackend before calling adapter. */
-  token: string;
+  token: string
   /** e.g., Jira Cloud URL, GitHub Enterprise URL. */
-  apiBaseUrl?: string;
+  apiBaseUrl?: string
   /** e.g., GitHub org name. */
-  org?: string;
+  org?: string
   /** Provider-specific extras (e.g., Jira account email for basic auth). */
-  extra?: Record<string, unknown>;
+  extra?: Record<string, unknown>
 }
 
 export interface IdentityProviderAdapter {
-  readonly provider: IdentityProviderType;
+  readonly provider: IdentityProviderType
 
   /**
    * Fetch all users from this provider source.
    * Used for bulk discovery — returns normalized user records for email-based matching.
    */
-  fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]>;
+  fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]>
 
   /**
    * Fetch a single user's updated profile by externalUserId.
@@ -47,6 +47,6 @@ export interface IdentityProviderAdapter {
    */
   fetchUserProfile(
     config: IdentityProviderConfig,
-    externalUserId: string,
-  ): Promise<ExternalIdentityUser | null>;
+    externalUserId: string
+  ): Promise<ExternalIdentityUser | null>
 }

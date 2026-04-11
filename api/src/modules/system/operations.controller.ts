@@ -4,18 +4,18 @@
  * Exposes background operation runner status, history, and manual triggers.
  */
 
-import { Elysia, t } from "elysia";
-import { allRunners, getRunner } from "../../lib/operations";
+import { Elysia, t } from "elysia"
+import { allRunners, getRunner } from "../../lib/operations"
 
 export function operationsController() {
   return new Elysia({ prefix: "/system/operations" })
     .get(
       "/",
       async () => {
-        const runners = allRunners();
+        const runners = allRunners()
         const results = await Promise.all(
           runners.map(async (r) => {
-            const last = await r.lastRun();
+            const last = await r.lastRun()
             return {
               name: r.name,
               intervalMs: r.intervalMs,
@@ -30,32 +30,32 @@ export function operationsController() {
                     error: last.error,
                   }
                 : null,
-            };
-          }),
-        );
-        return { operations: results };
+            }
+          })
+        )
+        return { operations: results }
       },
       {
         detail: {
           tags: ["System"],
           summary: "List all operations with last run status",
         },
-      },
+      }
     )
     .get(
       "/:name",
       async ({ params, set }) => {
-        const runner = getRunner(params.name);
+        const runner = getRunner(params.name)
         if (!runner) {
-          set.status = 404;
-          return { error: `Operation "${params.name}" not found` };
+          set.status = 404
+          return { error: `Operation "${params.name}" not found` }
         }
-        const runs = await runner.history({ limit: 5, offset: 0 });
+        const runs = await runner.history({ limit: 5, offset: 0 })
         return {
           name: runner.name,
           intervalMs: runner.intervalMs,
           runs,
-        };
+        }
       },
       {
         params: t.Object({ name: t.String() }),
@@ -63,20 +63,20 @@ export function operationsController() {
           tags: ["System"],
           summary: "Get operation detail with recent runs",
         },
-      },
+      }
     )
     .get(
       "/:name/runs",
       async ({ params, query, set }) => {
-        const runner = getRunner(params.name);
+        const runner = getRunner(params.name)
         if (!runner) {
-          set.status = 404;
-          return { error: `Operation "${params.name}" not found` };
+          set.status = 404
+          return { error: `Operation "${params.name}" not found` }
         }
-        const limit = query.limit ? Number(query.limit) : 20;
-        const offset = query.offset ? Number(query.offset) : 0;
-        const runs = await runner.history({ limit, offset });
-        return { runs };
+        const limit = query.limit ? Number(query.limit) : 20
+        const offset = query.offset ? Number(query.offset) : 0
+        const runs = await runner.history({ limit, offset })
+        return { runs }
       },
       {
         params: t.Object({ name: t.String() }),
@@ -88,25 +88,25 @@ export function operationsController() {
           tags: ["System"],
           summary: "Get paginated run history for an operation",
         },
-      },
+      }
     )
     .post(
       "/:name/trigger",
       async ({ params, set }) => {
-        const runner = getRunner(params.name);
+        const runner = getRunner(params.name)
         if (!runner) {
-          set.status = 404;
-          return { error: `Operation "${params.name}" not found` };
+          set.status = 404
+          return { error: `Operation "${params.name}" not found` }
         }
         try {
-          const runId = await runner.trigger();
-          return { runId };
+          const runId = await runner.trigger()
+          return { runId }
         } catch (err) {
-          set.status = 409;
+          set.status = 409
           return {
             error:
               err instanceof Error ? err.message : "Operation already running",
-          };
+          }
         }
       },
       {
@@ -115,6 +115,6 @@ export function operationsController() {
           tags: ["System"],
           summary: "Manually trigger an operation run",
         },
-      },
-    );
+      }
+    )
 }

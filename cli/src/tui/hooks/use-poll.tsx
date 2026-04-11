@@ -50,14 +50,20 @@ export function usePoll<T>(
 /**
  * Unwrap Eden API response: { data: { data: [...] } } → [...]
  */
-export function unwrap(res: { data: unknown; error: unknown }): Record<string, unknown>[] {
+export function unwrap(res: {
+  data: unknown
+  error: unknown
+}): Record<string, unknown>[] {
   if (res.error) throw new Error(String(res.error))
   const d = res.data as Record<string, unknown> | undefined
   const inner = d?.data
   return Array.isArray(inner) ? inner : Array.isArray(d) ? d : []
 }
 
-export function unwrapOne(res: { data: unknown; error: unknown }): Record<string, unknown> | null {
+export function unwrapOne(res: {
+  data: unknown
+  error: unknown
+}): Record<string, unknown> | null {
   if (res.error) throw new Error(String(res.error))
   const d = res.data as Record<string, unknown> | undefined
   return (d?.data as Record<string, unknown>) ?? d ?? null

@@ -425,7 +425,7 @@ The CLI uses two distinct tokens. Using the wrong one is a common source of 401 
 | Token                                  | Function                      | Audience                                          |
 | -------------------------------------- | ----------------------------- | ------------------------------------------------- |
 | **Auth service token** (opaque bearer) | Session token for Better Auth | Auth endpoints only (`/get-session`, `/sign-out`) |
-| **Factory API token** (JWT)            | JWKS-validated JWT            | All `/api/factory/*` endpoints                    |
+| **Factory API token** (JWT)            | JWKS-validated JWT            | All `/api/v1/factory/*` endpoints                 |
 
 **For CLI contributors:**
 

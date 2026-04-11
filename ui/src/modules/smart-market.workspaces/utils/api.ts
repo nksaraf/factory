@@ -6,7 +6,7 @@ const getBaseUrl = () => {
   if (typeof window !== "undefined" && (window as any).__WORKSPACE_API_URL__) {
     return (window as any).__WORKSPACE_API_URL__
   }
-  return "http://localhost:8093/api/workspace"
+  return "http://localhost:8093/api/v1/workspace"
 }
 
 function getAuthToken(): string | null {

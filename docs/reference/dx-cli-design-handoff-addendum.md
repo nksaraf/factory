@@ -836,7 +836,7 @@ As a user, I want to search for products by name so that I can quickly find what
 
 **Acceptance criteria:**
 
-- GET /api/search?q=<query> returns matching products
+- GET /api/v1/search?q=<query> returns matching products
 - Results are paginated (default 20 per page)
 - Search is case-insensitive
 - Response time < 200ms for up to 1M products

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { FactoryAuthzClient } from "../lib/authz-client"
 
-const BASE = "http://auth:3000/api/auth"
+const BASE = "http://auth:3000/api/v1/auth"
 
 function mockFetch(response: Partial<Response> = { ok: true }) {
   const spy = vi.fn().mockResolvedValue({

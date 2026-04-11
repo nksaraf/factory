@@ -94,7 +94,7 @@ export const godWorkflow = createWorkflow({
 
     // ── Phase 3: Provision workbench, wait for ready ──
     const workbench = await provisionWorkbench({
-      name: `ws-${input.issueKey}`,
+      name: `wb-${input.issueKey}`,
       trigger: "workflow",
       type: "agent",
       ttl: input.workbenchTtl,

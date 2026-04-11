@@ -21,7 +21,7 @@ export async function getFactoryFetchClient(): Promise<FactoryFetchClient> {
 
   return {
     async fetchApi(path: string, init?: RequestInit): Promise<Response> {
-      const url = `${factoryUrl}/api/factory${path}`
+      const url = `${factoryUrl}/api/v1/factory${path}`
       return fetch(url, {
         ...init,
         headers: {

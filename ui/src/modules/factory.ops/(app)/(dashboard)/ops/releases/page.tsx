@@ -1,4 +1,4 @@
-import { useReleases } from "@/lib/fleet"
+import { useReleases } from "@/lib/ops"
 import { useState } from "react"
 
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
@@ -14,7 +14,7 @@ export default function ReleasesPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Release Manager"
         description="All releases and their lifecycle"
       />

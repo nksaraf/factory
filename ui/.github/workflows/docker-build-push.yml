@@ -3,9 +3,9 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - '**'
+      - "**"
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 env:
@@ -53,18 +53,18 @@ jobs:
           VERSION="${{ steps.package-version.outputs.version }}"
           SHORT_SHA=$(git rev-parse --short HEAD)
           FULL_SHA=$(git rev-parse HEAD)
-          
+
           # Construct full image name
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
-          
+
           # Initialize tags
           TAGS=""
-          
+
           # Add latest tag only for main branch
           if [[ "${{ github.ref }}" == refs/heads/main ]]; then
             TAGS="$IMAGE:latest"
           fi
-          
+
           # Add branch name tag for branch pushes
           if [[ "${{ github.ref }}" == refs/heads/* ]]; then
             BRANCH_NAME=${GITHUB_REF#refs/heads/}
@@ -76,7 +76,7 @@ jobs:
               TAGS="$TAGS,$IMAGE:$BRANCH_NAME"
             fi
           fi
-          
+
           # Add version tags
           if [[ -z "$TAGS" ]]; then
             TAGS="$IMAGE:$VERSION"
@@ -85,13 +85,13 @@ jobs:
           fi
           TAGS="$TAGS,$IMAGE:$SHORT_SHA"
           TAGS="$TAGS,$IMAGE:$FULL_SHA"
-          
+
           # Add git tag if this is a tag event
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             GIT_TAG=${GITHUB_REF#refs/tags/}
             TAGS="$TAGS,$IMAGE:$GIT_TAG"
           fi
-          
+
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
           echo "Generated tags: $TAGS"

@@ -7,7 +7,7 @@ import type {
 } from "./network-device-adapter"
 
 export class NoopNetworkDeviceAdapter implements NetworkDeviceAdapter {
-  readonly type = "noop";
+  readonly type = "noop"
 
   async getArpTable(): Promise<ArpEntry[]> {
     logger.info("noop network device adapter: getArpTable")

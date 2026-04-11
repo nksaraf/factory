@@ -43,7 +43,7 @@ export const PromoteMemoryBody = z.object({
 })
 export type PromoteMemoryBody = z.infer<typeof PromoteMemoryBody>
 
-// ── Fleet: Site actions ─────────────────────────────────────
+// ── Ops: Site actions ─────────────────────────────────────
 
 export const SiteCheckinBody = z.object({
   status: z.string(),
@@ -58,7 +58,7 @@ export const AssignReleaseBody = z.object({
 })
 export type AssignReleaseBody = z.infer<typeof AssignReleaseBody>
 
-// ── Fleet: Rollout actions ──────────────────────────────────
+// ── Ops: Rollout actions ──────────────────────────────────
 
 export const UpdateRolloutStatusBody = z.object({
   status: z.enum([
@@ -71,7 +71,7 @@ export const UpdateRolloutStatusBody = z.object({
 })
 export type UpdateRolloutStatusBody = z.infer<typeof UpdateRolloutStatusBody>
 
-// ── Fleet: Workbench actions ────────────────────────────────
+// ── Ops: Workbench actions ────────────────────────────────
 
 export const ExtendWorkbenchBody = z.object({
   minutes: z.number().int().min(1),
@@ -103,7 +103,7 @@ export const CloneSnapshotBody = z.object({
 })
 export type CloneSnapshotBody = z.infer<typeof CloneSnapshotBody>
 
-// ── Fleet: Component Deployment actions ─────────────────────
+// ── Ops: Component Deployment actions ─────────────────────
 
 export const ScaleComponentDeploymentBody = z.object({
   replicas: z.number().int().min(0),
@@ -119,7 +119,7 @@ export type RestartComponentDeploymentBody = z.infer<
   typeof RestartComponentDeploymentBody
 >
 
-// ── Fleet: Workbench actions ────────────────────────────────
+// ── Ops: Workbench actions ────────────────────────────────
 
 export const WorkbenchPingBody = z.object({
   hostname: z.string().optional(),
@@ -130,7 +130,7 @@ export const WorkbenchPingBody = z.object({
 })
 export type WorkbenchPingBody = z.infer<typeof WorkbenchPingBody>
 
-// ── Fleet: Preview actions ─────────────────────────────────
+// ── Ops: Preview actions ─────────────────────────────────
 
 export const UpdatePreviewStatusBody = z.object({
   phase: z.enum([
@@ -157,7 +157,7 @@ export const ExtendPreviewBody = z.object({
 })
 export type ExtendPreviewBody = z.infer<typeof ExtendPreviewBody>
 
-// ── Fleet: Database actions ───────────────────────────────
+// ── Ops: Database actions ───────────────────────────────
 
 export const DatabaseOperationBody = z.object({
   spec: z.record(z.unknown()).default({}),
@@ -255,7 +255,7 @@ export const ForkThreadBody = z.object({
 })
 export type ForkThreadBody = z.infer<typeof ForkThreadBody>
 
-// ── Fleet: Release actions ──────────────────────────────────
+// ── Ops: Release actions ──────────────────────────────────
 
 export const PromoteReleaseBody = z.object({
   targetSites: z.array(z.string()).optional(),

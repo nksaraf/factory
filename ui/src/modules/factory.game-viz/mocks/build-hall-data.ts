@@ -9,16 +9,61 @@ export const MOCK_REPOS = [
 ]
 
 export const MOCK_BUILDS = [
-  { id: "b1", repo: "factory-api", status: "success" as const, version: "1.4.2" },
-  { id: "b2", repo: "factory-api", status: "running" as const, version: "1.4.3" },
-  { id: "b3", repo: "factory-ui", status: "success" as const, version: "2.1.0" },
+  {
+    id: "b1",
+    repo: "factory-api",
+    status: "success" as const,
+    version: "1.4.2",
+  },
+  {
+    id: "b2",
+    repo: "factory-api",
+    status: "running" as const,
+    version: "1.4.3",
+  },
+  {
+    id: "b3",
+    repo: "factory-ui",
+    status: "success" as const,
+    version: "2.1.0",
+  },
   { id: "b4", repo: "factory-ui", status: "failed" as const, version: "2.1.1" },
-  { id: "b5", repo: "shared-lib", status: "success" as const, version: "0.8.0" },
-  { id: "b6", repo: "shared-lib", status: "pending" as const, version: "0.8.1" },
-  { id: "b7", repo: "infra-config", status: "running" as const, version: "3.0.0" },
-  { id: "b8", repo: "auth-service", status: "success" as const, version: "1.2.0" },
-  { id: "b9", repo: "factory-api", status: "pending" as const, version: "1.4.4" },
-  { id: "b10", repo: "factory-ui", status: "running" as const, version: "2.1.2" },
+  {
+    id: "b5",
+    repo: "shared-lib",
+    status: "success" as const,
+    version: "0.8.0",
+  },
+  {
+    id: "b6",
+    repo: "shared-lib",
+    status: "pending" as const,
+    version: "0.8.1",
+  },
+  {
+    id: "b7",
+    repo: "infra-config",
+    status: "running" as const,
+    version: "3.0.0",
+  },
+  {
+    id: "b8",
+    repo: "auth-service",
+    status: "success" as const,
+    version: "1.2.0",
+  },
+  {
+    id: "b9",
+    repo: "factory-api",
+    status: "pending" as const,
+    version: "1.4.4",
+  },
+  {
+    id: "b10",
+    repo: "factory-ui",
+    status: "running" as const,
+    version: "2.1.2",
+  },
 ]
 
 export const MOCK_ARTIFACTS = [

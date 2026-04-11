@@ -1,4 +1,4 @@
-import { t } from "elysia";
+import { t } from "elysia"
 
 export const ReleaseContentModel = {
   versionParams: t.Object({ version: t.String() }),
@@ -13,10 +13,10 @@ export const ReleaseContentModel = {
           t.Literal("api-docs"),
           t.Literal("internal-docs"),
           t.Literal("announcement"),
-        ]),
-      ),
+        ])
+      )
     ),
     changelogPath: t.Optional(t.String()),
     docsDir: t.Optional(t.String()),
   }),
-};
+}

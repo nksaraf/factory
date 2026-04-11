@@ -2,9 +2,12 @@ import { describe, it, expect, beforeEach } from "vitest"
 import { NoopGatewayAdapter } from "../adapters/gateway-adapter-noop"
 import { SiteReconciler } from "../modules/site/reconciler"
 import {
-  simpleSaasManifest, simpleSaasExpected,
-  multiTenantManifest, multiTenantExpected,
-  airGappedManifest, airGappedExpected,
+  simpleSaasManifest,
+  simpleSaasExpected,
+  multiTenantManifest,
+  multiTenantExpected,
+  airGappedManifest,
+  airGappedExpected,
 } from "./fixtures/site-fixtures"
 
 function createReconciler(adapter: NoopGatewayAdapter) {
@@ -16,7 +19,7 @@ function createReconciler(adapter: NoopGatewayAdapter) {
       issuerName: "letsencrypt-prod",
       pollIntervalMs: 30000,
     },
-    adapter,
+    adapter
   )
 }
 
@@ -35,12 +38,16 @@ describe("SiteReconciler", () => {
 
       expect(result.success).toBe(true)
       expect(result.manifestVersion).toBe(1)
-      expect(result.appliedCRDs).toBe(simpleSaasExpected.ingressRoutes + simpleSaasExpected.certificates + simpleSaasExpected.middlewares)
+      expect(result.appliedCRDs).toBe(
+        simpleSaasExpected.ingressRoutes +
+          simpleSaasExpected.certificates +
+          simpleSaasExpected.middlewares
+      )
       expect(result.errors).toHaveLength(0)
 
       const crds = await adapter.getCurrentState()
       expect(crds).toHaveLength(2) // 2 IngressRoutes only
-      expect(crds.every(c => c.kind === "IngressRoute")).toBe(true)
+      expect(crds.every((c) => c.kind === "IngressRoute")).toBe(true)
     })
 
     it("applies multi-tenant manifest with all CRD types", async () => {
@@ -50,15 +57,20 @@ describe("SiteReconciler", () => {
       expect(result.manifestVersion).toBe(3)
 
       const crds = await adapter.getCurrentState()
-      const total = multiTenantExpected.ingressRoutes + multiTenantExpected.certificates + multiTenantExpected.middlewares
+      const total =
+        multiTenantExpected.ingressRoutes +
+        multiTenantExpected.certificates +
+        multiTenantExpected.middlewares
       expect(crds).toHaveLength(total)
 
       const byKind = {
-        IngressRoute: crds.filter(c => c.kind === "IngressRoute"),
-        Certificate: crds.filter(c => c.kind === "Certificate"),
-        Middleware: crds.filter(c => c.kind === "Middleware"),
+        IngressRoute: crds.filter((c) => c.kind === "IngressRoute"),
+        Certificate: crds.filter((c) => c.kind === "Certificate"),
+        Middleware: crds.filter((c) => c.kind === "Middleware"),
       }
-      expect(byKind.IngressRoute).toHaveLength(multiTenantExpected.ingressRoutes)
+      expect(byKind.IngressRoute).toHaveLength(
+        multiTenantExpected.ingressRoutes
+      )
       expect(byKind.Certificate).toHaveLength(multiTenantExpected.certificates)
       expect(byKind.Middleware).toHaveLength(multiTenantExpected.middlewares)
     })
@@ -69,12 +81,14 @@ describe("SiteReconciler", () => {
       expect(result.success).toBe(true)
       const crds = await adapter.getCurrentState()
 
-      const ingressRoutes = crds.filter(c => c.kind === "IngressRoute")
+      const ingressRoutes = crds.filter((c) => c.kind === "IngressRoute")
       expect(ingressRoutes).toHaveLength(1)
       // Custom TLS should use secretName
-      expect(ingressRoutes[0].spec.tls).toEqual({ secretName: "internal-corp-local-tls" })
+      expect(ingressRoutes[0].spec.tls).toEqual({
+        secretName: "internal-corp-local-tls",
+      })
 
-      const certs = crds.filter(c => c.kind === "Certificate")
+      const certs = crds.filter((c) => c.kind === "Certificate")
       expect(certs).toHaveLength(1)
       expect(certs[0].spec.secretName).toBe("corp-self-signed-tls")
     })
@@ -114,7 +128,7 @@ describe("SiteReconciler", () => {
 
       crds = await adapter.getCurrentState()
       expect(crds).toHaveLength(2)
-      expect(crds.every(c => c.kind === "IngressRoute")).toBe(true)
+      expect(crds.every((c) => c.kind === "IngressRoute")).toBe(true)
     })
   })
 

@@ -96,7 +96,7 @@ export async function runFactoryLogs(
   }
 
   const qs = params.toString()
-  const basePath = `/api/factory/observability/logs`
+  const basePath = `/api/v1/factory/observability/logs`
   const path = `${basePath}${qs ? `?${qs}` : ""}`
   const streamPath = `${basePath}/stream${qs ? `?${qs}` : ""}`
 

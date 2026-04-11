@@ -58,18 +58,18 @@ together, version together, and health-check as a unit. What `docker-compose up`
 Deployment is one machine built from that blueprint, installed on a factory floor,
 running.
 
-| Property | Description |
-|---|---|
-| `system` | Which System from the catalog |
-| `version` | Release Bundle version: "trafficure-core-2.4.0" |
-| `component_deployments` | The Component Deployments in this group |
-| `topology` | single-node-compose, k8s-namespace, multi-node, etc. |
-| `runtime` | The compose project, k8s namespace, or set of hosts |
-| `deployment_mechanism` | What deploys this as a unit: compose file, helm chart, terraform, signed-bundle |
-| `iac_source` | The specific compose/helm/terraform file |
-| `health` | Aggregate of component health |
-| `deployed_at` | Last deployed as a unit |
-| `owner_team` | Team responsible |
+| Property                | Description                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `system`                | Which System from the catalog                                                   |
+| `version`               | Release Bundle version: "trafficure-core-2.4.0"                                 |
+| `component_deployments` | The Component Deployments in this group                                         |
+| `topology`              | single-node-compose, k8s-namespace, multi-node, etc.                            |
+| `runtime`               | The compose project, k8s namespace, or set of hosts                             |
+| `deployment_mechanism`  | What deploys this as a unit: compose file, helm chart, terraform, signed-bundle |
+| `iac_source`            | The specific compose/helm/terraform file                                        |
+| `health`                | Aggregate of component health                                                   |
+| `deployed_at`           | Last deployed as a unit                                                         |
+| `owner_team`            | Team responsible                                                                |
 
 **Examples:**
 
@@ -146,12 +146,12 @@ customer) and individual System Deployments.
 about them as a group. "The Network Access domain for Samsung" = Trafficure Core +
 Trafficure Project Management + RF Engine System, all deployed for Samsung.
 
-| Property | Description |
-|---|---|
-| `domain` | Which Domain from the catalog |
-| `system_deployments` | The System Deployments in this group |
+| Property              | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| `domain`              | Which Domain from the catalog                      |
+| `system_deployments`  | The System Deployments in this group               |
 | `capabilities_active` | Which Capabilities are enabled (from entitlements) |
-| `version_summary` | Versions of each System Deployment |
+| `version_summary`     | Versions of each System Deployment                 |
 
 **Examples:**
 
@@ -197,20 +197,20 @@ production lines (Domain Deployments) for different product families. Each produ
 line has machines (System Deployments). Each machine has parts (Component Deployments).
 The factory sits on a piece of land (Cell).
 
-| Property | Description |
-|---|---|
-| `name` | "Samsung India Production", "Ultratech Production", "Shared SaaS Production" |
-| `tenant` | Which customer (or "shared" for multi-tenant SaaS) |
-| `environment` | production, staging, customer-staging, etc. |
-| `domain_deployments` | All Domain Deployments at this site |
-| `cell` | Which Cell this site runs on |
-| `isolation_level` | Per-layer isolation: dedicated/shared at compute, data, network levels |
-| `offering` | Which commercial Offering governs this site |
-| `engagement` | Which Engagement manages this site's operations |
-| `total_system_deployments` | Count |
-| `total_component_deployments` | Count |
-| `health` | Aggregate: all domains healthy → site healthy |
-| `cost` | Total infrastructure cost for this site |
+| Property                      | Description                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `name`                        | "Samsung India Production", "Ultratech Production", "Shared SaaS Production" |
+| `tenant`                      | Which customer (or "shared" for multi-tenant SaaS)                           |
+| `environment`                 | production, staging, customer-staging, etc.                                  |
+| `domain_deployments`          | All Domain Deployments at this site                                          |
+| `cell`                        | Which Cell this site runs on                                                 |
+| `isolation_level`             | Per-layer isolation: dedicated/shared at compute, data, network levels       |
+| `offering`                    | Which commercial Offering governs this site                                  |
+| `engagement`                  | Which Engagement manages this site's operations                              |
+| `total_system_deployments`    | Count                                                                        |
+| `total_component_deployments` | Count                                                                        |
+| `health`                      | Aggregate: all domains healthy → site healthy                                |
+| `cost`                        | Total infrastructure cost for this site                                      |
 
 **Examples:**
 
@@ -236,7 +236,7 @@ SITE: "Samsung India Production"
   │
   └── DOMAIN DEPLOYMENT: "Extensions @ samsung-prod"
         └── SYSTEM DEPLOYMENT: tower-analyzer (v1.2.0, partner)
-  
+
   TOTALS: 4 domains, 6 system deployments, ~20 component deployments
   COST: ₹X/month (Samsung's dedicated infrastructure)
   HEALTH: all healthy
@@ -265,7 +265,7 @@ SITE: "Ultratech Production"
   │           (includes platform components — all in one compose stack)
   │
   └── (no other domains — Ultratech only has Trafficure)
-  
+
   TOTALS: 1 domain, 1 system deployment, ~8 component deployments
   COST: ₹0 infrastructure (customer's hardware) + ops team time
   HEALTH: healthy (last verified 3 days ago via VPN)
@@ -286,13 +286,13 @@ SITE: "Shared SaaS Production"
   │
   └── DOMAIN DEPLOYMENT: "Platform @ shared-saas-prod"
         └── SYSTEM DEPLOYMENT: platform (v3.1.0, shared)
-  
+
   TENANTS SERVED: [ather, vbl, customer-c, ... 50 total]
   Each tenant's "virtual site" is a projection:
     Ather sees: smartmarket capabilities (their subscription)
     VBL sees: trafficure capabilities (their subscription)
     Customer-C sees: both (their subscription)
-  
+
   ISOLATION: application-level (orgId), schema-per-tenant in shared RDS
   COST: shared, allocated by usage proportion per tenant
 ```
@@ -335,11 +335,11 @@ CELL: "ultratech-onprem"
 ```
 CATALOG (what we design)          OPERATIONS (what's running)         INFRASTRUCTURE (where)
 
-Domain                        →   Domain Deployment                   
+Domain                        →   Domain Deployment
   └── System                  →     └── System Deployment              ← runs on → Cell
         └── Component         →           └── Component Deployment     ← runs on → Runtime → Host
-                                                                       
-                                    Grouped into:                      
+
+                                    Grouped into:
                                     SITE (per customer × environment)  ← hosted by → Cell
 ```
 
@@ -368,13 +368,13 @@ which entitles **Capabilities** that require this **Component**.
 
 ## When to Use Each Level in Conversation
 
-| Level | When you say it | Example |
-|---|---|---|
-| **Site** | Talking to customers, account managers, leadership, during incidents affecting a whole customer | "Samsung's site is healthy." "Provision a new site for the Jio trial." |
-| **Domain Deployment** | Talking about a product area for a customer | "The Network Access domain for Ultratech needs the v2.5 upgrade." |
-| **System Deployment** | Talking to the owning team about their system's instance | "The Trafficure Core deployment for Samsung is on v2.4.0." "Upgrade SmartMarket on the shared SaaS site." |
-| **Component Deployment** | Debugging, on-call, CI/CD pipelines, detailed operations | "The trafficure-api deployment has high error rate." "Roll back the rf-engine component deployment." |
-| **Cell** | Capacity planning, infrastructure ops, blast radius analysis | "The SaaS cell is at 72% utilization." "We need a second cell by Q3." |
+| Level                    | When you say it                                                                                 | Example                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Site**                 | Talking to customers, account managers, leadership, during incidents affecting a whole customer | "Samsung's site is healthy." "Provision a new site for the Jio trial."                                    |
+| **Domain Deployment**    | Talking about a product area for a customer                                                     | "The Network Access domain for Ultratech needs the v2.5 upgrade."                                         |
+| **System Deployment**    | Talking to the owning team about their system's instance                                        | "The Trafficure Core deployment for Samsung is on v2.4.0." "Upgrade SmartMarket on the shared SaaS site." |
+| **Component Deployment** | Debugging, on-call, CI/CD pipelines, detailed operations                                        | "The trafficure-api deployment has high error rate." "Roll back the rf-engine component deployment."      |
+| **Cell**                 | Capacity planning, infrastructure ops, blast radius analysis                                    | "The SaaS cell is at 72% utilization." "We need a second cell by Q3."                                     |
 
 Most conversations happen at the **Site** and **System Deployment** levels. Component
 Deployment is for when you're in the weeds. Domain Deployment is for when you need the
@@ -458,13 +458,13 @@ investigate within the shared infrastructure filtered to their tenant context.
 
 ## Summary
 
-| Entity | Mirrors | Definition | Analogy |
-|---|---|---|---|
-| **Component Deployment** | Component | One component version running | A part in a machine |
-| **System Deployment** | System | A running instance of a System (group of component deployments) | A machine on the factory floor |
-| **Domain Deployment** | Domain | All System Deployments for a business domain | A production line |
-| **Site** | (the whole factory) | Everything running for one customer in one environment | The factory |
-| **Cell** | (the land/building) | Infrastructure boundary hosting one or more sites | The industrial park |
+| Entity                   | Mirrors             | Definition                                                      | Analogy                        |
+| ------------------------ | ------------------- | --------------------------------------------------------------- | ------------------------------ |
+| **Component Deployment** | Component           | One component version running                                   | A part in a machine            |
+| **System Deployment**    | System              | A running instance of a System (group of component deployments) | A machine on the factory floor |
+| **Domain Deployment**    | Domain              | All System Deployments for a business domain                    | A production line              |
+| **Site**                 | (the whole factory) | Everything running for one customer in one environment          | The factory                    |
+| **Cell**                 | (the land/building) | Infrastructure boundary hosting one or more sites               | The industrial park            |
 
 Clean, simple, mirrors the catalog, scales from one VM to a hundred-customer SaaS
 cluster.

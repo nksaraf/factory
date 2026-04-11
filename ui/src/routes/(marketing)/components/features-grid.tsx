@@ -122,9 +122,10 @@ export function FeaturesGrid() {
             </span>
           </h2>
           <p className="text-lg text-scale-1000">
-            SmartMarket transforms location intelligence and enterprise data into
-            actionable growth strategies. Score markets, optimize distribution,
-            predict revenue, and identify white space—all powered by AI.
+            SmartMarket transforms location intelligence and enterprise data
+            into actionable growth strategies. Score markets, optimize
+            distribution, predict revenue, and identify white space—all powered
+            by AI.
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-lg border border-scale-500 bg-scale-200 px-4 py-2">
             <span className="text-sm font-medium text-scale-1100">

@@ -48,7 +48,10 @@ export class SnmpNetworkDeviceAdapter implements NetworkDeviceAdapter {
     })
   }
 
-  protected subtree(session: snmp.Session, oid: string): Promise<snmp.Varbind[]> {
+  protected subtree(
+    session: snmp.Session,
+    oid: string
+  ): Promise<snmp.Varbind[]> {
     return new Promise((resolve, reject) => {
       const results: snmp.Varbind[] = []
       session.subtree(
@@ -106,19 +109,20 @@ export class SnmpNetworkDeviceAdapter implements NetworkDeviceAdapter {
   async getDhcpLeases(): Promise<DhcpLease[]> {
     // DHCP leases are not in standard SNMP MIBs
     // Subclasses (GajShield, etc.) should override this
-    logger.info("SNMP generic adapter: DHCP leases not available via standard MIBs")
+    logger.info(
+      "SNMP generic adapter: DHCP leases not available via standard MIBs"
+    )
     return []
   }
 
   async getInterfaces(): Promise<NetworkInterface[]> {
     const session = this.createSession()
     try {
-      const [descrVarbinds, speedVarbinds, statusVarbinds] =
-        await Promise.all([
-          this.subtree(session, OID.ifDescr),
-          this.subtree(session, OID.ifSpeed),
-          this.subtree(session, OID.ifOperStatus),
-        ])
+      const [descrVarbinds, speedVarbinds, statusVarbinds] = await Promise.all([
+        this.subtree(session, OID.ifDescr),
+        this.subtree(session, OID.ifSpeed),
+        this.subtree(session, OID.ifOperStatus),
+      ])
 
       const interfaces = new Map<string, NetworkInterface>()
 
@@ -135,9 +139,10 @@ export class SnmpNetworkDeviceAdapter implements NetworkDeviceAdapter {
         const iface = interfaces.get(idx)
         if (iface) {
           const speedBps = Number(vb.value)
-          iface.speed = speedBps >= 1e9
-            ? `${(speedBps / 1e9).toFixed(0)}Gbps`
-            : `${(speedBps / 1e6).toFixed(0)}Mbps`
+          iface.speed =
+            speedBps >= 1e9
+              ? `${(speedBps / 1e9).toFixed(0)}Gbps`
+              : `${(speedBps / 1e6).toFixed(0)}Mbps`
         }
       }
 
@@ -151,7 +156,10 @@ export class SnmpNetworkDeviceAdapter implements NetworkDeviceAdapter {
 
       return [...interfaces.values()]
     } catch (error) {
-      logger.error({ error, host: this.config.host }, "SNMP getInterfaces failed")
+      logger.error(
+        { error, host: this.config.host },
+        "SNMP getInterfaces failed"
+      )
       return []
     } finally {
       session.close()
@@ -165,9 +173,10 @@ export class SnmpNetworkDeviceAdapter implements NetworkDeviceAdapter {
     }
 
     return new Promise((resolve) => {
-      const args = process.platform === "linux"
-        ? ["-c", "1", "-W", "2", address]
-        : ["-c", "1", "-t", "2", address]
+      const args =
+        process.platform === "linux"
+          ? ["-c", "1", "-W", "2", address]
+          : ["-c", "1", "-t", "2", address]
 
       execFile("ping", args, (error) => {
         resolve(!error)

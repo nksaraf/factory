@@ -2,7 +2,7 @@
 import { rio } from "../rio"
 
 function getBaseUrl(): string {
-  return `${rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/factory"}/infra`
+  return `${rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"}/infra`
 }
 
 function getAuthToken(): string | null {

@@ -1,4 +1,4 @@
-import { useReleaseBundles, useReleases } from "@/lib/fleet"
+import { useReleaseBundles, useReleases } from "@/lib/ops"
 import { useState } from "react"
 
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
@@ -16,7 +16,7 @@ export default function BundlesPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Release Bundles"
         description="Offline bundles for air-gapped site deployments"
       />

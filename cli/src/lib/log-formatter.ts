@@ -6,7 +6,13 @@ import type {
   Alert,
   InfraMetricRow,
 } from "@smp/factory-shared/observability-types"
-import { styleError, styleWarn, styleInfo, styleMuted, styleSuccess } from "../cli-style.js"
+import {
+  styleError,
+  styleWarn,
+  styleInfo,
+  styleMuted,
+  styleSuccess,
+} from "../cli-style.js"
 import { printTable } from "../output.js"
 
 // ---------------------------------------------------------------------------
@@ -81,17 +87,23 @@ export function renderTraceWaterfall(spans: TraceSpan[]): string {
     const indent = "  ".repeat(depth)
     const offset = new Date(span.startTime).getTime() - traceStart
     const barStart = Math.round((offset / totalDuration) * BAR_WIDTH)
-    const barLen = Math.max(1, Math.round((span.duration / totalDuration) * BAR_WIDTH))
+    const barLen = Math.max(
+      1,
+      Math.round((span.duration / totalDuration) * BAR_WIDTH)
+    )
 
     const bar =
       " ".repeat(barStart) +
-      (span.status === "error" ? styleError("█".repeat(barLen)) : styleSuccess("█".repeat(barLen))) +
+      (span.status === "error"
+        ? styleError("█".repeat(barLen))
+        : styleSuccess("█".repeat(barLen))) +
       " ".repeat(Math.max(0, BAR_WIDTH - barStart - barLen))
 
     const durStr = styleMuted(`${(span.duration / 1000).toFixed(1)}ms`)
-    const name = span.operationName.length > 30
-      ? span.operationName.slice(0, 27) + "..."
-      : span.operationName
+    const name =
+      span.operationName.length > 30
+        ? span.operationName.slice(0, 27) + "..."
+        : span.operationName
 
     lines.push(`${indent}${name.padEnd(32 - depth * 2)} ${bar} ${durStr}`)
 
@@ -138,7 +150,9 @@ export function formatMetricsSummaryTable(rows: MetricSummaryRow[]): string {
       r.requestsPerSec.toFixed(1),
       `${r.p50.toFixed(1)}ms`,
       `${r.p99.toFixed(1)}ms`,
-      r.errorPct > 5 ? styleError(`${r.errorPct.toFixed(1)}%`) : `${r.errorPct.toFixed(1)}%`,
+      r.errorPct > 5
+        ? styleError(`${r.errorPct.toFixed(1)}%`)
+        : `${r.errorPct.toFixed(1)}%`,
       r.cpuPct > 80 ? styleWarn(`${r.cpuPct}%`) : `${r.cpuPct}%`,
       r.memoryPct > 80 ? styleWarn(`${r.memoryPct}%`) : `${r.memoryPct}%`,
     ])
@@ -166,13 +180,17 @@ export function formatAlertTable(alerts: Alert[]): string {
     ["ID", "Name", "Severity", "Status", "Site", "Since"],
     alerts.map((a) => {
       const sev =
-        a.severity === "critical" ? styleError(a.severity) :
-        a.severity === "warning" ? styleWarn(a.severity) :
-        a.severity
+        a.severity === "critical"
+          ? styleError(a.severity)
+          : a.severity === "warning"
+            ? styleWarn(a.severity)
+            : a.severity
       const status =
-        a.status === "firing" ? styleError(a.status) :
-        a.status === "resolved" ? styleSuccess(a.status) :
-        a.status
+        a.status === "firing"
+          ? styleError(a.status)
+          : a.status === "resolved"
+            ? styleSuccess(a.status)
+            : a.status
       return [
         a.id.slice(0, 12),
         a.name,

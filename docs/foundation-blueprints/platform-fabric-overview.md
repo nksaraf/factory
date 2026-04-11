@@ -707,7 +707,6 @@ For air-gapped Sites, all pushes happen via physical media or one-way data diode
 
 ### 6.5 Deployment Model Variations
 
-
 | Model          | Factory Infra Role                  | Site Infra Operation            |
 | -------------- | ----------------------------------- | ------------------------------- |
 | SaaS shared    | Fully operates                      | Same team, same cluster         |
@@ -715,7 +714,6 @@ For air-gapped Sites, all pushes happen via physical media or one-way data diode
 | Customer cloud | Specification and remote management | Customer team, Factory assists  |
 | On-premise     | Specification and periodic updates  | Customer team operates          |
 | Air-gapped     | Specification and physical media    | Customer team, fully autonomous |
-
 
 ---
 
@@ -988,13 +986,11 @@ Three layers of defense, each with a clear isolation responsibility.
 
 **Tenant isolation progression:**
 
-
 | Scale                  | Strategy           | Where                                 |
 | ---------------------- | ------------------ | ------------------------------------- |
 | Early (most tenants)   | Row-level with RLS | Shared database, shared schema        |
 | Large tenants          | Separate schema    | Same database, own tables and indexes |
 | Enterprise / regulated | Dedicated Site     | Own database, own infrastructure      |
-
 
 The system starts with row-level isolation for all tenants. When a specific tenant's usage creates performance issues, they graduate to schema-level isolation. When a customer requires full isolation (regulatory, contractual, air-gapped), they get a dedicated Site. This is a Fleet Plane lifecycle operation triggered by Commerce Plane, not an application-level decision.
 
@@ -1155,7 +1151,6 @@ Fleet Plane
 
 ### 11.1 Final Plane Inventory
 
-
 | Plane                | Scope                | Purpose                                      |
 | -------------------- | -------------------- | -------------------------------------------- |
 | Infrastructure Plane | Spans Factory + Site | Compute, storage, network substrate          |
@@ -1167,7 +1162,6 @@ Fleet Plane
 | Control Plane        | Site                 | Who is allowed to do what, under what rules  |
 | Service Plane        | Site                 | What the product does                        |
 | Data Plane           | Site                 | Where data lives and how it is queried       |
-
 
 Nine planes total. Infrastructure spans both halves. Five Factory planes handle what the company does. Three Site planes handle what the product does.
 
@@ -1291,7 +1285,6 @@ Infrastructure Plane is the ground both halves stand on.
 
 ## Appendix A: Glossary
 
-
 | Term                     | Definition                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Platform Fabric          | The complete operating architecture spanning Factory and all Sites                                           |
@@ -1305,7 +1298,6 @@ Infrastructure Plane is the ground both halves stand on.
 | RLS                      | Row Level Security — database-enforced tenant data isolation                                                 |
 | Policy-Execution Pattern | Control Plane declares intent, other planes implement it                                                     |
 | System of Record         | The authoritative source for a specific category of data, owned by one plane                                 |
-
 
 ## Appendix B: Service Registry
 

@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { appendIfMissing } from "./file-utils.js";
-import type { ConfigProvider, ConfigChange } from "./types.js";
+import { existsSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { appendIfMissing } from "./file-utils.js"
+import type { ConfigProvider, ConfigChange } from "./types.js"
 
-const CURLRC_PATH = join(homedir(), ".curlrc");
+const CURLRC_PATH = join(homedir(), ".curlrc")
 
 const CURL_DEFAULTS = [
   "--connect-timeout 10",
@@ -12,7 +12,7 @@ const CURL_DEFAULTS = [
   "--retry 3",
   "--retry-delay 2",
   "-L",
-];
+]
 
 export const curlDefaultsProvider: ConfigProvider = {
   name: "curl defaults (~/.curlrc)",
@@ -21,8 +21,12 @@ export const curlDefaultsProvider: ConfigProvider = {
 
   async detect(): Promise<ConfigChange[]> {
     const existing = existsSync(CURLRC_PATH)
-      ? new Set(readFileSync(CURLRC_PATH, "utf8").split("\n").map((l) => l.trim()))
-      : new Set<string>();
+      ? new Set(
+          readFileSync(CURLRC_PATH, "utf8")
+            .split("\n")
+            .map((l) => l.trim())
+        )
+      : new Set<string>()
 
     return CURL_DEFAULTS.map((line) => ({
       id: `curl:${line.split(" ")[0]}`,
@@ -35,6 +39,6 @@ export const curlDefaultsProvider: ConfigProvider = {
       requiresSudo: false,
       platform: null,
       apply: async () => appendIfMissing(CURLRC_PATH, [line]),
-    }));
+    }))
   },
-};
+}

@@ -108,7 +108,9 @@ export class ProxmoxClient {
   /**
    * Get all nodes with detailed status
    */
-  async getNodesWithStatus(): Promise<(ProxmoxNode & { details?: ProxmoxNodeStatus })[]> {
+  async getNodesWithStatus(): Promise<
+    (ProxmoxNode & { details?: ProxmoxNodeStatus })[]
+  > {
     const nodes = await this.getNodes()
 
     const results: (ProxmoxNode & { details?: ProxmoxNodeStatus })[] = []
@@ -132,7 +134,11 @@ export class ProxmoxClient {
   /**
    * Get Proxmox version
    */
-  async getVersion(): Promise<{ version: string; release: string; repoid: string }> {
+  async getVersion(): Promise<{
+    version: string
+    release: string
+    repoid: string
+  }> {
     const result = await this.client.version.version()
 
     if (!result.isSuccessStatusCode) {
@@ -151,7 +157,9 @@ export class ProxmoxClient {
 
     for (const node of nodes) {
       // Get QEMU VMs
-      const qemuResult = await this.client.nodes.get(node.node).qemu.vmlist(true)
+      const qemuResult = await this.client.nodes
+        .get(node.node)
+        .qemu.vmlist(true)
       if (qemuResult.isSuccessStatusCode) {
         const vms = qemuResult.response.data.map((vm: any) => ({
           ...vm,
@@ -380,10 +388,13 @@ export class ProxmoxClient {
     config: Partial<ProxmoxVmConfig> & CloudInitConfig,
     type: "qemu" | "lxc" = "qemu"
   ): Promise<void> {
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).config.client.set(
-      `/nodes/${nodeName}/${type === "qemu" ? "qemu" : "lxc"}/${vmid}/config`,
-      config
-    );
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .config.client.set(
+        `/nodes/${nodeName}/${type === "qemu" ? "qemu" : "lxc"}/${vmid}/config`,
+        config
+      )
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to update VM config: ${result.reasonPhrase}`)
@@ -406,7 +417,9 @@ export class ProxmoxClient {
     const result = await resource.template.template()
 
     if (!result.isSuccessStatusCode) {
-      throw new Error(`Failed to convert VM to template: ${result.reasonPhrase}`)
+      throw new Error(
+        `Failed to convert VM to template: ${result.reasonPhrase}`
+      )
     }
 
     return result.response.data as string // Returns UPID
@@ -447,7 +460,10 @@ export class ProxmoxClient {
    * Get task status
    */
   async getTaskStatus(nodeName: string, upid: string): Promise<ProxmoxTask> {
-    const result = await this.client.nodes.get(nodeName).tasks.get(upid).status.readTaskStatus()
+    const result = await this.client.nodes
+      .get(nodeName)
+      .tasks.get(upid)
+      .status.readTaskStatus()
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to get task status: ${result.reasonPhrase}`)
@@ -526,7 +542,9 @@ export class ProxmoxClient {
       .agent.get("network-get-interfaces")
 
     if (!result.isSuccessStatusCode) {
-      throw new Error(`Failed to get guest network interfaces: ${result.reasonPhrase}`)
+      throw new Error(
+        `Failed to get guest network interfaces: ${result.reasonPhrase}`
+      )
     }
 
     const data = result.response.data
@@ -548,10 +566,10 @@ export class ProxmoxClient {
     if (description) params.description = description
     if (vmstate != null) params.vmstate = vmstate ? 1 : 0
 
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.client.set(
-      `/nodes/${nodeName}/qemu/${vmid}/snapshot`,
-      params
-    )
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .snapshot.client.set(`/nodes/${nodeName}/qemu/${vmid}/snapshot`, params)
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to create snapshot: ${result.reasonPhrase}`)
@@ -567,7 +585,10 @@ export class ProxmoxClient {
     nodeName: string,
     vmid: number
   ): Promise<ProxmoxSnapshot[]> {
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.snapshotList()
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .snapshot.snapshotList()
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to list snapshots: ${result.reasonPhrase}`)
@@ -584,9 +605,11 @@ export class ProxmoxClient {
     vmid: number,
     snapname: string
   ): Promise<string> {
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.get(snapname).client.delete(
-      `/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}`
-    )
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .snapshot.get(snapname)
+      .client.delete(`/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}`)
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to delete snapshot: ${result.reasonPhrase}`)
@@ -603,10 +626,14 @@ export class ProxmoxClient {
     vmid: number,
     snapname: string
   ): Promise<string> {
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).snapshot.get(snapname).client.set(
-      `/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}/rollback`,
-      {}
-    )
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .snapshot.get(snapname)
+      .client.set(
+        `/nodes/${nodeName}/qemu/${vmid}/snapshot/${snapname}/rollback`,
+        {}
+      )
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to rollback snapshot: ${result.reasonPhrase}`)
@@ -627,10 +654,10 @@ export class ProxmoxClient {
     const params: Record<string, unknown> = { target }
     if (online != null) params.online = online ? 1 : 0
 
-    const result = await this.client.nodes.get(nodeName).qemu.get(vmid).migrate.client.set(
-      `/nodes/${nodeName}/qemu/${vmid}/migrate`,
-      params
-    )
+    const result = await this.client.nodes
+      .get(nodeName)
+      .qemu.get(vmid)
+      .migrate.client.set(`/nodes/${nodeName}/qemu/${vmid}/migrate`, params)
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to migrate VM: ${result.reasonPhrase}`)
@@ -652,10 +679,13 @@ export class ProxmoxClient {
     if (start != null) params.start = start
     if (limit != null) params.limit = limit
 
-    const result = await this.client.nodes.get(nodeName).tasks.get(upid).log.client.get(
-      `/nodes/${nodeName}/tasks/${encodeURIComponent(upid)}/log`,
-      params
-    )
+    const result = await this.client.nodes
+      .get(nodeName)
+      .tasks.get(upid)
+      .log.client.get(
+        `/nodes/${nodeName}/tasks/${encodeURIComponent(upid)}/log`,
+        params
+      )
 
     if (!result.isSuccessStatusCode) {
       throw new Error(`Failed to get task log: ${result.reasonPhrase}`)
@@ -692,7 +722,9 @@ export class ProxmoxClient {
  */
 const clientCache = new Map<string, ProxmoxClient>()
 
-export function getProxmoxClient(credentials: ProxmoxCredentials): ProxmoxClient {
+export function getProxmoxClient(
+  credentials: ProxmoxCredentials
+): ProxmoxClient {
   const cacheKey = `${credentials.host}:${credentials.tokenId}`
 
   let client = clientCache.get(cacheKey)
@@ -704,7 +736,9 @@ export function getProxmoxClient(credentials: ProxmoxCredentials): ProxmoxClient
   return client
 }
 
-export function createProxmoxClient(credentials: ProxmoxCredentials): ProxmoxClient {
+export function createProxmoxClient(
+  credentials: ProxmoxCredentials
+): ProxmoxClient {
   return getProxmoxClient(credentials)
 }
 

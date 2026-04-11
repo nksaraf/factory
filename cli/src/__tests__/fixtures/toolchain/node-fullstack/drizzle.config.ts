@@ -1,1 +1,1 @@
-export default { schema: "./src/db/schema.ts" };
+export default { schema: "./src/db/schema.ts" }

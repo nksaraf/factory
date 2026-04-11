@@ -12,18 +12,29 @@ export default function ProvidersPage() {
   const { data: providers, isLoading } = useProviders()
   const [search, setSearch] = useState("")
 
-  const filtered = (providers ?? []).filter(
-    (p) => p.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = (providers ?? []).filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div className="space-y-6 p-6">
-      <PlaneHeader plane="infra" title="Providers" description="Infrastructure providers — cloud and on-premise" />
+      <PlaneHeader
+        plane="infra"
+        title="Providers"
+        description="Infrastructure providers — cloud and on-premise"
+      />
 
-      <Input placeholder="Search providers..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+      <Input
+        placeholder="Search providers..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
-      {!isLoading && filtered.length === 0 && <EmptyState icon="icon-[ph--cloud-duotone]" title="No providers" />}
+      {!isLoading && filtered.length === 0 && (
+        <EmptyState icon="icon-[ph--cloud-duotone]" title="No providers" />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((p) => (

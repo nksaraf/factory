@@ -13,7 +13,7 @@ export class SiteSimulator {
     manifest?: ManifestV1
   }> {
     const res = await fetch(
-      `${this.apiBaseUrl}/api/factory/ops/sites/${this.siteName}/checkin`,
+      `${this.apiBaseUrl}/api/v1/factory/ops/sites/${this.siteName}/checkin`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,7 +34,7 @@ export class SiteSimulator {
       data.latestVersion > this.currentManifestVersion
     ) {
       const manifestRes = await fetch(
-        `${this.apiBaseUrl}/api/factory/ops/sites/${this.siteName}/manifest`
+        `${this.apiBaseUrl}/api/v1/factory/ops/sites/${this.siteName}/manifest`
       )
       if (!manifestRes.ok)
         throw new Error(`Manifest fetch failed: ${manifestRes.status}`)

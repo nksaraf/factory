@@ -27,11 +27,11 @@ setExamples("preview", [
   "$ dx preview open my-preview       Open preview URL in browser",
 ])
 
-const PREVIEW_BASE = "/api/factory/ops/previews"
+const PREVIEW_BASE = "/api/v1/factory/ops/previews"
 
 async function getPreviewApi() {
   const api = await getFactoryClient()
-  // Routes: /api/factory/ops/previews/...
+  // Routes: /api/v1/factory/ops/previews/...
   return api.api.v1.factory.ops.previews
 }
 

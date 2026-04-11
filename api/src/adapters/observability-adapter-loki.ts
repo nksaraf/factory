@@ -51,7 +51,7 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
         logger.warn({ status: res.status, url }, "Loki query failed")
         return { entries: [], hasMore: false }
       }
-      const json = await res.json() as LokiQueryRangeResponse
+      const json = (await res.json()) as LokiQueryRangeResponse
       return this.parseQueryRangeResponse(json, limit)
     } catch (err) {
       logger.error({ err, url }, "Loki query error")
@@ -70,14 +70,19 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
     if (query.since) params.set("start", this.toNanos(query.since))
 
     // Loki tail is a WebSocket endpoint — reconnect on drop until signal aborts
-    const wsUrl = this.baseUrl.replace(/^http/, "ws") + `/loki/api/v1/tail?${params}`
+    const wsUrl =
+      this.baseUrl.replace(/^http/, "ws") + `/loki/api/v1/tail?${params}`
 
     while (!signal.aborted) {
       await new Promise<void>((resolve) => {
         const ws = new WebSocket(wsUrl)
 
         const cleanup = () => {
-          try { ws.close() } catch { /* already closed */ }
+          try {
+            ws.close()
+          } catch {
+            /* already closed */
+          }
           resolve()
         }
 
@@ -98,7 +103,9 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
           }
         }
 
-        ws.onerror = () => { cleanup() }
+        ws.onerror = () => {
+          cleanup()
+        }
 
         ws.onclose = () => {
           signal.removeEventListener("abort", cleanup)
@@ -143,7 +150,13 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
   }
 
   private levelToNumber(level: string): number | undefined {
-    const map: Record<string, number> = { debug: 20, info: 30, warn: 40, error: 50, fatal: 60 }
+    const map: Record<string, number> = {
+      debug: 20,
+      info: 30,
+      warn: 40,
+      error: 50,
+      fatal: 60,
+    }
     return map[level]
   }
 
@@ -202,7 +215,8 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
 
     return {
       timestamp: parsed.time ?? this.fromNanos(ts),
-      level: this.mapPinoLevel(parsed.level) ?? (labels.level as LogLevel) ?? "info",
+      level:
+        this.mapPinoLevel(parsed.level) ?? (labels.level as LogLevel) ?? "info",
       message: parsed.msg ?? cleaned,
       source: parsed.service ?? labels.service_name ?? "factory-api",
       attributes: {
@@ -210,14 +224,18 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
         ...(parsed.op ? { op: parsed.op } : {}),
         ...(parsed.runId ? { runId: parsed.runId } : {}),
         ...(parsed.module ? { module: parsed.module } : {}),
-        ...(parsed.durationMs !== undefined ? { durationMs: String(parsed.durationMs) } : {}),
+        ...(parsed.durationMs !== undefined
+          ? { durationMs: String(parsed.durationMs) }
+          : {}),
       },
       traceId: parsed.trace_id ?? parsed.traceId,
       spanId: parsed.span_id ?? parsed.spanId,
     }
   }
 
-  private mapPinoLevel(level: number | string | undefined): LogLevel | undefined {
+  private mapPinoLevel(
+    level: number | string | undefined
+  ): LogLevel | undefined {
     if (typeof level === "string") return level as LogLevel
     if (typeof level !== "number") return undefined
     if (level <= 10) return "debug"
@@ -236,7 +254,12 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
     const relMatch = isoOrRelative.match(/^(\d+)([smhd])$/)
     if (relMatch) {
       const [, num, unit] = relMatch
-      const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
+      const multipliers: Record<string, number> = {
+        s: 1000,
+        m: 60_000,
+        h: 3_600_000,
+        d: 86_400_000,
+      }
       const ms = Date.now() - Number(num) * (multipliers[unit] ?? 60_000)
       return String(ms * 1_000_000)
     }
@@ -250,31 +273,60 @@ export class LokiObservabilityAdapter implements ObservabilityAdapter {
 
   // -- Traces (not backed by Loki) -------------------------------------------
 
-  async listTraces(_query: TraceQuery): Promise<TraceSummary[]> { return [] }
-  async getTrace(_traceId: string): Promise<TraceSpan[]> { return [] }
-  async findTrace(_query: TraceFindQuery): Promise<TraceSummary[]> { return [] }
+  async listTraces(_query: TraceQuery): Promise<TraceSummary[]> {
+    return []
+  }
+  async getTrace(_traceId: string): Promise<TraceSpan[]> {
+    return []
+  }
+  async findTrace(_query: TraceFindQuery): Promise<TraceSummary[]> {
+    return []
+  }
 
   // -- Metrics (not backed by Loki) ------------------------------------------
 
-  async getSummary(_query: MetricsQuery): Promise<MetricSummaryRow[]> { return [] }
+  async getSummary(_query: MetricsQuery): Promise<MetricSummaryRow[]> {
+    return []
+  }
   async getComponentMetrics(
-    _module: string, _component: string, _query: MetricsQuery
-  ): Promise<Record<string, unknown>> { return {} }
-  async getSeries(_query: MetricsQuery): Promise<MetricSeries[]> { return [] }
-  async getInfraMetrics(_query: MetricsQuery): Promise<InfraMetricRow[]> { return [] }
-  async runQuery(_promql: string, _query: MetricsQuery): Promise<MetricSeries[]> { return [] }
+    _module: string,
+    _component: string,
+    _query: MetricsQuery
+  ): Promise<Record<string, unknown>> {
+    return {}
+  }
+  async getSeries(_query: MetricsQuery): Promise<MetricSeries[]> {
+    return []
+  }
+  async getInfraMetrics(_query: MetricsQuery): Promise<InfraMetricRow[]> {
+    return []
+  }
+  async runQuery(
+    _promql: string,
+    _query: MetricsQuery
+  ): Promise<MetricSeries[]> {
+    return []
+  }
 
   // -- Alerts (not backed by Loki) -------------------------------------------
 
-  async listAlerts(_query: AlertQuery): Promise<Alert[]> { return [] }
-  async getAlert(id: string): Promise<Alert> { throw new Error(`Alert not found: ${id}`) }
+  async listAlerts(_query: AlertQuery): Promise<Alert[]> {
+    return []
+  }
+  async getAlert(id: string): Promise<Alert> {
+    throw new Error(`Alert not found: ${id}`)
+  }
   async ackAlert(_id: string, _reason: string): Promise<void> {}
   async resolveAlert(_id: string, _reason: string): Promise<void> {}
   async silenceAlerts(_spec: SilenceSpec): Promise<{ silenceId: string }> {
     return { silenceId: `silence_loki_${Date.now()}` }
   }
-  async listAlertRules(): Promise<AlertRule[]> { return [] }
-  async getAlertRule(id: string): Promise<AlertRule> { throw new Error(`Alert rule not found: ${id}`) }
+  async listAlertRules(): Promise<AlertRule[]> {
+    return []
+  }
+  async getAlertRule(id: string): Promise<AlertRule> {
+    throw new Error(`Alert rule not found: ${id}`)
+  }
   async setAlertRuleEnabled(_id: string, _enabled: boolean): Promise<void> {}
   async createAlertRule(rule: Omit<AlertRule, "id">): Promise<AlertRule> {
     return { ...rule, id: `rule_loki_${Date.now()}` }

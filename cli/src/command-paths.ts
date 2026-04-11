@@ -80,4 +80,4 @@ export const COMMAND_PATHS: string[] = [
   "work/done",
   "work/list",
   "work/start",
-];
+]

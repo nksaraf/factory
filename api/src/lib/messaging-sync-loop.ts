@@ -6,13 +6,13 @@
  * (identity-sync-loop.ts). This loop only handles messaging-specific state.
  */
 
-import { eq, sql } from "drizzle-orm";
-import type { Database } from "../db/connection";
-import { messagingProvider } from "../db/schema/org-v2";
-import type { MessagingProviderSpec } from "@smp/factory-shared/schemas/org";
-import { createOperationRunner, type OperationRunner } from "./operations";
+import { eq, sql } from "drizzle-orm"
+import type { Database } from "../db/connection"
+import { messagingProvider } from "../db/schema/org-v2"
+import type { MessagingProviderSpec } from "@smp/factory-shared/schemas/org"
+import { createOperationRunner, type OperationRunner } from "./operations"
 
-const DEFAULT_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_SYNC_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 
 /**
  * Start the periodic messaging sync loop.
@@ -24,7 +24,7 @@ const DEFAULT_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
  */
 export function startMessagingSyncLoop(
   db: Database,
-  opts?: { intervalMs?: number },
+  opts?: { intervalMs?: number }
 ): OperationRunner {
   return createOperationRunner(db, {
     name: "messaging",
@@ -34,43 +34,53 @@ export function startMessagingSyncLoop(
       const providers = await db
         .select()
         .from(messagingProvider)
-        .where(sql`${messagingProvider.spec}->>'status' = 'active'`);
+        .where(sql`${messagingProvider.spec}->>'status' = 'active'`)
 
-      let synced = 0;
-      let errors = 0;
+      let synced = 0
+      let errors = 0
       for (const provider of providers) {
         try {
           // User identity syncing is now handled by the identity sync loop.
           // This loop can be extended with channel metadata sync in the future.
 
           // Update lastSyncAt in spec
-          const spec = (provider.spec ?? {}) as MessagingProviderSpec;
+          const spec = (provider.spec ?? {}) as MessagingProviderSpec
           await db
             .update(messagingProvider)
             .set({
-              spec: { ...spec, lastSyncAt: new Date().toISOString() } satisfies MessagingProviderSpec,
+              spec: {
+                ...spec,
+                lastSyncAt: new Date().toISOString(),
+              } satisfies MessagingProviderSpec,
               updatedAt: new Date(),
             })
-            .where(eq(messagingProvider.id, provider.id));
-          synced++;
+            .where(eq(messagingProvider.id, provider.id))
+          synced++
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          log.error({ err, providerId: provider.id }, "messaging provider sync failed");
+          const errorMessage = err instanceof Error ? err.message : String(err)
+          log.error(
+            { err, providerId: provider.id },
+            "messaging provider sync failed"
+          )
 
           // Record sync error in spec
-          const spec = (provider.spec ?? {}) as MessagingProviderSpec;
+          const spec = (provider.spec ?? {}) as MessagingProviderSpec
           await db
             .update(messagingProvider)
             .set({
-              spec: { ...spec, syncError: errorMessage, lastSyncAt: new Date().toISOString() } satisfies MessagingProviderSpec,
+              spec: {
+                ...spec,
+                syncError: errorMessage,
+                lastSyncAt: new Date().toISOString(),
+              } satisfies MessagingProviderSpec,
               updatedAt: new Date(),
             })
-            .where(eq(messagingProvider.id, provider.id));
-          errors++;
+            .where(eq(messagingProvider.id, provider.id))
+          errors++
         }
       }
 
-      return { providers: providers.length, synced, errors };
+      return { providers: providers.length, synced, errors }
     },
-  });
+  })
 }

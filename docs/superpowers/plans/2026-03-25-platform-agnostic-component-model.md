@@ -13,6 +13,7 @@
 ## File Structure
 
 ### New Files
+
 - `factory/api/src/reconciler/runtime-strategy.ts` — Runtime strategy interface + registry
 - `factory/api/src/reconciler/strategies/kubernetes.ts` — K8s strategy (extracted from resource-generator)
 - `factory/api/src/reconciler/strategies/compose.ts` — Docker Compose strategy (stub)
@@ -23,6 +24,7 @@
 - `factory/api/drizzle/0004_platform_agnostic_components.sql` — Migration for all schema changes
 
 ### Modified Files
+
 - `factory/api/src/db/schema/product.ts` — componentSpec.kind enum change + `stateful` field
 - `factory/api/src/db/schema/fleet.ts` — deploymentTarget adds `runtime`, `hostId`, `vmId`; workload adds `desiredArtifactUri`
 - `factory/api/src/db/schema/build.ts` — artifact adds `kind` field
@@ -45,6 +47,7 @@
 ### Task 1: Migration — Schema Changes
 
 **Files:**
+
 - Create: `factory/api/drizzle/0004_platform_agnostic_components.sql`
 
 This migration makes all the database-level changes in one atomic migration.
@@ -153,6 +156,7 @@ git commit -m "feat(infra): add migration for platform-agnostic component model"
 ### Task 2: Update Shared Types
 
 **Files:**
+
 - Modify: `factory/shared/src/types.ts`
 
 Update all TypeScript interfaces to match the new schema.
@@ -163,25 +167,21 @@ In `factory/shared/src/types.ts`, change:
 
 ```typescript
 // Old:
-export type ComponentKind =
-  | "deployment"
-  | "statefulset"
-  | "job"
-  | "cronjob";
+export type ComponentKind = "deployment" | "statefulset" | "job" | "cronjob"
 
 export interface ComponentSpec {
-  componentId: string;
-  moduleId: string;
-  name: string;
-  kind: ComponentKind;
-  port?: number | null;
-  healthcheckPath?: string | null;
-  isPublic: boolean;
-  runOrder?: number | null;
-  defaultReplicas: number;
-  defaultCpu: string;
-  defaultMemory: string;
-  createdAt: string;
+  componentId: string
+  moduleId: string
+  name: string
+  kind: ComponentKind
+  port?: number | null
+  healthcheckPath?: string | null
+  isPublic: boolean
+  runOrder?: number | null
+  defaultReplicas: number
+  defaultCpu: string
+  defaultMemory: string
+  createdAt: string
 }
 ```
 
@@ -195,37 +195,37 @@ export type ComponentKind =
   | "scheduled"
   | "site"
   | "database"
-  | "gateway";
+  | "gateway"
 
-export type PortProtocol = "http" | "https" | "grpc" | "tcp" | "udp";
+export type PortProtocol = "http" | "https" | "grpc" | "tcp" | "udp"
 
 export interface ComponentPort {
-  name: string;
-  port: number;
-  protocol: PortProtocol;
+  name: string
+  port: number
+  protocol: PortProtocol
 }
 
 export interface ComponentHealthcheck {
-  path: string;
-  portName: string;
-  protocol: PortProtocol;
+  path: string
+  portName: string
+  protocol: PortProtocol
 }
 
 export interface ComponentSpec {
-  componentId: string;
-  moduleId: string;
-  name: string;
-  slug: string;
-  kind: ComponentKind;
-  ports: ComponentPort[];
-  healthcheck?: ComponentHealthcheck | null;
-  isPublic: boolean;
-  stateful: boolean;
-  runOrder?: number | null;
-  defaultReplicas: number;
-  defaultCpu: string;
-  defaultMemory: string;
-  createdAt: string;
+  componentId: string
+  moduleId: string
+  name: string
+  slug: string
+  kind: ComponentKind
+  ports: ComponentPort[]
+  healthcheck?: ComponentHealthcheck | null
+  isPublic: boolean
+  stateful: boolean
+  runOrder?: number | null
+  defaultReplicas: number
+  defaultCpu: string
+  defaultMemory: string
+  createdAt: string
 }
 ```
 
@@ -235,21 +235,21 @@ Change:
 
 ```typescript
 export interface DeploymentTarget {
-  deploymentTargetId: string;
-  name: string;
-  kind: DeploymentTargetKind;
-  siteId?: string | null;
-  clusterId?: string | null;
-  namespace?: string | null;
-  createdBy: string;
-  trigger: DeploymentTargetTrigger;
-  ttl?: string | null;
-  expiresAt?: string | null;
-  tierPolicies: Record<string, unknown>;
-  status: DeploymentTargetStatus;
-  labels: Record<string, unknown>;
-  createdAt: string;
-  destroyedAt?: string | null;
+  deploymentTargetId: string
+  name: string
+  kind: DeploymentTargetKind
+  siteId?: string | null
+  clusterId?: string | null
+  namespace?: string | null
+  createdBy: string
+  trigger: DeploymentTargetTrigger
+  ttl?: string | null
+  expiresAt?: string | null
+  tierPolicies: Record<string, unknown>
+  status: DeploymentTargetStatus
+  labels: Record<string, unknown>
+  createdAt: string
+  destroyedAt?: string | null
 }
 ```
 
@@ -262,27 +262,27 @@ export type DeploymentTargetRuntime =
   | "systemd"
   | "windows_service"
   | "iis"
-  | "process";
+  | "process"
 
 export interface DeploymentTarget {
-  deploymentTargetId: string;
-  name: string;
-  kind: DeploymentTargetKind;
-  runtime: DeploymentTargetRuntime;
-  siteId?: string | null;
-  clusterId?: string | null;
-  hostId?: string | null;
-  vmId?: string | null;
-  namespace?: string | null;
-  createdBy: string;
-  trigger: DeploymentTargetTrigger;
-  ttl?: string | null;
-  expiresAt?: string | null;
-  tierPolicies: Record<string, unknown>;
-  status: DeploymentTargetStatus;
-  labels: Record<string, unknown>;
-  createdAt: string;
-  destroyedAt?: string | null;
+  deploymentTargetId: string
+  name: string
+  kind: DeploymentTargetKind
+  runtime: DeploymentTargetRuntime
+  siteId?: string | null
+  clusterId?: string | null
+  hostId?: string | null
+  vmId?: string | null
+  namespace?: string | null
+  createdBy: string
+  trigger: DeploymentTargetTrigger
+  ttl?: string | null
+  expiresAt?: string | null
+  tierPolicies: Record<string, unknown>
+  status: DeploymentTargetStatus
+  labels: Record<string, unknown>
+  createdAt: string
+  destroyedAt?: string | null
 }
 ```
 
@@ -292,11 +292,11 @@ Change:
 
 ```typescript
 export interface Artifact {
-  artifactId: string;
-  imageRef: string;
-  imageDigest: string;
-  sizeBytes?: number | null;
-  builtAt: string;
+  artifactId: string
+  imageRef: string
+  imageDigest: string
+  sizeBytes?: number | null
+  builtAt: string
 }
 ```
 
@@ -308,15 +308,15 @@ export type ArtifactKind =
   | "binary"
   | "archive"
   | "package"
-  | "bundle";
+  | "bundle"
 
 export interface Artifact {
-  artifactId: string;
-  kind: ArtifactKind;
-  imageRef: string;
-  imageDigest: string;
-  sizeBytes?: number | null;
-  builtAt: string;
+  artifactId: string
+  kind: ArtifactKind
+  imageRef: string
+  imageDigest: string
+  sizeBytes?: number | null
+  builtAt: string
 }
 ```
 
@@ -326,22 +326,22 @@ Add `desiredArtifactUri` to the Workload interface:
 
 ```typescript
 export interface Workload {
-  workloadId: string;
-  deploymentTargetId: string;
-  moduleVersionId: string;
-  componentId: string;
-  artifactId: string;
-  replicas: number;
-  envOverrides: Record<string, unknown>;
-  resourceOverrides: Record<string, unknown>;
-  status: WorkloadStatus;
-  desiredImage: string;
-  desiredArtifactUri?: string | null;
-  actualImage?: string | null;
-  driftDetected: boolean;
-  lastReconciledAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  workloadId: string
+  deploymentTargetId: string
+  moduleVersionId: string
+  componentId: string
+  artifactId: string
+  replicas: number
+  envOverrides: Record<string, unknown>
+  resourceOverrides: Record<string, unknown>
+  status: WorkloadStatus
+  desiredImage: string
+  desiredArtifactUri?: string | null
+  actualImage?: string | null
+  driftDetected: boolean
+  lastReconciledAt?: string | null
+  createdAt: string
+  updatedAt: string
 }
 ```
 
@@ -350,26 +350,26 @@ export interface Workload {
 Change Host:
 
 ```typescript
-export type OsType = "linux" | "windows";
-export type AccessMethod = "ssh" | "winrm" | "rdp";
+export type OsType = "linux" | "windows"
+export type AccessMethod = "ssh" | "winrm" | "rdp"
 
 export interface Host {
-  hostId: string;
-  name: string;
-  slug: string;
-  hostname?: string | null;
-  providerId: string;
-  datacenterId?: string | null;
-  ipAddress?: string | null;
-  ipmiAddress?: string | null;
-  status: HostStatus;
-  osType: OsType;
-  accessMethod: AccessMethod;
-  cpuCores: number;
-  memoryMb: number;
-  diskGb: number;
-  rackLocation?: string | null;
-  createdAt: string;
+  hostId: string
+  name: string
+  slug: string
+  hostname?: string | null
+  providerId: string
+  datacenterId?: string | null
+  ipAddress?: string | null
+  ipmiAddress?: string | null
+  status: HostStatus
+  osType: OsType
+  accessMethod: AccessMethod
+  cpuCores: number
+  memoryMb: number
+  diskGb: number
+  rackLocation?: string | null
+  createdAt: string
 }
 ```
 
@@ -377,25 +377,25 @@ Change Vm (note: `sshUser` is removed, replaced by `accessUser` + `accessMethod`
 
 ```typescript
 export interface Vm {
-  vmId: string;
-  name: string;
-  slug: string;
-  providerId: string;
-  datacenterId?: string | null;
-  hostId?: string | null;
-  clusterId?: string | null;
-  proxmoxClusterId?: string | null;
-  proxmoxVmid?: number | null;
-  vmType: string;
-  status: VmStatus;
-  osType: OsType;
-  accessMethod: AccessMethod;
-  accessUser?: string | null;
-  cpu: number;
-  memoryMb: number;
-  diskGb: number;
-  ipAddress?: string | null;
-  createdAt: string;
+  vmId: string
+  name: string
+  slug: string
+  providerId: string
+  datacenterId?: string | null
+  hostId?: string | null
+  clusterId?: string | null
+  proxmoxClusterId?: string | null
+  proxmoxVmid?: number | null
+  vmType: string
+  status: VmStatus
+  osType: OsType
+  accessMethod: AccessMethod
+  accessUser?: string | null
+  cpu: number
+  memoryMb: number
+  diskGb: number
+  ipAddress?: string | null
+  createdAt: string
 }
 ```
 
@@ -411,6 +411,7 @@ git commit -m "feat(shared): update types for platform-agnostic component model"
 ### Task 3: Update Drizzle Schema Definitions
 
 **Files:**
+
 - Modify: `factory/api/src/db/schema/product.ts`
 - Modify: `factory/api/src/db/schema/fleet.ts`
 - Modify: `factory/api/src/db/schema/build.ts`
@@ -423,11 +424,21 @@ These changes must match the migration SQL exactly.
 In `factory/api/src/db/schema/product.ts`:
 
 1. Update imports — add `boolean`, `jsonb`; remove `integer` if `port` was its only use:
+
 ```typescript
-import { boolean, check, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  jsonb,
+  pgSchema,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 ```
 
 2. Replace the `port` and `healthcheckPath` columns with `ports` and `healthcheck`:
+
 ```typescript
     // DELETE these two lines:
     port: integer("port"),
@@ -439,18 +450,22 @@ import { boolean, check, jsonb, pgSchema, text, timestamp, uniqueIndex } from "d
 ```
 
 3. Add the `stateful` column (after `isPublic`):
+
 ```typescript
     stateful: boolean("stateful").notNull().default(false),
 ```
 
 4. Update the kind check constraint from:
+
 ```typescript
     check(
       "component_spec_kind_valid",
       sql`${t.kind} IN ('deployment', 'statefulset', 'job', 'cronjob')`
     ),
 ```
+
 To:
+
 ```typescript
     check(
       "component_spec_kind_valid",
@@ -473,11 +488,13 @@ In `factory/api/src/db/schema/fleet.ts`, add to the `deploymentTarget` columns (
 ```
 
 Add the import for `host` and `vm` at the top:
+
 ```typescript
-import { cluster, host, vm } from "./infra";
+import { cluster, host, vm } from "./infra"
 ```
 
 Add the runtime check constraint to the table's constraint array:
+
 ```typescript
     check(
       "deployment_target_runtime_valid",
@@ -488,6 +505,7 @@ Add the runtime check constraint to the table's constraint array:
 - [ ] **Step 3: Update workload in fleet.ts**
 
 Add to the `workload` columns (after `desiredImage`):
+
 ```typescript
     desiredArtifactUri: text("desired_artifact_uri"),
 ```
@@ -495,20 +513,26 @@ Add to the `workload` columns (after `desiredImage`):
 - [ ] **Step 4: Update artifact in build.ts**
 
 Add to the `artifact` columns (after `artifactId`):
+
 ```typescript
     kind: text("kind").notNull().default("container_image"),
 ```
 
 Add a check constraint. The artifact table currently has no constraint array, so add one:
+
 ```typescript
-export const artifact = factoryBuild.table("artifact", {
-  // ... columns ...
-}, (t) => [
-  check(
-    "artifact_kind_valid",
-    sql`${t.kind} IN ('container_image', 'binary', 'archive', 'package', 'bundle')`
-  ),
-]);
+export const artifact = factoryBuild.table(
+  "artifact",
+  {
+    // ... columns ...
+  },
+  (t) => [
+    check(
+      "artifact_kind_valid",
+      sql`${t.kind} IN ('container_image', 'binary', 'archive', 'package', 'bundle')`
+    ),
+  ]
+)
 ```
 
 Note: this changes the `artifact` table definition from a 2-arg to 3-arg `factoryBuild.table()` call.
@@ -516,12 +540,14 @@ Note: this changes the `artifact` table definition from a 2-arg to 3-arg `factor
 - [ ] **Step 5: Update host and vm in infra.ts**
 
 In the `host` table, add columns (after `status`):
+
 ```typescript
     osType: text("os_type").notNull().default("linux"),
     accessMethod: text("access_method").notNull().default("ssh"),
 ```
 
 Add check constraints to the host constraint array:
+
 ```typescript
     check(
       "host_os_type_valid",
@@ -534,6 +560,7 @@ Add check constraints to the host constraint array:
 ```
 
 In the `vm` table, add columns (after `status`):
+
 ```typescript
     osType: text("os_type").notNull().default("linux"),
     accessMethod: text("access_method").notNull().default("ssh"),
@@ -541,12 +568,14 @@ In the `vm` table, add columns (after `status`):
 ```
 
 Also **remove** the `sshUser` column from the vm table (it's been replaced by `accessUser` + `accessMethod`):
+
 ```typescript
     // DELETE this line:
     sshUser: text("ssh_user"),
 ```
 
 Add check constraints to the vm constraint array:
+
 ```typescript
     check(
       "vm_os_type_valid",
@@ -570,6 +599,7 @@ git commit -m "feat(schema): update Drizzle schema for platform-agnostic compone
 ### Task 4: Write Tests for Schema Changes
 
 **Files:**
+
 - Modify: `factory/api/src/__tests__/infra-services.test.ts`
 
 Verify the new columns work at the database level before touching services.
@@ -579,65 +609,65 @@ Verify the new columns work at the database level before touching services.
 Add a new `describe` block in the `host` section of `infra-services.test.ts`:
 
 ```typescript
-    it("creates host with osType and accessMethod", async () => {
-      const prov = await providerSvc.createProvider(db, {
-        name: "prov",
-        providerType: "proxmox",
-      });
-      const winHost = await hostSvc.addHost(db, {
-        name: "win-srv-01",
-        providerId: prov!.providerId,
-        cpuCores: 16,
-        memoryMb: 65536,
-        diskGb: 1000,
-        osType: "windows",
-        accessMethod: "ssh",
-      });
-      expect(winHost.osType).toBe("windows");
-      expect(winHost.accessMethod).toBe("ssh");
-    });
+it("creates host with osType and accessMethod", async () => {
+  const prov = await providerSvc.createProvider(db, {
+    name: "prov",
+    providerType: "proxmox",
+  })
+  const winHost = await hostSvc.addHost(db, {
+    name: "win-srv-01",
+    providerId: prov!.providerId,
+    cpuCores: 16,
+    memoryMb: 65536,
+    diskGb: 1000,
+    osType: "windows",
+    accessMethod: "ssh",
+  })
+  expect(winHost.osType).toBe("windows")
+  expect(winHost.accessMethod).toBe("ssh")
+})
 
-    it("defaults host to linux + ssh", async () => {
-      const prov = await providerSvc.createProvider(db, {
-        name: "prov",
-        providerType: "proxmox",
-      });
-      const linuxHost = await hostSvc.addHost(db, {
-        name: "linux-srv-01",
-        providerId: prov!.providerId,
-        cpuCores: 16,
-        memoryMb: 65536,
-        diskGb: 1000,
-      });
-      expect(linuxHost.osType).toBe("linux");
-      expect(linuxHost.accessMethod).toBe("ssh");
-    });
+it("defaults host to linux + ssh", async () => {
+  const prov = await providerSvc.createProvider(db, {
+    name: "prov",
+    providerType: "proxmox",
+  })
+  const linuxHost = await hostSvc.addHost(db, {
+    name: "linux-srv-01",
+    providerId: prov!.providerId,
+    cpuCores: 16,
+    memoryMb: 65536,
+    diskGb: 1000,
+  })
+  expect(linuxHost.osType).toBe("linux")
+  expect(linuxHost.accessMethod).toBe("ssh")
+})
 
-    it("filters hosts by osType", async () => {
-      const prov = await providerSvc.createProvider(db, {
-        name: "prov",
-        providerType: "proxmox",
-      });
-      await hostSvc.addHost(db, {
-        name: "linux-01",
-        providerId: prov!.providerId,
-        cpuCores: 8,
-        memoryMb: 32768,
-        diskGb: 500,
-        osType: "linux",
-      });
-      await hostSvc.addHost(db, {
-        name: "win-01",
-        providerId: prov!.providerId,
-        cpuCores: 8,
-        memoryMb: 32768,
-        diskGb: 500,
-        osType: "windows",
-      });
-      const winHosts = await hostSvc.listHosts(db, { osType: "windows" });
-      expect(winHosts).toHaveLength(1);
-      expect(winHosts[0].name).toBe("win-01");
-    });
+it("filters hosts by osType", async () => {
+  const prov = await providerSvc.createProvider(db, {
+    name: "prov",
+    providerType: "proxmox",
+  })
+  await hostSvc.addHost(db, {
+    name: "linux-01",
+    providerId: prov!.providerId,
+    cpuCores: 8,
+    memoryMb: 32768,
+    diskGb: 500,
+    osType: "linux",
+  })
+  await hostSvc.addHost(db, {
+    name: "win-01",
+    providerId: prov!.providerId,
+    cpuCores: 8,
+    memoryMb: 32768,
+    diskGb: 500,
+    osType: "windows",
+  })
+  const winHosts = await hostSvc.listHosts(db, { osType: "windows" })
+  expect(winHosts).toHaveLength(1)
+  expect(winHosts[0].name).toBe("win-01")
+})
 ```
 
 - [ ] **Step 2: Write test for VM osType and accessMethod**
@@ -645,50 +675,50 @@ Add a new `describe` block in the `host` section of `infra-services.test.ts`:
 Add to the `vm` section:
 
 ```typescript
-    it("creates Windows VM with accessMethod and accessUser", async () => {
-      const prov = await providerSvc.createProvider(db, {
-        name: "prov",
-        providerType: "proxmox",
-      });
-      const winVm = await vmSvc.createVm(db, {
-        name: "win-vm-01",
-        providerId: prov!.providerId,
-        cpu: 4,
-        memoryMb: 8192,
-        diskGb: 100,
-        osType: "windows",
-        accessMethod: "winrm",
-        accessUser: "Administrator",
-      });
-      expect(winVm.osType).toBe("windows");
-      expect(winVm.accessMethod).toBe("winrm");
-      expect(winVm.accessUser).toBe("Administrator");
-    });
+it("creates Windows VM with accessMethod and accessUser", async () => {
+  const prov = await providerSvc.createProvider(db, {
+    name: "prov",
+    providerType: "proxmox",
+  })
+  const winVm = await vmSvc.createVm(db, {
+    name: "win-vm-01",
+    providerId: prov!.providerId,
+    cpu: 4,
+    memoryMb: 8192,
+    diskGb: 100,
+    osType: "windows",
+    accessMethod: "winrm",
+    accessUser: "Administrator",
+  })
+  expect(winVm.osType).toBe("windows")
+  expect(winVm.accessMethod).toBe("winrm")
+  expect(winVm.accessUser).toBe("Administrator")
+})
 
-    it("lists VMs filtered by osType", async () => {
-      const prov = await providerSvc.createProvider(db, {
-        name: "prov",
-        providerType: "proxmox",
-      });
-      await vmSvc.createVm(db, {
-        name: "linux-vm",
-        providerId: prov!.providerId,
-        cpu: 2,
-        memoryMb: 4096,
-        diskGb: 50,
-      });
-      await vmSvc.createVm(db, {
-        name: "win-vm",
-        providerId: prov!.providerId,
-        cpu: 2,
-        memoryMb: 4096,
-        diskGb: 50,
-        osType: "windows",
-      });
-      const winVms = await vmSvc.listVms(db, { osType: "windows" });
-      expect(winVms).toHaveLength(1);
-      expect(winVms[0].name).toBe("win-vm");
-    });
+it("lists VMs filtered by osType", async () => {
+  const prov = await providerSvc.createProvider(db, {
+    name: "prov",
+    providerType: "proxmox",
+  })
+  await vmSvc.createVm(db, {
+    name: "linux-vm",
+    providerId: prov!.providerId,
+    cpu: 2,
+    memoryMb: 4096,
+    diskGb: 50,
+  })
+  await vmSvc.createVm(db, {
+    name: "win-vm",
+    providerId: prov!.providerId,
+    cpu: 2,
+    memoryMb: 4096,
+    diskGb: 50,
+    osType: "windows",
+  })
+  const winVms = await vmSvc.listVms(db, { osType: "windows" })
+  expect(winVms).toHaveLength(1)
+  expect(winVms[0].name).toBe("win-vm")
+})
 ```
 
 - [ ] **Step 3: Run tests to verify they fail**
@@ -708,6 +738,7 @@ git commit -m "test(infra): add tests for osType and accessMethod on hosts and V
 ### Task 5: Update Infra Services for osType/accessMethod
 
 **Files:**
+
 - Modify: `factory/api/src/services/infra/host.service.ts`
 - Modify: `factory/api/src/services/infra/vm.service.ts`
 - Modify: `factory/api/src/modules/infra/model.ts`
@@ -719,15 +750,17 @@ In `host.service.ts`, add `osType?: string` and `accessMethod?: string` to the `
 - [ ] **Step 2: Update host.service.ts — listHosts filters by osType**
 
 In the `listHosts` function, add `osType?: string` to the filter options type and add a chained `.where()` following the existing pattern:
+
 ```typescript
-  if (filters?.osType) {
-    query = query.where(eq(host.osType, filters.osType)) as typeof query;
-  }
+if (filters?.osType) {
+  query = query.where(eq(host.osType, filters.osType)) as typeof query
+}
 ```
 
 - [ ] **Step 3: Update vm.service.ts — createVm accepts osType, accessMethod, accessUser; drop sshUser**
 
 In `vm.service.ts`, update the `createVm` function's `data` type:
+
 - Add `osType?: string`, `accessMethod?: string`, `accessUser?: string`
 - Remove `sshUser?: string`
 
@@ -736,10 +769,11 @@ The spread pattern (`{ slug: explicitSlug, ...rest }` → `db.insert(vm).values(
 - [ ] **Step 4: Update vm.service.ts — listVms filters by osType**
 
 Add `osType?: string` to the filter options type and add a chained `.where()` following the existing pattern:
+
 ```typescript
-  if (filters?.osType) {
-    query = query.where(eq(vm.osType, filters.osType)) as typeof query;
-  }
+if (filters?.osType) {
+  query = query.where(eq(vm.osType, filters.osType)) as typeof query
+}
 ```
 
 - [ ] **Step 5: Update InfraModel**
@@ -747,17 +781,20 @@ Add `osType?: string` to the filter options type and add a chained `.where()` fo
 In `factory/api/src/modules/infra/model.ts`:
 
 Add to `createHostBody`:
+
 ```typescript
 osType: t.Optional(t.String()),
 accessMethod: t.Optional(t.String()),
 ```
 
 Add to `listHostsQuery`:
+
 ```typescript
 osType: t.Optional(t.String()),
 ```
 
 Add to `createVmBody`:
+
 ```typescript
 osType: t.Optional(t.String()),
 accessMethod: t.Optional(t.String()),
@@ -765,6 +802,7 @@ accessUser: t.Optional(t.String()),
 ```
 
 Add to `listVmsQuery`:
+
 ```typescript
 osType: t.Optional(t.String()),
 ```
@@ -786,6 +824,7 @@ git commit -m "feat(infra): support osType and accessMethod on hosts and VMs"
 ### Task 6: Runtime Strategy Interface + Registry
 
 **Files:**
+
 - Create: `factory/api/src/reconciler/runtime-strategy.ts`
 - Create: `factory/api/src/reconciler/strategies/noop.ts`
 
@@ -794,76 +833,85 @@ git commit -m "feat(infra): support osType and accessMethod on hosts and VMs"
 Create `factory/api/src/reconciler/runtime-strategy.ts`:
 
 ```typescript
-import type { Database } from "../db/connection";
+import type { Database } from "../db/connection"
 
 export interface ReconcileContext {
   workload: {
-    workloadId: string;
-    desiredImage: string;
-    desiredArtifactUri?: string | null;
-    replicas: number;
-    envOverrides: Record<string, unknown>;
-    resourceOverrides: Record<string, unknown>;
-    moduleVersionId: string;
-  };
+    workloadId: string
+    desiredImage: string
+    desiredArtifactUri?: string | null
+    replicas: number
+    envOverrides: Record<string, unknown>
+    resourceOverrides: Record<string, unknown>
+    moduleVersionId: string
+  }
   component: {
-    name: string;
-    kind: string;
-    ports: Array<{ name: string; port: number; protocol: string }>;
-    healthcheck?: { path: string; portName: string; protocol: string } | null;
-    isPublic: boolean;
-    stateful: boolean;
-    defaultCpu: string;
-    defaultMemory: string;
-    defaultReplicas: number;
-  };
+    name: string
+    kind: string
+    ports: Array<{ name: string; port: number; protocol: string }>
+    healthcheck?: { path: string; portName: string; protocol: string } | null
+    isPublic: boolean
+    stateful: boolean
+    defaultCpu: string
+    defaultMemory: string
+    defaultReplicas: number
+  }
   target: {
-    deploymentTargetId: string;
-    name: string;
-    kind: string;
-    runtime: string;
-    clusterId?: string | null;
-    hostId?: string | null;
-    vmId?: string | null;
-    namespace?: string | null;
-  };
-  moduleName: string;
+    deploymentTargetId: string
+    name: string
+    kind: string
+    runtime: string
+    clusterId?: string | null
+    hostId?: string | null
+    vmId?: string | null
+    namespace?: string | null
+  }
+  moduleName: string
 }
 
 export interface ReconcileResult {
-  status: "running" | "completed" | "failed";
-  actualImage?: string | null;
-  driftDetected: boolean;
-  details?: Record<string, unknown>;
+  status: "running" | "completed" | "failed"
+  actualImage?: string | null
+  driftDetected: boolean
+  details?: Record<string, unknown>
 }
 
 export interface RuntimeStrategy {
-  readonly runtime: string;
-  reconcile(ctx: ReconcileContext, db: Database): Promise<ReconcileResult>;
+  readonly runtime: string
+  reconcile(ctx: ReconcileContext, db: Database): Promise<ReconcileResult>
 }
 
-export type RuntimeType = "kubernetes" | "compose" | "systemd" | "windows_service" | "iis" | "process";
+export type RuntimeType =
+  | "kubernetes"
+  | "compose"
+  | "systemd"
+  | "windows_service"
+  | "iis"
+  | "process"
 
-const strategies: Partial<Record<RuntimeType, () => RuntimeStrategy>> = {};
+const strategies: Partial<Record<RuntimeType, () => RuntimeStrategy>> = {}
 
-export function registerRuntimeStrategy(runtime: RuntimeType, factory: () => RuntimeStrategy): void {
-  strategies[runtime] = factory;
+export function registerRuntimeStrategy(
+  runtime: RuntimeType,
+  factory: () => RuntimeStrategy
+): void {
+  strategies[runtime] = factory
 }
 
 export function getRuntimeStrategy(runtime: string): RuntimeStrategy {
-  const factory = strategies[runtime as RuntimeType];
+  const factory = strategies[runtime as RuntimeType]
   if (!factory) {
     throw new Error(
       `No strategy for runtime: ${runtime}. Supported: ${Object.keys(strategies).join(", ")}`
-    );
+    )
   }
-  return factory();
+  return factory()
 }
 
 /** Clear all registered strategies — for test isolation only */
 export function clearRuntimeStrategies(): void {
   for (const key of Object.keys(strategies)) {
-    delete strategies[key as RuntimeType];
+    delete strategies[key as RuntimeType]
   }
 }
 ```
@@ -873,11 +921,15 @@ export function clearRuntimeStrategies(): void {
 Create `factory/api/src/reconciler/strategies/noop.ts`:
 
 ```typescript
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RuntimeStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
 /** No-op strategy for inventory-only or unmanaged deployment targets */
 export class NoopStrategy implements RuntimeStrategy {
-  readonly runtime = "noop";
+  readonly runtime = "noop"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // Inventory-only: mark as running, no drift detection
@@ -885,7 +937,7 @@ export class NoopStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 ```
@@ -902,6 +954,7 @@ git commit -m "feat(reconciler): add runtime strategy interface and noop strateg
 ### Task 7: Extract Kubernetes Strategy from Resource Generator
 
 **Files:**
+
 - Create: `factory/api/src/reconciler/strategies/kubernetes.ts`
 - Modify: `factory/api/src/reconciler/resource-generator.ts` (keep for backward compat, delegate)
 
@@ -912,29 +965,40 @@ The existing `resource-generator.ts` and its `generateResources` function must c
 Create `factory/api/src/reconciler/strategies/kubernetes.ts`:
 
 ```typescript
-import type { KubeClient } from "../../lib/kube-client";
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
-import type { Database } from "../../db/connection";
-import { cluster } from "../../db/schema/infra";
-import { eq } from "drizzle-orm";
-import { generateResources } from "../resource-generator";
+import type { KubeClient } from "../../lib/kube-client"
+import type {
+  RuntimeStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
+import type { Database } from "../../db/connection"
+import { cluster } from "../../db/schema/infra"
+import { eq } from "drizzle-orm"
+import { generateResources } from "../resource-generator"
 
 export class KubernetesStrategy implements RuntimeStrategy {
-  readonly runtime = "kubernetes";
+  readonly runtime = "kubernetes"
 
   constructor(private kube: KubeClient) {}
 
-  async reconcile(ctx: ReconcileContext, db: Database): Promise<ReconcileResult> {
-    const clusterId = ctx.target.clusterId;
-    if (!clusterId) throw new Error(`Kubernetes target ${ctx.target.deploymentTargetId} has no cluster`);
+  async reconcile(
+    ctx: ReconcileContext,
+    db: Database
+  ): Promise<ReconcileResult> {
+    const clusterId = ctx.target.clusterId
+    if (!clusterId)
+      throw new Error(
+        `Kubernetes target ${ctx.target.deploymentTargetId} has no cluster`
+      )
 
     const clusterRows = await db
       .select()
       .from(cluster)
-      .where(eq(cluster.clusterId, clusterId));
-    const cl = clusterRows[0];
-    if (!cl) throw new Error(`Cluster not found: ${clusterId}`);
-    if (!cl.kubeconfigRef) throw new Error(`Cluster ${clusterId} has no kubeconfig`);
+      .where(eq(cluster.clusterId, clusterId))
+    const cl = clusterRows[0]
+    if (!cl) throw new Error(`Cluster not found: ${clusterId}`)
+    if (!cl.kubeconfigRef)
+      throw new Error(`Cluster ${clusterId} has no kubeconfig`)
 
     // Generate and apply resources
     // Note: `as any` casts are needed here because ReconcileContext uses narrower
@@ -944,29 +1008,35 @@ export class KubernetesStrategy implements RuntimeStrategy {
       ctx.workload as any,
       ctx.component as any,
       ctx.target as any,
-      ctx.moduleName,
-    );
+      ctx.moduleName
+    )
 
     for (const resource of resources) {
-      await this.kube.apply(cl.kubeconfigRef, resource);
+      await this.kube.apply(cl.kubeconfigRef, resource)
     }
 
     // Check drift for long-running components
-    const ns = ctx.target.namespace ?? ctx.target.name;
-    let actualImage: string | null = null;
-    let driftDetected = false;
+    const ns = ctx.target.namespace ?? ctx.target.name
+    let actualImage: string | null = null
+    let driftDetected = false
 
-    if (ctx.component.kind === "server" || ctx.component.kind === "worker" || ctx.component.kind === "database" || ctx.component.kind === "gateway") {
+    if (
+      ctx.component.kind === "server" ||
+      ctx.component.kind === "worker" ||
+      ctx.component.kind === "database" ||
+      ctx.component.kind === "gateway"
+    ) {
       actualImage = await this.kube.getDeploymentImage(
         cl.kubeconfigRef,
         ns,
-        ctx.component.name,
-      );
-      driftDetected = actualImage !== null && actualImage !== ctx.workload.desiredImage;
+        ctx.component.name
+      )
+      driftDetected =
+        actualImage !== null && actualImage !== ctx.workload.desiredImage
     }
 
-    const status = ctx.component.kind === "task" ? "completed" : "running";
-    return { status, actualImage, driftDetected };
+    const status = ctx.component.kind === "task" ? "completed" : "running"
+    return { status, actualImage, driftDetected }
   }
 }
 ```
@@ -978,59 +1048,78 @@ In `factory/api/src/reconciler/resource-generator.ts`:
 **First**, update all internal functions to use `ports` array instead of single `port`:
 
 The `generateResources` function needs a helper to extract ports:
+
 ```typescript
 function getFirstPort(component: ComponentSpec): number | null {
-  const ports = (component as any).ports as Array<{ name: string; port: number; protocol: string }> | undefined;
-  return ports?.[0]?.port ?? null;
+  const ports = (component as any).ports as
+    | Array<{ name: string; port: number; protocol: string }>
+    | undefined
+  return ports?.[0]?.port ?? null
 }
 ```
 
 Update the Service and IngressRoute conditions:
-```typescript
-  // Old: if (component.port) { ... }
-  // New:
-  const componentPorts = (component as any).ports as Array<{ name: string; port: number; protocol: string }> ?? [];
-  if (componentPorts.length > 0) {
-    resources.push(makeService(component, ns, labels, componentPorts));
-  }
 
-  if (component.isPublic && componentPorts.length > 0) {
-    resources.push(makeIngressRoute(component, ns, labels, target, componentPorts[0].port));
-  }
+```typescript
+// Old: if (component.port) { ... }
+// New:
+const componentPorts =
+  ((component as any).ports as Array<{
+    name: string
+    port: number
+    protocol: string
+  }>) ?? []
+if (componentPorts.length > 0) {
+  resources.push(makeService(component, ns, labels, componentPorts))
+}
+
+if (component.isPublic && componentPorts.length > 0) {
+  resources.push(
+    makeIngressRoute(component, ns, labels, target, componentPorts[0].port)
+  )
+}
 ```
 
 Update `makeContainer` to emit multiple ports:
+
 ```typescript
-  if (componentPorts.length > 0) {
-    container.ports = componentPorts.map(p => ({ containerPort: p.port }));
-  }
+if (componentPorts.length > 0) {
+  container.ports = componentPorts.map((p) => ({ containerPort: p.port }))
+}
 ```
 
 Update `makeContainer` healthcheck to use the healthcheck object:
+
 ```typescript
-  const healthcheck = (component as any).healthcheck as { path: string; portName: string } | null;
-  if (healthcheck) {
-    const hcPort = componentPorts.find(p => p.name === healthcheck.portName)?.port ?? componentPorts[0]?.port;
-    container.livenessProbe = {
-      httpGet: { path: healthcheck.path, port: hcPort },
-      initialDelaySeconds: 10,
-      periodSeconds: 15,
-    };
-    container.readinessProbe = {
-      httpGet: { path: healthcheck.path, port: hcPort },
-      initialDelaySeconds: 5,
-      periodSeconds: 10,
-    };
+const healthcheck = (component as any).healthcheck as {
+  path: string
+  portName: string
+} | null
+if (healthcheck) {
+  const hcPort =
+    componentPorts.find((p) => p.name === healthcheck.portName)?.port ??
+    componentPorts[0]?.port
+  container.livenessProbe = {
+    httpGet: { path: healthcheck.path, port: hcPort },
+    initialDelaySeconds: 10,
+    periodSeconds: 15,
   }
+  container.readinessProbe = {
+    httpGet: { path: healthcheck.path, port: hcPort },
+    initialDelaySeconds: 5,
+    periodSeconds: 10,
+  }
+}
 ```
 
 Update `makeService` to emit multiple ports:
+
 ```typescript
 function makeService(
   component: ComponentSpec,
   ns: string,
   labels: Record<string, string>,
-  ports: Array<{ name: string; port: number; protocol: string }>,
+  ports: Array<{ name: string; port: number; protocol: string }>
 ): KubeResource {
   return {
     apiVersion: "v1",
@@ -1038,73 +1127,75 @@ function makeService(
     metadata: { name: component.name, namespace: ns, labels },
     spec: {
       selector: { "dx.dev/component": component.name },
-      ports: ports.map(p => ({ name: p.name, port: p.port, targetPort: p.port })),
+      ports: ports.map((p) => ({
+        name: p.name,
+        port: p.port,
+        targetPort: p.port,
+      })),
     },
-  };
+  }
 }
 ```
 
 **Then**, update the switch statement to map new kinds to K8s resources:
 
 Change the switch block from:
+
 ```typescript
-  switch (component.kind) {
-    case "deployment":
-      resources.push(
-        makeDeployment(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-    case "statefulset":
-      resources.push(
-        makeStatefulSet(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-    case "job":
-      resources.push(makeJob(workload, component, ns, labels, resourceLimits));
-      break;
-    case "cronjob":
-      resources.push(
-        makeCronJob(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-  }
+switch (component.kind) {
+  case "deployment":
+    resources.push(
+      makeDeployment(workload, component, ns, labels, resourceLimits)
+    )
+    break
+  case "statefulset":
+    resources.push(
+      makeStatefulSet(workload, component, ns, labels, resourceLimits)
+    )
+    break
+  case "job":
+    resources.push(makeJob(workload, component, ns, labels, resourceLimits))
+    break
+  case "cronjob":
+    resources.push(makeCronJob(workload, component, ns, labels, resourceLimits))
+    break
+}
 ```
 
 To:
+
 ```typescript
-  switch (component.kind) {
-    case "server":
-    case "worker":
-    case "gateway":
-      if (component.stateful) {
-        resources.push(
-          makeStatefulSet(workload, component, ns, labels, resourceLimits)
-        );
-      } else {
-        resources.push(
-          makeDeployment(workload, component, ns, labels, resourceLimits)
-        );
-      }
-      break;
-    case "database":
+switch (component.kind) {
+  case "server":
+  case "worker":
+  case "gateway":
+    if (component.stateful) {
       resources.push(
         makeStatefulSet(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-    case "task":
-      resources.push(makeJob(workload, component, ns, labels, resourceLimits));
-      break;
-    case "scheduled":
-      resources.push(
-        makeCronJob(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-    case "site":
+      )
+    } else {
       resources.push(
         makeDeployment(workload, component, ns, labels, resourceLimits)
-      );
-      break;
-  }
+      )
+    }
+    break
+  case "database":
+    resources.push(
+      makeStatefulSet(workload, component, ns, labels, resourceLimits)
+    )
+    break
+  case "task":
+    resources.push(makeJob(workload, component, ns, labels, resourceLimits))
+    break
+  case "scheduled":
+    resources.push(makeCronJob(workload, component, ns, labels, resourceLimits))
+    break
+  case "site":
+    resources.push(
+      makeDeployment(workload, component, ns, labels, resourceLimits)
+    )
+    break
+}
 ```
 
 - [ ] **Step 3: Commit**
@@ -1119,6 +1210,7 @@ git commit -m "feat(reconciler): extract Kubernetes runtime strategy, update res
 ### Task 7b: Update resource-generator.test.ts for New Component Kinds
 
 **Files:**
+
 - Modify: `factory/api/src/__tests__/resource-generator.test.ts`
 
 The test helpers construct typed `ComponentSpec`, `Workload`, and `DeploymentTarget` objects inline. These must be updated for the new types.
@@ -1126,6 +1218,7 @@ The test helpers construct typed `ComponentSpec`, `Workload`, and `DeploymentTar
 - [ ] **Step 1: Update makeComponent helper**
 
 Change the `makeComponent` function defaults:
+
 ```typescript
 function makeComponent(overrides?: Partial<ComponentSpec>): ComponentSpec {
   return {
@@ -1144,13 +1237,14 @@ function makeComponent(overrides?: Partial<ComponentSpec>): ComponentSpec {
     defaultMemory: "512Mi",
     createdAt: "2024-01-01T00:00:00Z",
     ...overrides,
-  };
+  }
 }
 ```
 
 - [ ] **Step 2: Update makeTarget helper**
 
 Add the new required fields:
+
 ```typescript
 function makeTarget(overrides?: Partial<DeploymentTarget>): DeploymentTarget {
   return {
@@ -1174,13 +1268,14 @@ function makeTarget(overrides?: Partial<DeploymentTarget>): DeploymentTarget {
     createdAt: "2024-01-01T00:00:00Z",
     destroyedAt: null,
     ...overrides,
-  };
+  }
 }
 ```
 
 - [ ] **Step 3: Update makeWorkload helper**
 
 Add the new field:
+
 ```typescript
 function makeWorkload(overrides?: Partial<Workload>): Workload {
   return {
@@ -1201,7 +1296,7 @@ function makeWorkload(overrides?: Partial<Workload>): Workload {
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-01-01T00:00:00Z",
     ...overrides,
-  };
+  }
 }
 ```
 
@@ -1210,58 +1305,72 @@ function makeWorkload(overrides?: Partial<Workload>): Workload {
 Change these tests:
 
 1. "generates Namespace + CronJob for cronjob component" → change to:
+
 ```typescript
-  it("generates Namespace + CronJob for scheduled component", () => {
-    const resources = generateResources(
-      makeWorkload(),
-      makeComponent({ kind: "scheduled", ports: [], healthcheck: null, isPublic: false }),
-      makeTarget(),
-      "my-module"
-    );
-    expect(resources).toHaveLength(2);
-    expect(resources.map((r) => r.kind)).toEqual(["Namespace", "CronJob"]);
-  });
+it("generates Namespace + CronJob for scheduled component", () => {
+  const resources = generateResources(
+    makeWorkload(),
+    makeComponent({
+      kind: "scheduled",
+      ports: [],
+      healthcheck: null,
+      isPublic: false,
+    }),
+    makeTarget(),
+    "my-module"
+  )
+  expect(resources).toHaveLength(2)
+  expect(resources.map((r) => r.kind)).toEqual(["Namespace", "CronJob"])
+})
 ```
 
 2. "generates Namespace + Job for job component" → change to:
+
 ```typescript
-  it("generates Namespace + Job for task component", () => {
-    const resources = generateResources(
-      makeWorkload(),
-      makeComponent({ kind: "task", ports: [], healthcheck: null, isPublic: false }),
-      makeTarget(),
-      "my-module"
-    );
-    expect(resources).toHaveLength(2);
-    expect(resources.map((r) => r.kind)).toEqual(["Namespace", "Job"]);
-  });
+it("generates Namespace + Job for task component", () => {
+  const resources = generateResources(
+    makeWorkload(),
+    makeComponent({
+      kind: "task",
+      ports: [],
+      healthcheck: null,
+      isPublic: false,
+    }),
+    makeTarget(),
+    "my-module"
+  )
+  expect(resources).toHaveLength(2)
+  expect(resources.map((r) => r.kind)).toEqual(["Namespace", "Job"])
+})
 ```
 
 3. "generates Namespace + StatefulSet for statefulset component" → change to:
+
 ```typescript
-  it("generates Namespace + StatefulSet for stateful server component", () => {
-    const resources = generateResources(
-      makeWorkload(),
-      makeComponent({ kind: "server", stateful: true }),
-      makeTarget(),
-      "my-module"
-    );
-    expect(resources).toHaveLength(4);
-    expect(resources[1].kind).toBe("StatefulSet");
-  });
+it("generates Namespace + StatefulSet for stateful server component", () => {
+  const resources = generateResources(
+    makeWorkload(),
+    makeComponent({ kind: "server", stateful: true }),
+    makeTarget(),
+    "my-module"
+  )
+  expect(resources).toHaveLength(4)
+  expect(resources[1].kind).toBe("StatefulSet")
+})
 ```
 
 4. Add a new test for database kind:
+
 ```typescript
-  it("generates StatefulSet for database component", () => {
-    const resources = generateResources(
-      makeWorkload(),
-      makeComponent({ kind: "database" }),
-      makeTarget(),
-      "my-module"
-    );
-    expect(resources[1].kind).toBe("StatefulSet");
-  });
+it("generates StatefulSet for database component", () => {
+  const resources = generateResources(
+    makeWorkload(),
+    makeComponent({ kind: "database" }),
+    makeTarget(),
+    "my-module"
+  )
+  expect(resources[1].kind).toBe("StatefulSet")
+})
 ```
 
 - [ ] **Step 5: Run tests**
@@ -1281,6 +1390,7 @@ git commit -m "test(reconciler): update resource-generator tests for platform-ag
 ### Task 8: Create Stub Strategies for Compose, Systemd, Windows
 
 **Files:**
+
 - Create: `factory/api/src/reconciler/strategies/compose.ts`
 - Create: `factory/api/src/reconciler/strategies/systemd.ts`
 - Create: `factory/api/src/reconciler/strategies/windows.ts`
@@ -1292,11 +1402,15 @@ These are stubs that document the intended behavior but don't implement it yet.
 Create `factory/api/src/reconciler/strategies/compose.ts`:
 
 ```typescript
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RuntimeStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
 /** Docker Compose runtime strategy — deploys components as compose services on a host/VM */
 export class ComposeStrategy implements RuntimeStrategy {
-  readonly runtime = "compose";
+  readonly runtime = "compose"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target host/VM
@@ -1307,7 +1421,7 @@ export class ComposeStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 ```
@@ -1317,11 +1431,15 @@ export class ComposeStrategy implements RuntimeStrategy {
 Create `factory/api/src/reconciler/strategies/systemd.ts`:
 
 ```typescript
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RuntimeStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
 /** systemd runtime strategy — deploys components as systemd units on Linux hosts/VMs */
 export class SystemdStrategy implements RuntimeStrategy {
-  readonly runtime = "systemd";
+  readonly runtime = "systemd"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target host/VM
@@ -1332,7 +1450,7 @@ export class SystemdStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 ```
@@ -1342,14 +1460,18 @@ export class SystemdStrategy implements RuntimeStrategy {
 Create `factory/api/src/reconciler/strategies/windows.ts`:
 
 ```typescript
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RuntimeStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
 /**
  * Windows runtime strategy — deploys components as Windows Services or IIS sites.
  * Handles both 'windows_service' and 'iis' runtimes.
  */
 export class WindowsServiceStrategy implements RuntimeStrategy {
-  readonly runtime = "windows_service";
+  readonly runtime = "windows_service"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH (or WinRM) into target Windows host/VM
@@ -1360,12 +1482,12 @@ export class WindowsServiceStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 
 export class IisStrategy implements RuntimeStrategy {
-  readonly runtime = "iis";
+  readonly runtime = "iis"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target Windows host/VM
@@ -1375,7 +1497,7 @@ export class IisStrategy implements RuntimeStrategy {
       status: "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 ```
@@ -1392,6 +1514,7 @@ git commit -m "feat(reconciler): add stub strategies for compose, systemd, and w
 ### Task 9: Refactor Reconciler to Use Runtime Strategies
 
 **Files:**
+
 - Modify: `factory/api/src/reconciler/reconciler.ts`
 
 The reconciler currently hardcodes Kubernetes. Refactor it to look up the deployment target's `runtime` field and dispatch to the appropriate strategy.
@@ -1544,6 +1667,7 @@ git commit -m "refactor(reconciler): dispatch to runtime strategies instead of h
 ### Task 10: Update Reconciler Tests
 
 **Files:**
+
 - Modify: `factory/api/src/__tests__/reconciler.test.ts`
 
 Update the seed data to use new component kinds and add a test for non-K8s runtime dispatch.
@@ -1569,41 +1693,43 @@ In the `seedWorkload` function, change the default `kind` and the deployment tar
 ```
 
 Update the `componentSpec` insert to include `stateful`:
+
 ```typescript
-    const [comp] = await db
-      .insert(componentSpec)
-      .values({
-        moduleId: mod.moduleId,
-        name: "api-server",
-        slug: "api-server",
-        kind,
-        stateful,
-        ports: [{ name: "http", port: 8080, protocol: "http" }],
-        healthcheck: { path: "/health", portName: "http", protocol: "http" },
-        isPublic: true,
-        defaultReplicas: 2,
-        defaultCpu: "500m",
-        defaultMemory: "512Mi",
-      })
-      .returning();
+const [comp] = await db
+  .insert(componentSpec)
+  .values({
+    moduleId: mod.moduleId,
+    name: "api-server",
+    slug: "api-server",
+    kind,
+    stateful,
+    ports: [{ name: "http", port: 8080, protocol: "http" }],
+    healthcheck: { path: "/health", portName: "http", protocol: "http" },
+    isPublic: true,
+    defaultReplicas: 2,
+    defaultCpu: "500m",
+    defaultMemory: "512Mi",
+  })
+  .returning()
 ```
 
 Update the `deploymentTarget` insert to include `runtime`:
+
 ```typescript
-    const [dt] = await db
-      .insert(deploymentTarget)
-      .values({
-        name: "staging-01",
-        slug: "staging-01",
-        kind: "staging",
-        runtime,
-        clusterId: cls.clusterId,
-        namespace: "staging-01",
-        createdBy: "test",
-        trigger: "manual",
-        status: "active",
-      })
-      .returning();
+const [dt] = await db
+  .insert(deploymentTarget)
+  .values({
+    name: "staging-01",
+    slug: "staging-01",
+    kind: "staging",
+    runtime,
+    clusterId: cls.clusterId,
+    namespace: "staging-01",
+    createdBy: "test",
+    trigger: "manual",
+    status: "active",
+  })
+  .returning()
 ```
 
 - [ ] **Step 2: Update existing test assertions**
@@ -1611,38 +1737,42 @@ Update the `deploymentTarget` insert to include `runtime`:
 Change the test "reconciles a workload and applies Kube resources" — the component kind is now "server" so it should still produce a Deployment. No assertion changes needed since we didn't change what K8s resources are produced for `server` kind.
 
 Change the test "sets job workloads to completed" to use `componentKind: "task"`:
+
 ```typescript
-  it("sets task workloads to completed", async () => {
-    const { wl } = await seedWorkload({ componentKind: "task" });
-    // ... rest unchanged
-  });
+it("sets task workloads to completed", async () => {
+  const { wl } = await seedWorkload({ componentKind: "task" })
+  // ... rest unchanged
+})
 ```
 
 - [ ] **Step 3: Add test for stateful server → StatefulSet**
 
 ```typescript
-  it("creates StatefulSet for stateful server component", async () => {
-    const { wl } = await seedWorkload({ componentKind: "server", componentStateful: true });
-    const reconciler = new Reconciler(db, mockKube);
+it("creates StatefulSet for stateful server component", async () => {
+  const { wl } = await seedWorkload({
+    componentKind: "server",
+    componentStateful: true,
+  })
+  const reconciler = new Reconciler(db, mockKube)
 
-    await reconciler.reconcileWorkload(wl.workloadId);
+  await reconciler.reconcileWorkload(wl.workloadId)
 
-    expect(mockKube.applied.map((r) => r.kind)).toContain("StatefulSet");
-    expect(mockKube.applied.map((r) => r.kind)).not.toContain("Deployment");
-  });
+  expect(mockKube.applied.map((r) => r.kind)).toContain("StatefulSet")
+  expect(mockKube.applied.map((r) => r.kind)).not.toContain("Deployment")
+})
 ```
 
 - [ ] **Step 4: Add test for database kind → StatefulSet**
 
 ```typescript
-  it("creates StatefulSet for database component", async () => {
-    const { wl } = await seedWorkload({ componentKind: "database" });
-    const reconciler = new Reconciler(db, mockKube);
+it("creates StatefulSet for database component", async () => {
+  const { wl } = await seedWorkload({ componentKind: "database" })
+  const reconciler = new Reconciler(db, mockKube)
 
-    await reconciler.reconcileWorkload(wl.workloadId);
+  await reconciler.reconcileWorkload(wl.workloadId)
 
-    expect(mockKube.applied.map((r) => r.kind)).toContain("StatefulSet");
-  });
+  expect(mockKube.applied.map((r) => r.kind)).toContain("StatefulSet")
+})
 ```
 
 - [ ] **Step 5: Add test for non-K8s runtime dispatch through full reconciler**
@@ -1652,60 +1782,63 @@ This verifies the full path: reconciler reads runtime from DB, dispatches to com
 First, update `seedWorkload` to optionally omit `clusterId` for non-K8s targets:
 
 In the `seedWorkload` function, make cluster creation conditional:
+
 ```typescript
-    // Only create cluster if runtime is kubernetes (or default)
-    let clsId: string | null = null;
-    if (runtime === "kubernetes") {
-      const [cls] = await db
-        .insert(cluster)
-        .values({
-          name: "test-cluster",
-          slug: "test-cluster",
-          providerId: prov.providerId,
-          kubeconfigRef: "fake-kubeconfig-yaml",
-          status: "ready",
-        })
-        .returning();
-      clsId = cls.clusterId;
-    }
+// Only create cluster if runtime is kubernetes (or default)
+let clsId: string | null = null
+if (runtime === "kubernetes") {
+  const [cls] = await db
+    .insert(cluster)
+    .values({
+      name: "test-cluster",
+      slug: "test-cluster",
+      providerId: prov.providerId,
+      kubeconfigRef: "fake-kubeconfig-yaml",
+      status: "ready",
+    })
+    .returning()
+  clsId = cls.clusterId
+}
 ```
 
 And use `clsId` in the deployment target insert:
+
 ```typescript
-    const [dt] = await db
-      .insert(deploymentTarget)
-      .values({
-        name: "staging-01",
-        slug: "staging-01",
-        kind: "staging",
-        runtime,
-        clusterId: clsId,
-        namespace: clsId ? "staging-01" : null,
-        createdBy: "test",
-        trigger: "manual",
-        status: "active",
-      })
-      .returning();
+const [dt] = await db
+  .insert(deploymentTarget)
+  .values({
+    name: "staging-01",
+    slug: "staging-01",
+    kind: "staging",
+    runtime,
+    clusterId: clsId,
+    namespace: clsId ? "staging-01" : null,
+    createdBy: "test",
+    trigger: "manual",
+    status: "active",
+  })
+  .returning()
 ```
 
 Then add the test:
+
 ```typescript
-  it("dispatches compose runtime without touching K8s", async () => {
-    const { wl } = await seedWorkload({ runtime: "compose" });
-    const reconciler = new Reconciler(db, mockKube);
+it("dispatches compose runtime without touching K8s", async () => {
+  const { wl } = await seedWorkload({ runtime: "compose" })
+  const reconciler = new Reconciler(db, mockKube)
 
-    await reconciler.reconcileWorkload(wl.workloadId);
+  await reconciler.reconcileWorkload(wl.workloadId)
 
-    // Compose stub doesn't apply any K8s resources
-    expect(mockKube.applied).toHaveLength(0);
+  // Compose stub doesn't apply any K8s resources
+  expect(mockKube.applied).toHaveLength(0)
 
-    // Workload status is updated to running
-    const updated = await db
-      .select()
-      .from(workload)
-      .where(eq(workload.workloadId, wl.workloadId));
-    expect(updated[0].status).toBe("running");
-  });
+  // Workload status is updated to running
+  const updated = await db
+    .select()
+    .from(workload)
+    .where(eq(workload.workloadId, wl.workloadId))
+  expect(updated[0].status).toBe("running")
+})
 ```
 
 - [ ] **Step 6: Run all tests**
@@ -1725,6 +1858,7 @@ git commit -m "test(reconciler): update tests for platform-agnostic component ki
 ### Task 11: Update Fleet Model and DeploymentTarget Service
 
 **Files:**
+
 - Modify: `factory/api/src/modules/fleet/model.ts`
 - Modify: `factory/api/src/modules/fleet/service.ts`
 
@@ -1739,6 +1873,7 @@ In `factory/api/src/modules/fleet/model.ts`, add to `createDeploymentTargetBody`
 ```
 
 Add to `deploymentTargetQuery`:
+
 ```typescript
     runtime: t.Optional(t.String()),
 ```
@@ -1746,6 +1881,7 @@ Add to `deploymentTargetQuery`:
 - [ ] **Step 2: Update createWorkloadBody**
 
 Add to `createWorkloadBody`:
+
 ```typescript
     desiredArtifactUri: t.Optional(t.String()),
 ```
@@ -1779,63 +1915,73 @@ git commit -m "feat(fleet): support runtime, hostId, vmId on deployment targets"
 ### Task 12: Write Runtime Strategy Dispatch Tests
 
 **Files:**
+
 - Create: `factory/api/src/__tests__/runtime-strategies.test.ts`
 
 - [ ] **Step 1: Write tests for strategy registry**
 
 ```typescript
-import { describe, expect, it, beforeEach } from "vitest";
-import { getRuntimeStrategy, registerRuntimeStrategy } from "../reconciler/runtime-strategy";
-import { NoopStrategy } from "../reconciler/strategies/noop";
-import { ComposeStrategy } from "../reconciler/strategies/compose";
-import { SystemdStrategy } from "../reconciler/strategies/systemd";
-import { WindowsServiceStrategy, IisStrategy } from "../reconciler/strategies/windows";
+import { describe, expect, it, beforeEach } from "vitest"
+import {
+  getRuntimeStrategy,
+  registerRuntimeStrategy,
+} from "../reconciler/runtime-strategy"
+import { NoopStrategy } from "../reconciler/strategies/noop"
+import { ComposeStrategy } from "../reconciler/strategies/compose"
+import { SystemdStrategy } from "../reconciler/strategies/systemd"
+import {
+  WindowsServiceStrategy,
+  IisStrategy,
+} from "../reconciler/strategies/windows"
 
 describe("Runtime Strategy Registry", () => {
   beforeEach(() => {
     // Register strategies for each test
-    registerRuntimeStrategy("compose", () => new ComposeStrategy());
-    registerRuntimeStrategy("systemd", () => new SystemdStrategy());
-    registerRuntimeStrategy("windows_service", () => new WindowsServiceStrategy());
-    registerRuntimeStrategy("iis", () => new IisStrategy());
-    registerRuntimeStrategy("process", () => new NoopStrategy());
-  });
+    registerRuntimeStrategy("compose", () => new ComposeStrategy())
+    registerRuntimeStrategy("systemd", () => new SystemdStrategy())
+    registerRuntimeStrategy(
+      "windows_service",
+      () => new WindowsServiceStrategy()
+    )
+    registerRuntimeStrategy("iis", () => new IisStrategy())
+    registerRuntimeStrategy("process", () => new NoopStrategy())
+  })
 
   it("returns compose strategy", () => {
-    const strategy = getRuntimeStrategy("compose");
-    expect(strategy.runtime).toBe("compose");
-  });
+    const strategy = getRuntimeStrategy("compose")
+    expect(strategy.runtime).toBe("compose")
+  })
 
   it("returns systemd strategy", () => {
-    const strategy = getRuntimeStrategy("systemd");
-    expect(strategy.runtime).toBe("systemd");
-  });
+    const strategy = getRuntimeStrategy("systemd")
+    expect(strategy.runtime).toBe("systemd")
+  })
 
   it("returns windows_service strategy", () => {
-    const strategy = getRuntimeStrategy("windows_service");
-    expect(strategy.runtime).toBe("windows_service");
-  });
+    const strategy = getRuntimeStrategy("windows_service")
+    expect(strategy.runtime).toBe("windows_service")
+  })
 
   it("returns iis strategy", () => {
-    const strategy = getRuntimeStrategy("iis");
-    expect(strategy.runtime).toBe("iis");
-  });
+    const strategy = getRuntimeStrategy("iis")
+    expect(strategy.runtime).toBe("iis")
+  })
 
   it("returns noop for process runtime", () => {
-    const strategy = getRuntimeStrategy("process");
-    expect(strategy.runtime).toBe("noop");
-  });
+    const strategy = getRuntimeStrategy("process")
+    expect(strategy.runtime).toBe("noop")
+  })
 
   it("throws for unknown runtime", () => {
     expect(() => getRuntimeStrategy("unknown_runtime")).toThrow(
       /No strategy for runtime: unknown_runtime/
-    );
-  });
-});
+    )
+  })
+})
 
 describe("NoopStrategy", () => {
   it("returns running for server component", async () => {
-    const strategy = new NoopStrategy();
+    const strategy = new NoopStrategy()
     const result = await strategy.reconcile({
       workload: {
         workloadId: "wl_test",
@@ -1867,14 +2013,14 @@ describe("NoopStrategy", () => {
         namespace: null,
       },
       moduleName: "test-module",
-    });
+    })
 
-    expect(result.status).toBe("running");
-    expect(result.driftDetected).toBe(false);
-  });
+    expect(result.status).toBe("running")
+    expect(result.driftDetected).toBe(false)
+  })
 
   it("returns completed for task component", async () => {
-    const strategy = new NoopStrategy();
+    const strategy = new NoopStrategy()
     const result = await strategy.reconcile({
       workload: {
         workloadId: "wl_test",
@@ -1906,11 +2052,11 @@ describe("NoopStrategy", () => {
         namespace: null,
       },
       moduleName: "test-module",
-    });
+    })
 
-    expect(result.status).toBe("completed");
-  });
-});
+    expect(result.status).toBe("completed")
+  })
+})
 ```
 
 - [ ] **Step 2: Run the new tests**
@@ -1930,6 +2076,7 @@ git commit -m "test(reconciler): add tests for runtime strategy registry and noo
 ### Task 13: Update Test Helpers (Truncate Statements)
 
 **Files:**
+
 - Modify: `factory/api/src/test-helpers.ts`
 
 No new tables are being added, but the deployment_target table now has FK references to host and vm. The truncation order already handles this correctly (deployment_target is truncated before host and vm). No changes needed to the truncate statements.
@@ -1948,6 +2095,7 @@ If no changes were needed, skip this commit.
 ### Task 14: Run Full Test Suite and Fix Any Issues
 
 **Files:**
+
 - All modified files
 
 - [ ] **Step 1: Run full test suite**
@@ -1958,6 +2106,7 @@ Expected: All tests pass.
 - [ ] **Step 2: Fix any failing tests**
 
 If any tests fail, trace the failure to the specific schema mismatch or import issue and fix it. Common issues:
+
 - Existing tests that insert `componentSpec` with `kind: "deployment"` need to change to `kind: "server"`
 - Existing tests that insert `componentSpec` with `port: 8080` need to change to `ports: [...]`
 - Existing tests that insert `componentSpec` with `healthcheckPath: "..."` need to change to `healthcheck: {...}`
@@ -1981,16 +2130,16 @@ git commit -m "fix: resolve test failures from platform-agnostic component model
 
 ## Summary of Changes
 
-| Area | Before | After |
-|------|--------|-------|
-| **componentSpec.kind** | `deployment`, `statefulset`, `job`, `cronjob` | `server`, `worker`, `task`, `scheduled`, `site`, `database`, `gateway` |
-| **componentSpec.stateful** | N/A | `boolean` (default false) |
-| **componentSpec.ports** | Single `port` integer | `ports` JSONB array: `[{ name, port, protocol }]` |
-| **componentSpec.healthcheck** | `healthcheckPath` string | `healthcheck` JSONB: `{ path, portName, protocol }` |
-| **deploymentTarget.runtime** | N/A (always K8s) | `kubernetes`, `compose`, `systemd`, `windows_service`, `iis`, `process` |
-| **deploymentTarget targeting** | `clusterId` + `namespace` only | + `hostId`, `vmId` for direct host targeting |
-| **artifact.kind** | N/A (always container image) | `container_image`, `binary`, `archive`, `package`, `bundle` |
-| **host/vm** | No OS awareness | `osType` (`linux`/`windows`), `accessMethod` (`ssh`/`winrm`/`rdp`) |
-| **vm.sshUser** | `sshUser` column | Dropped; replaced by `accessUser` + `accessMethod` |
-| **Reconciler** | Hardcoded K8s | Strategy dispatch via `getRuntimeStrategy(target.runtime)` |
-| **Workload** | `desiredImage` only | + `desiredArtifactUri` for non-container artifacts |
+| Area                           | Before                                        | After                                                                   |
+| ------------------------------ | --------------------------------------------- | ----------------------------------------------------------------------- |
+| **componentSpec.kind**         | `deployment`, `statefulset`, `job`, `cronjob` | `server`, `worker`, `task`, `scheduled`, `site`, `database`, `gateway`  |
+| **componentSpec.stateful**     | N/A                                           | `boolean` (default false)                                               |
+| **componentSpec.ports**        | Single `port` integer                         | `ports` JSONB array: `[{ name, port, protocol }]`                       |
+| **componentSpec.healthcheck**  | `healthcheckPath` string                      | `healthcheck` JSONB: `{ path, portName, protocol }`                     |
+| **deploymentTarget.runtime**   | N/A (always K8s)                              | `kubernetes`, `compose`, `systemd`, `windows_service`, `iis`, `process` |
+| **deploymentTarget targeting** | `clusterId` + `namespace` only                | + `hostId`, `vmId` for direct host targeting                            |
+| **artifact.kind**              | N/A (always container image)                  | `container_image`, `binary`, `archive`, `package`, `bundle`             |
+| **host/vm**                    | No OS awareness                               | `osType` (`linux`/`windows`), `accessMethod` (`ssh`/`winrm`/`rdp`)      |
+| **vm.sshUser**                 | `sshUser` column                              | Dropped; replaced by `accessUser` + `accessMethod`                      |
+| **Reconciler**                 | Hardcoded K8s                                 | Strategy dispatch via `getRuntimeStrategy(target.runtime)`              |
+| **Workload**                   | `desiredImage` only                           | + `desiredArtifactUri` for non-container artifacts                      |

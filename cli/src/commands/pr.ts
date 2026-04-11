@@ -25,7 +25,7 @@ setExamples("pr", [
 ])
 
 function pullsPath(ctx: { providerId: string; repoSlug: string }): string {
-  return `/api/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`
+  return `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls`
 }
 
 /**

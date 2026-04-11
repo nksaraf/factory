@@ -41,7 +41,7 @@ mock.module("../client.js", () => ({
       api: {
         v1: {
           factory: {
-            fleet: {
+            ops: {
               workbenches: workbenchesCollection(ctx),
             },
             infra: {

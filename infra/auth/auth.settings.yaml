@@ -1,4 +1,4 @@
-base_path: /api/auth
+base_path: /api/v1/auth
 base_url: ${AUTH_BASE_URL}
 config_file_path: ./config
 load_db_settings: true

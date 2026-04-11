@@ -14,17 +14,28 @@
  *   POST   /<entities>/:slugOrId/<action>     → ACTION
  */
 
-import { Elysia } from "elysia";
-import { and, desc, eq, getTableColumns, type SQL, type InferSelectModel } from "drizzle-orm";
-import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import type { ZodType } from "zod";
+import { Elysia } from "elysia"
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  type SQL,
+  type InferSelectModel,
+} from "drizzle-orm"
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core"
+import type { ZodType } from "zod"
 
-import type { Database } from "../db/connection";
-import { currentRow, bitemporalDelete, type BitemporalTable } from "../db/temporal";
-import { ok, list, action as actionResponse } from "./responses";
-import { parsePagination, countRows, paginationMeta } from "./pagination";
-import { resolveBySlugOrId } from "./resolvers";
-import { NotFoundError } from "./errors";
+import type { Database } from "../db/connection"
+import {
+  currentRow,
+  bitemporalDelete,
+  type BitemporalTable,
+} from "../db/temporal"
+import { ok, list, action as actionResponse } from "./responses"
+import { parsePagination, countRows, paginationMeta } from "./pagination"
+import { resolveBySlugOrId } from "./resolvers"
+import { NotFoundError } from "./errors"
 
 // ── Drizzle generic helpers ────────────────────────────────
 //
@@ -38,43 +49,45 @@ import { NotFoundError } from "./errors";
 // rows returned from `SELECT * FROM table` are always InferSelectModel<typeof table>.
 
 function selectFrom<T extends PgTable>(db: Database, table: T) {
-  return db.select().from(table as PgTable) as unknown as
-    ReturnType<ReturnType<Database["select"]>["from"]> & Promise<InferSelectModel<T>[]>;
+  return db.select().from(table as PgTable) as unknown as ReturnType<
+    ReturnType<Database["select"]>["from"]
+  > &
+    Promise<InferSelectModel<T>[]>
 }
 
 function updateTable<T extends PgTable>(db: Database, table: T) {
-  return db.update(table as PgTable) as ReturnType<Database["update"]>;
+  return db.update(table as PgTable) as ReturnType<Database["update"]>
 }
 
 // ── Config types ───────────────────────────────────────────
 
 export interface RelationConfig {
   /** The plural entity name in the URL, e.g. "components" */
-  path: string;
+  path: string
   /** The related Drizzle table */
-  table: PgTable;
+  table: PgTable
   /** The FK column on the related table pointing to the parent entity's id */
-  fk: PgColumn;
+  fk: PgColumn
   /** Optional column to ORDER BY desc. Defaults to FK column for deterministic pagination. */
-  orderBy?: PgColumn;
+  orderBy?: PgColumn
   /** Optional OpenAPI tag override */
-  tag?: string;
+  tag?: string
   /** If the related table is bitemporal, pass its columns to filter for current rows. */
-  bitemporal?: Pick<BitemporalTable, "validTo" | "systemTo">;
+  bitemporal?: Pick<BitemporalTable, "validTo" | "systemTo">
 }
 
 export interface ActionConfig<TEntity = Record<string, unknown>> {
   /** Handler function. Receives the resolved parent entity and the request body. */
   handler: (ctx: {
-    db: Database;
-    entity: TEntity;
-    body: unknown;
-    slugOrId: string;
-  }) => Promise<unknown>;
+    db: Database
+    entity: TEntity
+    body: unknown
+    slugOrId: string
+  }) => Promise<unknown>
   /** Optional Zod schema for request body validation */
-  bodySchema?: ZodType;
+  bodySchema?: ZodType
   /** Optional OpenAPI tag override */
-  tag?: string;
+  tag?: string
 }
 
 /**
@@ -85,56 +98,63 @@ export interface ActionConfig<TEntity = Record<string, unknown>> {
  */
 export interface LifecycleHooks<TEntity = Record<string, unknown>> {
   /** Called after Zod parse, before db.insert(). Return the (possibly enriched) values to insert. */
-  beforeCreate?: (ctx: { db: Database; parsed: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+  beforeCreate?: (ctx: {
+    db: Database
+    parsed: Record<string, unknown>
+  }) => Promise<Record<string, unknown>>
   /** Called after db.insert(). Can enrich/transform the returned row. */
-  afterCreate?: (ctx: { db: Database; row: TEntity }) => Promise<TEntity>;
+  afterCreate?: (ctx: { db: Database; row: TEntity }) => Promise<TEntity>
   /** Called after Zod parse + entity resolve, before db.update(). Return the values to set. */
-  beforeUpdate?: (ctx: { db: Database; entity: TEntity; parsed: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+  beforeUpdate?: (ctx: {
+    db: Database
+    entity: TEntity
+    parsed: Record<string, unknown>
+  }) => Promise<Record<string, unknown>>
   /** Called after db.update(). Can enrich/transform the returned row. */
-  afterUpdate?: (ctx: { db: Database; row: TEntity }) => Promise<TEntity>;
+  afterUpdate?: (ctx: { db: Database; row: TEntity }) => Promise<TEntity>
   /** Called before delete. Throw to prevent deletion. */
-  beforeDelete?: (ctx: { db: Database; entity: TEntity }) => Promise<void>;
+  beforeDelete?: (ctx: { db: Database; entity: TEntity }) => Promise<void>
 }
 
 export interface OntologyRouteConfig<T extends PgTable = PgTable> {
   /** Schema name for OpenAPI tags, e.g. "software" */
-  schema: string;
+  schema: string
   /** Plural entity name in URL, e.g. "systems" */
-  entity: string;
+  entity: string
   /** Singular display name for error messages, e.g. "system" */
-  singular: string;
+  singular: string
   /** The main Drizzle table */
-  table: T;
+  table: T
   /** Slug column on the table */
-  slugColumn: PgColumn;
+  slugColumn: PgColumn
   /** ID column on the table */
-  idColumn: PgColumn;
+  idColumn: PgColumn
   /** Column used for default ORDER BY desc on LIST queries. Defaults to idColumn. */
-  orderByColumn?: PgColumn;
+  orderByColumn?: PgColumn
   /** Zod schema for the CREATE body (spec + name/slug/type fields) */
-  createSchema?: ZodType;
+  createSchema?: ZodType
   /** Zod schema for the UPDATE body (partial of create — all fields optional) */
-  updateSchema?: ZodType;
+  updateSchema?: ZodType
   /**
    * Enables DELETE route.
    * - `true`: hard delete (DELETE FROM)
    * - `"bitemporal"`: bitemporal soft-delete via `bitemporalDelete()`
    */
-  deletable?: boolean | "bitemporal";
+  deletable?: boolean | "bitemporal"
   /** Related entity configs: key is the relation name */
-  relations?: Record<string, RelationConfig>;
+  relations?: Record<string, RelationConfig>
   /** Action configs: key is the action path segment */
-  actions?: Record<string, ActionConfig<InferSelectModel<T>>>;
+  actions?: Record<string, ActionConfig<InferSelectModel<T>>>
   /** Lifecycle hooks for customizing CRUD operations */
-  hooks?: LifecycleHooks<InferSelectModel<T>>;
+  hooks?: LifecycleHooks<InferSelectModel<T>>
   /** Additional WHERE clause applied to all LIST queries (e.g. soft-delete filter) */
-  baseFilter?: (db: Database) => SQL | undefined;
+  baseFilter?: (db: Database) => SQL | undefined
   /**
    * If the table uses bitemporal columns, pass the column references here.
    * Automatically filters for current live rows (validTo IS NULL AND systemTo IS NULL)
    * on LIST queries — ANDed with any explicit baseFilter.
    */
-  bitemporal?: Pick<BitemporalTable, "validTo" | "systemTo">;
+  bitemporal?: Pick<BitemporalTable, "validTo" | "systemTo">
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -146,15 +166,20 @@ async function resolveOrThrow<T extends PgTable>(
   slugColumn: PgColumn,
   idColumn: PgColumn,
   singular: string,
-  extraFilter?: SQL,
+  extraFilter?: SQL
 ): Promise<InferSelectModel<T>> {
   const row = await resolveBySlugOrId<InferSelectModel<T>>(
-    db, table, slugOrId, slugColumn, idColumn, extraFilter,
-  );
+    db,
+    table,
+    slugOrId,
+    slugColumn,
+    idColumn,
+    extraFilter
+  )
   if (!row) {
-    throw new NotFoundError(`${singular} '${slugOrId}' not found`);
+    throw new NotFoundError(`${singular} '${slugOrId}' not found`)
   }
-  return row;
+  return row
 }
 
 // ── Factory function ───────────────────────────────────────
@@ -191,7 +216,7 @@ async function resolveOrThrow<T extends PgTable>(
  */
 export function ontologyRoutes<T extends PgTable>(
   db: Database,
-  config: OntologyRouteConfig<T>,
+  config: OntologyRouteConfig<T>
 ) {
   const {
     schema,
@@ -208,18 +233,22 @@ export function ontologyRoutes<T extends PgTable>(
     hooks,
     baseFilter,
     bitemporal: bitemporalCols,
-  } = config;
+  } = config
 
-  const tag = `${schema}/${entity}`;
-  const tableHasUpdatedAt = "updatedAt" in getTableColumns(table);
+  const tag = `${schema}/${entity}`
+  const tableHasUpdatedAt = "updatedAt" in getTableColumns(table)
 
   /** Combine bitemporal currentRow filter with any explicit baseFilter. */
   function effectiveFilter(): SQL | undefined {
-    const parts: SQL[] = [];
-    if (bitemporalCols) parts.push(currentRow(bitemporalCols));
-    const custom = baseFilter?.(db);
-    if (custom) parts.push(custom);
-    return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : and(...parts)!;
+    const parts: SQL[] = []
+    if (bitemporalCols) parts.push(currentRow(bitemporalCols))
+    const custom = baseFilter?.(db)
+    if (custom) parts.push(custom)
+    return parts.length === 0
+      ? undefined
+      : parts.length === 1
+        ? parts[0]
+        : and(...parts)!
   }
 
   // Core CRUD routes are always registered on a single chain so Eden
@@ -227,167 +256,241 @@ export function ontologyRoutes<T extends PgTable>(
   const app = new Elysia({ prefix: `/${entity}` })
 
     // ── LIST ──────────────────────────────────────────────
-    .get("/", async ({ query }) => {
-      const { limit, offset } = parsePagination({
-        limit: Number(query.limit) || undefined,
-        offset: Number(query.offset) || undefined,
-      });
+    .get(
+      "/",
+      async ({ query }) => {
+        const { limit, offset } = parsePagination({
+          limit: Number(query.limit) || undefined,
+          offset: Number(query.offset) || undefined,
+        })
 
-      const where = effectiveFilter();
-      const total = await countRows(db, table, where);
-      const rows = await selectFrom(db, table)
-        .where(where)
-        .orderBy(desc(config.orderByColumn ?? idColumn))
-        .limit(limit)
-        .offset(offset);
+        const where = effectiveFilter()
+        const total = await countRows(db, table, where)
+        const rows = await selectFrom(db, table)
+          .where(where)
+          .orderBy(desc(config.orderByColumn ?? idColumn))
+          .limit(limit)
+          .offset(offset)
 
-      return list(rows, paginationMeta(total, { limit, offset }));
-    }, {
-      detail: { tags: [tag], summary: `List ${entity}` },
-    })
+        return list(rows, paginationMeta(total, { limit, offset }))
+      },
+      {
+        detail: { tags: [tag], summary: `List ${entity}` },
+      }
+    )
 
     // ── SINGLE ────────────────────────────────────────────
-    .get("/:slugOrId", async ({ params }) => {
-      const row = await resolveOrThrow(
-        db, table, params.slugOrId, slugColumn, idColumn, singular,
-        effectiveFilter(),
-      );
-      return ok(row);
-    }, {
-      detail: { tags: [tag], summary: `Get ${singular}` },
-    })
+    .get(
+      "/:slugOrId",
+      async ({ params }) => {
+        const row = await resolveOrThrow(
+          db,
+          table,
+          params.slugOrId,
+          slugColumn,
+          idColumn,
+          singular,
+          effectiveFilter()
+        )
+        return ok(row)
+      },
+      {
+        detail: { tags: [tag], summary: `Get ${singular}` },
+      }
+    )
 
     // ── CREATE ────────────────────────────────────────────
-    .post("/", async ({ body }) => {
-      if (!createSchema) throw new NotFoundError(`create not supported for ${entity}`);
-      const parsed = createSchema.parse(body);
-      const values = hooks?.beforeCreate
-        ? await hooks.beforeCreate({ db, parsed })
-        : parsed;
-      const [row] = await db.insert(table as PgTable).values(values).returning();
-      const result = hooks?.afterCreate
-        ? await hooks.afterCreate({ db, row: row as InferSelectModel<T> })
-        : row;
-      return ok(result);
-    }, {
-      detail: { tags: [tag], summary: `Create ${singular}` },
-    })
+    .post(
+      "/",
+      async ({ body }) => {
+        if (!createSchema)
+          throw new NotFoundError(`create not supported for ${entity}`)
+        const parsed = createSchema.parse(body)
+        const values = hooks?.beforeCreate
+          ? await hooks.beforeCreate({ db, parsed })
+          : parsed
+        const [row] = await db
+          .insert(table as PgTable)
+          .values(values)
+          .returning()
+        const result = hooks?.afterCreate
+          ? await hooks.afterCreate({ db, row: row as InferSelectModel<T> })
+          : row
+        return ok(result)
+      },
+      {
+        detail: { tags: [tag], summary: `Create ${singular}` },
+      }
+    )
 
     // ── UPDATE ─────────────────────────────────────────────
-    .post("/:slugOrId/update", async ({ params, body }) => {
-      if (!updateSchema) throw new NotFoundError(`update not supported for ${entity}`);
-      const parsed = updateSchema.parse(body);
-      const resolved = await resolveOrThrow(
-        db, table, params.slugOrId, slugColumn, idColumn, singular,
-        effectiveFilter(),
-      );
-      const id = (resolved as Record<string, unknown>)[idColumn.name] as string;
-      const values = hooks?.beforeUpdate
-        ? await hooks.beforeUpdate({ db, entity: resolved, parsed })
-        : parsed;
-      const [updated] = await updateTable(db, table)
-        .set(tableHasUpdatedAt ? { ...values, updatedAt: new Date() } : values)
-        .where(eq(idColumn, id))
-        .returning();
-      const result = hooks?.afterUpdate
-        ? await hooks.afterUpdate({ db, row: updated as InferSelectModel<T> })
-        : updated;
-      return ok(result);
-    }, {
-      detail: { tags: [tag], summary: `Update ${singular}` },
-    })
+    .post(
+      "/:slugOrId/update",
+      async ({ params, body }) => {
+        if (!updateSchema)
+          throw new NotFoundError(`update not supported for ${entity}`)
+        const parsed = updateSchema.parse(body)
+        const resolved = await resolveOrThrow(
+          db,
+          table,
+          params.slugOrId,
+          slugColumn,
+          idColumn,
+          singular,
+          effectiveFilter()
+        )
+        const id = (resolved as Record<string, unknown>)[
+          idColumn.name
+        ] as string
+        const values = hooks?.beforeUpdate
+          ? await hooks.beforeUpdate({ db, entity: resolved, parsed })
+          : parsed
+        const [updated] = await updateTable(db, table)
+          .set(
+            tableHasUpdatedAt ? { ...values, updatedAt: new Date() } : values
+          )
+          .where(eq(idColumn, id))
+          .returning()
+        const result = hooks?.afterUpdate
+          ? await hooks.afterUpdate({ db, row: updated as InferSelectModel<T> })
+          : updated
+        return ok(result)
+      },
+      {
+        detail: { tags: [tag], summary: `Update ${singular}` },
+      }
+    )
 
     // ── DELETE ─────────────────────────────────────────────
-    .post("/:slugOrId/delete", async ({ params }) => {
-      if (!deletable) throw new NotFoundError(`delete not supported for ${entity}`);
-      const resolved = await resolveOrThrow(
-        db, table, params.slugOrId, slugColumn, idColumn, singular,
-        effectiveFilter(),
-      );
-      if (hooks?.beforeDelete) {
-        await hooks.beforeDelete({ db, entity: resolved });
+    .post(
+      "/:slugOrId/delete",
+      async ({ params }) => {
+        if (!deletable)
+          throw new NotFoundError(`delete not supported for ${entity}`)
+        const resolved = await resolveOrThrow(
+          db,
+          table,
+          params.slugOrId,
+          slugColumn,
+          idColumn,
+          singular,
+          effectiveFilter()
+        )
+        if (hooks?.beforeDelete) {
+          await hooks.beforeDelete({ db, entity: resolved })
+        }
+        const id = (resolved as Record<string, unknown>)[
+          idColumn.name
+        ] as string
+        if (deletable === "bitemporal") {
+          // Table is known to be bitemporal at this point (deletable === "bitemporal" checked above)
+          const bitable = table as unknown as PgTable &
+            BitemporalTable & {
+              id: PgColumn
+              changedBy: PgColumn
+              changeReason: PgColumn
+            }
+          await bitemporalDelete(db, bitable, id, "api")
+        } else {
+          await db.delete(table as PgTable).where(eq(idColumn, id))
+        }
+        return ok({ deleted: true })
+      },
+      {
+        detail: { tags: [tag], summary: `Delete ${singular}` },
       }
-      const id = (resolved as Record<string, unknown>)[idColumn.name] as string;
-      if (deletable === "bitemporal") {
-        // Table is known to be bitemporal at this point (deletable === "bitemporal" checked above)
-        const bitable = table as unknown as PgTable & BitemporalTable & { id: PgColumn; changedBy: PgColumn; changeReason: PgColumn };
-        await bitemporalDelete(db, bitable, id, "api");
-      } else {
-        await db.delete(table as PgTable).where(eq(idColumn, id));
-      }
-      return ok({ deleted: true });
-    }, {
-      detail: { tags: [tag], summary: `Delete ${singular}` },
-    });
+    )
 
   // Relations and actions use dynamic paths from config — Eden can't
   // statically type these, so they go on a separate instance.
-  const extras = new Elysia({ prefix: `/${entity}` });
+  const extras = new Elysia({ prefix: `/${entity}` })
 
   // ── RELATED ENTITIES ──────────────────────────────────
   if (relations) {
     for (const [, rel] of Object.entries(relations)) {
-      extras.get(`/:slugOrId/${rel.path}`, async ({ params, query }) => {
-        const parent = await resolveOrThrow(
-          db, table, params.slugOrId, slugColumn, idColumn, singular,
-          bitemporalCols ? currentRow(bitemporalCols) : undefined,
-        );
+      extras.get(
+        `/:slugOrId/${rel.path}`,
+        async ({ params, query }) => {
+          const parent = await resolveOrThrow(
+            db,
+            table,
+            params.slugOrId,
+            slugColumn,
+            idColumn,
+            singular,
+            bitemporalCols ? currentRow(bitemporalCols) : undefined
+          )
 
-        const parentId = (parent as Record<string, unknown>)[idColumn.name] as string;
-        const { limit, offset } = parsePagination({
-          limit: Number(query.limit) || undefined,
-          offset: Number(query.offset) || undefined,
-        });
+          const parentId = (parent as Record<string, unknown>)[
+            idColumn.name
+          ] as string
+          const { limit, offset } = parsePagination({
+            limit: Number(query.limit) || undefined,
+            offset: Number(query.offset) || undefined,
+          })
 
-        const fkFilter = eq(rel.fk, parentId);
-        const where = rel.bitemporal
-          ? and(fkFilter, currentRow(rel.bitemporal))!
-          : fkFilter;
-        const total = await countRows(db, rel.table, where);
-        const rows = await db
-          .select()
-          .from(rel.table)
-          .where(where)
-          .orderBy(desc(rel.orderBy ?? rel.fk))
-          .limit(limit)
-          .offset(offset);
+          const fkFilter = eq(rel.fk, parentId)
+          const where = rel.bitemporal
+            ? and(fkFilter, currentRow(rel.bitemporal))!
+            : fkFilter
+          const total = await countRows(db, rel.table, where)
+          const rows = await db
+            .select()
+            .from(rel.table)
+            .where(where)
+            .orderBy(desc(rel.orderBy ?? rel.fk))
+            .limit(limit)
+            .offset(offset)
 
-        return list(rows, paginationMeta(total, { limit, offset }));
-      }, {
-        detail: {
-          tags: [rel.tag ?? tag],
-          summary: `List ${rel.path} for ${singular}`,
+          return list(rows, paginationMeta(total, { limit, offset }))
         },
-      });
+        {
+          detail: {
+            tags: [rel.tag ?? tag],
+            summary: `List ${rel.path} for ${singular}`,
+          },
+        }
+      )
     }
   }
 
   // ── ACTIONS ───────────────────────────────────────────
   if (actions) {
     for (const [actionName, actionCfg] of Object.entries(actions)) {
-      extras.post(`/:slugOrId/${actionName}`, async ({ params, body }) => {
-        const resolved = await resolveOrThrow(
-          db, table, params.slugOrId, slugColumn, idColumn, singular,
-          bitemporalCols ? currentRow(bitemporalCols) : undefined,
-        );
+      extras.post(
+        `/:slugOrId/${actionName}`,
+        async ({ params, body }) => {
+          const resolved = await resolveOrThrow(
+            db,
+            table,
+            params.slugOrId,
+            slugColumn,
+            idColumn,
+            singular,
+            bitemporalCols ? currentRow(bitemporalCols) : undefined
+          )
 
-        const result = await actionCfg.handler({
-          db,
-          entity: resolved,
-          body: actionCfg.bodySchema ? actionCfg.bodySchema.parse(body) : body,
-          slugOrId: params.slugOrId,
-        });
+          const result = await actionCfg.handler({
+            db,
+            entity: resolved,
+            body: actionCfg.bodySchema
+              ? actionCfg.bodySchema.parse(body)
+              : body,
+            slugOrId: params.slugOrId,
+          })
 
-        return actionResponse(result, actionName);
-      }, {
-        detail: {
-          tags: [actionCfg.tag ?? tag],
-          summary: `${actionName} ${singular}`,
+          return actionResponse(result, actionName)
         },
-      });
+        {
+          detail: {
+            tags: [actionCfg.tag ?? tag],
+            summary: `${actionName} ${singular}`,
+          },
+        }
+      )
     }
   }
 
   // Merge extras into a single Elysia group that consumers .use()
-  return new Elysia().use(app).use(extras);
+  return new Elysia().use(app).use(extras)
 }

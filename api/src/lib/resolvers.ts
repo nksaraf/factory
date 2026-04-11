@@ -3,9 +3,9 @@
  * Generalizes the EntityFinder pattern for any Drizzle table.
  */
 
-import { and, eq, or, type SQL } from "drizzle-orm";
-import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import type { Database } from "../db/connection";
+import { and, eq, or, type SQL } from "drizzle-orm"
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core"
+import type { Database } from "../db/connection"
 
 /**
  * Checks if a string matches the prefixed CUID pattern used by newId().
@@ -14,7 +14,7 @@ import type { Database } from "../db/connection";
  * Pattern: 1-6 lowercase alpha chars, underscore, then 24+ alphanumeric chars.
  */
 export function isPrefixedId(value: string): boolean {
-  return /^[a-z]{1,6}_[a-z0-9]{24,}$/.test(value);
+  return /^[a-z]{1,6}_[a-z0-9]{24,}$/.test(value)
 }
 
 /**
@@ -38,26 +38,22 @@ export async function resolveBySlugOrId<
   slugOrId: string,
   slugColumn: PgColumn,
   idColumn: PgColumn,
-  extraFilter?: SQL,
+  extraFilter?: SQL
 ): Promise<T | null> {
-  const match = or(eq(slugColumn, slugOrId), eq(idColumn, slugOrId));
-  const where = extraFilter ? and(match, extraFilter) : match;
+  const match = or(eq(slugColumn, slugOrId), eq(idColumn, slugOrId))
+  const where = extraFilter ? and(match, extraFilter) : match
 
-  const rows = await db
-    .select()
-    .from(table)
-    .where(where)
-    .limit(2);
+  const rows = await db.select().from(table).where(where).limit(2)
 
-  if (rows.length === 0) return null;
-  if (rows.length === 1) return rows[0] as T;
+  if (rows.length === 0) return null
+  if (rows.length === 1) return rows[0] as T
 
   // Two rows matched — disambiguate
-  const looksLikeId = isPrefixedId(slugOrId);
+  const looksLikeId = isPrefixedId(slugOrId)
   const found = rows.find((row) => {
-    const col = looksLikeId ? idColumn.name : slugColumn.name;
-    return (row as Record<string, unknown>)[col] === slugOrId;
-  });
+    const col = looksLikeId ? idColumn.name : slugColumn.name
+    return (row as Record<string, unknown>)[col] === slugOrId
+  })
 
-  return (found ?? rows[0]) as T;
+  return (found ?? rows[0]) as T
 }

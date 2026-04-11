@@ -180,7 +180,7 @@ async function checkFactoryPlane(
   const apiBase = `https://${domain}`
   const result = run("curl", [
     "-sf",
-    `${apiBase}/api/${plane}/health`,
+    `${apiBase}/api/v1/${plane}/health`,
     "--max-time",
     "5",
     "-k",

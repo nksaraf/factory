@@ -1,5 +1,5 @@
 /**
- * Fleet domain types — shared between PowerSync and REST API paths.
+ * Ops plane domain types — shared between PowerSync and REST API paths.
  *
  * These are the "domain" types consumed by UI components. Both the
  * PowerSync queries and the REST API responses are normalized to these types.
@@ -84,7 +84,7 @@ export interface Rollout {
   completedAt: string | null
 }
 
-export interface FleetSite {
+export interface OpsSite {
   id: string
   name: string
   slug: string

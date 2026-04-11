@@ -1,12 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk"
 import type {
   ReleaseContext,
   ReleaseContentConfig,
   ReleaseContentOutputType,
   GeneratedContent,
   ParsedCommit,
-} from "@smp/factory-shared/release-content-schema";
-import { logger } from "../../logger";
+} from "@smp/factory-shared/release-content-schema"
+import { logger } from "../../logger"
 
 // ---------------------------------------------------------------------------
 // Default prompts for each output type
@@ -69,21 +69,25 @@ Given the release context below, write a compelling blog post / announcement:
 - Keep the tone professional but enthusiastic
 - Aim for 300-500 words
 - Do NOT include overly technical details — link to the changelog for those`,
-};
+}
 
 // ---------------------------------------------------------------------------
 // Generator
 // ---------------------------------------------------------------------------
 
 export class ReleaseContentGenerator {
-  private readonly client: Anthropic;
-  private readonly model: string;
+  private readonly client: Anthropic
+  private readonly model: string
 
   constructor(opts?: { apiKey?: string; model?: string }) {
     this.client = new Anthropic({
-      apiKey: opts?.apiKey ?? process.env.LLM_API_KEY ?? process.env.ANTHROPIC_API_KEY,
-    });
-    this.model = opts?.model ?? process.env.LLM_MODEL ?? "claude-sonnet-4-20250514";
+      apiKey:
+        opts?.apiKey ??
+        process.env.LLM_API_KEY ??
+        process.env.ANTHROPIC_API_KEY,
+    })
+    this.model =
+      opts?.model ?? process.env.LLM_MODEL ?? "claude-sonnet-4-20250514"
   }
 
   /**
@@ -91,59 +95,59 @@ export class ReleaseContentGenerator {
    */
   async generate(
     context: ReleaseContext,
-    config: ReleaseContentConfig,
+    config: ReleaseContentConfig
   ): Promise<GeneratedContent[]> {
     const settled = await Promise.allSettled(
       config.outputs.map((outputType) =>
-        this.generateOne(outputType, context, config),
-      ),
-    );
+        this.generateOne(outputType, context, config)
+      )
+    )
 
-    const results: GeneratedContent[] = [];
+    const results: GeneratedContent[] = []
     for (let i = 0; i < settled.length; i++) {
-      const result = settled[i]!;
+      const result = settled[i]!
       if (result.status === "fulfilled") {
-        results.push(result.value);
+        results.push(result.value)
       } else {
         logger.error(
           { err: result.reason, outputType: config.outputs[i] },
-          "Failed to generate release content",
-        );
+          "Failed to generate release content"
+        )
       }
     }
 
-    return results;
+    return results
   }
 
   private async generateOne(
     outputType: ReleaseContentOutputType,
     context: ReleaseContext,
-    config: ReleaseContentConfig,
+    config: ReleaseContentConfig
   ): Promise<GeneratedContent> {
     const systemPrompt =
-      config.prompts?.[outputType] ?? DEFAULT_PROMPTS[outputType];
+      config.prompts?.[outputType] ?? DEFAULT_PROMPTS[outputType]
 
-    const userMessage = buildUserMessage(outputType, context);
+    const userMessage = buildUserMessage(outputType, context)
 
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
-    });
+    })
 
     const text = response.content
       .filter((b) => b.type === "text")
       .map((b) => b.text)
-      .join("\n");
+      .join("\n")
 
-    const filename = getFilename(outputType, context.version, config);
+    const filename = getFilename(outputType, context.version, config)
 
     return {
       type: outputType,
       filename,
       content: formatContent(outputType, text, context),
-    };
+    }
   }
 }
 
@@ -153,47 +157,47 @@ export class ReleaseContentGenerator {
 
 function buildUserMessage(
   outputType: ReleaseContentOutputType,
-  context: ReleaseContext,
+  context: ReleaseContext
 ): string {
-  const parts: string[] = [];
+  const parts: string[] = []
 
-  parts.push(`## Release: v${context.version}`);
-  parts.push(`Date: ${context.releaseDate}`);
+  parts.push(`## Release: v${context.version}`)
+  parts.push(`Date: ${context.releaseDate}`)
   if (context.previousVersion) {
-    parts.push(`Previous version: v${context.previousVersion}`);
+    parts.push(`Previous version: v${context.previousVersion}`)
   }
-  parts.push("");
+  parts.push("")
 
   // Commits grouped by type
   if (context.commits.length > 0) {
-    parts.push("## Commits");
-    const grouped = groupCommitsByType(context.commits);
+    parts.push("## Commits")
+    const grouped = groupCommitsByType(context.commits)
     for (const [type, commits] of Object.entries(grouped)) {
-      parts.push(`\n### ${type}`);
+      parts.push(`\n### ${type}`)
       for (const c of commits) {
-        const scope = c.scope ? `(${c.scope})` : "";
-        const breaking = c.breaking ? " [BREAKING]" : "";
+        const scope = c.scope ? `(${c.scope})` : ""
+        const breaking = c.breaking ? " [BREAKING]" : ""
         parts.push(
-          `- ${c.sha.slice(0, 7)} ${type}${scope}${breaking}: ${c.description} (${c.author})`,
-        );
+          `- ${c.sha.slice(0, 7)} ${type}${scope}${breaking}: ${c.description} (${c.author})`
+        )
       }
     }
-    parts.push("");
+    parts.push("")
   }
 
   // Pull requests
   if (context.pullRequests.length > 0) {
-    parts.push("## Pull Requests");
+    parts.push("## Pull Requests")
     for (const pr of context.pullRequests) {
-      parts.push(`- #${pr.number}: ${pr.title} (@${pr.author})`);
+      parts.push(`- #${pr.number}: ${pr.title} (@${pr.author})`)
       if (pr.body) {
         // Include first 200 chars of PR body for context
         const truncated =
-          pr.body.length > 200 ? pr.body.slice(0, 200) + "..." : pr.body;
-        parts.push(`  ${truncated}`);
+          pr.body.length > 200 ? pr.body.slice(0, 200) + "..." : pr.body
+        parts.push(`  ${truncated}`)
       }
     }
-    parts.push("");
+    parts.push("")
   }
 
   // OpenAPI diff (only for api-docs and changelog)
@@ -201,18 +205,16 @@ function buildUserMessage(
     context.openApiDiff &&
     (outputType === "api-docs" || outputType === "changelog")
   ) {
-    parts.push("## OpenAPI Changes");
+    parts.push("## OpenAPI Changes")
     for (const change of context.openApiDiff.endpointChanges) {
       parts.push(
-        `- [${change.changeType.toUpperCase()}] ${change.method} ${change.path}${change.summary ? ` — ${change.summary}` : ""}`,
-      );
+        `- [${change.changeType.toUpperCase()}] ${change.method} ${change.path}${change.summary ? ` — ${change.summary}` : ""}`
+      )
     }
     for (const change of context.openApiDiff.schemaChanges) {
-      parts.push(
-        `- [SCHEMA ${change.changeType.toUpperCase()}] ${change.name}`,
-      );
+      parts.push(`- [SCHEMA ${change.changeType.toUpperCase()}] ${change.name}`)
     }
-    parts.push("");
+    parts.push("")
   }
 
   // Design specs (only for internal-docs and announcement)
@@ -220,59 +222,59 @@ function buildUserMessage(
     context.designSpecs.length > 0 &&
     (outputType === "internal-docs" || outputType === "announcement")
   ) {
-    parts.push("## Design Specifications (for context)");
+    parts.push("## Design Specifications (for context)")
     for (const spec of context.designSpecs) {
       // Truncate long specs to avoid token overflow
       const truncated =
-        spec.length > 2000 ? spec.slice(0, 2000) + "\n...(truncated)" : spec;
-      parts.push(truncated);
-      parts.push("---");
+        spec.length > 2000 ? spec.slice(0, 2000) + "\n...(truncated)" : spec
+      parts.push(truncated)
+      parts.push("---")
     }
-    parts.push("");
+    parts.push("")
   }
 
-  return parts.join("\n");
+  return parts.join("\n")
 }
 
 function groupCommitsByType(
-  commits: ParsedCommit[],
+  commits: ParsedCommit[]
 ): Record<string, ParsedCommit[]> {
-  const grouped: Record<string, ParsedCommit[]> = {};
+  const grouped: Record<string, ParsedCommit[]> = {}
   for (const commit of commits) {
-    const type = commit.type;
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(commit);
+    const type = commit.type
+    if (!grouped[type]) grouped[type] = []
+    grouped[type].push(commit)
   }
-  return grouped;
+  return grouped
 }
 
 function getFilename(
   outputType: ReleaseContentOutputType,
   version: string,
-  config: ReleaseContentConfig,
+  config: ReleaseContentConfig
 ): string {
   switch (outputType) {
     case "changelog":
-      return config.changelogPath;
+      return config.changelogPath
     case "release-notes":
-      return `${config.docsDir}/v${version}.md`;
+      return `${config.docsDir}/v${version}.md`
     case "api-docs":
-      return `docs/api/v${version}-changes.md`;
+      return `docs/api/v${version}-changes.md`
     case "internal-docs":
-      return `docs/internal/v${version}.md`;
+      return `docs/internal/v${version}.md`
     case "announcement":
-      return `docs/announcements/v${version}.md`;
+      return `docs/announcements/v${version}.md`
   }
 }
 
 function formatContent(
   outputType: ReleaseContentOutputType,
   generatedText: string,
-  context: ReleaseContext,
+  context: ReleaseContext
 ): string {
   if (outputType === "changelog") {
     // Wrap in version heading for changelog
-    return `## [${context.version}] - ${context.releaseDate}\n\n${generatedText}\n`;
+    return `## [${context.version}] - ${context.releaseDate}\n\n${generatedText}\n`
   }
 
   // Add a header for standalone docs
@@ -282,12 +284,12 @@ function formatContent(
     "api-docs": `API Changes — v${context.version}`,
     "internal-docs": `Internal Documentation — v${context.version}`,
     announcement: "",
-  };
-
-  const title = titles[outputType];
-  if (title) {
-    return `# ${title}\n\n_Released: ${context.releaseDate}_\n\n${generatedText}\n`;
   }
 
-  return generatedText;
+  const title = titles[outputType]
+  if (title) {
+    return `# ${title}\n\n_Released: ${context.releaseDate}_\n\n${generatedText}\n`
+  }
+
+  return generatedText
 }

@@ -33,10 +33,7 @@ export function flattenTree(nodes: TreeNode[]): Resource[] {
   return result
 }
 
-export function findNodeById(
-  nodes: TreeNode[],
-  id: string
-): TreeNode | null {
+export function findNodeById(nodes: TreeNode[], id: string): TreeNode | null {
   for (const node of nodes) {
     if (node.id === id) return node
     const found = findNodeById(node.children, id)

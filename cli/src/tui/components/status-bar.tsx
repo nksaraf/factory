@@ -15,7 +15,14 @@ export function StatusBar({ counts, connected }: StatusBarProps) {
   }, [])
 
   return (
-    <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} paddingX={1}>
+    <Box
+      borderStyle="single"
+      borderTop
+      borderBottom={false}
+      borderLeft={false}
+      borderRight={false}
+      paddingX={1}
+    >
       <Text>
         <Text color="green">● {counts.running} running</Text>
         {"  "}
@@ -36,5 +43,8 @@ export function StatusBar({ counts, connected }: StatusBarProps) {
 }
 
 function formatTime(): string {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }

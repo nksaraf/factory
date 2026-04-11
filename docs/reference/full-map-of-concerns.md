@@ -7,6 +7,7 @@
 ## How to Read This Document
 
 For each concern area, I'll note:
+
 - **Covered** — our model handles this well
 - **Thin** — we have the entity but not enough depth
 - **Missing** — a real gap that needs vocabulary and possibly new entities
@@ -598,6 +599,7 @@ interaction modes:
   deep specialist knowledge. Your RF Engine team, if it exists separately.
 
 **INTERACTION MODE** — how teams relate to each other:
+
 - **Collaboration** — working closely together on something (temporary, high-bandwidth)
 - **X-as-a-service** — one team provides a service to another (stable, low-bandwidth)
 - **Facilitating** — one team helps another improve (temporary, teaching-oriented)
@@ -904,63 +906,63 @@ by the catalog's completeness and the API entity's documentation.
 
 ### New Entities to Consider Adding
 
-| Entity | Where it lives | Priority |
-|---|---|---|
-| **Incident** | Incident management system, references inventory entities | High — this is the pressure test for the whole model |
-| **Vulnerability** | Security tooling, linked to Component/Artifact | High — security is non-negotiable |
-| **SLO** | Property on Component/Deployment | High — operational maturity requires this |
-| **Change Request** | Change management process | Medium — critical for enterprise customers |
-| **Hardware Asset** | Below Substrate for physical infra | Medium — relevant for your Proxmox cluster and customer on-prem |
-| **Vendor / Vendor Contract** | Administrative | Medium — you depend on many vendors |
-| **Model (ML)** | Sub-type of Artifact | Medium — relevant for AI capabilities |
-| **Compliance Control** | GRC system | Low now, high when you pursue SOC 2 |
+| Entity                       | Where it lives                                            | Priority                                                        |
+| ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| **Incident**                 | Incident management system, references inventory entities | High — this is the pressure test for the whole model            |
+| **Vulnerability**            | Security tooling, linked to Component/Artifact            | High — security is non-negotiable                               |
+| **SLO**                      | Property on Component/Deployment                          | High — operational maturity requires this                       |
+| **Change Request**           | Change management process                                 | Medium — critical for enterprise customers                      |
+| **Hardware Asset**           | Below Substrate for physical infra                        | Medium — relevant for your Proxmox cluster and customer on-prem |
+| **Vendor / Vendor Contract** | Administrative                                            | Medium — you depend on many vendors                             |
+| **Model (ML)**               | Sub-type of Artifact                                      | Medium — relevant for AI capabilities                           |
+| **Compliance Control**       | GRC system                                                | Low now, high when you pursue SOC 2                             |
 
 ### Properties to Add to Existing Entities
 
-| Entity | Missing Property | Why |
-|---|---|---|
-| Component | `branch_strategy`, `code_review_policy`, `feature_flags` | Development process |
-| Component | `slo` (with SLI definition and error budget) | Operational maturity |
-| Component | `threat_model_url` | Security |
-| Artifact | `sbom` (required, not optional) | Security and compliance |
-| Artifact | Model-specific properties for ML artifacts | AI workloads |
-| Deployment | `dr_plan`, `failover_target` | Disaster recovery |
-| Deployment | `last_backup_verified` on associated Data Store | DR confidence |
-| Data Store | `classification` (public/internal/confidential/restricted) | Data governance |
-| Data Store | `pii_fields`, `data_owner` | GDPR/DPDP compliance |
-| Host | `hardware_asset_ref` (for physical hosts) | Hardware lifecycle |
-| Customer | `health_score`, `adoption_metrics` | Customer success |
-| Engagement | `competitive_displacement` flag | Pre-sales context |
-| Team | `team_type` (stream-aligned/platform/enabling/complicated-subsystem) | Team Topologies |
-| Team | `cognitive_load` (derived: entity count owned) | Organizational health |
+| Entity     | Missing Property                                                     | Why                     |
+| ---------- | -------------------------------------------------------------------- | ----------------------- |
+| Component  | `branch_strategy`, `code_review_policy`, `feature_flags`             | Development process     |
+| Component  | `slo` (with SLI definition and error budget)                         | Operational maturity    |
+| Component  | `threat_model_url`                                                   | Security                |
+| Artifact   | `sbom` (required, not optional)                                      | Security and compliance |
+| Artifact   | Model-specific properties for ML artifacts                           | AI workloads            |
+| Deployment | `dr_plan`, `failover_target`                                         | Disaster recovery       |
+| Deployment | `last_backup_verified` on associated Data Store                      | DR confidence           |
+| Data Store | `classification` (public/internal/confidential/restricted)           | Data governance         |
+| Data Store | `pii_fields`, `data_owner`                                           | GDPR/DPDP compliance    |
+| Host       | `hardware_asset_ref` (for physical hosts)                            | Hardware lifecycle      |
+| Customer   | `health_score`, `adoption_metrics`                                   | Customer success        |
+| Engagement | `competitive_displacement` flag                                      | Pre-sales context       |
+| Team       | `team_type` (stream-aligned/platform/enabling/complicated-subsystem) | Team Topologies         |
+| Team       | `cognitive_load` (derived: entity count owned)                       | Organizational health   |
 
 ### Vocabulary That Needs to Exist (Not Entities, Just Words)
 
-| Term | Definition | Used By |
-|---|---|---|
-| **Golden Path** | The recommended way to build/deploy something | Platform team → dev teams |
-| **Error Budget** | Allowable unreliability before freezing releases | SRE ↔ product teams |
-| **Blast Radius** | What's affected if this thing fails | Incident response, change management |
-| **Cognitive Load** | How much a team is responsible for | Engineering management |
-| **Data Lineage** | Trace from output back to source data | Data engineering, compliance |
-| **Adoption** | Whether customers use what they bought | Customer success |
-| **Inner Source** | Sharing components across teams internally | Engineering culture |
-| **Toil** | Repetitive manual work that could be automated | SRE, platform team |
-| **Tech Debt** | Accumulated shortcuts that slow future development | Engineering management |
-| **Configuration Drift** | Divergence of actual from declared config | Operations |
-| **Model Drift** | Degradation of ML model accuracy over time | Data science |
-| **Feature Parity** | Whether your product matches competitor capabilities | Product, pre-sales |
-| **Hypercare** | Intensive support period after go-live | Engagement management |
-| **Dogfooding** | Using your own product internally | Product development |
-| **Canary** | Deploying to a small subset before full rollout | Deployment strategy |
-| **Paved Road** | Synonym for Golden Path at Netflix | Platform team |
-| **Strangler Fig** | Incrementally replacing legacy with new, routing traffic gradually | Migration strategy |
-| **Circuit Breaker** | Pattern to prevent cascading failures by failing fast | Architecture |
-| **Bulkhead** | Pattern to isolate failures to a subset of resources | Architecture |
-| **Sidecar** | An auxiliary workload alongside the main workload | Deployment architecture |
-| **Cold Start** | Latency spike when a serverless function or container starts from scratch | Operations |
-| **Noisy Neighbor** | One tenant consuming resources that affect other tenants | Multi-tenancy |
-| **Runbook** | Step-by-step operational procedures | SRE, on-call |
-| **Postmortem** | Blameless analysis after an incident | Engineering culture |
-| **War Room** | Dedicated space/channel for incident response | Incident management |
-| **Bake Time** | How long to wait after deployment before considering it stable | Release management |
+| Term                    | Definition                                                                | Used By                              |
+| ----------------------- | ------------------------------------------------------------------------- | ------------------------------------ |
+| **Golden Path**         | The recommended way to build/deploy something                             | Platform team → dev teams            |
+| **Error Budget**        | Allowable unreliability before freezing releases                          | SRE ↔ product teams                  |
+| **Blast Radius**        | What's affected if this thing fails                                       | Incident response, change management |
+| **Cognitive Load**      | How much a team is responsible for                                        | Engineering management               |
+| **Data Lineage**        | Trace from output back to source data                                     | Data engineering, compliance         |
+| **Adoption**            | Whether customers use what they bought                                    | Customer success                     |
+| **Inner Source**        | Sharing components across teams internally                                | Engineering culture                  |
+| **Toil**                | Repetitive manual work that could be automated                            | SRE, platform team                   |
+| **Tech Debt**           | Accumulated shortcuts that slow future development                        | Engineering management               |
+| **Configuration Drift** | Divergence of actual from declared config                                 | Operations                           |
+| **Model Drift**         | Degradation of ML model accuracy over time                                | Data science                         |
+| **Feature Parity**      | Whether your product matches competitor capabilities                      | Product, pre-sales                   |
+| **Hypercare**           | Intensive support period after go-live                                    | Engagement management                |
+| **Dogfooding**          | Using your own product internally                                         | Product development                  |
+| **Canary**              | Deploying to a small subset before full rollout                           | Deployment strategy                  |
+| **Paved Road**          | Synonym for Golden Path at Netflix                                        | Platform team                        |
+| **Strangler Fig**       | Incrementally replacing legacy with new, routing traffic gradually        | Migration strategy                   |
+| **Circuit Breaker**     | Pattern to prevent cascading failures by failing fast                     | Architecture                         |
+| **Bulkhead**            | Pattern to isolate failures to a subset of resources                      | Architecture                         |
+| **Sidecar**             | An auxiliary workload alongside the main workload                         | Deployment architecture              |
+| **Cold Start**          | Latency spike when a serverless function or container starts from scratch | Operations                           |
+| **Noisy Neighbor**      | One tenant consuming resources that affect other tenants                  | Multi-tenancy                        |
+| **Runbook**             | Step-by-step operational procedures                                       | SRE, on-call                         |
+| **Postmortem**          | Blameless analysis after an incident                                      | Engineering culture                  |
+| **War Room**            | Dedicated space/channel for incident response                             | Incident management                  |
+| **Bake Time**           | How long to wait after deployment before considering it stable            | Release management                   |

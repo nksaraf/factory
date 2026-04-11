@@ -5,9 +5,9 @@
  * machine can authenticate against Artifact Registry without per-project setup.
  */
 
-import { configDir, createStore } from "@crustjs/store";
+import { configDir, createStore } from "@crustjs/store"
 
-const DX_CONFIG_DIR = configDir("dx");
+const DX_CONFIG_DIR = configDir("dx")
 
 export const registryAuthStore = createStore({
   dirPath: DX_CONFIG_DIR,
@@ -20,9 +20,11 @@ export const registryAuthStore = createStore({
     GOOGLE_APPLICATION_CREDENTIALS_BASE64: { type: "string", default: "" },
     DX_REGISTRY_WRITE_ACCESS: { type: "string", default: "" },
   },
-});
+})
 
-export type RegistryAuthData = Awaited<ReturnType<typeof registryAuthStore.read>>;
+export type RegistryAuthData = Awaited<
+  ReturnType<typeof registryAuthStore.read>
+>
 
 /** Keys that should be propagated to subprocess environments. */
 const REGISTRY_ENV_KEYS = [
@@ -32,7 +34,7 @@ const REGISTRY_ENV_KEYS = [
   "GCP_DOCKER_SA_JSON_BASE64",
   "GOOGLE_APPLICATION_CREDENTIALS_BASE64",
   "DX_REGISTRY_WRITE_ACCESS",
-] as const;
+] as const
 
 /**
  * Load global auth keys into `process.env` so every subprocess inherits them.
@@ -43,11 +45,11 @@ const REGISTRY_ENV_KEYS = [
 export async function loadGlobalAuthEnv(): Promise<void> {
   // 1. Load from local secret store (~/.config/dx/secrets.json)
   try {
-    const { loadLocalSecrets } = await import("../secret-local-store.js");
-    const secrets = loadLocalSecrets();
+    const { loadLocalSecrets } = await import("../secret-local-store.js")
+    const secrets = loadLocalSecrets()
     for (const key of REGISTRY_ENV_KEYS) {
       if (!process.env[key] && secrets[key]) {
-        process.env[key] = secrets[key];
+        process.env[key] = secrets[key]
       }
     }
   } catch {
@@ -56,10 +58,10 @@ export async function loadGlobalAuthEnv(): Promise<void> {
 
   // 2. Load from global registry-auth store (backward compat)
   try {
-    const stored = await registryAuthStore.read();
+    const stored = await registryAuthStore.read()
     for (const [key, value] of Object.entries(stored)) {
       if (typeof value === "string" && value.length > 0 && !process.env[key]) {
-        process.env[key] = value;
+        process.env[key] = value
       }
     }
   } catch {

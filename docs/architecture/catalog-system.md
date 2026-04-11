@@ -34,8 +34,8 @@ services:
       catalog.description: "REST API for the factory control plane"
       catalog.tags: "api,backend,core"
       catalog.lifecycle: production # experimental | development | production | deprecated
-      catalog.api.provides: "factory-api" # API entity this service exposes
-      catalog.api.consumes: "auth-api" # API entities this service depends on
+      catalog.api.provides: "factory-api/v1" # API entity this service exposes
+      catalog.api.consumes: "auth-api/v1" # API entities this service depends on
 ```
 
 ### dx.\* labels

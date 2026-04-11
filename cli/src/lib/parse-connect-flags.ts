@@ -1,5 +1,5 @@
-import type { CatalogSystem } from "@smp/factory-shared/catalog";
-import type { NormalizedProfileEntry } from "@smp/factory-shared/connection-context-schemas";
+import type { CatalogSystem } from "@smp/factory-shared/catalog"
+import type { NormalizedProfileEntry } from "@smp/factory-shared/connection-context-schemas"
 
 /**
  * Expand `--connect-to <target>` into overrides for all deps + connections.
@@ -9,14 +9,14 @@ export function parseConnectToFlag(
   target: string,
   catalog: CatalogSystem
 ): Record<string, NormalizedProfileEntry> {
-  const result: Record<string, NormalizedProfileEntry> = {};
+  const result: Record<string, NormalizedProfileEntry> = {}
   for (const dep of Object.keys(catalog.resources)) {
-    result[dep] = { target, readonly: false, backend: "direct" };
+    result[dep] = { target, readonly: false, backend: "direct" }
   }
   for (const conn of catalog.connections) {
-    result[conn.name] = { target, readonly: false, backend: "direct" };
+    result[conn.name] = { target, readonly: false, backend: "direct" }
   }
-  return result;
+  return result
 }
 
 /**
@@ -26,41 +26,37 @@ export function parseConnectToFlag(
 export function parseConnectFlags(
   flags: string[]
 ): Record<string, NormalizedProfileEntry> {
-  const result: Record<string, NormalizedProfileEntry> = {};
+  const result: Record<string, NormalizedProfileEntry> = {}
   for (const flag of flags) {
-    const parts = flag.split(":");
+    const parts = flag.split(":")
     if (parts.length < 2) {
       throw new Error(
         `Invalid --connect format: "${flag}". Expected "dep:target" or "dep:target:backend".`
-      );
+      )
     }
-    const [name, target, backend] = parts;
+    const [name, target, backend] = parts
     result[name!] = {
       target: target!,
       readonly: false,
       backend: (backend as NormalizedProfileEntry["backend"]) ?? "direct",
-    };
+    }
   }
-  return result;
+  return result
 }
 
 /**
  * Parse `--env KEY=VALUE` flag array into a flat map.
  */
-export function parseEnvFlags(
-  flags: string[]
-): Record<string, string> {
-  const result: Record<string, string> = {};
+export function parseEnvFlags(flags: string[]): Record<string, string> {
+  const result: Record<string, string> = {}
   for (const flag of flags) {
-    const eqIdx = flag.indexOf("=");
+    const eqIdx = flag.indexOf("=")
     if (eqIdx < 1) {
-      throw new Error(
-        `Invalid --env format: "${flag}". Expected "KEY=VALUE".`
-      );
+      throw new Error(`Invalid --env format: "${flag}". Expected "KEY=VALUE".`)
     }
-    result[flag.slice(0, eqIdx)] = flag.slice(eqIdx + 1);
+    result[flag.slice(0, eqIdx)] = flag.slice(eqIdx + 1)
   }
-  return result;
+  return result
 }
 
 /**
@@ -73,8 +69,8 @@ export function mergeConnectionSources(
   connect?: Record<string, NormalizedProfileEntry>
 ): Record<string, NormalizedProfileEntry> {
   return {
-    ...(profile ?? {}),
-    ...(connectTo ?? {}),
-    ...(connect ?? {}),
-  };
+    ...profile,
+    ...connectTo,
+    ...connect,
+  }
 }

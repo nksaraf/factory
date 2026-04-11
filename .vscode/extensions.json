@@ -1,6 +1,3 @@
 {
-  "recommendations": [
-    "nicolo-ribaudo.oxc",
-    "esbenp.prettier-vscode"
-  ]
+  "recommendations": ["nicolo-ribaudo.oxc", "esbenp.prettier-vscode"]
 }

@@ -23,7 +23,13 @@ function truncate(s: string, max: number): string {
 }
 
 function getRowLabel(row: Record<string, unknown>): string {
-  return (row.name as string) ?? (row.slug as string) ?? (row.version as string) ?? (row.id as string) ?? "?"
+  return (
+    (row.name as string) ??
+    (row.slug as string) ??
+    (row.version as string) ??
+    (row.id as string) ??
+    "?"
+  )
 }
 
 function getRowSublabel(row: Record<string, unknown>): string | null {
@@ -53,8 +59,16 @@ function matchesFilter(row: Record<string, unknown>, filter: string): boolean {
 }
 
 export function EntityRowList({
-  entity, rows: allRows, loading, error,
-  focused, selectedRow, onSelect, onConfirm, onCreate, onBack,
+  entity,
+  rows: allRows,
+  loading,
+  error,
+  focused,
+  selectedRow,
+  onSelect,
+  onConfirm,
+  onCreate,
+  onBack,
 }: EntityRowListProps) {
   const [filter, setFilter] = useState("")
   const [filtering, setFiltering] = useState(false)
@@ -135,7 +149,12 @@ export function EntityRowList({
         onCreate()
       } else if (input === "/" || input === "f") {
         setFiltering(true)
-      } else if (input && !key.ctrl && !key.meta && /^[a-zA-Z0-9]$/.test(input)) {
+      } else if (
+        input &&
+        !key.ctrl &&
+        !key.meta &&
+        /^[a-zA-Z0-9]$/.test(input)
+      ) {
         setFiltering(true)
         setFilter(input)
         setCursorPos(0)
@@ -158,7 +177,11 @@ export function EntityRowList({
           {entity.label}
         </Text>
         <Text dimColor>
-          {loading && allRows.length === 0 ? "…" : filter ? `${rows.length}/${allRows.length}` : `${allRows.length}`}
+          {loading && allRows.length === 0
+            ? "…"
+            : filter
+              ? `${rows.length}/${allRows.length}`
+              : `${allRows.length}`}
         </Text>
       </Box>
 
@@ -196,7 +219,8 @@ export function EntityRowList({
           const prefix = isCursor ? "› " : isSelected ? "▸ " : "  "
           const statusDot = sc && !isCursor ? " ●" : ""
           const subText = sub ? ` ${sub}` : ""
-          const availableWidth = ROW_MAX_WIDTH - prefix.length - statusDot.length
+          const availableWidth =
+            ROW_MAX_WIDTH - prefix.length - statusDot.length
           const displayLabel = truncate(label + subText, availableWidth)
 
           return (
@@ -207,11 +231,10 @@ export function EntityRowList({
                 bold={!!isSelected}
                 wrap="truncate-end"
               >
-                {prefix}{displayLabel}
+                {prefix}
+                {displayLabel}
               </Text>
-              {sc && !isCursor && (
-                <Text color={sc}>{statusDot}</Text>
-              )}
+              {sc && !isCursor && <Text color={sc}>{statusDot}</Text>}
             </Box>
           )
         })

@@ -26,7 +26,11 @@ export default function HostsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <PlaneHeader plane="infra" title="Host & VM Inventory" description="Bare-metal hosts and virtual machines" />
+      <PlaneHeader
+        plane="infra"
+        title="Host & VM Inventory"
+        description="Bare-metal hosts and virtual machines"
+      />
 
       <div className="flex items-center gap-4">
         <div className="flex gap-1 rounded-lg border bg-muted p-1">
@@ -43,32 +47,53 @@ export default function HostsPage() {
             VMs ({(vms ?? []).length})
           </button>
         </div>
-        <Input placeholder={`Search ${tab}...`} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <Input
+          placeholder={`Search ${tab}...`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
 
       {tab === "hosts" && (
         <>
-          {!hostsLoading && filteredHosts.length === 0 && <EmptyState icon="icon-[ph--hard-drives-duotone]" title="No hosts" />}
+          {!hostsLoading && filteredHosts.length === 0 && (
+            <EmptyState
+              icon="icon-[ph--hard-drives-duotone]"
+              title="No hosts"
+            />
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="pb-2 pr-4">Name</th>
-                <th className="pb-2 pr-4">IP</th>
-                <th className="pb-2 pr-4">OS</th>
-                <th className="pb-2 pr-4">CPU / Mem / Disk</th>
-                <th className="pb-2 pr-4">Status</th>
-              </tr></thead>
-              <tbody>{filteredHosts.map((h) => (
-                <tr key={h.id} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">{h.name}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{h.ipAddress ?? "—"}</td>
-                  <td className="py-2 pr-4 text-xs">{h.osType}</td>
-                  <td className="py-2 pr-4 text-xs">{h.cpuCores}c / {Math.round(h.memoryMb / 1024)}G / {h.diskGb}G</td>
-                  <td className="py-2 pr-4"><StatusBadge status={h.status} /></td>
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="pb-2 pr-4">Name</th>
+                  <th className="pb-2 pr-4">IP</th>
+                  <th className="pb-2 pr-4">OS</th>
+                  <th className="pb-2 pr-4">CPU / Mem / Disk</th>
+                  <th className="pb-2 pr-4">Status</th>
                 </tr>
-              ))}</tbody>
+              </thead>
+              <tbody>
+                {filteredHosts.map((h) => (
+                  <tr key={h.id} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{h.name}</td>
+                    <td className="py-2 pr-4 font-mono text-xs">
+                      {h.ipAddress ?? "—"}
+                    </td>
+                    <td className="py-2 pr-4 text-xs">{h.osType}</td>
+                    <td className="py-2 pr-4 text-xs">
+                      {h.cpuCores}c / {Math.round(h.memoryMb / 1024)}G /{" "}
+                      {h.diskGb}G
+                    </td>
+                    <td className="py-2 pr-4">
+                      <StatusBadge status={h.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </>
@@ -76,25 +101,37 @@ export default function HostsPage() {
 
       {tab === "vms" && (
         <>
-          {!vmsLoading && filteredVMs.length === 0 && <EmptyState icon="icon-[ph--desktop-duotone]" title="No VMs" />}
+          {!vmsLoading && filteredVMs.length === 0 && (
+            <EmptyState icon="icon-[ph--desktop-duotone]" title="No VMs" />
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="pb-2 pr-4">Name</th>
-                <th className="pb-2 pr-4">IP</th>
-                <th className="pb-2 pr-4">Type</th>
-                <th className="pb-2 pr-4">CPU / Mem / Disk</th>
-                <th className="pb-2 pr-4">Status</th>
-              </tr></thead>
-              <tbody>{filteredVMs.map((v) => (
-                <tr key={v.id} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">{v.name}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{v.ipAddress ?? "—"}</td>
-                  <td className="py-2 pr-4 text-xs">{v.vmType}</td>
-                  <td className="py-2 pr-4 text-xs">{v.cpu}c / {Math.round(v.memoryMb / 1024)}G / {v.diskGb}G</td>
-                  <td className="py-2 pr-4"><StatusBadge status={v.status} /></td>
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="pb-2 pr-4">Name</th>
+                  <th className="pb-2 pr-4">IP</th>
+                  <th className="pb-2 pr-4">Type</th>
+                  <th className="pb-2 pr-4">CPU / Mem / Disk</th>
+                  <th className="pb-2 pr-4">Status</th>
                 </tr>
-              ))}</tbody>
+              </thead>
+              <tbody>
+                {filteredVMs.map((v) => (
+                  <tr key={v.id} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{v.name}</td>
+                    <td className="py-2 pr-4 font-mono text-xs">
+                      {v.ipAddress ?? "—"}
+                    </td>
+                    <td className="py-2 pr-4 text-xs">{v.vmType}</td>
+                    <td className="py-2 pr-4 text-xs">
+                      {v.cpu}c / {Math.round(v.memoryMb / 1024)}G / {v.diskGb}G
+                    </td>
+                    <td className="py-2 pr-4">
+                      <StatusBadge status={v.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </>

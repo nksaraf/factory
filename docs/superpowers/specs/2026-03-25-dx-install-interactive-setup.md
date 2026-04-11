@@ -52,7 +52,7 @@ export const dxConfigStore = createStore({
     context: { type: "string", default: "" },
 
     // Auth (always through factory)
-    authBasePath: { type: "string", default: "/api/auth" },
+    authBasePath: { type: "string", default: "/api/v1/auth" },
 
     // Cluster install (site/factory only) — good defaults, advanced users edit config
     siteName: { type: "string", default: "" },

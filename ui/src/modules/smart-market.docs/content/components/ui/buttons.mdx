@@ -56,7 +56,9 @@ Four size options to fit different UI contexts.
   <Button size="sm">Small</Button>
   <Button size="md">Medium</Button>
   <Button size="lg">Large</Button>
-  <Button size="icon"><span className="icon-[ph--plus-bold]" /></Button>
+  <Button size="icon">
+    <span className="icon-[ph--plus-bold]" />
+  </Button>
 </VariantGrid>
 
 ```tsx
@@ -68,12 +70,12 @@ Four size options to fit different UI contexts.
 </Button>
 ```
 
-| Size | Height | Use case |
-|------|--------|----------|
-| `sm` | 32px | Compact UI, table rows, toolbars |
-| `md` | 36px | Default. Forms, dialogs, general actions |
-| `lg` | 40px | Hero sections, prominent CTAs |
-| `icon` | 36x36px | Icon-only buttons, toolbar icons |
+| Size   | Height  | Use case                                 |
+| ------ | ------- | ---------------------------------------- |
+| `sm`   | 32px    | Compact UI, table rows, toolbars         |
+| `md`   | 36px    | Default. Forms, dialogs, general actions |
+| `lg`   | 40px    | Hero sections, prominent CTAs            |
+| `icon` | 36x36px | Icon-only buttons, toolbar icons         |
 
 ---
 
@@ -83,8 +85,12 @@ Use the `icon` and `iconRight` props to add Iconify icons. Icons auto-size to 16
 
 <VariantGrid>
   <Button icon="icon-[ph--plus-bold]">Create</Button>
-  <Button variant="outline" icon="icon-[ph--download-simple-bold]">Download</Button>
-  <Button variant="secondary" iconRight="icon-[ph--arrow-right-bold]">Continue</Button>
+  <Button variant="outline" icon="icon-[ph--download-simple-bold]">
+    Download
+  </Button>
+  <Button variant="secondary" iconRight="icon-[ph--arrow-right-bold]">
+    Continue
+  </Button>
   <Button variant="ghost" icon="icon-[ph--gear-duotone]" size="icon" />
 </VariantGrid>
 
@@ -107,8 +113,12 @@ Set `loading` to show a spinner and disable the button. The text is preserved fo
 
 <VariantGrid>
   <Button loading>Saving...</Button>
-  <Button variant="outline" loading>Loading</Button>
-  <Button variant="destructive" loading>Deleting</Button>
+  <Button variant="outline" loading>
+    Loading
+  </Button>
+  <Button variant="destructive" loading>
+    Deleting
+  </Button>
 </VariantGrid>
 
 ```tsx
@@ -125,9 +135,15 @@ Disabled buttons reduce opacity and prevent interaction.
 
 <VariantGrid>
   <Button disabled>Default</Button>
-  <Button variant="primary" disabled>Primary</Button>
-  <Button variant="outline" disabled>Outline</Button>
-  <Button variant="ghost" disabled>Ghost</Button>
+  <Button variant="primary" disabled>
+    Primary
+  </Button>
+  <Button variant="outline" disabled>
+    Outline
+  </Button>
+  <Button variant="ghost" disabled>
+    Ghost
+  </Button>
 </VariantGrid>
 
 ```tsx
@@ -144,8 +160,15 @@ Disabled buttons reduce opacity and prevent interaction.
 Use the `tooltip` prop to add a hover tooltip. Combine with `shortcut` to show a keyboard shortcut.
 
 <VariantGrid>
-  <Button tooltip="Create a new item" icon="icon-[ph--plus-bold]" size="icon" variant="outline" />
-  <Button tooltip="Save changes" shortcut="⌘S">Save</Button>
+  <Button
+    tooltip="Create a new item"
+    icon="icon-[ph--plus-bold]"
+    size="icon"
+    variant="outline"
+  />
+  <Button tooltip="Save changes" shortcut="⌘S">
+    Save
+  </Button>
 </VariantGrid>
 
 ```tsx
@@ -168,8 +191,7 @@ Use `asChild` to render the button styles on a child element (e.g., a `Link`).
 
 ```tsx
 import { Link } from "react-router"
-
-<Button asChild variant="outline">
+;<Button asChild variant="outline">
   <Link to="/settings">Go to Settings</Link>
 </Button>
 ```
@@ -190,8 +212,7 @@ Group related buttons together. Adjacent borders merge automatically.
 
 ```tsx
 import { ButtonGroup } from "@rio.js/ui/components/button-group"
-
-<ButtonGroup>
+;<ButtonGroup>
   <Button variant="outline">Left</Button>
   <Button variant="outline">Center</Button>
   <Button variant="outline">Right</Button>
@@ -202,17 +223,41 @@ import { ButtonGroup } from "@rio.js/ui/components/button-group"
 
 <VariantGrid>
   <ButtonGroup orientation="vertical">
-    <Button variant="outline" icon="icon-[ph--text-align-left-bold]" size="icon" />
-    <Button variant="outline" icon="icon-[ph--text-align-center-bold]" size="icon" />
-    <Button variant="outline" icon="icon-[ph--text-align-right-bold]" size="icon" />
+    <Button
+      variant="outline"
+      icon="icon-[ph--text-align-left-bold]"
+      size="icon"
+    />
+    <Button
+      variant="outline"
+      icon="icon-[ph--text-align-center-bold]"
+      size="icon"
+    />
+    <Button
+      variant="outline"
+      icon="icon-[ph--text-align-right-bold]"
+      size="icon"
+    />
   </ButtonGroup>
 </VariantGrid>
 
 ```tsx
 <ButtonGroup orientation="vertical">
-  <Button variant="outline" icon="icon-[ph--text-align-left-bold]" size="icon" />
-  <Button variant="outline" icon="icon-[ph--text-align-center-bold]" size="icon" />
-  <Button variant="outline" icon="icon-[ph--text-align-right-bold]" size="icon" />
+  <Button
+    variant="outline"
+    icon="icon-[ph--text-align-left-bold]"
+    size="icon"
+  />
+  <Button
+    variant="outline"
+    icon="icon-[ph--text-align-center-bold]"
+    size="icon"
+  />
+  <Button
+    variant="outline"
+    icon="icon-[ph--text-align-right-bold]"
+    size="icon"
+  />
 </ButtonGroup>
 ```
 
@@ -222,22 +267,22 @@ import { ButtonGroup } from "@rio.js/ui/components/button-group"
 
 ### Button Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `Variant` | `"default"` | Visual style. One of `default`, `primary`, `secondary`, `destructive`, `danger`, `success`, `outline`, `ghost`, `link` |
-| `size` | `Size` | `"md"` | One of `sm`, `md`, `lg`, `icon` |
-| `icon` | `string` | — | Iconify class for left icon |
-| `iconRight` | `string` | — | Iconify class for right icon |
-| `loading` | `boolean` | `false` | Shows spinner and disables button |
-| `disabled` | `boolean` | `false` | Disables button interaction |
-| `tooltip` | `string` | — | Tooltip text on hover |
-| `shortcut` | `string` | — | Keyboard shortcut shown in tooltip |
-| `asChild` | `boolean` | `false` | Merge props onto child element |
-| `allowed` | `boolean` | — | Permission gating |
-| `reason` | `string` | — | Explains why button is disabled |
+| Prop        | Type      | Default     | Description                                                                                                            |
+| ----------- | --------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `variant`   | `Variant` | `"default"` | Visual style. One of `default`, `primary`, `secondary`, `destructive`, `danger`, `success`, `outline`, `ghost`, `link` |
+| `size`      | `Size`    | `"md"`      | One of `sm`, `md`, `lg`, `icon`                                                                                        |
+| `icon`      | `string`  | —           | Iconify class for left icon                                                                                            |
+| `iconRight` | `string`  | —           | Iconify class for right icon                                                                                           |
+| `loading`   | `boolean` | `false`     | Shows spinner and disables button                                                                                      |
+| `disabled`  | `boolean` | `false`     | Disables button interaction                                                                                            |
+| `tooltip`   | `string`  | —           | Tooltip text on hover                                                                                                  |
+| `shortcut`  | `string`  | —           | Keyboard shortcut shown in tooltip                                                                                     |
+| `asChild`   | `boolean` | `false`     | Merge props onto child element                                                                                         |
+| `allowed`   | `boolean` | —           | Permission gating                                                                                                      |
+| `reason`    | `string`  | —           | Explains why button is disabled                                                                                        |
 
 ### ButtonGroup Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
+| Prop          | Type     | Default        | Description                |
+| ------------- | -------- | -------------- | -------------------------- |
 | `orientation` | `string` | `"horizontal"` | `horizontal` or `vertical` |

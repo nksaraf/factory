@@ -517,16 +517,16 @@ Fleet must:
 
 Fleet recomputes the site manifest in response to entitlement state transitions from Commerce Plane. The site discovers the new state on its next pull.
 
-| Entitlement State | Fleet Manifest Update | Site Convergence Action |
-|---|---|---|
-| `trial` | Add tenant with trial modules and quotas | Provision namespace, enable trial modules |
-| `active` | Set full entitlement, remove restrictions | Apply full module set and quotas |
-| `upgraded` | Update module set and quota limits | Enable new modules, raise limits |
-| `downgraded` | Reduce module set and quota limits | Disable modules gracefully, lower limits |
-| `grace_period` | No manifest change | Site runs normally |
-| `restricted` | Set tenant_state to restricted | Enforce read-only mode |
-| `suspended` | Set tenant_state to suspended | Disable tenant access, preserve data |
-| `terminated` | Set tenant_state to terminated | Begin decommissioning workflow |
+| Entitlement State | Fleet Manifest Update                     | Site Convergence Action                   |
+| ----------------- | ----------------------------------------- | ----------------------------------------- |
+| `trial`           | Add tenant with trial modules and quotas  | Provision namespace, enable trial modules |
+| `active`          | Set full entitlement, remove restrictions | Apply full module set and quotas          |
+| `upgraded`        | Update module set and quota limits        | Enable new modules, raise limits          |
+| `downgraded`      | Reduce module set and quota limits        | Disable modules gracefully, lower limits  |
+| `grace_period`    | No manifest change                        | Site runs normally                        |
+| `restricted`      | Set tenant_state to restricted            | Enforce read-only mode                    |
+| `suspended`       | Set tenant_state to suspended             | Disable tenant access, preserve data      |
+| `terminated`      | Set tenant_state to terminated            | Begin decommissioning workflow            |
 
 For urgent states (restricted, suspended, terminated), Fleet sends a hint immediately after manifest recomputation to minimize the window between Commerce's decision and site enforcement. Even without the hint, the site enforces the change on the next poll (default 60 seconds).
 
@@ -800,11 +800,11 @@ partner N — M customer_account (from Commerce Plane)
 
 #### 4.8.3 Upgrade Lifecycle by Partner Tier
 
-| Partner Tier | Who Initiates Upgrade | Who Executes | Guardrails |
-|---|---|---|---|
-| Managed | Fleet (auto or operator) | Fleet | Full Fleet control |
-| Delegated | Partner (within window) | Partner (via Fleet API) | Max version lag, mandatory patches, soak time |
-| Independent | Partner (autonomous) | Partner (local tooling) | License-enforced version range, audit required |
+| Partner Tier | Who Initiates Upgrade    | Who Executes            | Guardrails                                     |
+| ------------ | ------------------------ | ----------------------- | ---------------------------------------------- |
+| Managed      | Fleet (auto or operator) | Fleet                   | Full Fleet control                             |
+| Delegated    | Partner (within window)  | Partner (via Fleet API) | Max version lag, mandatory patches, soak time  |
+| Independent  | Partner (autonomous)     | Partner (local tooling) | License-enforced version range, audit required |
 
 For delegated partners, Fleet must enforce:
 
@@ -950,13 +950,13 @@ Properties of the hint channel:
 
 #### 4.11.3 Consistency Across Deployment Types
 
-| Deployment Type | Check-in Interval | Hint Channel | Manifest Source |
-|---|---|---|---|
-| SaaS shared | 30-60 seconds | Yes (SSE) | Fleet API |
-| SaaS dedicated | 60 seconds | Yes (SSE) | Fleet API |
-| Self-hosted connected | 5-15 minutes | Optional | Fleet API |
-| Self-hosted intermittent | On-connect (e.g., daily sync window) | No | Fleet API (when connected) |
-| Air-gapped | Manual (on bundle delivery) | No | Offline bundle manifest |
+| Deployment Type          | Check-in Interval                    | Hint Channel | Manifest Source            |
+| ------------------------ | ------------------------------------ | ------------ | -------------------------- |
+| SaaS shared              | 30-60 seconds                        | Yes (SSE)    | Fleet API                  |
+| SaaS dedicated           | 60 seconds                           | Yes (SSE)    | Fleet API                  |
+| Self-hosted connected    | 5-15 minutes                         | Optional     | Fleet API                  |
+| Self-hosted intermittent | On-connect (e.g., daily sync window) | No           | Fleet API (when connected) |
+| Air-gapped               | Manual (on bundle delivery)          | No           | Offline bundle manifest    |
 
 The convergence loop is identical in all cases. Only the trigger frequency and manifest source change.
 
@@ -1127,31 +1127,31 @@ These constraints are declared in the site record and enforced by Fleet during t
 
 #### 4.12.3 Deployment Model Matrix
 
-| Capability | SaaS Shared | SaaS Dedicated | Connected Self-Hosted | Air-Gapped | Sovereign/Defense |
-|---|---|---|---|---|---|
-| Check-in model | Poll + hint | Poll + hint | Poll (longer interval) | Manual bundle | Manual bundle |
-| Upgrade authority | Fleet (auto) | Fleet (scheduled) | Customer operator | Customer CAB | Customer CAB + security review |
-| Upgrade speed | Minutes | Hours (scheduled) | Days (approved) | Weeks (process) | Months (certified) |
-| Compliance gating | No | Optional | Optional | Yes | Yes (mandatory) |
-| Version lag tolerance | 0 (current) | N-1 | N-3 | N-5+ | N-10+ (years) |
-| Authority model | Fleet only | Fleet + customer admin | Customer operator | Split (SI + customer) | Split (vendor + SI + IT + security) |
-| Telemetry | Real-time | Real-time | Periodic | Manual export | Manual export (customer controlled) |
-| Upgrade proposal | Not needed | Optional | Recommended | Required | Required (with compliance artifacts) |
+| Capability            | SaaS Shared  | SaaS Dedicated         | Connected Self-Hosted  | Air-Gapped            | Sovereign/Defense                    |
+| --------------------- | ------------ | ---------------------- | ---------------------- | --------------------- | ------------------------------------ |
+| Check-in model        | Poll + hint  | Poll + hint            | Poll (longer interval) | Manual bundle         | Manual bundle                        |
+| Upgrade authority     | Fleet (auto) | Fleet (scheduled)      | Customer operator      | Customer CAB          | Customer CAB + security review       |
+| Upgrade speed         | Minutes      | Hours (scheduled)      | Days (approved)        | Weeks (process)       | Months (certified)                   |
+| Compliance gating     | No           | Optional               | Optional               | Yes                   | Yes (mandatory)                      |
+| Version lag tolerance | 0 (current)  | N-1                    | N-3                    | N-5+                  | N-10+ (years)                        |
+| Authority model       | Fleet only   | Fleet + customer admin | Customer operator      | Split (SI + customer) | Split (vendor + SI + IT + security)  |
+| Telemetry             | Real-time    | Real-time              | Periodic               | Manual export         | Manual export (customer controlled)  |
+| Upgrade proposal      | Not needed   | Optional               | Recommended            | Required              | Required (with compliance artifacts) |
 
 ### 5.1 Commerce → Fleet
 
 Commerce Plane is Fleet's primary trigger for manifest recomputation.
 
-| Commerce Event | Fleet Action |
-|---|---|
-| New customer (shared) | Assign tenant, recompute site manifest, send hint |
-| New customer (dedicated) | Provision dedicated site, compute initial manifest |
-| Entitlement updated | Recompute site manifest, send hint |
-| Payment failure → grace | No manifest change |
-| Payment failure → restricted | Set tenant_state in manifest, send hint |
-| Payment failure → suspended | Set tenant_state in manifest, send hint |
+| Commerce Event               | Fleet Action                                              |
+| ---------------------------- | --------------------------------------------------------- |
+| New customer (shared)        | Assign tenant, recompute site manifest, send hint         |
+| New customer (dedicated)     | Provision dedicated site, compute initial manifest        |
+| Entitlement updated          | Recompute site manifest, send hint                        |
+| Payment failure → grace      | No manifest change                                        |
+| Payment failure → restricted | Set tenant_state in manifest, send hint                   |
+| Payment failure → suspended  | Set tenant_state in manifest, send hint                   |
 | Payment failure → terminated | Set tenant_state in manifest, begin decommission workflow |
-| Customer adds product | Assign tenant to product's shared site, compute manifest |
+| Customer adds product        | Assign tenant to product's shared site, compute manifest  |
 
 ---
 
@@ -1159,12 +1159,12 @@ Commerce Plane is Fleet's primary trigger for manifest recomputation.
 
 Build Plane produces artifacts. Fleet Plane consumes them as releases.
 
-| Build Event | Fleet Action |
-|---|---|
-| Module version published | Available for inclusion in release |
-| Release composed | Validate and register in Fleet |
-| Release tested (internal) | Promote to beta channel |
-| Release promoted | Make available to stable sites |
+| Build Event               | Fleet Action                       |
+| ------------------------- | ---------------------------------- |
+| Module version published  | Available for inclusion in release |
+| Release composed          | Validate and register in Fleet     |
+| Release tested (internal) | Promote to beta channel            |
+| Release promoted          | Make available to stable sites     |
 
 ---
 
@@ -1172,11 +1172,11 @@ Build Plane produces artifacts. Fleet Plane consumes them as releases.
 
 Fleet instructs Infrastructure Plane to provision or modify substrate.
 
-| Fleet Action | Infrastructure Execution |
-|---|---|
-| Provision dedicated site | Create cluster, networking, storage |
-| Scale shared site | Add node pool capacity |
-| Decommission site | Destroy cluster and storage |
+| Fleet Action              | Infrastructure Execution             |
+| ------------------------- | ------------------------------------ |
+| Provision dedicated site  | Create cluster, networking, storage  |
+| Scale shared site         | Add node pool capacity               |
+| Decommission site         | Destroy cluster and storage          |
 | Push certificate rotation | Infrastructure distributes new certs |
 
 ---
@@ -1185,12 +1185,12 @@ Fleet instructs Infrastructure Plane to provision or modify substrate.
 
 Fleet publishes desired state. Sites pull and converge. The interaction is always site-initiated.
 
-| Fleet Manifest Content | Site Convergence Action |
-|---|---|
-| target_release with module pins | Pull artifacts, upgrade modules |
-| tenant_states with entitlements | Provision/update/suspend namespaces |
-| configuration updates | Apply platform config, feature flags |
-| infrastructure_requirements | Adjust resource allocation |
+| Fleet Manifest Content          | Site Convergence Action              |
+| ------------------------------- | ------------------------------------ |
+| target_release with module pins | Pull artifacts, upgrade modules      |
+| tenant_states with entitlements | Provision/update/suspend namespaces  |
+| configuration updates           | Apply platform config, feature flags |
+| infrastructure_requirements     | Adjust resource allocation           |
 
 The hint channel (WebSocket/SSE, site-initiated outbound connection) accelerates convergence but is never required. Sites that cannot maintain a hint channel (firewalled, intermittent) simply rely on polling.
 
@@ -1488,27 +1488,27 @@ Fleet Plane is the **logistics layer** of the platform. It decides what runs whe
 
 ## Appendix A: Glossary
 
-| Term | Definition |
-|---|---|
-| Site | A running instance of a product in a specific customer environment |
-| Tenant | A customer's isolated partition within a shared site |
-| Release | A deployable bundle of module versions tested and approved together |
-| Release Module Pin | The binding between a release and a specific module version |
-| Rollout | An execution plan for deploying a release to one or more sites |
-| Rollout Step | A single site deployment within a rollout |
-| Site Manifest | The desired state of a site (target release, modules, entitlements). Computed by Fleet, pulled by sites. |
-| Convergence Loop | The site-side reconciliation process that pulls the manifest and converges toward desired state |
-| Hint | A lightweight, best-effort signal from Fleet to a site that its manifest has changed. Triggers an immediate pull. Not required for correctness. |
-| Check-in | A site-initiated API call that reports health and checks for manifest changes in a single round trip |
-| Drift | The state where a site's applied manifest version is behind Fleet's computed version beyond a threshold |
-| Partner Tier | The level of Fleet authority granted to a partner (managed, delegated, independent) |
-| Channel | A release track (stable, beta) that sites subscribe to |
-| Offline Bundle | A self-contained release package for air-gapped deployment, including the site manifest |
-| Upgrade Proposal | A document-ready artifact describing a release upgrade for formal change advisory board review |
-| Version Pin | A policy that constrains a site to a specific version or version range |
-| Compliance Gate | A release tag that prevents deployment to sites requiring specific certifications unless the release is certified |
-| Split Authority | A model where multiple principals (vendor, SI, customer IT, security) have non-overlapping responsibilities for a single site |
-| Data Residency | A constraint that limits where a site and its data can be hosted, enforced during tenant assignment and site provisioning |
+| Term               | Definition                                                                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Site               | A running instance of a product in a specific customer environment                                                                              |
+| Tenant             | A customer's isolated partition within a shared site                                                                                            |
+| Release            | A deployable bundle of module versions tested and approved together                                                                             |
+| Release Module Pin | The binding between a release and a specific module version                                                                                     |
+| Rollout            | An execution plan for deploying a release to one or more sites                                                                                  |
+| Rollout Step       | A single site deployment within a rollout                                                                                                       |
+| Site Manifest      | The desired state of a site (target release, modules, entitlements). Computed by Fleet, pulled by sites.                                        |
+| Convergence Loop   | The site-side reconciliation process that pulls the manifest and converges toward desired state                                                 |
+| Hint               | A lightweight, best-effort signal from Fleet to a site that its manifest has changed. Triggers an immediate pull. Not required for correctness. |
+| Check-in           | A site-initiated API call that reports health and checks for manifest changes in a single round trip                                            |
+| Drift              | The state where a site's applied manifest version is behind Fleet's computed version beyond a threshold                                         |
+| Partner Tier       | The level of Fleet authority granted to a partner (managed, delegated, independent)                                                             |
+| Channel            | A release track (stable, beta) that sites subscribe to                                                                                          |
+| Offline Bundle     | A self-contained release package for air-gapped deployment, including the site manifest                                                         |
+| Upgrade Proposal   | A document-ready artifact describing a release upgrade for formal change advisory board review                                                  |
+| Version Pin        | A policy that constrains a site to a specific version or version range                                                                          |
+| Compliance Gate    | A release tag that prevents deployment to sites requiring specific certifications unless the release is certified                               |
+| Split Authority    | A model where multiple principals (vendor, SI, customer IT, security) have non-overlapping responsibilities for a single site                   |
+| Data Residency     | A constraint that limits where a site and its data can be hosted, enforced during tenant assignment and site provisioning                       |
 
 ## Appendix B: Entity Relationship Summary
 

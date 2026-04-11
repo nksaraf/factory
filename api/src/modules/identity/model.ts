@@ -1,4 +1,4 @@
-import { t, type UnwrapSchema } from "elysia";
+import { t, type UnwrapSchema } from "elysia"
 
 export const IdentityModel = {
   providerParams: t.Object({ provider: t.String() }),
@@ -43,8 +43,8 @@ export const IdentityModel = {
     limit: t.Optional(t.Number()),
     offset: t.Optional(t.Number()),
   }),
-} as const;
+} as const
 
 export type IdentityModels = {
-  [K in keyof typeof IdentityModel]: UnwrapSchema<(typeof IdentityModel)[K]>;
-};
+  [K in keyof typeof IdentityModel]: UnwrapSchema<(typeof IdentityModel)[K]>
+}

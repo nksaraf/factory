@@ -151,7 +151,7 @@ export class FactoryAPI {
       .use(documentsController(db))
       .use(catalogController(db))
 
-    const planeRoutes = new Elysia({ prefix: "/api/factory" })
+    const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
       .use(errorHandlerPlugin())
       .use(batch1)
@@ -183,7 +183,9 @@ export class FactoryAPI {
       },
       adapter
     )
-    return new Elysia({ prefix: "/api/site" }).use(siteController(reconciler))
+    return new Elysia({ prefix: "/api/v1/site" }).use(
+      siteController(reconciler)
+    )
   }
 
   createApp() {
@@ -228,7 +230,7 @@ export class FactoryAPI {
       .use(this.mountSiteControllers())
       .use(
         openapi({
-          path: "/api/factory/openapi",
+          path: "/api/v1/factory/openapi",
           documentation: {
             info: {
               title: "Factory API",

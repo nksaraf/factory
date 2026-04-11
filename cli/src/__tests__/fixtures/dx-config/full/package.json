@@ -15,8 +15,14 @@
       "branching": "trunk"
     },
     "deploy": {
-      "preview": { "trigger": "pull-request", "ttl": "72h" },
-      "production": { "trigger": "release-tag", "approval": true }
+      "preview": {
+        "trigger": "pull-request",
+        "ttl": "72h"
+      },
+      "production": {
+        "trigger": "release-tag",
+        "approval": true
+      }
     }
   }
 }

@@ -37,7 +37,7 @@ const pages = import.meta.glob("./content/**/*.{md,mdx}", {
 let components = Object.fromEntries(
   Object.entries(pages).map(([path, component]) => {
     return [path.slice(0, path.lastIndexOf(".")), React.lazy(() => component())]
-  }),
+  })
 )
 
 console.log(pages)

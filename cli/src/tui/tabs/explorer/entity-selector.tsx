@@ -21,7 +21,11 @@ function matchesFilter(def: EntityDef, filter: string): boolean {
   )
 }
 
-export function EntitySelector({ focused, selected, onSelect }: EntitySelectorProps) {
+export function EntitySelector({
+  focused,
+  selected,
+  onSelect,
+}: EntitySelectorProps) {
   const [filter, setFilter] = useState("")
   const [filtering, setFiltering] = useState(false)
   const [cursorPos, setCursorPos] = useState(0)
@@ -42,7 +46,10 @@ export function EntitySelector({ focused, selected, onSelect }: EntitySelectorPr
   }, [filter])
 
   const selectableIndices = useMemo(
-    () => items.map((item, i) => (item.type === "entity" ? i : -1)).filter((i) => i >= 0),
+    () =>
+      items
+        .map((item, i) => (item.type === "entity" ? i : -1))
+        .filter((i) => i >= 0),
     [items]
   )
 
@@ -103,7 +110,12 @@ export function EntitySelector({ focused, selected, onSelect }: EntitySelectorPr
         const itemIdx = selectableIndices[cursorPos]
         const item = items[itemIdx]
         if (item?.type === "entity") onSelect(item.def)
-      } else if (input && !key.ctrl && !key.meta && /^[a-zA-Z0-9]$/.test(input)) {
+      } else if (
+        input &&
+        !key.ctrl &&
+        !key.meta &&
+        /^[a-zA-Z0-9]$/.test(input)
+      ) {
         setFiltering(true)
         setFilter(input)
         setCursorPos(0)
@@ -147,12 +159,16 @@ export function EntitySelector({ focused, selected, onSelect }: EntitySelectorPr
           if (item.type === "header") {
             return (
               <Box key={`h-${item.label}`} marginTop={realIdx > 0 ? 1 : 0}>
-                <Text bold dimColor>{item.label}</Text>
+                <Text bold dimColor>
+                  {item.label}
+                </Text>
               </Box>
             )
           }
           const isCursor = realIdx === activeItemIdx && focused
-          const isSelected = selected?.module === item.def.module && selected?.entity === item.def.entity
+          const isSelected =
+            selected?.module === item.def.module &&
+            selected?.entity === item.def.entity
           return (
             <Box key={`${item.def.module}-${item.def.entity}`}>
               <Text

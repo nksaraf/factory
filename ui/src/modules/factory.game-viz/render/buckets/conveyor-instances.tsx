@@ -1,7 +1,14 @@
 import { Instance, Instances } from "@react-three/drei"
 import { useQuery } from "koota/react"
 
-import { ConveyorBelt, Position, Rotation, Scale, Tint, Visible } from "../../ecs/traits"
+import {
+  ConveyorBelt,
+  Position,
+  Rotation,
+  Scale,
+  Tint,
+  Visible,
+} from "../../ecs/traits"
 
 export function ConveyorInstances() {
   const conveyors = useQuery(ConveyorBelt, Visible)

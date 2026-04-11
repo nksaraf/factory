@@ -6,7 +6,7 @@ components:
     path: ./api
     port: 8181
     container_port: 3000
-    healthcheck: /api/factory/openapi
+    healthcheck: /api/v1/factory/openapi
     type: node
     image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
     build:
@@ -45,7 +45,7 @@ resources:
     container_port: 3000
     env:
       AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}
-    healthcheck: 'node -e "fetch(''http://localhost:3000/api/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"'
+    healthcheck: 'node -e "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"'
     volumes:
       - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
 
@@ -83,4 +83,4 @@ connections:
     module: factory
     component: auth
     env_var: FACTORY_AUTH_JWKS_URL
-    local_default: http://auth:3000/api/auth/.well-known/jwks.json
+    local_default: http://auth:3000/api/v1/auth/.well-known/jwks.json

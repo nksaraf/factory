@@ -343,6 +343,8 @@ function detectLinter(
 
 // ─── Formatter Detection ────────────────────────────────────
 
+const OXFMT_CONFIGS = [".oxfmtrc.json", ".oxfmtrc", "oxfmt.config.json"]
+
 const PRETTIER_CONFIGS = [
   ".prettierrc",
   ".prettierrc.json",
@@ -372,6 +374,15 @@ function detectFormatter(
   }
 
   if (runtime === "node") {
+    const oxfmtConfig = firstExisting(dir, OXFMT_CONFIGS)
+    if (oxfmtConfig)
+      return {
+        tool: "oxfmt",
+        configFile: oxfmtConfig,
+        runCmd: "oxfmt --write .",
+        source: "auto-detect",
+      }
+
     if (fileExists(dir, "biome.json") || fileExists(dir, "biome.jsonc"))
       return {
         tool: "biome",
@@ -389,7 +400,6 @@ function detectFormatter(
         source: "auto-detect",
       }
 
-    // Check package.json for prettier key
     if (pkg?.prettier)
       return {
         tool: "prettier",

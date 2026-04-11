@@ -1,8 +1,8 @@
-import type { GeneratedFile } from "../types.js";
-import type { ResourceOpts } from "./index.js";
+import type { GeneratedFile } from "../types.js"
+import type { ResourceOpts } from "./index.js"
 
 export function generate(opts: ResourceOpts): GeneratedFile[] {
-  const { owner } = opts;
+  const { owner } = opts
   return [
     {
       path: "compose/minio.yml",
@@ -36,5 +36,5 @@ volumes:
   minio-data:
 `,
     },
-  ];
+  ]
 }

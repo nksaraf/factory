@@ -1,6 +1,6 @@
-import type { DxBase } from "../dx-root.js";
+import type { DxBase } from "../dx-root.js"
 
-import { getFactoryClient } from "../client.js";
+import { getFactoryClient } from "../client.js"
 import {
   apiCall,
   tableOrJson,
@@ -9,18 +9,18 @@ import {
   styleMuted,
   styleSuccess,
   timeAgo,
-} from "./list-helpers.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+} from "./list-helpers.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("module", [
   "$ dx module list                   List all modules",
   "$ dx module show core-api          Show module details",
   "$ dx module version list core-api  List module versions",
-]);
+])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
-  return getFactoryClient();
+  return getFactoryClient()
 }
 
 export function moduleCommand(app: DxBase) {
@@ -39,12 +39,12 @@ export function moduleCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
             api.api.v1.factory.build.modules.get({
               query: { limit: flags.limit as number | undefined },
-            }),
-          );
+            })
+          )
           tableOrJson(
             flags,
             result,
@@ -56,9 +56,9 @@ export function moduleCommand(app: DxBase) {
               timeAgo(r.createdAt as string),
             ],
             undefined,
-            { emptyMessage: "No modules found." },
-          );
-        }),
+            { emptyMessage: "No modules found." }
+          )
+        })
     )
 
     .command("show", (c) =>
@@ -73,18 +73,18 @@ export function moduleCommand(app: DxBase) {
           },
         ])
         .run(async ({ args, flags }) => {
-          const api = await getApi();
+          const api = await getApi()
           const result = await apiCall(flags, () =>
-            api.api.v1.factory.build.modules[args.name].get(),
-          );
-          const { detailView } = await import("./list-helpers.js");
+            api.api.v1.factory.build.modules[args.name].get()
+          )
+          const { detailView } = await import("./list-helpers.js")
           detailView(flags, result, [
             ["ID", (r) => styleMuted(String(r.moduleId ?? r.id ?? ""))],
             ["Name", (r) => styleBold(String(r.name ?? ""))],
             ["Kind", (r) => String(r.kind ?? "")],
             ["Created At", (r) => timeAgo(r.createdAt as string)],
-          ]);
-        }),
+          ])
+        })
     )
 
     .command("version", (c) =>
@@ -103,10 +103,10 @@ export function moduleCommand(app: DxBase) {
               },
             ])
             .run(async ({ args, flags }) => {
-              const api = await getApi();
+              const api = await getApi()
               const result = await apiCall(flags, () =>
-                api.api.v1.factory.build.modules[args.name].versions.get(),
-              );
+                api.api.v1.factory.build.modules[args.name].versions.get()
+              )
               tableOrJson(
                 flags,
                 result,
@@ -118,9 +118,9 @@ export function moduleCommand(app: DxBase) {
                   timeAgo(r.createdAt as string),
                 ],
                 undefined,
-                { emptyMessage: `No versions found for module "${args.name}".` },
-              );
-            }),
+                { emptyMessage: `No versions found for module "${args.name}".` }
+              )
+            })
         )
 
         .command("create", (sc) =>
@@ -141,18 +141,20 @@ export function moduleCommand(app: DxBase) {
               },
             ])
             .run(async ({ args, flags }) => {
-              const api = await getApi();
+              const api = await getApi()
               const result = await apiCall(flags, () =>
                 api.api.v1.factory.build.modules[args.name].versions.post({
                   version: args.version,
-                }),
-              );
+                })
+              )
               actionResult(
                 flags,
                 result,
-                styleSuccess(`Version "${args.version}" created for module "${args.name}".`),
-              );
-            }),
-        ),
-    );
+                styleSuccess(
+                  `Version "${args.version}" created for module "${args.name}".`
+                )
+              )
+            })
+        )
+    )
 }

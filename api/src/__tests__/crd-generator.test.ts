@@ -72,12 +72,12 @@ describe("CRD Generator", () => {
     })
 
     it("includes PathPrefix in match when pathPrefix is set", () => {
-      const route: ManifestRoute = { ...baseRoute, pathPrefix: "/api" }
+      const route: ManifestRoute = { ...baseRoute, pathPrefix: "/api/v1" }
       const crd = manifestRouteToIngressRoute(route, "default")
 
       const routes = crd.spec.routes as Array<Record<string, unknown>>
       expect(routes[0].match).toBe(
-        "Host(`my-app.preview.dx.dev`) && PathPrefix(`/api`)"
+        "Host(`my-app.preview.dx.dev`) && PathPrefix(`/api/v1`)"
       )
     })
 

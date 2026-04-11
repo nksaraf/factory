@@ -5,44 +5,44 @@
  * Without --local, targets the Factory API (requires auth).
  */
 
-import { styleError, styleInfo, styleSuccess } from "../cli-style.js";
+import { styleError, styleInfo, styleSuccess } from "../cli-style.js"
 import {
   localVarSet,
   localVarGet,
   localVarList,
   localVarRemove,
-} from "./var-local-store.js";
-import { getFactoryFetchClient } from "./factory-fetch.js";
+} from "./var-local-store.js"
+import { getFactoryFetchClient } from "./factory-fetch.js"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface VarFlags {
-  local?: boolean;
-  scope?: string;
-  team?: string;
-  project?: string;
-  env?: string;
-  json?: boolean;
+  local?: boolean
+  scope?: string
+  team?: string
+  project?: string
+  env?: string
+  json?: boolean
 }
 
 function buildScopeParams(flags: VarFlags): Record<string, string> {
-  const params: Record<string, string> = {};
+  const params: Record<string, string> = {}
   if (flags.scope) {
-    params.scopeType = flags.scope;
+    params.scopeType = flags.scope
   } else if (flags.project) {
-    params.scopeType = "project";
+    params.scopeType = "project"
   } else if (flags.team) {
-    params.scopeType = "team";
+    params.scopeType = "team"
   } else {
-    params.scopeType = "org";
+    params.scopeType = "org"
   }
-  if (flags.team) params.scopeId = flags.team;
-  if (flags.project) params.scopeId = flags.project;
-  if (!params.scopeId) params.scopeId = "default";
-  if (flags.env) params.environment = flags.env;
-  return params;
+  if (flags.team) params.scopeId = flags.team
+  if (flags.project) params.scopeId = flags.project
+  if (!params.scopeId) params.scopeId = "default"
+  if (flags.env) params.environment = flags.env
+  return params
 }
 
 // ---------------------------------------------------------------------------
@@ -52,15 +52,15 @@ function buildScopeParams(flags: VarFlags): Record<string, string> {
 export async function varSet(
   key: string,
   value: string,
-  flags: VarFlags,
+  flags: VarFlags
 ): Promise<void> {
   if (flags.local) {
-    localVarSet(key, value);
-    console.log(styleSuccess(`Set local variable: ${key}`));
-    return;
+    localVarSet(key, value)
+    console.log(styleSuccess(`Set local variable: ${key}`))
+    return
   }
 
-  const client = await getFactoryFetchClient();
+  const client = await getFactoryFetchClient()
   const res = await client.fetchApi("/vars", {
     method: "POST",
     body: JSON.stringify({
@@ -69,134 +69,128 @@ export async function varSet(
       value,
       ...buildScopeParams(flags),
     }),
-  });
+  })
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Failed to set variable: ${res.status} ${body}`);
+    const body = await res.text()
+    throw new Error(`Failed to set variable: ${res.status} ${body}`)
   }
 
-  console.log(styleSuccess(`Set variable: ${key}`));
+  console.log(styleSuccess(`Set variable: ${key}`))
 }
 
-export async function varGet(
-  key: string,
-  flags: VarFlags,
-): Promise<void> {
+export async function varGet(key: string, flags: VarFlags): Promise<void> {
   if (flags.local) {
-    const value = localVarGet(key);
+    const value = localVarGet(key)
     if (value === undefined) {
-      console.log(styleError(`Variable not found: ${key}`));
-      process.exit(1);
+      console.log(styleError(`Variable not found: ${key}`))
+      process.exit(1)
     }
     if (flags.json) {
-      console.log(JSON.stringify({ key, value }));
+      console.log(JSON.stringify({ key, value }))
     } else {
-      console.log(value);
+      console.log(value)
     }
-    return;
+    return
   }
 
-  const client = await getFactoryFetchClient();
-  const params = new URLSearchParams(buildScopeParams(flags));
+  const client = await getFactoryFetchClient()
+  const params = new URLSearchParams(buildScopeParams(flags))
   const res = await client.fetchApi(
-    `/vars/${encodeURIComponent(key)}?${params}`,
-  );
+    `/vars/${encodeURIComponent(key)}?${params}`
+  )
 
   if (!res.ok) {
     if (res.status === 404) {
-      console.log(styleError(`Variable not found: ${key}`));
-      process.exit(1);
+      console.log(styleError(`Variable not found: ${key}`))
+      process.exit(1)
     }
-    const body = await res.text();
-    throw new Error(`Failed to get variable: ${res.status} ${body}`);
+    const body = await res.text()
+    throw new Error(`Failed to get variable: ${res.status} ${body}`)
   }
 
-  const data = (await res.json()) as { slug: string; value: string };
+  const data = (await res.json()) as { slug: string; value: string }
   if (flags.json) {
-    console.log(JSON.stringify({ key, value: data.value }));
+    console.log(JSON.stringify({ key, value: data.value }))
   } else {
-    console.log(data.value);
+    console.log(data.value)
   }
 }
 
 export async function varList(flags: VarFlags): Promise<void> {
   if (flags.local) {
-    const vars = localVarList();
+    const vars = localVarList()
     if (flags.json) {
-      console.log(JSON.stringify(vars));
+      console.log(JSON.stringify(vars))
     } else if (vars.length === 0) {
-      console.log(styleInfo("No local variables found."));
+      console.log(styleInfo("No local variables found."))
     } else {
       for (const v of vars) {
-        console.log(`${v.key}=${v.value}`);
+        console.log(`${v.key}=${v.value}`)
       }
     }
-    return;
+    return
   }
 
-  const client = await getFactoryFetchClient();
-  const params = new URLSearchParams(buildScopeParams(flags));
-  const res = await client.fetchApi(`/vars?${params}`);
+  const client = await getFactoryFetchClient()
+  const params = new URLSearchParams(buildScopeParams(flags))
+  const res = await client.fetchApi(`/vars?${params}`)
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Failed to list variables: ${res.status} ${body}`);
+    const body = await res.text()
+    throw new Error(`Failed to list variables: ${res.status} ${body}`)
   }
 
   const data = (await res.json()) as {
     vars: Array<{
-      slug: string;
-      value: string;
-      scopeType: string;
-      scopeId: string;
-      environment: string | null;
-      updatedAt: string;
-    }>;
-  };
+      slug: string
+      value: string
+      scopeType: string
+      scopeId: string
+      environment: string | null
+      updatedAt: string
+    }>
+  }
 
   if (flags.json) {
-    console.log(JSON.stringify(data.vars));
+    console.log(JSON.stringify(data.vars))
   } else if (data.vars.length === 0) {
-    console.log(styleInfo("No variables found."));
+    console.log(styleInfo("No variables found."))
   } else {
     for (const v of data.vars) {
-      const env = v.environment ? ` (${v.environment})` : "";
-      console.log(`${v.slug}  ${styleInfo(v.scopeType)}${env}`);
+      const env = v.environment ? ` (${v.environment})` : ""
+      console.log(`${v.slug}  ${styleInfo(v.scopeType)}${env}`)
     }
   }
 }
 
-export async function varRemove(
-  key: string,
-  flags: VarFlags,
-): Promise<void> {
+export async function varRemove(key: string, flags: VarFlags): Promise<void> {
   if (flags.local) {
-    const removed = localVarRemove(key);
+    const removed = localVarRemove(key)
     if (removed) {
-      console.log(styleSuccess(`Removed local variable: ${key}`));
+      console.log(styleSuccess(`Removed local variable: ${key}`))
     } else {
-      console.log(styleError(`Variable not found: ${key}`));
-      process.exit(1);
+      console.log(styleError(`Variable not found: ${key}`))
+      process.exit(1)
     }
-    return;
+    return
   }
 
-  const client = await getFactoryFetchClient();
-  const params = new URLSearchParams(buildScopeParams(flags));
+  const client = await getFactoryFetchClient()
+  const params = new URLSearchParams(buildScopeParams(flags))
   const res = await client.fetchApi(
     `/vars/${encodeURIComponent(key)}?${params}`,
-    { method: "DELETE" },
-  );
+    { method: "DELETE" }
+  )
 
   if (!res.ok) {
     if (res.status === 404) {
-      console.log(styleError(`Variable not found: ${key}`));
-      process.exit(1);
+      console.log(styleError(`Variable not found: ${key}`))
+      process.exit(1)
     }
-    const body = await res.text();
-    throw new Error(`Failed to remove variable: ${res.status} ${body}`);
+    const body = await res.text()
+    throw new Error(`Failed to remove variable: ${res.status} ${body}`)
   }
 
-  console.log(styleSuccess(`Removed variable: ${key}`));
+  console.log(styleSuccess(`Removed variable: ${key}`))
 }

@@ -104,7 +104,10 @@ function stripQuotes(s: string): string {
  */
 function atomicWrite(filePath: string, content: string): void {
   const dir = path.dirname(filePath)
-  const tmpFile = path.join(dir, `.${path.basename(filePath)}.tmp.${process.pid}`)
+  const tmpFile = path.join(
+    dir,
+    `.${path.basename(filePath)}.tmp.${process.pid}`
+  )
   fs.writeFileSync(tmpFile, content, "utf-8")
   fs.renameSync(tmpFile, filePath)
 }
@@ -149,7 +152,9 @@ export class FileGatewayAdapter implements GatewayAdapter {
       return []
     }
 
-    const files = fs.readdirSync(this.outputDir).filter((f) => f.endsWith(".yml"))
+    const files = fs
+      .readdirSync(this.outputDir)
+      .filter((f) => f.endsWith(".yml"))
     const crds: GatewayCRD[] = []
 
     for (const file of files) {
@@ -160,10 +165,7 @@ export class FileGatewayAdapter implements GatewayAdapter {
         )
         crds.push(yamlToCrd(content))
       } catch (err: any) {
-        logger.error(
-          { file, err },
-          "file gateway adapter: failed to read CRD"
-        )
+        logger.error({ file, err }, "file gateway adapter: failed to read CRD")
       }
     }
 

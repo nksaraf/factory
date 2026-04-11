@@ -1,10 +1,10 @@
-import type { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest"
 import type {
   GeneratedContent,
   ReleaseContentResult,
-} from "@smp/factory-shared/release-content-schema";
-import type { GitHostAdapter } from "../../adapters/git-host-adapter";
-import { logger } from "../../logger";
+} from "@smp/factory-shared/release-content-schema"
+import type { GitHostAdapter } from "../../adapters/git-host-adapter"
+import { logger } from "../../logger"
 
 /**
  * Publishes generated release content to GitHub as a draft PR.
@@ -15,29 +15,29 @@ import { logger } from "../../logger";
 export class ReleaseContentPublisher {
   constructor(
     private readonly octokit: Octokit,
-    private readonly gitHostAdapter: GitHostAdapter,
+    private readonly gitHostAdapter: GitHostAdapter
   ) {}
 
   async publish(
     repoFullName: string,
     version: string,
     content: GeneratedContent[],
-    baseBranch: string,
+    baseBranch: string
   ): Promise<ReleaseContentResult> {
-    const [owner, repo] = repoFullName.split("/");
+    const [owner, repo] = repoFullName.split("/")
     if (!owner || !repo) {
-      throw new Error(`Invalid repo full name: ${repoFullName}`);
+      throw new Error(`Invalid repo full name: ${repoFullName}`)
     }
 
-    const branchName = `release-content/v${version}`;
+    const branchName = `release-content/v${version}`
 
     // 1. Get the SHA of the base branch
     const { data: baseRef } = await this.octokit.rest.git.getRef({
       owner,
       repo,
       ref: `heads/${baseBranch}`,
-    });
-    const baseSha = baseRef.object.sha;
+    })
+    const baseSha = baseRef.object.sha
 
     // 2. Create the branch
     try {
@@ -46,10 +46,10 @@ export class ReleaseContentPublisher {
         repo,
         ref: `refs/heads/${branchName}`,
         sha: baseSha,
-      });
+      })
     } catch (err: unknown) {
       // Branch may already exist from a previous run — update it
-      const status = (err as { status?: number }).status;
+      const status = (err as { status?: number }).status
       if (status === 422) {
         await this.octokit.rest.git.updateRef({
           owner,
@@ -57,17 +57,17 @@ export class ReleaseContentPublisher {
           ref: `heads/${branchName}`,
           sha: baseSha,
           force: true,
-        });
+        })
       } else {
-        throw err;
+        throw err
       }
     }
 
     // 3. For each generated file, create or update via the Contents API
     for (const file of content) {
       // Check if the file already exists (for changelog, we prepend)
-      let existingContent: string | null = null;
-      let existingSha: string | null = null;
+      let existingContent: string | null = null
+      let existingSha: string | null = null
 
       try {
         const { data: existing } = await this.octokit.rest.repos.getContent({
@@ -75,31 +75,31 @@ export class ReleaseContentPublisher {
           repo,
           path: file.filename,
           ref: branchName,
-        });
+        })
         if ("content" in existing) {
-          existingContent = Buffer.from(existing.content, "base64").toString();
-          existingSha = existing.sha;
+          existingContent = Buffer.from(existing.content, "base64").toString()
+          existingSha = existing.sha
         }
       } catch {
         // File doesn't exist yet
       }
 
-      let finalContent: string;
+      let finalContent: string
       if (file.type === "changelog" && existingContent) {
         // Prepend new version entry to existing changelog
-        finalContent = prependToChangelog(file.content, existingContent);
+        finalContent = prependToChangelog(file.content, existingContent)
       } else {
-        finalContent = file.content;
+        finalContent = file.content
       }
 
       const params: {
-        owner: string;
-        repo: string;
-        path: string;
-        message: string;
-        content: string;
-        branch: string;
-        sha?: string;
+        owner: string
+        repo: string
+        path: string
+        message: string
+        content: string
+        branch: string
+        sha?: string
       } = {
         owner,
         repo,
@@ -107,22 +107,24 @@ export class ReleaseContentPublisher {
         message: `docs(${file.type}): generate ${file.type} for v${version}`,
         content: Buffer.from(finalContent).toString("base64"),
         branch: branchName,
-      };
-
-      if (existingSha) {
-        params.sha = existingSha;
       }
 
-      await this.octokit.rest.repos.createOrUpdateFileContents(params);
+      if (existingSha) {
+        params.sha = existingSha
+      }
+
+      await this.octokit.rest.repos.createOrUpdateFileContents(params)
 
       logger.info(
         { file: file.filename, type: file.type },
-        "Published release content file",
-      );
+        "Published release content file"
+      )
     }
 
     // 4. Create a draft PR
-    const fileList = content.map((f) => `- \`${f.filename}\` (${f.type})`).join("\n");
+    const fileList = content
+      .map((f) => `- \`${f.filename}\` (${f.type})`)
+      .join("\n")
     const pr = await this.gitHostAdapter.createPullRequest(repoFullName, {
       title: `docs: release content for v${version}`,
       body: [
@@ -140,19 +142,19 @@ export class ReleaseContentPublisher {
       head: branchName,
       base: baseBranch,
       draft: true,
-    });
+    })
 
     logger.info(
       { prNumber: pr.number, prUrl: pr.url, version },
-      "Created draft PR for release content",
-    );
+      "Created draft PR for release content"
+    )
 
     return {
       prUrl: pr.url,
       prNumber: pr.number,
       generatedFiles: content.map((f) => f.filename),
       version,
-    };
+    }
   }
 }
 
@@ -160,22 +162,19 @@ export class ReleaseContentPublisher {
  * Prepend a new changelog entry after the main heading,
  * preserving the existing content below.
  */
-function prependToChangelog(
-  newEntry: string,
-  existingContent: string,
-): string {
+function prependToChangelog(newEntry: string, existingContent: string): string {
   // Find the first ## heading (existing version entry) or end of first heading block
-  const lines = existingContent.split("\n");
-  let insertIdx = 0;
+  const lines = existingContent.split("\n")
+  let insertIdx = 0
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+    const line = lines[i]!
     // Skip the main "# Changelog" heading and any description text
     if (line.startsWith("# ")) {
-      insertIdx = i + 1;
+      insertIdx = i + 1
       // Skip blank lines after the heading
       while (insertIdx < lines.length && lines[insertIdx]!.trim() === "") {
-        insertIdx++;
+        insertIdx++
       }
       // If the next line is descriptive text (not a ## heading), skip it too
       while (
@@ -183,22 +182,22 @@ function prependToChangelog(
         !lines[insertIdx]!.startsWith("## ") &&
         lines[insertIdx]!.trim() !== ""
       ) {
-        insertIdx++;
+        insertIdx++
       }
       // Skip trailing blank lines
       while (insertIdx < lines.length && lines[insertIdx]!.trim() === "") {
-        insertIdx++;
+        insertIdx++
       }
-      break;
+      break
     }
   }
 
   // If no heading found, just prepend
   if (insertIdx === 0) {
-    return newEntry + "\n" + existingContent;
+    return newEntry + "\n" + existingContent
   }
 
-  const before = lines.slice(0, insertIdx).join("\n");
-  const after = lines.slice(insertIdx).join("\n");
-  return before + "\n" + newEntry + "\n" + after;
+  const before = lines.slice(0, insertIdx).join("\n")
+  const after = lines.slice(insertIdx).join("\n")
+  return before + "\n" + newEntry + "\n" + after
 }

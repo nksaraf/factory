@@ -2,7 +2,7 @@
 
 The `build` domain tracks the CI/CD and version management layer. It models **Repos** (source code repositories), **Git Host Providers** (GitHub, GitLab, Gitea connections), **System Versions** (cross-component version pins for a system), **Pipeline Runs** (CI job executions), and **Pipeline Steps** (individual stages within a run).
 
-**Base prefix:** `/api/factory/build`
+**Base prefix:** `/api/v1/factory/build`
 
 ## Endpoints
 
@@ -75,7 +75,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "syncStatus": "idle"
     }
   }' \
-  "https://factory.example.com/api/factory/build/git-host-providers"
+  "https://factory.example.com/api/v1/factory/build/git-host-providers"
 ```
 
 ### Register a repo
@@ -99,7 +99,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "ciConfigPath": ".github/workflows/ci.yml"
     }
   }' \
-  "https://factory.example.com/api/factory/build/repos"
+  "https://factory.example.com/api/v1/factory/build/repos"
 ```
 
 ### Create a system version pin
@@ -133,14 +133,14 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "createdByPrincipalId": "prin_01hxalice"
     }
   }' \
-  "https://factory.example.com/api/factory/build/system-versions"
+  "https://factory.example.com/api/v1/factory/build/system-versions"
 ```
 
 ### Get a system version
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/build/system-versions/sysver_01hxpayv220"
+  "https://factory.example.com/api/v1/factory/build/system-versions/sysver_01hxpayv220"
 ```
 
 ```json
@@ -192,7 +192,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "url": "https://github.com/example/payments-api/actions/runs/987654321"
     }
   }' \
-  "https://factory.example.com/api/factory/build/pipeline-runs"
+  "https://factory.example.com/api/v1/factory/build/pipeline-runs"
 ```
 
 ### Update a pipeline run on completion
@@ -211,7 +211,7 @@ curl -X PATCH -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/factory/build/pipeline-runs/plrun_01hx987"
+  "https://factory.example.com/api/v1/factory/build/pipeline-runs/plrun_01hx987"
 ```
 
 ### Create pipeline steps
@@ -235,14 +235,14 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/factory/build/pipeline-steps"
+  "https://factory.example.com/api/v1/factory/build/pipeline-steps"
 ```
 
 ### List recent pipeline runs for a component
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/build/pipeline-runs?componentId=comp_01hxpayapi&status=succeeded&limit=10"
+  "https://factory.example.com/api/v1/factory/build/pipeline-runs?componentId=comp_01hxpayapi&status=succeeded&limit=10"
 ```
 
 ## CLI equivalent

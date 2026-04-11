@@ -97,6 +97,7 @@ in the unified model, a System has a very specific meaning:
 that can be independently deployed and operated.**
 
 This means:
+
 - A System has ONE owning team (stream-aligned team in Team Topologies language)
 - A System can be deployed without deploying other Systems
 - A System has a clear API boundary — other Systems interact with it only through its
@@ -146,37 +147,37 @@ This is NOT the same as a Data Store (from V3). A Data Store is WHERE data lives
 (Postgres, S3). A Data Product is WHAT the data means and how it's curated, quality-
 controlled, and served.
 
-| Property | Description |
-|---|---|
-| `name` | "India Terrain Elevation Data", "Telecom Tower Registry", "Market Demographics Dataset" |
-| `domain` | Business domain: "Network Intelligence", "Market Intelligence", "Geographic" |
-| `owner_team` | Data team responsible for quality and freshness |
-| `description` | What this data represents and what it's useful for |
-| `schema` | Data dictionary — fields, types, descriptions |
-| `freshness_sla` | How often data is updated: real-time, daily, weekly, monthly, static |
-| `quality_metrics` | Completeness, accuracy, consistency, timeliness — measured and reported |
-| `source` | Where the data comes from: government open data, commercial providers, customer-provided, internally derived |
-| `license` | What restrictions exist on redistribution: open, commercial-use-only, customer-specific, proprietary |
-| `consumers` | Which Capabilities, Components, or Customers consume this data |
-| `stored_in` | Which Data Store(s) hold this data |
-| `produced_by` | Which Data Pipeline(s) create/update this data |
-| `access_method` | How consumers access it: API, bulk download, database query, file drop |
-| `lifecycle` | `curating`, `active`, `deprecated`, `archived` |
+| Property          | Description                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `name`            | "India Terrain Elevation Data", "Telecom Tower Registry", "Market Demographics Dataset"                      |
+| `domain`          | Business domain: "Network Intelligence", "Market Intelligence", "Geographic"                                 |
+| `owner_team`      | Data team responsible for quality and freshness                                                              |
+| `description`     | What this data represents and what it's useful for                                                           |
+| `schema`          | Data dictionary — fields, types, descriptions                                                                |
+| `freshness_sla`   | How often data is updated: real-time, daily, weekly, monthly, static                                         |
+| `quality_metrics` | Completeness, accuracy, consistency, timeliness — measured and reported                                      |
+| `source`          | Where the data comes from: government open data, commercial providers, customer-provided, internally derived |
+| `license`         | What restrictions exist on redistribution: open, commercial-use-only, customer-specific, proprietary         |
+| `consumers`       | Which Capabilities, Components, or Customers consume this data                                               |
+| `stored_in`       | Which Data Store(s) hold this data                                                                           |
+| `produced_by`     | Which Data Pipeline(s) create/update this data                                                               |
+| `access_method`   | How consumers access it: API, bulk download, database query, file drop                                       |
+| `lifecycle`       | `curating`, `active`, `deprecated`, `archived`                                                               |
 
 #### DATA PIPELINE
 
 **Definition:** An automated process that acquires, transforms, validates, and loads
 data into a Data Product. This is the data equivalent of a CI/CD pipeline for software.
 
-| Property | Description |
-|---|---|
-| `name` | "Terrain Data Ingestion", "Tower Registry Daily Sync", "Market Demographics ETL" |
-| `data_product` | Which Data Product this produces/updates |
-| `source_systems` | Where input data comes from |
-| `schedule` | How often it runs: real-time, hourly, daily, weekly, on-demand |
-| `components` | Technical Components that implement this pipeline (Python scripts, Airflow DAGs, etc.) |
-| `monitoring` | How pipeline health is tracked: success/failure alerts, data quality checks |
-| `owner_team` | Data engineering team responsible |
+| Property         | Description                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `name`           | "Terrain Data Ingestion", "Tower Registry Daily Sync", "Market Demographics ETL"       |
+| `data_product`   | Which Data Product this produces/updates                                               |
+| `source_systems` | Where input data comes from                                                            |
+| `schedule`       | How often it runs: real-time, hourly, daily, weekly, on-demand                         |
+| `components`     | Technical Components that implement this pipeline (Python scripts, Airflow DAGs, etc.) |
+| `monitoring`     | How pipeline health is tracked: success/failure alerts, data quality checks            |
+| `owner_team`     | Data engineering team responsible                                                      |
 
 #### How Data Products Connect to Software Products
 
@@ -191,6 +192,7 @@ DATA PRODUCT "India Terrain Elevation Data"
 ```
 
 Data Products can be:
+
 - **Embedded** in a software product (terrain data is bundled with Trafficure — customer
   doesn't buy it separately, it's part of the Capability)
 - **Standalone** (sold independently — "Buy access to our Tower Registry dataset")
@@ -219,18 +221,18 @@ not the software:
 **Definition:** A repeatable, packageable consulting or development capability that your
 company can deliver. Not a specific customer engagement — the TEMPLATE for engagements.
 
-| Property | Description |
-|---|---|
-| `name` | "Trafficure Implementation", "Custom Application Development", "Data Analytics Consulting", "Network Planning Optimization Workshop" |
-| `type` | `implementation` (deploying your product), `custom-development` (building bespoke), `consulting` (advisory), `training`, `staff-augmentation`, `managed-service` |
-| `description` | What this service delivers |
-| `typical_duration` | 2-4 weeks, 3-6 months, ongoing |
-| `typical_team` | Team composition: 1 architect + 2 developers + 1 PM |
-| `deliverables` | What the customer gets: deployed product, custom software, report, trained team |
-| `reusable_assets` | Templates, accelerators, frameworks, tools that speed up delivery |
-| `prerequisites` | What must exist before this service can be delivered (e.g., "customer must have Trafficure Enterprise license") |
-| `pricing_model` | `fixed-price`, `time-and-materials`, `retainer`, `included-in-subscription` |
-| `owner_team` | Delivery/consulting team |
+| Property           | Description                                                                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`             | "Trafficure Implementation", "Custom Application Development", "Data Analytics Consulting", "Network Planning Optimization Workshop"                             |
+| `type`             | `implementation` (deploying your product), `custom-development` (building bespoke), `consulting` (advisory), `training`, `staff-augmentation`, `managed-service` |
+| `description`      | What this service delivers                                                                                                                                       |
+| `typical_duration` | 2-4 weeks, 3-6 months, ongoing                                                                                                                                   |
+| `typical_team`     | Team composition: 1 architect + 2 developers + 1 PM                                                                                                              |
+| `deliverables`     | What the customer gets: deployed product, custom software, report, trained team                                                                                  |
+| `reusable_assets`  | Templates, accelerators, frameworks, tools that speed up delivery                                                                                                |
+| `prerequisites`    | What must exist before this service can be delivered (e.g., "customer must have Trafficure Enterprise license")                                                  |
+| `pricing_model`    | `fixed-price`, `time-and-materials`, `retainer`, `included-in-subscription`                                                                                      |
+| `owner_team`       | Delivery/consulting team                                                                                                                                         |
 
 #### ENGAGEMENT (refined)
 
@@ -256,17 +258,17 @@ ENGAGEMENT "Samsung Trafficure + SmartMarket Implementation"
 When the services business builds custom software (not deploying your products), the
 work is a **Project** that produces **Deliverables**:
 
-| Property | Description |
-|---|---|
-| `name` | "Samsung Fleet Management Dashboard" |
-| `customer` | Samsung India |
-| `engagement` | The Engagement this project is part of |
-| `type` | `custom-application`, `integration`, `data-product`, `report-suite`, `automation` |
-| `deliverables` | Custom Components, APIs, Data Products, documents |
-| `source_repo` | Where the custom code lives |
-| `ip_ownership` | Who owns the IP: `customer`, `lepton`, `shared`, `open-source` |
-| `reusability` | Can this be generalized into a product/capability? `yes-planned`, `yes-potential`, `no-customer-specific` |
-| `lifecycle` | `active-development`, `delivered`, `maintenance`, `abandoned` |
+| Property       | Description                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| `name`         | "Samsung Fleet Management Dashboard"                                                                      |
+| `customer`     | Samsung India                                                                                             |
+| `engagement`   | The Engagement this project is part of                                                                    |
+| `type`         | `custom-application`, `integration`, `data-product`, `report-suite`, `automation`                         |
+| `deliverables` | Custom Components, APIs, Data Products, documents                                                         |
+| `source_repo`  | Where the custom code lives                                                                               |
+| `ip_ownership` | Who owns the IP: `customer`, `lepton`, `shared`, `open-source`                                            |
+| `reusability`  | Can this be generalized into a product/capability? `yes-planned`, `yes-potential`, `no-customer-specific` |
+| `lifecycle`    | `active-development`, `delivered`, `maintenance`, `abandoned`                                             |
 
 **The IP and reusability question is critical.** When you build "Revenue Prediction"
 for Samsung, that's a custom Project. But if you can generalize it into a standard
@@ -343,34 +345,34 @@ Here's how everything connects across all three business lines:
 
 ### Product ↔ System
 
-| Concept | In Product world | In Engineering world | Relationship |
-|---|---|---|---|
-| The big thing | **Product** (Trafficure) | **Domain** (Network Access) | 1:1 typically. A Product's engineering is organized under a Domain. |
-| The feature area | **Capability** (Coverage Analysis) | Spans **Components** across one or more **Systems** | Many-to-many. A Capability needs components from potentially multiple Systems. |
-| The team's scope | Implicit | **System** (Trafficure Core Platform) | A System is owned by one team and represents their deployable boundary. |
-| The buildable unit | Implicit | **Component** (coverage-service) | A Component is what a developer works on. Products don't know about Components. |
-| The interface | Implicit (customers see "Coverage") | **API** (coverage-api v2) | APIs are the contract surface. Product Capabilities are experienced through APIs. |
-| The shippable unit | Implicit | **Artifact** (coverage-service:2.4.0) | Artifacts are what CI produces. Products don't know about Artifacts. |
-| The versioned release | Product version "Trafficure 2024.3" | **Release Bundle** (Trafficure Core 2.4.0) | A product version corresponds to one or more Release Bundles. |
+| Concept               | In Product world                    | In Engineering world                                | Relationship                                                                      |
+| --------------------- | ----------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
+| The big thing         | **Product** (Trafficure)            | **Domain** (Network Access)                         | 1:1 typically. A Product's engineering is organized under a Domain.               |
+| The feature area      | **Capability** (Coverage Analysis)  | Spans **Components** across one or more **Systems** | Many-to-many. A Capability needs components from potentially multiple Systems.    |
+| The team's scope      | Implicit                            | **System** (Trafficure Core Platform)               | A System is owned by one team and represents their deployable boundary.           |
+| The buildable unit    | Implicit                            | **Component** (coverage-service)                    | A Component is what a developer works on. Products don't know about Components.   |
+| The interface         | Implicit (customers see "Coverage") | **API** (coverage-api v2)                           | APIs are the contract surface. Product Capabilities are experienced through APIs. |
+| The shippable unit    | Implicit                            | **Artifact** (coverage-service:2.4.0)               | Artifacts are what CI produces. Products don't know about Artifacts.              |
+| The versioned release | Product version "Trafficure 2024.3" | **Release Bundle** (Trafficure Core 2.4.0)          | A product version corresponds to one or more Release Bundles.                     |
 
 ### Data Product ↔ Software System
 
-| Concept | In Data world | In Software world | Relationship |
-|---|---|---|---|
-| The data asset | **Data Product** (Tower Registry) | — | Data Products are their own thing, not software Components |
-| The data processing | **Data Pipeline** (tower-sync-daily) | **Component** (pipeline code is a Component) | The pipeline's CODE is a Component; what it PRODUCES is a Data Product |
-| The storage | **Dataset** (logical) | **Data Store** (physical) | A Dataset lives in a Data Store. The Dataset is the logical view; the Data Store is the infrastructure. |
-| The consumption | Data Product consumed by Capability | Component reads from Data Store | Software Capabilities consume Data Products. At the infrastructure level, Components read from Data Stores. |
+| Concept             | In Data world                        | In Software world                            | Relationship                                                                                                |
+| ------------------- | ------------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| The data asset      | **Data Product** (Tower Registry)    | —                                            | Data Products are their own thing, not software Components                                                  |
+| The data processing | **Data Pipeline** (tower-sync-daily) | **Component** (pipeline code is a Component) | The pipeline's CODE is a Component; what it PRODUCES is a Data Product                                      |
+| The storage         | **Dataset** (logical)                | **Data Store** (physical)                    | A Dataset lives in a Data Store. The Dataset is the logical view; the Data Store is the infrastructure.     |
+| The consumption     | Data Product consumed by Capability  | Component reads from Data Store              | Software Capabilities consume Data Products. At the infrastructure level, Components read from Data Stores. |
 
 ### Services ↔ Product ↔ Engineering
 
-| Concept | In Services world | In Product world | In Engineering world |
-|---|---|---|---|
-| The work | **Engagement** | — | Creates/modifies Components, Deployments |
-| The template | **Service Offering** | — | References Templates from the engineering platform |
-| Custom functionality | **Project Deliverable** | May become a **Capability** (if generalized) | Is a **Component** or set of Components with customer-specific code |
-| Deployment for customer | Part of Engagement | Customer's **Subscription** determines what to deploy | **Deployment** on customer's infrastructure |
-| Data work | Custom analytics project | May become a **Data Product** (if generalized) | Creates **Data Pipelines** and populates **Data Stores** |
+| Concept                 | In Services world        | In Product world                                      | In Engineering world                                                |
+| ----------------------- | ------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| The work                | **Engagement**           | —                                                     | Creates/modifies Components, Deployments                            |
+| The template            | **Service Offering**     | —                                                     | References Templates from the engineering platform                  |
+| Custom functionality    | **Project Deliverable**  | May become a **Capability** (if generalized)          | Is a **Component** or set of Components with customer-specific code |
+| Deployment for customer | Part of Engagement       | Customer's **Subscription** determines what to deploy | **Deployment** on customer's infrastructure                         |
+| Data work               | Custom analytics project | May become a **Data Product** (if generalized)        | Creates **Data Pipelines** and populates **Data Stores**            |
 
 ### The Generalization Bridge
 
@@ -458,35 +460,43 @@ every new engagement benefits from the platform.
 ### Commercial Layer (13 entities)
 
 **Product Business:**
+
 - Product, Capability, Plan, Line Item, Billable Metric
 - Coupon, Subscription, Subscription Item, Wallet
 
 **Data Business:**
+
 - Data Product (commercial identity of a data asset)
 - Data Plan (how data access is priced — can use same Plan entity with type: data)
 
 **Services Business:**
+
 - Service Offering (template for engagements)
 - Engagement (specific customer commitment)
 - Project (custom development work within an engagement)
 
 **Shared:**
+
 - Customer, Invoice
 
 ### Engineering Layer (15 entities)
 
 **Software Catalog:**
+
 - Domain, System, Component, API, Artifact, Release Bundle, Template
 
 **Data Catalog:**
+
 - Data Product (engineering identity — schema, quality, freshness)
 - Data Pipeline
 - Dataset (logical — the named collection of data)
 
 **Project Catalog:**
+
 - Project Deliverable (custom components, integrations, or data products)
 
 **Shared Platform:**
+
 - All the Systems listed above are themselves in the Software Catalog
 
 ### Infrastructure Layer (11 entities)
@@ -511,15 +521,15 @@ every new engagement benefits from the platform.
 
 But the daily working set for most people is much smaller:
 
-| Role | Entities they interact with daily |
-|---|---|
-| **Developer** | Component, API, Artifact, Deployment, Workspace |
-| **Product Manager** | Product, Capability, Plan, Customer, Roadmap |
-| **Data Engineer** | Data Product, Data Pipeline, Dataset, Data Store |
-| **SRE/Ops** | Deployment, Host, Runtime, Network Entity, Incident |
-| **Delivery/PM** | Engagement, Customer, Capability, Deployment, Service Offering |
-| **Sales** | Product, Capability, Plan, Customer, Service Offering |
-| **Platform Engineer** | System, Component, Template, Runtime, Workspace |
+| Role                  | Entities they interact with daily                              |
+| --------------------- | -------------------------------------------------------------- |
+| **Developer**         | Component, API, Artifact, Deployment, Workspace                |
+| **Product Manager**   | Product, Capability, Plan, Customer, Roadmap                   |
+| **Data Engineer**     | Data Product, Data Pipeline, Dataset, Data Store               |
+| **SRE/Ops**           | Deployment, Host, Runtime, Network Entity, Incident            |
+| **Delivery/PM**       | Engagement, Customer, Capability, Deployment, Service Offering |
+| **Sales**             | Product, Capability, Plan, Customer, Service Offering          |
+| **Platform Engineer** | System, Component, Template, Runtime, Workspace                |
 
 ---
 
@@ -573,6 +583,7 @@ Four layers. Customer → Capability → Component → Deployment → Infrastruc
 Everything else in the model is detail within or between these layers.
 
 **Capability is the keystone.** It's the single concept that:
+
 - Sales talks about (what we sell)
 - Product defines (what it does)
 - Engineering builds (which components realize it)

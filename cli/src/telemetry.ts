@@ -5,15 +5,12 @@ const enabled = process.env.TELEMETRY_ENABLED === "true"
 let _shutdownFn: (() => Promise<void>) | undefined
 
 if (enabled) {
-  const { BasicTracerProvider, BatchSpanProcessor } = await import(
-    "@opentelemetry/sdk-trace-base"
-  )
-  const { OTLPTraceExporter } = await import(
-    "@opentelemetry/exporter-trace-otlp-http"
-  )
-  const { AsyncLocalStorageContextManager } = await import(
-    "@opentelemetry/context-async-hooks"
-  )
+  const { BasicTracerProvider, BatchSpanProcessor } =
+    await import("@opentelemetry/sdk-trace-base")
+  const { OTLPTraceExporter } =
+    await import("@opentelemetry/exporter-trace-otlp-http")
+  const { AsyncLocalStorageContextManager } =
+    await import("@opentelemetry/context-async-hooks")
   const { W3CTraceContextPropagator } = await import("@opentelemetry/core")
   const { resourceFromAttributes } = await import("@opentelemetry/resources")
 

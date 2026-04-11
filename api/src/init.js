@@ -1,6 +1,5 @@
 /** Vinxi plugin: no-op. Migrations are handled by createServer() in server.ts. */
 
-
 import "dotenv/config"
 
 import { FactoryAPI } from "./factory.api"

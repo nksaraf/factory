@@ -51,6 +51,7 @@ dx init my-product
 ```
 
 Interactive prompts will ask:
+
 - **Type:** project (full monorepo), service, website, or library
 - **Runtime:** node, java, python
 - **Framework:** For services — Elysia (Node), Spring Boot (Java), FastAPI (Python). For websites — React + Vinxi.
@@ -93,6 +94,7 @@ my-product/
 The project catalog (components, resources, ownership) is defined entirely by docker-compose labels — there is no separate `catalog.yaml`.
 
 The `package.json#dx` key holds project config:
+
 ```json
 {
   "dx": {
@@ -136,6 +138,7 @@ dx dev                   # Sync hooks + deps + codegen, then start dev servers
 ```
 
 The dev loop:
+
 ```bash
 # Edit code → hot reload → test → repeat
 dx test                  # Run tests (auto-detected)
@@ -191,6 +194,7 @@ dx deploy status         # Watch rollout progress
 ## What Happens Under the Hood
 
 ### On `dx init`
+
 - Generates docker-compose.yaml with catalog/dx labels (the project catalog)
 - Creates starter services with health checks, DB migrations, auth plugins
 - Sets up quality tooling (oxlint, prettier, vitest, lint-staged)
@@ -200,26 +204,31 @@ dx deploy status         # Watch rollout progress
 - Runs `git init` + initial commit
 
 ### On `dx dev` (pre-flight)
+
 - Checks git hooks health, installs if needed
 - Runs detected code generators (drizzle-kit, prisma generate, etc.)
 - Starts docker-compose infrastructure
 - Starts native dev servers with port allocation
 
 ### On `git commit` (via hooks)
+
 - `commit-msg` hook validates conventional commit format
 - `pre-commit` hook runs `lint-staged` on changed files
 
 ### On `git push` (via hooks)
+
 - `pre-push` hook runs `dx check` (lint + typecheck + test + format)
 - If checks fail, push is blocked with a hint: `git push --no-verify` to bypass
 
 ### On `dx preview deploy`
+
 - Calls Factory API to create preview
 - Factory provisions infrastructure (namespace, containers, routes)
 - Returns a preview URL with the format: `https://{slug}.preview.{domain}`
 - Preview auto-expires based on TTL (default 72h, extendable)
 
 ### On `dx deploy create`
+
 - Creates a rollout from a release to a deployment target
 - Factory orchestrates the deployment (rolling update, health checks)
 - Routes are updated to point to the new version
@@ -228,20 +237,21 @@ dx deploy status         # Watch rollout progress
 
 ## Anti-Patterns
 
-| Wrong | Right | Why |
-|-------|-------|-----|
-| `docker compose up` | `dx up` | dx manages port allocation, env injection |
-| `npm run dev` | `dx dev` | dx runs pre-flight sync, manages ports |
-| Creating `.github/workflows/` by hand | Let `dx init` generate them | Keeps CI aligned with project structure |
-| Manual deploy via SSH | `dx deploy create` | Tracked, auditable, rollback-able |
-| Skipping `dx preview` | Always preview before merge | Catches issues before they hit production |
-| Installing git hooks manually | `dx sync` | dx manages `.dx/hooks/` and `core.hooksPath` |
+| Wrong                                 | Right                       | Why                                          |
+| ------------------------------------- | --------------------------- | -------------------------------------------- |
+| `docker compose up`                   | `dx up`                     | dx manages port allocation, env injection    |
+| `npm run dev`                         | `dx dev`                    | dx runs pre-flight sync, manages ports       |
+| Creating `.github/workflows/` by hand | Let `dx init` generate them | Keeps CI aligned with project structure      |
+| Manual deploy via SSH                 | `dx deploy create`          | Tracked, auditable, rollback-able            |
+| Skipping `dx preview`                 | Always preview before merge | Catches issues before they hit production    |
+| Installing git hooks manually         | `dx sync`                   | dx manages `.dx/hooks/` and `core.hooksPath` |
 
 ---
 
 ## Current Status
 
 ### What Works Today
+
 - `dx init` — Full project scaffold (Node/Elysia + React/Vinxi) with hooks, CI, and conventions
 - `dx up` / `dx dev` — Local development with Docker Compose and pre-flight sync
 - `dx test` / `dx lint` / `dx format` / `dx typecheck` / `dx check` — Auto-detected quality tooling
@@ -252,6 +262,7 @@ dx deploy status         # Watch rollout progress
 - Script pass-through — `dx <name>` falls back to `package.json` scripts
 
 ### Coming Soon
+
 - **Spring Boot template** — `dx init` with `--runtime java --framework spring-boot` for the backend service
 - **One-command deploy** — auto-deploy to production on merge via GitHub Actions
 - **Automatic webhook setup** — `dx git repo create` with full webhook configuration

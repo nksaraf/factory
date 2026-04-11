@@ -3,7 +3,14 @@
 Structural components for organizing content into sections, cards, and collapsible regions.
 
 ```tsx
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@rio.js/ui-next/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@rio.js/ui-next/components/card"
 ```
 
 ---
@@ -19,10 +26,14 @@ A bordered container for grouping related content with an optional header and fo
       <CardDescription>Card description with supporting text.</CardDescription>
     </CardHeader>
     <CardContent>
-      <p className="text-sm">This is the card body content. It can contain any elements.</p>
+      <p className="text-sm">
+        This is the card body content. It can contain any elements.
+      </p>
     </CardContent>
     <CardFooter className="flex justify-end gap-2">
-      <Button variant="outline" size="sm">Cancel</Button>
+      <Button variant="outline" size="sm">
+        Cancel
+      </Button>
       <Button size="sm">Save</Button>
     </CardFooter>
   </Card>
@@ -41,14 +52,14 @@ A bordered container for grouping related content with an optional header and fo
 
 ### Card structure
 
-| Component | Purpose |
-|-----------|---------|
-| `Card` | Root container with border and background |
-| `CardHeader` | Top section with padding for title and description |
-| `CardTitle` | Heading text |
-| `CardDescription` | Supporting text below the title |
-| `CardContent` | Main body area |
-| `CardFooter` | Bottom section, typically for actions |
+| Component         | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `Card`            | Root container with border and background          |
+| `CardHeader`      | Top section with padding for title and description |
+| `CardTitle`       | Heading text                                       |
+| `CardDescription` | Supporting text below the title                    |
+| `CardContent`     | Main body area                                     |
+| `CardFooter`      | Bottom section, typically for actions              |
 
 ### Card without header
 
@@ -56,9 +67,7 @@ For simpler use cases, use `CardContent` directly.
 
 ```tsx
 <Card>
-  <CardContent className="pt-6">
-    Simple card with just content.
-  </CardContent>
+  <CardContent className="pt-6">Simple card with just content.</CardContent>
 </Card>
 ```
 
@@ -109,7 +118,12 @@ Use `orientation="vertical"` in flex layouts to divide horizontal content.
 Collapsible sections for organizing content that doesn't need to be visible all at once. Ideal for FAQs, settings groups, and dense information.
 
 ```tsx
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@rio.js/ui-next/components/accordion"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@rio.js/ui-next/components/accordion"
 ```
 
 <ComponentPreview className="block">
@@ -146,10 +160,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@r
 
 ### Single vs Multiple
 
-| Type | Behavior |
-|------|----------|
-| `single` | Only one item open at a time. Add `collapsible` to allow closing all |
-| `multiple` | Any number of items can be open simultaneously |
+| Type       | Behavior                                                             |
+| ---------- | -------------------------------------------------------------------- |
+| `single`   | Only one item open at a time. Add `collapsible` to allow closing all |
+| `multiple` | Any number of items can be open simultaneously                       |
 
 ```tsx
 {/* Only one open at a time, can close all */}
@@ -181,7 +195,9 @@ import { ScrollArea } from "@rio.js/ui-next/components/scroll-area"
 
 ```tsx
 <ScrollArea className="h-48 w-48 rounded-md border p-4">
-  {items.map(item => <div key={item.id}>{item.name}</div>)}
+  {items.map((item) => (
+    <div key={item.id}>{item.name}</div>
+  ))}
 </ScrollArea>
 ```
 
@@ -190,7 +206,9 @@ import { ScrollArea } from "@rio.js/ui-next/components/scroll-area"
 ```tsx
 <ScrollArea className="w-full" orientation="horizontal">
   <div className="flex gap-4">
-    {items.map(item => <Card key={item.id} className="w-64 shrink-0" />)}
+    {items.map((item) => (
+      <Card key={item.id} className="w-64 shrink-0" />
+    ))}
   </div>
 </ScrollArea>
 ```
@@ -203,35 +221,35 @@ import { ScrollArea } from "@rio.js/ui-next/components/scroll-area"
 
 All card sub-components extend native HTML `div` attributes.
 
-| Component | Key props | Description |
-|-----------|-----------|-------------|
-| `Card` | `className` | Root container |
-| `CardHeader` | `className` | Title and description area |
-| `CardTitle` | `className` | Heading text |
-| `CardDescription` | `className` | Supporting text |
-| `CardContent` | `className` | Main content area |
-| `CardFooter` | `className` | Footer actions area |
+| Component         | Key props   | Description                |
+| ----------------- | ----------- | -------------------------- |
+| `Card`            | `className` | Root container             |
+| `CardHeader`      | `className` | Title and description area |
+| `CardTitle`       | `className` | Heading text               |
+| `CardDescription` | `className` | Supporting text            |
+| `CardContent`     | `className` | Main content area          |
+| `CardFooter`      | `className` | Footer actions area        |
 
 ### Separator Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Direction of the divider |
-| `decorative` | `boolean` | — | If true, hidden from assistive technology |
+| Prop          | Type                         | Default        | Description                               |
+| ------------- | ---------------------------- | -------------- | ----------------------------------------- |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Direction of the divider                  |
+| `decorative`  | `boolean`                    | —              | If true, hidden from assistive technology |
 
 ### Accordion Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `type` | `"single" \| "multiple"` | — | Whether one or many items can be open |
-| `collapsible` | `boolean` | `false` | Allow closing all items (single mode only) |
-| `value` | `string \| string[]` | — | Controlled open item(s) |
-| `defaultValue` | `string \| string[]` | — | Uncontrolled default |
-| `onValueChange` | `(value) => void` | — | Called when open items change |
+| Prop            | Type                     | Default | Description                                |
+| --------------- | ------------------------ | ------- | ------------------------------------------ |
+| `type`          | `"single" \| "multiple"` | —       | Whether one or many items can be open      |
+| `collapsible`   | `boolean`                | `false` | Allow closing all items (single mode only) |
+| `value`         | `string \| string[]`     | —       | Controlled open item(s)                    |
+| `defaultValue`  | `string \| string[]`     | —       | Uncontrolled default                       |
+| `onValueChange` | `(value) => void`        | —       | Called when open items change              |
 
 ### ScrollArea Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `orientation` | `"vertical" \| "horizontal"` | `"vertical"` | Scroll direction |
-| `className` | `string` | — | Must include a fixed height/width for scrolling |
+| Prop          | Type                         | Default      | Description                                     |
+| ------------- | ---------------------------- | ------------ | ----------------------------------------------- |
+| `orientation` | `"vertical" \| "horizontal"` | `"vertical"` | Scroll direction                                |
+| `className`   | `string`                     | —            | Must include a fixed height/width for scrolling |

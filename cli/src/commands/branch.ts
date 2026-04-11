@@ -1,18 +1,21 @@
-import { findComposeRoot } from "@smp/factory-shared/config-loader";
-import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema";
-import { loadConventions, validateBranchName } from "@smp/factory-shared/conventions";
-import { ExitCodes } from "@smp/factory-shared/exit-codes";
+import { findComposeRoot } from "@smp/factory-shared/config-loader"
+import { defaultConventionsConfig } from "@smp/factory-shared/conventions-schema"
+import {
+  loadConventions,
+  validateBranchName,
+} from "@smp/factory-shared/conventions"
+import { ExitCodes } from "@smp/factory-shared/exit-codes"
 
-import type { DxBase } from "../dx-root.js";
-import { exitWithError } from "../lib/cli-exit.js";
-import { createBranch, listBranches } from "../lib/git.js";
-import { toDxFlags } from "./dx-flags.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+import type { DxBase } from "../dx-root.js"
+import { exitWithError } from "../lib/cli-exit.js"
+import { createBranch, listBranches } from "../lib/git.js"
+import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("branch", [
   "$ dx branch create feature/auth    Create a new branch",
   "$ dx branch list                   List branches",
-]);
+])
 
 export function branchCommand(app: DxBase) {
   return app
@@ -36,13 +39,13 @@ export function branchCommand(app: DxBase) {
           },
         })
         .run(({ args, flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
           try {
-            const root = findComposeRoot(process.cwd());
+            const root = findComposeRoot(process.cwd())
             const conventions = root
               ? loadConventions(root)
-              : defaultConventionsConfig();
-            const result = validateBranchName(args.name, conventions);
+              : defaultConventionsConfig()
+            const result = validateBranchName(args.name, conventions)
             if (!result.valid && !flags.force) {
               if (f.json) {
                 console.log(
@@ -55,42 +58,48 @@ export function branchCommand(app: DxBase) {
                     },
                     exitCode: ExitCodes.CONVENTION_VIOLATION,
                   })
-                );
-                process.exit(ExitCodes.CONVENTION_VIOLATION);
+                )
+                process.exit(ExitCodes.CONVENTION_VIOLATION)
               }
               console.error(
                 `Convention violation:\n${result.violations.join("\n")}\n\nSuggestions:\n${result.suggestions.join("\n")}\n\nUse --force to skip validation.`
-              );
-              process.exit(ExitCodes.CONVENTION_VIOLATION);
+              )
+              process.exit(ExitCodes.CONVENTION_VIOLATION)
             }
-            createBranch(process.cwd(), args.name);
+            createBranch(process.cwd(), args.name)
             if (f.json) {
               console.log(
-                JSON.stringify({ success: true, branch: args.name, exitCode: 0 })
-              );
+                JSON.stringify({
+                  success: true,
+                  branch: args.name,
+                  exitCode: 0,
+                })
+              )
             } else {
-              console.log(`Switched to new branch ${args.name}`);
+              console.log(`Switched to new branch ${args.name}`)
             }
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            exitWithError(f, msg);
+            const msg = err instanceof Error ? err.message : String(err)
+            exitWithError(f, msg)
           }
         })
     )
     .command("list", (c) =>
       c.meta({ description: "List local branches" }).run(({ flags }) => {
-        const f = toDxFlags(flags);
+        const f = toDxFlags(flags)
         try {
-          const out = listBranches(process.cwd());
+          const out = listBranches(process.cwd())
           if (f.json) {
-            console.log(JSON.stringify({ success: true, branches: out.split("\n") }));
+            console.log(
+              JSON.stringify({ success: true, branches: out.split("\n") })
+            )
           } else {
-            console.log(out);
+            console.log(out)
           }
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          exitWithError(f, msg);
+          const msg = err instanceof Error ? err.message : String(err)
+          exitWithError(f, msg)
         }
       })
-    );
+    )
 }

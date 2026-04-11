@@ -7,12 +7,11 @@
     "lint": "oxlint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write ."
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",
-    "@trivago/prettier-plugin-sort-imports": "6.0.2",
     "@typescript/native-preview": "^7.0.0-dev.20260404.1",
     "@vercel/functions": "^3.4.3",
     "better-sqlite3": "^12.6.2",
@@ -23,8 +22,8 @@
     "jiti": "^2.6.1",
     "lightningcss": "^1.32.0",
     "lint-staged": "latest",
+    "oxfmt": "0.41.0",
     "oxlint": "latest",
-    "prettier": "3.8.1",
     "rolldown": "^1.0.0-rc.9",
     "simple-git-hooks": "latest",
     "terser": "^5.46.0",
@@ -36,8 +35,13 @@
     "pre-commit": "npx lint-staged"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["oxlint --fix", "prettier --write"],
-    "*.{json,md,css,yaml,yml}": ["prettier --write"]
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint --fix",
+      "oxfmt --write"
+    ],
+    "*.{json,md,css,yaml,yml}": [
+      "oxfmt --write"
+    ]
   },
   "pnpm": {
     "overrides": {

@@ -1,6 +1,31 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@rio.js/ui-next/components/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@rio.js/ui-next/components/alert-dialog"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@rio.js/ui-next/components/sheet"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@rio.js/ui-next/components/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@rio.js/ui-next/components/alert-dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@rio.js/ui-next/components/sheet"
 import { Button } from "@rio.js/ui-next/components/button"
 import { Input } from "@rio.js/ui-next/components/input"
 import { Label } from "@rio.js/ui-next/components/label"
@@ -19,7 +44,9 @@ Modal and overlay components for focused interactions.
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Edit Profile</DialogTitle>
-        <DialogDescription>Make changes to your profile here.</DialogDescription>
+        <DialogDescription>
+          Make changes to your profile here.
+        </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4">
         <div className="space-y-2">
@@ -63,7 +90,8 @@ Modal and overlay components for focused interactions.
       <AlertDialogHeader>
         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
         <AlertDialogDescription>
-          This action cannot be undone. This will permanently delete the item from the system.
+          This action cannot be undone. This will permanently delete the item
+          from the system.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -103,10 +131,14 @@ Modal and overlay components for focused interactions.
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Side Panel</SheetTitle>
-          <SheetDescription>A slide-out panel from the edge of the screen.</SheetDescription>
+          <SheetDescription>
+            A slide-out panel from the edge of the screen.
+          </SheetDescription>
         </SheetHeader>
         <div className="py-4">
-          <p className="text-sm text-muted-foreground">Panel content goes here.</p>
+          <p className="text-sm text-muted-foreground">
+            Panel content goes here.
+          </p>
         </div>
       </SheetContent>
     </Sheet>

@@ -5,7 +5,7 @@
  * Elysia /presence/ws WebSocket endpoint.
  *
  * Usage:
- *   const { users, isConnected } = usePresence("page:/fleet/workloads")
+ *   const { users, isConnected } = usePresence("page:/ops/workloads")
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
@@ -55,14 +55,11 @@ export function usePresence(
   const reconnectAttempts = useRef(0)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const send = useCallback(
-    (msg: Record<string, unknown>) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify(msg))
-      }
-    },
-    []
-  )
+  const send = useCallback((msg: Record<string, unknown>) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg))
+    }
+  }, [])
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
@@ -108,9 +105,7 @@ export function usePresence(
             break
 
           case "user_left":
-            setUsers((prev) =>
-              prev.filter((u) => u.userId !== msg.userId)
-            )
+            setUsers((prev) => prev.filter((u) => u.userId !== msg.userId))
             break
         }
       } catch {
@@ -127,8 +122,7 @@ export function usePresence(
 
       // Reconnect with exponential backoff
       if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
-        const delay =
-          RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts.current
+        const delay = RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts.current
         reconnectAttempts.current++
         reconnectTimer.current = setTimeout(connect, delay)
       }

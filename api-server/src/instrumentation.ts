@@ -2,18 +2,14 @@ const enabled = process.env.TELEMETRY_ENABLED === "true"
 
 if (enabled) {
   const { NodeSDK } = await import("@opentelemetry/sdk-node")
-  const { getNodeAutoInstrumentations } = await import(
-    "@opentelemetry/auto-instrumentations-node"
-  )
-  const { OTLPTraceExporter } = await import(
-    "@opentelemetry/exporter-trace-otlp-http"
-  )
-  const { OTLPMetricExporter } = await import(
-    "@opentelemetry/exporter-metrics-otlp-http"
-  )
-  const { PeriodicExportingMetricReader } = await import(
-    "@opentelemetry/sdk-metrics"
-  )
+  const { getNodeAutoInstrumentations } =
+    await import("@opentelemetry/auto-instrumentations-node")
+  const { OTLPTraceExporter } =
+    await import("@opentelemetry/exporter-trace-otlp-http")
+  const { OTLPMetricExporter } =
+    await import("@opentelemetry/exporter-metrics-otlp-http")
+  const { PeriodicExportingMetricReader } =
+    await import("@opentelemetry/sdk-metrics")
   const { resourceFromAttributes } = await import("@opentelemetry/resources")
 
   const endpoint =

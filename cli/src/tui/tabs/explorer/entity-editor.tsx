@@ -25,7 +25,12 @@ function buildCreateFields(): FormField[] {
   ]
 }
 
-export function EntityEditor({ entity, focused, onBack, onSaved }: EntityEditorProps) {
+export function EntityEditor({
+  entity,
+  focused,
+  onBack,
+  onSaved,
+}: EntityEditorProps) {
   const fields = useMemo(() => buildCreateFields(), [])
 
   const [values, setValues] = useState<Record<string, string>>({})
@@ -59,7 +64,8 @@ export function EntityEditor({ entity, focused, onBack, onSaved }: EntityEditorP
       if (!focused || editing) return
       if (key.escape) onBack()
       else if (key.upArrow) setActiveField((f) => Math.max(0, f - 1))
-      else if (key.downArrow) setActiveField((f) => Math.min(fields.length - 1, f + 1))
+      else if (key.downArrow)
+        setActiveField((f) => Math.min(fields.length - 1, f + 1))
       else if (key.return) setEditing(true)
       else if (input === "s" && key.ctrl) handleSave()
     },
@@ -74,13 +80,17 @@ export function EntityEditor({ entity, focused, onBack, onSaved }: EntityEditorP
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Box paddingX={1} gap={2}>
-        <Text bold color="cyan">{entity.module}</Text>
+        <Text bold color="cyan">
+          {entity.module}
+        </Text>
         <Text dimColor>›</Text>
         <Text bold>{entity.label}</Text>
         <Text dimColor>›</Text>
-        <Text bold color="green">Create New</Text>
+        <Text bold color="green">
+          Create New
+        </Text>
         <Box flexGrow={1} />
-        <Text dimColor>↑↓ fields  ↵ edit  ^S save  esc back</Text>
+        <Text dimColor>↑↓ fields ↵ edit ^S save esc back</Text>
       </Box>
 
       <Box flexDirection="column" paddingX={2} paddingY={1}>
@@ -92,7 +102,8 @@ export function EntityEditor({ entity, focused, onBack, onSaved }: EntityEditorP
             <Box key={field.key}>
               <Box width={24}>
                 <Text color={isActive ? "cyan" : undefined} bold={isActive}>
-                  {isActive ? "› " : "  "}{field.label}
+                  {isActive ? "› " : "  "}
+                  {field.label}
                 </Text>
               </Box>
               <Box flexGrow={1}>

@@ -25,7 +25,7 @@ platform has converged on independently.
 
 ## Concern 1: PRODUCT CATALOG
 
-*What exists. What it does. What it depends on.*
+_What exists. What it does. What it depends on._
 
 This is YOUR system, not the billing system. The billing platform doesn't know or care
 about your technical architecture. The product catalog is the bridge between what
@@ -40,12 +40,12 @@ The market-facing thing with a brand, a logo, a pricing page, and a sales team.
 This is NOT Stripe's "Product" (which is much more granular). This is what a customer
 sees on your website and what a salesperson pitches.
 
-| Property | Description |
-|---|---|
-| `name` | "Trafficure", "SmartMarket" |
-| `description` | Market-facing value proposition |
-| `owner_team` | Product management team |
-| `lifecycle` | `incubation`, `growth`, `mature`, `sunset` |
+| Property              | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| `name`                | "Trafficure", "SmartMarket"                    |
+| `description`         | Market-facing value proposition                |
+| `owner_team`          | Product management team                        |
+| `lifecycle`           | `incubation`, `growth`, `mature`, `sunset`     |
 | `realized_by_systems` | Links to Systems in the technical catalog (V3) |
 
 You have 2-5 of these. Maybe 10 in a decade. This entity rarely changes.
@@ -60,19 +60,19 @@ The critical insight from Stripe: **a Capability is the smallest thing you can
 independently price.** Not the smallest thing you can build (that's a Component).
 Not the biggest thing you sell (that's a Product). The thing in between.
 
-| Property | Description |
-|---|---|
-| `name` | "Coverage Analysis", "AI Data Analyst", "SSO", "API Access", "Priority Support" |
-| `product` | Which Product this belongs to. Null for platform capabilities. |
-| `type` | `feature`, `integration`, `compute`, `data`, `support`, `infrastructure` |
-| `description` | What this provides |
-| `depends_on` | Other Capabilities this requires |
-| `requires_components` | Technical Components (from V3) needed to deliver this |
-| `activation` | How enabling manifests: `flag`, `config`, `deploy`, `independent` |
-| `metered_dimensions` | What usage can be measured: null (unmetered) or list of Billable Metrics |
-| `visibility` | `listed` (on pricing page), `unlisted` (available but not advertised), `internal` (infrastructure, never sold) |
-| `lifecycle` | `experimental`, `beta`, `ga`, `deprecated` |
-| `owner_team` | Engineering team that builds this |
+| Property              | Description                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `name`                | "Coverage Analysis", "AI Data Analyst", "SSO", "API Access", "Priority Support"                                |
+| `product`             | Which Product this belongs to. Null for platform capabilities.                                                 |
+| `type`                | `feature`, `integration`, `compute`, `data`, `support`, `infrastructure`                                       |
+| `description`         | What this provides                                                                                             |
+| `depends_on`          | Other Capabilities this requires                                                                               |
+| `requires_components` | Technical Components (from V3) needed to deliver this                                                          |
+| `activation`          | How enabling manifests: `flag`, `config`, `deploy`, `independent`                                              |
+| `metered_dimensions`  | What usage can be measured: null (unmetered) or list of Billable Metrics                                       |
+| `visibility`          | `listed` (on pricing page), `unlisted` (available but not advertised), `internal` (infrastructure, never sold) |
+| `lifecycle`           | `experimental`, `beta`, `ga`, `deprecated`                                                                     |
+| `owner_team`          | Engineering team that builds this                                                                              |
 
 **Key relationships:**
 
@@ -104,15 +104,15 @@ different Plans.
 
 This is what Stripe calls a "Meter."
 
-| Property | Description |
-|---|---|
-| `name` | "ai-queries", "api-calls", "storage-gb", "projects-created", "seats" |
-| `code` | Machine-readable: `ai_queries`, `api_calls` |
-| `description` | What's being measured |
+| Property      | Description                                                                |
+| ------------- | -------------------------------------------------------------------------- |
+| `name`        | "ai-queries", "api-calls", "storage-gb", "projects-created", "seats"       |
+| `code`        | Machine-readable: `ai_queries`, `api_calls`                                |
+| `description` | What's being measured                                                      |
 | `aggregation` | How events are combined: `count`, `sum`, `max`, `count-distinct`, `latest` |
-| `field` | Which field in the event to aggregate (for sum/max) |
-| `dimensions` | Optional tags for segmentation: `model`, `region`, `event_type` |
-| `unit` | Human-readable unit: "queries", "calls", "GB", "seats", "minutes" |
+| `field`       | Which field in the event to aggregate (for sum/max)                        |
+| `dimensions`  | Optional tags for segmentation: `model`, `region`, `event_type`            |
+| `unit`        | Human-readable unit: "queries", "calls", "GB", "seats", "minutes"          |
 
 **Examples:**
 
@@ -146,7 +146,7 @@ Coverage and Planning might count "projects-created"). Separation keeps things c
 
 ## Concern 2: PRICE CATALOG
 
-*How things cost. How they're packaged. How they're billed.*
+_How things cost. How they're packaged. How they're billed._
 
 This is what lives in your billing system (Stripe, Lago, or custom). The price catalog
 references Capabilities and Billable Metrics from the product catalog but adds pricing
@@ -159,14 +159,14 @@ logic.
 A named, versioned packaging of Capabilities with associated pricing. This is Stripe's
 "a set of Products with Prices" grouped logically, or Lago's "Plan" directly.
 
-| Property | Description |
-|---|---|
-| `name` | "Trafficure Starter", "SmartMarket Professional", "Lepton Suite" |
-| `code` | Machine-readable: `trafficure_starter`, `smartmarket_pro` |
-| `type` | `base` (standalone), `add-on` (supplements a base plan), `suite` (multi-product) |
-| `products` | Which Products this plan covers |
-| `version` | Plan version (plans evolve; old versions may be grandfathered) |
-| `lifecycle` | `active`, `grandfathered`, `sunset` |
+| Property    | Description                                                                      |
+| ----------- | -------------------------------------------------------------------------------- |
+| `name`      | "Trafficure Starter", "SmartMarket Professional", "Lepton Suite"                 |
+| `code`      | Machine-readable: `trafficure_starter`, `smartmarket_pro`                        |
+| `type`      | `base` (standalone), `add-on` (supplements a base plan), `suite` (multi-product) |
+| `products`  | Which Products this plan covers                                                  |
+| `version`   | Plan version (plans evolve; old versions may be grandfathered)                   |
+| `lifecycle` | `active`, `grandfathered`, `sunset`                                              |
 
 A Plan contains **Line Items** — the individual priced components.
 
@@ -176,33 +176,33 @@ A single priced element within a Plan. Each line item grants access to a Capabil
 and/or defines a charge. This is Stripe's "Price" attached to a "Product" within a
 Subscription.
 
-| Property | Description |
-|---|---|
-| `plan` | Which Plan this belongs to |
-| `capability` | Which Capability this grants/charges for. Nullable for pure fees. |
-| `name` | Display name on invoice: "Coverage Analysis", "Platform Fee", "AI Queries" |
-| `charge_type` | See charge types below |
-| `billing_period` | `monthly`, `annual`, `one-time`, `per-billing-period` |
-| `amount` | Fixed amount (for flat charges) |
-| `per_unit_amount` | Per-unit cost (for per-seat, per-usage) |
-| `metric` | Which Billable Metric drives this charge (for usage-based) |
-| `tiers` | For graduated/volume pricing (see below) |
-| `included_units` | Free units included before charging starts |
-| `minimum_spend` | Minimum charge regardless of usage |
-| `maximum_spend` | Cap on charges (price ceiling) |
+| Property          | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `plan`            | Which Plan this belongs to                                                 |
+| `capability`      | Which Capability this grants/charges for. Nullable for pure fees.          |
+| `name`            | Display name on invoice: "Coverage Analysis", "Platform Fee", "AI Queries" |
+| `charge_type`     | See charge types below                                                     |
+| `billing_period`  | `monthly`, `annual`, `one-time`, `per-billing-period`                      |
+| `amount`          | Fixed amount (for flat charges)                                            |
+| `per_unit_amount` | Per-unit cost (for per-seat, per-usage)                                    |
+| `metric`          | Which Billable Metric drives this charge (for usage-based)                 |
+| `tiers`           | For graduated/volume pricing (see below)                                   |
+| `included_units`  | Free units included before charging starts                                 |
+| `minimum_spend`   | Minimum charge regardless of usage                                         |
+| `maximum_spend`   | Cap on charges (price ceiling)                                             |
 
 **Charge types** (how billing platforms universally categorize charges):
 
-| Type | Description | Example |
-|---|---|---|
-| `flat` | Fixed recurring amount | "Platform Fee: ₹10,000/month" |
-| `per-seat` | Per named user or concurrent user | "₹1,500/user/month" |
-| `per-unit` | Per metered unit consumed | "₹2 per AI query" |
-| `tiered-graduated` | Different rates for different usage ranges, each tier priced independently | "First 100 queries free, next 900 at ₹2, above 1000 at ₹1" |
-| `tiered-volume` | Single rate determined by total volume | "Under 1000 queries: ₹2 each. Over 1000: ₹1.50 each (for ALL)" |
-| `package` | Per bundle of units | "₹500 per 100 queries" |
-| `percentage` | Percentage of a value | "2.9% of transaction value" |
-| `one-time` | Single charge, not recurring | "Implementation fee: ₹5,00,000" |
+| Type               | Description                                                                | Example                                                        |
+| ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `flat`             | Fixed recurring amount                                                     | "Platform Fee: ₹10,000/month"                                  |
+| `per-seat`         | Per named user or concurrent user                                          | "₹1,500/user/month"                                            |
+| `per-unit`         | Per metered unit consumed                                                  | "₹2 per AI query"                                              |
+| `tiered-graduated` | Different rates for different usage ranges, each tier priced independently | "First 100 queries free, next 900 at ₹2, above 1000 at ₹1"     |
+| `tiered-volume`    | Single rate determined by total volume                                     | "Under 1000 queries: ₹2 each. Over 1000: ₹1.50 each (for ALL)" |
+| `package`          | Per bundle of units                                                        | "₹500 per 100 queries"                                         |
+| `percentage`       | Percentage of a value                                                      | "2.9% of transaction value"                                    |
+| `one-time`         | Single charge, not recurring                                               | "Implementation fee: ₹5,00,000"                                |
 
 **Example Plan with Line Items:**
 
@@ -243,6 +243,7 @@ PLAN: "AI Data Analyst Add-On"
 ```
 
 **Notice what this does:** The Plan's line items simultaneously define:
+
 - **Which capabilities are granted** (Coverage, LOS, Planning, SSO, API Access)
 - **What the customer pays** (flat fees + per-seat + usage-based)
 - **What limits exist** (10 included seats, 20 included projects, 50k API calls)
@@ -255,15 +256,15 @@ catalog — the existence of a line item in an active subscription IS the entitl
 
 A discount that can be applied to a subscription or invoice.
 
-| Property | Description |
-|---|---|
-| `name` | "Q1 Launch Discount", "Loyalty Renewal" |
-| `type` | `percentage`, `fixed-amount` |
-| `value` | 20 (meaning 20% or ₹20, depending on type) |
-| `applies_to` | Specific plans, specific line items, or everything |
-| `duration` | `once`, `repeating` (N months), `forever` |
-| `expiry` | When this coupon can no longer be redeemed |
-| `max_redemptions` | How many customers can use this |
+| Property          | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| `name`            | "Q1 Launch Discount", "Loyalty Renewal"            |
+| `type`            | `percentage`, `fixed-amount`                       |
+| `value`           | 20 (meaning 20% or ₹20, depending on type)         |
+| `applies_to`      | Specific plans, specific line items, or everything |
+| `duration`        | `once`, `repeating` (N months), `forever`          |
+| `expiry`          | When this coupon can no longer be redeemed         |
+| `max_redemptions` | How many customers can use this                    |
 
 #### ADDON CHARGE
 
@@ -271,11 +272,11 @@ A one-time, non-recurring charge that can be applied to a customer at any time,
 independent of their subscription. Lago calls these "Add-ons" (the one-time kind),
 Stripe handles them as Invoice Items.
 
-| Property | Description |
-|---|---|
-| `name` | "Implementation Fee", "Custom Integration", "Training Session", "Data Migration" |
-| `amount` | Charge amount |
-| `tax_behavior` | `inclusive`, `exclusive` |
+| Property       | Description                                                                      |
+| -------------- | -------------------------------------------------------------------------------- |
+| `name`         | "Implementation Fee", "Custom Integration", "Training Session", "Data Migration" |
+| `amount`       | Charge amount                                                                    |
+| `tax_behavior` | `inclusive`, `exclusive`                                                         |
 
 These map directly to Engagement costs — when you charge for a professional services
 engagement, it's an addon charge on the customer's account.
@@ -284,7 +285,7 @@ engagement, it's an addon charge on the customer's account.
 
 ## Concern 3: CUSTOMER STATE
 
-*What a specific customer has. What they use. What they owe.*
+_What a specific customer has. What they use. What they owe._
 
 ### Entities
 
@@ -292,17 +293,17 @@ engagement, it's an addon charge on the customer's account.
 
 The paying entity. One record per commercial relationship.
 
-| Property | Description |
-|---|---|
-| `name` | "Samsung India", "Ultratech Cement" |
-| `type` | `enterprise`, `mid-market`, `self-service`, `internal`, `trial`, `partner` |
-| `billing_email` | For invoices |
-| `billing_address` | For tax calculation |
-| `currency` | `INR`, `USD`, etc. |
-| `payment_method` | Reference to payment method on file |
-| `tax_id` | GST number, VAT ID, etc. |
-| `metadata` | Flexible key-value: industry, region, account_manager, etc. |
-| `tenant_ids` | Technical tenant identifiers (link to infrastructure model) |
+| Property          | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `name`            | "Samsung India", "Ultratech Cement"                                        |
+| `type`            | `enterprise`, `mid-market`, `self-service`, `internal`, `trial`, `partner` |
+| `billing_email`   | For invoices                                                               |
+| `billing_address` | For tax calculation                                                        |
+| `currency`        | `INR`, `USD`, etc.                                                         |
+| `payment_method`  | Reference to payment method on file                                        |
+| `tax_id`          | GST number, VAT ID, etc.                                                   |
+| `metadata`        | Flexible key-value: industry, region, account_manager, etc.                |
+| `tenant_ids`      | Technical tenant identifiers (link to infrastructure model)                |
 
 #### SUBSCRIPTION
 
@@ -310,21 +311,22 @@ The active commercial relationship between a Customer and a Plan. This is the co
 runtime entity — it determines what the customer can use RIGHT NOW.
 
 A customer can have multiple active subscriptions (Trafficure base + SmartMarket add-on
-+ Support add-on).
 
-| Property | Description |
-|---|---|
-| `customer` | Who |
-| `plan` | Which Plan (at which version) |
-| `status` | `trialing`, `active`, `past-due`, `paused`, `cancelled`, `expired` |
-| `started_at` | When this subscription began |
-| `current_period_start` | Current billing period start |
-| `current_period_end` | Current billing period end |
-| `trial_end` | If trialing, when the trial ends |
-| `cancel_at` | If scheduled for cancellation |
-| `billing_anchor` | Which day of month billing cycles |
-| `applied_coupons` | Active discounts |
-| `items` | Subscription Items (see below) |
+- Support add-on).
+
+| Property               | Description                                                        |
+| ---------------------- | ------------------------------------------------------------------ |
+| `customer`             | Who                                                                |
+| `plan`                 | Which Plan (at which version)                                      |
+| `status`               | `trialing`, `active`, `past-due`, `paused`, `cancelled`, `expired` |
+| `started_at`           | When this subscription began                                       |
+| `current_period_start` | Current billing period start                                       |
+| `current_period_end`   | Current billing period end                                         |
+| `trial_end`            | If trialing, when the trial ends                                   |
+| `cancel_at`            | If scheduled for cancellation                                      |
+| `billing_anchor`       | Which day of month billing cycles                                  |
+| `applied_coupons`      | Active discounts                                                   |
+| `items`                | Subscription Items (see below)                                     |
 
 #### SUBSCRIPTION ITEM
 
@@ -334,15 +336,15 @@ adjusted limits).
 
 This is Stripe's SubscriptionItem exactly.
 
-| Property | Description |
-|---|---|
-| `subscription` | Which Subscription |
-| `line_item` | Which Line Item from the Plan |
-| `capability_granted` | Which Capability this activates (resolved from line item) |
-| `quantity` | For per-seat: how many seats purchased |
-| `override_amount` | If negotiated price differs from plan default |
-| `override_included_units` | If negotiated limits differ from plan default |
-| `metadata` | Custom key-value |
+| Property                  | Description                                               |
+| ------------------------- | --------------------------------------------------------- |
+| `subscription`            | Which Subscription                                        |
+| `line_item`               | Which Line Item from the Plan                             |
+| `capability_granted`      | Which Capability this activates (resolved from line item) |
+| `quantity`                | For per-seat: how many seats purchased                    |
+| `override_amount`         | If negotiated price differs from plan default             |
+| `override_included_units` | If negotiated limits differ from plan default             |
+| `metadata`                | Custom key-value                                          |
 
 **The Subscription Item IS the Entitlement.** An active subscription with items
 referencing Capabilities determines what the customer can access. No separate
@@ -355,28 +357,28 @@ access.
 Prepaid balance that offsets usage charges. Called "Wallet" to avoid the accounting
 "credit/debit" collision identified earlier.
 
-| Property | Description |
-|---|---|
-| `customer` | Whose wallet |
-| `currency` | What denomination: `INR`, `USD`, or `usage-credits` (a virtual currency) |
-| `balance` | Current balance |
-| `type` | `prepaid` (purchased), `promotional` (granted), `compensation` (service recovery) |
-| `expires_at` | Nullable |
-| `granted_reason` | "Annual commitment prepay", "Q1 2025 promo", "Incident INC-042" |
+| Property         | Description                                                                       |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `customer`       | Whose wallet                                                                      |
+| `currency`       | What denomination: `INR`, `USD`, or `usage-credits` (a virtual currency)          |
+| `balance`        | Current balance                                                                   |
+| `type`           | `prepaid` (purchased), `promotional` (granted), `compensation` (service recovery) |
+| `expires_at`     | Nullable                                                                          |
+| `granted_reason` | "Annual commitment prepay", "Q1 2025 promo", "Incident INC-042"                   |
 
 #### USAGE EVENT
 
 A raw event representing customer consumption. Sent from your application to the
 billing system (or to your own metering pipeline first, then aggregated to billing).
 
-| Property | Description |
-|---|---|
-| `customer` | Who consumed |
-| `metric` | Which Billable Metric: `ai_queries`, `api_calls`, etc. |
-| `value` | Numeric value (1 for count-based, N for sum-based) |
-| `timestamp` | When it happened |
-| `dimensions` | Tags: `{model: "gpt-4", region: "ap-south-1"}` |
-| `idempotency_key` | To prevent double-counting |
+| Property          | Description                                            |
+| ----------------- | ------------------------------------------------------ |
+| `customer`        | Who consumed                                           |
+| `metric`          | Which Billable Metric: `ai_queries`, `api_calls`, etc. |
+| `value`           | Numeric value (1 for count-based, N for sum-based)     |
+| `timestamp`       | When it happened                                       |
+| `dimensions`      | Tags: `{model: "gpt-4", region: "ap-south-1"}`         |
+| `idempotency_key` | To prevent double-counting                             |
 
 Usage Events are high-volume, append-only data. They live in your metering pipeline
 (ClickHouse) and get aggregated into billing-period summaries for invoicing.
@@ -386,33 +388,33 @@ Usage Events are high-volume, append-only data. They live in your metering pipel
 The bill. Generated automatically from Subscriptions + Usage at the end of each billing
 period, or manually for one-time charges.
 
-| Property | Description |
-|---|---|
-| `customer` | Who owes |
-| `status` | `draft`, `finalized`, `paid`, `past-due`, `void` |
-| `period_start` | Billing period covered |
-| `period_end` | Billing period covered |
-| `subtotal` | Before discounts and tax |
-| `discount` | Coupon/wallet application |
-| `tax` | GST/VAT |
-| `total` | Final amount |
-| `line_items` | Itemized charges (see below) |
-| `due_date` | When payment is expected |
-| `pdf_url` | Generated invoice PDF |
+| Property       | Description                                      |
+| -------------- | ------------------------------------------------ |
+| `customer`     | Who owes                                         |
+| `status`       | `draft`, `finalized`, `paid`, `past-due`, `void` |
+| `period_start` | Billing period covered                           |
+| `period_end`   | Billing period covered                           |
+| `subtotal`     | Before discounts and tax                         |
+| `discount`     | Coupon/wallet application                        |
+| `tax`          | GST/VAT                                          |
+| `total`        | Final amount                                     |
+| `line_items`   | Itemized charges (see below)                     |
+| `due_date`     | When payment is expected                         |
+| `pdf_url`      | Generated invoice PDF                            |
 
 #### INVOICE LINE ITEM
 
 Each charge on an invoice, traced back to the subscription item and/or usage that
 generated it.
 
-| Property | Description |
-|---|---|
-| `description` | "Trafficure Professional - Platform Fee", "AI Queries (1,247 @ ₹50)" |
-| `subscription_item` | Which subscription item generated this charge |
-| `quantity` | Units consumed or seats counted |
-| `unit_amount` | Price per unit |
-| `amount` | Line total |
-| `period` | What period this covers |
+| Property            | Description                                                          |
+| ------------------- | -------------------------------------------------------------------- |
+| `description`       | "Trafficure Professional - Platform Fee", "AI Queries (1,247 @ ₹50)" |
+| `subscription_item` | Which subscription item generated this charge                        |
+| `quantity`          | Units consumed or seats counted                                      |
+| `unit_amount`       | Price per unit                                                       |
+| `amount`            | Line total                                                           |
+| `period`            | What period this covers                                              |
 
 ---
 
@@ -542,50 +544,50 @@ gets a Subscription with `status: trialing` and `trial_end` set to 14 days out.
 
 ### Product Catalog (your system)
 
-| Entity | Count | Changes how often |
-|---|---|---|
-| **Product** | 2-5 | Rarely (new product launch) |
-| **Capability** | 20-50 | Occasionally (new features, quarterly) |
-| **Billable Metric** | 10-20 | Occasionally (new metered dimensions) |
+| Entity              | Count | Changes how often                      |
+| ------------------- | ----- | -------------------------------------- |
+| **Product**         | 2-5   | Rarely (new product launch)            |
+| **Capability**      | 20-50 | Occasionally (new features, quarterly) |
+| **Billable Metric** | 10-20 | Occasionally (new metered dimensions)  |
 
 ### Price Catalog (billing system)
 
-| Entity | Count | Changes how often |
-|---|---|---|
-| **Plan** | 5-15 | Occasionally (pricing changes, new tiers) |
-| **Line Item** | 50-150 | With plan changes |
-| **Coupon** | 10-50 | Frequently (marketing campaigns) |
-| **Addon Charge (templates)** | 5-10 | Rarely |
+| Entity                       | Count  | Changes how often                         |
+| ---------------------------- | ------ | ----------------------------------------- |
+| **Plan**                     | 5-15   | Occasionally (pricing changes, new tiers) |
+| **Line Item**                | 50-150 | With plan changes                         |
+| **Coupon**                   | 10-50  | Frequently (marketing campaigns)          |
+| **Addon Charge (templates)** | 5-10   | Rarely                                    |
 
 ### Customer State (billing system + your system)
 
-| Entity | Count | Changes how often |
-|---|---|---|
-| **Customer** | 10-1000+ | Growing |
-| **Subscription** | 1-3 per customer | On purchase/renewal/upgrade |
-| **Subscription Item** | 5-20 per subscription | On plan change |
-| **Wallet** | 0-1 per customer | On prepay/promo |
-| **Usage Event** | Thousands-millions/day | Continuously |
-| **Invoice** | 1 per customer per period | Monthly/annually |
+| Entity                | Count                     | Changes how often           |
+| --------------------- | ------------------------- | --------------------------- |
+| **Customer**          | 10-1000+                  | Growing                     |
+| **Subscription**      | 1-3 per customer          | On purchase/renewal/upgrade |
+| **Subscription Item** | 5-20 per subscription     | On plan change              |
+| **Wallet**            | 0-1 per customer          | On prepay/promo             |
+| **Usage Event**       | Thousands-millions/day    | Continuously                |
+| **Invoice**           | 1 per customer per period | Monthly/annually            |
 
 ---
 
 ## How This Replaces Previous Attempts
 
-| Previous entity | What happened | Why |
-|---|---|---|
-| ~~Module~~ | Merged into **Capability** | Module was just a renamed Capability with extra baggage |
-| ~~Bundle~~ | Merged into **Plan** (type: suite) | A bundle is just a multi-product Plan |
-| ~~License~~ | Replaced by **Subscription** | License was reinventing what billing systems already model |
-| ~~Entitlement~~ | Eliminated — **Subscription Item IS the entitlement** | Following Stripe's model: the line item grants access |
-| ~~Seat~~ | Became a **Billable Metric** + **Line Item** charge_type: per-seat | Seats are just a metered dimension with per-seat pricing |
-| ~~Quota~~ | Became **included_units** on a **Line Item** | Quotas are just the free tier of a tiered charge |
-| ~~Usage~~ | Became **Usage Event** (raw) + billing period aggregation | Cleaner separation of raw events from billing logic |
-| ~~Credit~~ | Renamed to **Wallet** | Avoids accounting "credit/debit" collision |
-| ~~Offering~~ | Moved to **Deployment config** on the infrastructure side | Distribution channel and operations model are deployment concerns, not pricing concerns |
-| **Plan** | Kept, clarified | Now properly contains Line Items |
-| **Capability** | Kept, refined | Now cleanly connects to both billing (via Line Items) and infra (via requires_components) |
-| **Product** | Kept, clarified | Now explicitly the market-facing brand, not the Stripe "product" |
+| Previous entity | What happened                                                      | Why                                                                                       |
+| --------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| ~~Module~~      | Merged into **Capability**                                         | Module was just a renamed Capability with extra baggage                                   |
+| ~~Bundle~~      | Merged into **Plan** (type: suite)                                 | A bundle is just a multi-product Plan                                                     |
+| ~~License~~     | Replaced by **Subscription**                                       | License was reinventing what billing systems already model                                |
+| ~~Entitlement~~ | Eliminated — **Subscription Item IS the entitlement**              | Following Stripe's model: the line item grants access                                     |
+| ~~Seat~~        | Became a **Billable Metric** + **Line Item** charge_type: per-seat | Seats are just a metered dimension with per-seat pricing                                  |
+| ~~Quota~~       | Became **included_units** on a **Line Item**                       | Quotas are just the free tier of a tiered charge                                          |
+| ~~Usage~~       | Became **Usage Event** (raw) + billing period aggregation          | Cleaner separation of raw events from billing logic                                       |
+| ~~Credit~~      | Renamed to **Wallet**                                              | Avoids accounting "credit/debit" collision                                                |
+| ~~Offering~~    | Moved to **Deployment config** on the infrastructure side          | Distribution channel and operations model are deployment concerns, not pricing concerns   |
+| **Plan**        | Kept, clarified                                                    | Now properly contains Line Items                                                          |
+| **Capability**  | Kept, refined                                                      | Now cleanly connects to both billing (via Line Items) and infra (via requires_components) |
+| **Product**     | Kept, clarified                                                    | Now explicitly the market-facing brand, not the Stripe "product"                          |
 
 **Previous model: 8 entities** (Capability, Plan, License, Entitlement, Seat, Quota,
 Usage, Credit)
@@ -599,6 +601,7 @@ Addon Charge, Customer, Subscription, Subscription Item, Wallet, Usage Event, In
 Customer, Subscription, Subscription Item, Wallet, Invoice)
 
 **Your application code only needs to:**
+
 1. Maintain the Product ↔ Capability ↔ Component graph (product catalog)
 2. Send Usage Events to your metering pipeline
 3. Check Subscription Items to determine feature access (entitlement check)
@@ -615,7 +618,7 @@ Capability is the single entity that bridges all three worlds:
 
 ```
 SALES WORLD                ENGINEERING WORLD           BILLING WORLD
-                           
+
 "Coverage Analysis"  ←──── CAPABILITY ────→  Line Item in Plan
 (thing we sell)             │                 (thing we charge for)
                             │

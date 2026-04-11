@@ -1,8 +1,8 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { capture } from "../../../lib/subprocess.js";
-import { ensureFileExists } from "./file-utils.js";
-import type { ConfigProvider, ConfigChange } from "./types.js";
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { capture } from "../../../lib/subprocess.js"
+import { ensureFileExists } from "./file-utils.js"
+import type { ConfigProvider, ConfigChange } from "./types.js"
 
 const GIT_DEFAULTS: Record<string, string> = {
   "init.defaultBranch": "main",
@@ -13,9 +13,9 @@ const GIT_DEFAULTS: Record<string, string> = {
   "commit.verbose": "true",
   "diff.algorithm": "histogram",
   "merge.conflictstyle": "zdiff3",
-};
+}
 
-const COMMIT_TEMPLATE_PATH = join(homedir(), ".dx", "commit-template.txt");
+const COMMIT_TEMPLATE_PATH = join(homedir(), ".dx", "commit-template.txt")
 
 const COMMIT_TEMPLATE = `
 # <type>(<scope>): <subject>
@@ -27,17 +27,17 @@ const COMMIT_TEMPLATE = `
 # Body: explain what and why, not how (wrap at 72 chars)
 #
 # Footer: Breaking changes, issue references
-`.trimStart();
+`.trimStart()
 
 async function getGitConfig(key: string): Promise<string | null> {
-  const result = await capture(["git", "config", "--global", "--get", key]);
-  if (result.exitCode !== 0) return null;
-  return result.stdout.trim();
+  const result = await capture(["git", "config", "--global", "--get", key])
+  if (result.exitCode !== 0) return null
+  return result.stdout.trim()
 }
 
 async function setGitConfig(key: string, value: string): Promise<boolean> {
-  const result = await capture(["git", "config", "--global", key, value]);
-  return result.exitCode === 0;
+  const result = await capture(["git", "config", "--global", key, value])
+  return result.exitCode === 0
 }
 
 export const gitDefaultsProvider: ConfigProvider = {
@@ -46,10 +46,10 @@ export const gitDefaultsProvider: ConfigProvider = {
   roles: ["workbench", "site", "factory"],
 
   async detect(): Promise<ConfigChange[]> {
-    const changes: ConfigChange[] = [];
+    const changes: ConfigChange[] = []
 
     for (const [key, value] of Object.entries(GIT_DEFAULTS)) {
-      const current = await getGitConfig(key);
+      const current = await getGitConfig(key)
       changes.push({
         id: `git:${key}`,
         category: "git",
@@ -61,12 +61,12 @@ export const gitDefaultsProvider: ConfigProvider = {
         requiresSudo: false,
         platform: null,
         apply: () => setGitConfig(key, value),
-      });
+      })
     }
 
     // Commit template
-    const currentTemplate = await getGitConfig("commit.template");
-    const templateApplied = currentTemplate === COMMIT_TEMPLATE_PATH;
+    const currentTemplate = await getGitConfig("commit.template")
+    const templateApplied = currentTemplate === COMMIT_TEMPLATE_PATH
     changes.push({
       id: "git:commit.template",
       category: "git",
@@ -78,14 +78,14 @@ export const gitDefaultsProvider: ConfigProvider = {
       requiresSudo: false,
       platform: null,
       apply: async () => {
-        ensureFileExists(COMMIT_TEMPLATE_PATH, COMMIT_TEMPLATE);
-        return setGitConfig("commit.template", COMMIT_TEMPLATE_PATH);
+        ensureFileExists(COMMIT_TEMPLATE_PATH, COMMIT_TEMPLATE)
+        return setGitConfig("commit.template", COMMIT_TEMPLATE_PATH)
       },
-    });
+    })
 
     // Windows: credential helper
     if (process.platform === "win32") {
-      const current = await getGitConfig("credential.helper");
+      const current = await getGitConfig("credential.helper")
       changes.push({
         id: "git:credential.helper",
         category: "git",
@@ -97,9 +97,9 @@ export const gitDefaultsProvider: ConfigProvider = {
         requiresSudo: false,
         platform: "win32",
         apply: () => setGitConfig("credential.helper", "manager"),
-      });
+      })
     }
 
-    return changes;
+    return changes
   },
-};
+}

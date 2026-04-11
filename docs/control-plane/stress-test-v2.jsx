@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState } from "react"
 
-const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
-const sans = "'DM Sans', system-ui, sans-serif";
+const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace"
+const sans = "'DM Sans', system-ui, sans-serif"
 
 const PRODUCTS = [
   {
@@ -10,7 +10,8 @@ const PRODUCTS = [
     icon: "🎫",
     verdict: "CLEAN FIT",
     verdictColor: "#4ade80",
-    summary: "v2 groups are 1:1 with actions for Jira — same as v1 but now with ABAC conditions for workflow constraints (only assignee can transition, time-bounded approvals). Issue security levels map to markings. The own/all pattern uses conditions, not separate groups.",
+    summary:
+      "v2 groups are 1:1 with actions for Jira — same as v1 but now with ABAC conditions for workflow constraints (only assignee can transition, time-bounded approvals). Issue security levels map to markings. The own/all pattern uses conditions, not separate groups.",
     gaps_closed: [
       "Workflow conditions (only assignee can transition) → ABAC condition with principal_id == resource.assignee_id",
       "Time-bounded access (contractor access expires) → condition with request_time between grant start/end",
@@ -321,7 +322,8 @@ roles:
     icon: "☁️",
     verdict: "FULL FIT",
     verdictColor: "#4ade80",
-    summary: "v2 permission groups eliminate the previous gap. GCP's 70+ Compute permissions fit into 7 groups. Conditional IAM bindings now map to the conditions section. Deny policies map to excluded relations + condition effect='restrict'. The container hierarchy (Org → Folder → Project) was already clean — now service resources also model correctly.",
+    summary:
+      "v2 permission groups eliminate the previous gap. GCP's 70+ Compute permissions fit into 7 groups. Conditional IAM bindings now map to the conditions section. Deny policies map to excluded relations + condition effect='restrict'. The container hierarchy (Org → Folder → Project) was already clean — now service resources also model correctly.",
     gaps_closed: [
       "Fine-grained API permissions → groups contain unbounded actions. 70+ Compute permissions in 7 groups.",
       "Conditional role bindings → conditions section with source_ip, time_window, resource tags",
@@ -740,8 +742,20 @@ roles:
       project: { groups: [view] }
       compute_instance: { groups: [read] }
       storage_bucket: { groups: [read] }`,
-    groupCounts: { organization: 5, folder: 5, project: 6, compute_instance: 7, storage_bucket: 5 },
-    actionCounts: { organization: 14, folder: 9, project: 14, compute_instance: 54, storage_bucket: 16 },
+    groupCounts: {
+      organization: 5,
+      folder: 5,
+      project: 6,
+      compute_instance: 7,
+      storage_bucket: 5,
+    },
+    actionCounts: {
+      organization: 14,
+      folder: 9,
+      project: 14,
+      compute_instance: 54,
+      storage_bucket: 16,
+    },
     maxGroups: 7,
     slotOk: true,
   },
@@ -751,7 +765,8 @@ roles:
     icon: "🔶",
     verdict: "STRUCTURAL FIT",
     verdictColor: "#4ade80",
-    summary: "v2 closes the major gap. AWS Organizations hierarchy models cleanly. Each AWS service becomes a module with its own auth.yaml. EC2's 200 permissions group into 6-7 permission groups matching AWS's own access levels (List, Read, Write, Permissions, Tagging). SCPs model as markings with propagation through the OU hierarchy. The conditions section handles AWS's Condition blocks.",
+    summary:
+      "v2 closes the major gap. AWS Organizations hierarchy models cleanly. Each AWS service becomes a module with its own auth.yaml. EC2's 200 permissions group into 6-7 permission groups matching AWS's own access levels (List, Read, Write, Permissions, Tagging). SCPs model as markings with propagation through the OU hierarchy. The conditions section handles AWS's Condition blocks.",
     gaps_closed: [
       "Fine-grained API permissions → permission groups. EC2's 200 actions in 7 groups.",
       "Condition keys (aws:SourceIp, aws:RequestedRegion, ec2:InstanceType) → conditions section",
@@ -1180,8 +1195,20 @@ roles:
       account: { groups: [view] }
       ec2_resource: { groups: [read] }
       s3_bucket: { groups: [read] }`,
-    groupCounts: { management_account: 6, organizational_unit: 4, account: 6, ec2_resource: 6, s3_bucket: 5 },
-    actionCounts: { management_account: 22, organizational_unit: 8, account: 20, ec2_resource: 48, s3_bucket: 28 },
+    groupCounts: {
+      management_account: 6,
+      organizational_unit: 4,
+      account: 6,
+      ec2_resource: 6,
+      s3_bucket: 5,
+    },
+    actionCounts: {
+      management_account: 22,
+      organizational_unit: 8,
+      account: 20,
+      ec2_resource: 48,
+      s3_bucket: 28,
+    },
     maxGroups: 6,
     slotOk: true,
   },
@@ -1191,7 +1218,8 @@ roles:
     icon: "💼",
     verdict: "FULL FIT",
     verdictColor: "#4ade80",
-    summary: "v2 closes Salesforce's gaps. OWD (Org-Wide Defaults) now modeled via conditions on groups (Private = condition restricting edit to owner_id match). Criteria-based sharing rules map to conditions with resource attribute keys. Field-Level Security maps to marking-based property clearances on the ontology layer. The territory hierarchy is a scope dimension.",
+    summary:
+      "v2 closes Salesforce's gaps. OWD (Org-Wide Defaults) now modeled via conditions on groups (Private = condition restricting edit to owner_id match). Criteria-based sharing rules map to conditions with resource attribute keys. Field-Level Security maps to marking-based property clearances on the ontology layer. The territory hierarchy is a scope dimension.",
     gaps_closed: [
       "OWD (Private/Public Read/Public Read Write) → conditions on groups. Private = edit group has condition owner_id==principal_id. Public Read = view cascade:true, edit cascade:false with no owner condition.",
       "Criteria-based sharing rules → conditions with resource attributes (e.g., account.region == 'West')",
@@ -1579,8 +1607,20 @@ roles:
       opportunity: { groups: [view] }
       case_ticket: { groups: [view] }
       report: { groups: [view] }`,
-    groupCounts: { account: 8, contact: 4, opportunity: 6, case_ticket: 5, report: 6 },
-    actionCounts: { account: 16, contact: 6, opportunity: 16, case_ticket: 17, report: 9 },
+    groupCounts: {
+      account: 8,
+      contact: 4,
+      opportunity: 6,
+      case_ticket: 5,
+      report: 6,
+    },
+    actionCounts: {
+      account: 16,
+      contact: 6,
+      opportunity: 16,
+      case_ticket: 17,
+      report: 9,
+    },
     maxGroups: 8,
     slotOk: true,
   },
@@ -1590,7 +1630,8 @@ roles:
     icon: "▲",
     verdict: "CLEAN FIT",
     verdictColor: "#4ade80",
-    summary: "Vercel's simple model stays simple in v2. Single-action groups behave identically to v1. The only addition: environment-scoped conditions for deploy/promote actions. Protection rules (only deploy to production from main branch) map cleanly to conditions.",
+    summary:
+      "Vercel's simple model stays simple in v2. Single-action groups behave identically to v1. The only addition: environment-scoped conditions for deploy/promote actions. Protection rules (only deploy to production from main branch) map cleanly to conditions.",
     gaps_closed: [
       "Branch protection rules → condition with git_ref matching",
       "Environment-specific secrets → scopes with environment dimension",
@@ -1828,7 +1869,7 @@ roles:
     maxGroups: 6,
     slotOk: true,
   },
-];
+]
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCORECARD v2
@@ -1837,87 +1878,144 @@ roles:
 const SCORECARD = [
   {
     d: "Resource hierarchy + cascade",
-    j: "✓", jn: "project→epic→issue, cascade per group",
-    g: "✓", gn: "org→folder→project→service resources",
-    a: "✓", an: "mgmt_account→OU→account→ec2/s3",
-    s: "✓", sn: "account→contact/opp/case",
-    v: "✓", vn: "team→project→deployment/domain",
+    j: "✓",
+    jn: "project→epic→issue, cascade per group",
+    g: "✓",
+    gn: "org→folder→project→service resources",
+    a: "✓",
+    an: "mgmt_account→OU→account→ec2/s3",
+    s: "✓",
+    sn: "account→contact/opp/case",
+    v: "✓",
+    vn: "team→project→deployment/domain",
   },
   {
     d: "8-group limit per resource type",
-    j: "✓", jn: "Max 8 (issue). Groups bundle related actions.",
-    g: "✓", gn: "Max 7 (compute). 54 actions in 7 groups.",
-    a: "✓", an: "Max 6 (ec2). 48 actions in 6 groups.",
-    s: "✓", sn: "Max 8 (account). Clean fit.",
-    v: "✓", vn: "Max 6. Comfortable.",
+    j: "✓",
+    jn: "Max 8 (issue). Groups bundle related actions.",
+    g: "✓",
+    gn: "Max 7 (compute). 54 actions in 7 groups.",
+    a: "✓",
+    an: "Max 6 (ec2). 48 actions in 6 groups.",
+    s: "✓",
+    sn: "Max 8 (account). Clean fit.",
+    v: "✓",
+    vn: "Max 6. Comfortable.",
   },
   {
     d: "Fine-grained API permissions (50+ per type)",
-    j: "✓", jn: "34 actions on issue across 8 groups.",
-    g: "✓", gn: "54 Compute actions in 7 groups. Fixed!",
-    a: "✓", an: "48 EC2 actions in 6 groups. 28 S3 actions in 5. Fixed!",
-    s: "✓", sn: "16 Account actions in 8 groups.",
-    v: "✓", vn: "19 Project actions in 6 groups.",
+    j: "✓",
+    jn: "34 actions on issue across 8 groups.",
+    g: "✓",
+    gn: "54 Compute actions in 7 groups. Fixed!",
+    a: "✓",
+    an: "48 EC2 actions in 6 groups. 28 S3 actions in 5. Fixed!",
+    s: "✓",
+    sn: "16 Account actions in 8 groups.",
+    v: "✓",
+    vn: "19 Project actions in 6 groups.",
   },
   {
     d: "ABAC conditions (IP, time, tags, attributes)",
-    j: "✓", jn: "assignee_only, working_hours, IP restriction",
-    g: "✓", gn: "machine_type, time_window, source_ip, resource_tags",
-    a: "✓", an: "region_lock, instance_type, vpc, tag-based ABAC, MFA",
-    s: "✓", sn: "owner_only (OWD), region_sharing, revenue_threshold",
-    v: "✓", vn: "branch_protection, deploy_freeze, prod_protection",
+    j: "✓",
+    jn: "assignee_only, working_hours, IP restriction",
+    g: "✓",
+    gn: "machine_type, time_window, source_ip, resource_tags",
+    a: "✓",
+    an: "region_lock, instance_type, vpc, tag-based ABAC, MFA",
+    s: "✓",
+    sn: "owner_only (OWD), region_sharing, revenue_threshold",
+    v: "✓",
+    vn: "branch_protection, deploy_freeze, prod_protection",
   },
   {
     d: "OWD / default visibility (Salesforce)",
-    j: "○", jn: "N/A — Jira uses project-level browse.",
-    g: "○", gn: "N/A — GCP uses IAM policies.",
-    a: "○", an: "N/A — AWS uses deny-by-default.",
-    s: "✓", sn: "owner_only condition on edit. Private/Public via cascade config.",
-    v: "○", vn: "N/A.",
+    j: "○",
+    jn: "N/A — Jira uses project-level browse.",
+    g: "○",
+    gn: "N/A — GCP uses IAM policies.",
+    a: "○",
+    an: "N/A — AWS uses deny-by-default.",
+    s: "✓",
+    sn: "owner_only condition on edit. Private/Public via cascade config.",
+    v: "○",
+    vn: "N/A.",
   },
   {
     d: "Implies DAG (non-linear permission graph)",
-    j: "✓", jn: "admin→{edit,assign,transition,moderate,security}",
-    g: "✓", gn: "admin→{write,network,ssh}. write→operate→read.",
-    a: "✓", an: "admin→{write,permissions,tagging}. close requires iam+billing.",
-    s: "✓", sn: "modify_all→{edit,delete,share,transfer,view_all}",
-    v: "✓", vn: "admin→{deploy,configure}",
+    j: "✓",
+    jn: "admin→{edit,assign,transition,moderate,security}",
+    g: "✓",
+    gn: "admin→{write,network,ssh}. write→operate→read.",
+    a: "✓",
+    an: "admin→{write,permissions,tagging}. close requires iam+billing.",
+    s: "✓",
+    sn: "modify_all→{edit,delete,share,transfer,view_all}",
+    v: "✓",
+    vn: "admin→{deploy,configure}",
   },
   {
     d: "Requires (separation of duties)",
-    j: "✓", jn: "Not heavily used. Workflow covered by conditions.",
-    g: "✓", gn: "project.delete requires [edit, manage_iam]",
-    a: "✓", an: "account.close requires [manage_iam, manage_billing]",
-    s: "✓", sn: "report.schedule requires [run,edit]. opp.close requires [edit].",
-    v: "✓", vn: "Implicit via scope (promote requires deploy scope).",
+    j: "✓",
+    jn: "Not heavily used. Workflow covered by conditions.",
+    g: "✓",
+    gn: "project.delete requires [edit, manage_iam]",
+    a: "✓",
+    an: "account.close requires [manage_iam, manage_billing]",
+    s: "✓",
+    sn: "report.schedule requires [run,edit]. opp.close requires [edit].",
+    v: "✓",
+    vn: "Implicit via scope (promote requires deploy scope).",
   },
   {
     d: "Scope bindings",
-    j: "✓", jn: "team, component scopes on issues",
-    g: "✓", gn: "billing_account, region, network scopes",
-    a: "✓", an: "region scope on accounts and resources",
-    s: "✓", sn: "territory, business_unit, role_hierarchy scopes",
-    v: "✓", vn: "environment scope on deploys",
+    j: "✓",
+    jn: "team, component scopes on issues",
+    g: "✓",
+    gn: "billing_account, region, network scopes",
+    a: "✓",
+    an: "region scope on accounts and resources",
+    s: "✓",
+    sn: "territory, business_unit, role_hierarchy scopes",
+    v: "✓",
+    vn: "environment scope on deploys",
   },
   {
     d: "Markings (mandatory access control)",
-    j: "✓", jn: "Issue security levels → markings. Propagate to subtasks.",
-    g: "✓", gn: "On resources, propagate through folder hierarchy.",
-    a: "✓", an: "SCPs as markings on OUs. Propagate to accounts.",
-    s: "✓", sn: "Record-level markings. FLS via ontology clearance slots.",
-    v: "○", vn: "Not needed for Vercel's model.",
+    j: "✓",
+    jn: "Issue security levels → markings. Propagate to subtasks.",
+    g: "✓",
+    gn: "On resources, propagate through folder hierarchy.",
+    a: "✓",
+    an: "SCPs as markings on OUs. Propagate to accounts.",
+    s: "✓",
+    sn: "Record-level markings. FLS via ontology clearance slots.",
+    v: "○",
+    vn: "Not needed for Vercel's model.",
   },
   {
     d: "Deny policies / Permission boundaries",
-    j: "○", jn: "Handled by excluded relation + conditions.",
-    g: "✓", gn: "condition_policy with effect='restrict'.",
-    a: "✓", an: "Permission boundaries = condition_policy. SCPs = markings.",
-    s: "○", sn: "OWD Private covers most deny cases.",
-    v: "○", vn: "Not needed.",
+    j: "○",
+    jn: "Handled by excluded relation + conditions.",
+    g: "✓",
+    gn: "condition_policy with effect='restrict'.",
+    a: "✓",
+    an: "Permission boundaries = condition_policy. SCPs = markings.",
+    s: "○",
+    sn: "OWD Private covers most deny cases.",
+    v: "○",
+    vn: "Not needed.",
   },
-];
+]
 
-const scoreColor = (s) => s === "✓" ? "#4ade80" : s === "⚠" ? "#f59e0b" : s === "✗" ? "#ef4444" : "#52525b";
+const scoreColor = (s) =>
+  s === "✓"
+    ? "#4ade80"
+    : s === "⚠"
+      ? "#f59e0b"
+      : s === "✗"
+        ? "#ef4444"
+        : "#52525b"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -1931,121 +2029,265 @@ const TABS = [
   { id: "salesforce", label: "💼 Salesforce" },
   { id: "vercel", label: "▲ Vercel" },
   { id: "summary", label: "Final Verdict" },
-];
+]
 
 const Badge = ({ text, color = "#71717a", small = false }) => (
-  <span style={{
-    display: "inline-block", padding: small ? "1px 5px" : "2px 7px",
-    borderRadius: "3px", fontSize: small ? "9px" : "10px", fontWeight: 700,
-    fontFamily: mono, color, backgroundColor: `${color}12`, border: `1px solid ${color}25`,
-    letterSpacing: "0.03em",
-  }}>{text}</span>
-);
+  <span
+    style={{
+      display: "inline-block",
+      padding: small ? "1px 5px" : "2px 7px",
+      borderRadius: "3px",
+      fontSize: small ? "9px" : "10px",
+      fontWeight: 700,
+      fontFamily: mono,
+      color,
+      backgroundColor: `${color}12`,
+      border: `1px solid ${color}25`,
+      letterSpacing: "0.03em",
+    }}
+  >
+    {text}
+  </span>
+)
 
 const Code = ({ children, maxHeight = null }) => (
-  <pre style={{
-    padding: "14px 16px", borderRadius: "6px", border: "1px solid #1a1a22",
-    backgroundColor: "#08080c", fontSize: "10.5px", fontFamily: mono,
-    lineHeight: "1.65", color: "#a1a1aa", overflow: "auto", maxHeight,
-    whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0,
-  }}>{children}</pre>
-);
+  <pre
+    style={{
+      padding: "14px 16px",
+      borderRadius: "6px",
+      border: "1px solid #1a1a22",
+      backgroundColor: "#08080c",
+      fontSize: "10.5px",
+      fontFamily: mono,
+      lineHeight: "1.65",
+      color: "#a1a1aa",
+      overflow: "auto",
+      maxHeight,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      margin: 0,
+    }}
+  >
+    {children}
+  </pre>
+)
 
 export default function StressTestV2() {
-  const [tab, setTab] = useState("scorecard");
-  const current = PRODUCTS.find(p => p.id === tab);
+  const [tab, setTab] = useState("scorecard")
+  const current = PRODUCTS.find((p) => p.id === tab)
 
   return (
-    <div style={{
-      minHeight: "100vh", backgroundColor: "#0a0a0c", color: "#e4e4e7",
-      fontFamily: sans, padding: "20px",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#0a0a0c",
+        color: "#e4e4e7",
+        fontFamily: sans,
+        padding: "20px",
+      }}
+    >
       <div style={{ marginBottom: "20px" }}>
-        <div style={{
-          fontSize: "9px", fontWeight: 800, fontFamily: mono,
-          color: "#22c55e", letterSpacing: "0.12em", marginBottom: "4px",
-        }}>PLATFORM FABRIC — AUTH.YAML v2 STRESS TEST</div>
+        <div
+          style={{
+            fontSize: "9px",
+            fontWeight: 800,
+            fontFamily: mono,
+            color: "#22c55e",
+            letterSpacing: "0.12em",
+            marginBottom: "4px",
+          }}
+        >
+          PLATFORM FABRIC — AUTH.YAML v2 STRESS TEST
+        </div>
         <div style={{ fontSize: "18px", fontWeight: 700, color: "#fafafa" }}>
           Five Products, Revised — Permission Groups + ABAC
         </div>
         <div style={{ fontSize: "11px", color: "#52525b", marginTop: "3px" }}>
-          All previous gaps closed · Groups scale to cloud platforms · Conditions handle ABAC
+          All previous gaps closed · Groups scale to cloud platforms ·
+          Conditions handle ABAC
         </div>
       </div>
 
-      <div style={{
-        display: "flex", gap: "1px", marginBottom: "16px",
-        borderRadius: "5px", overflow: "hidden", border: "1px solid #18181b",
-        backgroundColor: "#0d0d0f", padding: "2px", flexWrap: "wrap",
-      }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: "6px 11px", borderRadius: "3px", border: "none", cursor: "pointer",
-            fontSize: "10.5px", fontWeight: 600, fontFamily: sans, transition: "all 0.12s",
-            backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
-            color: tab === t.id ? "#fafafa" : "#52525b",
-          }}>{t.label}</button>
+      <div
+        style={{
+          display: "flex",
+          gap: "1px",
+          marginBottom: "16px",
+          borderRadius: "5px",
+          overflow: "hidden",
+          border: "1px solid #18181b",
+          backgroundColor: "#0d0d0f",
+          padding: "2px",
+          flexWrap: "wrap",
+        }}
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "6px 11px",
+              borderRadius: "3px",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "10.5px",
+              fontWeight: 600,
+              fontFamily: sans,
+              transition: "all 0.12s",
+              backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
+              color: tab === t.id ? "#fafafa" : "#52525b",
+            }}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
       {/* ═══ SCORECARD ═══ */}
       {tab === "scorecard" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #22c55e25", backgroundColor: "#080e08",
-            fontSize: "11px", color: "#86efac", lineHeight: "1.7",
-          }}>
-            <strong>v1 → v2 delta:</strong> All ✗ and ⚠ from v1 are now ✓ or ○ (not applicable).
-            The three structural changes — permission groups, ABAC conditions, and the data ownership model — 
-            close every gap identified in the first stress test.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #22c55e25",
+              backgroundColor: "#080e08",
+              fontSize: "11px",
+              color: "#86efac",
+              lineHeight: "1.7",
+            }}
+          >
+            <strong>v1 → v2 delta:</strong> All ✗ and ⚠ from v1 are now ✓ or ○
+            (not applicable). The three structural changes — permission groups,
+            ABAC conditions, and the data ownership model — close every gap
+            identified in the first stress test.
           </div>
 
-          <div style={{
-            borderRadius: "6px", border: "1px solid #18181b", overflow: "hidden",
-            fontSize: "10px", fontFamily: mono,
-          }}>
-            <div style={{
-              display: "grid", gridTemplateColumns: "180px repeat(5, 1fr)",
-              padding: "6px 10px", backgroundColor: "#0e0e12",
-              borderBottom: "1px solid #18181b",
-              fontSize: "9px", fontWeight: 800, color: "#52525b", letterSpacing: "0.05em",
-            }}>
+          <div
+            style={{
+              borderRadius: "6px",
+              border: "1px solid #18181b",
+              overflow: "hidden",
+              fontSize: "10px",
+              fontFamily: mono,
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "180px repeat(5, 1fr)",
+                padding: "6px 10px",
+                backgroundColor: "#0e0e12",
+                borderBottom: "1px solid #18181b",
+                fontSize: "9px",
+                fontWeight: 800,
+                color: "#52525b",
+                letterSpacing: "0.05em",
+              }}
+            >
               <span>DIMENSION</span>
-              {PRODUCTS.map(p => <span key={p.id}>{p.icon} {p.name.toUpperCase()}</span>)}
+              {PRODUCTS.map((p) => (
+                <span key={p.id}>
+                  {p.icon} {p.name.toUpperCase()}
+                </span>
+              ))}
             </div>
             {SCORECARD.map((item, i) => (
-              <div key={i} style={{
-                display: "grid", gridTemplateColumns: "180px repeat(5, 1fr)",
-                padding: "5px 10px", alignItems: "start",
-                borderBottom: i < SCORECARD.length - 1 ? "1px solid #111114" : "none",
-                backgroundColor: i % 2 === 0 ? "transparent" : "#0a0a0e08",
-              }}>
-                <span style={{ color: "#a1a1aa", fontWeight: 600, fontSize: "9.5px", lineHeight: "1.5" }}>{item.d}</span>
+              <div
+                key={i}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "180px repeat(5, 1fr)",
+                  padding: "5px 10px",
+                  alignItems: "start",
+                  borderBottom:
+                    i < SCORECARD.length - 1 ? "1px solid #111114" : "none",
+                  backgroundColor: i % 2 === 0 ? "transparent" : "#0a0a0e08",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#a1a1aa",
+                    fontWeight: 600,
+                    fontSize: "9.5px",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  {item.d}
+                </span>
                 {[
-                  { s: item.j, n: item.jn }, { s: item.g, n: item.gn },
-                  { s: item.a, n: item.an }, { s: item.s, n: item.sn },
+                  { s: item.j, n: item.jn },
+                  { s: item.g, n: item.gn },
+                  { s: item.a, n: item.an },
+                  { s: item.s, n: item.sn },
                   { s: item.v, n: item.vn },
                 ].map((c, j) => (
                   <div key={j} style={{ lineHeight: "1.5" }}>
-                    <span style={{ color: scoreColor(c.s), fontWeight: 700, fontSize: "12px" }}>{c.s}</span>
-                    <span style={{ color: "#52525b", fontSize: "9px", marginLeft: "4px" }}>{c.n}</span>
+                    <span
+                      style={{
+                        color: scoreColor(c.s),
+                        fontWeight: 700,
+                        fontSize: "12px",
+                      }}
+                    >
+                      {c.s}
+                    </span>
+                    <span
+                      style={{
+                        color: "#52525b",
+                        fontSize: "9px",
+                        marginLeft: "4px",
+                      }}
+                    >
+                      {c.n}
+                    </span>
                   </div>
                 ))}
               </div>
             ))}
           </div>
 
-          <div style={{ marginTop: "14px", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px" }}>
-            {PRODUCTS.map(p => (
-              <div key={p.id} style={{
-                padding: "8px 10px", borderRadius: "5px",
-                border: `1px solid ${p.verdictColor}25`, backgroundColor: `${p.verdictColor}05`,
-              }}>
-                <div style={{ fontSize: "13px", marginBottom: "2px" }}>{p.icon}</div>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: p.verdictColor, fontFamily: mono }}>{p.verdict}</div>
-                <div style={{ fontSize: "9px", color: "#71717a", marginTop: "2px" }}>
-                  {p.maxGroups} groups, {Math.max(...Object.values(p.actionCounts))} max actions
+          <div
+            style={{
+              marginTop: "14px",
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gap: "6px",
+            }}
+          >
+            {PRODUCTS.map((p) => (
+              <div
+                key={p.id}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "5px",
+                  border: `1px solid ${p.verdictColor}25`,
+                  backgroundColor: `${p.verdictColor}05`,
+                }}
+              >
+                <div style={{ fontSize: "13px", marginBottom: "2px" }}>
+                  {p.icon}
+                </div>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: p.verdictColor,
+                    fontFamily: mono,
+                  }}
+                >
+                  {p.verdict}
+                </div>
+                <div
+                  style={{
+                    fontSize: "9px",
+                    color: "#71717a",
+                    marginTop: "2px",
+                  }}
+                >
+                  {p.maxGroups} groups,{" "}
+                  {Math.max(...Object.values(p.actionCounts))} max actions
                 </div>
               </div>
             ))}
@@ -2056,29 +2298,80 @@ export default function StressTestV2() {
       {/* ═══ PRODUCT TABS ═══ */}
       {current && (
         <div>
-          <div style={{
-            display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px",
-          }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "12px",
+            }}
+          >
             <span style={{ fontSize: "24px" }}>{current.icon}</span>
             <div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#e4e4e7" }}>{current.name}</div>
+              <div
+                style={{ fontSize: "14px", fontWeight: 700, color: "#e4e4e7" }}
+              >
+                {current.name}
+              </div>
               <Badge text={current.verdict} color={current.verdictColor} />
             </div>
           </div>
 
-          <div style={{
-            padding: "10px 14px", borderRadius: "5px", marginBottom: "12px",
-            border: `1px solid ${current.verdictColor}25`, backgroundColor: `${current.verdictColor}05`,
-            fontSize: "11px", color: "#a1a1aa", lineHeight: "1.7",
-          }}>{current.summary}</div>
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: `1px solid ${current.verdictColor}25`,
+              backgroundColor: `${current.verdictColor}05`,
+              fontSize: "11px",
+              color: "#a1a1aa",
+              lineHeight: "1.7",
+            }}
+          >
+            {current.summary}
+          </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", gap: "6px", marginBottom: "8px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "9px", fontWeight: 700, fontFamily: mono, color: "#52525b", paddingTop: "3px" }}>GROUPS:</span>
+          <div
+            style={{
+              display: "flex",
+              gap: "6px",
+              marginBottom: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "9px",
+                fontWeight: 700,
+                fontFamily: mono,
+                color: "#52525b",
+                paddingTop: "3px",
+              }}
+            >
+              GROUPS:
+            </span>
             {Object.entries(current.groupCounts).map(([t, c]) => (
-              <Badge key={t} text={`${t}: ${c}g`} color={c >= 8 ? "#f59e0b" : "#4ade80"} small />
+              <Badge
+                key={t}
+                text={`${t}: ${c}g`}
+                color={c >= 8 ? "#f59e0b" : "#4ade80"}
+                small
+              />
             ))}
-            <span style={{ fontSize: "9px", fontWeight: 700, fontFamily: mono, color: "#52525b", paddingTop: "3px", marginLeft: "8px" }}>ACTIONS:</span>
+            <span
+              style={{
+                fontSize: "9px",
+                fontWeight: 700,
+                fontFamily: mono,
+                color: "#52525b",
+                paddingTop: "3px",
+                marginLeft: "8px",
+              }}
+            >
+              ACTIONS:
+            </span>
             {Object.entries(current.actionCounts).map(([t, c]) => (
               <Badge key={t} text={`${t}: ${c}a`} color="#818cf8" small />
             ))}
@@ -2087,23 +2380,63 @@ export default function StressTestV2() {
           {/* Gaps closed */}
           {current.gaps_closed.length > 0 && (
             <div style={{ marginBottom: "8px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, fontFamily: mono, color: "#4ade80", marginBottom: "4px" }}>GAPS CLOSED IN v2</div>
+              <div
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  fontFamily: mono,
+                  color: "#4ade80",
+                  marginBottom: "4px",
+                }}
+              >
+                GAPS CLOSED IN v2
+              </div>
               {current.gaps_closed.map((g, i) => (
-                <div key={i} style={{
-                  padding: "4px 10px", marginBottom: "2px", borderRadius: "3px",
-                  border: "1px solid #4ade8015", fontSize: "10px", color: "#71717a", lineHeight: "1.5",
-                }}>✓ {g}</div>
+                <div
+                  key={i}
+                  style={{
+                    padding: "4px 10px",
+                    marginBottom: "2px",
+                    borderRadius: "3px",
+                    border: "1px solid #4ade8015",
+                    fontSize: "10px",
+                    color: "#71717a",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  ✓ {g}
+                </div>
               ))}
             </div>
           )}
           {current.remaining_gaps.length > 0 && (
             <div style={{ marginBottom: "8px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, fontFamily: mono, color: "#f59e0b", marginBottom: "4px" }}>REMAINING CONSIDERATIONS</div>
+              <div
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  fontFamily: mono,
+                  color: "#f59e0b",
+                  marginBottom: "4px",
+                }}
+              >
+                REMAINING CONSIDERATIONS
+              </div>
               {current.remaining_gaps.map((g, i) => (
-                <div key={i} style={{
-                  padding: "4px 10px", marginBottom: "2px", borderRadius: "3px",
-                  border: "1px solid #f59e0b15", fontSize: "10px", color: "#71717a", lineHeight: "1.5",
-                }}>⚠ {g}</div>
+                <div
+                  key={i}
+                  style={{
+                    padding: "4px 10px",
+                    marginBottom: "2px",
+                    borderRadius: "3px",
+                    border: "1px solid #f59e0b15",
+                    fontSize: "10px",
+                    color: "#71717a",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  ⚠ {g}
+                </div>
               ))}
             </div>
           )}
@@ -2115,7 +2448,16 @@ export default function StressTestV2() {
       {/* ═══ FINAL VERDICT ═══ */}
       {tab === "summary" && (
         <div>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "#e4e4e7", marginBottom: "16px" }}>Final Verdict: auth.yaml v2 Handles All Five</div>
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: 700,
+              color: "#e4e4e7",
+              marginBottom: "16px",
+            }}
+          >
+            Final Verdict: auth.yaml v2 Handles All Five
+          </div>
 
           {[
             {
@@ -2163,22 +2505,46 @@ export default function StressTestV2() {
               ],
             },
           ].map((section, i) => (
-            <div key={i} style={{
-              marginBottom: "12px", borderRadius: "6px",
-              border: `1px solid ${section.color}25`, overflow: "hidden",
-            }}>
-              <div style={{
-                padding: "8px 14px", backgroundColor: `${section.color}08`,
-                borderBottom: `1px solid ${section.color}15`,
-                fontSize: "12px", fontWeight: 700, color: "#e4e4e7",
-              }}>{section.title}</div>
+            <div
+              key={i}
+              style={{
+                marginBottom: "12px",
+                borderRadius: "6px",
+                border: `1px solid ${section.color}25`,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "8px 14px",
+                  backgroundColor: `${section.color}08`,
+                  borderBottom: `1px solid ${section.color}15`,
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#e4e4e7",
+                }}
+              >
+                {section.title}
+              </div>
               <div style={{ padding: "8px 14px" }}>
                 {section.items.map((item, j) => (
-                  <div key={j} style={{
-                    padding: "4px 0", fontSize: "10.5px", color: "#a1a1aa",
-                    lineHeight: "1.6", borderBottom: j < section.items.length - 1 ? "1px solid #111114" : "none",
-                    paddingBottom: "6px", marginBottom: "4px",
-                  }}>{item}</div>
+                  <div
+                    key={j}
+                    style={{
+                      padding: "4px 0",
+                      fontSize: "10.5px",
+                      color: "#a1a1aa",
+                      lineHeight: "1.6",
+                      borderBottom:
+                        j < section.items.length - 1
+                          ? "1px solid #111114"
+                          : "none",
+                      paddingBottom: "6px",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    {item}
+                  </div>
                 ))}
               </div>
             </div>
@@ -2186,5 +2552,5 @@ export default function StressTestV2() {
         </div>
       )}
     </div>
-  );
+  )
 }

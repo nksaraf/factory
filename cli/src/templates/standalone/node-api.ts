@@ -1,11 +1,19 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { componentLabels, resourceLabels, labelsToYaml } from "../compose-labels.js";
-import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import {
+  componentLabels,
+  resourceLabels,
+  labelsToYaml,
+} from "../compose-labels.js"
+import {
+  nodeQualityPackageJson,
+  nodeQualityFiles,
+  nodePrettierConfig,
+} from "../quality-configs.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, owner, description } = vars;
+  const { name, owner, description } = vars
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // package.json
   files.push({
@@ -44,9 +52,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // tsconfig.json
   files.push({
@@ -69,9 +77,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         include: ["src/**/*.ts"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // app.config.ts
   files.push({
@@ -89,7 +97,7 @@ export default createApp({
   ],
 });
 `,
-  });
+  })
 
   // drizzle.config.ts
   files.push({
@@ -105,7 +113,7 @@ export default defineConfig({
   },
 });
 `,
-  });
+  })
 
   // Dockerfile
   files.push({
@@ -134,7 +142,7 @@ EXPOSE 3000
 
 CMD ["node", ".output/server/index.mjs"]
 `,
-  });
+  })
 
   // docker-compose.yaml
   const svcLabels = componentLabels({
@@ -143,14 +151,14 @@ CMD ["node", ".output/server/index.mjs"]
     description,
     runtime: "node",
     port: { number: 3000, name: "http", protocol: "tcp" },
-  });
+  })
 
   const pgLabels = resourceLabels({
     type: "database",
     owner,
     description: `PostgreSQL database for ${name}`,
     port: { number: 5432, name: "postgresql", protocol: "tcp" },
-  });
+  })
 
   files.push({
     path: "docker-compose.yaml",
@@ -189,7 +197,7 @@ ${labelsToYaml(pgLabels, 6)}
 volumes:
   ${name}-pgdata:
 `,
-  });
+  })
 
   // src/handler.ts
   files.push({
@@ -206,7 +214,7 @@ export default defineEventHandler(async (event) => {
   return app.fetch(request);
 });
 `,
-  });
+  })
 
   // src/server.ts
   files.push({
@@ -228,7 +236,7 @@ export async function createServer() {
 
 export type Server = Awaited<ReturnType<typeof createServer>>;
 `,
-  });
+  })
 
   // src/health.ts
   files.push({
@@ -239,7 +247,7 @@ export const healthRoutes = new Elysia().get("/health", () => ({
   status: "ok",
 }));
 `,
-  });
+  })
 
   // src/plugins/auth.plugin.ts
   files.push({
@@ -273,7 +281,7 @@ export const authPlugin = new Elysia({ name: "auth" }).derive(
   },
 );
 `,
-  });
+  })
 
   // src/db/connection.ts
   files.push({
@@ -289,18 +297,18 @@ export const db = drizzle(
 
 export type Database = typeof db;
 `,
-  });
+  })
 
   // src/db/schema/index.ts
   files.push({
     path: "src/db/schema/index.ts",
     content: `// Add your Drizzle schema definitions here and export them.
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(nodePrettierConfig());
-  files.push(...nodeQualityFiles());
+  files.push(nodePrettierConfig())
+  files.push(...nodeQualityFiles())
 
-  return files;
+  return files
 }

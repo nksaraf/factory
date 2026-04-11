@@ -1,8 +1,19 @@
 import { Badge } from "@rio.js/ui-next/components/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@rio.js/ui-next/components/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@rio.js/ui-next/components/avatar"
 import { Skeleton } from "@rio.js/ui-next/components/skeleton"
 import { Progress } from "@rio.js/ui-next/components/progress"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rio.js/ui-next/components/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@rio.js/ui-next/components/table"
 
 # Data Display
 
@@ -91,17 +102,23 @@ Components for presenting data and status information.
     <TableBody>
       <TableRow>
         <TableCell>Alice Johnson</TableCell>
-        <TableCell><Badge>Active</Badge></TableCell>
+        <TableCell>
+          <Badge>Active</Badge>
+        </TableCell>
         <TableCell>Admin</TableCell>
       </TableRow>
       <TableRow>
         <TableCell>Bob Smith</TableCell>
-        <TableCell><Badge variant="secondary">Inactive</Badge></TableCell>
+        <TableCell>
+          <Badge variant="secondary">Inactive</Badge>
+        </TableCell>
         <TableCell>Editor</TableCell>
       </TableRow>
       <TableRow>
         <TableCell>Carol Williams</TableCell>
-        <TableCell><Badge variant="outline">Pending</Badge></TableCell>
+        <TableCell>
+          <Badge variant="outline">Pending</Badge>
+        </TableCell>
         <TableCell>Viewer</TableCell>
       </TableRow>
     </TableBody>

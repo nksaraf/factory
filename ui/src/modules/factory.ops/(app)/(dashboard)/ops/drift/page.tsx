@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
+import { useDeploymentTargets, useWorkloads } from "@/lib/ops"
 import { Link } from "react-router"
 
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
@@ -20,7 +20,7 @@ function DriftSection({
   return (
     <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
       <Link
-        to={`/fleet/targets/${targetSlug}`}
+        to={`/ops/targets/${targetSlug}`}
         className="font-medium hover:underline"
       >
         {targetName}
@@ -66,7 +66,7 @@ export default function DriftReportPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Drift Report"
         description="Workloads where desired state ≠ actual state"
       />

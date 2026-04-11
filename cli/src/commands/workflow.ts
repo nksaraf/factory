@@ -40,7 +40,7 @@ export function workflowCommand(app: DxBase) {
                 description: string
                 triggerTypes: string[]
               }>
-            }>("GET", "/api/factory/workflow/definitions")
+            }>("GET", "/api/v1/factory/workflow/definitions")
 
             if (json) {
               console.log(JSON.stringify(res.data, null, 2))
@@ -100,7 +100,7 @@ export function workflowCommand(app: DxBase) {
               success: boolean
               workflowRunId?: string
               error?: string
-            }>("POST", "/api/factory/workflow/runs", {
+            }>("POST", "/api/v1/factory/workflow/runs", {
               workflowName: name,
               input,
             })
@@ -155,7 +155,7 @@ export function workflowCommand(app: DxBase) {
             const client = await getFactoryRestClient()
             const res = await client.request<{ data: any[] }>(
               "GET",
-              `/api/factory/workflow/runs${qs}`
+              `/api/v1/factory/workflow/runs${qs}`
             )
 
             if (json) {
@@ -198,7 +198,7 @@ export function workflowCommand(app: DxBase) {
             const client = await getFactoryRestClient()
             const res = await client.request<{ data: any }>(
               "GET",
-              `/api/factory/workflow/runs/${args.id}`
+              `/api/v1/factory/workflow/runs/${args.id}`
             )
 
             if (json) {
@@ -248,7 +248,7 @@ export function workflowCommand(app: DxBase) {
             const res = await client.request<{
               success: boolean
               error?: string
-            }>("POST", `/api/factory/workflow/runs/${args.id}/cancel`)
+            }>("POST", `/api/v1/factory/workflow/runs/${args.id}/cancel`)
 
             if (json) {
               console.log(JSON.stringify(res, null, 2))
@@ -302,7 +302,7 @@ export function workflowCommand(app: DxBase) {
             const res = await client.request<{
               success: boolean
               eventName: string
-            }>("POST", "/api/factory/workflow/events", {
+            }>("POST", "/api/v1/factory/workflow/events", {
               eventName: args.eventName,
               data,
             })
@@ -342,7 +342,7 @@ export function workflowCommand(app: DxBase) {
             const client = await getFactoryRestClient()
             const res = await client.request<{ data: any[] }>(
               "GET",
-              `/api/factory/workflow/subscriptions${qs}`
+              `/api/v1/factory/workflow/subscriptions${qs}`
             )
 
             if (json) {

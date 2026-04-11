@@ -1,6 +1,18 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@rio.js/ui-next/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@rio.js/ui-next/components/card"
 import { Separator } from "@rio.js/ui-next/components/separator"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@rio.js/ui-next/components/accordion"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@rio.js/ui-next/components/accordion"
 import { ScrollArea } from "@rio.js/ui-next/components/scroll-area"
 import { Button } from "@rio.js/ui-next/components/button"
 
@@ -17,10 +29,14 @@ Structural components for organizing content.
       <CardDescription>Card description with supporting text.</CardDescription>
     </CardHeader>
     <CardContent>
-      <p className="text-sm">This is the card body content. It can contain any elements.</p>
+      <p className="text-sm">
+        This is the card body content. It can contain any elements.
+      </p>
     </CardContent>
     <CardFooter className="flex justify-end gap-2">
-      <Button variant="outline" size="sm">Cancel</Button>
+      <Button variant="outline" size="sm">
+        Cancel
+      </Button>
       <Button size="sm">Save</Button>
     </CardFooter>
   </Card>
@@ -105,6 +121,8 @@ Structural components for organizing content.
 
 ```tsx
 <ScrollArea className="h-48 w-48 rounded-md border p-4">
-  {items.map(item => <div key={item}>{item}</div>)}
+  {items.map((item) => (
+    <div key={item}>{item}</div>
+  ))}
 </ScrollArea>
 ```

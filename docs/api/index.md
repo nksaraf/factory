@@ -5,7 +5,7 @@ The Factory API provides programmatic access to all platform entities across the
 ## Base URL
 
 ```
-https://factory.yourdomain.com/api/factory
+https://factory.yourdomain.com/api/v1/factory
 ```
 
 ## Authentication
@@ -14,7 +14,7 @@ All API requests require a Bearer JWT token:
 
 ```bash
 curl -H "Authorization: Bearer $FACTORY_TOKEN" \
-  https://factory.yourdomain.com/api/factory/org/teams
+  https://factory.yourdomain.com/api/v1/factory/org/teams
 ```
 
 ## Response Format
@@ -81,11 +81,11 @@ All entities share these patterns:
 
 ## Domains
 
-| Domain                    | Description                           | Endpoint Prefix          |
-| ------------------------- | ------------------------------------- | ------------------------ |
-| [org](/api/org)           | Teams, principals, agents, threads    | `/api/factory/org/`      |
-| [software](/api/software) | Systems, components, artifacts        | `/api/factory/software/` |
-| [infra](/api/infra)       | Estate, hosts, realms, services       | `/api/factory/infra/`    |
-| [ops](/api/ops)           | Sites, tenants, deployments, previews | `/api/factory/ops/`      |
-| [build](/api/build)       | Repos, pipelines, versions            | `/api/factory/build/`    |
-| [commerce](/api/commerce) | Customers, plans, subscriptions       | `/api/factory/commerce/` |
+| Domain                    | Description                           | Endpoint Prefix             |
+| ------------------------- | ------------------------------------- | --------------------------- |
+| [org](/api/org)           | Teams, principals, agents, threads    | `/api/v1/factory/org/`      |
+| [software](/api/software) | Systems, components, artifacts        | `/api/v1/factory/software/` |
+| [infra](/api/infra)       | Estate, hosts, realms, services       | `/api/v1/factory/infra/`    |
+| [ops](/api/ops)           | Sites, tenants, deployments, previews | `/api/v1/factory/ops/`      |
+| [build](/api/build)       | Repos, pipelines, versions            | `/api/v1/factory/build/`    |
+| [commerce](/api/commerce) | Customers, plans, subscriptions       | `/api/v1/factory/commerce/` |

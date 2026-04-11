@@ -27,8 +27,9 @@ export function WorkflowsSection() {
             <p className="mx-auto max-w-3xl text-xl leading-relaxed text-scale-1000">
               SmartMarket Workflows gives you a powerful, interactive playground
               to build custom market analysis pipelines, scoring models, and
-              automated optimization systems. Connect nodes, run real-time computations,
-              and transform location data into actionable growth strategies—all in an intuitive visual interface.
+              automated optimization systems. Connect nodes, run real-time
+              computations, and transform location data into actionable growth
+              strategies—all in an intuitive visual interface.
             </p>
           </div>
 
@@ -43,9 +44,9 @@ export function WorkflowsSection() {
                   Visual Pipeline Builder
                 </p>
                 <p className="text-sm text-scale-1000">
-                  Drag and drop nodes to create complex market analysis pipelines.
-                  Connect data sources, scoring models, and optimization algorithms
-                  with an intuitive visual interface
+                  Drag and drop nodes to create complex market analysis
+                  pipelines. Connect data sources, scoring models, and
+                  optimization algorithms with an intuitive visual interface
                 </p>
               </div>
             </div>
@@ -60,8 +61,8 @@ export function WorkflowsSection() {
                 </p>
                 <p className="text-sm text-scale-1000">
                   Build intelligent, AI-powered workflows that adapt and make
-                  decisions based on market data. Create automated systems
-                  that optimize beats, assign territories, and rebalance routes
+                  decisions based on market data. Create automated systems that
+                  optimize beats, assign territories, and rebalance routes
                 </p>
               </div>
             </div>
@@ -75,9 +76,10 @@ export function WorkflowsSection() {
                   Real-Time Market Scoring
                 </p>
                 <p className="text-sm text-scale-1000">
-                  Run market computations in real-time as you build. See opportunity
-                  scores instantly, iterate quickly on expansion scenarios, and
-                  experiment with different territory strategies in your playground
+                  Run market computations in real-time as you build. See
+                  opportunity scores instantly, iterate quickly on expansion
+                  scenarios, and experiment with different territory strategies
+                  in your playground
                 </p>
               </div>
             </div>
@@ -91,9 +93,9 @@ export function WorkflowsSection() {
                   Market Analysis Library
                 </p>
                 <p className="text-sm text-scale-1000">
-                  Access a comprehensive library of market analysis nodes, scoring
-                  models, and optimization algorithms. From white space detection
-                  to revenue prediction, build exactly what you need
+                  Access a comprehensive library of market analysis nodes,
+                  scoring models, and optimization algorithms. From white space
+                  detection to revenue prediction, build exactly what you need
                 </p>
               </div>
             </div>

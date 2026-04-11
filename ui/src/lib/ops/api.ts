@@ -1,5 +1,5 @@
 /**
- * Factory Fleet API client — typed fetch wrapper for the fleet REST endpoints.
+ * Typed fetch wrapper for `/api/v1/factory/ops/*` REST endpoints.
  *
  * Used as the fallback data source when PowerSync is disabled, and always
  * used for write operations (PowerSync is read-path only).
@@ -7,14 +7,14 @@
 import { rio } from "../rio"
 
 function getBaseUrl(): string {
-  return `${rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/factory"}/fleet`
+  return `${rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"}/ops`
 }
 
 function getAuthToken(): string | null {
   return localStorage.getItem("jwt") ?? localStorage.getItem("bearer_token")
 }
 
-export async function fleetFetch<T = unknown>(
+export async function opsFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -35,9 +35,7 @@ export async function fleetFetch<T = unknown>(
     const error = await response
       .json()
       .catch(() => ({ error: response.statusText }))
-    throw new Error(
-      error.error || `Fleet API request failed: ${response.status}`
-    )
+    throw new Error(error.error || `Ops API request failed: ${response.status}`)
   }
 
   return response.json()

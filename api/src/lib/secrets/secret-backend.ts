@@ -7,51 +7,51 @@
  */
 
 export interface SecretEntry {
-  key: string;
-  value: string; // plaintext (decrypted by backend)
+  key: string
+  value: string // plaintext (decrypted by backend)
 }
 
 export interface SetSecretParams {
-  key: string;
-  value: string;
-  scopeType: string;
-  scopeId?: string | null;
-  environment?: string | null;
-  createdBy?: string | null;
+  key: string
+  value: string
+  scopeType: string
+  scopeId?: string | null
+  environment?: string | null
+  createdBy?: string | null
 }
 
 export interface GetSecretParams {
-  key: string;
-  scopeType: string;
-  scopeId?: string | null;
-  environment?: string | null;
+  key: string
+  scopeType: string
+  scopeId?: string | null
+  environment?: string | null
 }
 
 export interface ListSecretsParams {
-  scopeType: string;
-  scopeId?: string | null;
-  environment?: string | null;
+  scopeType: string
+  scopeId?: string | null
+  environment?: string | null
 }
 
 export interface ListSecretEntry {
-  key: string;
-  scopeType: string;
-  scopeId: string | null;
-  environment: string | null;
-  updatedAt: Date;
+  key: string
+  scopeType: string
+  scopeId: string | null
+  environment: string | null
+  updatedAt: Date
 }
 
 export interface ResolveSecretsParams {
-  teamId?: string | null;
-  projectId?: string | null;
-  environment?: string | null;
+  teamId?: string | null
+  projectId?: string | null
+  environment?: string | null
 }
 
 export interface SecretBackend {
-  set(params: SetSecretParams): Promise<void>;
-  get(params: GetSecretParams): Promise<string | null>;
-  list(params: ListSecretsParams): Promise<ListSecretEntry[]>;
-  remove(params: GetSecretParams): Promise<boolean>;
+  set(params: SetSecretParams): Promise<void>
+  get(params: GetSecretParams): Promise<string | null>
+  list(params: ListSecretsParams): Promise<ListSecretEntry[]>
+  remove(params: GetSecretParams): Promise<boolean>
   /** Resolve all secrets for a context, applying hierarchy precedence. */
-  resolve(params: ResolveSecretsParams): Promise<SecretEntry[]>;
+  resolve(params: ResolveSecretsParams): Promise<SecretEntry[]>
 }

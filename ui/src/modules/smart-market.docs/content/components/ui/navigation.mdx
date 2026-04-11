@@ -3,7 +3,12 @@
 Components for navigating between views, organizing content into tabs, and presenting contextual actions.
 
 ```tsx
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rio.js/ui-next/components/tabs"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@rio.js/ui-next/components/tabs"
 ```
 
 ---
@@ -53,8 +58,12 @@ Tabs support three visual variants: `default` (filled background), `outline` (un
     <p className="text-xs text-muted-foreground mb-2">Default</p>
     <Tabs defaultValue="a" variant="default">
       <TabsList variant="default">
-        <TabsTrigger value="a" variant="default">Overview</TabsTrigger>
-        <TabsTrigger value="b" variant="default">Details</TabsTrigger>
+        <TabsTrigger value="a" variant="default">
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="b" variant="default">
+          Details
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   </div>
@@ -62,8 +71,12 @@ Tabs support three visual variants: `default` (filled background), `outline` (un
     <p className="text-xs text-muted-foreground mb-2">Outline</p>
     <Tabs defaultValue="a" variant="outline">
       <TabsList variant="outline">
-        <TabsTrigger value="a" variant="outline">Overview</TabsTrigger>
-        <TabsTrigger value="b" variant="outline">Details</TabsTrigger>
+        <TabsTrigger value="a" variant="outline">
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="b" variant="outline">
+          Details
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   </div>
@@ -71,8 +84,12 @@ Tabs support three visual variants: `default` (filled background), `outline` (un
     <p className="text-xs text-muted-foreground mb-2">Pills</p>
     <Tabs defaultValue="a" variant="pills">
       <TabsList variant="pills">
-        <TabsTrigger value="a" variant="pills">Overview</TabsTrigger>
-        <TabsTrigger value="b" variant="pills">Details</TabsTrigger>
+        <TabsTrigger value="a" variant="pills">
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="b" variant="pills">
+          Details
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   </div>
@@ -95,11 +112,11 @@ const [tab, setTab] = useState("overview")
 
 ### Tab structure
 
-| Component | Purpose |
-|-----------|---------|
-| `Tabs` | Root — manages active tab state |
-| `TabsList` | Container for tab triggers (the tab bar) |
-| `TabsTrigger` | Clickable tab label |
+| Component     | Purpose                                    |
+| ------------- | ------------------------------------------ |
+| `Tabs`        | Root — manages active tab state            |
+| `TabsList`    | Container for tab triggers (the tab bar)   |
+| `TabsTrigger` | Clickable tab label                        |
 | `TabsContent` | Panel content shown when its tab is active |
 
 ---
@@ -109,7 +126,14 @@ const [tab, setTab] = useState("overview")
 A trail showing the user's location in a hierarchy. Use for multi-level navigation where users need to backtrack.
 
 ```tsx
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@rio.js/ui-next/components/breadcrumb"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@rio.js/ui-next/components/breadcrumb"
 ```
 
 <ComponentPreview>
@@ -150,21 +174,20 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 
 ### Breadcrumb structure
 
-| Component | Purpose |
-|-----------|---------|
-| `Breadcrumb` | Root `<nav>` with `aria-label="breadcrumb"` |
-| `BreadcrumbList` | Ordered list container |
-| `BreadcrumbItem` | Individual breadcrumb segment |
-| `BreadcrumbLink` | Clickable link to a parent page |
-| `BreadcrumbPage` | Current page (non-clickable, `aria-current="page"`) |
-| `BreadcrumbSeparator` | Visual separator between items (default: `/`) |
+| Component             | Purpose                                             |
+| --------------------- | --------------------------------------------------- |
+| `Breadcrumb`          | Root `<nav>` with `aria-label="breadcrumb"`         |
+| `BreadcrumbList`      | Ordered list container                              |
+| `BreadcrumbItem`      | Individual breadcrumb segment                       |
+| `BreadcrumbLink`      | Clickable link to a parent page                     |
+| `BreadcrumbPage`      | Current page (non-clickable, `aria-current="page"`) |
+| `BreadcrumbSeparator` | Visual separator between items (default: `/`)       |
 
 ### With React Router
 
 ```tsx
 import { Link } from "react-router"
-
-<BreadcrumbLink asChild>
+;<BreadcrumbLink asChild>
   <Link to="/workspaces">Workspaces</Link>
 </BreadcrumbLink>
 ```
@@ -176,7 +199,13 @@ import { Link } from "react-router"
 A menu of actions or options triggered by clicking a button. Use for overflow menus, context actions, and navigation shortcuts.
 
 ```tsx
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@rio.js/ui-next/components/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@rio.js/ui-next/components/dropdown-menu"
 ```
 
 <ComponentPreview>
@@ -235,9 +264,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 ### Sub-menus
 
 ```tsx
-import { DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@rio.js/ui-next/components/dropdown-menu"
-
-<DropdownMenuSub>
+import {
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@rio.js/ui-next/components/dropdown-menu"
+;<DropdownMenuSub>
   <DropdownMenuSubTrigger>More options</DropdownMenuSubTrigger>
   <DropdownMenuSubContent>
     <DropdownMenuItem>Option A</DropdownMenuItem>
@@ -248,16 +280,16 @@ import { DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 
 
 ### Dropdown structure
 
-| Component | Purpose |
-|-----------|---------|
-| `DropdownMenu` | Root — manages open/close state |
-| `DropdownMenuTrigger` | Element that opens the menu |
-| `DropdownMenuContent` | The floating menu panel |
-| `DropdownMenuItem` | A single menu action |
-| `DropdownMenuSeparator` | Visual divider between groups |
-| `DropdownMenuLabel` | Non-interactive group heading |
-| `DropdownMenuShortcut` | Right-aligned keyboard shortcut hint |
-| `DropdownMenuSub` | Sub-menu container |
+| Component               | Purpose                              |
+| ----------------------- | ------------------------------------ |
+| `DropdownMenu`          | Root — manages open/close state      |
+| `DropdownMenuTrigger`   | Element that opens the menu          |
+| `DropdownMenuContent`   | The floating menu panel              |
+| `DropdownMenuItem`      | A single menu action                 |
+| `DropdownMenuSeparator` | Visual divider between groups        |
+| `DropdownMenuLabel`     | Non-interactive group heading        |
+| `DropdownMenuShortcut`  | Right-aligned keyboard shortcut hint |
+| `DropdownMenuSub`       | Sub-menu container                   |
 
 ---
 
@@ -265,55 +297,55 @@ import { DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 
 
 ### Tabs Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `string` | — | Controlled active tab |
-| `defaultValue` | `string` | — | Uncontrolled default tab |
-| `onValueChange` | `(value: string) => void` | — | Called when active tab changes |
-| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Layout direction |
+| Prop            | Type                         | Default        | Description                    |
+| --------------- | ---------------------------- | -------------- | ------------------------------ |
+| `value`         | `string`                     | —              | Controlled active tab          |
+| `defaultValue`  | `string`                     | —              | Uncontrolled default tab       |
+| `onValueChange` | `(value: string) => void`    | —              | Called when active tab changes |
+| `orientation`   | `"horizontal" \| "vertical"` | `"horizontal"` | Layout direction               |
 
 ### TabsList Variants
 
-| Variant | Style |
-|---------|-------|
-| `default` | Rounded container with muted background |
-| `outline` | Bottom border, no background |
-| `pills` | No background or border, pill-shaped active state |
+| Variant   | Style                                             |
+| --------- | ------------------------------------------------- |
+| `default` | Rounded container with muted background           |
+| `outline` | Bottom border, no background                      |
+| `pills`   | No background or border, pill-shaped active state |
 
 ### TabsTrigger Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `string` | — | Unique identifier for this tab (required) |
-| `disabled` | `boolean` | `false` | Disables the tab trigger |
+| Prop       | Type      | Default | Description                               |
+| ---------- | --------- | ------- | ----------------------------------------- |
+| `value`    | `string`  | —       | Unique identifier for this tab (required) |
+| `disabled` | `boolean` | `false` | Disables the tab trigger                  |
 
 ### BreadcrumbLink Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `href` | `string` | — | Link destination |
+| Prop      | Type      | Default | Description                                         |
+| --------- | --------- | ------- | --------------------------------------------------- |
+| `href`    | `string`  | —       | Link destination                                    |
 | `asChild` | `boolean` | `false` | Render as child element (e.g., React Router `Link`) |
 
 ### DropdownMenuContent Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `align` | `"start" \| "center" \| "end"` | `"center"` | Horizontal alignment relative to trigger |
-| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"bottom"` | Preferred side |
-| `sideOffset` | `number` | `4` | Distance from trigger in pixels |
+| Prop         | Type                                     | Default    | Description                              |
+| ------------ | ---------------------------------------- | ---------- | ---------------------------------------- |
+| `align`      | `"start" \| "center" \| "end"`           | `"center"` | Horizontal alignment relative to trigger |
+| `side`       | `"top" \| "right" \| "bottom" \| "left"` | `"bottom"` | Preferred side                           |
+| `sideOffset` | `number`                                 | `4`        | Distance from trigger in pixels          |
 
 ### DropdownMenuItem Props
 
 Supports RichProps for icons, tooltips, and permission gating.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `disabled` | `boolean` | `false` | Disables the menu item |
-| `onSelect` | `(event: Event) => void` | — | Called when item is selected |
-| `icon` | `string` | — | Iconify class for left icon |
-| `iconRight` | `string` | — | Iconify class for right icon |
-| `shortcut` | `string` | — | Keyboard shortcut hint (right-aligned) |
-| `loading` | `boolean` | `false` | Shows spinner and disables item |
-| `allowed` | `boolean` | — | Permission gate. `false` disables and shows `reason` |
-| `reason` | `string` | — | Tooltip text when `allowed` is `false` |
-| `inset` | `boolean` | `false` | Adds left padding to align with icon items |
+| Prop        | Type                     | Default | Description                                          |
+| ----------- | ------------------------ | ------- | ---------------------------------------------------- |
+| `disabled`  | `boolean`                | `false` | Disables the menu item                               |
+| `onSelect`  | `(event: Event) => void` | —       | Called when item is selected                         |
+| `icon`      | `string`                 | —       | Iconify class for left icon                          |
+| `iconRight` | `string`                 | —       | Iconify class for right icon                         |
+| `shortcut`  | `string`                 | —       | Keyboard shortcut hint (right-aligned)               |
+| `loading`   | `boolean`                | `false` | Shows spinner and disables item                      |
+| `allowed`   | `boolean`                | —       | Permission gate. `false` disables and shows `reason` |
+| `reason`    | `string`                 | —       | Tooltip text when `allowed` is `false`               |
+| `inset`     | `boolean`                | `false` | Adds left padding to align with icon items           |

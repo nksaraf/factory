@@ -250,59 +250,59 @@ docker compose pull, docker compose ps
 
 ### Auto-detection matrix
 
-| Command | Detection signals | Default execution |
-|---------|-------------------|-------------------|
-| `dx test` | `vitest.config.*` | `vitest run` |
-| | `jest.config.*` | `jest` |
-| | `pytest.ini` / `conftest.py` / `pyproject.toml[pytest]` | `pytest` |
-| | `go.mod` or `*_test.go` | `go test ./...` |
-| | `build.gradle` | `./gradlew test` |
-| | `Cargo.toml` | `cargo test` |
-| `dx lint` | `eslint.config.js` / `.eslintrc.*` | `eslint . --fix` |
-| | `biome.json` | `biome check --fix` |
-| | `.golangci-lint.yaml` | `golangci-lint run` |
-| | `ruff.toml` / `pyproject.toml[ruff]` | `ruff check . --fix` |
-| | `Cargo.toml` | `cargo clippy` |
-| `dx typecheck` | `tsconfig.json` | `tsc --noEmit` |
-| | `pyproject.toml[pyright]` | `pyright` |
-| | `pyproject.toml[mypy]` | `mypy .` |
-| | Go, Rust | N/A (compiler handles this) — skip silently |
-| `dx format` | `.prettierrc` / `prettier.config.*` | `prettier --write .` |
-| | `biome.json` | `biome format --write` |
-| | `Cargo.toml` | `cargo fmt` |
-| | `go.mod` | `gofmt -w .` |
-| | `ruff.toml` | `ruff format .` |
-| `dx build` | `vite.config.*` | `vite build` |
-| | `next.config.*` | `next build` |
-| | `tsconfig.json` (no framework) | `tsc` |
-| | `go.mod` | `go build ./...` |
-| | `Cargo.toml` | `cargo build --release` |
-| | `build.gradle` | `./gradlew build` |
-| | `Dockerfile` (fallback) | `docker compose build` |
-| `dx dev` (app) | `vite.config.*` | `vite` |
-| | `next.config.*` | `next dev` |
-| | `go.mod` + `air.toml` | `air` |
-| | `go.mod` (no air) | `go run ./cmd/server` |
-| | `Cargo.toml` | `cargo watch -x run` |
-| | `manage.py` | `python manage.py runserver` |
-| | uvicorn in deps | `uvicorn app.main:app --reload` |
-| `dx db migrate` | `prisma/schema.prisma` | `prisma migrate deploy` |
-| | `migrations/` + golang-migrate | `migrate -path migrations -database $DATABASE_URL up` |
-| | `alembic.ini` | `alembic upgrade head` |
-| | `knexfile.*` | `knex migrate:latest` |
-| | `drizzle.config.*` | `drizzle-kit migrate` |
-| | `manage.py` (Django) | `python manage.py migrate` |
-| `dx db connect` | docker-compose.yaml `image: postgres:*` | `psql` with auto-detected creds |
-| | docker-compose.yaml `image: mysql:*` | `mysql` with auto-detected creds |
-| | docker-compose.yaml `image: mongo:*` | `mongosh` with auto-detected creds |
-| `dx db seed` | `prisma/seed.ts` | `tsx prisma/seed.ts` |
-| | `src/db/seed.ts` | `tsx src/db/seed.ts` |
-| | `scripts/seed.*` | `bun run scripts/seed.*` |
-| `dx generate` | `prisma/schema.prisma` | `prisma generate` |
-| | `api/openapi.yaml` + openapi-ts | `openapi-typescript api/openapi.yaml -o src/types/api.ts` |
-| | `sqlc.yaml` | `sqlc generate` |
-| | `graphql.config.*` | `graphql-codegen` |
-| | Runs ALL detected generators in sequence | |
+| Command         | Detection signals                                       | Default execution                                         |
+| --------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| `dx test`       | `vitest.config.*`                                       | `vitest run`                                              |
+|                 | `jest.config.*`                                         | `jest`                                                    |
+|                 | `pytest.ini` / `conftest.py` / `pyproject.toml[pytest]` | `pytest`                                                  |
+|                 | `go.mod` or `*_test.go`                                 | `go test ./...`                                           |
+|                 | `build.gradle`                                          | `./gradlew test`                                          |
+|                 | `Cargo.toml`                                            | `cargo test`                                              |
+| `dx lint`       | `eslint.config.js` / `.eslintrc.*`                      | `eslint . --fix`                                          |
+|                 | `biome.json`                                            | `biome check --fix`                                       |
+|                 | `.golangci-lint.yaml`                                   | `golangci-lint run`                                       |
+|                 | `ruff.toml` / `pyproject.toml[ruff]`                    | `ruff check . --fix`                                      |
+|                 | `Cargo.toml`                                            | `cargo clippy`                                            |
+| `dx typecheck`  | `tsconfig.json`                                         | `tsc --noEmit`                                            |
+|                 | `pyproject.toml[pyright]`                               | `pyright`                                                 |
+|                 | `pyproject.toml[mypy]`                                  | `mypy .`                                                  |
+|                 | Go, Rust                                                | N/A (compiler handles this) — skip silently               |
+| `dx format`     | `.prettierrc` / `prettier.config.*`                     | `prettier --write .`                                      |
+|                 | `biome.json`                                            | `biome format --write`                                    |
+|                 | `Cargo.toml`                                            | `cargo fmt`                                               |
+|                 | `go.mod`                                                | `gofmt -w .`                                              |
+|                 | `ruff.toml`                                             | `ruff format .`                                           |
+| `dx build`      | `vite.config.*`                                         | `vite build`                                              |
+|                 | `next.config.*`                                         | `next build`                                              |
+|                 | `tsconfig.json` (no framework)                          | `tsc`                                                     |
+|                 | `go.mod`                                                | `go build ./...`                                          |
+|                 | `Cargo.toml`                                            | `cargo build --release`                                   |
+|                 | `build.gradle`                                          | `./gradlew build`                                         |
+|                 | `Dockerfile` (fallback)                                 | `docker compose build`                                    |
+| `dx dev` (app)  | `vite.config.*`                                         | `vite`                                                    |
+|                 | `next.config.*`                                         | `next dev`                                                |
+|                 | `go.mod` + `air.toml`                                   | `air`                                                     |
+|                 | `go.mod` (no air)                                       | `go run ./cmd/server`                                     |
+|                 | `Cargo.toml`                                            | `cargo watch -x run`                                      |
+|                 | `manage.py`                                             | `python manage.py runserver`                              |
+|                 | uvicorn in deps                                         | `uvicorn app.main:app --reload`                           |
+| `dx db migrate` | `prisma/schema.prisma`                                  | `prisma migrate deploy`                                   |
+|                 | `migrations/` + golang-migrate                          | `migrate -path migrations -database $DATABASE_URL up`     |
+|                 | `alembic.ini`                                           | `alembic upgrade head`                                    |
+|                 | `knexfile.*`                                            | `knex migrate:latest`                                     |
+|                 | `drizzle.config.*`                                      | `drizzle-kit migrate`                                     |
+|                 | `manage.py` (Django)                                    | `python manage.py migrate`                                |
+| `dx db connect` | docker-compose.yaml `image: postgres:*`                 | `psql` with auto-detected creds                           |
+|                 | docker-compose.yaml `image: mysql:*`                    | `mysql` with auto-detected creds                          |
+|                 | docker-compose.yaml `image: mongo:*`                    | `mongosh` with auto-detected creds                        |
+| `dx db seed`    | `prisma/seed.ts`                                        | `tsx prisma/seed.ts`                                      |
+|                 | `src/db/seed.ts`                                        | `tsx src/db/seed.ts`                                      |
+|                 | `scripts/seed.*`                                        | `bun run scripts/seed.*`                                  |
+| `dx generate`   | `prisma/schema.prisma`                                  | `prisma generate`                                         |
+|                 | `api/openapi.yaml` + openapi-ts                         | `openapi-typescript api/openapi.yaml -o src/types/api.ts` |
+|                 | `sqlc.yaml`                                             | `sqlc generate`                                           |
+|                 | `graphql.config.*`                                      | `graphql-codegen`                                         |
+|                 | Runs ALL detected generators in sequence                |                                                           |
 
 ### Variant flags
 
@@ -371,25 +371,25 @@ First run shows detection. Subsequent runs can be quieter. `--verbose` always sh
 
   // === dx reads this section ===
   "dx": {
-    "version": "2.4.0",           // dx template version (for dx upgrade)
-    "type": "service",            // service | frontend | library | monorepo
+    "version": "2.4.0", // dx template version (for dx upgrade)
+    "type": "service", // service | frontend | library | monorepo
     "team": "platform",
 
     "conventions": {
-      "commits": "conventional",  // conventional | none
-      "branching": "trunk"        // trunk | gitflow
+      "commits": "conventional", // conventional | none
+      "branching": "trunk", // trunk | gitflow
     },
 
     "deploy": {
       "preview": {
         "trigger": "pull-request",
-        "ttl": "72h"
+        "ttl": "72h",
       },
       "production": {
         "trigger": "release-tag",
-        "approval": true
-      }
-    }
+        "approval": true,
+      },
+    },
   },
 
   // === Scripts are OVERRIDES, not required ===
@@ -399,21 +399,21 @@ First run shows detection. Subsequent runs can be quieter. `--verbose` always sh
     // Example: custom test flags
     "test": "vitest run --pool=forks --reporter=verbose",
     // Example: custom migration tool
-    "db:migrate": "custom-migration-tool apply --config migrations.yaml"
+    "db:migrate": "custom-migration-tool apply --config migrations.yaml",
   },
 
   // === lint-staged config (used by pre-commit hook) ===
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
-    "*.{json,md,yaml,yml}": ["prettier --write"]
+    "*.{json,md,yaml,yml}": ["prettier --write"],
   },
 
-  "dependencies": { },
+  "dependencies": {},
   "devDependencies": {
     "@lepton/eslint-config": "^2.0.0",
     "@lepton/prettier-config": "^1.0.0",
-    "@lepton/tsconfig": "^1.0.0"
-  }
+    "@lepton/tsconfig": "^1.0.0",
+  },
 }
 ```
 
@@ -427,12 +427,12 @@ For non-JS projects (Go, Python, Java), `package.json` serves as a pure task run
   "dx": {
     "version": "2.4.0",
     "type": "service",
-    "runtime": "go"
+    "runtime": "go",
   },
   "scripts": {
     // Only needed if auto-detection defaults aren't right
-    "dev": "air -c .air.toml"
-  }
+    "dev": "air -c .air.toml",
+  },
 }
 ```
 
@@ -573,21 +573,25 @@ exec dx sync --quiet
 ### Hook implementations (inside dx, TypeScript)
 
 **`dx hook commit-msg <file>`:**
+
 - Reads `dx.conventions.commits` from `package.json`
 - If `conventional`: validates against pattern `^(feat|fix|chore|refactor|test|docs|perf|ci)(\(.+\))?: .{3,}`
 - Clear error message on failure with expected format and types listed
 - Exit 1 to block commit, exit 0 to allow
 
 **`dx hook pre-commit`:**
+
 - Runs `bunx lint-staged` (reads `lint-staged` config from `package.json`)
 - Auto-formats only staged files, keeping commits fast
 
 **`dx hook pre-push`:**
+
 - Runs `dx check` (full quality pipeline)
 - On failure: prints clear message and reminds developer of `git push --no-verify` escape hatch
 - Agents don't know `--no-verify`, so they always go through the gates
 
 **`dx hook post-merge` / `dx hook post-checkout`:**
+
 - Runs `dx sync --quiet` to heal local state after branch changes
 
 ### Git commit template
@@ -626,19 +630,19 @@ dx composes with external tools rather than competing with them. `dx install` en
 
 ### Tool responsibility matrix
 
-| Concern | Tool | dx's role |
-|---------|------|-----------|
-| Commits | `git` | Hooks enforce conventions |
-| Branches | `git` | Hooks validate naming (if configured) |
-| Push/pull | `git` | SSH multiplexing makes it fast (configured by dx install) |
-| PRs | `gh` | dx init configures branch protection rules via gh API |
-| PR reviews | `gh` / GitHub UI | Not dx's concern |
-| Repo creation | `gh` | dx init calls `gh repo create` internally |
-| Release creation | `dx release` | dx tags + calls `gh release create` + triggers deploy |
-| Local dev | `dx dev` | dx's core value-add |
-| Deploy | `dx deploy` | dx's core value-add |
-| Quality gates | `dx check` | dx's core value-add |
-| Docker operations | `docker compose` | dx wraps high-level workflows, delegates plumbing |
+| Concern           | Tool             | dx's role                                                 |
+| ----------------- | ---------------- | --------------------------------------------------------- |
+| Commits           | `git`            | Hooks enforce conventions                                 |
+| Branches          | `git`            | Hooks validate naming (if configured)                     |
+| Push/pull         | `git`            | SSH multiplexing makes it fast (configured by dx install) |
+| PRs               | `gh`             | dx init configures branch protection rules via gh API     |
+| PR reviews        | `gh` / GitHub UI | Not dx's concern                                          |
+| Repo creation     | `gh`             | dx init calls `gh repo create` internally                 |
+| Release creation  | `dx release`     | dx tags + calls `gh release create` + triggers deploy     |
+| Local dev         | `dx dev`         | dx's core value-add                                       |
+| Deploy            | `dx deploy`      | dx's core value-add                                       |
+| Quality gates     | `dx check`       | dx's core value-add                                       |
+| Docker operations | `docker compose` | dx wraps high-level workflows, delegates plumbing         |
 
 ### What `dx init` configures via `gh` API (one-time)
 
@@ -678,16 +682,16 @@ These are transparent aliases, not dx subcommands. No code to maintain.
 
 **dx wraps (adds genuine value beyond docker compose):**
 
-| dx command | What it does | Why not just docker compose |
-|------------|-------------|----------------------------|
-| `dx dev` | Pre-flight checks + docker compose up + migrations + codegen + app dev servers | Orchestrates multiple steps in order with health gates |
-| `dx dev stop` | `docker compose down` | Consistency with `dx dev` |
-| `dx dev reset` | `docker compose down -v` + rebuild | One command for "nuke everything" |
-| `dx status` | Docker state + dx metadata + health + env info | Adds context docker compose ps doesn't have |
-| `dx logs [svc]` | `docker compose logs -f [svc]` | Shorter, consistent (thin passthrough) |
-| `dx db connect` | Auto-detect DB service, creds, launch client, handle tunneling | Developer doesn't need to remember connection details |
-| `dx db migrate` | Auto-detect migration tool, ensure DB healthy, run | Abstracts over prisma/knex/alembic/golang-migrate |
-| `dx test` | Reads config, runs right tool with right flags | Abstracts over vitest/jest/pytest/go test |
+| dx command      | What it does                                                                   | Why not just docker compose                            |
+| --------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `dx dev`        | Pre-flight checks + docker compose up + migrations + codegen + app dev servers | Orchestrates multiple steps in order with health gates |
+| `dx dev stop`   | `docker compose down`                                                          | Consistency with `dx dev`                              |
+| `dx dev reset`  | `docker compose down -v` + rebuild                                             | One command for "nuke everything"                      |
+| `dx status`     | Docker state + dx metadata + health + env info                                 | Adds context docker compose ps doesn't have            |
+| `dx logs [svc]` | `docker compose logs -f [svc]`                                                 | Shorter, consistent (thin passthrough)                 |
+| `dx db connect` | Auto-detect DB service, creds, launch client, handle tunneling                 | Developer doesn't need to remember connection details  |
+| `dx db migrate` | Auto-detect migration tool, ensure DB healthy, run                             | Abstracts over prisma/knex/alembic/golang-migrate      |
+| `dx test`       | Reads config, runs right tool with right flags                                 | Abstracts over vitest/jest/pytest/go test              |
 
 **Developers use docker compose directly (dx does NOT wrap):**
 
@@ -704,6 +708,7 @@ docker compose ps             # use dx status instead, but this works too
 A common pattern is running infrastructure in Docker but the application natively on the host — because file watching through Docker volume mounts is slow on macOS and Windows.
 
 dx dev reads docker-compose.yaml and auto-classifies:
+
 - Services with only `image:` (no `build:`) → infrastructure → Docker
 - Services with `build:` + a detected dev command → application → run natively with hot reload
 
@@ -787,14 +792,14 @@ Registry auth
 
 ### Platform-specific concerns
 
-| Concern | Linux | macOS | Windows |
-|---------|-------|-------|---------|
-| Shell | bash/zsh | zsh (default) | PowerShell (+ Git Bash, + WSL) |
-| SSH ControlMaster | ✓ works | ✓ works | ✗ not supported |
-| Symlinks | ✓ | ✓ | requires Developer Mode |
-| Docker perf | native | Docker Desktop (good) | Docker Desktop + WSL2 (path-dependent) |
-| File watchers | inotify | FSEvents | ReadDirectoryChanges |
-| Line endings | LF | LF | CRLF (must be handled) |
+| Concern           | Linux    | macOS                 | Windows                                |
+| ----------------- | -------- | --------------------- | -------------------------------------- |
+| Shell             | bash/zsh | zsh (default)         | PowerShell (+ Git Bash, + WSL)         |
+| SSH ControlMaster | ✓ works  | ✓ works               | ✗ not supported                        |
+| Symlinks          | ✓        | ✓                     | requires Developer Mode                |
+| Docker perf       | native   | Docker Desktop (good) | Docker Desktop + WSL2 (path-dependent) |
+| File watchers     | inotify  | FSEvents              | ReadDirectoryChanges                   |
+| Line endings      | LF       | LF                    | CRLF (must be handled)                 |
 
 ### Critical cross-platform decisions
 
@@ -836,6 +841,7 @@ git config --global core.autocrlf true
 **SSH on Windows:**
 
 SSH `ControlMaster` doesn't work on Windows OpenSSH. `dx install` detects this and picks the faster auth path:
+
 - If SSH key exists → configure ssh-agent auto-start
 - If no SSH key → configure HTTPS + credential manager (faster on Windows)
 
@@ -863,6 +869,7 @@ macOS uses FSEvents (no limit issues). Windows uses ReadDirectoryChanges (no con
 ### What it configures
 
 `dx install` detects the platform and applies appropriate defaults. It follows this pattern:
+
 1. Check what's already configured
 2. Diff against recommended defaults
 3. Show what it wants to change
@@ -901,7 +908,9 @@ corepack enable    # respects packageManager field in package.json
 {
   "log-driver": "local",
   "log-opts": { "max-size": "10m", "max-file": "3" },
-  "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } },
+  "default-ulimits": {
+    "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 }
+  },
   "features": { "buildkit": true },
   "builder": { "gc": { "enabled": true, "defaultKeepStorage": "20GB" } }
 }
@@ -1079,11 +1088,11 @@ For Go, Python, Java projects: `dx init --type service --runtime go` generates a
 
 ### Three update layers
 
-| Layer | What updates | How | Frequency |
-|-------|-------------|-----|-----------|
-| Shared packages | lint/format/ts rules | `pnpm update` (Renovate/Dependabot) | Weekly (automated) |
-| Scaffolded files | hooks, CI, editor config | `dx upgrade` (interactive) | Monthly (manual) |
-| dx binary | CLI itself | `dx self-update` | As released |
+| Layer            | What updates             | How                                 | Frequency          |
+| ---------------- | ------------------------ | ----------------------------------- | ------------------ |
+| Shared packages  | lint/format/ts rules     | `pnpm update` (Renovate/Dependabot) | Weekly (automated) |
+| Scaffolded files | hooks, CI, editor config | `dx upgrade` (interactive)          | Monthly (manual)   |
+| dx binary        | CLI itself               | `dx self-update`                    | As released        |
 
 ### `dx upgrade` behavior
 
@@ -1245,9 +1254,20 @@ $ dx check
   "result": "pass",
   "duration_ms": 2300,
   "checks": {
-    "lint": { "tool": "eslint", "source": "auto-detect", "result": "pass", "errors": 0 },
+    "lint": {
+      "tool": "eslint",
+      "source": "auto-detect",
+      "result": "pass",
+      "errors": 0
+    },
     "typecheck": { "tool": "tsc", "source": "auto-detect", "result": "pass" },
-    "test": { "tool": "vitest", "source": "auto-detect", "result": "pass", "passed": 12, "failed": 0 }
+    "test": {
+      "tool": "vitest",
+      "source": "auto-detect",
+      "result": "pass",
+      "passed": 12,
+      "failed": 0
+    }
   }
 }
 ```
@@ -1441,11 +1461,25 @@ $ dx config
   "services": {
     "postgres": { "status": "running", "port": 5432, "health": "healthy" },
     "redis": { "status": "running", "port": 6379 },
-    "api": { "status": "running", "port": 3000, "hot_reload": true, "pid": 42311 },
-    "frontend": { "status": "running", "port": 5173, "hot_reload": true, "pid": 42315 }
+    "api": {
+      "status": "running",
+      "port": 3000,
+      "hot_reload": true,
+      "pid": 42311
+    },
+    "frontend": {
+      "status": "running",
+      "port": 5173,
+      "hot_reload": true,
+      "pid": 42315
+    }
   },
   "environments": {
-    "preview": { "url": "https://...", "version": "v0.2.3-preview.4", "health": "ok" },
+    "preview": {
+      "url": "https://...",
+      "version": "v0.2.3-preview.4",
+      "health": "ok"
+    },
     "prod": { "url": "https://...", "version": "v0.2.3", "health": "ok" }
   }
 }
@@ -1510,10 +1544,10 @@ Every dx command that returns information supports `--json` with a consistent st
 ```json
 {
   "command": "test",
-  "source": "auto-detect",         // or "package.json"
+  "source": "auto-detect", // or "package.json"
   "detected_from": "vitest.config.ts",
   "executed": "vitest run",
-  "result": "pass",                // "pass" | "fail" | "error"
+  "result": "pass", // "pass" | "fail" | "error"
   "summary": { "passed": 42, "failed": 0, "duration_ms": 1300 }
 }
 ```
@@ -1571,27 +1605,27 @@ my-product/
 
 ### What's checked in vs. gitignored
 
-| Category | Checked in? | Why |
-|----------|-------------|-----|
-| `package.json` | Yes | Source of truth for tasks + metadata |
-| `docker-compose.yaml` | Yes | Source of truth for services |
-| `.dx/hooks/*` | Yes | Conventions are code, reviewed like code |
-| `.dx/templates/*` | Yes | Team templates |
-| `.dx/local/` | No | Personal preferences and overrides |
-| `.vscode/` | Yes | Consistent editor experience |
-| `.cursor/rules` | Yes | Agent context |
-| `.claude/settings.json` | Yes | Agent context |
-| `.github/` | Yes | CI and PR templates |
-| `.gitattributes` | Yes | Cross-platform consistency |
-| `.editorconfig` | Yes | Editor-agnostic formatting |
-| `.npmrc` | Yes | Registry config (no tokens, uses env vars) |
-| `.node-version` | Yes | Node version pinning |
-| `eslint.config.js` | Yes | Extends shared config |
-| `.prettierrc` | Yes | Extends shared config |
-| `tsconfig.json` | Yes | Extends shared config |
-| `.env` | No | Generated by dx dev from config + secrets |
-| `node_modules/` | No | Installed from lockfile |
-| `dist/` | No | Build output |
+| Category                | Checked in? | Why                                        |
+| ----------------------- | ----------- | ------------------------------------------ |
+| `package.json`          | Yes         | Source of truth for tasks + metadata       |
+| `docker-compose.yaml`   | Yes         | Source of truth for services               |
+| `.dx/hooks/*`           | Yes         | Conventions are code, reviewed like code   |
+| `.dx/templates/*`       | Yes         | Team templates                             |
+| `.dx/local/`            | No          | Personal preferences and overrides         |
+| `.vscode/`              | Yes         | Consistent editor experience               |
+| `.cursor/rules`         | Yes         | Agent context                              |
+| `.claude/settings.json` | Yes         | Agent context                              |
+| `.github/`              | Yes         | CI and PR templates                        |
+| `.gitattributes`        | Yes         | Cross-platform consistency                 |
+| `.editorconfig`         | Yes         | Editor-agnostic formatting                 |
+| `.npmrc`                | Yes         | Registry config (no tokens, uses env vars) |
+| `.node-version`         | Yes         | Node version pinning                       |
+| `eslint.config.js`      | Yes         | Extends shared config                      |
+| `.prettierrc`           | Yes         | Extends shared config                      |
+| `tsconfig.json`         | Yes         | Extends shared config                      |
+| `.env`                  | No          | Generated by dx dev from config + secrets  |
+| `node_modules/`         | No          | Installed from lockfile                    |
+| `dist/`                 | No          | Build output                               |
 
 ### `.gitignore` template
 
@@ -1629,20 +1663,20 @@ Thumbs.db
 
 ## 22. Anti-Patterns — What dx Must Never Do
 
-| Anti-pattern | Why it's wrong | What to do instead |
-|--------------|---------------|-------------------|
-| Wrap `git commit` as `dx commit` | Fights developer muscle memory, zero agent training data, massive surface area to maintain | Enforce via `commit-msg` hook that calls `dx hook commit-msg` |
-| Wrap `git push` as `dx push` or `dx ship` | Same as above. `push.autoSetupRemote` eliminates the main pain point | Enforce via `pre-push` hook that calls `dx check` |
-| Wrap `gh pr create` as `dx pr create` | GitHub CLI is better maintained, more feature-complete, agents know it | Configure branch protection and PR templates via `dx init` |
-| Wrap `docker compose build/exec/run` | Power-user operations that don't need dx context | Let developers use `docker compose` directly |
-| Generate `docker-compose.yaml` on every run | Developers customize it. Regenerating blows away changes | Generate once at `dx init`, team owns it after that |
-| Generate CI workflow on every run | Same — teams customize CI | Generate once at `dx init`, team owns it |
-| Store dx config in a separate `.dx/config.yaml` | Creates sync problem with `package.json` and `docker-compose.yaml` | Use `package.json` `dx` key for metadata, `docker-compose.yaml` for services |
-| Require dx for basic git operations | Creates dependency, breaks in CI environments without dx | Hooks are the enforcement layer, git works without dx (just no conventions) |
-| Auto-update without asking | Developers hate tools that change under them | Check in background, print one-liner, require explicit `dx self-update` |
-| Assume Unix-only | Team is on Windows, Linux, and macOS | Use `core.hooksPath` not symlinks, POSIX sh hooks, platform detection in dx install |
-| Use static tokens for registries | They expire, break silently, waste debugging hours | Use credential helpers that auto-refresh |
-| Put secrets in `.env.example` | Developers copy it, forget to update, commit secrets | Generate `.env` from config + `.dx/local/secrets.yaml` at `dx dev` time |
+| Anti-pattern                                    | Why it's wrong                                                                             | What to do instead                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Wrap `git commit` as `dx commit`                | Fights developer muscle memory, zero agent training data, massive surface area to maintain | Enforce via `commit-msg` hook that calls `dx hook commit-msg`                       |
+| Wrap `git push` as `dx push` or `dx ship`       | Same as above. `push.autoSetupRemote` eliminates the main pain point                       | Enforce via `pre-push` hook that calls `dx check`                                   |
+| Wrap `gh pr create` as `dx pr create`           | GitHub CLI is better maintained, more feature-complete, agents know it                     | Configure branch protection and PR templates via `dx init`                          |
+| Wrap `docker compose build/exec/run`            | Power-user operations that don't need dx context                                           | Let developers use `docker compose` directly                                        |
+| Generate `docker-compose.yaml` on every run     | Developers customize it. Regenerating blows away changes                                   | Generate once at `dx init`, team owns it after that                                 |
+| Generate CI workflow on every run               | Same — teams customize CI                                                                  | Generate once at `dx init`, team owns it                                            |
+| Store dx config in a separate `.dx/config.yaml` | Creates sync problem with `package.json` and `docker-compose.yaml`                         | Use `package.json` `dx` key for metadata, `docker-compose.yaml` for services        |
+| Require dx for basic git operations             | Creates dependency, breaks in CI environments without dx                                   | Hooks are the enforcement layer, git works without dx (just no conventions)         |
+| Auto-update without asking                      | Developers hate tools that change under them                                               | Check in background, print one-liner, require explicit `dx self-update`             |
+| Assume Unix-only                                | Team is on Windows, Linux, and macOS                                                       | Use `core.hooksPath` not symlinks, POSIX sh hooks, platform detection in dx install |
+| Use static tokens for registries                | They expire, break silently, waste debugging hours                                         | Use credential helpers that auto-refresh                                            |
+| Put secrets in `.env.example`                   | Developers copy it, forget to update, commit secrets                                       | Generate `.env` from config + `.dx/local/secrets.yaml` at `dx dev` time             |
 
 ---
 
@@ -1658,11 +1692,11 @@ on:
   pull_request:
     branches: [main]
   push:
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   check:
-    runs-on: self-hosted    # Lepton Proxmox runners
+    runs-on: self-hosted # Lepton Proxmox runners
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2

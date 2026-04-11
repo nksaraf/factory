@@ -1,4 +1,4 @@
-import { useFleetSites } from "@/lib/fleet"
+import { useOpsSites } from "@/lib/ops"
 import { useClusters } from "@/lib/infra"
 import { useState } from "react"
 import { Link } from "react-router"
@@ -7,8 +7,8 @@ import { Input } from "@rio.js/ui/input"
 
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
 
-export default function FleetSitesPage() {
-  const { data: sites, isLoading } = useFleetSites()
+export default function OpsSitesPage() {
+  const { data: sites, isLoading } = useOpsSites()
   const { data: clusters } = useClusters()
   const [search, setSearch] = useState("")
 
@@ -22,11 +22,7 @@ export default function FleetSitesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <PlaneHeader
-        plane="fleet"
-        title="Fleet Map"
-        description="All deployed sites"
-      />
+      <PlaneHeader plane="ops" title="Sites" description="All deployed sites" />
 
       <Input
         placeholder="Search sites..."
@@ -51,7 +47,7 @@ export default function FleetSitesPage() {
         {filtered.map((site) => (
           <Link
             key={site.id}
-            to={`/fleet/sites/${site.slug}`}
+            to={`/ops/sites/${site.slug}`}
             className="block rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
           >
             <div className="flex items-start justify-between gap-2">

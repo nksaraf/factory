@@ -15,21 +15,24 @@ describe("conventions validate API", () => {
 
   it("validates branch names with optional conventions payload", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/conventions/validate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          type: "branch",
-          value: "feature/BILL-123-test",
-          conventions: {
-            branches: {
-              pattern: "{type}/{ticket}-{slug}",
-              types: ["feature", "hotfix"],
-              require_ticket: true,
+      new Request(
+        "http://localhost/api/v1/factory/build/conventions/validate",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            type: "branch",
+            value: "feature/BILL-123-test",
+            conventions: {
+              branches: {
+                pattern: "{type}/{ticket}-{slug}",
+                types: ["feature", "hotfix"],
+                require_ticket: true,
+              },
             },
-          },
-        }),
-      })
+          }),
+        }
+      )
     )
     expect(res.status).toBe(200)
     const json = (await res.json()) as {
@@ -42,17 +45,20 @@ describe("conventions validate API", () => {
 
   it("rejects invalid commits when conventional format required", async () => {
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/conventions/validate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          type: "commit",
-          value: "not conventional",
-          conventions: {
-            commits: { format: "conventional", require_scope: false },
-          },
-        }),
-      })
+      new Request(
+        "http://localhost/api/v1/factory/build/conventions/validate",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            type: "commit",
+            value: "not conventional",
+            conventions: {
+              commits: { format: "conventional", require_scope: false },
+            },
+          }),
+        }
+      )
     )
     const json = (await res.json()) as {
       data: { valid: boolean }

@@ -6,9 +6,9 @@ export function TestimonialSection() {
       <div className="container mx-auto px-6">
         <div className="mx-auto max-w-3xl text-center">
           <blockquote className="mb-8 text-3xl font-semibold leading-relaxed text-scale-100 lg:text-5xl">
-            "SmartMarket cut our site selection cycle from 6 weeks to 3 days.
-            We opened 40 new outlets last quarter—every one hitting revenue
-            targets within 90 days."
+            "SmartMarket cut our site selection cycle from 6 weeks to 3 days. We
+            opened 40 new outlets last quarter—every one hitting revenue targets
+            within 90 days."
           </blockquote>
           <p className="text-lg font-medium text-teal-100">
             Head of Expansion, Leading QSR Chain

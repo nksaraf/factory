@@ -63,7 +63,9 @@ Options:
   } else if (source in SOURCES) {
     await SOURCES[source as keyof typeof SOURCES](opts)
   } else {
-    console.error(`Unknown source: ${source}. Use claude-code, conductor, cursor, or all.`)
+    console.error(
+      `Unknown source: ${source}. Use claude-code, conductor, cursor, or all.`
+    )
     process.exit(1)
   }
 }

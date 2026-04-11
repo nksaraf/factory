@@ -12,7 +12,7 @@ You deploy, restart, log, exec, scale, and debug **components**. The api server.
 
 The module is a logical grouping. The component is the operational reality.
 
-And then there's the question of *where* those components run. A developer running `dx dev` has their components in Docker Compose on localhost. A PR preview has those same components in an ephemeral K8s namespace. A production Site has those same components in a managed, governed, multi-tenant environment. The containers are the same. The context around them is wildly different.
+And then there's the question of _where_ those components run. A developer running `dx dev` has their components in Docker Compose on localhost. A PR preview has those same components in an ephemeral K8s namespace. A production Site has those same components in a managed, governed, multi-tenant environment. The containers are the same. The context around them is wildly different.
 
 The previous model was too clean. This document is the messy truth.
 
@@ -38,13 +38,13 @@ A module is made of one or more components. Most modules have 2-4.
 
 ### 2.2 Component Types
 
-| Type | Has Port | Has Ingress | Scales Horizontally | Examples |
-|---|---|---|---|---|
-| **server** | yes | yes | yes | api, graphql, frontend, admin-ui |
-| **worker** | no | no | yes | queue consumer, event processor, ETL worker |
-| **cron** | no | no | no (single) | scheduler, cleanup job, report generator |
-| **job** | no | no | no (run-to-completion) | migration, seed, one-time backfill |
-| **daemon** | optional | no | per-node | log collector, monitoring sidecar |
+| Type       | Has Port | Has Ingress | Scales Horizontally    | Examples                                    |
+| ---------- | -------- | ----------- | ---------------------- | ------------------------------------------- |
+| **server** | yes      | yes         | yes                    | api, graphql, frontend, admin-ui            |
+| **worker** | no       | no          | yes                    | queue consumer, event processor, ETL worker |
+| **cron**   | no       | no          | no (single)            | scheduler, cleanup job, report generator    |
+| **job**    | no       | no          | no (run-to-completion) | migration, seed, one-time backfill          |
+| **daemon** | optional | no          | per-node               | log collector, monitoring sidecar           |
 
 ### 2.3 Where Component Lives Across Planes
 
@@ -253,21 +253,21 @@ Regardless of where components run, the following are identical:
 
 ### 3.4 What Differs Across the Spectrum
 
-| Concern | Local Dev | Sandbox | Staging Site | Production Site |
-|---|---|---|---|---|
-| **Runtime** | Docker Compose | K8s namespace or VM | K8s namespace | K8s namespace |
-| **Replicas** | 1 (always) | 1 (default) | configurable | configurable, autoscale |
-| **Dependencies** | Local containers (postgres, redis) | Shared or ephemeral | Dedicated | Dedicated, replicated |
-| **Data** | Local volumes, disposable | Ephemeral DB (seeded or snapshot) | Persistent, test data | Persistent, real customer data |
-| **Auth** | None (or dev tokens) | Basic (platform auth) | Full (Better-Auth + SpiceDB) | Full |
-| **Tenants** | None | None | None or test tenants | Real customer tenants |
-| **Entitlements** | All modules enabled | All modules enabled | Test entitlements | Real entitlements from Commerce |
-| **Audit** | None | Minimal | Full | Full, compliance-ready |
-| **Observability** | Console logs | SigNoz (basic) | SigNoz (full) | SigNoz (full) + alerting |
-| **Lifecycle** | Developer starts/stops | TTL + auto-cleanup | Fleet-managed releases | Fleet-managed releases |
-| **Who triggers** | Developer (`dx dev`) | Developer / PR / Agent | Platform eng (`dx release promote`) | Platform eng (`dx release promote`) |
-| **Convention gates** | None | Build must pass | Tests + review | Tests + review + staging-first + hours + cooldown |
-| **Cost** | Developer machine | Shared cluster (cheap) | Shared or dedicated cluster | Dedicated cluster |
+| Concern              | Local Dev                          | Sandbox                           | Staging Site                        | Production Site                                   |
+| -------------------- | ---------------------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------- |
+| **Runtime**          | Docker Compose                     | K8s namespace or VM               | K8s namespace                       | K8s namespace                                     |
+| **Replicas**         | 1 (always)                         | 1 (default)                       | configurable                        | configurable, autoscale                           |
+| **Dependencies**     | Local containers (postgres, redis) | Shared or ephemeral               | Dedicated                           | Dedicated, replicated                             |
+| **Data**             | Local volumes, disposable          | Ephemeral DB (seeded or snapshot) | Persistent, test data               | Persistent, real customer data                    |
+| **Auth**             | None (or dev tokens)               | Basic (platform auth)             | Full (Better-Auth + SpiceDB)        | Full                                              |
+| **Tenants**          | None                               | None                              | None or test tenants                | Real customer tenants                             |
+| **Entitlements**     | All modules enabled                | All modules enabled               | Test entitlements                   | Real entitlements from Commerce                   |
+| **Audit**            | None                               | Minimal                           | Full                                | Full, compliance-ready                            |
+| **Observability**    | Console logs                       | SigNoz (basic)                    | SigNoz (full)                       | SigNoz (full) + alerting                          |
+| **Lifecycle**        | Developer starts/stops             | TTL + auto-cleanup                | Fleet-managed releases              | Fleet-managed releases                            |
+| **Who triggers**     | Developer (`dx dev`)               | Developer / PR / Agent            | Platform eng (`dx release promote`) | Platform eng (`dx release promote`)               |
+| **Convention gates** | None                               | Build must pass                   | Tests + review                      | Tests + review + staging-first + hours + cooldown |
+| **Cost**             | Developer machine                  | Shared cluster (cheap)            | Shared or dedicated cluster         | Dedicated cluster                                 |
 
 ---
 
@@ -322,7 +322,7 @@ The dependency containers are also components — but they're **infrastructure c
 ```yaml
 # docker-compose.yaml
 module: billing
-components:           # Module components — your code
+components: # Module components — your code
   api:
     path: ./services/api
     port: 8080
@@ -331,7 +331,7 @@ components:           # Module components — your code
     path: ./services/worker
     type: worker
 
-dependencies:         # Infrastructure components — not your code
+dependencies: # Infrastructure components — not your code
   postgres:
     image: postgres:16-alpine
     port: 5432
@@ -491,7 +491,7 @@ This creates a component_deploy record that breaks from the current release's pi
 Site: trafficure-us-east
   Release: v2.4.0 (DRIFTED)
   Drift: billing-api pinned to 1.3.1-hotfix (INCIDENT-456)
-  
+
   To resolve: include billing:1.3.1 in next release, or
               dx rollback api --site trafficure-us-east --to-release
 ```
@@ -518,6 +518,7 @@ component_deploy for billing-worker on trafficure-us-east:
 ```
 
 When the next release rolls out, it can either:
+
 - **Reset overrides** (default): return to release-defined replicas
 - **Preserve overrides** (`dx release promote --preserve-overrides`): keep manual changes
 
@@ -679,7 +680,7 @@ With this model, `dx deploy` works the same way across all targets. The differen
 # Developer deploying to sandbox (Build Plane → sandbox target)
 dx deploy --sandbox feature-login
 
-# Developer deploying to their default dev site (Build Plane → sandbox target)  
+# Developer deploying to their default dev site (Build Plane → sandbox target)
 dx deploy
 
 # Platform engineer promoting a release to staging (Fleet Plane → site targets)
@@ -739,15 +740,15 @@ Same commands. Same mental model. Different runtime.
 
 Component is not a "nice to have" or "optional granularity." It is the operational atom of the entire system.
 
-| Layer | What matters | Entity |
-|---|---|---|
-| **Planning** | Module (what capability are we building?) | module, component_spec |
-| **Building** | Component (what containers are we producing?) | component_artifact |
-| **Releasing** | Module version (what versions are we pinning?) | release_module_pin → module_version → component_artifact |
-| **Deploying** | Component (what's the desired state per container?) | component_deploy |
-| **Running** | Component instance (what's actually running?) | component_instance |
-| **Operating** | Component instance (what's broken? what do I restart?) | component_instance |
-| **Debugging** | Component instance (which pod do I exec into?) | component_instance |
+| Layer         | What matters                                           | Entity                                                   |
+| ------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| **Planning**  | Module (what capability are we building?)              | module, component_spec                                   |
+| **Building**  | Component (what containers are we producing?)          | component_artifact                                       |
+| **Releasing** | Module version (what versions are we pinning?)         | release_module_pin → module_version → component_artifact |
+| **Deploying** | Component (what's the desired state per container?)    | component_deploy                                         |
+| **Running**   | Component instance (what's actually running?)          | component_instance                                       |
+| **Operating** | Component instance (what's broken? what do I restart?) | component_instance                                       |
+| **Debugging** | Component instance (which pod do I exec into?)         | component_instance                                       |
 
 Module is the planning unit. Release is the coordination unit. **Component is the operational unit.**
 

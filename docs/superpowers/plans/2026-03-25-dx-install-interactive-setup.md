@@ -139,7 +139,7 @@ export const DX_CONFIG_FIELDS = {
   context: { type: "string", default: "" },
 
   // Auth
-  authBasePath: { type: "string", default: "/api/auth" },
+  authBasePath: { type: "string", default: "/api/v1/auth" },
 
   // Cluster install params (site/factory) — good defaults
   siteName: { type: "string", default: "" },
@@ -267,7 +267,7 @@ export function loadConfig(): LegacyDxConfig {
   return {
     apiUrl: factoryUrl,
     authUrl: factoryUrl,
-    authBasePath: parsed.authBasePath || "/api/auth",
+    authBasePath: parsed.authBasePath || "/api/v1/auth",
     token: undefined,
     defaultSite: parsed.siteName || undefined,
     mode: role === "factory" ? "factory" : role === "site" ? "site" : "dev",
@@ -1155,13 +1155,19 @@ In `factory/cli/src/handlers/install/helm.ts`:
 
 ```typescript
 // Before:
-import { siteConfigToHelmValues, helmValuesToSetArgs } from "../../lib/site-config.js";
-import type { SiteConfig } from "@smp/factory-shared/site-config-schema";
+import {
+  siteConfigToHelmValues,
+  helmValuesToSetArgs,
+} from "../../lib/site-config.js"
+import type { SiteConfig } from "@smp/factory-shared/site-config-schema"
 
 // After:
-import { configToHelmValues, helmValuesToSetArgs } from "../../lib/site-config.js";
-import type { DxConfig } from "../../config.js";
-import type { InstallRole } from "@smp/factory-shared/install-types";
+import {
+  configToHelmValues,
+  helmValuesToSetArgs,
+} from "../../lib/site-config.js"
+import type { DxConfig } from "../../config.js"
+import type { InstallRole } from "@smp/factory-shared/install-types"
 ```
 
 2. Update `HelmInstallOptions`:

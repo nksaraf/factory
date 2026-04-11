@@ -94,6 +94,7 @@ services/api/
 ```
 
 Migration linting catches:
+
 - Adding a NOT NULL column without a DEFAULT (breaks existing rows)
 - Dropping a column without a deprecation period
 - Missing indexes on foreign key columns
@@ -313,7 +314,7 @@ Code contributed by a software vendor or partner. Structurally identical to a pr
 kind: vendor-module
 module: connector-sap
 vendor: sap-consulting-india
-team: integrations-eng              # internal team responsible for review
+team: integrations-eng # internal team responsible for review
 product: trafficure
 
 components:
@@ -322,6 +323,7 @@ components:
 ```
 
 Release path: Same as product module, but with additional gates:
+
 - Security scan is mandatory (not just convention — enforced)
 - Internal team must approve every PR
 - SBOM is required, vulnerability thresholds are stricter
@@ -339,7 +341,7 @@ kind: client-project
 project: samsung-custom-dashboard
 customer: samsung
 team: solutions-eng
-site: site-samsung-dedicated            # deploys to this Site only
+site: site-samsung-dedicated # deploys to this Site only
 
 components:
   dashboard: ...
@@ -347,6 +349,7 @@ components:
 ```
 
 Key differences from product modules:
+
 - Not registered as a `module` in Product Plane (not part of any product's module catalog)
 - Not included in releases (deploys directly to the customer's Site)
 - Not entitled via Commerce (it's part of the customer's contract, managed outside the module/entitlement system)
@@ -558,14 +561,27 @@ mcp:
 
   audiences:
     customer:
-      tools: [dx_site_status, dx_site_health, dx_module_status,
-              dx_usage_summary, dx_entitlement_check, dx_support_ticket, dx_audit_log]
+      tools:
+        [
+          dx_site_status,
+          dx_site_health,
+          dx_module_status,
+          dx_usage_summary,
+          dx_entitlement_check,
+          dx_support_ticket,
+          dx_audit_log,
+        ]
       rate-limit: 100/hour
       auth: api-key
 
     partner:
-      tools: [customer tools + dx_customer_list, dx_customer_usage,
-              dx_entitlement_request, dx_tenant_provision]
+      tools:
+        [
+          customer tools + dx_customer_list,
+          dx_customer_usage,
+          dx_entitlement_request,
+          dx_tenant_provision,
+        ]
       rate-limit: 500/hour
       auth: api-key
 
@@ -676,8 +692,14 @@ On error:
       "failed_count": 3
     },
     "suggestions": [
-      {"action": "dx test --all", "description": "Run tests and fix failures"},
-      {"action": "dx deploy --force --reason \"...\"", "description": "Override convention (audited)"}
+      {
+        "action": "dx test --all",
+        "description": "Run tests and fix failures"
+      },
+      {
+        "action": "dx deploy --force --reason \"...\"",
+        "description": "Override convention (audited)"
+      }
     ]
   },
   "exit_code": 6

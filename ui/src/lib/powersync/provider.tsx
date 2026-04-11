@@ -7,7 +7,14 @@
  * - Feature flag gating (only connects when enabled)
  */
 import { PowerSyncContext } from "@powersync/react"
-import { createContext, type ReactNode, use, useEffect, useMemo, useState } from "react"
+import {
+  createContext,
+  type ReactNode,
+  use,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 
 import { FactoryPowerSyncConnector } from "./connector"
 import { getPowerSyncDatabase } from "./database"
@@ -38,9 +45,7 @@ export function FactoryPowerSyncProvider({
 
     db.connect(connector)
       .then(() => setConnected(true))
-      .catch((err) =>
-        console.error("[PowerSync] Connection failed:", err)
-      )
+      .catch((err) => console.error("[PowerSync] Connection failed:", err))
 
     return () => {
       db.disconnect()
@@ -58,7 +63,9 @@ export function FactoryPowerSyncProvider({
 
   return (
     <PowerSyncEnabledContext value={connected}>
-      <PowerSyncContext.Provider value={db}>{children}</PowerSyncContext.Provider>
+      <PowerSyncContext.Provider value={db}>
+        {children}
+      </PowerSyncContext.Provider>
     </PowerSyncEnabledContext>
   )
 }

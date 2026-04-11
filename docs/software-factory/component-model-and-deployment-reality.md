@@ -51,6 +51,7 @@ module: geoanalytics
 ### Why it's not optional
 
 Without the component entity, the reconciler can't answer basic questions:
+
 - How many containers does this module need?
 - Which ones get ingress routes?
 - Which ones are workers with no port?
@@ -83,17 +84,17 @@ components:
       memory: 512Mi
   worker:
     path: ./services/worker
-    worker: true                # no port, no ingress
+    worker: true # no port, no ingress
     resources:
       cpu: 1000m
       memory: 1Gi
   scheduler:
     path: ./services/scheduler
-    cron: "0 * * * *"           # hourly
+    cron: "0 * * * *" # hourly
   migrator:
     path: ./migrations
-    job: true                   # run-once per deployment
-    order: before               # runs before other components start
+    job: true # run-once per deployment
+    order: before # runs before other components start
 ```
 
 **2. Recorded in Factory DB — Build Plane system of record**
@@ -421,13 +422,13 @@ dependencies:
 
 ### How dependencies are handled per target kind
 
-| Target Kind | Dependencies | How |
-|---|---|---|
-| **`dx dev` (local)** | Docker Compose containers on laptop | dx generates `docker-compose.yaml` from the dependency block. `docker ps` shows them. |
-| **Sandbox** | Ephemeral containers in the sandbox namespace | dx creates K8s Deployments for each dependency in the sandbox namespace. Cheap, isolated, disposable. |
-| **Dev (remote)** | Same as sandbox — ephemeral containers | Each dev target gets its own dependency instances. |
-| **Staging** | Shared infrastructure | Dependencies resolve to shared staging databases. `DATABASE_URL` points to staging Postgres, not an ephemeral one. The env overlay in `.dx/tiers/staging.yaml` handles this. |
-| **Production** | Managed infrastructure (Data Plane) | Dependencies resolve to production databases managed by Data Plane. RLS, backups, the works. Env overlays in `.dx/tiers/production.yaml`. |
+| Target Kind          | Dependencies                                  | How                                                                                                                                                                          |
+| -------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`dx dev` (local)** | Docker Compose containers on laptop           | dx generates `docker-compose.yaml` from the dependency block. `docker ps` shows them.                                                                                        |
+| **Sandbox**          | Ephemeral containers in the sandbox namespace | dx creates K8s Deployments for each dependency in the sandbox namespace. Cheap, isolated, disposable.                                                                        |
+| **Dev (remote)**     | Same as sandbox — ephemeral containers        | Each dev target gets its own dependency instances.                                                                                                                           |
+| **Staging**          | Shared infrastructure                         | Dependencies resolve to shared staging databases. `DATABASE_URL` points to staging Postgres, not an ephemeral one. The env overlay in `.dx/tiers/staging.yaml` handles this. |
+| **Production**       | Managed infrastructure (Data Plane)           | Dependencies resolve to production databases managed by Data Plane. RLS, backups, the works. Env overlays in `.dx/tiers/production.yaml`.                                    |
 
 At the workload level, the distinction is just env vars. The api component's `DATABASE_URL` points to `localhost:5432` in local dev, to `postgres.sandbox-pr-42.svc:5432` in a sandbox, and to `prod-postgres.data.svc:5432` in production. Same container image, different configuration.
 
@@ -462,6 +463,7 @@ dx ops env set geoanalytics api \
 ```
 
 Every override:
+
 - Requires `--reason` (logged in audit)
 - Updates `workload.desired_image` (or replicas, or env_overrides)
 - Is reconciled immediately
@@ -555,7 +557,7 @@ dx status geoanalytics --site trafficure-prod-india --detail
 
   Module: geoanalytics
   Release pin: v2.3.0 (from release v2.4.0)
-  
+
   Components:
     api (Deployment)
       Desired:  3 replicas, registry/geoanalytics-api:2.3.0
@@ -566,7 +568,7 @@ dx status geoanalytics --site trafficure-prod-india --detail
         geoanalytics-api-7b9f4-p3qn   Running  (12h)  10.0.1.43
         geoanalytics-api-7b9f4-w8rv   Running  (12h)  10.0.1.44
       Health: 3/3 passing, avg response 23ms
-    
+
     worker (Deployment)
       Desired:  2 replicas, registry/geoanalytics-worker:2.3.0
       Actual:   2 replicas, registry/geoanalytics-worker:2.3.0  ✓
@@ -574,13 +576,13 @@ dx status geoanalytics --site trafficure-prod-india --detail
         geoanalytics-worker-5c8d2-j4kl  Running  (3d)  10.0.1.45
         geoanalytics-worker-5c8d2-m7np  Running  (3d)  10.0.1.46
       Queue depth: 142, processing rate: 47/min
-    
+
     scheduler (CronJob)
       Desired:  registry/geoanalytics-scheduler:2.3.0
       Actual:   registry/geoanalytics-scheduler:2.3.0  ✓
       Last run: 14 min ago, succeeded (duration: 3m22s)
       Next run: in 46 min
-    
+
     migrator (Job)
       Last run: 3 days ago (on deploy), succeeded
 ```
@@ -652,7 +654,7 @@ K8s resources generated by reconciler from workload rows:
   IngressRoute (from workload where component.is_public)
   Secret (from resolved env vars)
   ConfigMap (from resolved config)
-  
+
 Labels on every resource:
   dx.dev/module: geoanalytics
   dx.dev/component: api
@@ -696,33 +698,33 @@ module
 The `docker-compose.yaml` at a repo root is the canonical declaration of what a module contains. Here's the full schema:
 
 ```yaml
-module: geoanalytics                # Module name (Factory-registered)
-team: analytics-eng                 # Owning team
-product: trafficure                 # Which product this module belongs to
+module: geoanalytics # Module name (Factory-registered)
+team: analytics-eng # Owning team
+product: trafficure # Which product this module belongs to
 
 components:
   api:
-    path: ./services/api            # Source code path (relative to repo root)
-    port: 8080                      # Exposed port (null for workers/jobs)
-    healthcheck: /health            # Health endpoint (null for workers/jobs)
-    public: true                    # Gets an ingress route (default: true if port is set)
-    kind: deployment                # deployment | statefulset | job | cronjob (default: deployment)
-    replicas: 2                     # Default replica count (overridable per tier)
+    path: ./services/api # Source code path (relative to repo root)
+    port: 8080 # Exposed port (null for workers/jobs)
+    healthcheck: /health # Health endpoint (null for workers/jobs)
+    public: true # Gets an ingress route (default: true if port is set)
+    kind: deployment # deployment | statefulset | job | cronjob (default: deployment)
+    replicas: 2 # Default replica count (overridable per tier)
     resources:
       cpu: 500m
       memory: 512Mi
     build:
-      dockerfile: Dockerfile        # Default, can override
+      dockerfile: Dockerfile # Default, can override
     dev:
       command: uvicorn main:app --reload --port 8080
-      sync: [./:/app]              # File sync for hot reload
+      sync: [./:/app] # File sync for hot reload
     test: pytest
     lint: ruff check .
 
   worker:
     path: ./services/worker
     kind: deployment
-    worker: true                    # Shorthand: no port, no public, no healthcheck
+    worker: true # Shorthand: no port, no public, no healthcheck
     replicas: 2
     resources:
       cpu: 1000m
@@ -733,7 +735,7 @@ components:
   scheduler:
     path: ./services/scheduler
     kind: cronjob
-    cron: "0 * * * *"              # Required for cronjob kind
+    cron: "0 * * * *" # Required for cronjob kind
     resources:
       cpu: 200m
       memory: 256Mi
@@ -741,7 +743,7 @@ components:
   migrator:
     path: ./migrations
     kind: job
-    order: before                   # Run before other components on deploy
+    order: before # Run before other components on deploy
 
 # Dependencies — used for local dev and sandbox provisioning
 # In staging/production, these resolve to shared/managed infrastructure
@@ -764,6 +766,7 @@ dependencies:
 ### What `dx dev` does with this
 
 Reads `docker-compose.yaml`, generates a Docker Compose file with:
+
 - One service per component (using the `dev.command` for each)
 - One service per dependency (using the images directly)
 - File sync mounts for hot reload
@@ -773,6 +776,7 @@ Reads `docker-compose.yaml`, generates a Docker Compose file with:
 ### What `dx build` does with this
 
 For each component:
+
 - Finds the Dockerfile at `{component.path}/{component.build.dockerfile}`
 - Builds the image, tagged with the git ref
 - Pushes to registry
@@ -781,6 +785,7 @@ For each component:
 ### What the reconciler does with this
 
 For each workload in a deployment target:
+
 - Reads the component definition (kind, port, health, resources)
 - Reads the artifact reference (which image to run)
 - Reads the env overrides (tier-specific config)
@@ -809,6 +814,7 @@ dx push                                   # commit, push, create PR
 ```
 
 Build Plane triggers:
+
 1. CI builds all components from the branch
 2. Tests run
 3. If conventions allow, sandbox auto-created:
@@ -829,6 +835,7 @@ dx work done BILL-245                     # story → Done
 ```
 
 Build Plane:
+
 1. Merge triggers a build from main
 2. New `module_version` created: geoanalytics:2.3.1
 3. Component artifacts recorded (one per component)
@@ -844,6 +851,7 @@ dx release create v2.4.1 \
 ```
 
 Fleet Plane:
+
 1. Release record created with module version pins
 2. Release promotes to staging: `dx release promote v2.4.1 --to staging`
 3. Rollout created for each staging deployment target
@@ -858,6 +866,7 @@ dx release promote v2.4.1 --to production
 ```
 
 Fleet Plane:
+
 1. Rollout created for each production deployment target (could be 5 Sites across regions)
 2. Canary: 10% traffic to new workloads, watch for errors
 3. If healthy, 50%, then 100%

@@ -1,9 +1,9 @@
-import { Octokit } from "@octokit/rest";
+import { Octokit } from "@octokit/rest"
 import type {
   IdentityProviderAdapter,
   IdentityProviderConfig,
   ExternalIdentityUser,
-} from "./identity-provider-adapter";
+} from "./identity-provider-adapter"
 
 /**
  * GitHub identity provider adapter.
@@ -16,7 +16,7 @@ import type {
  * - fetchUserProfile: users.getByUsername
  */
 export class GitHubIdentityProviderAdapter implements IdentityProviderAdapter {
-  readonly provider = "github" as const;
+  readonly provider = "github" as const
 
   private octokit(token: string, apiBaseUrl?: string): Octokit {
     return new Octokit({
@@ -24,42 +24,44 @@ export class GitHubIdentityProviderAdapter implements IdentityProviderAdapter {
       ...(apiBaseUrl && apiBaseUrl !== "https://api.github.com"
         ? { baseUrl: apiBaseUrl }
         : {}),
-    });
+    })
   }
 
-  async fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]> {
-    const kit = this.octokit(config.token, config.apiBaseUrl);
+  async fetchUsers(
+    config: IdentityProviderConfig
+  ): Promise<ExternalIdentityUser[]> {
+    const kit = this.octokit(config.token, config.apiBaseUrl)
 
-    let org = config.org;
+    let org = config.org
     if (!org) {
-      const { data: orgs } = await kit.rest.orgs.listForAuthenticatedUser();
-      if (orgs.length === 0) return [];
-      org = orgs[0].login;
+      const { data: orgs } = await kit.rest.orgs.listForAuthenticatedUser()
+      if (orgs.length === 0) return []
+      org = orgs[0].login
     }
 
     const members = await kit.paginate(kit.rest.orgs.listMembers, {
       org,
       per_page: 100,
-    });
+    })
 
     // Fetch full profile for each member (concurrency-limited)
-    const users: ExternalIdentityUser[] = [];
-    const concurrency = 5;
+    const users: ExternalIdentityUser[] = []
+    const concurrency = 5
 
     for (let i = 0; i < members.length; i += concurrency) {
-      const batch = members.slice(i, i + concurrency);
+      const batch = members.slice(i, i + concurrency)
       const profiles = await Promise.allSettled(
-        batch.map((m) => this.fetchUserProfile(config, m.login)),
-      );
+        batch.map((m) => this.fetchUserProfile(config, m.login))
+      )
 
       for (const result of profiles) {
         if (result.status === "fulfilled" && result.value) {
-          users.push(result.value);
+          users.push(result.value)
         }
       }
     }
 
-    return users;
+    return users
   }
 
   /**
@@ -69,16 +71,18 @@ export class GitHubIdentityProviderAdapter implements IdentityProviderAdapter {
    */
   async fetchUserProfile(
     config: IdentityProviderConfig,
-    externalUserId: string,
+    externalUserId: string
   ): Promise<ExternalIdentityUser | null> {
-    const kit = this.octokit(config.token, config.apiBaseUrl);
+    const kit = this.octokit(config.token, config.apiBaseUrl)
 
     try {
       // If externalUserId is numeric, use /user/:id endpoint; otherwise use /users/:username
-      const isNumeric = /^\d+$/.test(externalUserId);
+      const isNumeric = /^\d+$/.test(externalUserId)
       const { data: u } = isNumeric
-        ? await kit.request("GET /user/{account_id}", { account_id: Number(externalUserId) })
-        : await kit.rest.users.getByUsername({ username: externalUserId });
+        ? await kit.request("GET /user/{account_id}", {
+            account_id: Number(externalUserId),
+          })
+        : await kit.rest.users.getByUsername({ username: externalUserId })
 
       return {
         externalUserId: String(u.id),
@@ -99,9 +103,9 @@ export class GitHubIdentityProviderAdapter implements IdentityProviderAdapter {
         },
         isBot: u.type === "Bot",
         deleted: false,
-      };
+      }
     } catch {
-      return null;
+      return null
     }
   }
 }

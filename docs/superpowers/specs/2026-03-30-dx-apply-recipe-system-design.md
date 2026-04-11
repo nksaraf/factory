@@ -13,11 +13,11 @@ The dx CLI has a fragmented "run stuff" surface: `dx script` runs TS locally, `d
 
 Rationalize the CLI verb space into three clear commands:
 
-| Command | Purpose | Replaces |
-|---------|---------|----------|
-| **`dx run`** | Universal execute — scripts, recipes, Ansible playbooks. Local or remote via `--on`. | `dx script`, `dx apply` (never shipped) |
-| **`dx setup`** | Bootstrap machines with tools. Sugar over `dx run @dx/<tool> --on`. | `dx install`, `dx docker setup` |
-| **`dx exec`** | Run a command inside a running context (sandbox, container). | Future — not in this spec |
+| Command        | Purpose                                                                              | Replaces                                |
+| -------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
+| **`dx run`**   | Universal execute — scripts, recipes, Ansible playbooks. Local or remote via `--on`. | `dx script`, `dx apply` (never shipped) |
+| **`dx setup`** | Bootstrap machines with tools. Sugar over `dx run @dx/<tool> --on`.                  | `dx install`, `dx docker setup`         |
+| **`dx exec`**  | Run a command inside a running context (sandbox, container).                         | Future — not in this spec               |
 
 `dx script` becomes a deprecated alias for `dx run`. `dx install` becomes a deprecated alias for `dx setup`.
 
@@ -68,13 +68,13 @@ dx setup caddy --on staging-1 --set domain=example.com
 
 `dx run` auto-detects what it's running based on the input:
 
-| Input | Detection | Behavior |
-|-------|-----------|----------|
-| `*.ts` / `*.js` | File extension | Run via embedded Bun (current `dx script`) |
-| `*.sh` | File extension | Run as shell script (local or remote) |
-| `@dx/<name>` | `@dx/` prefix | Resolve built-in recipe |
-| Directory with `recipe.yml` | Directory check | Run recipe flow |
-| Bare name (e.g. `ghost-cms`) | Recipe resolution | Search project → user → built-in recipes |
+| Input                        | Detection                                  | Behavior                                               |
+| ---------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `*.ts` / `*.js`              | File extension                             | Run via embedded Bun (current `dx script`)             |
+| `*.sh`                       | File extension                             | Run as shell script (local or remote)                  |
+| `@dx/<name>`                 | `@dx/` prefix                              | Resolve built-in recipe                                |
+| Directory with `recipe.yml`  | Directory check                            | Run recipe flow                                        |
+| Bare name (e.g. `ghost-cms`) | Recipe resolution                          | Search project → user → built-in recipes               |
 | `*.yml` with Ansible markers | YAML content detection (hosts, tasks keys) | Run via `ansible-playbook` with dx-generated inventory |
 
 ### Remote TS execution
@@ -129,14 +129,14 @@ tags:
 
 **Fields:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | yes | Recipe identifier |
-| `description` | string | yes | Human-readable description |
-| `requires` | string[] | no | Other recipes that must be applied first |
-| `params` | map | no | Named parameters with type, default, required, description |
-| `os` | string[] | no | Supported OS types (`linux`, `darwin`). All if omitted. |
-| `tags` | string[] | no | Categorization tags for filtering |
+| Field         | Type     | Required | Description                                                |
+| ------------- | -------- | -------- | ---------------------------------------------------------- |
+| `name`        | string   | yes      | Recipe identifier                                          |
+| `description` | string   | yes      | Human-readable description                                 |
+| `requires`    | string[] | no       | Other recipes that must be applied first                   |
+| `params`      | map      | no       | Named parameters with type, default, required, description |
+| `os`          | string[] | no       | Supported OS types (`linux`, `darwin`). All if omitted.    |
+| `tags`        | string[] | no       | Categorization tags for filtering                          |
 
 ### Parameter types
 
@@ -157,14 +157,14 @@ echo "Domain: ${DX_PARAM_DOMAIN}"
 
 Additional environment variables provided to all scripts:
 
-| Variable | Description |
-|----------|-------------|
-| `DX_PARAM_*` | Recipe parameters |
-| `DX_MACHINE_NAME` | Target machine slug |
-| `DX_MACHINE_HOST` | Target hostname/IP |
-| `DX_MACHINE_USER` | SSH user |
-| `DX_RECIPE_NAME` | Recipe being applied |
-| `DX_RECIPE_DIR` | Recipe directory path (on remote, after sync) |
+| Variable          | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `DX_PARAM_*`      | Recipe parameters                             |
+| `DX_MACHINE_NAME` | Target machine slug                           |
+| `DX_MACHINE_HOST` | Target hostname/IP                            |
+| `DX_MACHINE_USER` | SSH user                                      |
+| `DX_RECIPE_NAME`  | Recipe being applied                          |
+| `DX_RECIPE_DIR`   | Recipe directory path (on remote, after sync) |
 
 ### verify.sh contract
 
@@ -231,23 +231,32 @@ Parallel execution is a follow-up.
 ## Machine Targeting
 
 ### Single machine
+
 `--on staging-1` — uses existing `resolveMachine()`
 
 ### Comma-separated
+
 `--on staging-1,staging-2,prod-1` — resolves each, runs sequentially
 
 ### Tags
+
 `--on tag:webservers` — machines need tags.
 
 Add tag support to local machine registration:
+
 ```bash
 dx docker add staging-1 --host 10.0.0.5 --user ubuntu --tag web --tag production
 ```
 
 Stored in `~/.config/dx/machines.json`:
+
 ```json
 {
-  "staging-1": { "host": "10.0.0.5", "user": "ubuntu", "tags": ["web", "production"] }
+  "staging-1": {
+    "host": "10.0.0.5",
+    "user": "ubuntu",
+    "tags": ["web", "production"]
+  }
 }
 ```
 
@@ -258,6 +267,7 @@ Resolution: scan local machines.json tags → query Factory API host/VM labels.
 ### Inventory files
 
 `.dx/inventory.yml`:
+
 ```yaml
 groups:
   webservers:
@@ -354,32 +364,32 @@ os:
 
 ## Files to Create
 
-| File | Purpose |
-|------|---------|
-| `cli/src/commands/run.ts` | Command definition — input detection, dispatch to script/recipe/ansible runners |
-| `cli/src/commands/setup.ts` | Sugar command — delegates to run for remote, to install flow for local |
-| `cli/src/handlers/run.ts` | Recipe resolution, param validation, execution orchestration |
-| `cli/src/lib/recipe.ts` | Recipe manifest parsing, dependency graph, verify/install execution |
-| `cli/src/lib/machine-target.ts` | Multi-machine targeting: tag resolution, comma expansion, inventory parsing |
-| `cli/src/recipes/docker/recipe.yml` | Built-in Docker recipe manifest |
-| `cli/src/recipes/docker/install.sh` | Docker install script |
-| `cli/src/recipes/docker/verify.sh` | Check if Docker is installed |
-| `cli/src/recipes/node/recipe.yml` | Built-in Node.js recipe |
-| `cli/src/recipes/node/install.sh` | Node install via nvm |
-| `cli/src/recipes/node/verify.sh` | Check if Node is installed |
-| `cli/src/recipes/caddy/recipe.yml` | Built-in Caddy recipe |
-| `cli/src/recipes/caddy/install.sh` | Caddy install script |
-| `cli/src/recipes/caddy/verify.sh` | Check if Caddy is installed |
+| File                                | Purpose                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `cli/src/commands/run.ts`           | Command definition — input detection, dispatch to script/recipe/ansible runners |
+| `cli/src/commands/setup.ts`         | Sugar command — delegates to run for remote, to install flow for local          |
+| `cli/src/handlers/run.ts`           | Recipe resolution, param validation, execution orchestration                    |
+| `cli/src/lib/recipe.ts`             | Recipe manifest parsing, dependency graph, verify/install execution             |
+| `cli/src/lib/machine-target.ts`     | Multi-machine targeting: tag resolution, comma expansion, inventory parsing     |
+| `cli/src/recipes/docker/recipe.yml` | Built-in Docker recipe manifest                                                 |
+| `cli/src/recipes/docker/install.sh` | Docker install script                                                           |
+| `cli/src/recipes/docker/verify.sh`  | Check if Docker is installed                                                    |
+| `cli/src/recipes/node/recipe.yml`   | Built-in Node.js recipe                                                         |
+| `cli/src/recipes/node/install.sh`   | Node install via nvm                                                            |
+| `cli/src/recipes/node/verify.sh`    | Check if Node is installed                                                      |
+| `cli/src/recipes/caddy/recipe.yml`  | Built-in Caddy recipe                                                           |
+| `cli/src/recipes/caddy/install.sh`  | Caddy install script                                                            |
+| `cli/src/recipes/caddy/verify.sh`   | Check if Caddy is installed                                                     |
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `cli/src/register-commands.ts` | Register `runCommand`, `setupCommand` |
-| `cli/src/commands/script.ts` | Deprecation notice + delegate to `dx run` |
-| `cli/src/commands/install.ts` | Deprecation notice + delegate to `dx setup` |
+| File                                | Change                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `cli/src/register-commands.ts`      | Register `runCommand`, `setupCommand`                                                  |
+| `cli/src/commands/script.ts`        | Deprecation notice + delegate to `dx run`                                              |
+| `cli/src/commands/install.ts`       | Deprecation notice + delegate to `dx setup`                                            |
 | `cli/src/handlers/docker-remote.ts` | Extract `resolveMachine` to `machine-target.ts`; add tag support; re-export for compat |
-| `cli/src/commands/docker.ts` | `dx docker setup` calls shared recipe runner |
+| `cli/src/commands/docker.ts`        | `dx docker setup` calls shared recipe runner                                           |
 
 ---
 
@@ -398,15 +408,15 @@ os:
 
 ## Error Handling
 
-| Error | Detection | User message |
-|-------|-----------|-------------|
-| Unknown input type | Can't detect script, recipe, or playbook | `Cannot determine how to run "<input>". Expected: .ts/.js/.sh file, recipe name, or Ansible playbook.` |
-| Recipe not found | Not in project, user, or built-in paths | `Recipe "<name>" not found. Available: dx run list` |
-| Missing required param | Param has `required: true`, not in `--set` | `Missing required parameter "<name>". Use: --set <name>=<value>` |
-| Machine not found | `resolveMachine()` fails | Same as `dx docker` — suggests `dx docker add` or `dx ssh config sync` |
-| Dependency recipe missing | `requires` entry not resolvable | `Recipe "<name>" requires "<dep>" which was not found.` |
-| SSH connection failed | SSH exits with error | `Cannot connect to <machine>. Check: dx ssh <machine>` |
-| install.sh failed | Non-zero exit | `Recipe "<name>" failed on <machine> (exit code <N>)` |
-| Circular dependency | Visited set detects loop | `Circular dependency detected: <chain>` |
-| Unknown param in --set | Param not in manifest | Warning: `Unknown parameter "<name>" (ignored). Known: <list>` |
-| Ansible not installed | `which ansible-playbook` fails | `Ansible not found. Install it? (y/n)` — auto-install via pip/pipx |
+| Error                     | Detection                                  | User message                                                                                           |
+| ------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Unknown input type        | Can't detect script, recipe, or playbook   | `Cannot determine how to run "<input>". Expected: .ts/.js/.sh file, recipe name, or Ansible playbook.` |
+| Recipe not found          | Not in project, user, or built-in paths    | `Recipe "<name>" not found. Available: dx run list`                                                    |
+| Missing required param    | Param has `required: true`, not in `--set` | `Missing required parameter "<name>". Use: --set <name>=<value>`                                       |
+| Machine not found         | `resolveMachine()` fails                   | Same as `dx docker` — suggests `dx docker add` or `dx ssh config sync`                                 |
+| Dependency recipe missing | `requires` entry not resolvable            | `Recipe "<name>" requires "<dep>" which was not found.`                                                |
+| SSH connection failed     | SSH exits with error                       | `Cannot connect to <machine>. Check: dx ssh <machine>`                                                 |
+| install.sh failed         | Non-zero exit                              | `Recipe "<name>" failed on <machine> (exit code <N>)`                                                  |
+| Circular dependency       | Visited set detects loop                   | `Circular dependency detected: <chain>`                                                                |
+| Unknown param in --set    | Param not in manifest                      | Warning: `Unknown parameter "<name>" (ignored). Known: <list>`                                         |
+| Ansible not installed     | `which ansible-playbook` fails             | `Ansible not found. Install it? (y/n)` — auto-install via pip/pipx                                     |

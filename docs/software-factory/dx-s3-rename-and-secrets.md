@@ -56,11 +56,11 @@ Secrets exist at three scopes, owned by different planes:
 
 dx supports three backends, configured per installation:
 
-| Backend | When | How |
-|---|---|---|
-| **Vault** (HashiCorp) | Production installations, enterprise | dx talks to Vault's API, secrets are Vault paths |
-| **External KMS** (AWS Secrets Manager, GCP Secret Manager) | Cloud installations | dx uses the cloud provider's secret API |
-| **Internal encrypted store** | Development, small installations, air-gapped | Secrets encrypted at rest in Factory/Site PostgreSQL, key from Vault or local keyfile |
+| Backend                                                    | When                                         | How                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Vault** (HashiCorp)                                      | Production installations, enterprise         | dx talks to Vault's API, secrets are Vault paths                                      |
+| **External KMS** (AWS Secrets Manager, GCP Secret Manager) | Cloud installations                          | dx uses the cloud provider's secret API                                               |
+| **Internal encrypted store**                               | Development, small installations, air-gapped | Secrets encrypted at rest in Factory/Site PostgreSQL, key from Vault or local keyfile |
 
 The CLI doesn't care which backend is active — the commands are the same. The backend is configured at install time and abstracted away.
 
@@ -146,13 +146,13 @@ dx secret copy database-url --from staging --to production
 ```bash
 # Resolve all env vars for a component (shows where each value comes from)
 dx secret resolve api --tier production
-  # KEY                SOURCE                                     
+  # KEY                SOURCE
   # DATABASE_URL       vault://geoanalytics/production/database-url
-  # STRIPE_KEY         vault://geoanalytics/production/stripe-key  
+  # STRIPE_KEY         vault://geoanalytics/production/stripe-key
   # SENDGRID_API_KEY   vault://geoanalytics/production/sendgrid-key
   # LOG_LEVEL          .dx/tiers/production.yaml (plaintext: "info")
   # PORT               docker-compose service port (plaintext: "8080")
-  # REDIS_URL          .dx/tiers/production.yaml (plaintext)       
+  # REDIS_URL          .dx/tiers/production.yaml (plaintext)
 
 # Resolve AND show values (requires authorization for secret tiers)
 dx secret resolve api --tier production --show-values
@@ -165,7 +165,7 @@ dx secret resolve api --tier production --show-values
 dx secret diff --from staging --to production
   # KEY              STAGING              PRODUCTION           STATUS
   # database-url     ✓ set                ✓ set                both set (different values)
-  # stripe-key       ✓ set (test key)     ✓ set (live key)     both set (different values)  
+  # stripe-key       ✓ set (test key)     ✓ set (live key)     both set (different values)
   # debug-token      ✓ set                ✗ missing            staging only
   # encryption-key   ✗ missing            ✓ set                production only ⚠
 
@@ -320,14 +320,14 @@ dx secret get stripe-key --tier production
 
 ## 2.5 Authorization Model
 
-| Operation | Sandbox/Dev | Staging | Production | Infrastructure |
-|---|---|---|---|---|
-| `dx secret list` (keys only) | Team member | Team member | Team member | Infra team |
-| `dx secret get` (show value) | Team member | Team member | Requires `secret:read` grant | Infra admin |
-| `dx secret set` (create/update) | Team member | Team member | Requires `secret:write` grant | Infra admin |
-| `dx secret delete` | Team member | Team lead | Platform admin | Platform admin |
-| `dx secret rotate` | N/A | Team lead | Platform admin | Platform admin |
-| `dx secret resolve --show-values` | Team member | Team member | Requires `secret:read` grant | Infra admin |
+| Operation                         | Sandbox/Dev | Staging     | Production                    | Infrastructure |
+| --------------------------------- | ----------- | ----------- | ----------------------------- | -------------- |
+| `dx secret list` (keys only)      | Team member | Team member | Team member                   | Infra team     |
+| `dx secret get` (show value)      | Team member | Team member | Requires `secret:read` grant  | Infra admin    |
+| `dx secret set` (create/update)   | Team member | Team member | Requires `secret:write` grant | Infra admin    |
+| `dx secret delete`                | Team member | Team lead   | Platform admin                | Platform admin |
+| `dx secret rotate`                | N/A         | Team lead   | Platform admin                | Platform admin |
+| `dx secret resolve --show-values` | Team member | Team member | Requires `secret:read` grant  | Infra admin    |
 
 Listing secret keys (without values) is broadly allowed — developers need to know what secrets exist to debug configuration issues. Showing values is the privileged operation.
 
@@ -383,9 +383,9 @@ secrets:
   backend: vault
   vault:
     url: https://vault.internal:8200
-    auth: kubernetes                    # for in-cluster services
-    cli-auth: oidc                      # for developer CLI access
-    ci-auth: approle                    # for CI pipelines
+    auth: kubernetes # for in-cluster services
+    cli-auth: oidc # for developer CLI access
+    ci-auth: approle # for CI pipelines
     mount: secret/dx
 ```
 
@@ -398,8 +398,8 @@ secrets:
   backend: internal
   internal:
     encryption: aes-256-gcm
-    key-source: file                    # file | env | kms
-    key-path: /etc/dx/secret-key        # only for key-source: file
+    key-source: file # file | env | kms
+    key-path: /etc/dx/secret-key # only for key-source: file
 ```
 
 Secrets are stored in the Factory/Site PostgreSQL database, encrypted at rest with AES-256-GCM. The encryption key comes from a local file (for air-gapped), an environment variable (for containers), or a cloud KMS (for hybrid setups).
@@ -452,24 +452,24 @@ secrets:
   # (catches people putting plaintext passwords in tier files)
   require-references:
     tiers: [production, staging]
-    patterns:                             # env var names that must be secret references
+    patterns: # env var names that must be secret references
       - "*_KEY"
       - "*_SECRET"
       - "*_PASSWORD"
       - "*_TOKEN"
-      - "*_URL"                           # database URLs often contain passwords
+      - "*_URL" # database URLs often contain passwords
       - "*_DSN"
 
   # Rotation policy
   rotation:
     default: 90d
-    critical: 30d                         # encryption keys, signing keys
-    warn-before: 14d                      # alert this many days before rotation is due
+    critical: 30d # encryption keys, signing keys
+    warn-before: 14d # alert this many days before rotation is due
 
   # Prevent secrets in code
   pre-commit:
-    scan-for-secrets: true                # run secret scanner on every commit
-    block-on-detection: true              # block commit if secrets detected
+    scan-for-secrets: true # run secret scanner on every commit
+    block-on-detection: true # block commit if secrets detected
 ```
 
 The convention engine checks tier files on PR:

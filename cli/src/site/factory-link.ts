@@ -48,7 +48,7 @@ export class FactoryLink {
   }
 
   async checkin(payload: CheckinPayload): Promise<CheckinResponse> {
-    const url = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/checkin`
+    const url = `${this.config.factoryUrl}/api/v1/factory/ops/sites/${this.config.siteName}/checkin`
     const res = await fetch(url, {
       method: "POST",
       headers: this.headers(),
@@ -62,7 +62,7 @@ export class FactoryLink {
   }
 
   async fetchManifest(): Promise<SiteManifest> {
-    const url = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/manifest`
+    const url = `${this.config.factoryUrl}/api/v1/factory/ops/sites/${this.config.siteName}/manifest`
     const res = await fetch(url, {
       headers: this.headers(),
       signal: AbortSignal.timeout(15_000),
@@ -80,7 +80,7 @@ export class FactoryLink {
     componentStates: ComponentState[],
     health: Record<string, string>
   ): Promise<void> {
-    const url = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/state`
+    const url = `${this.config.factoryUrl}/api/v1/factory/ops/sites/${this.config.siteName}/state`
     await fetch(url, {
       method: "POST",
       headers: this.headers(),

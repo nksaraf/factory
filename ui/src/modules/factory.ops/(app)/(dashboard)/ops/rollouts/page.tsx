@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useReleases, useRollouts } from "@/lib/fleet"
+import { useDeploymentTargets, useReleases, useRollouts } from "@/lib/ops"
 
 import {
   EmptyState,
@@ -40,7 +40,7 @@ export default function RolloutsPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Rollout Tracker"
         description="Active and recent deployment rollouts"
       />

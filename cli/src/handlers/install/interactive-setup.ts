@@ -1,22 +1,22 @@
-import { select, input } from "@crustjs/prompts";
-import type { InstallRole } from "@smp/factory-shared/install-types";
-import type { DxConfig } from "../../config.js";
+import { select, input } from "@crustjs/prompts"
+import type { InstallRole } from "@smp/factory-shared/install-types"
+import type { DxConfig } from "../../config.js"
 
 export interface WizardResult {
-  role: InstallRole;
-  factoryUrl: string;
-  siteUrl: string;
-  siteName: string;
-  domain: string;
-  adminEmail: string;
-  tlsMode: string;
-  tlsCertPath: string;
-  tlsKeyPath: string;
-  databaseMode: string;
-  databaseUrl: string;
-  registryMode: string;
-  registryUrl: string;
-  resourceProfile: string;
+  role: InstallRole
+  factoryUrl: string
+  siteUrl: string
+  siteName: string
+  domain: string
+  adminEmail: string
+  tlsMode: string
+  tlsCertPath: string
+  tlsKeyPath: string
+  databaseMode: string
+  databaseUrl: string
+  registryMode: string
+  registryUrl: string
+  resourceProfile: string
 }
 
 /**
@@ -32,14 +32,14 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
       { value: "factory", label: "Factory" },
     ],
     default: "workbench",
-  });
+  })
 
   if (role === "workbench") {
     const factoryUrl = await input({
       message: "Factory URL",
       default: defaults.factoryUrl || "https://factory.lepton.software",
       validate: (v) => v.length > 0 || "Required",
-    });
+    })
 
     return {
       role,
@@ -56,49 +56,53 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
       registryMode: "embedded",
       registryUrl: "",
       resourceProfile: "small",
-    };
+    }
   }
 
   // Site or Factory
-  const siteName = role === "factory"
-    ? "factory"
-    : await input({
-        message: "Site name",
-        validate: (v) => /^[a-z0-9][a-z0-9-]*$/.test(v) || "Lowercase alphanumeric with hyphens",
-      });
+  const siteName =
+    role === "factory"
+      ? "factory"
+      : await input({
+          message: "Site name",
+          validate: (v) =>
+            /^[a-z0-9][a-z0-9-]*$/.test(v) ||
+            "Lowercase alphanumeric with hyphens",
+        })
 
   const domain = await input({
     message: "Domain",
     default: role === "factory" ? "factory.lepton.software" : "",
     validate: (v) => v.length > 0 || "Required",
-  });
+  })
 
   const adminEmail = await input({
     message: "Admin email",
     default: defaults.adminEmail || "",
-    validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || "Valid email required",
-  });
+    validate: (v) =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || "Valid email required",
+  })
 
-  let factoryUrl: string;
+  let factoryUrl: string
   if (role === "factory") {
-    factoryUrl = `https://${domain}`;
+    factoryUrl = `https://${domain}`
   } else {
     factoryUrl = await input({
       message: "Factory URL",
       default: defaults.factoryUrl || "https://factory.lepton.software",
       validate: (v) => v.length > 0 || "Required",
-    });
+    })
   }
 
   // Advanced options gate
-  let tlsMode = "self-signed";
-  let tlsCertPath = "";
-  let tlsKeyPath = "";
-  let databaseMode = "embedded";
-  let databaseUrl = "";
-  let registryMode = "embedded";
-  let registryUrl = "";
-  let resourceProfile = role === "factory" ? "medium" : "small";
+  let tlsMode = "self-signed"
+  let tlsCertPath = ""
+  let tlsKeyPath = ""
+  let databaseMode = "embedded"
+  let databaseUrl = ""
+  let registryMode = "embedded"
+  let registryUrl = ""
+  let resourceProfile = role === "factory" ? "medium" : "small"
 
   const customize = await select({
     message: "Advanced (TLS, database, resources)",
@@ -107,7 +111,7 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
       { value: true, label: "Customize" },
     ],
     default: false,
-  });
+  })
 
   if (customize) {
     tlsMode = await select({
@@ -118,11 +122,17 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
         { value: "provided", label: "Provided (bring your own cert)" },
       ],
       default: "self-signed",
-    });
+    })
 
     if (tlsMode === "provided") {
-      tlsCertPath = await input({ message: "TLS cert path", validate: (v) => v.length > 0 || "Required" });
-      tlsKeyPath = await input({ message: "TLS key path", validate: (v) => v.length > 0 || "Required" });
+      tlsCertPath = await input({
+        message: "TLS cert path",
+        validate: (v) => v.length > 0 || "Required",
+      })
+      tlsKeyPath = await input({
+        message: "TLS key path",
+        validate: (v) => v.length > 0 || "Required",
+      })
     }
 
     databaseMode = await select({
@@ -132,10 +142,13 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
         { value: "external", label: "External" },
       ],
       default: "embedded",
-    });
+    })
 
     if (databaseMode === "external") {
-      databaseUrl = await input({ message: "Database URL", validate: (v) => v.length > 0 || "Required" });
+      databaseUrl = await input({
+        message: "Database URL",
+        validate: (v) => v.length > 0 || "Required",
+      })
     }
 
     resourceProfile = await select({
@@ -146,7 +159,7 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
         { value: "large", label: "Large (high traffic)" },
       ],
       default: resourceProfile,
-    });
+    })
 
     registryMode = await select({
       message: "Registry",
@@ -155,10 +168,10 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
         { value: "external", label: "External" },
       ],
       default: "embedded",
-    });
+    })
 
     if (registryMode === "external") {
-      registryUrl = await input({ message: "Registry URL" });
+      registryUrl = await input({ message: "Registry URL" })
     }
   }
 
@@ -177,5 +190,5 @@ export async function runWizard(defaults: DxConfig): Promise<WizardResult> {
     registryMode,
     registryUrl,
     resourceProfile,
-  };
+  }
 }

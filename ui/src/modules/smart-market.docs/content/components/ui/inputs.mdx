@@ -35,7 +35,11 @@ A standard text input with support for all HTML input types, placeholder text, a
     </div>
     <div className="space-y-2">
       <Label htmlFor="password-input">Password</Label>
-      <Input id="password-input" type="password" placeholder="Enter password..." />
+      <Input
+        id="password-input"
+        type="password"
+        placeholder="Enter password..."
+      />
     </div>
     <div className="space-y-2">
       <Label htmlFor="number-input">Number</Label>
@@ -95,7 +99,12 @@ import { Textarea } from "@rio.js/ui-next/components/textarea"
 <ComponentPreview>
   <div className="w-full max-w-sm space-y-2">
     <Label htmlFor="disabled-textarea">Notes</Label>
-    <Textarea id="disabled-textarea" disabled placeholder="Read-only content" rows={3} />
+    <Textarea
+      id="disabled-textarea"
+      disabled
+      placeholder="Read-only content"
+      rows={3}
+    />
   </div>
 </ComponentPreview>
 
@@ -106,7 +115,13 @@ import { Textarea } from "@rio.js/ui-next/components/textarea"
 A dropdown for choosing from a predefined list of options.
 
 ```tsx
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rio.js/ui-next/components/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@rio.js/ui-next/components/select"
 ```
 
 <ComponentPreview>
@@ -220,7 +235,10 @@ import { Switch } from "@rio.js/ui-next/components/switch"
 A set of mutually exclusive options where only one can be selected at a time.
 
 ```tsx
-import { RadioGroup, RadioGroupItem } from "@rio.js/ui-next/components/radio-group"
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@rio.js/ui-next/components/radio-group"
 ```
 
 <ComponentPreview>
@@ -293,78 +311,78 @@ import { Slider } from "@rio.js/ui-next/components/slider"
 
 Extends all native `<input>` HTML attributes.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `type` | `string` | `"text"` | HTML input type (`text`, `email`, `password`, `number`, `search`, etc.) |
-| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Input height (`sm`: 32px, `default`: 36px, `lg`: 40px) |
-| `pilled` | `boolean` | `false` | Renders with fully rounded corners (pill shape) |
-| `icon` | `boolean \| string` | — | Shows a left icon. Pass an icon name or `true` |
-| `placeholder` | `string` | — | Placeholder text |
-| `disabled` | `boolean` | `false` | Disables the input |
-| `className` | `string` | — | Additional CSS classes |
+| Prop          | Type                        | Default     | Description                                                             |
+| ------------- | --------------------------- | ----------- | ----------------------------------------------------------------------- |
+| `type`        | `string`                    | `"text"`    | HTML input type (`text`, `email`, `password`, `number`, `search`, etc.) |
+| `size`        | `"sm" \| "default" \| "lg"` | `"default"` | Input height (`sm`: 32px, `default`: 36px, `lg`: 40px)                  |
+| `pilled`      | `boolean`                   | `false`     | Renders with fully rounded corners (pill shape)                         |
+| `icon`        | `boolean \| string`         | —           | Shows a left icon. Pass an icon name or `true`                          |
+| `placeholder` | `string`                    | —           | Placeholder text                                                        |
+| `disabled`    | `boolean`                   | `false`     | Disables the input                                                      |
+| `className`   | `string`                    | —           | Additional CSS classes                                                  |
 
 ### Textarea Props
 
 Extends all native `<textarea>` HTML attributes.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `rows` | `number` | — | Number of visible text rows |
-| `placeholder` | `string` | — | Placeholder text |
-| `disabled` | `boolean` | `false` | Disables the textarea |
+| Prop          | Type      | Default | Description                 |
+| ------------- | --------- | ------- | --------------------------- |
+| `rows`        | `number`  | —       | Number of visible text rows |
+| `placeholder` | `string`  | —       | Placeholder text            |
+| `disabled`    | `boolean` | `false` | Disables the textarea       |
 
 ### Select Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `string` | — | Controlled selected value |
-| `defaultValue` | `string` | — | Uncontrolled default value |
-| `onValueChange` | `(value: string) => void` | — | Called when selection changes |
-| `disabled` | `boolean` | `false` | Disables the select |
+| Prop            | Type                      | Default | Description                   |
+| --------------- | ------------------------- | ------- | ----------------------------- |
+| `value`         | `string`                  | —       | Controlled selected value     |
+| `defaultValue`  | `string`                  | —       | Uncontrolled default value    |
+| `onValueChange` | `(value: string) => void` | —       | Called when selection changes |
+| `disabled`      | `boolean`                 | `false` | Disables the select           |
 
 ### SelectTrigger Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Trigger height (`sm`: 32px, `default`: 36px, `lg`: 40px) |
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type                        | Default     | Description                                              |
+| ----------- | --------------------------- | ----------- | -------------------------------------------------------- |
+| `size`      | `"sm" \| "default" \| "lg"` | `"default"` | Trigger height (`sm`: 32px, `default`: 36px, `lg`: 40px) |
+| `className` | `string`                    | —           | Additional CSS classes                                   |
 
 ### Checkbox Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `checked` | `boolean` | — | Controlled checked state |
-| `defaultChecked` | `boolean` | `false` | Uncontrolled default |
-| `onCheckedChange` | `(checked: boolean) => void` | — | Called when state changes |
-| `disabled` | `boolean` | `false` | Disables the checkbox |
+| Prop              | Type                         | Default | Description               |
+| ----------------- | ---------------------------- | ------- | ------------------------- |
+| `checked`         | `boolean`                    | —       | Controlled checked state  |
+| `defaultChecked`  | `boolean`                    | `false` | Uncontrolled default      |
+| `onCheckedChange` | `(checked: boolean) => void` | —       | Called when state changes |
+| `disabled`        | `boolean`                    | `false` | Disables the checkbox     |
 
 ### Switch Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `checked` | `boolean` | — | Controlled on/off state |
-| `defaultChecked` | `boolean` | `false` | Uncontrolled default |
-| `onCheckedChange` | `(checked: boolean) => void` | — | Called when state changes |
-| `disabled` | `boolean` | `false` | Disables the switch |
+| Prop              | Type                         | Default | Description               |
+| ----------------- | ---------------------------- | ------- | ------------------------- |
+| `checked`         | `boolean`                    | —       | Controlled on/off state   |
+| `defaultChecked`  | `boolean`                    | `false` | Uncontrolled default      |
+| `onCheckedChange` | `(checked: boolean) => void` | —       | Called when state changes |
+| `disabled`        | `boolean`                    | `false` | Disables the switch       |
 
 ### RadioGroup Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `string` | — | Controlled selected value |
-| `defaultValue` | `string` | — | Uncontrolled default |
-| `onValueChange` | `(value: string) => void` | — | Called when selection changes |
-| `disabled` | `boolean` | `false` | Disables all radio items |
-| `orientation` | `"horizontal" \| "vertical"` | `"vertical"` | Layout direction |
+| Prop            | Type                         | Default      | Description                   |
+| --------------- | ---------------------------- | ------------ | ----------------------------- |
+| `value`         | `string`                     | —            | Controlled selected value     |
+| `defaultValue`  | `string`                     | —            | Uncontrolled default          |
+| `onValueChange` | `(value: string) => void`    | —            | Called when selection changes |
+| `disabled`      | `boolean`                    | `false`      | Disables all radio items      |
+| `orientation`   | `"horizontal" \| "vertical"` | `"vertical"` | Layout direction              |
 
 ### Slider Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `number[]` | — | Controlled value(s) |
-| `defaultValue` | `number[]` | — | Uncontrolled default value(s) |
-| `onValueChange` | `(value: number[]) => void` | — | Called when value changes |
-| `min` | `number` | `0` | Minimum value |
-| `max` | `number` | `100` | Maximum value |
-| `step` | `number` | `1` | Step increment |
-| `disabled` | `boolean` | `false` | Disables the slider |
+| Prop            | Type                        | Default | Description                   |
+| --------------- | --------------------------- | ------- | ----------------------------- |
+| `value`         | `number[]`                  | —       | Controlled value(s)           |
+| `defaultValue`  | `number[]`                  | —       | Uncontrolled default value(s) |
+| `onValueChange` | `(value: number[]) => void` | —       | Called when value changes     |
+| `min`           | `number`                    | `0`     | Minimum value                 |
+| `max`           | `number`                    | `100`   | Maximum value                 |
+| `step`          | `number`                    | `1`     | Step increment                |
+| `disabled`      | `boolean`                   | `false` | Disables the slider           |

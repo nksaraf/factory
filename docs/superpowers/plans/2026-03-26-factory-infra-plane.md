@@ -15,6 +15,7 @@
 ## File Structure
 
 ### New Files
+
 - `ui/src/modules/factory.infra/(app)/(dashboard)/infra/providers/page.tsx` — Provider Overview
 - `ui/src/modules/factory.infra/(app)/(dashboard)/infra/providers/[slug]/page.tsx` — Provider Detail
 - `ui/src/modules/factory.infra/(app)/(dashboard)/infra/clusters/page.tsx` — Cluster Dashboard
@@ -30,6 +31,7 @@
 - `ui/src/modules/factory.infra/components/utilization-bar.tsx` — Simple Tailwind bar chart row
 
 ### Modified Files
+
 - `ui/src/modules/factory.infra/manifest.json` — Add routes for all 8 screens
 
 ---
@@ -37,6 +39,7 @@
 ### Task 1: Provider Overview — `infra/providers/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/components/provider-type-icon.tsx`
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/providers/page.tsx`
 
@@ -177,11 +180,7 @@ export default function ProvidersPage() {
           value={statusCounts.total}
           plane="infra"
         />
-        <MetricCard
-          label="Active"
-          value={statusCounts.active}
-          plane="infra"
-        />
+        <MetricCard label="Active" value={statusCounts.active} plane="infra" />
         <MetricCard
           label="Degraded / Error"
           value={statusCounts.degraded}
@@ -254,7 +253,9 @@ function ProviderCard({ provider }: { provider: Provider }) {
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <div>
           <span className="text-muted-foreground">Kind: </span>
-          <span>{KIND_LABELS[provider.providerKind] ?? provider.providerKind}</span>
+          <span>
+            {KIND_LABELS[provider.providerKind] ?? provider.providerKind}
+          </span>
         </div>
         {provider.url && (
           <div>
@@ -281,6 +282,7 @@ git commit -m "feat(infra-ui): add Provider Overview page with grid, filters, an
 ### Task 2: Provider Detail — `infra/providers/[slug]/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/providers/[slug]/page.tsx`
 
 - [ ] **Step 1: Create the Provider Detail page**
@@ -367,7 +369,8 @@ export default function ProviderDetailPage() {
               {provider.providerType} &middot; {provider.providerKind}
               {provider.url && (
                 <>
-                  {" "}&middot;{" "}
+                  {" "}
+                  &middot;{" "}
                   <a
                     href={provider.url}
                     target="_blank"
@@ -383,7 +386,10 @@ export default function ProviderDetailPage() {
         </div>
         <Button variant="outline" asChild>
           <Link to="/infra/providers">
-            <Icon icon="icon-[ph--arrow-left-duotone]" className="mr-1.5 h-4 w-4" />
+            <Icon
+              icon="icon-[ph--arrow-left-duotone]"
+              className="mr-1.5 h-4 w-4"
+            />
             All Providers
           </Link>
         </Button>
@@ -396,16 +402,8 @@ export default function ProviderDetailPage() {
           value={clusters?.length ?? 0}
           plane="infra"
         />
-        <MetricCard
-          label="Hosts"
-          value={hosts?.length ?? 0}
-          plane="infra"
-        />
-        <MetricCard
-          label="VMs"
-          value={vms?.length ?? 0}
-          plane="infra"
-        />
+        <MetricCard label="Hosts" value={hosts?.length ?? 0} plane="infra" />
+        <MetricCard label="VMs" value={vms?.length ?? 0} plane="infra" />
         <MetricCard
           label="Regions"
           value={regions?.length ?? 0}
@@ -419,12 +417,8 @@ export default function ProviderDetailPage() {
           <TabsTrigger value="clusters">
             Clusters ({clusters?.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="hosts">
-            Hosts ({hosts?.length ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="vms">
-            VMs ({vms?.length ?? 0})
-          </TabsTrigger>
+          <TabsTrigger value="hosts">Hosts ({hosts?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="vms">VMs ({vms?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="regions">
             Regions ({regions?.length ?? 0})
           </TabsTrigger>
@@ -483,9 +477,7 @@ export default function ProviderDetailPage() {
                     </TableCell>
                     <TableCell>{host.osType}</TableCell>
                     <TableCell>{host.cpuCores} cores</TableCell>
-                    <TableCell>
-                      {Math.round(host.memoryMb / 1024)} GB
-                    </TableCell>
+                    <TableCell>{Math.round(host.memoryMb / 1024)} GB</TableCell>
                     <TableCell>{host.diskGb} GB</TableCell>
                   </TableRow>
                 ))}
@@ -525,9 +517,7 @@ export default function ProviderDetailPage() {
                       {vm.ipAddress ?? "—"}
                     </TableCell>
                     <TableCell>{vm.cpu} vCPU</TableCell>
-                    <TableCell>
-                      {Math.round(vm.memoryMb / 1024)} GB
-                    </TableCell>
+                    <TableCell>{Math.round(vm.memoryMb / 1024)} GB</TableCell>
                     <TableCell>{vm.diskGb} GB</TableCell>
                   </TableRow>
                 ))}
@@ -545,10 +535,7 @@ export default function ProviderDetailPage() {
           {regions && regions.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {regions.map((region) => (
-                <div
-                  key={region.id}
-                  className="rounded-lg border bg-card p-4"
-                >
+                <div key={region.id} className="rounded-lg border bg-card p-4">
                   <h3 className="font-medium">
                     {region.displayName || region.name}
                   </h3>
@@ -599,6 +586,7 @@ git commit -m "feat(infra-ui): add Provider Detail page with clusters, hosts, VM
 ### Task 3: Cluster Dashboard — `infra/clusters/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/clusters/page.tsx`
 
 - [ ] **Step 1: Create the Cluster Dashboard page**
@@ -647,8 +635,7 @@ export default function ClustersPage() {
     return clusters.filter((c) => {
       const matchesSearch =
         !search || c.name.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus =
-        statusFilter === "all" || c.status === statusFilter
+      const matchesStatus = statusFilter === "all" || c.status === statusFilter
       return matchesSearch && matchesStatus
     })
   }, [clusters, search, statusFilter])
@@ -657,7 +644,10 @@ export default function ClustersPage() {
     if (!clusters) return { active: 0, total: 0 }
     return {
       active: clusters.filter(
-        (c) => c.status === "active" || c.status === "running" || c.status === "ready"
+        (c) =>
+          c.status === "active" ||
+          c.status === "running" ||
+          c.status === "ready"
       ).length,
       total: clusters.length,
     }
@@ -683,11 +673,7 @@ export default function ClustersPage() {
           value={statusCounts.total}
           plane="infra"
         />
-        <MetricCard
-          label="Active"
-          value={statusCounts.active}
-          plane="infra"
-        />
+        <MetricCard label="Active" value={statusCounts.active} plane="infra" />
         <MetricCard
           label="Providers"
           value={providers?.length ?? 0}
@@ -787,6 +773,7 @@ git commit -m "feat(infra-ui): add Cluster Dashboard page with table, search, an
 ### Task 4: Cluster Detail — `infra/clusters/[slug]/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/clusters/[slug]/page.tsx`
 
 - [ ] **Step 1: Create the Cluster Detail page**
@@ -838,7 +825,8 @@ export default function ClusterDetailPage() {
   const healthyNodes = useMemo(() => {
     if (!nodes) return 0
     return nodes.filter(
-      (n) => n.status === "ready" || n.status === "active" || n.status === "running"
+      (n) =>
+        n.status === "ready" || n.status === "active" || n.status === "running"
     ).length
   }, [nodes])
 
@@ -933,11 +921,7 @@ export default function ClusterDetailPage() {
           value={roleCounts.control}
           plane="infra"
         />
-        <MetricCard
-          label="Workers"
-          value={roleCounts.worker}
-          plane="infra"
-        />
+        <MetricCard label="Workers" value={roleCounts.worker} plane="infra" />
         <MetricCard
           label="Healthy Nodes"
           value={`${healthyNodes} / ${roleCounts.total}`}
@@ -1026,6 +1010,7 @@ git commit -m "feat(infra-ui): add Cluster Detail page with nodes table, health 
 ### Task 5: Host & VM Inventory — `infra/hosts/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/hosts/page.tsx`
 
 - [ ] **Step 1: Create the Host & VM Inventory page**
@@ -1078,8 +1063,7 @@ export default function HostsPage() {
         !search ||
         h.name.toLowerCase().includes(search.toLowerCase()) ||
         h.ipAddress?.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus =
-        statusFilter === "all" || h.status === statusFilter
+      const matchesStatus = statusFilter === "all" || h.status === statusFilter
       const matchesProvider =
         providerFilter === "all" || h.providerId === providerFilter
       return matchesSearch && matchesStatus && matchesProvider
@@ -1093,8 +1077,7 @@ export default function HostsPage() {
         !search ||
         v.name.toLowerCase().includes(search.toLowerCase()) ||
         v.ipAddress?.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus =
-        statusFilter === "all" || v.status === statusFilter
+      const matchesStatus = statusFilter === "all" || v.status === statusFilter
       const matchesProvider =
         providerFilter === "all" || v.providerId === providerFilter
       return matchesSearch && matchesStatus && matchesProvider
@@ -1142,11 +1125,7 @@ export default function HostsPage() {
           value={hosts?.length ?? 0}
           plane="infra"
         />
-        <MetricCard
-          label="Total VMs"
-          value={vms?.length ?? 0}
-          plane="infra"
-        />
+        <MetricCard label="Total VMs" value={vms?.length ?? 0} plane="infra" />
         <MetricCard
           label="Host CPU Cores"
           value={totalCpu.hosts}
@@ -1205,9 +1184,7 @@ export default function HostsPage() {
           <TabsTrigger value="hosts">
             Hosts ({filteredHosts.length})
           </TabsTrigger>
-          <TabsTrigger value="vms">
-            VMs ({filteredVMs.length})
-          </TabsTrigger>
+          <TabsTrigger value="vms">VMs ({filteredVMs.length})</TabsTrigger>
         </TabsList>
 
         {/* Hosts tab */}
@@ -1247,9 +1224,7 @@ export default function HostsPage() {
                     </TableCell>
                     <TableCell>{host.osType}</TableCell>
                     <TableCell>{host.cpuCores} cores</TableCell>
-                    <TableCell>
-                      {Math.round(host.memoryMb / 1024)} GB
-                    </TableCell>
+                    <TableCell>{Math.round(host.memoryMb / 1024)} GB</TableCell>
                     <TableCell>{host.diskGb} GB</TableCell>
                   </TableRow>
                 ))}
@@ -1307,9 +1282,7 @@ export default function HostsPage() {
                       {vm.ipAddress ?? "—"}
                     </TableCell>
                     <TableCell>{vm.cpu} vCPU</TableCell>
-                    <TableCell>
-                      {Math.round(vm.memoryMb / 1024)} GB
-                    </TableCell>
+                    <TableCell>{Math.round(vm.memoryMb / 1024)} GB</TableCell>
                     <TableCell>{vm.diskGb} GB</TableCell>
                   </TableRow>
                 ))}
@@ -1345,6 +1318,7 @@ git commit -m "feat(infra-ui): add Host & VM Inventory page with dual tabs, sear
 ### Task 6: Network Topology — `infra/network/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/components/subnet-row.tsx`
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/network/page.tsx`
 
@@ -1379,7 +1353,9 @@ export function SubnetRow({ subnet }: SubnetRowProps) {
     expanded ? { subnetId: subnet.id } : undefined
   )
 
-  const allocatedCount = ips?.filter((ip) => ip.status === "allocated" || ip.status === "assigned").length ?? 0
+  const allocatedCount =
+    ips?.filter((ip) => ip.status === "allocated" || ip.status === "assigned")
+      .length ?? 0
   const totalIps = ips?.length ?? 0
 
   return (
@@ -1542,8 +1518,7 @@ export default function NetworkPage() {
         s.cidr.includes(search) ||
         s.vlanName?.toLowerCase().includes(search.toLowerCase()) ||
         s.description?.toLowerCase().includes(search.toLowerCase())
-      const matchesType =
-        typeFilter === "all" || s.subnetType === typeFilter
+      const matchesType = typeFilter === "all" || s.subnetType === typeFilter
       return matchesSearch && matchesType
     })
   }, [subnets, search, typeFilter])
@@ -1555,9 +1530,8 @@ export default function NetworkPage() {
 
   const vlanCount = useMemo(() => {
     if (!subnets) return 0
-    return new Set(
-      subnets.filter((s) => s.vlanId != null).map((s) => s.vlanId)
-    ).size
+    return new Set(subnets.filter((s) => s.vlanId != null).map((s) => s.vlanId))
+      .size
   }, [subnets])
 
   return (
@@ -1575,11 +1549,7 @@ export default function NetworkPage() {
           value={subnets?.length ?? 0}
           plane="infra"
         />
-        <MetricCard
-          label="VLANs"
-          value={vlanCount}
-          plane="infra"
-        />
+        <MetricCard label="VLANs" value={vlanCount} plane="infra" />
         <MetricCard
           label="Subnet Types"
           value={subnetTypes.length}
@@ -1666,6 +1636,7 @@ git commit -m "feat(infra-ui): add Network Topology page with expandable subnet 
 ### Task 7: Proxmox Cluster View — `infra/proxmox/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/proxmox/page.tsx`
 
 - [ ] **Step 1: Create the Proxmox Cluster View page**
@@ -1713,7 +1684,9 @@ export default function ProxmoxPage() {
 
   const syncedCount = useMemo(() => {
     if (!clusters) return 0
-    return clusters.filter((c) => c.syncStatus === "synced" || c.syncStatus === "active").length
+    return clusters.filter(
+      (c) => c.syncStatus === "synced" || c.syncStatus === "active"
+    ).length
   }, [clusters])
 
   if (isLoading) {
@@ -1762,11 +1735,7 @@ export default function ProxmoxPage() {
           value={clusters.length}
           plane="infra"
         />
-        <MetricCard
-          label="Synced"
-          value={syncedCount}
-          plane="infra"
-        />
+        <MetricCard label="Synced" value={syncedCount} plane="infra" />
         <MetricCard
           label="Proxmox VMs"
           value={[...vmsByCluster.values()].reduce(
@@ -1817,8 +1786,7 @@ function ProxmoxClusterCard({
             </span>
             {cluster.lastSyncAt && (
               <span>
-                Last sync:{" "}
-                {new Date(cluster.lastSyncAt).toLocaleString()}
+                Last sync: {new Date(cluster.lastSyncAt).toLocaleString()}
               </span>
             )}
           </div>
@@ -1859,9 +1827,7 @@ function ProxmoxClusterCard({
                 </TableCell>
                 <TableCell>{vm.osType}</TableCell>
                 <TableCell>{vm.cpu} vCPU</TableCell>
-                <TableCell>
-                  {Math.round(vm.memoryMb / 1024)} GB
-                </TableCell>
+                <TableCell>{Math.round(vm.memoryMb / 1024)} GB</TableCell>
                 <TableCell className="font-mono text-xs">
                   {vm.ipAddress ?? "—"}
                 </TableCell>
@@ -1923,6 +1889,7 @@ git commit -m "feat(infra-ui): add Proxmox Cluster View page with sync status an
 ### Task 8: Resource Utilization — `infra/utilization/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/components/utilization-bar.tsx`
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/utilization/page.tsx`
 
@@ -1970,10 +1937,7 @@ export function UtilizationBar({
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            getBarColor(pct)
-          )}
+          className={cn("h-full rounded-full transition-all", getBarColor(pct))}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -1990,11 +1954,7 @@ import { useMemo } from "react"
 
 import { Skeleton } from "@rio.js/ui/skeleton"
 
-import {
-  PlaneHeader,
-  MetricCard,
-  HealthGauge,
-} from "@/components/factory"
+import { PlaneHeader, MetricCard, HealthGauge } from "@/components/factory"
 import { useHosts, useVMs, useProviders } from "@/lib/infra"
 import type { Host, VM, Provider } from "@/lib/infra"
 
@@ -2039,14 +1999,8 @@ export default function UtilizationPage() {
   const isLoading = hostsLoading || vmsLoading
 
   // Aggregate totals
-  const hostTotals = useMemo(
-    () => sumHosts(hosts ?? []),
-    [hosts]
-  )
-  const vmTotals = useMemo(
-    () => sumVMs(vms ?? []),
-    [vms]
-  )
+  const hostTotals = useMemo(() => sumHosts(hosts ?? []), [hosts])
+  const vmTotals = useMemo(() => sumVMs(vms ?? []), [vms])
 
   // Per-provider breakdown
   const perProvider = useMemo(() => {
@@ -2216,6 +2170,7 @@ git commit -m "feat(infra-ui): add Resource Utilization page with aggregate gaug
 ### Task 9: Certificates & Secrets — `infra/certs/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/certs/page.tsx`
 
 - [ ] **Step 1: Create the Certificates & Secrets placeholder page**

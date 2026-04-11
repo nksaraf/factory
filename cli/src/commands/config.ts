@@ -1,14 +1,14 @@
-import type { DxBase } from "../dx-root.js";
+import type { DxBase } from "../dx-root.js"
 import {
   runConfigGet,
   runConfigPath,
   runConfigReset,
   runConfigSet,
   runConfigShow,
-} from "../handlers/config.js";
+} from "../handlers/config.js"
 
-import { toDxFlags } from "./dx-flags.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+import { toDxFlags } from "./dx-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("config", [
   "$ dx config show                    Show merged configuration",
@@ -16,20 +16,20 @@ setExamples("config", [
   "$ dx config set factoryUrl <url>    Update a setting",
   "$ dx config path                    Show config file location",
   "$ dx config reset                   Reset to defaults",
-]);
+])
 
 export function configCommand(app: DxBase) {
   return app
     .sub("config")
     .meta({ description: "View and manage DX configuration" })
     .run(async ({ flags }) => {
-      await runConfigShow(toDxFlags(flags));
+      await runConfigShow(toDxFlags(flags))
     })
     .command("show", (c) =>
       c
         .meta({ description: "Display the merged configuration" })
         .run(async ({ flags }) => {
-          await runConfigShow(toDxFlags(flags));
+          await runConfigShow(toDxFlags(flags))
         })
     )
     .command("get", (c) =>
@@ -44,7 +44,7 @@ export function configCommand(app: DxBase) {
           },
         ])
         .run(async ({ flags, args }) => {
-          await runConfigGet(toDxFlags(flags), args.key as string);
+          await runConfigGet(toDxFlags(flags), args.key as string)
         })
     )
     .command("set", (c) =>
@@ -69,14 +69,14 @@ export function configCommand(app: DxBase) {
             toDxFlags(flags),
             args.key as string,
             args.value as string
-          );
+          )
         })
     )
     .command("path", (c) =>
       c
         .meta({ description: "Print the config file path" })
         .run(async ({ flags }) => {
-          await runConfigPath(toDxFlags(flags));
+          await runConfigPath(toDxFlags(flags))
         })
     )
     .command("reset", (c) =>
@@ -91,7 +91,7 @@ export function configCommand(app: DxBase) {
           },
         ])
         .run(async ({ flags, args }) => {
-          await runConfigReset(toDxFlags(flags), args.key as string);
+          await runConfigReset(toDxFlags(flags), args.key as string)
         })
-    );
+    )
 }

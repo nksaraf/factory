@@ -9,6 +9,7 @@ Additionally, lepton-59 is a bare metal server that gets incorrectly deleted by 
 ## Data from old lepton DB (`postgres://...@192.168.2.89:5460/postgres`)
 
 **Proxmox nodes (3)**: lepton-squirtle, lepton-charmander, lepton-pikachu
+
 - lepton-bulbasaur does NOT exist — was never a real node
 - lepton-59 does NOT exist as a node — it's bare metal
 
@@ -52,7 +53,7 @@ Additionally, lepton-59 is a bare metal server that gets incorrectly deleted by 
 | 135 | app-smart-market-2-stg | app-smart-market-2-stg |
 | 136 | gcp-bill-alert | gcp-bill-alert |
 | 137 | dev-ritvik-2 | dev-ritvik-2 |
-| 138 | bff-service | *(missing from seed — add it)* |
+| 138 | bff-service | _(missing from seed — add it)_ |
 | 139 | workflow-engine | workflow-engine |
 | 141 | platform | traffic-chennai |
 | 144 | dev-vishwa-trafficure | dev-vishwa-trafficure |
@@ -89,7 +90,7 @@ Defensive fix: only delete hosts that were created by the Proxmox sync (identifi
 // Only remove hosts that were created by Proxmox sync (have hostname set)
 for (const [name, existing] of existingHostByName) {
   if (!seenNames.has(name) && existing.hostname != null) {
-    await db.delete(host).where(eq(host.hostId, existing.hostId));
+    await db.delete(host).where(eq(host.hostId, existing.hostId))
   }
 }
 ```

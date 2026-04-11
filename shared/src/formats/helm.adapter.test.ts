@@ -1,46 +1,46 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest"
 
-import type { CatalogSystem } from "../catalog";
-import { HelmFormatAdapter } from "./helm.adapter";
+import type { CatalogSystem } from "../catalog"
+import { HelmFormatAdapter } from "./helm.adapter"
 
 // ─── Mock node:fs ────────────────────────────────────────────
 
 vi.mock("node:fs", async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
+  const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
     existsSync: vi.fn(),
     readFileSync: vi.fn(),
-  };
-});
+  }
+})
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs"
 
-const mockExistsSync = existsSync as unknown as ReturnType<typeof vi.fn>;
-const mockReadFileSync = readFileSync as unknown as ReturnType<typeof vi.fn>;
+const mockExistsSync = existsSync as unknown as ReturnType<typeof vi.fn>
+const mockReadFileSync = readFileSync as unknown as ReturnType<typeof vi.fn>
 
 beforeEach(() => {
-  mockExistsSync.mockReset();
-  mockReadFileSync.mockReset();
-});
+  mockExistsSync.mockReset()
+  mockReadFileSync.mockReset()
+})
 
 // ─── Helpers ─────────────────────────────────────────────────
 
 function setupHelmChart(
   rootDir: string,
   chartYaml: string,
-  valuesYaml?: string,
+  valuesYaml?: string
 ) {
   mockExistsSync.mockImplementation((p: string) => {
-    if (p === `${rootDir}/Chart.yaml`) return true;
-    if (valuesYaml != null && p === `${rootDir}/values.yaml`) return true;
-    return false;
-  });
+    if (p === `${rootDir}/Chart.yaml`) return true
+    if (valuesYaml != null && p === `${rootDir}/values.yaml`) return true
+    return false
+  })
   mockReadFileSync.mockImplementation((p: string) => {
-    if (p === `${rootDir}/Chart.yaml`) return chartYaml;
-    if (p === `${rootDir}/values.yaml`) return valuesYaml ?? "";
-    throw new Error(`Unexpected read: ${p}`);
-  });
+    if (p === `${rootDir}/Chart.yaml`) return chartYaml
+    if (p === `${rootDir}/values.yaml`) return valuesYaml ?? ""
+    throw new Error(`Unexpected read: ${p}`)
+  })
 }
 
 // ─── Tests ───────────────────────────────────────────────────
@@ -48,19 +48,17 @@ function setupHelmChart(
 describe("HelmFormatAdapter", () => {
   describe("detect", () => {
     it("returns true when Chart.yaml exists", () => {
-      mockExistsSync.mockImplementation((p: string) =>
-        p.endsWith("Chart.yaml"),
-      );
-      const adapter = new HelmFormatAdapter();
-      expect(adapter.detect("/my-chart")).toBe(true);
-    });
+      mockExistsSync.mockImplementation((p: string) => p.endsWith("Chart.yaml"))
+      const adapter = new HelmFormatAdapter()
+      expect(adapter.detect("/my-chart")).toBe(true)
+    })
 
     it("returns false when Chart.yaml does not exist", () => {
-      mockExistsSync.mockReturnValue(false);
-      const adapter = new HelmFormatAdapter();
-      expect(adapter.detect("/empty-dir")).toBe(false);
-    });
-  });
+      mockExistsSync.mockReturnValue(false)
+      const adapter = new HelmFormatAdapter()
+      expect(adapter.detect("/empty-dir")).toBe(false)
+    })
+  })
 
   describe("parse", () => {
     it("parses Chart.yaml + values.yaml into a CatalogSystem with correct component", () => {
@@ -91,18 +89,18 @@ resources:
   requests:
     cpu: 50m
     memory: 64Mi
-`,
-      );
+`
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
 
-      expect(result.system.kind).toBe("System");
-      expect(result.system.metadata.name).toBe("my-app");
-      expect(result.system.metadata.description).toBe("A sample Helm chart");
-      expect(result.system.components["my-app"]).toBeDefined();
-      expect(result.sourceVersion).toBe("v2");
-    });
+      expect(result.system.kind).toBe("System")
+      expect(result.system.metadata.name).toBe("my-app")
+      expect(result.system.metadata.description).toBe("A sample Helm chart")
+      expect(result.system.components["my-app"]).toBeDefined()
+      expect(result.sourceVersion).toBe("v2")
+    })
 
     it("maps image, ports, replicas, and resources correctly", () => {
       setupHelmChart(
@@ -123,23 +121,23 @@ resources:
   limits:
     cpu: 200m
     memory: 256Mi
-`,
-      );
+`
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
-      const comp = result.system.components.webapp;
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
+      const comp = result.system.components.webapp
 
-      expect(comp.spec.image).toBe("myorg/webapp:v3.2");
+      expect(comp.spec.image).toBe("myorg/webapp:v3.2")
       expect(comp.spec.ports).toEqual([
         { name: "http", port: 8080, protocol: "http" },
-      ]);
-      expect(comp.spec.replicas).toBe(2);
+      ])
+      expect(comp.spec.replicas).toBe(2)
       expect(comp.spec.compute).toEqual({
         min: undefined,
         max: { cpu: "200m", memory: "256Mi" },
-      });
-    });
+      })
+    })
 
     it("maps ingress.enabled to isPublic", () => {
       setupHelmChart(
@@ -154,13 +152,13 @@ ingress:
   enabled: true
   hosts:
     - host: example.com
-`,
-      );
+`
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
-      expect(result.system.components["public-app"].spec.isPublic).toBe(true);
-    });
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
+      expect(result.system.components["public-app"].spec.isPublic).toBe(true)
+    })
 
     it("maps chart dependencies to Resources for infra names", () => {
       setupHelmChart(
@@ -179,17 +177,17 @@ dependencies:
 `,
         `
 replicaCount: 1
-`,
-      );
+`
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
 
-      expect(result.system.resources.postgresql).toBeDefined();
-      expect(result.system.resources.postgresql.spec.type).toBe("database");
-      expect(result.system.resources.redis).toBeDefined();
-      expect(result.system.resources.redis.spec.type).toBe("cache");
-    });
+      expect(result.system.resources.postgresql).toBeDefined()
+      expect(result.system.resources.postgresql.spec.type).toBe("database")
+      expect(result.system.resources.redis).toBeDefined()
+      expect(result.system.resources.redis.spec.type).toBe("cache")
+    })
 
     it("maps non-infra chart dependencies to Components", () => {
       setupHelmChart(
@@ -205,15 +203,15 @@ dependencies:
 `,
         `
 replicaCount: 1
-`,
-      );
+`
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
 
-      expect(result.system.components.frontend).toBeDefined();
-      expect(result.system.components.frontend.spec.type).toBe("service");
-    });
+      expect(result.system.components.frontend).toBeDefined()
+      expect(result.system.components.frontend.spec.type).toBe("service")
+    })
 
     it("stores appVersion in formatExtensions", () => {
       setupHelmChart(
@@ -224,14 +222,14 @@ name: my-app
 version: 0.2.0
 appVersion: "2.5.0"
 `,
-        ``,
-      );
+        ``
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
-      expect(result.system.formatExtensions?.helm?.appVersion).toBe("2.5.0");
-      expect(result.system.formatExtensions?.helm?.chartVersion).toBe("0.2.0");
-    });
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
+      expect(result.system.formatExtensions?.helm?.appVersion).toBe("2.5.0")
+      expect(result.system.formatExtensions?.helm?.chartVersion).toBe("0.2.0")
+    })
 
     it("uses dependency alias when present", () => {
       setupHelmChart(
@@ -245,15 +243,15 @@ dependencies:
     version: "12.0.0"
     alias: db
 `,
-        ``,
-      );
+        ``
+      )
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.parse("/my-chart");
-      expect(result.system.resources.db).toBeDefined();
-      expect(result.system.resources.db.spec.type).toBe("database");
-    });
-  });
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.parse("/my-chart")
+      expect(result.system.resources.db).toBeDefined()
+      expect(result.system.resources.db.spec.type).toBe("database")
+    })
+  })
 
   describe("generate", () => {
     it("generates Chart.yaml and values.yaml from CatalogSystem", () => {
@@ -290,29 +288,29 @@ dependencies:
             chartVersion: "0.3.0",
           },
         },
-      };
+      }
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.generate(system);
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.generate(system)
 
-      expect(result.files["Chart.yaml"]).toBeDefined();
-      expect(result.files["values.yaml"]).toBeDefined();
+      expect(result.files["Chart.yaml"]).toBeDefined()
+      expect(result.files["values.yaml"]).toBeDefined()
 
-      const chartContent = result.files["Chart.yaml"];
-      expect(chartContent).toContain("name: my-app");
-      expect(chartContent).toContain("apiVersion: v2");
-      expect(chartContent).toContain("appVersion: 1.2.3");
-      expect(chartContent).toContain("version: 0.3.0");
+      const chartContent = result.files["Chart.yaml"]
+      expect(chartContent).toContain("name: my-app")
+      expect(chartContent).toContain("apiVersion: v2")
+      expect(chartContent).toContain("appVersion: 1.2.3")
+      expect(chartContent).toContain("version: 0.3.0")
 
-      const valuesContent = result.files["values.yaml"];
-      expect(valuesContent).toContain("replicaCount: 3");
-      expect(valuesContent).toContain("repository: myorg/my-app");
-      expect(valuesContent).toContain("tag: v1.2.3");
-      expect(valuesContent).toContain("port: 8080");
-      expect(valuesContent).toContain("enabled: true");
-      expect(valuesContent).toContain("cpu: 250m");
-      expect(valuesContent).toContain("memory: 512Mi");
-    });
+      const valuesContent = result.files["values.yaml"]
+      expect(valuesContent).toContain("replicaCount: 3")
+      expect(valuesContent).toContain("repository: myorg/my-app")
+      expect(valuesContent).toContain("tag: v1.2.3")
+      expect(valuesContent).toContain("port: 8080")
+      expect(valuesContent).toContain("enabled: true")
+      expect(valuesContent).toContain("cpu: 250m")
+      expect(valuesContent).toContain("memory: 512Mi")
+    })
 
     it("warns about multiple components", () => {
       const system: CatalogSystem = {
@@ -333,12 +331,14 @@ dependencies:
         },
         resources: {},
         connections: [],
-      };
+      }
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.generate(system);
-      expect(result.warnings.some((w) => w.includes("additional component"))).toBe(true);
-    });
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.generate(system)
+      expect(
+        result.warnings.some((w) => w.includes("additional component"))
+      ).toBe(true)
+    })
 
     it("warns about connections", () => {
       const system: CatalogSystem = {
@@ -361,11 +361,11 @@ dependencies:
             envVar: "DATABASE_URL",
           },
         ],
-      };
+      }
 
-      const adapter = new HelmFormatAdapter();
-      const result = adapter.generate(system);
-      expect(result.warnings.some((w) => w.includes("Connections"))).toBe(true);
-    });
-  });
-});
+      const adapter = new HelmFormatAdapter()
+      const result = adapter.generate(system)
+      expect(result.warnings.some((w) => w.includes("Connections"))).toBe(true)
+    })
+  })
+})

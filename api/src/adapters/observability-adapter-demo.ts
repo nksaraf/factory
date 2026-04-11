@@ -83,14 +83,14 @@ const DEMO_ALERTS: Alert[] = [
     module: "network-access-api",
     description: "P99 latency >500ms (resolved)",
     since: new Date(Date.now() - 6 * 3600_000).toISOString(),
-    labels: { endpoint: "/api/sessions" },
+    labels: { endpoint: "/api/v1/sessions" },
   },
 ]
 
 const LOG_TEMPLATES: Array<Pick<LogEntry, "level" | "message" | "source">> = [
   {
     level: "info",
-    message: "Request handled: GET /api/factory/infra/providers 200 12ms",
+    message: "Request handled: GET /api/v1/factory/infra/providers 200 12ms",
     source: "factory-api",
   },
   {

@@ -163,7 +163,7 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
 
       const pullsRes = await rest.request<{ data: Record<string, unknown>[] }>(
         "GET",
-        `/api/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls?state=open`
+        `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls?state=open`
       )
 
       const pulls = pullsRes?.data ?? []
@@ -180,7 +180,7 @@ export async function runFactoryStatus(flags: DxFlags): Promise<void> {
             data: Record<string, unknown>[]
           }>(
             "GET",
-            `/api/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls/${prNumber}/checks`
+            `/api/v1/factory/build/git-host-provider/${ctx.providerId}/repos/${ctx.repoSlug}/pulls/${prNumber}/checks`
           )
           const checks = checksRes?.data ?? []
           checksTotal = checks.length

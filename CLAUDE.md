@@ -16,6 +16,10 @@ At the end of any session where work was discussed but not completed, prompt the
 
 - **Use `tsgo` for type checking, not `tsc`.** This project uses the native Go port of the TypeScript compiler. Always use `tsgo --noEmit` instead of `tsc --noEmit`. All `typecheck` scripts in `package.json` should invoke `tsgo`.
 
+## Formatting
+
+- **Use `oxfmt` for formatting, not `prettier`.** This project uses oxfmt (Prettier-compatible, 30x faster). Config lives in `.oxfmtrc.json`. Import sorting is built in (no plugin needed).
+
 ## Testing
 
 - Never assert broken behavior in tests. Tests should always assert the correct/expected behavior. If the code doesn't match yet, leave the test failing — that's fine. A failing test is a signal to fix the code, not to weaken the test.

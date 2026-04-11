@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
+import { useDeploymentTargets, useWorkloads } from "@/lib/ops"
 import { useParams } from "react-router"
 
 import {
@@ -30,7 +30,7 @@ export default function TargetDetailPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title={target.name}
         description={`${target.kind} · ${target.realm} · ${target.trigger}`}
         actions={<StatusBadge status={target.status} />}
@@ -40,14 +40,14 @@ export default function TargetDetailPage() {
         <MetricCard
           label="Workloads"
           value={(workloads ?? []).length}
-          plane="fleet"
+          plane="ops"
         />
-        <MetricCard label="Running" value={running} plane="fleet" />
-        <MetricCard label="Drifted" value={drifted} plane="fleet" />
+        <MetricCard label="Running" value={running} plane="ops" />
+        <MetricCard label="Drifted" value={drifted} plane="ops" />
         <MetricCard
           label="Namespace"
           value={target.namespace ?? "—"}
-          plane="fleet"
+          plane="ops"
         />
       </div>
 

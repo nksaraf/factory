@@ -656,12 +656,12 @@ Components exist in the shared component library across all tiers. The compositi
 
 The org admin sidebar grows as capabilities activate:
 
-| Tier | Sidebar Items |
-|------|--------------|
-| 1 | Members, Settings |
-| 2 | Members, Workspaces, Groups (after first group), Settings |
-| 3 | Members, Workspaces, Groups, Roles, Security Policies, SSO, Audit, Settings |
-| 4 | Members, Workspaces, Groups, Roles, Access Grants, Policies, Classifications, Quotas, SSO, SCIM, Audit, Compliance, Settings |
+| Tier | Sidebar Items                                                                                                                |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Members, Settings                                                                                                            |
+| 2    | Members, Workspaces, Groups (after first group), Settings                                                                    |
+| 3    | Members, Workspaces, Groups, Roles, Security Policies, SSO, Audit, Settings                                                  |
+| 4    | Members, Workspaces, Groups, Roles, Access Grants, Policies, Classifications, Quotas, SSO, SCIM, Audit, Compliance, Settings |
 
 Items appear when their triggering condition is met, not before.
 
@@ -1050,11 +1050,13 @@ The Portal & Dashboard Layer does:
 ## Phase 1 — Foundation
 
 **User Portal:**
+
 - Profile, security, MFA, sessions, login history
 - Tier 0–1 "My Access" (single role display)
 - Organization membership and switching
 
 **Org Admin Console:**
+
 - Tier 1 member management (flat list, role dropdown, invite)
 - Basic settings (org name, logo)
 - MFA toggle (single switch)
@@ -1062,12 +1064,14 @@ The Portal & Dashboard Layer does:
 - Entitlement visibility (plan name, seat count)
 
 **Platform Admin Console:**
+
 - Tenant directory with search
 - Cross-tenant user search
 - Basic tenant lifecycle (suspend, reactivate)
 - Fleet health dashboard
 
 **Developer Portal:**
+
 - Authentication guide with code samples
 - OAuth app registration
 - API key creation
@@ -1076,6 +1080,7 @@ The Portal & Dashboard Layer does:
 ## Phase 2 — Team Scale
 
 **User Portal:**
+
 - Tier 2 "My Access" (namespace-level roles)
 - Contextual quota visibility (>50% utilization)
 - Personal API key management
@@ -1083,6 +1088,7 @@ The Portal & Dashboard Layer does:
 - Authentication constraint display
 
 **Org Admin Console:**
+
 - Tier 2 namespace management (create, rename, archive workspaces)
 - Namespace-scoped member views
 - Group creation and group-based role assignment
@@ -1092,12 +1098,14 @@ The Portal & Dashboard Layer does:
 - SCIM setup
 
 **Platform Admin Console:**
+
 - Authorization debugging ("why can't user X do Y?")
 - SSO/SCIM status monitoring across tenants
 - Account merge workflow
 - Impersonation
 
 **Developer Portal:**
+
 - Permission check API documentation
 - Quota SDK documentation
 - OAuth scope registry with resource type mapping
@@ -1105,6 +1113,7 @@ The Portal & Dashboard Layer does:
 ## Phase 3 — Enterprise Governance
 
 **User Portal:**
+
 - Tier 3–4 effective permissions view with scope navigator
 - Denied-action explanations with authorization trace
 - Full quota dashboard
@@ -1112,6 +1121,7 @@ The Portal & Dashboard Layer does:
 - Agent identity visibility
 
 **Org Admin Console:**
+
 - Tier 3 custom role creation with permission schema browser
 - Tier 3 security policies (MFA, password, session, IP allowlist)
 - Tier 3 data classification (label assignment, predefined labels)
@@ -1121,6 +1131,7 @@ The Portal & Dashboard Layer does:
 - Service account and agent identity lifecycle
 
 **Platform Admin Console:**
+
 - Full authorization topology (cross-site scope browser)
 - Permission schema management
 - Platform role templates
@@ -1131,6 +1142,7 @@ The Portal & Dashboard Layer does:
 - Fleet-wide quota dashboard with forensics
 
 **Developer Portal:**
+
 - Relationship tuple API documentation
 - Resource type registration documentation
 - Data classification SDK documentation
@@ -1139,9 +1151,11 @@ The Portal & Dashboard Layer does:
 ## Phase 4 — Full Governance
 
 **User Portal:**
+
 - Complete (no additional features beyond Phase 3)
 
 **Org Admin Console:**
+
 - Tier 4 relationship tuple management (browser, bulk, provenance, expiration)
 - Tier 4 ABAC policy builder with simulation and conflict detection
 - Tier 4 classification (custom schema, auto-classification rules, impact preview, compliance dashboard)
@@ -1149,6 +1163,7 @@ The Portal & Dashboard Layer does:
 - Tier 4 compliance reporting (PDF generation)
 
 **Platform Admin Console:**
+
 - Tuple graph visualization
 - "Who can access resource Z?" reverse lookup
 - Classification propagation rules
@@ -1157,6 +1172,7 @@ The Portal & Dashboard Layer does:
 - Policy hierarchy visualization
 
 **Developer Portal:**
+
 - Policy test harness
 - Dynamic consent based on classification
 - Advanced authorization patterns guide
@@ -1185,20 +1201,20 @@ The Portal & Dashboard Layer does:
 
 # Appendix A: Glossary
 
-| Term | Definition |
-|------|-----------|
-| Complexity Tier | A classification (0–4) of a customer's authorization sophistication, determining portal surface area |
+| Term                             | Definition                                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Complexity Tier                  | A classification (0–4) of a customer's authorization sophistication, determining portal surface area                  |
 | Module Authorization Declaration | A YAML manifest registered by each module declaring its resource types, default roles, quota types, and feature usage |
-| Authorization Capability Surface | The computed union of module declarations + entitlement gates + activation state for a scope |
-| Scope | A node in the authorization hierarchy: site, organization, namespace, module_instance, or resource |
-| Role Binding | An assignment of a principal (or group) to a role at a specific scope |
-| Relationship Tuple | A (subject, relation, resource) edge in the ReBAC graph for fine-grained resource-level access |
-| ABAC Policy | A contextual constraint evaluating principal attributes, request context, and resource attributes |
-| Data Classification | A label (e.g., `pii`, `confidential`) assigned to a resource, used by ABAC policies for access decisions |
-| Quota Partition | An allocation of the org's quota ceiling to a specific namespace or module_instance |
-| Progressive Disclosure | The UX principle of revealing UI complexity only as the customer's needs and sophistication grow |
-| Access Request | A workflow where a user requests access to a scope or resource they currently lack |
-| Tuple Provenance | The origin of a relationship tuple: manual, SCIM, entitlement activation, or module self-registration |
+| Authorization Capability Surface | The computed union of module declarations + entitlement gates + activation state for a scope                          |
+| Scope                            | A node in the authorization hierarchy: site, organization, namespace, module_instance, or resource                    |
+| Role Binding                     | An assignment of a principal (or group) to a role at a specific scope                                                 |
+| Relationship Tuple               | A (subject, relation, resource) edge in the ReBAC graph for fine-grained resource-level access                        |
+| ABAC Policy                      | A contextual constraint evaluating principal attributes, request context, and resource attributes                     |
+| Data Classification              | A label (e.g., `pii`, `confidential`) assigned to a resource, used by ABAC policies for access decisions              |
+| Quota Partition                  | An allocation of the org's quota ceiling to a specific namespace or module_instance                                   |
+| Progressive Disclosure           | The UX principle of revealing UI complexity only as the customer's needs and sophistication grow                      |
+| Access Request                   | A workflow where a user requests access to a scope or resource they currently lack                                    |
+| Tuple Provenance                 | The origin of a relationship tuple: manual, SCIM, entitlement activation, or module self-registration                 |
 
 ## Appendix B: Portal Service Registry
 

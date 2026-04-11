@@ -1,6 +1,6 @@
-import { Crust } from "@crustjs/core";
-import { errorHandlerPlugin } from "./plugins/error-handler.js";
-import { groupedHelpPlugin } from "./plugins/grouped-help.js";
+import { Crust } from "@crustjs/core"
+import { errorHandlerPlugin } from "./plugins/error-handler.js"
+import { groupedHelpPlugin } from "./plugins/grouped-help.js"
 
 /** Shared root builder: inherit `json` / `verbose` / `debug` into every `.sub()` command. */
 export function createDxBase() {
@@ -34,7 +34,7 @@ export function createDxBase() {
       },
     })
     .use(groupedHelpPlugin())
-    .use(errorHandlerPlugin());
+    .use(errorHandlerPlugin())
 }
 
-export type DxBase = ReturnType<typeof createDxBase>;
+export type DxBase = ReturnType<typeof createDxBase>

@@ -24,12 +24,12 @@ Sales, finance, partner (if applicable)
 
 Actions
 
-* Customer account created
-* Contract and pricing defined
-* Modules licensed
-* Seat limits defined
-* Quotas defined
-* Support tier defined
+- Customer account created
+- Contract and pricing defined
+- Modules licensed
+- Seat limits defined
+- Quotas defined
+- Support tier defined
 
 Output
 
@@ -62,9 +62,9 @@ Fleet decides where the customer will run.
 
 Possible outcomes
 
-* existing SaaS Site
-* new dedicated Site
-* partner-operated Site
+- existing SaaS Site
+- new dedicated Site
+- partner-operated Site
 
 Example
 
@@ -76,10 +76,10 @@ namespace: samsung
 
 Fleet records:
 
-* site_id
-* provider
-* region
-* deployment type
+- site_id
+- provider
+- region
+- deployment type
 
 ---
 
@@ -126,9 +126,9 @@ coverage
 
 Actions
 
-* service configuration
-* API enablement
-* worker deployment
+- service configuration
+- API enablement
+- worker deployment
 
 ---
 
@@ -164,9 +164,9 @@ Users and identity sources added.
 
 Possible sources
 
-* SSO integration
-* SCIM provisioning
-* manual users
+- SSO integration
+- SCIM provisioning
+- manual users
 
 Roles created
 
@@ -193,10 +193,10 @@ https://api.platform.com/samsung
 
 Network plane handles:
 
-* routing
-* TLS
-* rate limits
-* WAF
+- routing
+- TLS
+- rate limits
+- WAF
 
 ---
 
@@ -325,13 +325,13 @@ If user converts:
 
 **Commerce Plane**
 
-* upgrade license
-* update quotas
-* enable additional modules
+- upgrade license
+- update quotas
+- enable additional modules
 
 **Control Plane**
 
-* apply updated entitlements
+- apply updated entitlements
 
 No redeployment needed.
 
@@ -362,9 +362,9 @@ Product Plane → product analytics
 
 This feedback loop informs:
 
-* billing
-* product decisions
-* reliability improvements
+- billing
+- product decisions
+- reliability improvements
 
 ---
 

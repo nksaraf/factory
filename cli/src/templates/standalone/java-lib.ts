@@ -1,12 +1,12 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { toJavaPackage } from "../types.js";
-import { javaMavenPlugins, javaQualityFiles } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import { toJavaPackage } from "../types.js"
+import { javaMavenPlugins, javaQualityFiles } from "../quality-configs.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, description } = vars;
-  const javaName = toJavaPackage(name);
+  const { name, description } = vars
+  const javaName = toJavaPackage(name)
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // pom.xml
   files.push({
@@ -42,7 +42,7 @@ ${javaMavenPlugins()}
   </build>
 </project>
 `,
-  });
+  })
 
   // package-info.java
   files.push({
@@ -52,7 +52,7 @@ ${javaMavenPlugins()}
  */
 package software.lepton.lib.${javaName};
 `,
-  });
+  })
 
   // .gitignore
   files.push({
@@ -65,10 +65,10 @@ package software.lepton.lib.${javaName};
 .project
 .classpath
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(...javaQualityFiles());
+  files.push(...javaQualityFiles())
 
-  return files;
+  return files
 }

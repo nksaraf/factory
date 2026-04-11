@@ -189,6 +189,11 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   },
   rout: { module: "ops", entity: "rollouts", label: "Rollouts" },
   wbnch: { module: "ops", entity: "workbenches", label: "Workbenches" },
+  wbsnap: {
+    module: "ops",
+    entity: "workbench-snapshots",
+    label: "Workbench Snapshots",
+  },
   prev: { module: "ops", entity: "previews", label: "Previews" },
   intv: { module: "ops", entity: "interventions", label: "Interventions" },
   db: { module: "ops", entity: "databases", label: "Databases" },

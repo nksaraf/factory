@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod"
 
 // ---------------------------------------------------------------------------
 // Output types
@@ -10,9 +10,9 @@ export const releaseContentOutputType = z.enum([
   "api-docs",
   "internal-docs",
   "announcement",
-]);
+])
 
-export type ReleaseContentOutputType = z.infer<typeof releaseContentOutputType>;
+export type ReleaseContentOutputType = z.infer<typeof releaseContentOutputType>
 
 // ---------------------------------------------------------------------------
 // Configuration (what the caller can customize)
@@ -37,23 +37,23 @@ export const releaseContentConfigSchema = z.object({
   docsDir: z.string().default("docs/releases"),
   /** Repo full name (owner/repo). Required when calling the API. */
   repoFullName: z.string().optional(),
-});
+})
 
-export type ReleaseContentConfig = z.infer<typeof releaseContentConfigSchema>;
+export type ReleaseContentConfig = z.infer<typeof releaseContentConfigSchema>
 
 // ---------------------------------------------------------------------------
 // Parsed commit (from conventional commit message)
 // ---------------------------------------------------------------------------
 
 export interface ParsedCommit {
-  sha: string;
-  type: string;
-  scope: string | null;
-  breaking: boolean;
-  description: string;
-  body: string | null;
-  author: string;
-  date: string;
+  sha: string
+  type: string
+  scope: string | null
+  breaking: boolean
+  description: string
+  body: string | null
+  author: string
+  date: string
 }
 
 // ---------------------------------------------------------------------------
@@ -61,12 +61,12 @@ export interface ParsedCommit {
 // ---------------------------------------------------------------------------
 
 export interface PullRequestSummary {
-  number: number;
-  title: string;
-  body: string;
-  author: string;
-  labels: string[];
-  mergedAt: string;
+  number: number
+  title: string
+  body: string
+  author: string
+  labels: string[]
+  mergedAt: string
 }
 
 // ---------------------------------------------------------------------------
@@ -74,22 +74,22 @@ export interface PullRequestSummary {
 // ---------------------------------------------------------------------------
 
 export interface OpenApiEndpointChange {
-  method: string;
-  path: string;
-  changeType: "added" | "removed" | "modified";
-  summary?: string;
-  details?: string;
+  method: string
+  path: string
+  changeType: "added" | "removed" | "modified"
+  summary?: string
+  details?: string
 }
 
 export interface OpenApiSchemaChange {
-  name: string;
-  changeType: "added" | "removed" | "modified";
-  details?: string;
+  name: string
+  changeType: "added" | "removed" | "modified"
+  details?: string
 }
 
 export interface OpenApiDiff {
-  endpointChanges: OpenApiEndpointChange[];
-  schemaChanges: OpenApiSchemaChange[];
+  endpointChanges: OpenApiEndpointChange[]
+  schemaChanges: OpenApiSchemaChange[]
 }
 
 // ---------------------------------------------------------------------------
@@ -97,14 +97,14 @@ export interface OpenApiDiff {
 // ---------------------------------------------------------------------------
 
 export interface ReleaseContext {
-  version: string;
-  previousVersion: string | null;
-  repoFullName: string;
-  releaseDate: string;
-  commits: ParsedCommit[];
-  pullRequests: PullRequestSummary[];
-  openApiDiff: OpenApiDiff | null;
-  designSpecs: string[];
+  version: string
+  previousVersion: string | null
+  repoFullName: string
+  releaseDate: string
+  commits: ParsedCommit[]
+  pullRequests: PullRequestSummary[]
+  openApiDiff: OpenApiDiff | null
+  designSpecs: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -112,9 +112,9 @@ export interface ReleaseContext {
 // ---------------------------------------------------------------------------
 
 export interface GeneratedContent {
-  type: ReleaseContentOutputType;
-  filename: string;
-  content: string;
+  type: ReleaseContentOutputType
+  filename: string
+  content: string
 }
 
 // ---------------------------------------------------------------------------
@@ -122,8 +122,8 @@ export interface GeneratedContent {
 // ---------------------------------------------------------------------------
 
 export interface ReleaseContentResult {
-  prUrl: string;
-  prNumber: number;
-  generatedFiles: string[];
-  version: string;
+  prUrl: string
+  prNumber: number
+  generatedFiles: string[]
+  version: string
 }

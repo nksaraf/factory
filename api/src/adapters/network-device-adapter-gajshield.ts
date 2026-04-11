@@ -75,17 +75,22 @@ export class GajShieldNetworkDeviceAdapter extends SnmpNetworkDeviceAdapter {
 
         if (!response.ok) continue
 
-        const body = await response.json() as any
-        const leases = Array.isArray(body) ? body : body.leases ?? body.data ?? []
+        const body = (await response.json()) as any
+        const leases = Array.isArray(body)
+          ? body
+          : (body.leases ?? body.data ?? [])
 
-        return leases.map((lease: any) => ({
-          ipAddress: lease.ip ?? lease.ipAddress ?? lease.ip_address,
-          macAddress: lease.mac ?? lease.macAddress ?? lease.mac_address ?? "",
-          hostname: lease.hostname ?? lease.name,
-          leaseStart: lease.start ? new Date(lease.start) : undefined,
-          leaseEnd: lease.end ? new Date(lease.end) : undefined,
-          status: this.mapLeaseStatus(lease.status ?? lease.state),
-        })).filter((l: DhcpLease) => l.ipAddress)
+        return leases
+          .map((lease: any) => ({
+            ipAddress: lease.ip ?? lease.ipAddress ?? lease.ip_address,
+            macAddress:
+              lease.mac ?? lease.macAddress ?? lease.mac_address ?? "",
+            hostname: lease.hostname ?? lease.name,
+            leaseStart: lease.start ? new Date(lease.start) : undefined,
+            leaseEnd: lease.end ? new Date(lease.end) : undefined,
+            status: this.mapLeaseStatus(lease.status ?? lease.state),
+          }))
+          .filter((l: DhcpLease) => l.ipAddress)
       } catch {
         // Try next endpoint
         continue
@@ -95,11 +100,14 @@ export class GajShieldNetworkDeviceAdapter extends SnmpNetworkDeviceAdapter {
     throw new Error("No working DHCP lease endpoint found")
   }
 
-  private mapLeaseStatus(raw: string | undefined): "active" | "expired" | "reserved" {
+  private mapLeaseStatus(
+    raw: string | undefined
+  ): "active" | "expired" | "reserved" {
     if (!raw) return "active"
     const normalized = raw.toLowerCase()
     if (normalized.includes("expir")) return "expired"
-    if (normalized.includes("reserv") || normalized.includes("static")) return "reserved"
+    if (normalized.includes("reserv") || normalized.includes("static"))
+      return "reserved"
     return "active"
   }
 }

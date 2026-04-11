@@ -36,11 +36,13 @@ dx sandbox ssh <id|slug> [flags]
 ### Prerequisite
 
 SSH requires an SSH server inside the container. The devcontainer needs the `sshd` feature:
+
 ```json
 { "features": { "ghcr.io/devcontainers/features/sshd:1": {} } }
 ```
 
 If the sandbox has no SSH server and the user tries `dx sandbox ssh`, detect connection refused and suggest:
+
 ```
 SSH connection failed. The sandbox may not have an SSH server installed.
 Add "ghcr.io/devcontainers/features/sshd:1" to your devcontainer.json,
@@ -50,6 +52,7 @@ or use: dx sandbox exec <id>
 ### SSH Key Management (future)
 
 Not in scope for v1, but the shape:
+
 - `dx sandbox ssh-key add <id> --pubkey ~/.ssh/id_ed25519.pub` → injects key into sandbox
 - On sandbox create, auto-inject the user's default pubkey if available
 - Store authorized keys in a ConfigMap mounted into the pod
@@ -89,6 +92,7 @@ dx sandbox logs <id|slug> [flags]
 ### Build Progress UX
 
 When `--build` is used, parse envbuilder output for progress indicators:
+
 ```
 Cloning https://github.com/... → [clone]
 Extracting layer 5/16 (27.6%) → [build] Extracting layers... 5/16
@@ -124,16 +128,20 @@ dx sandbox open <id|slug> [flags]
 ### Local k3d Mode
 
 For local development where the gateway isn't fully wired:
+
 - `dx sandbox open` → opens `http://localhost:{sshPort+1}` or the web-terminal NodePort
 - Detect local mode by checking if `factoryUrl` contains `localhost`
 
 ### Port Forwarding (future enhancement)
 
 For accessing arbitrary ports inside the sandbox (e.g. a dev server on :3000):
+
 ```
 dx sandbox open <id> --port 3000
 ```
+
 This would:
+
 1. Start a background `kubectl port-forward` for `sandbox-{slug}:{port}`
 2. Open `http://localhost:{localPort}` in the browser
 3. Keep the port-forward running until the user presses Ctrl+C
@@ -160,10 +168,11 @@ readinessProbe:
     command: ["sh", "-c", "test -f /tmp/.envbuilder-ready"]
   initialDelaySeconds: 5
   periodSeconds: 5
-  failureThreshold: 120  # 10 min max
+  failureThreshold: 120 # 10 min max
 ```
 
 The envbuilder init script creates this sentinel file:
+
 ```sh
 cp -a /workspace-pvc/. /workspaces/ 2>/dev/null;
 touch /tmp/.envbuilder-ready;
@@ -178,6 +187,7 @@ This means the k8s readiness probe will report the container as ready only after
 Add a background reconciliation loop that polls k8s pod status and updates the DB:
 
 **New fields on `sandbox` table:**
+
 ```sql
 ALTER TABLE factory_fleet.sandbox
   ADD COLUMN health_status TEXT DEFAULT 'unknown',  -- unknown | building | ready | unhealthy | terminated
@@ -185,6 +195,7 @@ ALTER TABLE factory_fleet.sandbox
 ```
 
 **Reconciler behavior** (new method: `reconcileSandboxHealth`):
+
 1. Get pod status from k8s: `kubectl get pod sandbox-{slug} -n sandbox-{slug} -o json`
 2. Map to health status:
    - Pod not found → `terminated`
@@ -195,6 +206,7 @@ ALTER TABLE factory_fleet.sandbox
 4. If `unhealthy`: set `statusMessage` with the container's last termination reason
 
 **Trigger options** (pick one):
+
 - **Option A: Polling loop** — reconciler checks all `active` sandboxes every 30s (simple, scales to ~100 sandboxes)
 - **Option B: On-demand** — health check runs when `GET /sandboxes/:id` is called and `health_checked_at` is stale (>30s). Lazy but precise.
 - **Option C: k8s watch** — watch pod events via k8s API. Most responsive but requires persistent connection per cluster.
@@ -204,12 +216,14 @@ ALTER TABLE factory_fleet.sandbox
 #### Phase C: CLI Integration
 
 Update `dx sandbox show` to display health:
+
 ```
   Health:    ready (checked 5s ago)
   Build:     complete (37.8s)
 ```
 
 Update `dx sandbox list` to show health column:
+
 ```
 ID                     Name       Status   Health     Created
 sbx_abc123...          gdal-e2e   active   building   2m ago
@@ -217,6 +231,7 @@ sbx_def456...          my-dev     active   ready      1h ago
 ```
 
 Update `dx sandbox create --wait` to wait for `health_status = ready` instead of just `status = active`:
+
 ```
 Provisioning sandbox... (applying resources)
 Building image... (envbuilder: extracting layers 5/16)
@@ -226,6 +241,7 @@ Sandbox "gdal-e2e" is ready.
 ### Health Check API Endpoint
 
 New endpoint for explicit health check:
+
 ```
 GET /sandboxes/:id/health
 → { status: "ready", checkedAt: "...", container: "workspace", buildDuration: 37800 }
@@ -248,12 +264,12 @@ This calls the reconciler's health check synchronously and returns fresh data.
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `cli/src/commands/sandbox.ts` | Add `ssh`, `logs`, `open` commands |
+| File                                               | Changes                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `cli/src/commands/sandbox.ts`                      | Add `ssh`, `logs`, `open` commands                                           |
 | `api/src/reconciler/sandbox-resource-generator.ts` | Add readiness probe to workspace container, update init script with sentinel |
-| `api/src/reconciler/reconciler.ts` | Add `reconcileSandboxHealth()` method |
-| `api/src/services/sandbox/sandbox.service.ts` | Add `getSandboxHealth()`, `updateSandboxHealth()` |
-| `api/src/modules/infra/sandbox.controller.ts` | Add `GET /:id/health` endpoint |
-| `api/src/db/schema/fleet.ts` | Add `healthStatus`, `healthCheckedAt` columns to sandbox table |
-| `api/drizzle/0004_sandbox_health.sql` | Migration for new columns |
+| `api/src/reconciler/reconciler.ts`                 | Add `reconcileSandboxHealth()` method                                        |
+| `api/src/services/sandbox/sandbox.service.ts`      | Add `getSandboxHealth()`, `updateSandboxHealth()`                            |
+| `api/src/modules/infra/sandbox.controller.ts`      | Add `GET /:id/health` endpoint                                               |
+| `api/src/db/schema/fleet.ts`                       | Add `healthStatus`, `healthCheckedAt` columns to sandbox table               |
+| `api/drizzle/0004_sandbox_health.sql`              | Migration for new columns                                                    |

@@ -8,7 +8,7 @@ export default defineConfig([
     plugins: [
       {
         name: "@tanstack/react-query",
-        baseUrl: "http://localhost:9000/api/data",
+        baseUrl: "http://localhost:9000/api/v1/data",
         queryOptions: true,
         queryKeys: true,
         mutationOptions: true,

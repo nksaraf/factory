@@ -1029,4 +1029,4 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] **`dx factory logs` grep/sandbox filtering** — `--grep` and `--sandbox` flags exist but need end-to-end verification with Loki label-based filtering.
 - [x] **Slack sync fails under Bun runtime** — Fixed: replaced `@slack/web-api` SDK with direct curl subprocess calls (`slack-client.ts`). Bun's fetch AND node:https polyfill both drop sockets; curl bypasses Bun's networking entirely.
 - [ ] **Remove `@slack/web-api` dependency** — No longer imported anywhere in `api/src/`. Can be removed from `api/package.json` to reduce install size. Verify no other packages depend on it first.
-- [ ] **Validation error on `POST /api/factory/infra/hosts/:slug/update`** — Recurring error: `spec.hostname` required but undefined. Investigate caller sending incomplete payloads.
+- [ ] **Validation error on `POST /api/v1/factory/infra/hosts/:slug/update`** — Recurring error: `spec.hostname` required but undefined. Investigate caller sending incomplete payloads.

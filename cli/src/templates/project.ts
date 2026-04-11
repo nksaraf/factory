@@ -134,7 +134,7 @@ include:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://\${POSTGRES_USER:-postgres}:\${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/\${POSTGRES_DB:-${name}}
-      AUTH_JWKS_URL: http://infra-auth:3000/api/auth/.well-known/jwks.json
+      AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
     healthcheck:
       test: ["CMD-SHELL", "node -e \\"fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\\""]
       interval: 10s

@@ -22,7 +22,7 @@ export function selfUpdateCommand(app: DxBase) {
         "sh",
         [
           "-c",
-          "curl -fsSL https://factory.lepton.software/api/factory/install | sh",
+          "curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh",
         ],
         {
           stdio: "inherit",
@@ -33,7 +33,7 @@ export function selfUpdateCommand(app: DxBase) {
         if (!f.quiet) console.log("  ✓ dx updated successfully")
       } else {
         console.error(
-          "  ✗ Update failed. Try manually: curl -fsSL https://factory.lepton.software/api/factory/install | sh"
+          "  ✗ Update failed. Try manually: curl -fsSL https://factory.lepton.software/api/v1/factory/install | sh"
         )
         process.exit(1)
       }

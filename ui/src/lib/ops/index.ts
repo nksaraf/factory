@@ -1,8 +1,8 @@
-export { fleetFetch } from "./api"
+export { opsFetch } from "./api"
 export { useDualListQuery, useDualOneQuery } from "./use-dual-query"
 export type {
   DeploymentTarget,
-  FleetSite,
+  OpsSite,
   Intervention,
   Release,
   ReleaseBundle,
@@ -13,12 +13,12 @@ export type {
 export {
   useDeploymentTarget,
   useDeploymentTargets,
-  useFleetSite,
-  useFleetSites,
+  useOpsSite,
+  useOpsSites,
   useInterventions,
   useReleaseBundles,
   useReleases,
   useRollouts,
   useSandboxes,
   useWorkloads,
-} from "./use-fleet"
+} from "./use-ops"

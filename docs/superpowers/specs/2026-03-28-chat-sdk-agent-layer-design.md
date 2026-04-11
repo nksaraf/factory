@@ -11,6 +11,7 @@ The Factory platform needs a conversational AI interface where users can interac
 This spec covers the integration of Vercel's [Chat SDK](https://chat-sdk.dev) as the conversational transport layer, [Vercel Workflow](https://vercel.com/docs/workflow) for durable multi-step sessions, and [Vercel AI SDK](https://sdk.vercel.ai) for LLM-powered tool calling.
 
 **Key design decisions:**
+
 - Chat SDK handles platform abstraction (Slack webhooks, streaming, interactive components)
 - Vercel Workflow handles durable execution (multi-step workflows that survive restarts)
 - Agents use Claude Code-style tools (bash, read, write, edit, grep, glob, ask_user) rather than per-operation tools
@@ -19,6 +20,7 @@ This spec covers the integration of Vercel's [Chat SDK](https://chat-sdk.dev) as
 - The bot calls the Factory API for all data/action operations (no direct DB access)
 
 **Out of scope:**
+
 - Agent skill definition (system prompt, tool configurations) — separate deliverable
 - Web UI chat interface (future — same backend, different transport)
 - Non-Slack platforms (architecture supports them via Chat SDK adapters, not built in v1)
@@ -214,6 +216,7 @@ For quick operations that don't require code changes:
 The `bash` tool executes `dx` CLI commands directly in the Chat SDK process (or a thin container). File tools (`read`, `write`, `edit`, `grep`, `glob`) are not available in this mode.
 
 **Examples:**
+
 ```
 "Create a JIRA ticket for the auth timeout" → dx issue create ...
 "What's the status of PR #456?"              → dx pr status 456
@@ -230,6 +233,7 @@ For tasks requiring code modifications:
 - Writing tests
 
 The workflow:
+
 1. Creates a sandbox via Factory API
 2. Runs the coding agent inside the sandbox with full tool access
 3. Streams progress updates to Slack
@@ -312,15 +316,15 @@ Fetch and extract content from a URL.
 
 Bridges Chat SDK's state interface to existing Factory tables:
 
-| Chat SDK operation | Factory implementation |
-|---|---|
-| `subscribe(threadId)` | `getOrCreateThread()` in `factory_org.message_thread` |
-| `unsubscribe(threadId)` | Set thread status to `resolved` |
-| `isSubscribed(threadId)` | Check thread status === `active` |
-| `getState(threadId)` | Read `message_thread.metadata` JSONB |
-| `setState(threadId, state)` | Update `message_thread.metadata` |
-| `acquireLock(key, ttl)` | Redis `SET key NX EX ttl` |
-| `releaseLock(key)` | Redis `DEL key` |
+| Chat SDK operation          | Factory implementation                                |
+| --------------------------- | ----------------------------------------------------- |
+| `subscribe(threadId)`       | `getOrCreateThread()` in `factory_org.message_thread` |
+| `unsubscribe(threadId)`     | Set thread status to `resolved`                       |
+| `isSubscribed(threadId)`    | Check thread status === `active`                      |
+| `getState(threadId)`        | Read `message_thread.metadata` JSONB                  |
+| `setState(threadId, state)` | Update `message_thread.metadata`                      |
+| `acquireLock(key, ttl)`     | Redis `SET key NX EX ttl`                             |
+| `releaseLock(key)`          | Redis `DEL key`                                       |
 
 Thread ID format: `slack:<channelId>:<threadTs>` — parsed into `messagingProviderId`, `externalChannelId`, `externalThreadId` for DB lookups.
 
@@ -460,50 +464,60 @@ User: "@factory-agent the billing page is broken, can you investigate and fix?"
 ## 11. Implementation Steps
 
 ### Step 1: Scaffold Next.js app
+
 - Create `agent-chat/` in monorepo
 - Install dependencies: `chat`, `@chat-adapter/slack`, `@vercel/workflow`, `ai`, `@ai-sdk/anthropic`
 - Configure `next.config.ts`, environment variables
 - Add to `pnpm-workspace.yaml`
 
 ### Step 2: Chat SDK setup + webhook route
+
 - Create `bot.ts` with Chat instance + Slack adapter
 - Create webhook API route (`/api/webhooks/[platform]/route.ts`)
 - Wire up `onNewMention`, `onSubscribedMessage`, `onAction` handlers
 
 ### Step 3: Custom state adapter
+
 - Implement `factory-state-adapter.ts`
 - Map Chat SDK state operations to Factory API calls
 - Add Redis for distributed locks
 
 ### Step 4: Factory API client
+
 - Create `factory-client.ts` with typed methods for all needed endpoints
 - Add any missing Factory API endpoints (e.g., resolve user by external ID)
 
 ### Step 5: Durable conversation workflow
+
 - Create `conversation.ts` workflow
 - Implement steps: `resolve-context`, `ai-turn`, `wait-for-user`
 - Wire up workflow start/resume in bot event handlers
 
 ### Step 6: Tool definitions
+
 - Implement all tools: `bash`, `read_file`, `write_file`, `edit_file`, `grep`, `glob`, `ask_user`, `web_fetch`
 - `bash` tool: lightweight mode (dx CLI in process) vs sandbox mode (exec in sandbox)
 - `ask_user` tool: post to Slack, pause workflow, resume on response
 
 ### Step 7: Context builder
+
 - Implement `context-builder.ts`
 - Fetch memories from Factory API (org + team layers)
 - Build structured system prompt with agent identity, memories, channel context, user context
 
 ### Step 8: Execution mode logic
+
 - Implement `execution-mode.ts`
 - Detect when sandbox is needed (code changes) vs lightweight (CLI operations)
 - Handle sandbox creation and tool routing
 
 ### Step 9: Sandbox integration
+
 - Wire up sandbox creation/exec/cleanup via Factory API
 - Handle sandbox lifecycle within the workflow (create → exec → PR → cleanup)
 
 ### Step 10: End-to-end testing
+
 - Test with real Slack workspace (ngrok/cloudflared for local dev)
 - Test: mention → lightweight response
 - Test: mention → sandbox → PR flow
@@ -514,14 +528,14 @@ User: "@factory-agent the billing page is broken, can you investigate and fix?"
 
 ## 12. Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `chat` | Chat SDK core |
-| `@chat-adapter/slack` | Slack platform adapter |
-| `@vercel/workflow` | Durable workflow execution |
-| `ai` | Vercel AI SDK |
-| `@ai-sdk/anthropic` | Claude model provider |
-| `ioredis` | Redis client for distributed locks |
+| Package               | Purpose                            |
+| --------------------- | ---------------------------------- |
+| `chat`                | Chat SDK core                      |
+| `@chat-adapter/slack` | Slack platform adapter             |
+| `@vercel/workflow`    | Durable workflow execution         |
+| `ai`                  | Vercel AI SDK                      |
+| `@ai-sdk/anthropic`   | Claude model provider              |
+| `ioredis`             | Redis client for distributed locks |
 
 ---
 

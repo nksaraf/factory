@@ -25,7 +25,7 @@ export async function createTestContext() {
 
   const database = db as unknown as Database
 
-  const factoryRoutes = new Elysia({ prefix: "/api/factory" })
+  const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .use(errorHandlerPlugin())
     .decorate("db", database)
     .use(productControllerV2(database))

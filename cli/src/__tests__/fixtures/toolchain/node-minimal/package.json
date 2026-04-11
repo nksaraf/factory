@@ -1,1 +1,4 @@
-{ "name": "bare", "private": true }
+{
+  "name": "bare",
+  "private": true
+}

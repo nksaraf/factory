@@ -288,74 +288,74 @@ infrastructure. I'd make it a Site — it's useful to have the same vocabulary f
 
 ### Catalog (7 entities) — what we build
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Domain** | — | Contains Systems |
-| **System** | Domain | Contains Components, has Release Bundles |
-| **Component** | System | Has APIs, produces Artifacts, owned by Team |
-| **API** | Component provides it | Consumed by other Components, used by Partners |
-| **Artifact** | Built from Component | Stored in registry, part of Release Bundle |
-| **Release Bundle** | Groups Artifacts for a System | Deployed as System Deployments |
-| **Template** | — | Scaffolds Components, System Deployments, Workspaces |
+| Entity             | Parent                        | Connects to                                          |
+| ------------------ | ----------------------------- | ---------------------------------------------------- |
+| **Domain**         | —                             | Contains Systems                                     |
+| **System**         | Domain                        | Contains Components, has Release Bundles             |
+| **Component**      | System                        | Has APIs, produces Artifacts, owned by Team          |
+| **API**            | Component provides it         | Consumed by other Components, used by Partners       |
+| **Artifact**       | Built from Component          | Stored in registry, part of Release Bundle           |
+| **Release Bundle** | Groups Artifacts for a System | Deployed as System Deployments                       |
+| **Template**       | —                             | Scaffolds Components, System Deployments, Workspaces |
 
 ### Operations (5 entities) — what's running
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Site** | — | For a Customer+Environment, contains Domain Deployments, hosted on Substrate(s) |
-| **Domain Deployment** | Site | Groups System Deployments for a Domain |
-| **System Deployment** | Domain Deployment | Instance of a System at a Release Bundle version, contains Component Deployments, runs on Runtime |
-| **Component Deployment** | System Deployment | Runs an Artifact on a Runtime, produces Workloads |
-| **Workload** | Component Deployment | Actual running process/container on a Host |
+| Entity                   | Parent               | Connects to                                                                                       |
+| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------- |
+| **Site**                 | —                    | For a Customer+Environment, contains Domain Deployments, hosted on Substrate(s)                   |
+| **Domain Deployment**    | Site                 | Groups System Deployments for a Domain                                                            |
+| **System Deployment**    | Domain Deployment    | Instance of a System at a Release Bundle version, contains Component Deployments, runs on Runtime |
+| **Component Deployment** | System Deployment    | Runs an Artifact on a Runtime, produces Workloads                                                 |
+| **Workload**             | Component Deployment | Actual running process/container on a Host                                                        |
 
 ### Infrastructure (8 entities) — where things run
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Substrate** | Substrates nest | Contains Hosts and Workspaces |
-| **Host** | Substrate | Long-lived machine, runs Runtimes |
-| **Workspace** | Substrate | Ephemeral machine, runs Runtimes, has TTL |
-| **Runtime** | Host or Workspace, runtimes nest | Hosts Component Deployments |
-| **Network Entity** | — | Connects Sites, Deployments, Hosts |
-| **Managed Dependency** | Substrate (cloud account) | Used by Component Deployments |
-| **Data Store** | Served by Managed Dep or Component Deployment | Holds data with residency/retention rules |
-| **Secret** | Stored in Vault/K8s/file | Used by Component Deployments |
+| Entity                 | Parent                                        | Connects to                               |
+| ---------------------- | --------------------------------------------- | ----------------------------------------- |
+| **Substrate**          | Substrates nest                               | Contains Hosts and Workspaces             |
+| **Host**               | Substrate                                     | Long-lived machine, runs Runtimes         |
+| **Workspace**          | Substrate                                     | Ephemeral machine, runs Runtimes, has TTL |
+| **Runtime**            | Host or Workspace, runtimes nest              | Hosts Component Deployments               |
+| **Network Entity**     | —                                             | Connects Sites, Deployments, Hosts        |
+| **Managed Dependency** | Substrate (cloud account)                     | Used by Component Deployments             |
+| **Data Store**         | Served by Managed Dep or Component Deployment | Holds data with residency/retention rules |
+| **Secret**             | Stored in Vault/K8s/file                      | Used by Component Deployments             |
 
 ### Commercial (12 entities) — what we sell
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Product** | — | Realized by Systems (catalog), sold as Plans |
-| **Capability** | Product | Requires Components, priced via Line Items |
-| **Billable Metric** | — | Measures consumption, referenced by Line Items |
-| **Plan** | — | Contains Line Items, references Capabilities |
-| **Line Item** | Plan | Grants Capability and/or defines charge |
-| **Customer** | — | Has Subscriptions, Engagements, Sites |
-| **Subscription** | Customer × Plan | Contains Subscription Items |
-| **Subscription Item** | Subscription | Grants a Capability, defines quantity/price |
-| **Engagement** | Customer | Creates/manages Sites |
-| **Wallet** | Customer | Prepaid balance |
-| **Invoice** | Customer | Generated from Subscriptions + Usage |
-| **Partner** | — | Builds Extensions, sells via Marketplace |
+| Entity                | Parent          | Connects to                                    |
+| --------------------- | --------------- | ---------------------------------------------- |
+| **Product**           | —               | Realized by Systems (catalog), sold as Plans   |
+| **Capability**        | Product         | Requires Components, priced via Line Items     |
+| **Billable Metric**   | —               | Measures consumption, referenced by Line Items |
+| **Plan**              | —               | Contains Line Items, references Capabilities   |
+| **Line Item**         | Plan            | Grants Capability and/or defines charge        |
+| **Customer**          | —               | Has Subscriptions, Engagements, Sites          |
+| **Subscription**      | Customer × Plan | Contains Subscription Items                    |
+| **Subscription Item** | Subscription    | Grants a Capability, defines quantity/price    |
+| **Engagement**        | Customer        | Creates/manages Sites                          |
+| **Wallet**            | Customer        | Prepaid balance                                |
+| **Invoice**           | Customer        | Generated from Subscriptions + Usage           |
+| **Partner**           | —               | Builds Extensions, sells via Marketplace       |
 
 ### People (5 entities)
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Team** | — | Owns Systems, Components, Sites |
-| **Person** | Team | Allocated to Engagements, Systems, on-call |
-| **Agent** | Team, supervised by Person | Scoped to Components, trust-leveled |
-| **Allocation** | Person × work target | Percentage of time commitment |
-| **On-Call Rotation** | Team | Covers Sites/System Deployments |
+| Entity               | Parent                     | Connects to                                |
+| -------------------- | -------------------------- | ------------------------------------------ |
+| **Team**             | —                          | Owns Systems, Components, Sites            |
+| **Person**           | Team                       | Allocated to Engagements, Systems, on-call |
+| **Agent**            | Team, supervised by Person | Scoped to Components, trust-leveled        |
+| **Allocation**       | Person × work target       | Percentage of time commitment              |
+| **On-Call Rotation** | Team                       | Covers Sites/System Deployments            |
 
 ### Ecosystem (4 entities)
 
-| Entity | Parent | Connects to |
-|---|---|---|
-| **Partner** | — | Builds Extensions |
-| **Extension** | Partner, type of Component | Uses Extension Points |
-| **Extension Point** | Type of API | Defines partner integration surface |
-| **Marketplace Listing** | Partner × Extension | Installed by Customers |
+| Entity                  | Parent                     | Connects to                         |
+| ----------------------- | -------------------------- | ----------------------------------- |
+| **Partner**             | —                          | Builds Extensions                   |
+| **Extension**           | Partner, type of Component | Uses Extension Points               |
+| **Extension Point**     | Type of API                | Defines partner integration surface |
+| **Marketplace Listing** | Partner × Extension        | Installed by Customers              |
 
 ---
 
@@ -363,53 +363,53 @@ infrastructure. I'd make it a Site — it's useful to have the same vocabulary f
 
 But the WORKING SET for daily conversation is much smaller:
 
-| Role | Their ~8 entities |
-|---|---|
-| **Developer** | Component, Artifact, Component Deployment, Runtime, Workspace, API, Team, Agent |
-| **Tech Lead** | System, System Deployment, Release Bundle, Site, Component, API, Team, Engagement |
-| **SRE/Ops** | Site, System Deployment, Component Deployment, Host, Runtime, Network Entity, Secret, On-Call |
-| **Product Manager** | Product, Capability, Plan, Customer, Roadmap, Engagement, Site, Release Bundle |
-| **Delivery Manager** | Engagement, Site, Customer, System Deployment, Release Bundle, Team, Allocation, Offering |
-| **Sales** | Product, Capability, Plan, Customer, Partner, Marketplace Listing, Engagement, Site |
-| **Platform Engineer** | Runtime, Host, Workspace, Substrate, Template, Extension Point, System, Network Entity |
+| Role                  | Their ~8 entities                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| **Developer**         | Component, Artifact, Component Deployment, Runtime, Workspace, API, Team, Agent               |
+| **Tech Lead**         | System, System Deployment, Release Bundle, Site, Component, API, Team, Engagement             |
+| **SRE/Ops**           | Site, System Deployment, Component Deployment, Host, Runtime, Network Entity, Secret, On-Call |
+| **Product Manager**   | Product, Capability, Plan, Customer, Roadmap, Engagement, Site, Release Bundle                |
+| **Delivery Manager**  | Engagement, Site, Customer, System Deployment, Release Bundle, Team, Allocation, Offering     |
+| **Sales**             | Product, Capability, Plan, Customer, Partner, Marketplace Listing, Engagement, Site           |
+| **Platform Engineer** | Runtime, Host, Workspace, Substrate, Template, Extension Point, System, Network Entity        |
 
 ---
 
 ## The One Diagram
 
 ```
-            CUSTOMER                                            
-           /    |    \                                          
-     buys    contracts  entitled to                             
-    plans    engagements  capabilities                          
-       \        |        /                                      
-        \       |       /                                       
-         ▼      ▼      ▼                                       
-    ┌──────────────────────┐        ┌──────────────────────┐   
-    │       SITE           │        │    CATALOG            │   
-    │  (the factory)       │        │                       │   
-    │                      │        │  Domain               │   
-    │  Domain Deployment ◄─┼────────┤    └ System           │   
-    │    └ System Dep.   ◄─┼────────┤        └ Component    │   
-    │        └ Comp Dep  ◄─┼────┐   │            └ API      │   
-    │            └ Workload│    │   │            └ Artifact  │   
+            CUSTOMER
+           /    |    \
+     buys    contracts  entitled to
+    plans    engagements  capabilities
+       \        |        /
+        \       |       /
+         ▼      ▼      ▼
+    ┌──────────────────────┐        ┌──────────────────────┐
+    │       SITE           │        │    CATALOG            │
+    │  (the factory)       │        │                       │
+    │                      │        │  Domain               │
+    │  Domain Deployment ◄─┼────────┤    └ System           │
+    │    └ System Dep.   ◄─┼────────┤        └ Component    │
+    │        └ Comp Dep  ◄─┼────┐   │            └ API      │
+    │            └ Workload│    │   │            └ Artifact  │
     └──────────┬───────────┘    │   │        └ Rel. Bundle ─┼──→ deployed as System Dep.
-               │                │   └──────────────────────┘   
-          runs on               │                              
-               │           runs artifact                       
-               ▼                │                              
-    ┌──────────────────────┐    │                              
-    │   INFRASTRUCTURE     │    │                              
-    │                      │    │                              
-    │   Substrate          │    │                              
-    │     └ Host/Workspace │    │                              
-    │         └ Runtime ◄──┼────┘                              
-    │                      │                                   
-    │   Network Entity     │                                   
-    │   Managed Dependency │                                   
-    │   Data Store         │                                   
-    │   Secret             │                                   
-    └──────────────────────┘                                   
+               │                │   └──────────────────────┘
+          runs on               │
+               │           runs artifact
+               ▼                │
+    ┌──────────────────────┐    │
+    │   INFRASTRUCTURE     │    │
+    │                      │    │
+    │   Substrate          │    │
+    │     └ Host/Workspace │    │
+    │         └ Runtime ◄──┼────┘
+    │                      │
+    │   Network Entity     │
+    │   Managed Dependency │
+    │   Data Store         │
+    │   Secret             │
+    └──────────────────────┘
 ```
 
 Read it as: a Customer's Site contains Domain/System/Component Deployments that mirror

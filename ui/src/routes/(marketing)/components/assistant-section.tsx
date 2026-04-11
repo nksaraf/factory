@@ -38,8 +38,8 @@ export function AssistantSection() {
                       Natural Language Queries
                     </p>
                     <p className="text-sm text-teal-50">
-                      Ask questions in plain English. "Which territories have the
-                      highest penetration gap?" or "Show me white space
+                      Ask questions in plain English. "Which territories have
+                      the highest penetration gap?" or "Show me white space
                       opportunities in Mumbai West"
                     </p>
                   </div>
@@ -108,8 +108,9 @@ export function AssistantSection() {
                       You:
                     </p>
                     <p className="text-sm text-teal-50">
-                      "Where should we open our next 5 stores in Bangalore? Factor
-                      in competition density, footfall, and cannibalization risk."
+                      "Where should we open our next 5 stores in Bangalore?
+                      Factor in competition density, footfall, and
+                      cannibalization risk."
                     </p>
                   </div>
 
@@ -118,9 +119,10 @@ export function AssistantSection() {
                       Analyst:
                     </p>
                     <p className="mb-3 text-sm text-teal-50">
-                      I've analyzed 2,400+ micro-markets in Bangalore using footfall,
-                      demographics, competitor density, and your existing store catchments.
-                      Here are the top recommendations:
+                      I've analyzed 2,400+ micro-markets in Bangalore using
+                      footfall, demographics, competitor density, and your
+                      existing store catchments. Here are the top
+                      recommendations:
                     </p>
                     <div className="space-y-2">
                       <div className="rounded border border-teal-300/20 bg-teal-600/20 p-2">
@@ -128,8 +130,8 @@ export function AssistantSection() {
                           #1 Koramangala 4th Block — MOS: 92
                         </p>
                         <p className="text-xs text-teal-100">
-                          High footfall (12K/day) • Low saturation • 0% cannibalization
-                          • Predicted revenue: ₹18L/mo
+                          High footfall (12K/day) • Low saturation • 0%
+                          cannibalization • Predicted revenue: ₹18L/mo
                         </p>
                       </div>
                       <div className="rounded border border-teal-300/20 bg-teal-600/20 p-2">
@@ -137,8 +139,8 @@ export function AssistantSection() {
                           #2 HSR Layout Sector 2 — MOS: 87
                         </p>
                         <p className="text-xs text-teal-100">
-                          Growing area • 3 competitors nearby • 8% cannibalization
-                          • Predicted revenue: ₹15L/mo
+                          Growing area • 3 competitors nearby • 8%
+                          cannibalization • Predicted revenue: ₹15L/mo
                         </p>
                       </div>
                     </div>

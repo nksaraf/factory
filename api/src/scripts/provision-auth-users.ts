@@ -9,7 +9,7 @@
  *
  * Env vars:
  *   FACTORY_DATABASE_URL — Database connection string
- *   AUTH_BASE_URL        — Better-auth base URL (default: http://localhost:8180/api/auth)
+ *   AUTH_BASE_URL        — Better-auth base URL (default: http://localhost:8180/api/v1/auth)
  *   DEFAULT_PASSWORD     — Default password for all users (default: changeme123)
  */
 import { eq, sql } from "drizzle-orm"
@@ -25,7 +25,7 @@ if (!DB_URL) {
 }
 
 const AUTH_BASE_URL =
-  process.env.AUTH_BASE_URL ?? "http://localhost:8180/api/auth"
+  process.env.AUTH_BASE_URL ?? "http://localhost:8180/api/v1/auth"
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD ?? "changeme123"
 
 const pool = new pg.Pool({ connectionString: DB_URL })

@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
+import { useDeploymentTargets, useWorkloads } from "@/lib/ops"
 import { useParams } from "react-router"
 
 import {
@@ -24,7 +24,7 @@ export default function WorkloadInspectorPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Workload Inspector"
         description={`Workload: ${id}`}
       />

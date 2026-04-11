@@ -10,19 +10,15 @@
  * that config pipeline (reconciler, logger, services, etc.).
  */
 
-import { z } from "zod";
+import { z } from "zod"
 
 const EnvSchema = z.object({
   // ── Core ──────────────────────────────────────────────────
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  FACTORY_MODE: z
-    .enum(["factory", "site", "dev"])
-    .optional(),
-  DX_MODE: z
-    .enum(["factory", "site", "dev"])
-    .optional(),
+  FACTORY_MODE: z.enum(["factory", "site", "dev"]).optional(),
+  DX_MODE: z.enum(["factory", "site", "dev"]).optional(),
 
   // ── Database ──────────────────────────────────────────────
   DATABASE_URL: z.string().optional(),
@@ -33,12 +29,8 @@ const EnvSchema = z.object({
   BETTER_AUTH_JWKS_PATH: z.string().optional(),
 
   // ── Logging ───────────────────────────────────────────────
-  FACTORY_LOG_LEVEL: z
-    .enum(["debug", "info", "warn", "error"])
-    .default("info"),
-  FACTORY_LOG_FORMAT: z
-    .enum(["json", "pretty"])
-    .default("json"),
+  FACTORY_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  FACTORY_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
 
   // ── Gateway / Networking ──────────────────────────────────
   DX_GATEWAY_DOMAIN: z.string().default("dx.dev"),
@@ -70,13 +62,13 @@ const EnvSchema = z.object({
 
   // ── Test-only ─────────────────────────────────────────────
   __DX_SKIP_GATEWAY_ONSTART: z.string().optional(),
-});
+})
 
-export type Env = z.infer<typeof EnvSchema>;
+export type Env = z.infer<typeof EnvSchema>
 
 /**
  * Validated environment. Access as `env.DATABASE_URL`, `env.DX_GATEWAY_DOMAIN`, etc.
  *
  * Throws a ZodError at startup if any var fails validation.
  */
-export const env: Env = EnvSchema.parse(process.env);
+export const env: Env = EnvSchema.parse(process.env)

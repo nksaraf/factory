@@ -1,10 +1,14 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import {
+  nodeQualityPackageJson,
+  nodeQualityFiles,
+  nodePrettierConfig,
+} from "../quality-configs.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name } = vars;
+  const { name } = vars
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // package.json
   files.push({
@@ -39,9 +43,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // tsconfig.json
   files.push({
@@ -67,9 +71,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         include: ["src/**/*.ts", "src/**/*.tsx"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // app.config.ts
   files.push({
@@ -103,7 +107,7 @@ export default createApp({
   ],
 });
 `,
-  });
+  })
 
   // tailwind.config.cjs
   files.push({
@@ -118,7 +122,7 @@ module.exports = {
   plugins: [],
 };
 `,
-  });
+  })
 
   // postcss.config.cjs
   files.push({
@@ -130,7 +134,7 @@ module.exports = {
   },
 };
 `,
-  });
+  })
 
   // Dockerfile
   files.push({
@@ -158,7 +162,7 @@ EXPOSE 3000
 
 CMD ["node", ".output/server/index.mjs"]
 `,
-  });
+  })
 
   // src/entry.client.tsx
   files.push({
@@ -178,7 +182,7 @@ createRoot(root).render(
   </BrowserRouter>,
 );
 `,
-  });
+  })
 
   // src/entry.server.tsx
   files.push({
@@ -215,7 +219,7 @@ export default defineEventHandler(async (event) => {
   );
 });
 `,
-  });
+  })
 
   // src/globals.css
   files.push({
@@ -224,7 +228,7 @@ export default defineEventHandler(async (event) => {
 @tailwind components;
 @tailwind utilities;
 `,
-  });
+  })
 
   // src/routes/index/page.tsx
   files.push({
@@ -240,11 +244,11 @@ export default defineEventHandler(async (event) => {
   );
 }
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(nodePrettierConfig());
-  files.push(...nodeQualityFiles());
+  files.push(nodePrettierConfig())
+  files.push(...nodeQualityFiles())
 
-  return files;
+  return files
 }

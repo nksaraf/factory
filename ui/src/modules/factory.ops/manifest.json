@@ -1,159 +1,159 @@
 {
-  "id": "factory.fleet",
-  "displayName": "Factory Fleet",
-  "description": "Fleet management — sites, deployments, releases, incidents",
+  "id": "factory.ops",
+  "displayName": "Factory Ops",
+  "description": "Sites, deployments, releases, rollouts, and incidents",
   "version": "0.0.1",
   "publisher": "factory",
   "engines": { "rio": ">=0.0.1" },
   "category": "platform",
-  "tags": ["fleet", "deployments", "releases"],
+  "tags": ["ops", "deployments", "releases"],
   "categories": ["operations"],
   "main": "extension.ts",
   "module": {
     "sidebar": {
       "icon": "icon-[ph--rocket-launch-duotone]",
-      "label": "Fleet",
+      "label": "Ops",
       "order": 10
     },
-    "routePrefix": "/fleet"
+    "routePrefix": "/ops"
   },
   "contributes": {
     "routes": [
       {
-        "id": "factory.fleet.route.home",
-        "displayName": "Fleet",
-        "path": "/(root)/(app)/fleet/"
+        "id": "factory.ops.route.home",
+        "displayName": "Ops",
+        "path": "/(root)/(app)/ops/"
       },
       {
-        "id": "factory.fleet.route.sites",
+        "id": "factory.ops.route.sites",
         "displayName": "Sites",
-        "path": "/(root)/(app)/fleet/sites/"
+        "path": "/(root)/(app)/ops/sites/"
       },
       {
-        "id": "factory.fleet.route.site-detail",
+        "id": "factory.ops.route.site-detail",
         "displayName": "Site Detail",
-        "path": "/(root)/(app)/fleet/sites/:slug/"
+        "path": "/(root)/(app)/ops/sites/:slug/"
       },
       {
-        "id": "factory.fleet.route.targets",
+        "id": "factory.ops.route.targets",
         "displayName": "Deployment Targets",
-        "path": "/(root)/(app)/fleet/targets/"
+        "path": "/(root)/(app)/ops/targets/"
       },
       {
-        "id": "factory.fleet.route.target-detail",
+        "id": "factory.ops.route.target-detail",
         "displayName": "Target Detail",
-        "path": "/(root)/(app)/fleet/targets/:slug/"
+        "path": "/(root)/(app)/ops/targets/:slug/"
       },
       {
-        "id": "factory.fleet.route.releases",
+        "id": "factory.ops.route.releases",
         "displayName": "Releases",
-        "path": "/(root)/(app)/fleet/releases/"
+        "path": "/(root)/(app)/ops/releases/"
       },
       {
-        "id": "factory.fleet.route.rollouts",
+        "id": "factory.ops.route.rollouts",
         "displayName": "Rollouts",
-        "path": "/(root)/(app)/fleet/rollouts/"
+        "path": "/(root)/(app)/ops/rollouts/"
       },
       {
-        "id": "factory.fleet.route.incidents",
+        "id": "factory.ops.route.incidents",
         "displayName": "Incidents",
-        "path": "/(root)/(app)/fleet/incidents/"
+        "path": "/(root)/(app)/ops/incidents/"
       },
       {
-        "id": "factory.fleet.route.sandboxes",
+        "id": "factory.ops.route.sandboxes",
         "displayName": "Sandboxes",
-        "path": "/(root)/(app)/fleet/sandboxes/"
+        "path": "/(root)/(app)/ops/sandboxes/"
       },
       {
-        "id": "factory.fleet.route.routes",
+        "id": "factory.ops.route.routes",
         "displayName": "Routes & Domains",
-        "path": "/(root)/(app)/fleet/routes/"
+        "path": "/(root)/(app)/ops/routes/"
       },
       {
-        "id": "factory.fleet.route.workloads",
+        "id": "factory.ops.route.workloads",
         "displayName": "Workload Inspector",
-        "path": "/(root)/(app)/fleet/workloads/:id/"
+        "path": "/(root)/(app)/ops/workloads/:id/"
       },
       {
-        "id": "factory.fleet.route.drift",
+        "id": "factory.ops.route.drift",
         "displayName": "Drift Report",
-        "path": "/(root)/(app)/fleet/drift/"
+        "path": "/(root)/(app)/ops/drift/"
       },
       {
-        "id": "factory.fleet.route.interventions",
+        "id": "factory.ops.route.interventions",
         "displayName": "Intervention Log",
-        "path": "/(root)/(app)/fleet/interventions/"
+        "path": "/(root)/(app)/ops/interventions/"
       },
       {
-        "id": "factory.fleet.route.bundles",
+        "id": "factory.ops.route.bundles",
         "displayName": "Release Bundles",
-        "path": "/(root)/(app)/fleet/bundles/"
+        "path": "/(root)/(app)/ops/bundles/"
       }
     ],
     "sidebarGroups": [
       {
-        "id": "factory.fleet.sidebar.group",
-        "displayName": "Fleet",
+        "id": "factory.ops.sidebar.group",
+        "displayName": "Ops",
         "icon": "icon-[ph--rocket-launch-duotone]",
-        "group": "Fleet",
+        "group": "Ops",
         "order": 10
       }
     ],
     "sidebarItems": [
       {
-        "id": "factory.fleet.sidebar.sites",
-        "displayName": "Fleet Map",
+        "id": "factory.ops.sidebar.sites",
+        "displayName": "Sites",
         "icon": "icon-[ph--globe-hemisphere-west-duotone]",
-        "href": "/fleet/sites",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/sites",
+        "group": "factory.ops.sidebar.group",
         "order": 1
       },
       {
-        "id": "factory.fleet.sidebar.targets",
+        "id": "factory.ops.sidebar.targets",
         "displayName": "Targets",
         "icon": "icon-[ph--crosshair-duotone]",
-        "href": "/fleet/targets",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/targets",
+        "group": "factory.ops.sidebar.group",
         "order": 2
       },
       {
-        "id": "factory.fleet.sidebar.releases",
+        "id": "factory.ops.sidebar.releases",
         "displayName": "Releases",
         "icon": "icon-[ph--package-duotone]",
-        "href": "/fleet/releases",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/releases",
+        "group": "factory.ops.sidebar.group",
         "order": 3
       },
       {
-        "id": "factory.fleet.sidebar.rollouts",
+        "id": "factory.ops.sidebar.rollouts",
         "displayName": "Rollouts",
         "icon": "icon-[ph--arrow-circle-up-duotone]",
-        "href": "/fleet/rollouts",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/rollouts",
+        "group": "factory.ops.sidebar.group",
         "order": 4
       },
       {
-        "id": "factory.fleet.sidebar.incidents",
+        "id": "factory.ops.sidebar.incidents",
         "displayName": "Incidents",
         "icon": "icon-[ph--warning-diamond-duotone]",
-        "href": "/fleet/incidents",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/incidents",
+        "group": "factory.ops.sidebar.group",
         "order": 5
       },
       {
-        "id": "factory.fleet.sidebar.sandboxes",
+        "id": "factory.ops.sidebar.sandboxes",
         "displayName": "Sandboxes",
         "icon": "icon-[ph--terminal-window-duotone]",
-        "href": "/fleet/sandboxes",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/sandboxes",
+        "group": "factory.ops.sidebar.group",
         "order": 6
       },
       {
-        "id": "factory.fleet.sidebar.drift",
+        "id": "factory.ops.sidebar.drift",
         "displayName": "Drift Report",
         "icon": "icon-[ph--git-diff-duotone]",
-        "href": "/fleet/drift",
-        "group": "factory.fleet.sidebar.group",
+        "href": "/ops/drift",
+        "group": "factory.ops.sidebar.group",
         "order": 7
       }
     ],

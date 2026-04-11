@@ -142,6 +142,7 @@ dx install --role workbench
 ```
 
 This:
+
 - Generates a workbench ID
 - Checks your toolchain (git, docker, node)
 - Validates Factory connectivity
@@ -174,6 +175,7 @@ services:
 ```
 
 dx will auto-classify:
+
 - Services with `build:` → **Components** (your code)
 - Services with just `image:` → **Resources** (infrastructure)
 
@@ -360,20 +362,21 @@ dx preview status            # Check current preview state
 
 ## Anti-Patterns
 
-| Wrong | Right | Why |
-|-------|-------|-----|
-| `ssh vm && vim && restart` | `dx dev` + `git push` | Tracked, reversible, auditable |
-| `scp deploy.tar.gz vm:` | `dx deploy create` | Versioned releases, rollback support |
-| `git push && pray` | `git push` (hooks run checks) + `dx preview` | Hooks + preview catch issues before prod |
-| Manual DB changes in prod | `dx db migrate` | Tracked, reversible migrations |
-| `docker compose up` | `dx up` | dx manages ports, env injection, catalog labels |
-| Editing `.env` files by hand | `dx env` / `dx secret` | Secrets in vault, not in files |
+| Wrong                        | Right                                        | Why                                             |
+| ---------------------------- | -------------------------------------------- | ----------------------------------------------- |
+| `ssh vm && vim && restart`   | `dx dev` + `git push`                        | Tracked, reversible, auditable                  |
+| `scp deploy.tar.gz vm:`      | `dx deploy create`                           | Versioned releases, rollback support            |
+| `git push && pray`           | `git push` (hooks run checks) + `dx preview` | Hooks + preview catch issues before prod        |
+| Manual DB changes in prod    | `dx db migrate`                              | Tracked, reversible migrations                  |
+| `docker compose up`          | `dx up`                                      | dx manages ports, env injection, catalog labels |
+| Editing `.env` files by hand | `dx env` / `dx secret`                       | Secrets in vault, not in files                  |
 
 ---
 
 ## Current Status
 
 ### What Works Today
+
 - `dx install --role workbench` — Full workbench setup with toolchain checks
 - `dx setup <tool> --on <vm>` — Remote tool installation via recipes (docker, node, caddy)
 - `dx run` — Script and recipe execution (local + remote)
@@ -389,6 +392,7 @@ dx preview status            # Check current preview state
 - Script pass-through — `dx <name>` falls back to `package.json` scripts
 
 ### Coming Soon
+
 - **TUI dashboard** — `dx tui` for a terminal-based overview of all services, builds, and deployments
 - **dx work** — Work item management (create, list, start, done) linked to Jira/Linear
 - **dx agent** — Agent skill management (add, remove, sync)

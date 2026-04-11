@@ -43,4 +43,4 @@ export type AdapterCategory =
   | "vm-provider"
   | "gateway"
   | "sandbox"
-  | "network-device";
+  | "network-device"

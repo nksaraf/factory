@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { logger } from "../logger"
 
 /**
  * @deprecated Use {@link FactoryAuthzClient} from `./authz-client` instead.
@@ -7,19 +7,19 @@ import { logger } from "../logger";
  * ReBAC, scope-based access, and ABAC context policies.
  */
 export class FactoryAuthResourceClient {
-  private baseUrl: string;
+  private baseUrl: string
 
   constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/+$/, "");
+    this.baseUrl = baseUrl.replace(/\/+$/, "")
   }
 
   async createResource(params: {
-    id: string;
-    typeId: string;
-    displayName?: string;
-    organizationId?: string;
-    parentId?: string | null;
-    createdBy?: string;
+    id: string
+    typeId: string
+    displayName?: string
+    organizationId?: string
+    parentId?: string | null
+    createdBy?: string
   }): Promise<void> {
     try {
       const res = await fetch(
@@ -28,19 +28,19 @@ export class FactoryAuthResourceClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),
-        },
-      );
+        }
+      )
       if (!res.ok) {
         logger.warn(
           { status: res.status, resourceId: params.id },
-          "auth resource sync: create failed",
-        );
+          "auth resource sync: create failed"
+        )
       }
     } catch (err) {
       logger.warn(
         { err, resourceId: params.id },
-        "auth resource sync: create error",
-      );
+        "auth resource sync: create error"
+      )
     }
   }
 
@@ -52,26 +52,23 @@ export class FactoryAuthResourceClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
-        },
-      );
+        }
+      )
       if (!res.ok) {
         logger.warn(
           { status: res.status, resourceId: id },
-          "auth resource sync: delete failed",
-        );
+          "auth resource sync: delete failed"
+        )
       }
     } catch (err) {
-      logger.warn(
-        { err, resourceId: id },
-        "auth resource sync: delete error",
-      );
+      logger.warn({ err, resourceId: id }, "auth resource sync: delete error")
     }
   }
 
   async updateResource(params: {
-    id: string;
-    parentId?: string | null;
-    displayName?: string;
+    id: string
+    parentId?: string | null
+    displayName?: string
   }): Promise<void> {
     try {
       const res = await fetch(
@@ -80,26 +77,26 @@ export class FactoryAuthResourceClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),
-        },
-      );
+        }
+      )
       if (!res.ok) {
         logger.warn(
           { status: res.status, resourceId: params.id },
-          "auth resource sync: update failed",
-        );
+          "auth resource sync: update failed"
+        )
       }
     } catch (err) {
       logger.warn(
         { err, resourceId: params.id },
-        "auth resource sync: update error",
-      );
+        "auth resource sync: update error"
+      )
     }
   }
 
   async checkPermission(params: {
-    resourceId: string;
-    permission: string;
-    userId: string;
+    resourceId: string
+    permission: string
+    userId: string
   }): Promise<boolean> {
     try {
       const res = await fetch(
@@ -108,24 +105,24 @@ export class FactoryAuthResourceClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),
-        },
-      );
-      if (!res.ok) return false;
-      const data = await res.json();
-      return data.success === true;
+        }
+      )
+      if (!res.ok) return false
+      const data = await res.json()
+      return data.success === true
     } catch (err) {
       logger.warn(
         { err, resourceId: params.resourceId },
-        "auth permission check error",
-      );
-      return false;
+        "auth permission check error"
+      )
+      return false
     }
   }
 
   async createResourceType(params: {
-    name: string;
-    displayName: string;
-    allowedPermissions: string[];
+    name: string
+    displayName: string
+    allowedPermissions: string[]
   }): Promise<void> {
     try {
       const res = await fetch(
@@ -134,19 +131,19 @@ export class FactoryAuthResourceClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),
-        },
-      );
+        }
+      )
       if (!res.ok) {
         logger.warn(
           { status: res.status, type: params.name },
-          "auth resource type sync: create failed",
-        );
+          "auth resource type sync: create failed"
+        )
       }
     } catch (err) {
       logger.warn(
         { err, type: params.name },
-        "auth resource type sync: create error",
-      );
+        "auth resource type sync: create error"
+      )
     }
   }
 }

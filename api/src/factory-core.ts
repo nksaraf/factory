@@ -267,7 +267,7 @@ export function createLocalApp(
   reconciler: Reconciler | null,
   opts?: { full?: boolean; demo?: boolean }
 ) {
-  const factoryRoutes = new Elysia({ prefix: "/api/factory" })
+  const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .decorate("db", db)
     .use(productControllerV2(db))
     .use(buildControllerV2(db))

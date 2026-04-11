@@ -78,38 +78,38 @@ In-process `EventEmitter` singleton. Each module emits typed events when state c
 
 ```typescript
 interface FactoryEvent {
-  type: string                    // e.g. "deployment.completed"
-  entityKind: string              // e.g. "component-deployment"
+  type: string // e.g. "deployment.completed"
+  entityKind: string // e.g. "component-deployment"
   entityId: string
   orgId: string
   actor?: { principalId: string; name: string }
   timestamp: Date
-  data: Record<string, unknown>   // event-specific payload
+  data: Record<string, unknown> // event-specific payload
 }
 ```
 
 ### Initial Event Types
 
-| Domain | Event | Emitted When |
-|--------|-------|-------------|
-| Ops | `deployment.started` | ComponentDeployment created |
-| Ops | `deployment.completed` | Deployment succeeds |
-| Ops | `deployment.failed` | Deployment fails |
-| Ops | `rollout.started` | Rollout kicks off |
-| Ops | `rollout.completed` | Rollout finishes |
-| Build | `build.started` | PipelineRun created |
-| Build | `build.completed` | PipelineRun succeeds |
-| Build | `build.failed` | PipelineRun fails |
-| Software | `release.published` | Release status → published |
-| Ops | `incident.opened` | Intervention created |
-| Ops | `incident.resolved` | Intervention resolved |
-| Agent | `job.started` | Agent job begins |
-| Agent | `job.completed` | Agent job finishes |
-| Ops | `workspace.created` | Preview workspace provisioned |
-| Ops | `database.operation.completed` | DB backup/restore/seed finishes |
-| Approval | `approval.requested` | Approval request created |
-| Approval | `approval.approved` | Approval granted |
-| Approval | `approval.rejected` | Approval denied |
+| Domain   | Event                          | Emitted When                    |
+| -------- | ------------------------------ | ------------------------------- |
+| Ops      | `deployment.started`           | ComponentDeployment created     |
+| Ops      | `deployment.completed`         | Deployment succeeds             |
+| Ops      | `deployment.failed`            | Deployment fails                |
+| Ops      | `rollout.started`              | Rollout kicks off               |
+| Ops      | `rollout.completed`            | Rollout finishes                |
+| Build    | `build.started`                | PipelineRun created             |
+| Build    | `build.completed`              | PipelineRun succeeds            |
+| Build    | `build.failed`                 | PipelineRun fails               |
+| Software | `release.published`            | Release status → published      |
+| Ops      | `incident.opened`              | Intervention created            |
+| Ops      | `incident.resolved`            | Intervention resolved           |
+| Agent    | `job.started`                  | Agent job begins                |
+| Agent    | `job.completed`                | Agent job finishes              |
+| Ops      | `workspace.created`            | Preview workspace provisioned   |
+| Ops      | `database.operation.completed` | DB backup/restore/seed finishes |
+| Approval | `approval.requested`           | Approval request created        |
+| Approval | `approval.approved`            | Approval granted                |
+| Approval | `approval.rejected`            | Approval denied                 |
 
 New events are trivially added — just `eventBus.emit(...)` in the relevant service method.
 
@@ -187,6 +187,7 @@ Handles Slack `block_actions` and `view_submission` payloads. Slack sends these 
 Each interactive component uses a structured `action_id`: `{domain}:{action}:{entityId}`
 
 Examples:
+
 - `approval:approve:aprv_abc123`
 - `approval:reject:aprv_abc123`
 - `deploy:trigger:cdp_xyz789`
@@ -249,17 +250,17 @@ Parses `text` field into command + args. Returns Block Kit responses — **ephem
 
 ### Initial Commands
 
-| Command | Description | Response |
-|---------|-------------|----------|
-| `/factory status <entity>` | Show entity status card | Ephemeral Block Kit card |
-| `/factory deploy <component> <site>` | Trigger deployment (may require approval) | In-channel confirmation or approval card |
-| `/factory rollback <component> <site>` | Trigger rollback | In-channel confirmation |
-| `/factory subscribe <pattern> [#channel]` | Create notification rule for current channel | Ephemeral confirmation |
-| `/factory unsubscribe <pattern>` | Remove notification rule | Ephemeral confirmation |
-| `/factory subscriptions` | List active rules for current channel | Ephemeral list |
-| `/factory releases <system>` | Show recent releases | Ephemeral Block Kit cards |
-| `/factory deployments [--site=X]` | List recent deployments | Ephemeral Block Kit cards |
-| `/factory help` | Show available commands | Ephemeral help text |
+| Command                                   | Description                                  | Response                                 |
+| ----------------------------------------- | -------------------------------------------- | ---------------------------------------- |
+| `/factory status <entity>`                | Show entity status card                      | Ephemeral Block Kit card                 |
+| `/factory deploy <component> <site>`      | Trigger deployment (may require approval)    | In-channel confirmation or approval card |
+| `/factory rollback <component> <site>`    | Trigger rollback                             | In-channel confirmation                  |
+| `/factory subscribe <pattern> [#channel]` | Create notification rule for current channel | Ephemeral confirmation                   |
+| `/factory unsubscribe <pattern>`          | Remove notification rule                     | Ephemeral confirmation                   |
+| `/factory subscriptions`                  | List active rules for current channel        | Ephemeral list                           |
+| `/factory releases <system>`              | Show recent releases                         | Ephemeral Block Kit cards                |
+| `/factory deployments [--site=X]`         | List recent deployments                      | Ephemeral Block Kit cards                |
+| `/factory help`                           | Show available commands                      | Ephemeral help text                      |
 
 **Entity resolution:** Slash commands use slug-based lookups (consistent with the rest of Factory). `/factory status api` resolves via `resolveBySlugOrId()`.
 
@@ -342,6 +343,7 @@ This allows notification rules to resolve target channels from entity context (e
 ## Files to Create/Modify
 
 ### New Files
+
 - `api/src/lib/event-bus.ts` — EventEmitter singleton + typed event helpers
 - `api/src/modules/notifications/notification-engine.ts` — Rule evaluation + dispatch
 - `api/src/modules/notifications/notification-templates.ts` — Default Block Kit templates per event type
@@ -355,6 +357,7 @@ This allows notification rules to resolve target channels from entity context (e
 - `api/src/adapters/block-kit.ts` — Block Kit builder helpers
 
 ### Modified Files
+
 - `api/src/db/schema/org.ts` (or `org-v2.ts`) — Add `notificationRule` + `approvalRequest` tables
 - `api/src/adapters/messaging-adapter-slack.ts` — Add `respondToInteraction`, `openModal`, `postEphemeral`
 - `api/src/adapters/messaging-adapter.ts` — Extend interface with optional interactivity methods

@@ -4,7 +4,7 @@ import type {
   ExternalIssue,
   PushWorkItemSpec,
   PushResult,
-} from "./work-tracker-adapter";
+} from "./work-tracker-adapter"
 
 /**
  * Linear GraphQL API adapter
@@ -18,20 +18,20 @@ import type {
  * - pushIssues: sequential issueCreate mutations
  */
 export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
-  readonly type = "linear";
+  readonly type = "linear"
 
   async testConnection(
     _apiUrl: string,
     _credentialsRef: string
   ): Promise<{ ok: boolean; error?: string }> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async listProjects(
     _apiUrl: string,
     _credentialsRef: string
   ): Promise<ExternalProject[]> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async fetchIssues(
@@ -40,7 +40,7 @@ export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
     _projectId: string,
     _filterQuery?: string
   ): Promise<ExternalIssue[]> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async getIssue(
@@ -48,7 +48,7 @@ export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
     _credentialsRef: string,
     _issueId: string
   ): Promise<ExternalIssue> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async pushIssue(
@@ -57,7 +57,7 @@ export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
     _projectId: string,
     _spec: PushWorkItemSpec
   ): Promise<PushResult> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async pushIssues(
@@ -66,15 +66,15 @@ export class LinearWorkTrackerAdapter implements WorkTrackerAdapter {
     _projectId: string,
     _specs: PushWorkItemSpec[]
   ): Promise<PushResult[]> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 
   async updateIssueStatus(
     _apiUrl: string,
     _credentialsRef: string,
     _issueId: string,
-    _transitionName: string,
+    _transitionName: string
   ): Promise<void> {
-    throw new Error("Linear adapter not yet implemented");
+    throw new Error("Linear adapter not yet implemented")
   }
 }

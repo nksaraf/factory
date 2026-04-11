@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "trailingComma": "es5",
+  "singleQuote": false,
+  "arrowParens": "always",
+  "importOrder": ["^@rio.js/(.*)$", "^@/components/(.*)$", "^[./]"],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "importOrderParserPlugins": [
+    "explicitResourceManagement",
+    "typescript",
+    "jsx",
+    "classProperties",
+    "decoratorsLegacy"
+  ],
+  "importOrderSideEffects": false,
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "ignorePatterns": []
+}

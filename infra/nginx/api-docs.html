@@ -1,38 +1,37 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SC2 API Documentation</title>
     <style>
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="api-docs"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
     <script>
-        Scalar.createApiReference('#api-docs', {
-            sources: [
-                {
-                    title: 'Factory',
-                    slug: 'factory',
-                    url: '/api/factory/openapi/json',
-                },
-                {
-                    title: 'Auth',
-                    slug: 'auth',
-                    url: '/api/auth/open-api/generate-schema',
-                }
-            ],
-        })
+      Scalar.createApiReference("#api-docs", {
+        sources: [
+          {
+            title: "Factory",
+            slug: "factory",
+            url: "/api/v1/factory/openapi/json",
+          },
+          {
+            title: "Auth",
+            slug: "auth",
+            url: "/api/v1/auth/open-api/generate-schema",
+          },
+        ],
+      })
     </script>
-</body>
-
+  </body>
 </html>

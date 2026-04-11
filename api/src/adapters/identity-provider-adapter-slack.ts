@@ -2,8 +2,8 @@ import type {
   IdentityProviderAdapter,
   IdentityProviderConfig,
   ExternalIdentityUser,
-} from "./identity-provider-adapter";
-import { slack, type SlackMember } from "./slack-client";
+} from "./identity-provider-adapter"
+import { slack, type SlackMember } from "./slack-client"
 
 function toExternalUser(member: SlackMember): ExternalIdentityUser {
   return {
@@ -24,23 +24,25 @@ function toExternalUser(member: SlackMember): ExternalIdentityUser {
     },
     isBot: member.is_bot ?? false,
     deleted: member.deleted ?? false,
-  };
+  }
 }
 
 export class SlackIdentityProviderAdapter implements IdentityProviderAdapter {
-  readonly provider = "slack" as const;
+  readonly provider = "slack" as const
 
-  async fetchUsers(config: IdentityProviderConfig): Promise<ExternalIdentityUser[]> {
-    const members = await slack.usersList(config.token);
-    return members.map(toExternalUser);
+  async fetchUsers(
+    config: IdentityProviderConfig
+  ): Promise<ExternalIdentityUser[]> {
+    const members = await slack.usersList(config.token)
+    return members.map(toExternalUser)
   }
 
   async fetchUserProfile(
     config: IdentityProviderConfig,
-    externalUserId: string,
+    externalUserId: string
   ): Promise<ExternalIdentityUser | null> {
-    const member = await slack.usersInfo(config.token, externalUserId);
-    if (!member) return null;
-    return toExternalUser(member);
+    const member = await slack.usersInfo(config.token, externalUserId)
+    if (!member) return null
+    return toExternalUser(member)
   }
 }

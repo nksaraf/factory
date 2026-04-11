@@ -101,18 +101,18 @@ Stream response back to caller
 
 ### Routing Decisions by State
 
-| Kind | Status/State | Gateway Action |
-|------|-------------|----------------|
-| tunnel (active) | WS connected | Binary frame relay to CLI |
-| tunnel (disconnected) | WS gone | 502 Bad Gateway |
-| preview (hot) | k8s running | Reverse proxy to service |
-| preview (warm) | scaled to 0 | Trigger scale-up, return "Starting..." with auto-refresh |
-| preview (cold) | no workload | Trigger deploy, return "Starting..." page |
-| preview (expired) | past expiresAt | 410 Gone / branded expiry page |
-| preview (building) | CI in progress | "Building preview..." page with status |
-| sandbox (active) | pod running | Reverse proxy to pod |
-| sandbox (expired) | past expiresAt | 410 Gone |
-| any (not found) | no route match | 404 Not Found |
+| Kind                  | Status/State   | Gateway Action                                           |
+| --------------------- | -------------- | -------------------------------------------------------- |
+| tunnel (active)       | WS connected   | Binary frame relay to CLI                                |
+| tunnel (disconnected) | WS gone        | 502 Bad Gateway                                          |
+| preview (hot)         | k8s running    | Reverse proxy to service                                 |
+| preview (warm)        | scaled to 0    | Trigger scale-up, return "Starting..." with auto-refresh |
+| preview (cold)        | no workload    | Trigger deploy, return "Starting..." page                |
+| preview (expired)     | past expiresAt | 410 Gone / branded expiry page                           |
+| preview (building)    | CI in progress | "Building preview..." page with status                   |
+| sandbox (active)      | pod running    | Reverse proxy to pod                                     |
+| sandbox (expired)     | past expiresAt | 410 Gone                                                 |
+| any (not found)       | no route match | 404 Not Found                                            |
 
 ### Cache Invalidation
 
@@ -132,14 +132,14 @@ Stream response back to caller
 
 ## Part 4: URL Patterns (All Flattened Slugs)
 
-| Resource | Pattern | Example |
-|----------|---------|---------|
-| Tunnel | `{adj}-{noun}-{num}.tunnel.dx.dev` | `happy-fox-42.tunnel.dx.dev` |
-| Preview | `pr-{num}--{branch}--{site}.preview.dx.dev` | `pr-42--fix-auth-bug--myapp.preview.dx.dev` |
-| Sandbox | `{slug}.sandbox.dx.dev` | `dev-nikhil-abc.sandbox.dx.dev` |
-| Sandbox (port) | `{slug}-{port}.sandbox.dx.dev` | `dev-nikhil-abc-8080.sandbox.dx.dev` |
-| Prod target | `{component}.{target}.dx.dev` | `api.prod.dx.dev` (IngressRoute, not gateway) |
-| Custom domain | User FQDN | `app.example.com` (Traefik router, not gateway) |
+| Resource       | Pattern                                     | Example                                         |
+| -------------- | ------------------------------------------- | ----------------------------------------------- |
+| Tunnel         | `{adj}-{noun}-{num}.tunnel.dx.dev`          | `happy-fox-42.tunnel.dx.dev`                    |
+| Preview        | `pr-{num}--{branch}--{site}.preview.dx.dev` | `pr-42--fix-auth-bug--myapp.preview.dx.dev`     |
+| Sandbox        | `{slug}.sandbox.dx.dev`                     | `dev-nikhil-abc.sandbox.dx.dev`                 |
+| Sandbox (port) | `{slug}-{port}.sandbox.dx.dev`              | `dev-nikhil-abc-8080.sandbox.dx.dev`            |
+| Prod target    | `{component}.{target}.dx.dev`               | `api.prod.dx.dev` (IngressRoute, not gateway)   |
+| Custom domain  | User FQDN                                   | `app.example.com` (Traefik router, not gateway) |
 
 All high-cardinality slugs use `--` as separator within a single DNS label. Never nested dots.
 
@@ -160,36 +160,60 @@ Resource table (lifecycle: who, what, why)
 **File**: `api/src/db/schema/fleet.ts` (add to existing file)
 
 ```typescript
-export const preview = factoryFleet.table("preview", {
-  previewId: text("preview_id").primaryKey().$defaultFn(() => newId("prv")),
-  deploymentTargetId: text("deployment_target_id").notNull()
-    .references(() => deploymentTarget.deploymentTargetId, { onDelete: "cascade" }),
-  siteId: text("site_id").references(() => fleetSite.siteId, { onDelete: "set null" }),
-  name: text("name").notNull(),                    // "PR #42 - fix-auth-bug"
-  slug: text("slug").notNull(),                    // "pr-42--fix-auth-bug--myapp"
-  sourceBranch: text("source_branch").notNull(),   // "fix-auth-bug"
-  commitSha: text("commit_sha").notNull(),         // "a13f..."
-  repo: text("repo").notNull(),                    // "github.com/org/myapp"
-  prNumber: integer("pr_number"),                  // 42 (null for branch-only previews)
-  ownerId: text("owner_id").notNull(),             // who created it
-  authMode: text("auth_mode").notNull().default("team"),  // public | team | private
-  runtimeClass: text("runtime_class").notNull().default("hot"),  // hot | warm | cold
-  status: text("status").notNull().default("building"),
-  statusMessage: text("status_message"),            // "Build failed: ..."
-  lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => [
-  uniqueIndex("preview_slug_unique").on(t.slug),
-  uniqueIndex("preview_deployment_target_unique").on(t.deploymentTargetId),
-  index("preview_site_idx").on(t.siteId),
-  index("preview_status_idx").on(t.status),
-  index("preview_branch_idx").on(t.sourceBranch),
-  check("preview_auth_mode_valid", sql`${t.authMode} IN ('public', 'team', 'private')`),
-  check("preview_runtime_class_valid", sql`${t.runtimeClass} IN ('hot', 'warm', 'cold')`),
-  check("preview_status_valid", sql`${t.status} IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed')`),
-]);
+export const preview = factoryFleet.table(
+  "preview",
+  {
+    previewId: text("preview_id")
+      .primaryKey()
+      .$defaultFn(() => newId("prv")),
+    deploymentTargetId: text("deployment_target_id")
+      .notNull()
+      .references(() => deploymentTarget.deploymentTargetId, {
+        onDelete: "cascade",
+      }),
+    siteId: text("site_id").references(() => fleetSite.siteId, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(), // "PR #42 - fix-auth-bug"
+    slug: text("slug").notNull(), // "pr-42--fix-auth-bug--myapp"
+    sourceBranch: text("source_branch").notNull(), // "fix-auth-bug"
+    commitSha: text("commit_sha").notNull(), // "a13f..."
+    repo: text("repo").notNull(), // "github.com/org/myapp"
+    prNumber: integer("pr_number"), // 42 (null for branch-only previews)
+    ownerId: text("owner_id").notNull(), // who created it
+    authMode: text("auth_mode").notNull().default("team"), // public | team | private
+    runtimeClass: text("runtime_class").notNull().default("hot"), // hot | warm | cold
+    status: text("status").notNull().default("building"),
+    statusMessage: text("status_message"), // "Build failed: ..."
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("preview_slug_unique").on(t.slug),
+    uniqueIndex("preview_deployment_target_unique").on(t.deploymentTargetId),
+    index("preview_site_idx").on(t.siteId),
+    index("preview_status_idx").on(t.status),
+    index("preview_branch_idx").on(t.sourceBranch),
+    check(
+      "preview_auth_mode_valid",
+      sql`${t.authMode} IN ('public', 'team', 'private')`
+    ),
+    check(
+      "preview_runtime_class_valid",
+      sql`${t.runtimeClass} IN ('hot', 'warm', 'cold')`
+    ),
+    check(
+      "preview_status_valid",
+      sql`${t.status} IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed')`
+    ),
+  ]
+)
 ```
 
 ### Existing Tables (no schema changes needed)
@@ -209,13 +233,13 @@ tcpPort: integer("tcp_port"),                      // assigned port for TCP tunn
 
 ### How Each Resource Type Maps
 
-| Resource | Lifecycle Table | deploymentTarget? | route kind |
-|----------|----------------|-------------------|------------|
-| Preview | `preview` | Yes (kind: "preview") | `preview` |
-| Sandbox | `sandbox` | Yes (kind: "sandbox") | `sandbox` |
-| Tunnel | `tunnel` | No (WS relay, no k8s workload) | `tunnel` |
-| Prod/Staging | — | Yes (kind: "production"/"staging") | `ingress` |
-| Custom domain | — | — | `custom_domain` |
+| Resource      | Lifecycle Table | deploymentTarget?                  | route kind      |
+| ------------- | --------------- | ---------------------------------- | --------------- |
+| Preview       | `preview`       | Yes (kind: "preview")              | `preview`       |
+| Sandbox       | `sandbox`       | Yes (kind: "sandbox")              | `sandbox`       |
+| Tunnel        | `tunnel`        | No (WS relay, no k8s workload)     | `tunnel`        |
+| Prod/Staging  | —               | Yes (kind: "production"/"staging") | `ingress`       |
+| Custom domain | —               | —                                  | `custom_domain` |
 
 ---
 
@@ -270,6 +294,7 @@ PR merged/closed
 ### Cleanup Job
 
 Periodic job (every 5 minutes):
+
 1. Find previews where `expiresAt < now()` and `status = "active"` → mark expired
 2. Find previews where `lastAccessedAt < now() - 2h` and `runtimeClass = "hot"` → scale to warm
 3. Find previews where `lastAccessedAt < now() - 24h` and `runtimeClass = "warm"` → mark cold, delete deployment
@@ -285,14 +310,14 @@ Periodic job (every 5 minutes):
 
 Frame format (11-byte header):
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | version | `0x01` |
-| 1 | 1 | type | Frame type |
-| 2 | 4 | streamId | uint32 BE |
-| 6 | 1 | flags | FIN=0x01, RST=0x02, ACK=0x04 |
-| 7 | 4 | length | uint32 BE, max 65536 |
-| 11 | N | payload | Frame data |
+| Offset | Size | Field    | Description                  |
+| ------ | ---- | -------- | ---------------------------- |
+| 0      | 1    | version  | `0x01`                       |
+| 1      | 1    | type     | Frame type                   |
+| 2      | 4    | streamId | uint32 BE                    |
+| 6      | 1    | flags    | FIN=0x01, RST=0x02, ACK=0x04 |
+| 7      | 4    | length   | uint32 BE, max 65536         |
+| 11     | N    | payload  | Frame data                   |
 
 Frame types: CONTROL (0x00), HTTP_REQ (0x01), HTTP_RES (0x02), DATA (0x03), TCP_CONNECT (0x04), TCP_CONNECTED (0x05), RST_STREAM (0x06), WINDOW_UPDATE (0x07), PING (0x08), PONG (0x09), GOAWAY (0x0A)
 
@@ -341,10 +366,12 @@ Flow control: per-stream 256KB window, per-connection 1MB, WINDOW_UPDATE to gran
 ## Part 9: Scaling
 
 ### Gateway (stateless, horizontal)
+
 - Run N replicas behind Traefik load balancer
 - Each has LRU cache, invalidated via direct call (same process) or Redis pub/sub (multi-process)
 
 ### Tunnel Broker (stateful per connection)
+
 - **Phase 1**: Node-affinity — route record stores `brokerNodeId`, gateway routes to correct node
 - **Phase 2** (future): Redis pub/sub cross-node relay (needed at 100+ nodes)
 
@@ -353,12 +380,14 @@ Flow control: per-stream 256KB window, per-connection 1MB, WINDOW_UPDATE to gran
 ## Implementation Phases
 
 ### Phase 1: Factory Gateway + Traefik Simplification (Week 1-2)
+
 1. Create `factory-gateway.ts` — HTTP server with hostname parsing, cache lookup, reverse proxy
 2. Simplify `traefik-sync.ts` — family-level wildcard routers for tunnel/preview/sandbox; keep per-route for custom_domain/ingress only
 3. Set up wildcard DNS records + wildcard certs
 4. Test: sandbox/preview URL → gateway → k8s pod (replace current per-route Traefik routing)
 
 ### Phase 2: Preview Data Model + Lifecycle (Week 2-3)
+
 5. Add `preview` table to `api/src/db/schema/fleet.ts`
 6. Add `"preview"` to deploymentTarget kind constraint
 7. Create preview service: `createPreview()`, `updatePreview()`, `expirePreview()`
@@ -367,6 +396,7 @@ Flow control: per-stream 256KB window, per-connection 1MB, WINDOW_UPDATE to gran
 10. DB migration
 
 ### Phase 3: Tunnel Data Plane (Week 3-4)
+
 11. Create `shared/src/tunnel-protocol.ts` — frame codec + types + unit tests
 12. Enhance `tunnel-broker.ts` — binary framing, stream multiplexing
 13. Wire gateway to forward tunnel requests through WS
@@ -374,12 +404,14 @@ Flow control: per-stream 256KB window, per-connection 1MB, WINDOW_UPDATE to gran
 15. Add `mode`/`tcpPort` columns to tunnel table
 
 ### Phase 4: TCP Tunneling (Week 4-5)
+
 16. Create `tunnel-tcp-proxy.ts` — port allocator, TCP listeners
 17. Extend registration for `mode: "tcp"`
 18. Client-side TCP_CONNECT handling
 19. Implement `gateway-backend.ts` for `dx dev --connect-to`
 
 ### Phase 5: Production Hardening (Week 5-6)
+
 20. Tunnel reconnection with exponential backoff + subdomain reclaim
 21. Flow control (WINDOW_UPDATE)
 22. Preview auth enforcement in gateway
@@ -392,20 +424,20 @@ Flow control: per-stream 256KB window, per-connection 1MB, WINDOW_UPDATE to gran
 
 ## Critical Files
 
-| Component | Path | Action |
-|-----------|------|--------|
-| **Factory Gateway** | `api/src/modules/infra/factory-gateway.ts` | Create |
-| **Preview table** | `api/src/db/schema/fleet.ts` | Add preview table |
-| **Preview service** | `api/src/services/preview/preview.service.ts` | Create |
-| Frame protocol | `shared/src/tunnel-protocol.ts` | Create |
-| Tunnel broker | `api/src/modules/infra/tunnel-broker.ts` | Enhance |
-| TCP proxy | `api/src/modules/infra/tunnel-tcp-proxy.ts` | Create |
-| Traefik sync | `api/src/modules/infra/traefik-sync.ts` | Simplify |
-| Gateway service | `api/src/modules/infra/gateway.service.ts` | Add cache invalidation hooks |
-| Gateway controller | `api/src/modules/infra/gateway.controller.ts` | Wire gateway startup |
-| Tunnel client | `cli/src/lib/tunnel-client.ts` | Add binary frames |
-| Gateway backend | `cli/src/lib/backends/gateway-backend.ts` | Implement |
-| DB schema | `api/src/db/schema/gateway.ts` | Add tunnel mode/tcpPort |
+| Component           | Path                                          | Action                       |
+| ------------------- | --------------------------------------------- | ---------------------------- |
+| **Factory Gateway** | `api/src/modules/infra/factory-gateway.ts`    | Create                       |
+| **Preview table**   | `api/src/db/schema/fleet.ts`                  | Add preview table            |
+| **Preview service** | `api/src/services/preview/preview.service.ts` | Create                       |
+| Frame protocol      | `shared/src/tunnel-protocol.ts`               | Create                       |
+| Tunnel broker       | `api/src/modules/infra/tunnel-broker.ts`      | Enhance                      |
+| TCP proxy           | `api/src/modules/infra/tunnel-tcp-proxy.ts`   | Create                       |
+| Traefik sync        | `api/src/modules/infra/traefik-sync.ts`       | Simplify                     |
+| Gateway service     | `api/src/modules/infra/gateway.service.ts`    | Add cache invalidation hooks |
+| Gateway controller  | `api/src/modules/infra/gateway.controller.ts` | Wire gateway startup         |
+| Tunnel client       | `cli/src/lib/tunnel-client.ts`                | Add binary frames            |
+| Gateway backend     | `cli/src/lib/backends/gateway-backend.ts`     | Implement                    |
+| DB schema           | `api/src/db/schema/gateway.ts`                | Add tunnel mode/tcpPort      |
 
 ## Verification
 

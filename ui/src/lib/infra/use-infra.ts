@@ -79,9 +79,7 @@ export function useCluster(id: string | undefined) {
   return useQuery<Cluster | null>({
     queryKey: ["infra", "cluster", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Cluster>>(
-        `/clusters/${id}`
-      )
+      const res = await infraFetch<SuccessResponse<Cluster>>(`/clusters/${id}`)
       return res.data
     },
     enabled: !!id,

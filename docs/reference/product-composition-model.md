@@ -9,12 +9,14 @@
 ## The Problem
 
 Your sales team sells things like:
+
 - "Trafficure Coverage Module"
 - "SmartMarket AI Data Analyst"
 - "Revenue Prediction Module" (initially Samsung-specific)
 - "Trafficure + SmartMarket Suite"
 
 Your engineering team builds things like:
+
 - `coverage-service` (Java backend)
 - `coverage-ui` (React microfrontend)
 - `rf-engine` (computation engine)
@@ -126,30 +128,30 @@ or more technical components.
 
 **The spectrum of module ↔ technology mapping:**
 
-| Mapping type | Description | Example |
-|---|---|---|
-| **Entitlement-only** | No separate components. The module is a feature flag on shared infrastructure. Enabling the module means flipping a config/entitlement. | "Advanced Analytics" = a feature flag on the existing reports service |
-| **Configuration scope** | Shared deployment, but the module activates specific schemas, UI routes, or processing pipelines within it. | SAP-style: "Coverage Module" enables coverage-related tables and API endpoints in the shared Trafficure instance |
-| **Additive components** | The module requires additional technical components deployed alongside the shared platform. | "AI Data Analyst" requires deploying the `ai-data-analyst-service` alongside the existing SmartMarket stack |
-| **Independent deployment** | The module is technically a separate product with its own deployment. Commercially bundled but technically independent. | "SmartMarket" alongside "Trafficure" — different codebases, different deployments, shared IAM |
-| **Customer-specific** | The module exists only for one customer (or started that way). May eventually be generalized into a standard module. | "Revenue Prediction Module" — built for Samsung, may become standard |
+| Mapping type               | Description                                                                                                                             | Example                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Entitlement-only**       | No separate components. The module is a feature flag on shared infrastructure. Enabling the module means flipping a config/entitlement. | "Advanced Analytics" = a feature flag on the existing reports service                                            |
+| **Configuration scope**    | Shared deployment, but the module activates specific schemas, UI routes, or processing pipelines within it.                             | SAP-style: "Coverage Module" enables coverage-related tables and API endpoints in the shared Trafficure instance |
+| **Additive components**    | The module requires additional technical components deployed alongside the shared platform.                                             | "AI Data Analyst" requires deploying the `ai-data-analyst-service` alongside the existing SmartMarket stack      |
+| **Independent deployment** | The module is technically a separate product with its own deployment. Commercially bundled but technically independent.                 | "SmartMarket" alongside "Trafficure" — different codebases, different deployments, shared IAM                    |
+| **Customer-specific**      | The module exists only for one customer (or started that way). May eventually be generalized into a standard module.                    | "Revenue Prediction Module" — built for Samsung, may become standard                                             |
 
 **Key properties:**
 
-| Property | Description |
-|---|---|
-| `name` | Commercial name: "Coverage Analysis", "AI Data Analyst", "Revenue Prediction" |
-| `product` | Which product this belongs to: Trafficure, SmartMarket |
-| `type` | `core` (included in all editions), `standard` (included in some editions), `add-on` (always separate purchase), `custom` (customer-specific), `internal` (not sold, but exists as a dependency) |
-| `description` | Customer-facing description of what this module does |
-| `mapping_type` | `entitlement-only`, `configuration-scope`, `additive-components`, `independent-deployment`, `customer-specific` |
-| `realized_by` | Links to the Capability Map (see below) |
-| `depends_on_modules` | Other modules this requires: "AI Data Analyst depends on Dataset Management" |
-| `available_in_editions` | Which editions include this module: `enterprise`, `professional` |
-| `available_as_addon` | Can be purchased separately? If so, at what price |
-| `lifecycle` | `incubation`, `beta`, `ga` (generally available), `deprecated` |
-| `customer_scope` | `all-customers`, `edition-gated`, `specific-customers` (for custom modules) |
-| `owner_team` | Product team responsible |
+| Property                | Description                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                  | Commercial name: "Coverage Analysis", "AI Data Analyst", "Revenue Prediction"                                                                                                                   |
+| `product`               | Which product this belongs to: Trafficure, SmartMarket                                                                                                                                          |
+| `type`                  | `core` (included in all editions), `standard` (included in some editions), `add-on` (always separate purchase), `custom` (customer-specific), `internal` (not sold, but exists as a dependency) |
+| `description`           | Customer-facing description of what this module does                                                                                                                                            |
+| `mapping_type`          | `entitlement-only`, `configuration-scope`, `additive-components`, `independent-deployment`, `customer-specific`                                                                                 |
+| `realized_by`           | Links to the Capability Map (see below)                                                                                                                                                         |
+| `depends_on_modules`    | Other modules this requires: "AI Data Analyst depends on Dataset Management"                                                                                                                    |
+| `available_in_editions` | Which editions include this module: `enterprise`, `professional`                                                                                                                                |
+| `available_as_addon`    | Can be purchased separately? If so, at what price                                                                                                                                               |
+| `lifecycle`             | `incubation`, `beta`, `ga` (generally available), `deprecated`                                                                                                                                  |
+| `customer_scope`        | `all-customers`, `edition-gated`, `specific-customers` (for custom modules)                                                                                                                     |
+| `owner_team`            | Product team responsible                                                                                                                                                                        |
 
 **Lepton's module catalog:**
 
@@ -241,16 +243,16 @@ engagement needs to reference what was purchased as a unit. The bundle is that u
 
 **Key properties:**
 
-| Property | Description |
-|---|---|
-| `name` | "Lepton Intelligence Suite", "Trafficure Enterprise + SmartMarket Reports" |
-| `type` | `suite` (multiple products), `package` (product + add-ons), `plan` (edition-level bundle) |
-| `includes_products` | Which products |
-| `includes_modules` | Which specific modules (overrides edition defaults if needed) |
-| `edition_level` | Default edition for included products: enterprise, professional |
-| `pricing` | Bundle pricing (usually discounted vs individual) |
-| `available_addons` | Modules that can be added to this bundle |
-| `lifecycle` | `active`, `deprecated`, `promotional` (time-limited) |
+| Property            | Description                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `name`              | "Lepton Intelligence Suite", "Trafficure Enterprise + SmartMarket Reports"                |
+| `type`              | `suite` (multiple products), `package` (product + add-ons), `plan` (edition-level bundle) |
+| `includes_products` | Which products                                                                            |
+| `includes_modules`  | Which specific modules (overrides edition defaults if needed)                             |
+| `edition_level`     | Default edition for included products: enterprise, professional                           |
+| `pricing`           | Bundle pricing (usually discounted vs individual)                                         |
+| `available_addons`  | Modules that can be added to this bundle                                                  |
+| `lifecycle`         | `active`, `deprecated`, `promotional` (time-limited)                                      |
 
 **Example bundles:**
 
@@ -313,13 +315,13 @@ CAPABILITY_MAP_ENTRY:
 
 **Requirement types:**
 
-| Type | Meaning | Deployment implication |
-|---|---|---|
-| `required-exclusive` | This component exists solely for this module | Deploy when module is enabled, remove when disabled |
-| `required-shared` | This component is needed by this module but also serves others | Deploy once, configure for all consuming modules |
-| `required-platform` | This is platform infrastructure needed by all modules | Always deployed regardless of module selection |
-| `optional-enhancement` | This component enhances this module but isn't strictly needed | Deploy if resources allow or if customer has the edition |
-| `configuration-only` | No separate deployment — enabling the module means configuring this existing component differently | Apply config change to existing deployment |
+| Type                   | Meaning                                                                                            | Deployment implication                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `required-exclusive`   | This component exists solely for this module                                                       | Deploy when module is enabled, remove when disabled      |
+| `required-shared`      | This component is needed by this module but also serves others                                     | Deploy once, configure for all consuming modules         |
+| `required-platform`    | This is platform infrastructure needed by all modules                                              | Always deployed regardless of module selection           |
+| `optional-enhancement` | This component enhances this module but isn't strictly needed                                      | Deploy if resources allow or if customer has the edition |
+| `configuration-only`   | No separate deployment — enabling the module means configuring this existing component differently | Apply config change to existing deployment               |
 
 **Lepton's capability map (partial):**
 
@@ -488,24 +490,24 @@ Stage 1: CUSTOMER-SPECIFIC MODULE
   module.type = custom
   module.customer_scope = specific-customers [Samsung]
   module.lifecycle = incubation
-  
+
   Components have Samsung-specific code, Samsung-specific data models,
   hardcoded assumptions about Samsung's business.
-  
+
   Engagement: "Samsung Revenue Prediction Development" (custom-development)
 
 Stage 2: GENERALIZATION (internal initiative)
   module.type = custom → standard (transition in progress)
   module.lifecycle = incubation → beta
-  
+
   Components are refactored:
     - Samsung-specific logic extracted into configuration
     - Data models generalized to support multiple customers
     - API contract stabilized
     - Documentation written
-  
+
   Initiative: "Generalize Revenue Prediction Module"
-  
+
   Samsung continues using it. New customers can opt into beta.
 
 Stage 3: GENERALLY AVAILABLE MODULE
@@ -514,16 +516,16 @@ Stage 3: GENERALLY AVAILABLE MODULE
   module.lifecycle = ga
   module.available_in_editions = [enterprise]
   module.available_as_addon = true, separate pricing
-  
+
   Components are fully generic. Customer-specific behavior driven by configuration.
   Samsung's original custom engagement transitions to standard support.
-  
+
   New customers can purchase this module. Sales team has a new line item.
 
 Stage 4: CORE MODULE (optional)
   module.type = standard → core
   module.available_in_editions = [professional, enterprise] (included in more editions)
-  
+
   The module has proven so valuable that it's included in lower tiers
   to increase product competitiveness.
 ```
@@ -556,7 +558,7 @@ ENGAGEMENT: "Samsung Full Platform Implementation"
       - Reports & Analytics
     Custom:
       - Revenue Prediction
-  
+
   This engagement spans two products (Trafficure + SmartMarket) plus a custom
   module, but that's fine — the module list is the source of truth for scope.
 ```
@@ -574,7 +576,7 @@ ENGAGEMENT: "Samsung Full Platform Implementation"
         modules: [Revenue Prediction]
     - "Platform Setup" → owner: Platform Team
         modules: [IAM, API Gateway, Observability]
-  
+
   engagement_manager: (one person owns the whole engagement commercially)
   technical_leads: (one per workstream)
 ```
@@ -633,17 +635,21 @@ understand what's deployed for a customer.
 ## Updated Entity Count
 
 **Commercial Layer: 8 entities** (was 6)
+
 - Product, Module (new), Bundle (new), Offering, Customer, Engagement, Initiative, Account
 
 **Technical Bridge: 1 entity** (new)
+
 - Capability Map (the many-to-many join between Module and Component)
 
 **Technical Layer: 13 entities** (unchanged from V3)
+
 - Domain, System, Component, API, Artifact, Release Bundle, Template
 - Substrate, Host, Workspace, Runtime, Network Entity
 - Deployment, Workload, Managed Dependency, Data Store, Secret
 
 **Organizational Layer: 2 entities** (unchanged)
+
 - Team, Person
 
 **Total: 24 entities**

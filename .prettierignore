@@ -1,0 +1,4 @@
+.context/
+pnpm-lock.yaml
+bun.lock
+cli/src/__tests__/fixtures/dx-config/invalid-json/

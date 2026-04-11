@@ -47,7 +47,10 @@ export function spawnBuildHall() {
       position: { x: 0, y: BELT_Y, z },
       scale: { x: 0.6, y: 0.6, z: 0.6 },
       tint: statusColor,
-      label: { name: `${build.repo}@${build.version}`, description: build.status },
+      label: {
+        name: `${build.repo}@${build.version}`,
+        description: build.status,
+      },
       buildStatus: build.status,
       beltPosition: t,
     })
@@ -97,7 +100,10 @@ export function spawnBuildHall() {
       type: "worker",
       position: { x, y: 0, z: BELT_START_Z - 1 },
       tint: statusColor,
-      label: { name: `Sync Agent`, description: `${worker.repo} — ${worker.status}` },
+      label: {
+        name: `Sync Agent`,
+        description: `${worker.repo} — ${worker.status}`,
+      },
     })
   })
 }

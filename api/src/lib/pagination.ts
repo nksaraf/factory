@@ -3,32 +3,32 @@
  * Replaces per-module manual limit/offset handling.
  */
 
-import { count, type SQL } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
-import type { Database } from "../db/connection";
+import { count, type SQL } from "drizzle-orm"
+import type { PgTable } from "drizzle-orm/pg-core"
+import type { Database } from "../db/connection"
 
 // ── Types ───────────────────────────────────────────────────
 
 export interface PaginationParams {
-  limit?: number;
-  offset?: number;
+  limit?: number
+  offset?: number
 }
 
 export interface PaginationMeta {
-  total: number;
-  limit: number;
-  offset: number;
+  total: number
+  limit: number
+  offset: number
 }
 
 export interface PaginatedResult<T> {
-  data: T[];
-  meta: PaginationMeta;
+  data: T[]
+  meta: PaginationMeta
 }
 
 // ── Constants ───────────────────────────────────────────────
 
-export const DEFAULT_LIMIT = 50;
-export const MAX_LIMIT = 200;
+export const DEFAULT_LIMIT = 50
+export const MAX_LIMIT = 200
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -38,15 +38,12 @@ export const MAX_LIMIT = 200;
  * - offset: clamped to >= 0, defaults to 0
  */
 export function parsePagination(params: PaginationParams): {
-  limit: number;
-  offset: number;
+  limit: number
+  offset: number
 } {
-  const limit = Math.min(
-    Math.max(params.limit ?? DEFAULT_LIMIT, 1),
-    MAX_LIMIT,
-  );
-  const offset = Math.max(params.offset ?? 0, 0);
-  return { limit, offset };
+  const limit = Math.min(Math.max(params.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
+  const offset = Math.max(params.offset ?? 0, 0)
+  return { limit, offset }
 }
 
 /**
@@ -55,13 +52,10 @@ export function parsePagination(params: PaginationParams): {
 export async function countRows(
   db: Database,
   table: PgTable,
-  where?: SQL,
+  where?: SQL
 ): Promise<number> {
-  const result = await db
-    .select({ count: count() })
-    .from(table)
-    .where(where);
-  return result[0]?.count ?? 0;
+  const result = await db.select({ count: count() }).from(table).where(where)
+  return result[0]?.count ?? 0
 }
 
 /**
@@ -69,7 +63,7 @@ export async function countRows(
  */
 export function paginationMeta(
   total: number,
-  parsed: { limit: number; offset: number },
+  parsed: { limit: number; offset: number }
 ): PaginationMeta {
-  return { total, limit: parsed.limit, offset: parsed.offset };
+  return { total, limit: parsed.limit, offset: parsed.offset }
 }

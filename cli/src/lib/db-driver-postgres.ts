@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process"
 
 import type {
   DbResourceConfig,
@@ -13,8 +13,8 @@ import type {
   Row,
   SequenceInfo,
   TableInfo,
-} from "./db-driver.js";
-import { registerDriver } from "./db-driver.js";
+} from "./db-driver.js"
+import { registerDriver } from "./db-driver.js"
 
 // ── SQL Constants ────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ const LIST_TABLES_SQL = `
     pg_size_pretty(pg_total_relation_size(quote_ident(schemaname) || '.' || quote_ident(relname))) AS total_size
   FROM pg_stat_user_tables
   ORDER BY schemaname, relname
-`;
+`
 
 const LIST_TABLES_FILTERED_SQL = `
   SELECT
@@ -37,7 +37,7 @@ const LIST_TABLES_FILTERED_SQL = `
   FROM pg_stat_user_tables
   WHERE relname LIKE $1
   ORDER BY schemaname, relname
-`;
+`
 
 const DESCRIBE_TABLE_SQL = `
   SELECT
@@ -49,7 +49,7 @@ const DESCRIBE_TABLE_SQL = `
   WHERE table_schema || '.' || table_name = $1
      OR table_name = $1
   ORDER BY ordinal_position
-`;
+`
 
 const LIST_INDEXES_SQL = `
   SELECT
@@ -65,7 +65,7 @@ const LIST_INDEXES_SQL = `
   FROM pg_stat_user_indexes
   JOIN pg_index USING (indexrelid)
   ORDER BY schemaname, relname, indexrelname
-`;
+`
 
 const LIST_INDEXES_UNUSED_SQL = `
   SELECT
@@ -82,7 +82,7 @@ const LIST_INDEXES_UNUSED_SQL = `
   JOIN pg_index USING (indexrelid)
   WHERE idx_scan = 0
   ORDER BY schemaname, relname, indexrelname
-`;
+`
 
 const LIST_CONSTRAINTS_SQL = `
   SELECT
@@ -101,7 +101,7 @@ const LIST_CONSTRAINTS_SQL = `
   WHERE tc.table_schema NOT IN ('pg_catalog', 'information_schema')
   GROUP BY tc.table_schema, tc.table_name, tc.constraint_name, tc.constraint_type
   ORDER BY tc.table_schema, tc.table_name, tc.constraint_type, tc.constraint_name
-`;
+`
 
 const LIST_SEQUENCES_SQL = `
   SELECT
@@ -111,7 +111,7 @@ const LIST_SEQUENCES_SQL = `
   FROM pg_sequences
   WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
   ORDER BY schemaname, sequencename
-`;
+`
 
 const LIST_EXTENSIONS_SQL = `
   SELECT
@@ -123,7 +123,7 @@ const LIST_EXTENSIONS_SQL = `
   JOIN pg_namespace n ON e.extnamespace = n.oid
   LEFT JOIN pg_description c ON c.objoid = e.oid AND c.classoid = 'pg_extension'::regclass
   ORDER BY e.extname
-`;
+`
 
 const LIST_ACTIVITY_SQL = `
   SELECT
@@ -141,7 +141,7 @@ const LIST_ACTIVITY_SQL = `
   WHERE pid <> pg_backend_pid()
     AND state IS NOT NULL
   ORDER BY query_start NULLS LAST
-`;
+`
 
 const LIST_LOCKS_SQL = `
   SELECT
@@ -166,7 +166,7 @@ const LIST_LOCKS_SQL = `
     AND blocking.pid <> blocked.pid
   JOIN pg_stat_activity blocking_activity ON blocking.pid = blocking_activity.pid
   WHERE NOT blocked.granted
-`;
+`
 
 const LIST_LONG_QUERIES_SQL = `
   SELECT
@@ -183,24 +183,24 @@ const LIST_LONG_QUERIES_SQL = `
     AND query_start IS NOT NULL
     AND EXTRACT(EPOCH FROM (now() - query_start)) > $1
   ORDER BY query_start
-`;
+`
 
 // ── PostgreSQL Client ────────────────────────────────────────────────────────
 
 class PgClient implements DbClient {
-  private pg: import("pg").Client;
+  private pg: import("pg").Client
 
   constructor(pg: import("pg").Client) {
-    this.pg = pg;
+    this.pg = pg
   }
 
   async query(sql: string, params?: unknown[]): Promise<Row[]> {
-    const result = await this.pg.query(sql, params);
-    return result.rows as Row[];
+    const result = await this.pg.query(sql, params)
+    return result.rows as Row[]
   }
 
   async close(): Promise<void> {
-    await this.pg.end();
+    await this.pg.end()
   }
 }
 
@@ -210,22 +210,22 @@ const postgresDriver: DbDriver = {
   type: "postgres",
 
   buildUrl(res: DbResourceConfig): string {
-    const user = res.env.POSTGRES_USER ?? "postgres";
-    const pass = res.env.POSTGRES_PASSWORD ?? "postgres";
-    const db = res.env.POSTGRES_DB ?? "postgres";
-    const port = res.port;
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${port}/${encodeURIComponent(db)}`;
+    const user = res.env.POSTGRES_USER ?? "postgres"
+    const pass = res.env.POSTGRES_PASSWORD ?? "postgres"
+    const db = res.env.POSTGRES_DB ?? "postgres"
+    const port = res.port
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@localhost:${port}/${encodeURIComponent(db)}`
   },
 
   async connect(url: string): Promise<DbClient> {
-    const { Client } = await import("pg");
-    const client = new Client({ connectionString: url });
-    await client.connect();
-    return new PgClient(client);
+    const { Client } = await import("pg")
+    const client = new Client({ connectionString: url })
+    await client.connect()
+    return new PgClient(client)
   },
 
   spawnInteractive(url: string): number {
-    const result = spawnSync("psql", [url], { stdio: "inherit" });
+    const result = spawnSync("psql", [url], { stdio: "inherit" })
     if (result.error) {
       if ((result.error as NodeJS.ErrnoException).code === "ENOENT") {
         throw new Error(
@@ -233,42 +233,36 @@ const postgresDriver: DbDriver = {
             "  macOS: brew install libpq\n" +
             "  Ubuntu/Debian: sudo apt install postgresql-client\n" +
             "  Fedora/RHEL: sudo dnf install postgresql"
-        );
+        )
       }
-      throw result.error;
+      throw result.error
     }
-    return result.status ?? 1;
+    return result.status ?? 1
   },
 
   async listTables(client: DbClient, filter?: string): Promise<TableInfo[]> {
     if (filter) {
-      const glob = filter.replace(/\*/g, "%");
-      const rows = await client.query(LIST_TABLES_FILTERED_SQL, [glob]);
-      return rows.map(rowToTableInfo);
+      const glob = filter.replace(/\*/g, "%")
+      const rows = await client.query(LIST_TABLES_FILTERED_SQL, [glob])
+      return rows.map(rowToTableInfo)
     }
-    const rows = await client.query(LIST_TABLES_SQL);
-    return rows.map(rowToTableInfo);
+    const rows = await client.query(LIST_TABLES_SQL)
+    return rows.map(rowToTableInfo)
   },
 
-  async describeTable(
-    client: DbClient,
-    table: string
-  ): Promise<ColumnInfo[]> {
-    const rows = await client.query(DESCRIBE_TABLE_SQL, [table]);
+  async describeTable(client: DbClient, table: string): Promise<ColumnInfo[]> {
+    const rows = await client.query(DESCRIBE_TABLE_SQL, [table])
     return rows.map((r) => ({
       column: String(r.column),
       type: String(r.type),
       nullable: Boolean(r.nullable),
       defaultValue: r.default_value != null ? String(r.default_value) : null,
-    }));
+    }))
   },
 
-  async listIndexes(
-    client: DbClient,
-    unused?: boolean
-  ): Promise<IndexInfo[]> {
-    const sql = unused ? LIST_INDEXES_UNUSED_SQL : LIST_INDEXES_SQL;
-    const rows = await client.query(sql);
+  async listIndexes(client: DbClient, unused?: boolean): Promise<IndexInfo[]> {
+    const sql = unused ? LIST_INDEXES_UNUSED_SQL : LIST_INDEXES_SQL
+    const rows = await client.query(sql)
     return rows.map((r) => ({
       schema: String(r.schema),
       table: String(r.table),
@@ -276,75 +270,77 @@ const postgresDriver: DbDriver = {
       columns: String(r.columns ?? ""),
       unique: Boolean(r.unique),
       scans: Number(r.scans),
-    }));
+    }))
   },
 
   async listConstraints(client: DbClient): Promise<ConstraintInfo[]> {
-    const rows = await client.query(LIST_CONSTRAINTS_SQL);
+    const rows = await client.query(LIST_CONSTRAINTS_SQL)
     return rows.map((r) => ({
       schema: String(r.schema),
       table: String(r.table),
       name: String(r.name),
       type: String(r.type),
       definition: String(r.definition),
-    }));
+    }))
   },
 
   async listSequences(client: DbClient): Promise<SequenceInfo[]> {
-    const rows = await client.query(LIST_SEQUENCES_SQL);
+    const rows = await client.query(LIST_SEQUENCES_SQL)
     return rows.map((r) => ({
       schema: String(r.schema),
       name: String(r.name),
       lastValue: r.last_value != null ? Number(r.last_value) : null,
-    }));
+    }))
   },
 
   async listExtensions(client: DbClient): Promise<ExtensionInfo[]> {
-    const rows = await client.query(LIST_EXTENSIONS_SQL);
+    const rows = await client.query(LIST_EXTENSIONS_SQL)
     return rows.map((r) => ({
       name: String(r.name),
       version: String(r.version),
       schema: String(r.schema),
       comment: String(r.comment),
-    }));
+    }))
   },
 
   async listActivity(client: DbClient): Promise<ActivityInfo[]> {
-    const rows = await client.query(LIST_ACTIVITY_SQL);
-    return rows.map(rowToActivityInfo);
+    const rows = await client.query(LIST_ACTIVITY_SQL)
+    return rows.map(rowToActivityInfo)
   },
 
   async listLocks(client: DbClient): Promise<LockInfo[]> {
-    const rows = await client.query(LIST_LOCKS_SQL);
+    const rows = await client.query(LIST_LOCKS_SQL)
     return rows.map((r) => ({
       blockedPid: Number(r.blocked_pid),
       blockedQuery: String(r.blocked_query),
       blockingPid: Number(r.blocking_pid),
       blockingQuery: String(r.blocking_query),
       lockType: String(r.lock_type),
-    }));
+    }))
   },
 
   async listLongQueries(
     client: DbClient,
     thresholdSeconds = 5
   ): Promise<ActivityInfo[]> {
-    const rows = await client.query(LIST_LONG_QUERIES_SQL, [thresholdSeconds]);
-    return rows.map(rowToActivityInfo);
+    const rows = await client.query(LIST_LONG_QUERIES_SQL, [thresholdSeconds])
+    return rows.map(rowToActivityInfo)
   },
 
   async killQuery(client: DbClient, pid: number): Promise<boolean> {
     const rows = await client.query(
       "SELECT pg_terminate_backend($1) AS terminated",
       [pid]
-    );
-    return Boolean(rows[0]?.terminated);
+    )
+    return Boolean(rows[0]?.terminated)
   },
 
   async backup(url: string, outputPath: string): Promise<void> {
-    const result = spawnSync("pg_dump", [
-      "--format=custom", "--file", outputPath, url,
-    ], { stdio: ["ignore", "pipe", "pipe"] });
+    const result = spawnSync(
+      "pg_dump",
+      ["--format=custom", "--file", outputPath, url],
+      { stdio: ["ignore", "pipe", "pipe"] }
+    )
     if (result.error) {
       if ((result.error as NodeJS.ErrnoException).code === "ENOENT") {
         throw new Error(
@@ -352,20 +348,22 @@ const postgresDriver: DbDriver = {
             "  macOS: brew install libpq\n" +
             "  Ubuntu/Debian: sudo apt install postgresql-client\n" +
             "  Fedora/RHEL: sudo dnf install postgresql"
-        );
+        )
       }
-      throw result.error;
+      throw result.error
     }
     if (result.status !== 0) {
-      const stderr = result.stderr?.toString().trim() ?? "";
-      throw new Error(`pg_dump failed (exit ${result.status}): ${stderr}`);
+      const stderr = result.stderr?.toString().trim() ?? ""
+      throw new Error(`pg_dump failed (exit ${result.status}): ${stderr}`)
     }
   },
 
   async restore(url: string, inputPath: string): Promise<void> {
-    const result = spawnSync("pg_restore", [
-      "--clean", "--if-exists", "--dbname", url, inputPath,
-    ], { stdio: ["ignore", "pipe", "pipe"] });
+    const result = spawnSync(
+      "pg_restore",
+      ["--clean", "--if-exists", "--dbname", url, inputPath],
+      { stdio: ["ignore", "pipe", "pipe"] }
+    )
     if (result.error) {
       if ((result.error as NodeJS.ErrnoException).code === "ENOENT") {
         throw new Error(
@@ -373,19 +371,19 @@ const postgresDriver: DbDriver = {
             "  macOS: brew install libpq\n" +
             "  Ubuntu/Debian: sudo apt install postgresql-client\n" +
             "  Fedora/RHEL: sudo dnf install postgresql"
-        );
+        )
       }
-      throw result.error;
+      throw result.error
     }
     if (result.status !== 0) {
-      const stderr = result.stderr?.toString().trim() ?? "";
+      const stderr = result.stderr?.toString().trim() ?? ""
       // pg_restore exits 1 for warnings (e.g. "role does not exist") — only fail on real errors
       if ((result.status ?? 0) > 1 || /\bERROR\b/.test(stderr)) {
-        throw new Error(`pg_restore failed (exit ${result.status}): ${stderr}`);
+        throw new Error(`pg_restore failed (exit ${result.status}): ${stderr}`)
       }
     }
   },
-};
+}
 
 function rowToTableInfo(r: Row): TableInfo {
   return {
@@ -393,7 +391,7 @@ function rowToTableInfo(r: Row): TableInfo {
     name: String(r.name),
     rowEstimate: Number(r.row_estimate),
     totalSize: String(r.total_size),
-  };
+  }
 }
 
 function rowToActivityInfo(r: Row): ActivityInfo {
@@ -405,8 +403,8 @@ function rowToActivityInfo(r: Row): ActivityInfo {
     user: String(r.user),
     database: String(r.database),
     applicationName: String(r.application_name),
-  };
+  }
 }
 
 // Register the driver
-registerDriver("postgres", () => postgresDriver);
+registerDriver("postgres", () => postgresDriver)

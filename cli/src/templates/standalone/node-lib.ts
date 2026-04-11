@@ -1,10 +1,14 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { nodeQualityPackageJson, nodeQualityFiles, nodePrettierConfig } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import {
+  nodeQualityPackageJson,
+  nodeQualityFiles,
+  nodePrettierConfig,
+} from "../quality-configs.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name } = vars;
+  const { name } = vars
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // package.json
   files.push({
@@ -30,9 +34,9 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         "lint-staged": nodeQualityPackageJson()["lint-staged"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // tsconfig.json
   files.push({
@@ -54,15 +58,15 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
         include: ["src/**/*.ts"],
       },
       null,
-      2,
+      2
     ),
-  });
+  })
 
   // src/index.ts
   files.push({
     path: "src/index.ts",
     content: `// Export your library's public API here.\n`,
-  });
+  })
 
   // .gitignore
   files.push({
@@ -70,11 +74,11 @@ export function generate(vars: TemplateVars): GeneratedFile[] {
     content: `node_modules/
 dist/
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(nodePrettierConfig());
-  files.push(...nodeQualityFiles());
+  files.push(nodePrettierConfig())
+  files.push(...nodeQualityFiles())
 
-  return files;
+  return files
 }

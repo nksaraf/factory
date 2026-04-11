@@ -13,7 +13,7 @@ import type {
 export interface PowerSyncConnectorOptions {
   /** PowerSync service URL (e.g. http://localhost:8090) */
   powersyncUrl: string
-  /** Factory API base URL for write-through (e.g. http://localhost:8181/api/factory) */
+  /** Factory API base URL for write-through (e.g. http://localhost:8181/api/v1/factory) */
   factoryApiUrl: string
 }
 
@@ -72,12 +72,12 @@ export class FactoryPowerSyncConnector implements PowerSyncBackendConnector {
 
     // Map PowerSync table names to Factory API endpoints
     const endpointMap: Record<string, string> = {
-      deployment_target: "/fleet/deployment-target",
-      workload: "/fleet/workload",
-      sandbox: "/fleet/sandbox",
-      release: "/fleet/release",
-      rollout: "/fleet/rollout",
-      site: "/fleet/site",
+      deployment_target: "/ops/deployment-target",
+      workload: "/ops/workload",
+      sandbox: "/ops/sandbox",
+      release: "/ops/release",
+      rollout: "/ops/rollout",
+      site: "/ops/site",
     }
 
     const endpoint = endpointMap[op.table]

@@ -1,70 +1,70 @@
-import type { DxFlags } from "../../stub.js";
-import { exitWithError } from "../../lib/cli-exit.js";
-import { resolveDxContext } from "../../lib/dx-context.js";
-import type { CheckKind } from "../../lib/quality/types.js";
-import { ALL_CHECK_KINDS } from "../../lib/quality/types.js";
+import type { DxFlags } from "../../stub.js"
+import { exitWithError } from "../../lib/cli-exit.js"
+import { resolveDxContext } from "../../lib/dx-context.js"
+import type { CheckKind } from "../../lib/quality/types.js"
+import { ALL_CHECK_KINDS } from "../../lib/quality/types.js"
 import {
   buildComponentContext,
   getStagedFiles,
   runQualityChecks,
-} from "../../lib/quality/index.js";
-import { printSummary, buildJsonReport, computeExitCode } from "./reporter.js";
+} from "../../lib/quality/index.js"
+import { printSummary, buildJsonReport, computeExitCode } from "./reporter.js"
 
 export interface CheckHandlerOpts {
-  flags: DxFlags & Record<string, unknown>;
+  flags: DxFlags & Record<string, unknown>
   /** Specific check kind, or undefined for all. */
-  kind?: CheckKind;
+  kind?: CheckKind
   /** Target a specific component. */
-  component?: string;
+  component?: string
   /** CI mode — exit code based on block_pr conventions. */
-  ci?: boolean;
+  ci?: boolean
   /** Only check staged files. */
-  staged?: boolean;
+  staged?: boolean
   /** Auto-fix where possible. */
-  fix?: boolean;
+  fix?: boolean
   /** Report format. */
-  report?: "summary" | "json";
+  report?: "summary" | "json"
 }
 
 export async function runCheckHandler(opts: CheckHandlerOpts): Promise<void> {
-  const { flags, kind, component, ci, staged, fix, report } = opts;
+  const { flags, kind, component, ci, staged, fix, report } = opts
 
-  let ctx;
+  let ctx
   try {
-    ctx = await resolveDxContext({ need: "project" });
+    ctx = await resolveDxContext({ need: "project" })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err)
     exitWithError(flags, msg, 1, [
       {
         action: "dx init",
         description: "Create a new project with quality tooling",
       },
-    ]);
+    ])
   }
 
-  const project = ctx.project;
-  const quality = project.conventions.quality;
-  const kinds = kind ? [kind] : ALL_CHECK_KINDS;
+  const project = ctx.project
+  const quality = project.conventions.quality
+  const kinds = kind ? [kind] : ALL_CHECK_KINDS
 
   // Discover components
   const targetNames = component
     ? [component]
-    : Object.keys(project.catalog.components);
+    : Object.keys(project.catalog.components)
 
-  const stagedFiles = staged ? getStagedFiles(project.rootDir) : undefined;
+  const stagedFiles = staged ? getStagedFiles(project.rootDir) : undefined
 
   const contexts = targetNames
     .map((name) => {
-      const comp = project.catalog.components[name];
+      const comp = project.catalog.components[name]
       if (!comp) {
         if (component) {
-          exitWithError(flags, `Unknown component "${name}"`);
+          exitWithError(flags, `Unknown component "${name}"`)
         }
-        return null;
+        return null
       }
-      return buildComponentContext(name, comp, project.rootDir);
+      return buildComponentContext(name, comp, project.rootDir)
     })
-    .filter((c): c is NonNullable<typeof c> => c !== null);
+    .filter((c): c is NonNullable<typeof c> => c !== null)
 
   if (contexts.length === 0) {
     exitWithError(flags, "No components with detectable runtimes found.", 1, [
@@ -73,7 +73,7 @@ export async function runCheckHandler(opts: CheckHandlerOpts): Promise<void> {
         description:
           "Set runtime (node/python/java) on your docker-compose services",
       },
-    ]);
+    ])
   }
 
   const checkReport = await runQualityChecks(contexts, {
@@ -83,18 +83,18 @@ export async function runCheckHandler(opts: CheckHandlerOpts): Promise<void> {
     fix,
     verbose: flags.verbose,
     stagedFiles,
-  });
+  })
 
-  const reportFormat = report ?? (flags.json ? "json" : "summary");
+  const reportFormat = report ?? (flags.json ? "json" : "summary")
 
   if (reportFormat === "json") {
-    console.log(JSON.stringify(buildJsonReport(checkReport), null, 2));
+    console.log(JSON.stringify(buildJsonReport(checkReport), null, 2))
   } else {
-    printSummary(checkReport, Boolean(flags.verbose));
+    printSummary(checkReport, Boolean(flags.verbose))
   }
 
-  const exitCode = computeExitCode(checkReport, Boolean(ci));
+  const exitCode = computeExitCode(checkReport, Boolean(ci))
   if (exitCode !== 0) {
-    process.exit(exitCode);
+    process.exit(exitCode)
   }
 }

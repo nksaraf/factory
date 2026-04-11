@@ -97,7 +97,11 @@ describe("observability-types", () => {
   })
 
   it("TraceQuery and TraceFindQuery are valid", () => {
-    const q: TraceQuery = { site: "prod", minDuration: "500ms", status: "error" }
+    const q: TraceQuery = {
+      site: "prod",
+      minDuration: "500ms",
+      status: "error",
+    }
     const fq: TraceFindQuery = { requestId: "req-123" }
     expect(q.status).toBe("error")
     expect(fq.requestId).toBe("req-123")

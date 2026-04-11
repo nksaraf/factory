@@ -2,7 +2,7 @@
 
 The `commerce` domain models the business layer of the platform. It tracks who is paying, what they are paying for, and what they are entitled to use. The key entities are **Customers** (external or internal billing accounts), **Plans** (product offering tiers), **Subscriptions** (a customer's active plan), **Subscription Items** (individual line items within a subscription), **Billable Metrics** (usage signals that drive metered billing), and **Entitlement Bundles** (sets of feature flags and limits attached to a plan).
 
-**Base prefix:** `/api/factory/commerce`
+**Base prefix:** `/api/v1/factory/commerce`
 
 ## Endpoints
 
@@ -82,14 +82,14 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/customers"
+  "https://factory.example.com/api/v1/factory/commerce/customers"
 ```
 
 ### List customers
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/commerce/customers?status=active&limit=25"
+  "https://factory.example.com/api/v1/factory/commerce/customers?status=active&limit=25"
 ```
 
 ```json
@@ -134,7 +134,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "tags": ["self-serve", "smb"]
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/plans"
+  "https://factory.example.com/api/v1/factory/commerce/plans"
 ```
 
 ### Create a subscription
@@ -158,7 +158,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "seats": 10
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/subscriptions"
+  "https://factory.example.com/api/v1/factory/commerce/subscriptions"
 ```
 
 ### Add a metered subscription item
@@ -178,7 +178,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "includedUnits": 500
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/subscription-items"
+  "https://factory.example.com/api/v1/factory/commerce/subscription-items"
 ```
 
 ### Define a billable metric
@@ -204,7 +204,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "externalId": "bm_lago_preview_build_minutes"
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/billable-metrics"
+  "https://factory.example.com/api/v1/factory/commerce/billable-metrics"
 ```
 
 ### Create an entitlement bundle
@@ -236,7 +236,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/factory/commerce/entitlement-bundles"
+  "https://factory.example.com/api/v1/factory/commerce/entitlement-bundles"
 ```
 
 ### Check a customer's entitlements
@@ -246,11 +246,11 @@ To resolve which entitlement bundle applies to a customer, fetch their active su
 ```bash
 # 1. Get active subscriptions for the customer
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/commerce/subscriptions?customerId=cust_01hxacme&status=active"
+  "https://factory.example.com/api/v1/factory/commerce/subscriptions?customerId=cust_01hxacme&status=active"
 
 # 2. Get the entitlement bundle for the plan
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/commerce/entitlement-bundles?planId=plan_01hxgrowth"
+  "https://factory.example.com/api/v1/factory/commerce/entitlement-bundles?planId=plan_01hxgrowth"
 ```
 
 ## CLI equivalent

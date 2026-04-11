@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState } from "react"
 
-const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
-const sans = "'DM Sans', system-ui, sans-serif";
+const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace"
+const sans = "'DM Sans', system-ui, sans-serif"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTION 1: SCALING TO CLOUD-PLATFORM LEVEL
@@ -37,7 +37,7 @@ const SCALING_PROBLEM = `// THE CONFLATION
 // THE FIX: Decouple actions from slots.
 // Slots = permission GROUPS (bounded: max 8)
 // Actions = operations within a group (unbounded)
-// A group can contain 1 action or 50 actions.`;
+// A group can contain 1 action or 50 actions.`
 
 const EVOLVED_YAML_SPEC = `# ════════════════════════════════════════════════════════════
 # auth.yaml v2 — Actions decoupled from permission groups
@@ -113,7 +113,7 @@ roles:
       <resource_type>:
         groups: [<group_name>]       # grant entire groups
         # OR fine-grained:
-        actions: [<action_name>]     # grant specific actions within groups`;
+        actions: [<action_name>]     # grant specific actions within groups`
 
 const GCP_COMPUTE_YAML = `# ════════════════════════════════════════════════════════════
 # GCP Compute Engine — Cloud Platform Scale
@@ -322,7 +322,7 @@ roles:
       compute_instance:
         groups: [ssh]
         # At runtime, this principal can ONLY call actions
-        # in the 'ssh' group, not 'operate' or 'write'`;
+        # in the 'ssh' group, not 'operate' or 'write'`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTION 2: ABAC CONDITIONS
@@ -446,7 +446,7 @@ async function evaluateConditions(
   }
 
   return { passed: true };
-}`;
+}`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTION 3: DATA OWNERSHIP
@@ -561,7 +561,7 @@ CREATE TABLE iam.resource_registry (
 );
 
 CREATE INDEX idx_resource_registry_type ON iam.resource_registry(resource_type, org_id);
-CREATE INDEX idx_resource_registry_parent ON iam.resource_registry(parent_id);`;
+CREATE INDEX idx_resource_registry_parent ON iam.resource_registry(parent_id);`
 
 const SYNC_PATTERNS = `// ═══════════════════════════════════════════════════════════════
 // SYNC PATTERNS: APP → AUTH → SPICEDB
@@ -750,7 +750,7 @@ async function checkPermission(req: CheckRequest): Promise<CheckResult> {
   }
 
   return { allowed: true };
-}`;
+}`
 
 const FULL_EVAL_CHAIN = `// ═══════════════════════════════════════════════════════════════
 // THE COMPLETE 7-STEP EVALUATION CHAIN (REVISED)
@@ -798,7 +798,7 @@ const FULL_EVAL_CHAIN = `// ═════════════════�
 // Total latency: ~4ms (same as before).
 //
 // For cloud-platform apps: steps 5 and 6 add ~1-2ms.
-// Total latency: ~6ms.`;
+// Total latency: ~6ms.`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // V1 vs V2 comparison for simple app
@@ -862,7 +862,7 @@ resources:
 // USE V2 when: your resource type has >8 API operations that
 // naturally group into ≤8 permission levels.
 // This covers: cloud infrastructure (AWS, GCP), API gateways,
-// platform services with many endpoints.`;
+// platform services with many endpoints.`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DB OWNERSHIP DIAGRAM
@@ -909,7 +909,7 @@ const OWNERSHIP_DIAGRAM = `// ════════════════�
 // 5. Auth communicates to App via... nothing. Auth is a service.
 //    App calls Auth. Auth doesn't call App.
 // 6. The resource_registry in iam.* is a CACHE, not a source of truth.
-//    If it drifts, rebuild from app events.`;
+//    If it drifts, rebuild from app events.`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -924,72 +924,137 @@ const TABS = [
   { id: "sync", label: "Sync Patterns" },
   { id: "eval", label: "7-Step Chain" },
   { id: "compat", label: "v1 Compat" },
-];
+]
 
 const Badge = ({ text, color = "#71717a", small = false }) => (
-  <span style={{
-    display: "inline-block", padding: small ? "1px 5px" : "2px 7px",
-    borderRadius: "3px", fontSize: small ? "9px" : "10px", fontWeight: 700,
-    fontFamily: mono, color, backgroundColor: `${color}12`, border: `1px solid ${color}25`,
-    letterSpacing: "0.03em",
-  }}>{text}</span>
-);
+  <span
+    style={{
+      display: "inline-block",
+      padding: small ? "1px 5px" : "2px 7px",
+      borderRadius: "3px",
+      fontSize: small ? "9px" : "10px",
+      fontWeight: 700,
+      fontFamily: mono,
+      color,
+      backgroundColor: `${color}12`,
+      border: `1px solid ${color}25`,
+      letterSpacing: "0.03em",
+    }}
+  >
+    {text}
+  </span>
+)
 
 const Code = ({ children, maxHeight = null }) => (
-  <pre style={{
-    padding: "14px 16px", borderRadius: "6px", border: "1px solid #1a1a22",
-    backgroundColor: "#08080c", fontSize: "10.5px", fontFamily: mono,
-    lineHeight: "1.65", color: "#a1a1aa", overflow: "auto", maxHeight,
-    whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0,
-  }}>{children}</pre>
-);
+  <pre
+    style={{
+      padding: "14px 16px",
+      borderRadius: "6px",
+      border: "1px solid #1a1a22",
+      backgroundColor: "#08080c",
+      fontSize: "10.5px",
+      fontFamily: mono,
+      lineHeight: "1.65",
+      color: "#a1a1aa",
+      overflow: "auto",
+      maxHeight,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      margin: 0,
+    }}
+  >
+    {children}
+  </pre>
+)
 
 export default function ExpandedAuth() {
-  const [tab, setTab] = useState("scaling");
+  const [tab, setTab] = useState("scaling")
 
   return (
-    <div style={{
-      minHeight: "100vh", backgroundColor: "#0a0a0c", color: "#e4e4e7",
-      fontFamily: sans, padding: "20px",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#0a0a0c",
+        color: "#e4e4e7",
+        fontFamily: sans,
+        padding: "20px",
+      }}
+    >
       <div style={{ marginBottom: "20px" }}>
-        <div style={{
-          fontSize: "9px", fontWeight: 800, fontFamily: mono,
-          color: "#f59e0b", letterSpacing: "0.12em", marginBottom: "4px",
-        }}>PLATFORM FABRIC — AUTH ARCHITECTURE v2</div>
+        <div
+          style={{
+            fontSize: "9px",
+            fontWeight: 800,
+            fontFamily: mono,
+            color: "#f59e0b",
+            letterSpacing: "0.12em",
+            marginBottom: "4px",
+          }}
+        >
+          PLATFORM FABRIC — AUTH ARCHITECTURE v2
+        </div>
         <div style={{ fontSize: "18px", fontWeight: 700, color: "#fafafa" }}>
           Cloud-Scale Permissions, ABAC, & Data Ownership
         </div>
         <div style={{ fontSize: "11px", color: "#52525b", marginTop: "3px" }}>
-          Permission groups · ABAC conditions · App ↔ Auth boundary · 7-step evaluation
+          Permission groups · ABAC conditions · App ↔ Auth boundary · 7-step
+          evaluation
         </div>
       </div>
 
-      <div style={{
-        display: "flex", gap: "1px", marginBottom: "16px",
-        borderRadius: "5px", overflow: "hidden", border: "1px solid #18181b",
-        backgroundColor: "#0d0d0f", padding: "2px", flexWrap: "wrap",
-      }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: "6px 11px", borderRadius: "3px", border: "none", cursor: "pointer",
-            fontSize: "10.5px", fontWeight: 600, fontFamily: sans, transition: "all 0.12s",
-            backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
-            color: tab === t.id ? "#fafafa" : "#52525b",
-          }}>{t.label}</button>
+      <div
+        style={{
+          display: "flex",
+          gap: "1px",
+          marginBottom: "16px",
+          borderRadius: "5px",
+          overflow: "hidden",
+          border: "1px solid #18181b",
+          backgroundColor: "#0d0d0f",
+          padding: "2px",
+          flexWrap: "wrap",
+        }}
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "6px 11px",
+              borderRadius: "3px",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "10.5px",
+              fontWeight: 600,
+              fontFamily: sans,
+              transition: "all 0.12s",
+              backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
+              color: tab === t.id ? "#fafafa" : "#52525b",
+            }}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
       {tab === "scaling" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #f59e0b25", backgroundColor: "#0e0c08",
-            fontSize: "11px", color: "#fde68a", lineHeight: "1.7",
-          }}>
-            The 8-slot limit isn't the problem. The conflation of "action" with "slot" is.
-            Cloud platforms have 200 API operations but only ~5 permission LEVELS.
-            Decouple them: slots = permission groups (bounded), actions = operations within groups (unbounded).
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #f59e0b25",
+              backgroundColor: "#0e0c08",
+              fontSize: "11px",
+              color: "#fde68a",
+              lineHeight: "1.7",
+            }}
+          >
+            The 8-slot limit isn't the problem. The conflation of "action" with
+            "slot" is. Cloud platforms have 200 API operations but only ~5
+            permission LEVELS. Decouple them: slots = permission groups
+            (bounded), actions = operations within groups (unbounded).
           </div>
           <Code maxHeight="700px">{SCALING_PROBLEM}</Code>
         </div>
@@ -997,14 +1062,23 @@ export default function ExpandedAuth() {
 
       {tab === "v2spec" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #22c55e25", backgroundColor: "#080e08",
-            fontSize: "11px", color: "#86efac", lineHeight: "1.7",
-          }}>
-            auth.yaml v2 adds <code style={{ fontFamily: mono }}>groups</code> (which wrap actions) and 
-            <code style={{ fontFamily: mono }}> conditions</code> (ABAC schemas). v1 syntax still works — the 
-            compiler auto-wraps single actions into groups. Backward compatible.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #22c55e25",
+              backgroundColor: "#080e08",
+              fontSize: "11px",
+              color: "#86efac",
+              lineHeight: "1.7",
+            }}
+          >
+            auth.yaml v2 adds <code style={{ fontFamily: mono }}>groups</code>{" "}
+            (which wrap actions) and
+            <code style={{ fontFamily: mono }}> conditions</code> (ABAC
+            schemas). v1 syntax still works — the compiler auto-wraps single
+            actions into groups. Backward compatible.
           </div>
           <Code maxHeight="700px">{EVOLVED_YAML_SPEC}</Code>
         </div>
@@ -1012,14 +1086,23 @@ export default function ExpandedAuth() {
 
       {tab === "gcp_example" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #3b82f625", backgroundColor: "#080a0e",
-            fontSize: "11px", color: "#93c5fd", lineHeight: "1.7",
-          }}>
-            GCP Compute Engine: 70+ permissions bucketed into 7 permission groups.
-            Each group maps to one SpiceDB slot. The <code style={{ fontFamily: mono }}>conditions</code> section
-            declares ABAC schemas for instance type, time window, and source IP restrictions.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #3b82f625",
+              backgroundColor: "#080a0e",
+              fontSize: "11px",
+              color: "#93c5fd",
+              lineHeight: "1.7",
+            }}
+          >
+            GCP Compute Engine: 70+ permissions bucketed into 7 permission
+            groups. Each group maps to one SpiceDB slot. The{" "}
+            <code style={{ fontFamily: mono }}>conditions</code> section
+            declares ABAC schemas for instance type, time window, and source IP
+            restrictions.
           </div>
           <Code maxHeight="700px">{GCP_COMPUTE_YAML}</Code>
         </div>
@@ -1027,14 +1110,22 @@ export default function ExpandedAuth() {
 
       {tab === "abac" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #c084fc25", backgroundColor: "#0c080e",
-            fontSize: "11px", color: "#d8b4fe", lineHeight: "1.7",
-          }}>
-            ABAC lives across three layers: auth.yaml declares condition SCHEMAS (compile-time),
-            PostgreSQL stores condition INSTANCES (runtime-configured by admins),
-            and the runtime evaluator checks them against request context (check-time).
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #c084fc25",
+              backgroundColor: "#0c080e",
+              fontSize: "11px",
+              color: "#d8b4fe",
+              lineHeight: "1.7",
+            }}
+          >
+            ABAC lives across three layers: auth.yaml declares condition SCHEMAS
+            (compile-time), PostgreSQL stores condition INSTANCES
+            (runtime-configured by admins), and the runtime evaluator checks
+            them against request context (check-time).
           </div>
           <Code maxHeight="700px">{ABAC_DESIGN}</Code>
         </div>
@@ -1042,14 +1133,26 @@ export default function ExpandedAuth() {
 
       {tab === "ownership" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #ef444425", backgroundColor: "#0e0808",
-            fontSize: "11px", color: "#fca5a5", lineHeight: "1.7",
-          }}>
-            <strong>Application owns resources. Auth projects permissions.</strong> The app creates projects in 
-            its DB. The auth service maintains a lightweight <code style={{ fontFamily: mono }}>resource_registry</code> (derived) 
-            and SpiceDB tuples (derived). Neither reads the other's tables. Events are the sync mechanism.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #ef444425",
+              backgroundColor: "#0e0808",
+              fontSize: "11px",
+              color: "#fca5a5",
+              lineHeight: "1.7",
+            }}
+          >
+            <strong>
+              Application owns resources. Auth projects permissions.
+            </strong>{" "}
+            The app creates projects in its DB. The auth service maintains a
+            lightweight{" "}
+            <code style={{ fontFamily: mono }}>resource_registry</code>{" "}
+            (derived) and SpiceDB tuples (derived). Neither reads the other's
+            tables. Events are the sync mechanism.
           </div>
           <Code maxHeight="700px">{DATA_OWNERSHIP}</Code>
         </div>
@@ -1057,13 +1160,21 @@ export default function ExpandedAuth() {
 
       {tab === "sync" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #f59e0b25", backgroundColor: "#0e0c08",
-            fontSize: "11px", color: "#fde68a", lineHeight: "1.7",
-          }}>
-            Two patterns: transactional outbox (recommended for SaaS) and shared schema (simpler, for 
-            air-gapped sites). The event contract defines exactly what the app must tell the auth service.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #f59e0b25",
+              backgroundColor: "#0e0c08",
+              fontSize: "11px",
+              color: "#fde68a",
+              lineHeight: "1.7",
+            }}
+          >
+            Two patterns: transactional outbox (recommended for SaaS) and shared
+            schema (simpler, for air-gapped sites). The event contract defines
+            exactly what the app must tell the auth service.
           </div>
           <Code maxHeight="700px">{SYNC_PATTERNS}</Code>
         </div>
@@ -1071,13 +1182,21 @@ export default function ExpandedAuth() {
 
       {tab === "eval" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #818cf825", backgroundColor: "#08080e",
-            fontSize: "11px", color: "#a5b4fc", lineHeight: "1.7",
-          }}>
-            The evaluation chain grows from 5 to 7 steps. Steps 5 (ABAC conditions) and 6 
-            (fine-grained action check) are NEW but only fire when applicable. Simple apps skip them.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #818cf825",
+              backgroundColor: "#08080e",
+              fontSize: "11px",
+              color: "#a5b4fc",
+              lineHeight: "1.7",
+            }}
+          >
+            The evaluation chain grows from 5 to 7 steps. Steps 5 (ABAC
+            conditions) and 6 (fine-grained action check) are NEW but only fire
+            when applicable. Simple apps skip them.
           </div>
           <Code maxHeight="700px">{FULL_EVAL_CHAIN}</Code>
         </div>
@@ -1085,18 +1204,27 @@ export default function ExpandedAuth() {
 
       {tab === "compat" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #22c55e25", backgroundColor: "#080e08",
-            fontSize: "11px", color: "#86efac", lineHeight: "1.7",
-          }}>
-            v1 auth.yaml files work unchanged. The compiler treats <code style={{ fontFamily: mono }}>actions</code> (v1) 
-            as sugar for single-action groups. No migration needed. Use v2's <code style={{ fontFamily: mono }}>groups</code> only 
-            when you need {">"} 8 API operations per resource type.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #22c55e25",
+              backgroundColor: "#080e08",
+              fontSize: "11px",
+              color: "#86efac",
+              lineHeight: "1.7",
+            }}
+          >
+            v1 auth.yaml files work unchanged. The compiler treats{" "}
+            <code style={{ fontFamily: mono }}>actions</code> (v1) as sugar for
+            single-action groups. No migration needed. Use v2's{" "}
+            <code style={{ fontFamily: mono }}>groups</code> only when you need{" "}
+            {">"} 8 API operations per resource type.
           </div>
           <Code maxHeight="700px">{V1_VS_V2}</Code>
         </div>
       )}
     </div>
-  );
+  )
 }

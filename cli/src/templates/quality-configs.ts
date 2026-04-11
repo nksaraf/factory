@@ -3,7 +3,7 @@
  * Each function returns GeneratedFile[] that templates can spread into their file list.
  */
 
-import type { GeneratedFile } from "./types.js";
+import type { GeneratedFile } from "./types.js"
 
 // ─── Node / TypeScript ──────────────────────────────────────
 
@@ -23,9 +23,9 @@ export function nodeOxlintConfig(): GeneratedFile {
         ignorePatterns: ["dist/", "node_modules/", ".output/", "build/"],
       },
       null,
-      2,
+      2
     ),
-  };
+  }
 }
 
 /** .prettierrc for Node projects (standalone — project template generates its own). */
@@ -35,9 +35,9 @@ export function nodePrettierConfig(): GeneratedFile {
     content: JSON.stringify(
       { semi: true, singleQuote: false, trailingComma: "all" },
       null,
-      2,
+      2
     ),
-  };
+  }
 }
 
 /** Vitest config for Node projects. */
@@ -52,7 +52,7 @@ export default defineConfig({
   },
 });
 `,
-  };
+  }
 }
 
 /** VSCode extensions recommendation for Node projects. */
@@ -61,15 +61,12 @@ export function vscodeExtensionsNode(): GeneratedFile {
     path: ".vscode/extensions.json",
     content: JSON.stringify(
       {
-        recommendations: [
-          "nicolo-ribaudo.oxc",
-          "esbenp.prettier-vscode",
-        ],
+        recommendations: ["nicolo-ribaudo.oxc", "esbenp.prettier-vscode"],
       },
       null,
-      2,
+      2
     ),
-  };
+  }
 }
 
 /** VSCode settings for Node projects (format-on-save). */
@@ -81,12 +78,14 @@ export function vscodeSettingsNode(): GeneratedFile {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-        "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+        },
       },
       null,
-      2,
+      2
     ),
-  };
+  }
 }
 
 /**
@@ -94,10 +93,10 @@ export function vscodeSettingsNode(): GeneratedFile {
  * Returns the partial objects that templates should merge into their package.json.
  */
 export function nodeQualityPackageJson(): {
-  scripts: Record<string, string>;
-  devDependencies: Record<string, string>;
-  "simple-git-hooks": Record<string, string>;
-  "lint-staged": Record<string, string[]>;
+  scripts: Record<string, string>
+  devDependencies: Record<string, string>
+  "simple-git-hooks": Record<string, string>
+  "lint-staged": Record<string, string[]>
 } {
   return {
     scripts: {
@@ -122,7 +121,7 @@ export function nodeQualityPackageJson(): {
       "*.{ts,tsx,js,jsx}": ["oxlint --fix", "prettier --write"],
       "*.{json,md,css}": ["prettier --write"],
     },
-  };
+  }
 }
 
 /**
@@ -135,7 +134,7 @@ export function nodeQualityFiles(): GeneratedFile[] {
     nodeVitestConfig(),
     vscodeExtensionsNode(),
     vscodeSettingsNode(),
-  ];
+  ]
 }
 
 // ─── Python ─────────────────────────────────────────────────
@@ -157,7 +156,7 @@ quote-style = "double"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-`;
+`
 }
 
 /** Pre-commit config for Python projects. */
@@ -172,7 +171,7 @@ export function pythonPreCommitConfig(): GeneratedFile {
         args: [--fix]
       - id: ruff-format
 `,
-  };
+  }
 }
 
 /** Python quality files (excluding pyproject.toml additions which are inline). */
@@ -184,7 +183,7 @@ export function pythonQualityFiles(): GeneratedFile[] {
       content: JSON.stringify(
         { recommendations: ["charliermarsh.ruff"] },
         null,
-        2,
+        2
       ),
     },
     {
@@ -197,10 +196,10 @@ export function pythonQualityFiles(): GeneratedFile[] {
           },
         },
         null,
-        2,
+        2
       ),
     },
-  ];
+  ]
 }
 
 // ─── Java ───────────────────────────────────────────────────
@@ -229,7 +228,7 @@ export function javaCheckstyleConfig(): GeneratedFile {
   <module name="NewlineAtEndOfFile"/>
 </module>
 `,
-  };
+  }
 }
 
 /** Maven plugins XML for checkstyle + spotless + jacoco. */
@@ -274,12 +273,12 @@ export function javaMavenPlugins(): string {
             </goals>
           </execution>
         </executions>
-      </plugin>`;
+      </plugin>`
 }
 
 /** Java quality files. */
 export function javaQualityFiles(): GeneratedFile[] {
-  return [javaCheckstyleConfig()];
+  return [javaCheckstyleConfig()]
 }
 
 // ─── Shared / Cross-runtime ─────────────────────────────────
@@ -304,7 +303,7 @@ indent_size = 4
 [*.md]
 trim_trailing_whitespace = false
 `,
-  };
+  }
 }
 
 /** Default .dx/conventions.yaml with quality section. */
@@ -337,5 +336,5 @@ quality:
     enabled: true
     block-pr: false
 `,
-  };
+  }
 }

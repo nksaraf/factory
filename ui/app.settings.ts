@@ -9,7 +9,7 @@ import {
 export const settingsSchema = z.object({
   PUBLIC: z.object({
     AUTH_URL: z.string().default("http://localhost:3001"),
-    FACTORY_API_URL: z.string().default("http://localhost:3000/api/factory"),
+    FACTORY_API_URL: z.string().default("http://localhost:3000/api/v1/factory"),
     SUPABASE_URL: z.string().default(""),
     SUPABASE_ANON_KEY: z.string().default(""),
 

@@ -2,7 +2,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { LokiObservabilityAdapter } from "../adapters/observability-adapter-loki"
 import { getObservabilityAdapter } from "../adapters/adapter-registry"
 
-function lokiResponse(streams: Array<{ stream: Record<string, string>; values: Array<[string, string]> }>) {
+function lokiResponse(
+  streams: Array<{
+    stream: Record<string, string>
+    values: Array<[string, string]>
+  }>
+) {
   return {
     status: "success",
     data: { resultType: "streams", result: streams },
@@ -38,22 +43,30 @@ describe("LokiObservabilityAdapter", () => {
   it("strips trailing slash from URL", () => {
     const a = new LokiObservabilityAdapter("http://loki:3100///")
     // Verify by checking the fetch URL
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     a.queryLogs({})
-    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("http://loki:3100/loki/api/v1/query_range"))
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("http://loki:3100/loki/api/v1/query_range")
+    )
   })
 
   // -- LogQL building --
 
   it("builds base LogQL with no filters", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({})
     const url = fetchSpy.mock.calls[0][0] as string
-    expect(url).toContain('query=%7Bservice_name%3D%7E%22.%2B%22%7D') // {service_name=~".+"}
+    expect(url).toContain("query=%7Bservice_name%3D%7E%22.%2B%22%7D") // {service_name=~".+"}
   })
 
   it("adds level filter to LogQL", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ level: "error" })
     const url = fetchSpy.mock.calls[0][0] as string
     const query = new URL(url).searchParams.get("query")!
@@ -61,7 +74,9 @@ describe("LokiObservabilityAdapter", () => {
   })
 
   it("adds operation filter to LogQL", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ sandbox: "proxmox" })
     const url = fetchSpy.mock.calls[0][0] as string
     const query = new URL(url).searchParams.get("query")!
@@ -69,7 +84,9 @@ describe("LokiObservabilityAdapter", () => {
   })
 
   it("sanitizes backticks in grep filter", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ grep: "test`injection" })
     const url = fetchSpy.mock.calls[0][0] as string
     const query = new URL(url).searchParams.get("query")!
@@ -81,7 +98,9 @@ describe("LokiObservabilityAdapter", () => {
 
   it("converts relative time '1h' to nanosecond start param", async () => {
     const before = Date.now()
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ since: "1h" })
     const url = fetchSpy.mock.calls[0][0] as string
     const start = new URL(url).searchParams.get("start")!
@@ -92,16 +111,21 @@ describe("LokiObservabilityAdapter", () => {
   })
 
   it("converts ISO date to nanosecond start param", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ since: "2026-01-01T00:00:00.000Z" })
     const url = fetchSpy.mock.calls[0][0] as string
     const start = new URL(url).searchParams.get("start")!
-    const expectedNs = new Date("2026-01-01T00:00:00.000Z").getTime() * 1_000_000
+    const expectedNs =
+      new Date("2026-01-01T00:00:00.000Z").getTime() * 1_000_000
     expect(start).toBe(String(expectedNs))
   })
 
   it("cursor overrides since", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(lokiResponse([])), { status: 200 }))
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(lokiResponse([])), { status: 200 })
+    )
     await adapter.queryLogs({ since: "1h", cursor: "999999000000000" })
     const url = fetchSpy.mock.calls[0][0] as string
     const start = new URL(url).searchParams.get("start")!
@@ -117,7 +141,16 @@ describe("LokiObservabilityAdapter", () => {
           lokiResponse([
             {
               stream: { service_name: "unknown_service" },
-              values: [["1712491200000000000", pinoLog({ op: "reconciler", runId: "opr_123", durationMs: 450 })]],
+              values: [
+                [
+                  "1712491200000000000",
+                  pinoLog({
+                    op: "reconciler",
+                    runId: "opr_123",
+                    durationMs: 450,
+                  }),
+                ],
+              ],
             },
           ])
         ),
@@ -179,7 +212,11 @@ describe("LokiObservabilityAdapter", () => {
   })
 
   it("uses cleaned value as fallback message when msg is missing", async () => {
-    const noMsg = JSON.stringify({ level: 30, time: "2026-04-07T12:00:00.000Z", service: "factory-api" })
+    const noMsg = JSON.stringify({
+      level: 30,
+      time: "2026-04-07T12:00:00.000Z",
+      service: "factory-api",
+    })
     const wrapped = `Body: Str(${noMsg})`
     fetchSpy.mockResolvedValueOnce(
       new Response(
@@ -247,15 +284,17 @@ describe("LokiObservabilityAdapter", () => {
   })
 
   it("sets hasMore when entries >= limit", async () => {
-    const values: Array<[string, string]> = Array.from({ length: 3 }, (_, i) => [
-      String(1712491200000000000 + i * 1000000),
-      pinoLog({ msg: `msg ${i}` }),
-    ])
+    const values: Array<[string, string]> = Array.from(
+      { length: 3 },
+      (_, i) => [
+        String(1712491200000000000 + i * 1000000),
+        pinoLog({ msg: `msg ${i}` }),
+      ]
+    )
     fetchSpy.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify(lokiResponse([{ stream: {}, values }])),
-        { status: 200 }
-      )
+      new Response(JSON.stringify(lokiResponse([{ stream: {}, values }])), {
+        status: 200,
+      })
     )
     const result = await adapter.queryLogs({ limit: 3 })
     expect(result.entries).toHaveLength(3)
@@ -264,15 +303,23 @@ describe("LokiObservabilityAdapter", () => {
 
   it("sorts entries newest-first", async () => {
     const values: Array<[string, string]> = [
-      ["1712491200000000000", pinoLog({ time: "2026-04-07T12:00:00.000Z", msg: "first" })],
-      ["1712491260000000000", pinoLog({ time: "2026-04-07T12:01:00.000Z", msg: "second" })],
-      ["1712491320000000000", pinoLog({ time: "2026-04-07T12:02:00.000Z", msg: "third" })],
+      [
+        "1712491200000000000",
+        pinoLog({ time: "2026-04-07T12:00:00.000Z", msg: "first" }),
+      ],
+      [
+        "1712491260000000000",
+        pinoLog({ time: "2026-04-07T12:01:00.000Z", msg: "second" }),
+      ],
+      [
+        "1712491320000000000",
+        pinoLog({ time: "2026-04-07T12:02:00.000Z", msg: "third" }),
+      ],
     ]
     fetchSpy.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify(lokiResponse([{ stream: {}, values }])),
-        { status: 200 }
-      )
+      new Response(JSON.stringify(lokiResponse([{ stream: {}, values }])), {
+        status: 200,
+      })
     )
     const result = await adapter.queryLogs({})
     expect(result.entries[0].message).toBe("third")
@@ -298,7 +345,9 @@ describe("LokiObservabilityAdapter", () => {
 
 describe("getObservabilityAdapter('loki')", () => {
   it("returns Loki adapter via registry", () => {
-    const adapter = getObservabilityAdapter("loki", { lokiUrl: "http://test:3100" })
+    const adapter = getObservabilityAdapter("loki", {
+      lokiUrl: "http://test:3100",
+    })
     expect(adapter.type).toBe("loki")
   })
 })

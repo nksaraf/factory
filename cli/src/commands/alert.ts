@@ -39,8 +39,14 @@ export function alertCommand(app: DxBase) {
         .flags({
           site: { type: "string", description: "Target site" },
           module: { type: "string", description: "Filter by module" },
-          severity: { type: "string", description: "Filter: critical, warning, info" },
-          status: { type: "string", description: "Filter: firing, acknowledged, resolved, silenced" },
+          severity: {
+            type: "string",
+            description: "Filter: critical, warning, info",
+          },
+          status: {
+            type: "string",
+            description: "Filter: firing, acknowledged, resolved, silenced",
+          },
           since: { type: "string", description: "Start time" },
           limit: { type: "number", description: "Max results" },
         })
@@ -61,7 +67,9 @@ export function alertCommand(app: DxBase) {
           )
           const alerts = Array.isArray(alertsRaw) ? alertsRaw : []
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: alerts }, null, 2))
+            console.log(
+              JSON.stringify({ success: true, data: alerts }, null, 2)
+            )
           } else {
             console.log(formatAlertTable(alerts as Alert[]))
           }
@@ -70,14 +78,25 @@ export function alertCommand(app: DxBase) {
     .command("show", (c) =>
       c
         .meta({ description: "Show alert details" })
-        .args([{ name: "id", type: "string", required: true, description: "Alert ID" }])
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Alert ID",
+          },
+        ])
         .run(async ({ args, flags }) => {
           const f = toDxFlags(flags)
           const client = await getFactoryClient()
           const alert_ = await apiCall(flags, () =>
             client.api.v1.factory.observability.alerts({ id: args.id }).get()
           )
-          const alert = (alert_ && typeof alert_ === "object" && "data" in alert_ ? (alert_ as Record<string, unknown>).data : alert_) as Record<string, unknown> | undefined
+          const alert = (
+            alert_ && typeof alert_ === "object" && "data" in alert_
+              ? (alert_ as Record<string, unknown>).data
+              : alert_
+          ) as Record<string, unknown> | undefined
 
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: alert }, null, 2))
@@ -94,7 +113,9 @@ export function alertCommand(app: DxBase) {
                 Description: String(alert.description ?? ""),
               })
             )
-            const suggestedActions = alert?.suggestedActions as string[] | undefined
+            const suggestedActions = alert?.suggestedActions as
+              | string[]
+              | undefined
             if (suggestedActions?.length) {
               console.log("\nSuggested Actions:")
               for (const action of suggestedActions) {
@@ -107,35 +128,69 @@ export function alertCommand(app: DxBase) {
     .command("ack", (c) =>
       c
         .meta({ description: "Acknowledge an alert" })
-        .args([{ name: "id", type: "string", required: true, description: "Alert ID" }])
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Alert ID",
+          },
+        ])
         .flags({
-          reason: { type: "string", required: true, description: "Acknowledgment reason" },
+          reason: {
+            type: "string",
+            required: true,
+            description: "Acknowledgment reason",
+          },
         })
         .run(async ({ args, flags }) => {
           const client = await getFactoryClient()
           const result = await apiCall(flags, () =>
-            client.api.v1.factory.observability.alerts({ id: args.id }).ack.post({
-              reason: flags.reason as string,
-            })
+            client.api.v1.factory.observability
+              .alerts({ id: args.id })
+              .ack.post({
+                reason: flags.reason as string,
+              })
           )
-          actionResult(flags, result, styleSuccess(`Alert ${args.id} acknowledged.`))
+          actionResult(
+            flags,
+            result,
+            styleSuccess(`Alert ${args.id} acknowledged.`)
+          )
         })
     )
     .command("resolve", (c) =>
       c
         .meta({ description: "Manually resolve an alert" })
-        .args([{ name: "id", type: "string", required: true, description: "Alert ID" }])
+        .args([
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Alert ID",
+          },
+        ])
         .flags({
-          reason: { type: "string", required: true, description: "Resolution reason" },
+          reason: {
+            type: "string",
+            required: true,
+            description: "Resolution reason",
+          },
         })
         .run(async ({ args, flags }) => {
           const client = await getFactoryClient()
           const result = await apiCall(flags, () =>
-            client.api.v1.factory.observability.alerts({ id: args.id }).resolve.post({
-              reason: flags.reason as string,
-            })
+            client.api.v1.factory.observability
+              .alerts({ id: args.id })
+              .resolve.post({
+                reason: flags.reason as string,
+              })
           )
-          actionResult(flags, result, styleSuccess(`Alert ${args.id} resolved.`))
+          actionResult(
+            flags,
+            result,
+            styleSuccess(`Alert ${args.id} resolved.`)
+          )
         })
     )
     .command("silence", (c) =>
@@ -144,8 +199,16 @@ export function alertCommand(app: DxBase) {
         .flags({
           module: { type: "string", description: "Module to silence" },
           site: { type: "string", description: "Site to silence" },
-          duration: { type: "string", required: true, description: "Silence duration (e.g. 2h, 30m)" },
-          reason: { type: "string", required: true, description: "Silence reason" },
+          duration: {
+            type: "string",
+            required: true,
+            description: "Silence duration (e.g. 2h, 30m)",
+          },
+          reason: {
+            type: "string",
+            required: true,
+            description: "Silence reason",
+          },
         })
         .run(async ({ flags }) => {
           const client = await getFactoryClient()
@@ -157,8 +220,16 @@ export function alertCommand(app: DxBase) {
               reason: flags.reason as string,
             })
           )
-          const silenceData = (data && typeof data === "object" ? data : {}) as Record<string, unknown>
-          actionResult(flags, data, styleSuccess(`Alerts silenced. Silence ID: ${silenceData?.silenceId}`))
+          const silenceData = (
+            data && typeof data === "object" ? data : {}
+          ) as Record<string, unknown>
+          actionResult(
+            flags,
+            data,
+            styleSuccess(
+              `Alerts silenced. Silence ID: ${silenceData?.silenceId}`
+            )
+          )
         })
     )
     .command("history", (c) =>
@@ -188,7 +259,9 @@ export function alertCommand(app: DxBase) {
           )
           const historyAlerts = Array.isArray(historyRaw) ? historyRaw : []
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: historyAlerts }, null, 2))
+            console.log(
+              JSON.stringify({ success: true, data: historyAlerts }, null, 2)
+            )
           } else {
             console.log(formatAlertTable(historyAlerts as Alert[]))
           }
@@ -198,12 +271,28 @@ export function alertCommand(app: DxBase) {
       c
         .meta({ description: "Create a simple threshold alert" })
         .flags({
-          name: { type: "string", required: true, description: "Alert rule name" },
+          name: {
+            type: "string",
+            required: true,
+            description: "Alert rule name",
+          },
           module: { type: "string", description: "Module" },
           component: { type: "string", description: "Component" },
-          metric: { type: "string", required: true, description: "Metric name" },
-          threshold: { type: "string", required: true, description: "Threshold expression (e.g. > 5%)" },
-          severity: { type: "string", required: true, description: "Severity: critical, warning, info" },
+          metric: {
+            type: "string",
+            required: true,
+            description: "Metric name",
+          },
+          threshold: {
+            type: "string",
+            required: true,
+            description: "Threshold expression (e.g. > 5%)",
+          },
+          severity: {
+            type: "string",
+            required: true,
+            description: "Severity: critical, warning, info",
+          },
           notify: { type: "string", description: "Notification channel" },
         })
         .run(async ({ flags }) => {
@@ -220,8 +309,14 @@ export function alertCommand(app: DxBase) {
               notify: flags.notify as string | undefined,
             })
           )
-          const ruleData = (rule && typeof rule === "object" ? rule : {}) as Record<string, unknown>
-          actionResult(flags, rule, styleSuccess(`Alert rule created: ${ruleData?.id}`))
+          const ruleData = (
+            rule && typeof rule === "object" ? rule : {}
+          ) as Record<string, unknown>
+          actionResult(
+            flags,
+            rule,
+            styleSuccess(`Alert rule created: ${ruleData?.id}`)
+          )
         })
     )
     .command("rule", (c) =>
@@ -237,12 +332,21 @@ export function alertCommand(app: DxBase) {
                 client.api.v1.factory.observability.alerts.rules.get()
               )
               if (f.json) {
-                console.log(JSON.stringify({ success: true, data: rules }, null, 2))
+                console.log(
+                  JSON.stringify({ success: true, data: rules }, null, 2)
+                )
               } else if (Array.isArray(rules) && rules.length > 0) {
                 for (const r of rules) {
-                  const rule = (r && typeof r === "object" ? r : {}) as Record<string, unknown>
-                  const state = rule.enabled ? styleSuccess("enabled") : styleMuted("disabled")
-                  console.log(`  ${styleMuted(String(rule.id))}  ${styleBold(String(rule.name).padEnd(24))} ${rule.metric} ${rule.threshold}  [${rule.severity}] ${state}`)
+                  const rule = (r && typeof r === "object" ? r : {}) as Record<
+                    string,
+                    unknown
+                  >
+                  const state = rule.enabled
+                    ? styleSuccess("enabled")
+                    : styleMuted("disabled")
+                  console.log(
+                    `  ${styleMuted(String(rule.id))}  ${styleBold(String(rule.name).padEnd(24))} ${rule.metric} ${rule.threshold}  [${rule.severity}] ${state}`
+                  )
                 }
               } else {
                 console.log("No alert rules configured.")
@@ -252,16 +356,29 @@ export function alertCommand(app: DxBase) {
         .command("show", (sc) =>
           sc
             .meta({ description: "Show alert rule details" })
-            .args([{ name: "id", type: "string", required: true, description: "Rule ID" }])
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Rule ID",
+              },
+            ])
             .run(async ({ args, flags }) => {
               const f = toDxFlags(flags)
               const client = await getFactoryClient()
               const ruleRaw = await apiCall(flags, () =>
-                client.api.v1.factory.observability.alerts.rules({ id: args.id }).get()
+                client.api.v1.factory.observability.alerts
+                  .rules({ id: args.id })
+                  .get()
               )
-              const rule = (ruleRaw && typeof ruleRaw === "object" ? ruleRaw : undefined) as Record<string, unknown> | undefined
+              const rule = (
+                ruleRaw && typeof ruleRaw === "object" ? ruleRaw : undefined
+              ) as Record<string, unknown> | undefined
               if (f.json) {
-                console.log(JSON.stringify({ success: true, data: rule }, null, 2))
+                console.log(
+                  JSON.stringify({ success: true, data: rule }, null, 2)
+                )
               } else if (rule) {
                 console.log(
                   printKeyValue({
@@ -272,7 +389,9 @@ export function alertCommand(app: DxBase) {
                     Metric: String(rule.metric ?? ""),
                     Threshold: String(rule.threshold ?? ""),
                     Severity: String(rule.severity ?? ""),
-                    Enabled: rule.enabled ? styleSuccess("yes") : styleMuted("no"),
+                    Enabled: rule.enabled
+                      ? styleSuccess("yes")
+                      : styleMuted("no"),
                     Notify: String(rule.notify ?? ""),
                   })
                 )
@@ -282,32 +401,58 @@ export function alertCommand(app: DxBase) {
         .command("disable", (sc) =>
           sc
             .meta({ description: "Disable an alert rule" })
-            .args([{ name: "id", type: "string", required: true, description: "Rule ID" }])
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Rule ID",
+              },
+            ])
             .flags({
               reason: { type: "string", description: "Reason for disabling" },
             })
             .run(async ({ args, flags }) => {
               const client = await getFactoryClient()
               const result = await apiCall(flags, () =>
-                client.api.v1.factory.observability.alerts.rules({ id: args.id }).update.post({
-                  enabled: false,
-                })
+                client.api.v1.factory.observability.alerts
+                  .rules({ id: args.id })
+                  .update.post({
+                    enabled: false,
+                  })
               )
-              actionResult(flags, result, styleSuccess(`Alert rule ${args.id} disabled.`))
+              actionResult(
+                flags,
+                result,
+                styleSuccess(`Alert rule ${args.id} disabled.`)
+              )
             })
         )
         .command("enable", (sc) =>
           sc
             .meta({ description: "Enable an alert rule" })
-            .args([{ name: "id", type: "string", required: true, description: "Rule ID" }])
+            .args([
+              {
+                name: "id",
+                type: "string",
+                required: true,
+                description: "Rule ID",
+              },
+            ])
             .run(async ({ args, flags }) => {
               const client = await getFactoryClient()
               const result = await apiCall(flags, () =>
-                client.api.v1.factory.observability.alerts.rules({ id: args.id }).update.post({
-                  enabled: true,
-                })
+                client.api.v1.factory.observability.alerts
+                  .rules({ id: args.id })
+                  .update.post({
+                    enabled: true,
+                  })
               )
-              actionResult(flags, result, styleSuccess(`Alert rule ${args.id} enabled.`))
+              actionResult(
+                flags,
+                result,
+                styleSuccess(`Alert rule ${args.id} enabled.`)
+              )
             })
         )
     )

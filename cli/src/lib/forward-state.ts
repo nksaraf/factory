@@ -38,11 +38,16 @@ export interface ForwardEntry {
 }
 
 // ---------------------------------------------------------------------------
-// State file
+// State file (resolve lazily so tests can mock homedir before first use)
 // ---------------------------------------------------------------------------
 
-const STATE_DIR = join(homedir(), ".config", "dx")
-const STATE_FILE = join(STATE_DIR, "forwards.json")
+function stateDir(): string {
+  return join(homedir(), ".config", "dx")
+}
+
+function stateFile(): string {
+  return join(stateDir(), "forwards.json")
+}
 
 function isPidAlive(pid: number): boolean {
   try {
@@ -63,20 +68,22 @@ function shortId(): string {
 
 export class ForwardState {
   private read(): ForwardEntry[] {
-    if (!existsSync(STATE_FILE)) return []
+    const file = stateFile()
+    if (!existsSync(file)) return []
     try {
-      return JSON.parse(readFileSync(STATE_FILE, "utf-8")) as ForwardEntry[]
+      return JSON.parse(readFileSync(file, "utf-8")) as ForwardEntry[]
     } catch {
       return []
     }
   }
 
   private write(entries: ForwardEntry[]): void {
-    mkdirSync(STATE_DIR, { recursive: true })
+    mkdirSync(stateDir(), { recursive: true })
     // Atomic write: temp file + rename to avoid partial reads from concurrent processes
-    const tmp = `${STATE_FILE}.${process.pid}.tmp`
+    const file = stateFile()
+    const tmp = `${file}.${process.pid}.tmp`
     writeFileSync(tmp, JSON.stringify(entries, null, 2) + "\n")
-    renameSync(tmp, STATE_FILE)
+    renameSync(tmp, file)
   }
 
   /** Read entries, pruning any whose PID is dead. */

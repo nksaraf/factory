@@ -24,9 +24,7 @@ export function DetailPanel() {
   return (
     <div className="absolute right-4 top-4 w-72 rounded-lg bg-black/70 p-4 text-white backdrop-blur-sm">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-base font-medium">
-          {label?.name ?? "Unknown"}
-        </h3>
+        <h3 className="text-base font-medium">{label?.name ?? "Unknown"}</h3>
         <button
           className="text-white/40 hover:text-white/80"
           onClick={() => gameActions(world).deselect()}

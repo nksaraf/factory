@@ -18,10 +18,23 @@ import {
   NetworkLinkSpecSchema,
   NetworkLinkTypeSchema,
 } from "@smp/factory-shared/schemas/infra"
-import { describe, expect, test } from "bun:test"
+import type { PGlite } from "@electric-sql/pglite"
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test"
+import { eq } from "drizzle-orm"
 
+import type { Database } from "../db/connection"
+import { dnsDomain, estate, networkLink } from "../db/schema/infra-v2"
 import type { GraphReader, TraceHop } from "../modules/infra/trace"
 import { traceFrom } from "../modules/infra/trace"
+import { syncFromCloudflare } from "../services/infra/dns-sync.service"
+import { createTestContext, truncateAllTables } from "../test-helpers"
 
 // ── Schema validation tests ───────────────────────────────────
 
@@ -356,5 +369,175 @@ describe("IpAddressSpec enriched fields", () => {
       const result = IpAddressSpecSchema.safeParse({ scope })
       expect(result.success).toBe(true)
     }
+  })
+})
+
+describe("syncFromCloudflare integration", () => {
+  let db: Database
+  let client: PGlite
+  const originalFetch = globalThis.fetch
+
+  beforeAll(async () => {
+    const ctx = await createTestContext()
+    db = ctx.db as unknown as Database
+    client = ctx.client
+  })
+
+  afterAll(async () => {
+    globalThis.fetch = originalFetch
+    await client.close()
+  })
+
+  beforeEach(async () => {
+    await truncateAllTables(client)
+  })
+
+  test("round-robin A records create multiple dns-resolution links", async () => {
+    await db.insert(estate).values({
+      id: "est_cf",
+      slug: "cloudflare-main",
+      name: "cloudflare-main",
+      type: "cloud-account",
+      parentEstateId: null,
+      spec: {
+        providerKind: "cloudflare",
+        tokenSecret: "token",
+      } as any,
+    })
+
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/zones?")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: [{ id: "zone1", name: "rio.software" }],
+            result_info: { page: 1, per_page: 100, total_pages: 1 },
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes("/zones/zone1/dns_records?")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: [
+              {
+                id: "a1",
+                type: "A",
+                name: "*.kube.rio.software",
+                content: "192.168.2.89",
+                ttl: 300,
+              },
+              {
+                id: "a2",
+                type: "A",
+                name: "*.kube.rio.software",
+                content: "192.168.2.91",
+                ttl: 300,
+              },
+              {
+                id: "a3",
+                type: "A",
+                name: "*.kube.rio.software",
+                content: "192.168.2.92",
+                ttl: 300,
+              },
+            ],
+            result_info: { page: 1, per_page: 500, total_pages: 1 },
+          }),
+          { status: 200 }
+        )
+      }
+      return new Response("not-found", { status: 404 })
+    }) as typeof fetch
+
+    const result = await syncFromCloudflare(db, "est_cf")
+    expect(result.errors).toHaveLength(0)
+    const domains = await db.select().from(dnsDomain)
+    expect(domains).toHaveLength(1)
+    const links = await db
+      .select()
+      .from(networkLink)
+      .where(eq(networkLink.type, "dns-resolution"))
+    expect(links).toHaveLength(3)
+  })
+
+  test("external proxied CNAME stores externalTarget and proxied flag", async () => {
+    await db.insert(estate).values({
+      id: "est_cf",
+      slug: "cloudflare-main",
+      name: "cloudflare-main",
+      type: "cloud-account",
+      parentEstateId: null,
+      spec: {
+        providerKind: "cloudflare",
+        tokenSecret: "token",
+      } as any,
+    })
+
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes("/zones?")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: [{ id: "zone1", name: "rio.software" }],
+            result_info: { page: 1, per_page: 100, total_pages: 1 },
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes("/zones/zone1/dns_records?")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: [
+              {
+                id: "c1",
+                type: "CNAME",
+                name: "app.rio.software",
+                content: "cname.vercel-dns.com",
+                ttl: 1,
+                proxied: true,
+              },
+              {
+                id: "t1",
+                type: "TXT",
+                name: "app.rio.software",
+                content: "hello",
+                ttl: 60,
+              },
+            ],
+            result_info: { page: 1, per_page: 500, total_pages: 1 },
+          }),
+          { status: 200 }
+        )
+      }
+      return new Response("not-found", { status: 404 })
+    }) as typeof fetch
+
+    const result = await syncFromCloudflare(db, "est_cf")
+    expect(result.errors).toHaveLength(0)
+    const [domain] = await db
+      .select()
+      .from(dnsDomain)
+      .where(eq(dnsDomain.fqdn, "app.rio.software"))
+    const spec = domain.spec as Record<string, unknown>
+    const records = (spec.records ?? []) as Array<Record<string, unknown>>
+    expect(records).toHaveLength(1)
+    expect(records[0].type).toBe("TXT")
+    const [link] = await db
+      .select()
+      .from(networkLink)
+      .where(eq(networkLink.type, "dns-resolution"))
+    const linkSpec = link.spec as Record<string, unknown>
+    expect(linkSpec.recordType).toBe("CNAME")
+    expect(linkSpec.proxied).toBe(true)
+    expect(linkSpec.externalTarget).toBe("cname.vercel-dns.com")
   })
 })

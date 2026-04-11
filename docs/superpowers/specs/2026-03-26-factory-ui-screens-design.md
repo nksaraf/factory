@@ -9,17 +9,20 @@
 ## Design Decisions
 
 ### Entry Point Architecture
+
 - **Role-based home** as the default landing (Developer, PM, DevOps, QA, Commerce, Agent Supervisor)
 - **Factory Floor overview** accessible from every home as the "zoom out" view
 - **Project-centric drill-downs** via Module Detail and Traceability Explorer
 - **Activity Feed** as a cross-cutting real-time stream
 
 ### Relationship to External Tools
+
 - **Phase 1 (now):** Orchestration layer — aggregate, link out to specialized tools (ArgoCD, Grafana, GitHub)
 - **Phase 2:** AI-native synthesis — cross-plane intelligence (incident narratives, impact analysis, natural language search)
 - **Phase 3:** Primary interface — replace specialized tools where Factory is better
 
 ### Agent Model
+
 Agents are **first-class workers** visible alongside humans in all dashboards. They show up in assignment lists, activity feeds, sprint boards, and review queues. The UI manages the balance between agent autonomy and human oversight (Review Queue, Dispatch Board). At scale, there will be far more agent workers than humans.
 
 ---
@@ -28,29 +31,31 @@ Agents are **first-class workers** visible alongside humans in all dashboards. T
 
 ### Renames
 
-| Current | New Name | Rationale |
-|---------|----------|-----------|
-| `componentSpec` | `component` | Drop "Spec" suffix — everything in catalog is a spec |
-| `componentSpec.kind='site'` | `'website'` | Disambiguate from fleetSite; add `'mobile_app'` kind |
-| `workItem` | Split into `initiative`, `epic`, `story`, `task`, `bug` | Match actual work hierarchy; each gets its own table |
-| `customerAccount` | `customer` | Drop redundant suffix |
-| `kubeNode` | `node` | Context makes prefix redundant |
-| `agentExecution` | `agentRun` | Shorter, matches CI/CD language ("pipeline run", "test run") |
-| `commercePlan` | `plan` | Drop prefix |
-| `productModule` | `module` | Drop prefix |
+| Current                     | New Name                                                | Rationale                                                    |
+| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| `componentSpec`             | `component`                                             | Drop "Spec" suffix — everything in catalog is a spec         |
+| `componentSpec.kind='site'` | `'website'`                                             | Disambiguate from fleetSite; add `'mobile_app'` kind         |
+| `workItem`                  | Split into `initiative`, `epic`, `story`, `task`, `bug` | Match actual work hierarchy; each gets its own table         |
+| `customerAccount`           | `customer`                                              | Drop redundant suffix                                        |
+| `kubeNode`                  | `node`                                                  | Context makes prefix redundant                               |
+| `agentExecution`            | `agentRun`                                              | Shorter, matches CI/CD language ("pipeline run", "test run") |
+| `commercePlan`              | `plan`                                                  | Drop prefix                                                  |
+| `productModule`             | `module`                                                | Drop prefix                                                  |
 
 ### Conflict Resolutions
 
-| Conflict | Resolution |
-|----------|-----------|
-| "Site" (fleet location vs component kind) | Fleet keeps `site`. Component kind `'site'` → `'website'` |
-| "Domain" (DNS vs business domain) | DNS keeps `domain`. Business domain concept = existing `product` entity (no catalog.Domain needed) |
-| "Component" (deployable unit vs catalog concept) | Keep `component` for deployable units within a Module. Catalog aligns: catalog.Component ≈ Module |
+| Conflict                                         | Resolution                                                                                         |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| "Site" (fleet location vs component kind)        | Fleet keeps `site`. Component kind `'site'` → `'website'`                                          |
+| "Domain" (DNS vs business domain)                | DNS keeps `domain`. Business domain concept = existing `product` entity (no catalog.Domain needed) |
+| "Component" (deployable unit vs catalog concept) | Keep `component` for deployable units within a Module. Catalog aligns: catalog.Component ≈ Module  |
 
 ### Kept As-Is
+
 Module, Repo, Release, Artifact, Workload, Rollout, Sandbox, Cluster, Provider, Agent, Route, Tunnel, Host, VM, Plan, Entitlement, Intervention, Region, Datacenter, Domain (DNS)
 
 ### New Entity
+
 **Incident** — added to `factory_fleet` schema. Fields: severity, status (detected → acknowledged → mitigating → resolved), affected site/workloads, responders, timeline, linked interventions, postmortem. Distinct from bugs/issues — it's an operational event, not a work item.
 
 ---
@@ -59,14 +64,14 @@ Module, Repo, Release, Artifact, Workload, Rollout, Sandbox, Cluster, Provider, 
 
 Each plane has a distinct visual personality that matches its nature. The aesthetic is ambient — it enhances awareness without obstructing the buttery-smooth UX.
 
-| Plane | Codename | Color | Visual Metaphor | Aesthetic |
-|-------|----------|-------|-----------------|-----------|
-| **Product** | The Design Studio | Purple `#b794f4` | Creative studio, whiteboards, sticky notes | Warm, organic, kanban boards, handwritten feel |
-| **Build** | The Assembly Line | Amber `#d9a94f` | Industrial factory, conveyor belts, gears | Mechanical, precise, steel/copper tones, progress bars as conveyor belts |
-| **Fleet** | Mission Control | Teal `#4fd1c5` | NASA command center, radar screens | Dark with glowing elements, data-dense, status grids, real-time telemetry |
-| **Infra** | The Server Room | Blue `#58a6ff` | Datacenter racks, blinking LEDs, cable runs | Cool, structured, rack visualizations, topology diagrams |
-| **Agents** | The Workforce | Green `#68d391` | Bot army, worker dispatch, assembly workers | Bustling, industrious, worker avatars with status badges, dispatch board feel |
-| **Commerce** | The Trading Floor | Gold `#ecc94b` | Financial trading desk, ticker tapes | Clean, professional, charts, numbers-forward, gold for value |
+| Plane        | Codename          | Color            | Visual Metaphor                             | Aesthetic                                                                     |
+| ------------ | ----------------- | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Product**  | The Design Studio | Purple `#b794f4` | Creative studio, whiteboards, sticky notes  | Warm, organic, kanban boards, handwritten feel                                |
+| **Build**    | The Assembly Line | Amber `#d9a94f`  | Industrial factory, conveyor belts, gears   | Mechanical, precise, steel/copper tones, progress bars as conveyor belts      |
+| **Fleet**    | Mission Control   | Teal `#4fd1c5`   | NASA command center, radar screens          | Dark with glowing elements, data-dense, status grids, real-time telemetry     |
+| **Infra**    | The Server Room   | Blue `#58a6ff`   | Datacenter racks, blinking LEDs, cable runs | Cool, structured, rack visualizations, topology diagrams                      |
+| **Agents**   | The Workforce     | Green `#68d391`  | Bot army, worker dispatch, assembly workers | Bustling, industrious, worker avatars with status badges, dispatch board feel |
+| **Commerce** | The Trading Floor | Gold `#ecc94b`   | Financial trading desk, ticker tapes        | Clean, professional, charts, numbers-forward, gold for value                  |
 
 ### Ambient Health Feedback
 
@@ -77,7 +82,7 @@ The factory floor and individual planes reflect system health through ambient vi
 - **Degraded:** Muted tones, red/amber alerts prominent, "overcast" atmosphere
 - **Critical:** Dark, urgent, red pulsing elements, the plane feels "on fire"
 
-**Principle:** The vibes enhance peripheral awareness. You *feel* the health before you read a dashboard. But the operational UX is always butter — no ambient effect ever blocks, slows, or obscures the actual controls and data.
+**Principle:** The vibes enhance peripheral awareness. You _feel_ the health before you read a dashboard. But the operational UX is always butter — no ambient effect ever blocks, slows, or obscures the actual controls and data.
 
 ---
 
@@ -170,14 +175,14 @@ The factory floor and individual planes reflect system health through ambient vi
 
 Each persona gets a default home that surfaces what matters most to them:
 
-| Role | Key Widgets |
-|------|-------------|
-| **Developer** | My PRs, my tasks, my sandboxes, recent builds, team sprint board, agent PRs to review |
-| **PM** | Initiative progress, delivery metrics, at-risk stories, release readiness, quality trends |
-| **DevOps/SRE** | Fleet health map, active incidents, recent rollouts, drift alerts, resource utilization |
-| **QA** | Test pass rates, flaky tests, bug backlog, coverage trends, regression alerts |
-| **Commerce** | Revenue dashboard, expiring entitlements, customer health, usage alerts |
-| **Agent Supervisor** | Dispatch board, review queue depth, agent utilization, cost trends, failed runs |
+| Role                 | Key Widgets                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| **Developer**        | My PRs, my tasks, my sandboxes, recent builds, team sprint board, agent PRs to review     |
+| **PM**               | Initiative progress, delivery metrics, at-risk stories, release readiness, quality trends |
+| **DevOps/SRE**       | Fleet health map, active incidents, recent rollouts, drift alerts, resource utilization   |
+| **QA**               | Test pass rates, flaky tests, bug backlog, coverage trends, regression alerts             |
+| **Commerce**         | Revenue dashboard, expiring entitlements, customer health, usage alerts                   |
+| **Agent Supervisor** | Dispatch board, review queue depth, agent utilization, cost trends, failed runs           |
 
 ---
 

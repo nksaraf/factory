@@ -26,10 +26,10 @@ upstreams:
     infra-api-docs:80: 1
 routes:
 - id: auth
-  uri: /api/auth*
+  uri: /api/v1/auth*
   upstream_id: auth-service
 - id: factory
-  uri: /api/factory*
+  uri: /api/v1/factory*
   upstream_id: factory-service
   enable_websocket: true
 - id: webhooks
@@ -46,7 +46,7 @@ const TRAEFIK_CONFIG = `
 http:
   routers:
     gateway-router:
-      rule: "PathPrefix(\`/api\`)"
+      rule: "PathPrefix(\`/api/v1\`)"
       service: infra-gateway
       priority: 200
     webhooks-router:
@@ -139,14 +139,14 @@ describe("gateway-config-parsers", () => {
       expect(auth).toEqual({
         service: "infra-auth",
         port: 3000,
-        routes: ["/api/auth*"],
+        routes: ["/api/v1/auth*"],
       })
 
       const factory = targets.find((t) => t.service === "infra-factory")
       expect(factory).toEqual({
         service: "infra-factory",
         port: 4100,
-        routes: ["/api/factory*", "/webhooks/*"],
+        routes: ["/api/v1/factory*", "/webhooks/*"],
       })
 
       const docs = targets.find((t) => t.service === "infra-api-docs")
@@ -223,7 +223,7 @@ global_rules:
       expect(targets[0]).toEqual({
         service: "infra-gateway",
         port: 8005,
-        routes: ["/api", "/webhooks"],
+        routes: ["/api/v1", "/webhooks"],
       })
     })
 

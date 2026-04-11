@@ -1,12 +1,12 @@
 /**
- * Dual-mode fleet data hooks — PowerSync (realtime) or REST API (polling).
+ * Dual-mode ops-plane data hooks — PowerSync (realtime) or REST API (polling).
  *
  * Each hook is a thin config passed to useDualListQuery / useDualOneQuery.
  * The helpers handle PowerSync vs REST switching, polling, and transforms.
  */
 import type {
   DeploymentTarget,
-  FleetSite,
+  OpsSite,
   Intervention,
   Release,
   ReleaseBundle,
@@ -133,7 +133,7 @@ const toRollout = (r: Record<string, unknown>): Rollout => ({
 const apiToRollout = (r: Record<string, unknown>): Rollout =>
   toRollout({ ...r, id: r.rolloutId ?? r.id })
 
-const toSite = (r: Record<string, unknown>): FleetSite => ({
+const toSite = (r: Record<string, unknown>): OpsSite => ({
   id: r.id as string,
   name: r.name as string,
   slug: r.slug as string,
@@ -149,7 +149,7 @@ const toSite = (r: Record<string, unknown>): FleetSite => ({
     null) as number | null,
 })
 
-const apiToSite = (r: Record<string, unknown>): FleetSite =>
+const apiToSite = (r: Record<string, unknown>): OpsSite =>
   toSite({ ...r, id: r.siteId ?? r.id })
 
 // ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ export function useDeploymentTargets(opts?: {
 }) {
   const where = buildWhere(opts)
   return useDualListQuery<DeploymentTarget>({
-    queryKey: ["fleet", "deployment-targets", opts],
+    queryKey: ["ops", "deployment-targets", opts],
     sql: `SELECT * FROM deployment_target${where.sql}`,
     sqlParams: where.params,
     fetchPath: `/deployment-targets${buildQueryString(opts ?? {})}`,
@@ -173,7 +173,7 @@ export function useDeploymentTargets(opts?: {
 
 export function useDeploymentTarget(id: string | undefined) {
   return useDualOneQuery<DeploymentTarget>({
-    queryKey: ["fleet", "deployment-target", id],
+    queryKey: ["ops", "deployment-target", id],
     sql: "SELECT * FROM deployment_target WHERE id = ?",
     sqlParams: id ? [id] : [],
     fetchPath: `/deployment-targets/${id}`,
@@ -186,7 +186,7 @@ export function useDeploymentTarget(id: string | undefined) {
 
 export function useWorkloads(deploymentTargetId: string | undefined) {
   return useDualListQuery<Workload>({
-    queryKey: ["fleet", "workloads", deploymentTargetId],
+    queryKey: ["ops", "workloads", deploymentTargetId],
     sql: "SELECT * FROM workload WHERE deployment_target_id = ?",
     sqlParams: deploymentTargetId ? [deploymentTargetId] : [],
     fetchPath: `/deployment-targets/${deploymentTargetId}/workloads`,
@@ -198,7 +198,7 @@ export function useWorkloads(deploymentTargetId: string | undefined) {
 
 export function useSandboxes() {
   return useDualListQuery<Sandbox>({
-    queryKey: ["fleet", "sandboxes"],
+    queryKey: ["ops", "sandboxes"],
     sql: "SELECT * FROM sandbox",
     fetchPath: "/sandboxes",
     fromRow: toSandbox,
@@ -208,7 +208,7 @@ export function useSandboxes() {
 
 export function useReleases() {
   return useDualListQuery<Release>({
-    queryKey: ["fleet", "releases"],
+    queryKey: ["ops", "releases"],
     sql: "SELECT * FROM release ORDER BY created_at DESC",
     fetchPath: "/releases",
     fromRow: toRelease,
@@ -218,7 +218,7 @@ export function useReleases() {
 
 export function useRollouts() {
   return useDualListQuery<Rollout>({
-    queryKey: ["fleet", "rollouts"],
+    queryKey: ["ops", "rollouts"],
     sql: "SELECT * FROM rollout ORDER BY started_at DESC",
     fetchPath: "/rollouts",
     fromRow: toRollout,
@@ -226,9 +226,9 @@ export function useRollouts() {
   })
 }
 
-export function useFleetSites() {
-  return useDualListQuery<FleetSite>({
-    queryKey: ["fleet", "sites"],
+export function useOpsSites() {
+  return useDualListQuery<OpsSite>({
+    queryKey: ["ops", "sites"],
     sql: "SELECT * FROM site",
     fetchPath: "/sites",
     fromRow: toSite,
@@ -236,9 +236,9 @@ export function useFleetSites() {
   })
 }
 
-export function useFleetSite(slug: string | undefined) {
-  return useDualOneQuery<FleetSite>({
-    queryKey: ["fleet", "site", slug],
+export function useOpsSite(slug: string | undefined) {
+  return useDualOneQuery<OpsSite>({
+    queryKey: ["ops", "site", slug],
     sql: "SELECT * FROM site WHERE slug = ?",
     sqlParams: slug ? [slug] : [],
     fetchPath: `/sites/${slug}`,
@@ -265,7 +265,7 @@ const toIntervention = (r: Record<string, unknown>): Intervention => ({
 
 export function useInterventions(deploymentTargetId?: string) {
   return useDualListQuery<Intervention>({
-    queryKey: ["fleet", "interventions", deploymentTargetId],
+    queryKey: ["ops", "interventions", deploymentTargetId],
     sql: deploymentTargetId
       ? "SELECT * FROM intervention WHERE deployment_target_id = ? ORDER BY created_at DESC"
       : "SELECT * FROM intervention ORDER BY created_at DESC",
@@ -307,7 +307,7 @@ export function useReleaseBundles(opts?: {
 }) {
   const qs = buildQueryString(opts ?? {})
   return useDualListQuery<ReleaseBundle>({
-    queryKey: ["fleet", "bundles", opts],
+    queryKey: ["ops", "bundles", opts],
     sql: "SELECT * FROM release_bundle ORDER BY created_at DESC",
     fetchPath: `/bundles${qs}`,
     fromRow: toReleaseBundle,

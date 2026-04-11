@@ -14,14 +14,15 @@ interface ExplorerTabProps {
 
 type Pane = "types" | "rows" | "detail"
 
-type DetailView =
-  | { mode: "detail" }
-  | { mode: "create" }
+type DetailView = { mode: "detail" } | { mode: "create" }
 
 export function ExplorerTab({ focused }: ExplorerTabProps) {
   const [activePane, setActivePane] = useState<Pane>("types")
   const [selectedEntity, setSelectedEntity] = useState<EntityDef | null>(null)
-  const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null)
+  const [selectedRow, setSelectedRow] = useState<Record<
+    string,
+    unknown
+  > | null>(null)
   const [detailView, setDetailView] = useState<DetailView>({ mode: "detail" })
 
   const entityData = useEntityData(
@@ -80,7 +81,11 @@ export function ExplorerTab({ focused }: ExplorerTabProps) {
     setActivePane("detail")
     try {
       const client = await getFactoryRestClient()
-      const res = await client.getEntity(targetEntity.module, targetEntity.entity, id)
+      const res = await client.getEntity(
+        targetEntity.module,
+        targetEntity.entity,
+        id
+      )
       if (res.data) {
         setSelectedRow(res.data)
       }

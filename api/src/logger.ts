@@ -1,7 +1,7 @@
-import pino from "pino";
+import pino from "pino"
 
-const level = process.env.FACTORY_LOG_LEVEL ?? "info";
-const format = process.env.FACTORY_LOG_FORMAT ?? "json";
+const level = process.env.FACTORY_LOG_LEVEL ?? "info"
+const format = process.env.FACTORY_LOG_FORMAT ?? "json"
 
 const redactPaths = [
   "password",
@@ -12,7 +12,7 @@ const redactPaths = [
   "*.token",
   "headers.authorization",
   "headers.cookie",
-];
+]
 
 export const logger = pino({
   level,
@@ -27,4 +27,4 @@ export const logger = pino({
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
   },
-});
+})

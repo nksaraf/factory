@@ -1,4 +1,4 @@
-import type { DxFlags } from "../stub.js";
+import type { DxFlags } from "../stub.js"
 
 /** Normalize Crust-parsed flags for dx handlers (global flags + command-specific). */
 export function toDxFlags(
@@ -10,5 +10,5 @@ export function toDxFlags(
     verbose: flags.verbose as boolean | undefined,
     quiet: flags.quiet as boolean | undefined,
     debug: flags.debug as boolean | undefined,
-  };
+  }
 }

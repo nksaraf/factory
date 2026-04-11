@@ -49,12 +49,7 @@ export function WorkerInstances() {
         />
         {workers.map((entity) => {
           const pos = entity.get(Position)
-          return (
-            <Instance
-              key={entity.id()}
-              position={[pos.x, 0.98, pos.z]}
-            />
-          )
+          return <Instance key={entity.id()} position={[pos.x, 0.98, pos.z]} />
         })}
       </Instances>
     </group>

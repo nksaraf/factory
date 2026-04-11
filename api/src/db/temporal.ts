@@ -7,19 +7,19 @@
  * - Both NULL         → the "live" current row
  */
 
-import { sql, and, eq, isNull, lte, gt, or, type SQL } from "drizzle-orm";
-import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import { getTableColumns } from "drizzle-orm";
+import { sql, and, eq, isNull, lte, gt, or, type SQL } from "drizzle-orm"
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core"
+import { getTableColumns } from "drizzle-orm"
 
-import type { Database } from "./connection";
+import type { Database } from "./connection"
 
 // ── Types ───────────────────────────────────────────────────
 
 export interface BitemporalTable {
-  validFrom: PgColumn;
-  validTo: PgColumn;
-  systemFrom: PgColumn;
-  systemTo: PgColumn;
+  validFrom: PgColumn
+  validTo: PgColumn
+  systemFrom: PgColumn
+  systemTo: PgColumn
 }
 
 // ── Filters ─────────────────────────────────────────────────
@@ -28,8 +28,10 @@ export interface BitemporalTable {
  * Filter for the current live row: valid now AND latest system version.
  * Use as the default baseFilter in CRUD routes for bitemporal tables.
  */
-export function currentRow(table: Pick<BitemporalTable, "validTo" | "systemTo">): SQL {
-  return and(isNull(table.validTo), isNull(table.systemTo))!;
+export function currentRow(
+  table: Pick<BitemporalTable, "validTo" | "systemTo">
+): SQL {
+  return and(isNull(table.validTo), isNull(table.systemTo))!
 }
 
 /**
@@ -38,12 +40,12 @@ export function currentRow(table: Pick<BitemporalTable, "validTo" | "systemTo">)
  */
 export function validAt(
   table: Pick<BitemporalTable, "validFrom" | "validTo">,
-  at: Date = new Date(),
+  at: Date = new Date()
 ): SQL {
   return and(
     lte(table.validFrom, at),
-    or(isNull(table.validTo), gt(table.validTo, at)),
-  )!;
+    or(isNull(table.validTo), gt(table.validTo, at))
+  )!
 }
 
 /**
@@ -55,8 +57,8 @@ export function asOf(table: BitemporalTable, at: Date): SQL {
     lte(table.validFrom, at),
     or(isNull(table.validTo), gt(table.validTo, at)),
     lte(table.systemFrom, at),
-    or(isNull(table.systemTo), gt(table.systemTo, at)),
-  )!;
+    or(isNull(table.systemTo), gt(table.systemTo, at))
+  )!
 }
 
 // ── Write helpers ───────────────────────────────────────────
@@ -70,7 +72,7 @@ export function softDeleteValues(changedByVal: string) {
     validTo: new Date(),
     changedBy: changedByVal,
     changeReason: "soft_delete",
-  } as const;
+  } as const
 }
 
 /**
@@ -85,11 +87,16 @@ export function softDeleteValues(changedByVal: string) {
  */
 export async function bitemporalDelete(
   db: Database,
-  table: PgTable & BitemporalTable & { id: PgColumn; changedBy: PgColumn; changeReason: PgColumn },
+  table: PgTable &
+    BitemporalTable & {
+      id: PgColumn
+      changedBy: PgColumn
+      changeReason: PgColumn
+    },
   id: string,
-  changedBy: string,
+  changedBy: string
 ): Promise<void> {
-  const now = new Date();
+  const now = new Date()
 
   await db.transaction(async (tx) => {
     // 1. Find and lock the current live row
@@ -98,33 +105,33 @@ export async function bitemporalDelete(
       .from(table)
       .where(and(eq(table.id, id), currentRow(table)))
       .limit(1)
-      .for("update");
+      .for("update")
 
-    if (!current) return;
+    if (!current) return
 
     // 2. Close the current system version
     await tx
       .update(table)
       .set({ systemTo: now } as any)
-      .where(and(eq(table.id, id), currentRow(table)));
+      .where(and(eq(table.id, id), currentRow(table)))
 
     // 3. Insert a new row: same data, but valid_to = now (deleted) and fresh system_from.
     //    Omit the PK so that the table's $defaultFn generates a new unique id.
-    const cols = getTableColumns(table);
-    const newRow: Record<string, unknown> = {};
-    const pkName = table.id.name;
+    const cols = getTableColumns(table)
+    const newRow: Record<string, unknown> = {}
+    const pkName = table.id.name
     for (const [key] of Object.entries(cols)) {
-      if (key === pkName || key === "id") continue; // skip PK — let $defaultFn generate a new one
-      newRow[key] = (current as Record<string, unknown>)[key];
+      if (key === pkName || key === "id") continue // skip PK — let $defaultFn generate a new one
+      newRow[key] = (current as Record<string, unknown>)[key]
     }
-    newRow.validTo = now;
-    newRow.systemFrom = now;
-    newRow.systemTo = null;
-    newRow.changedBy = changedBy;
-    newRow.changeReason = "soft_delete";
+    newRow.validTo = now
+    newRow.systemFrom = now
+    newRow.systemTo = null
+    newRow.changedBy = changedBy
+    newRow.changeReason = "soft_delete"
 
-    await tx.insert(table).values(newRow as any);
-  });
+    await tx.insert(table).values(newRow as any)
+  })
 }
 
 /**
@@ -134,5 +141,5 @@ export async function bitemporalDelete(
 export function closeSystemVersion() {
   return {
     systemTo: new Date(),
-  } as const;
+  } as const
 }

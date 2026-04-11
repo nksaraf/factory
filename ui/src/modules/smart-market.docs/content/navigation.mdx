@@ -1,6 +1,24 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rio.js/ui-next/components/tabs"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@rio.js/ui-next/components/breadcrumb"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@rio.js/ui-next/components/dropdown-menu"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@rio.js/ui-next/components/tabs"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@rio.js/ui-next/components/breadcrumb"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@rio.js/ui-next/components/dropdown-menu"
 import { Button } from "@rio.js/ui-next/components/button"
 import { MoreHorizontal, Settings, User, LogOut } from "lucide-react"
 
@@ -83,10 +101,16 @@ Components for navigating between views and actions.
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem><User className="mr-2 h-4 w-4" /> Profile</DropdownMenuItem>
-      <DropdownMenuItem><Settings className="mr-2 h-4 w-4" /> Settings</DropdownMenuItem>
+      <DropdownMenuItem>
+        <User className="mr-2 h-4 w-4" /> Profile
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        <Settings className="mr-2 h-4 w-4" /> Settings
+      </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem><LogOut className="mr-2 h-4 w-4" /> Sign out</DropdownMenuItem>
+      <DropdownMenuItem>
+        <LogOut className="mr-2 h-4 w-4" /> Sign out
+      </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 </ComponentPreview>

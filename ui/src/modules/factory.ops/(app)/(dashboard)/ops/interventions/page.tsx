@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useInterventions } from "@/lib/fleet"
+import { useDeploymentTargets, useInterventions } from "@/lib/ops"
 
 import { EmptyState, PlaneHeader } from "@/components/factory"
 
@@ -10,7 +10,7 @@ export default function InterventionsPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Intervention Log"
         description="Audit trail of manual actions on deployments"
       />

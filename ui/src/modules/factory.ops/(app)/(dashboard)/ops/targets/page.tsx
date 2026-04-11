@@ -1,4 +1,4 @@
-import { useDeploymentTargets } from "@/lib/fleet"
+import { useDeploymentTargets } from "@/lib/ops"
 import { useState } from "react"
 import { Link } from "react-router"
 
@@ -21,7 +21,7 @@ export default function DeploymentTargetsPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title="Deployment Targets"
         description="All environments across all sites"
       />
@@ -71,7 +71,7 @@ export default function DeploymentTargetsPage() {
               <tr key={t.id} className="border-b last:border-0">
                 <td className="py-2 pr-4">
                   <Link
-                    to={`/fleet/targets/${t.slug}`}
+                    to={`/ops/targets/${t.slug}`}
                     className="font-medium hover:underline"
                   >
                     {t.name}

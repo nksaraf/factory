@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest"
 
-import { composeToYaml, generateComposeFromCatalog } from "./compose-gen";
-import type { CatalogSystem } from "./catalog";
-import type { ResolvedConnectionContext } from "./connection-context-schemas";
+import { composeToYaml, generateComposeFromCatalog } from "./compose-gen"
+import type { CatalogSystem } from "./catalog"
+import type { ResolvedConnectionContext } from "./connection-context-schemas"
 
 const sample: CatalogSystem = {
   kind: "System",
@@ -53,37 +53,44 @@ const sample: CatalogSystem = {
   },
   apis: {},
   connections: [],
-} as unknown as CatalogSystem;
+} as unknown as CatalogSystem
 
 describe("generateComposeFromCatalog", () => {
   it("creates resource and component services", () => {
-    const out = generateComposeFromCatalog(sample);
-    expect(out.services["dep-postgres"]).toBeDefined();
-    expect(out.services["dep-redis"]).toBeDefined();
-    expect(out.services["billing-api"]).toBeDefined();
-    const api = out.services["billing-api"];
-    expect(api?.ports).toContain("8080:8080");
-    expect(api?.environment?.DATABASE_URL).toContain("postgresql://");
-    expect(api?.environment?.REDIS_URL).toContain("redis://");
-  });
+    const out = generateComposeFromCatalog(sample)
+    expect(out.services["dep-postgres"]).toBeDefined()
+    expect(out.services["dep-redis"]).toBeDefined()
+    expect(out.services["billing-api"]).toBeDefined()
+    const api = out.services["billing-api"]
+    expect(api?.ports).toContain("8080:8080")
+    expect(api?.environment?.DATABASE_URL).toContain("postgresql://")
+    expect(api?.environment?.REDIS_URL).toContain("redis://")
+  })
 
   it("omits remote deps when connectionContext is provided", () => {
     const connCtx: ResolvedConnectionContext = {
       envVars: {
-        DATABASE_URL: { value: "postgresql://staging:5432/billing", source: "connection" },
+        DATABASE_URL: {
+          value: "postgresql://staging:5432/billing",
+          source: "connection",
+        },
         REDIS_URL: { value: "redis://localhost:6379", source: "default" },
       },
       tunnels: [],
       remoteDeps: ["postgres"],
       localDeps: ["redis"],
-    };
-    const out = generateComposeFromCatalog(sample, { connectionContext: connCtx });
-    expect(out.services["dep-postgres"]).toBeUndefined();
-    expect(out.services["dep-redis"]).toBeDefined();
-    const api = out.services["billing-api"];
-    expect(api?.environment?.DATABASE_URL).toBe("postgresql://staging:5432/billing");
-    expect(api?.depends_on).toEqual(["dep-redis"]);
-  });
+    }
+    const out = generateComposeFromCatalog(sample, {
+      connectionContext: connCtx,
+    })
+    expect(out.services["dep-postgres"]).toBeUndefined()
+    expect(out.services["dep-redis"]).toBeDefined()
+    const api = out.services["billing-api"]
+    expect(api?.environment?.DATABASE_URL).toBe(
+      "postgresql://staging:5432/billing"
+    )
+    expect(api?.depends_on).toEqual(["dep-redis"])
+  })
 
   it("uses all resolved env vars from connectionContext", () => {
     const connCtx: ResolvedConnectionContext = {
@@ -95,43 +102,51 @@ describe("generateComposeFromCatalog", () => {
       tunnels: [],
       remoteDeps: ["postgres", "redis"],
       localDeps: [],
-    };
-    const out = generateComposeFromCatalog(sample, { connectionContext: connCtx });
-    expect(out.services["dep-postgres"]).toBeUndefined();
-    expect(out.services["dep-redis"]).toBeUndefined();
-    const api = out.services["billing-api"];
-    expect(api?.environment?.LOG_LEVEL).toBe("debug");
-    expect(api?.depends_on).toBeUndefined();
-  });
+    }
+    const out = generateComposeFromCatalog(sample, {
+      connectionContext: connCtx,
+    })
+    expect(out.services["dep-postgres"]).toBeUndefined()
+    expect(out.services["dep-redis"]).toBeUndefined()
+    const api = out.services["billing-api"]
+    expect(api?.environment?.LOG_LEVEL).toBe("debug")
+    expect(api?.depends_on).toBeUndefined()
+  })
 
   it("portMap overrides resource host ports", () => {
-    const out = generateComposeFromCatalog(sample, { portMap: { "dep-postgres": 15432 } });
-    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
-  });
+    const out = generateComposeFromCatalog(sample, {
+      portMap: { "dep-postgres": 15432 },
+    })
+    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432")
+  })
 
   it("portMap overrides component host ports", () => {
-    const out = generateComposeFromCatalog(sample, { portMap: { "billing-api": 19000 } });
-    expect(out.services["billing-api"]?.ports).toContain("19000:8080");
-  });
+    const out = generateComposeFromCatalog(sample, {
+      portMap: { "billing-api": 19000 },
+    })
+    expect(out.services["billing-api"]?.ports).toContain("19000:8080")
+  })
 
   it("portMap takes precedence over portOffset", () => {
     const out = generateComposeFromCatalog(sample, {
       portOffset: 1000,
       portMap: { "dep-postgres": 15432 },
-    });
-    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432");
-    expect(out.services["dep-redis"]?.ports).toContain("7379:6379");
-  });
+    })
+    expect(out.services["dep-postgres"]?.ports).toContain("15432:5432")
+    expect(out.services["dep-redis"]?.ports).toContain("7379:6379")
+  })
 
   it("partial portMap: unmapped services use default", () => {
-    const out = generateComposeFromCatalog(sample, { portMap: { "dep-postgres": 15432 } });
-    expect(out.services["dep-redis"]?.ports).toContain("6379:6379");
-  });
+    const out = generateComposeFromCatalog(sample, {
+      portMap: { "dep-postgres": 15432 },
+    })
+    expect(out.services["dep-redis"]?.ports).toContain("6379:6379")
+  })
 
   it("composeToYaml returns parseable yaml text", () => {
-    const out = generateComposeFromCatalog(sample);
-    const y = composeToYaml(out);
-    expect(y).toContain("services:");
-    expect(y).toContain("billing-api:");
-  });
-});
+    const out = generateComposeFromCatalog(sample)
+    const y = composeToYaml(out)
+    expect(y).toContain("services:")
+    expect(y).toContain("billing-api:")
+  })
+})

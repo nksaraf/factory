@@ -13,7 +13,7 @@
 import { Schema, Table, column } from "@powersync/web"
 
 // ---------------------------------------------------------------------------
-// Fleet domain (factory_fleet)
+// Ops-plane tables (PowerSync client schema)
 // ---------------------------------------------------------------------------
 
 const site = new Table({
@@ -591,7 +591,7 @@ const agent_execution = new Table({
 // ---------------------------------------------------------------------------
 
 export const AppSchema = new Schema({
-  // Fleet
+  // Ops
   site,
   deployment_target,
   workload,

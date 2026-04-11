@@ -10,96 +10,96 @@ import type {
   GitHostPullRequestCreate,
   GitHostRepoInfo,
   WebhookVerification,
-} from "./git-host-adapter";
+} from "./git-host-adapter"
 
 export class NoopGitHostAdapter implements GitHostAdapter {
-  readonly type = "noop";
+  readonly type = "noop"
 
   async getAccessToken(): Promise<string> {
-    return "noop-token";
+    return "noop-token"
   }
 
   async listRepos(): Promise<GitHostRepoInfo[]> {
-    return [];
+    return []
   }
 
   async getRepo(_externalId: string): Promise<GitHostRepoInfo | null> {
-    return null;
+    return null
   }
 
   async listOrgMembers(): Promise<GitHostCollaborator[]> {
-    return [];
+    return []
   }
 
   async listCollaborators(
-    _repoFullName: string,
+    _repoFullName: string
   ): Promise<GitHostCollaborator[]> {
-    return [];
+    return []
   }
 
   async verifyWebhook(
     headers: Record<string, string>,
-    body: string,
+    body: string
   ): Promise<WebhookVerification> {
-    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const parsed = JSON.parse(body) as Record<string, unknown>
     return {
       valid: true,
       eventType: headers["x-github-event"] ?? "unknown",
       deliveryId: headers["x-github-delivery"] ?? "unknown",
       action: parsed.action as string | undefined,
       payload: parsed,
-    };
+    }
   }
 
   async createWebhook(
     _repoFullName: string,
     _callbackUrl: string,
-    _events: string[],
+    _events: string[]
   ): Promise<{ webhookId: string }> {
-    return { webhookId: "noop-webhook" };
+    return { webhookId: "noop-webhook" }
   }
 
   async deleteWebhook(
     _repoFullName: string,
-    _webhookId: string,
+    _webhookId: string
   ): Promise<void> {}
 
   async postCommitStatus(
     _repoFullName: string,
     _sha: string,
-    _status: GitHostCommitStatus,
+    _status: GitHostCommitStatus
   ): Promise<void> {}
 
   async createCheckRun(
     _repoFullName: string,
-    _check: GitHostCheckRun,
+    _check: GitHostCheckRun
   ): Promise<{ checkRunId: string }> {
-    return { checkRunId: "noop-check" };
+    return { checkRunId: "noop-check" }
   }
 
   async updateCheckRun(
     _repoFullName: string,
     _checkRunId: string,
-    _update: Partial<GitHostCheckRun>,
+    _update: Partial<GitHostCheckRun>
   ): Promise<void> {}
 
   async listPullRequests(
     _repoFullName: string,
-    _filters?: { state?: "open" | "closed" | "all" },
+    _filters?: { state?: "open" | "closed" | "all" }
   ): Promise<GitHostPullRequest[]> {
-    return [];
+    return []
   }
 
   async getPullRequest(
     _repoFullName: string,
-    _prNumber: number,
+    _prNumber: number
   ): Promise<GitHostPullRequest | null> {
-    return null;
+    return null
   }
 
   async createPullRequest(
     _repoFullName: string,
-    _pr: GitHostPullRequestCreate,
+    _pr: GitHostPullRequestCreate
   ): Promise<GitHostPullRequest> {
     return {
       number: 0,
@@ -113,61 +113,71 @@ export class NoopGitHostAdapter implements GitHostAdapter {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       author: { login: "noop" },
-    };
+    }
   }
 
   async mergePullRequest(
     _repoFullName: string,
     _prNumber: number,
-    _method?: "merge" | "squash" | "rebase",
+    _method?: "merge" | "squash" | "rebase"
   ): Promise<void> {}
 
   async getPullRequestChecks(
     _repoFullName: string,
-    _prNumber: number,
-  ): Promise<Array<{ name: string; status: string; conclusion: string | null; url?: string }>> {
-    return [];
+    _prNumber: number
+  ): Promise<
+    Array<{
+      name: string
+      status: string
+      conclusion: string | null
+      url?: string
+    }>
+  > {
+    return []
   }
 
   async postPRComment(
     _repoFullName: string,
     _prNumber: number,
-    _body: string,
+    _body: string
   ): Promise<{ commentId: string }> {
-    return { commentId: "noop-comment" };
+    return { commentId: "noop-comment" }
   }
 
   async listPRComments(
     _repoFullName: string,
-    _prNumber: number,
+    _prNumber: number
   ): Promise<GitHostComment[]> {
-    return [];
+    return []
   }
 
   async updatePRComment(
     _repoFullName: string,
     _commentId: number,
-    _body: string,
+    _body: string
   ): Promise<void> {}
 
   async createDeployment(
     _repoFullName: string,
-    _deployment: GitHostDeployment,
+    _deployment: GitHostDeployment
   ): Promise<{ deploymentId: number }> {
-    return { deploymentId: 0 };
+    return { deploymentId: 0 }
   }
 
   async createDeploymentStatus(
     _repoFullName: string,
     _deploymentId: number,
-    _status: GitHostDeploymentStatus,
+    _status: GitHostDeploymentStatus
   ): Promise<void> {}
 
   async createBranch(
     _repoFullName: string,
     branchName: string,
-    _fromRef: string,
+    _fromRef: string
   ): Promise<{ ref: string; sha: string }> {
-    return { ref: `refs/heads/${branchName}`, sha: "0000000000000000000000000000000000000000" };
+    return {
+      ref: `refs/heads/${branchName}`,
+      sha: "0000000000000000000000000000000000000000",
+    }
   }
 }

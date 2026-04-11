@@ -23,21 +23,21 @@ import {
   shellSync,
   type ShellOptions,
   type ShellResult,
-} from "./shell.js";
+} from "./shell.js"
 
 // ---------------------------------------------------------------------------
 // Async API — delegates to shell adapter
 // ---------------------------------------------------------------------------
 
 export interface ExecOptions {
-  cwd?: string;
-  env?: Record<string, string>;
+  cwd?: string
+  env?: Record<string, string>
 }
 
 export interface CaptureResult {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
+  exitCode: number
+  stdout: string
+  stderr: string
 }
 
 /**
@@ -51,9 +51,9 @@ export interface CaptureResult {
  */
 export async function exec(
   cmd: string[],
-  opts: ExecOptions = {},
+  opts: ExecOptions = {}
 ): Promise<void> {
-  await shell(cmd, toShellOpts(opts));
+  await shell(cmd, toShellOpts(opts))
 }
 
 /**
@@ -65,9 +65,9 @@ export async function exec(
  */
 export async function capture(
   cmd: string[],
-  opts: ExecOptions = {},
+  opts: ExecOptions = {}
 ): Promise<CaptureResult> {
-  return shellCapture(cmd, toShellOpts(opts));
+  return shellCapture(cmd, toShellOpts(opts))
 }
 
 /**
@@ -77,9 +77,9 @@ export async function capture(
  */
 export async function captureOrThrow(
   cmd: string[],
-  opts: ExecOptions = {},
+  opts: ExecOptions = {}
 ): Promise<CaptureResult> {
-  return shellCaptureOrThrow(cmd, toShellOpts(opts));
+  return shellCaptureOrThrow(cmd, toShellOpts(opts))
 }
 
 // ---------------------------------------------------------------------------
@@ -87,27 +87,27 @@ export async function captureOrThrow(
 // ---------------------------------------------------------------------------
 
 export interface RunResult {
-  status: number;
-  stdout: string;
-  stderr: string;
+  status: number
+  stdout: string
+  stderr: string
 }
 
 export interface RunOptions {
-  cwd?: string;
-  env?: Record<string, string>;
+  cwd?: string
+  env?: Record<string, string>
   /** Print command + output to stderr (default: false). */
-  verbose?: boolean;
+  verbose?: boolean
   /** Inherit parent stdio instead of capturing (default: false). */
-  inherit?: boolean;
+  inherit?: boolean
   /** Timeout in ms (default: 120_000). */
-  timeout?: number;
+  timeout?: number
 }
 
 /** @deprecated Use the async API instead. */
 export function run(
   cmd: string,
   args: string[],
-  opts: RunOptions = {},
+  opts: RunOptions = {}
 ): RunResult {
   const result = shellSync(cmd, args, {
     cwd: opts.cwd,
@@ -115,37 +115,37 @@ export function run(
     verbose: opts.verbose,
     inherit: opts.inherit,
     timeout: opts.timeout,
-  });
+  })
   return {
     status: result.exitCode,
     stdout: result.stdout,
     stderr: result.stderr,
-  };
+  }
 }
 
 /** @deprecated Use the async API instead. */
 export function runOrThrow(
   cmd: string,
   args: string[],
-  opts: RunOptions = {},
+  opts: RunOptions = {}
 ): RunResult {
-  const result = run(cmd, args, opts);
+  const result = run(cmd, args, opts)
   if (result.status !== 0) {
     const detail =
-      result.stderr || result.stdout || `exit code ${result.status}`;
-    throw new Error(`${cmd} ${args[0]} failed: ${detail.trim()}`);
+      result.stderr || result.stdout || `exit code ${result.status}`
+    throw new Error(`${cmd} ${args[0]} failed: ${detail.trim()}`)
   }
-  return result;
+  return result
 }
 
 /** @deprecated Use the async API instead. */
 export function runInherit(
   cmd: string,
   args: string[],
-  opts: Omit<RunOptions, "inherit"> = {},
+  opts: Omit<RunOptions, "inherit"> = {}
 ): number {
-  const result = run(cmd, args, { ...opts, inherit: true });
-  return result.status;
+  const result = run(cmd, args, { ...opts, inherit: true })
+  return result.status
 }
 
 // ---------------------------------------------------------------------------
@@ -156,5 +156,5 @@ function toShellOpts(opts: ExecOptions): ShellOptions {
   return {
     cwd: opts.cwd,
     env: opts.env,
-  };
+  }
 }

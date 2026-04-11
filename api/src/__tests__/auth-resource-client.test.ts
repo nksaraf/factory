@@ -12,7 +12,7 @@ describe("FactoryAuthResourceClient", () => {
   it("createResource calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true })
     globalThis.fetch = fetchSpy as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     await client.createResource({
       id: "site_123",
       typeId: "rtype_site",
@@ -22,7 +22,7 @@ describe("FactoryAuthResourceClient", () => {
       createdBy: "usr_alice",
     })
     expect(fetchSpy).toHaveBeenCalledWith(
-      "http://auth:3000/api/auth/resource-permissions/resource/create",
+      "http://auth:3000/api/v1/auth/resource-permissions/resource/create",
       expect.objectContaining({ method: "POST" })
     )
   })
@@ -30,10 +30,10 @@ describe("FactoryAuthResourceClient", () => {
   it("deleteResource calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true })
     globalThis.fetch = fetchSpy as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     await client.deleteResource("site_123")
     expect(fetchSpy).toHaveBeenCalledWith(
-      "http://auth:3000/api/auth/resource-permissions/resource/delete",
+      "http://auth:3000/api/v1/auth/resource-permissions/resource/delete",
       expect.objectContaining({ method: "POST" })
     )
   })
@@ -43,7 +43,7 @@ describe("FactoryAuthResourceClient", () => {
       ok: true,
       json: async () => ({ success: true }),
     }) as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     const allowed = await client.checkPermission({
       resourceId: "site_123",
       permission: "deploy",
@@ -57,7 +57,7 @@ describe("FactoryAuthResourceClient", () => {
       ok: true,
       json: async () => ({ success: false }),
     }) as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     const allowed = await client.checkPermission({
       resourceId: "site_123",
       permission: "deploy",
@@ -70,7 +70,7 @@ describe("FactoryAuthResourceClient", () => {
     globalThis.fetch = vi
       .fn()
       .mockRejectedValue(new Error("network")) as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     await client.createResource({ id: "x", typeId: "t" })
   })
 
@@ -78,7 +78,7 @@ describe("FactoryAuthResourceClient", () => {
     globalThis.fetch = vi
       .fn()
       .mockRejectedValue(new Error("network")) as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     const allowed = await client.checkPermission({
       resourceId: "x",
       permission: "read",
@@ -90,14 +90,14 @@ describe("FactoryAuthResourceClient", () => {
   it("createResourceType calls correct endpoint", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true })
     globalThis.fetch = fetchSpy as unknown as typeof fetch
-    const client = new FactoryAuthResourceClient("http://auth:3000/api/auth")
+    const client = new FactoryAuthResourceClient("http://auth:3000/api/v1/auth")
     await client.createResourceType({
       name: "site",
       displayName: "Site",
       allowedPermissions: ["create", "read", "deploy"],
     })
     expect(fetchSpy).toHaveBeenCalledWith(
-      "http://auth:3000/api/auth/resource-permissions/type/create",
+      "http://auth:3000/api/v1/auth/resource-permissions/type/create",
       expect.objectContaining({ method: "POST" })
     )
   })

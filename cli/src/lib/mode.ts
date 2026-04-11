@@ -12,7 +12,12 @@ export async function inferMode(): Promise<DxMode> {
   if (env && isValidMode(env)) return env
 
   const config = await readConfig()
-  const mode = config.role === "factory" ? "factory" : config.role === "site" ? "site" : "dev"
+  const mode =
+    config.role === "factory"
+      ? "factory"
+      : config.role === "site"
+        ? "site"
+        : "dev"
   if (isValidMode(mode)) return mode
 
   return "factory"

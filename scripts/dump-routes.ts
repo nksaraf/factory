@@ -30,7 +30,7 @@ async function main() {
     console.error(
       "No DATABASE_URL set. Attempting to extract routes from app structure...\n" +
         "For a complete snapshot, run with DATABASE_URL or first capture the OpenAPI spec:\n" +
-        "  curl http://localhost:3000/api/factory/openapi > snapshots/v1-openapi.json\n" +
+        "  curl http://localhost:3000/api/v1/factory/openapi > snapshots/v1-openapi.json\n" +
         "  bun run scripts/dump-routes.ts"
     )
     process.exit(1)

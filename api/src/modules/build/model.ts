@@ -1,4 +1,4 @@
-import { t, type UnwrapSchema } from "elysia";
+import { t, type UnwrapSchema } from "elysia"
 
 export const BuildModel = {
   triggerBuildBody: t.Object({ moduleName: t.Optional(t.String()) }),
@@ -54,12 +54,14 @@ export const BuildModel = {
   }),
   updateGitHostProviderBody: t.Object({
     name: t.Optional(t.String()),
-    spec: t.Optional(t.Object({
-      apiUrl: t.Optional(t.String()),
-      authMode: t.Optional(t.String()),
-      credentialsRef: t.Optional(t.String()),
-      org: t.Optional(t.String()),
-    })),
+    spec: t.Optional(
+      t.Object({
+        apiUrl: t.Optional(t.String()),
+        authMode: t.Optional(t.String()),
+        credentialsRef: t.Optional(t.String()),
+        org: t.Optional(t.String()),
+      })
+    ),
   }),
   listGitHostProvidersQuery: t.Object({
     teamId: t.Optional(t.String()),
@@ -84,11 +86,7 @@ export const BuildModel = {
   }),
   mergePullRequestBody: t.Object({
     method: t.Optional(
-      t.Union([
-        t.Literal("merge"),
-        t.Literal("squash"),
-        t.Literal("rebase"),
-      ]),
+      t.Union([t.Literal("merge"), t.Literal("squash"), t.Literal("rebase")])
     ),
   }),
   // Pipeline runs
@@ -130,8 +128,8 @@ export const BuildModel = {
     startedAt: t.Optional(t.String()),
     completedAt: t.Optional(t.String()),
   }),
-} as const;
+} as const
 
 export type BuildModels = {
-  [K in keyof typeof BuildModel]: UnwrapSchema<(typeof BuildModel)[K]>;
-};
+  [K in keyof typeof BuildModel]: UnwrapSchema<(typeof BuildModel)[K]>
+}

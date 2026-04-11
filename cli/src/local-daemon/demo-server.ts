@@ -11,9 +11,7 @@
  *   DX_DEMO_PORT         — API port (default: 4200)
  */
 
-import {
-  createLocalApp,
-} from "../../../api/src/factory-core"
+import { createLocalApp } from "../../../api/src/factory-core"
 import { connection } from "../../../api/src/db/connection"
 
 const API_PORT = Number(process.env.DX_DEMO_PORT ?? 4200)
@@ -34,7 +32,9 @@ async function main() {
 
   app.listen(API_PORT)
   console.log(`[demo-factory] API listening on http://localhost:${API_PORT}`)
-  console.log(`[demo-factory] Run: DX_API_URL=http://localhost:${API_PORT} dx tui`)
+  console.log(
+    `[demo-factory] Run: DX_API_URL=http://localhost:${API_PORT} dx tui`
+  )
 }
 
 main().catch((err) => {

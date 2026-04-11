@@ -11,7 +11,7 @@ export const DX_CONFIG_FIELDS = {
   factoryUrl: { type: "string", default: "https://factory.lepton.software" },
   siteUrl: { type: "string", default: "" },
   context: { type: "string", default: "" },
-  authBasePath: { type: "string", default: "/api/auth" },
+  authBasePath: { type: "string", default: "/api/v1/auth" },
   siteName: { type: "string", default: "" },
   domain: { type: "string", default: "" },
   adminEmail: { type: "string", default: "" },

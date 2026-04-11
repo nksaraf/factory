@@ -45,7 +45,7 @@ export function fireWorkbenchPing(): void {
       if (!token) return
 
       const command = process.argv.slice(2).join(" ")
-      const url = `${config.factoryUrl.replace(/\/$/, "")}/api/factory/ops/workbenches/${config.workbenchId}/ping`
+      const url = `${config.factoryUrl.replace(/\/$/, "")}/api/v1/factory/ops/workbenches/${config.workbenchId}/ping`
 
       fetch(url, {
         method: "POST",

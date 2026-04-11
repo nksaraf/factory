@@ -19,9 +19,9 @@ The planes remain identical. Only the **interaction with Factory changes**.
 
 Actors
 
-* sales
-* partner
-* customer procurement
+- sales
+- partner
+- customer procurement
 
 Actions
 
@@ -98,9 +98,9 @@ network ingress
 
 Infrastructure may be:
 
-* cloud account owned by customer
-* customer datacenter
-* partner-managed environment
+- cloud account owned by customer
+- customer datacenter
+- partner-managed environment
 
 ---
 

@@ -6,13 +6,13 @@ import { event, eventOutbox } from "../db/schema/org-v2"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import { emitEvent } from "./events"
 
-const publishMock = mock(() => Promise.resolve(true))
+const publishMock = mock(() => Promise.resolve({ ok: true }))
 
-// Mock NATS publish
 mock.module("./nats", () => ({
   publishToNats: publishMock,
   getNatsConnection: mock(() => Promise.resolve(null)),
   closeNats: mock(),
+  resetNatsForTesting: mock(),
 }))
 
 const { processOutbox } = await import("./outbox-relay")
@@ -31,7 +31,7 @@ describe("outbox relay", () => {
   it("publishes pending events and marks them as published", async () => {
     await truncateAllTables(ctx.client)
     const db = ctx.db as unknown as Database
-    publishMock.mockResolvedValue(true)
+    publishMock.mockResolvedValue({ ok: true })
 
     const eventId = await emitEvent(db, {
       topic: "ops.workbench.created",
@@ -60,7 +60,10 @@ describe("outbox relay", () => {
   it("increments attempts and records error on publish failure", async () => {
     await truncateAllTables(ctx.client)
     const db = ctx.db as unknown as Database
-    publishMock.mockResolvedValueOnce(false)
+    publishMock.mockResolvedValueOnce({
+      ok: false,
+      error: "connection refused",
+    })
 
     const eventId = await emitEvent(db, {
       topic: "ops.workbench.failed",
@@ -79,12 +82,13 @@ describe("outbox relay", () => {
 
     expect(outboxRow.status).toBe("pending")
     expect(outboxRow.attempts).toBe(1)
+    expect(outboxRow.lastError).toBe("connection refused")
   })
 
   it("marks events as failed after max retries", async () => {
     await truncateAllTables(ctx.client)
     const db = ctx.db as unknown as Database
-    publishMock.mockResolvedValue(false)
+    publishMock.mockResolvedValue({ ok: false, error: "NATS timeout" })
 
     const eventId = await emitEvent(db, {
       topic: "ops.workbench.failed",

@@ -7,7 +7,9 @@ export const Scale = trait({ x: 1, y: 1, z: 1 })
 
 // Render
 export const AssetKind = trait({ kind: "" as string })
-export const RenderTier = trait({ tier: "iconic" as "iconic" | "standard" | "hidden" })
+export const RenderTier = trait({
+  tier: "iconic" as "iconic" | "standard" | "hidden",
+})
 export const Tint = trait({ r: 1, g: 1, b: 1 })
 export const Visible = trait()
 export const Selected = trait()

@@ -25,7 +25,10 @@ export function getTrace(adapter: ObservabilityAdapter, traceId: string) {
   return adapter.getTrace(traceId)
 }
 
-export function findTrace(adapter: ObservabilityAdapter, query: TraceFindQuery) {
+export function findTrace(
+  adapter: ObservabilityAdapter,
+  query: TraceFindQuery
+) {
   return adapter.findTrace(query)
 }
 
@@ -48,7 +51,10 @@ export function getSeries(adapter: ObservabilityAdapter, query: MetricsQuery) {
   return adapter.getSeries(query)
 }
 
-export function getInfraMetrics(adapter: ObservabilityAdapter, query: MetricsQuery) {
+export function getInfraMetrics(
+  adapter: ObservabilityAdapter,
+  query: MetricsQuery
+) {
   return adapter.getInfraMetrics(query)
 }
 
@@ -70,15 +76,26 @@ export function getAlert(adapter: ObservabilityAdapter, id: string) {
   return adapter.getAlert(id)
 }
 
-export function ackAlert(adapter: ObservabilityAdapter, id: string, reason: string) {
+export function ackAlert(
+  adapter: ObservabilityAdapter,
+  id: string,
+  reason: string
+) {
   return adapter.ackAlert(id, reason)
 }
 
-export function resolveAlert(adapter: ObservabilityAdapter, id: string, reason: string) {
+export function resolveAlert(
+  adapter: ObservabilityAdapter,
+  id: string,
+  reason: string
+) {
   return adapter.resolveAlert(id, reason)
 }
 
-export function silenceAlerts(adapter: ObservabilityAdapter, spec: SilenceSpec) {
+export function silenceAlerts(
+  adapter: ObservabilityAdapter,
+  spec: SilenceSpec
+) {
   return adapter.silenceAlerts(spec)
 }
 

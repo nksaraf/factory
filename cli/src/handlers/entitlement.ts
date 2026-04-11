@@ -10,7 +10,7 @@ import type { DxFlags } from "../stub.js"
 
 export async function runEntitlementList(
   flags: DxFlags,
-  opts?: { customerId?: string },
+  opts?: { customerId?: string }
 ): Promise<void> {
   const api = await getFactoryClient()
   const query = opts?.customerId ? { customerId: opts.customerId } : {}
@@ -27,13 +27,13 @@ export async function runEntitlementList(
       colorStatus(String(e.status ?? "")),
     ],
     undefined,
-    { emptyMessage: "No entitlements found." },
+    { emptyMessage: "No entitlements found." }
   )
 }
 
 export async function runEntitlementGrant(
   flags: DxFlags,
-  opts: { customerId: string; moduleId: string },
+  opts: { customerId: string; moduleId: string }
 ): Promise<void> {
   const api = await getFactoryClient()
   const data = await apiCall(flags, () =>
@@ -47,7 +47,7 @@ export async function runEntitlementGrant(
 
 export async function runEntitlementRevoke(
   flags: DxFlags,
-  id: string,
+  id: string
 ): Promise<void> {
   const api = await getFactoryClient()
   const data = await apiCall(flags, () =>

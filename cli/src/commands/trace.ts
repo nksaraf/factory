@@ -1,4 +1,7 @@
-import type { TraceSummary, TraceSpan } from "@smp/factory-shared/observability-types"
+import type {
+  TraceSummary,
+  TraceSpan,
+} from "@smp/factory-shared/observability-types"
 import type { DxBase } from "../dx-root.js"
 import { getFactoryClient } from "../client.js"
 import {
@@ -52,12 +55,14 @@ export function traceCommand(app: DxBase) {
             if (query[k] === undefined) delete query[k]
           }
 
-          const traces = await apiCall(flags, () =>
+          const traces = (await apiCall(flags, () =>
             client.api.v1.factory.observability.traces.get({ query })
-          ) as TraceSummary[] | undefined
+          )) as TraceSummary[] | undefined
 
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: traces }, null, 2))
+            console.log(
+              JSON.stringify({ success: true, data: traces }, null, 2)
+            )
           } else {
             console.log(formatTraceSummaryTable(traces ?? []))
           }
@@ -84,9 +89,9 @@ export function traceCommand(app: DxBase) {
           const f = toDxFlags(flags)
           const client = await getFactoryClient()
           const traceId = args["trace-id"]
-          const spans = await apiCall(flags, () =>
+          const spans = (await apiCall(flags, () =>
             client.api.v1.factory.observability.traces({ traceId }).get()
-          ) as TraceSpan[] | undefined
+          )) as TraceSpan[] | undefined
 
           if (f.json) {
             console.log(JSON.stringify({ success: true, data: spans }, null, 2))
@@ -121,12 +126,14 @@ export function traceCommand(app: DxBase) {
             if (query[k] === undefined) delete query[k]
           }
 
-          const traces = await apiCall(flags, () =>
+          const traces = (await apiCall(flags, () =>
             client.api.v1.factory.observability.traces.find.get({ query })
-          ) as TraceSummary[] | undefined
+          )) as TraceSummary[] | undefined
 
           if (f.json) {
-            console.log(JSON.stringify({ success: true, data: traces }, null, 2))
+            console.log(
+              JSON.stringify({ success: true, data: traces }, null, 2)
+            )
           } else {
             console.log(formatTraceSummaryTable(traces ?? []))
           }

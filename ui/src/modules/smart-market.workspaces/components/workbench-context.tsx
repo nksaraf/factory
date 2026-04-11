@@ -5,7 +5,7 @@ import type { Resource, TreeNode } from "../types"
 import { buildTree } from "../utils/tree-builder"
 
 interface WorkbenchContextValue {
-  /** Fleet workbench id (URL param; API still uses `/workspaces/:id` routes). */
+  /** Remote workbench id (URL param; API still uses `/workspaces/:id` routes). */
   workspaceId: string
   resources: Resource[]
   tree: TreeNode[]

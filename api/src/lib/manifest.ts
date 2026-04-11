@@ -1,12 +1,20 @@
 import { createHash } from "node:crypto"
-import type { ManifestV1, ManifestRoute, ManifestDomain } from "@smp/factory-shared/types"
+import type {
+  ManifestV1,
+  ManifestRoute,
+  ManifestDomain,
+} from "@smp/factory-shared/types"
 
 export function computeManifest(input: {
   site: { siteId: string; name: string; product: string }
   release: {
     releaseId: string
     version: string
-    pins: Array<{ moduleVersionId: string; moduleName: string; version: string }>
+    pins: Array<{
+      moduleVersionId: string
+      moduleName: string
+      version: string
+    }>
   } | null
   routes?: ManifestRoute[]
   domains?: ManifestDomain[]

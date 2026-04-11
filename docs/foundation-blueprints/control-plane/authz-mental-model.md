@@ -10,15 +10,15 @@ Version 1.0 · March 2026
 
 The authorization requirements specify 15+ evaluation steps across dozens of dimensions. These are not separate concepts. They are instances of **seven primitives**. Every authorization decision in every product reduces to a composition of these seven.
 
-| # | Primitive | Question it answers | Evaluator |
-|---|-----------|-------------------|-----------|
-| ① | **Principal** | Who is asking? | better-auth (session validation) |
-| ② | **Organization** | Which tenant boundary? | SpiceDB (mandatory first gate) |
-| ③ | **Scope** | Where are they authorized? | SpiceDB (parameterized hierarchies) |
-| ④ | **Role** | What can they do? | Custom Runtime (cached DAG closure) |
-| ⑤ | **Classification** | How sensitive is this resource? | SpiceDB (mandatory clearance slots) |
-| ⑥ | **Relationship** | What is their connection to this specific resource? | SpiceDB (owner, team, assignee) |
-| ⑦ | **Constraint** | What conditions apply right now? | Custom Runtime → PostgreSQL |
+| #   | Primitive          | Question it answers                                 | Evaluator                           |
+| --- | ------------------ | --------------------------------------------------- | ----------------------------------- |
+| ①   | **Principal**      | Who is asking?                                      | better-auth (session validation)    |
+| ②   | **Organization**   | Which tenant boundary?                              | SpiceDB (mandatory first gate)      |
+| ③   | **Scope**          | Where are they authorized?                          | SpiceDB (parameterized hierarchies) |
+| ④   | **Role**           | What can they do?                                   | Custom Runtime (cached DAG closure) |
+| ⑤   | **Classification** | How sensitive is this resource?                     | SpiceDB (mandatory clearance slots) |
+| ⑥   | **Relationship**   | What is their connection to this specific resource? | SpiceDB (owner, team, assignee)     |
+| ⑦   | **Constraint**     | What conditions apply right now?                    | Custom Runtime → PostgreSQL         |
 
 Seven primitives. Four hierarchies collapse into one Scope. Four classification categories collapse into four clearance slots. Six constraint types collapse into one runtime evaluator. The SpiceDB schema stays at ~50 lines regardless of how many tenants, object types, or dimensions exist.
 
@@ -58,14 +58,14 @@ The outermost mandatory gate. Evaluated first. If the principal is not a member 
 
 A Scope is an org-defined hierarchy of arbitrary depth where principals are assigned at nodes and access inherits downward, with optional exclusion overrides.
 
-| Scope Dimension | Examples | Products |
-|----------------|----------|----------|
-| Region | Country → Circle → Zone → Division | All |
-| Topology | Core → Aggregation → Distribution → Access → CPE | SmartInventory |
-| Channel | Direct → National Dist → Regional Dist → Reseller | SmartMarket |
-| Department | Engineering → Platforms → Frontend | All |
-| Skill Family | Fiber → Advanced Fiber → Specialized Fiber | SmartOps |
-| Future | Cost Center, Security Zone, Project Portfolio | Any |
+| Scope Dimension | Examples                                          | Products       |
+| --------------- | ------------------------------------------------- | -------------- |
+| Region          | Country → Circle → Zone → Division                | All            |
+| Topology        | Core → Aggregation → Distribution → Access → CPE  | SmartInventory |
+| Channel         | Direct → National Dist → Regional Dist → Reseller | SmartMarket    |
+| Department      | Engineering → Platforms → Frontend                | All            |
+| Skill Family    | Fiber → Advanced Fiber → Specialized Fiber        | SmartOps       |
+| Future          | Cost Center, Security Zone, Project Portfolio     | Any            |
 
 **One SpiceDB definition handles all scope types:**
 
@@ -123,16 +123,16 @@ Resource-level ReBAC grants. Owner, team member, shared viewer/editor, assignee,
 
 Runtime-evaluated conditions against live PostgreSQL state. NOT stored as SpiceDB tuples (would cause constant churn).
 
-| Constraint | What it checks |
-|-----------|---------------|
-| Time window | Contract period, shift, JIT grant, seasonal |
-| Workflow state | State machine position → allowed actions per role |
-| Skill/certification | Active credentials vs. required skills |
-| Financial authority | Monetary value vs. threshold and cumulative budget |
-| Multi-party approval | N-of-M approvals, role separation |
-| Explicit deny | Deny policies targeting principal/role/resource |
-| Priority elevation | P1 incident → temporary elevation |
-| Break-glass | Emergency override with audit |
+| Constraint           | What it checks                                     |
+| -------------------- | -------------------------------------------------- |
+| Time window          | Contract period, shift, JIT grant, seasonal        |
+| Workflow state       | State machine position → allowed actions per role  |
+| Skill/certification  | Active credentials vs. required skills             |
+| Financial authority  | Monetary value vs. threshold and cumulative budget |
+| Multi-party approval | N-of-M approvals, role separation                  |
+| Explicit deny        | Deny policies targeting principal/role/resource    |
+| Priority elevation   | P1 incident → temporary elevation                  |
+| Break-glass          | Emergency override with audit                      |
 
 ---
 
@@ -272,25 +272,25 @@ PostgreSQL is the source of truth. SpiceDB is a derived view synced via transact
 
 ## 7. The 18-Step Mapping
 
-| Step | Requirement | Primitive |
-|------|-------------|-----------|
-| 1 | Org entitlement | ② Organization |
-| 2 | Module entitlement | ② Organization |
-| 3 | Principal validity | ① + ② |
-| 4 | Time constraints | ⑦ Constraint |
-| 5 | Jurisdiction | ⑤ Classification |
-| 6 | Regional scope | ③ Scope |
-| 7 | Topology scope | ③ Scope |
-| 8 | Role permission | ④ Role |
-| 9 | Skill/cert | ⑦ Constraint |
-| 10 | Workflow state | ⑦ Constraint |
-| 11 | Data classification | ⑤ Classification |
-| 12 | Regulatory tags | ⑤ Classification |
-| 13 | Department scope | ③ Scope |
-| 14 | Channel scope | ③ Scope |
-| 15 | Criticality | ⑤ Classification |
-| 16 | Financial authority | ⑦ Constraint |
-| 17 | Resource relationship | ⑥ Relationship |
-| 18 | Multi-party approval | ⑦ Constraint |
+| Step | Requirement           | Primitive        |
+| ---- | --------------------- | ---------------- |
+| 1    | Org entitlement       | ② Organization   |
+| 2    | Module entitlement    | ② Organization   |
+| 3    | Principal validity    | ① + ②            |
+| 4    | Time constraints      | ⑦ Constraint     |
+| 5    | Jurisdiction          | ⑤ Classification |
+| 6    | Regional scope        | ③ Scope          |
+| 7    | Topology scope        | ③ Scope          |
+| 8    | Role permission       | ④ Role           |
+| 9    | Skill/cert            | ⑦ Constraint     |
+| 10   | Workflow state        | ⑦ Constraint     |
+| 11   | Data classification   | ⑤ Classification |
+| 12   | Regulatory tags       | ⑤ Classification |
+| 13   | Department scope      | ③ Scope          |
+| 14   | Channel scope         | ③ Scope          |
+| 15   | Criticality           | ⑤ Classification |
+| 16   | Financial authority   | ⑦ Constraint     |
+| 17   | Resource relationship | ⑥ Relationship   |
+| 18   | Multi-party approval  | ⑦ Constraint     |
 
 Seven primitives. All eighteen steps.

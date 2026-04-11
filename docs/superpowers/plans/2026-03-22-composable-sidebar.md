@@ -16,27 +16,28 @@
 
 All paths relative to `packages/npm/enterprise.core/src/`.
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Create | `sidebar/sidebar-org-switcher.tsx` | OrganizationSwitcher with sidebar state for popover side |
-| Create | `sidebar/sidebar-app-logo.tsx` | App logo + name in SidebarMenuItem |
-| Create | `sidebar/sidebar-home.tsx` | Home button in SidebarMenuItem |
-| Create | `sidebar/sidebar-search.tsx` | Search button in SidebarMenuItem |
-| Create | `sidebar/sidebar-extensions.tsx` | Dynamic manifest-contributed groups |
-| Create | `sidebar/sidebar-notifications.tsx` | Notifications button in SidebarMenuItem |
-| Create | `sidebar/sidebar-support.tsx` | Support button in SidebarMenuItem (renamed from Help) |
-| Create | `sidebar/sidebar-user.tsx` | UserButton wrapped in Suspense |
-| Create | `sidebar/app-sidebar-header.tsx` | Portkey wrapper for header section |
-| Create | `sidebar/app-sidebar-content.tsx` | Portkey wrapper for content section |
-| Create | `sidebar/app-sidebar-footer.tsx` | Portkey wrapper for footer section |
-| Create | `sidebar/index.ts` | Re-exports all components |
-| Modify | `routes/(app)/(dashboard)/sidebar.tsx` | Rewrite defaults to compose from atomics |
+| Action | File                                   | Responsibility                                           |
+| ------ | -------------------------------------- | -------------------------------------------------------- |
+| Create | `sidebar/sidebar-org-switcher.tsx`     | OrganizationSwitcher with sidebar state for popover side |
+| Create | `sidebar/sidebar-app-logo.tsx`         | App logo + name in SidebarMenuItem                       |
+| Create | `sidebar/sidebar-home.tsx`             | Home button in SidebarMenuItem                           |
+| Create | `sidebar/sidebar-search.tsx`           | Search button in SidebarMenuItem                         |
+| Create | `sidebar/sidebar-extensions.tsx`       | Dynamic manifest-contributed groups                      |
+| Create | `sidebar/sidebar-notifications.tsx`    | Notifications button in SidebarMenuItem                  |
+| Create | `sidebar/sidebar-support.tsx`          | Support button in SidebarMenuItem (renamed from Help)    |
+| Create | `sidebar/sidebar-user.tsx`             | UserButton wrapped in Suspense                           |
+| Create | `sidebar/app-sidebar-header.tsx`       | Portkey wrapper for header section                       |
+| Create | `sidebar/app-sidebar-content.tsx`      | Portkey wrapper for content section                      |
+| Create | `sidebar/app-sidebar-footer.tsx`       | Portkey wrapper for footer section                       |
+| Create | `sidebar/index.ts`                     | Re-exports all components                                |
+| Modify | `routes/(app)/(dashboard)/sidebar.tsx` | Rewrite defaults to compose from atomics                 |
 
 ---
 
 ### Task 1: Create atomic sidebar components
 
 **Files:**
+
 - Create: `sidebar/sidebar-org-switcher.tsx`
 - Create: `sidebar/sidebar-app-logo.tsx`
 - Create: `sidebar/sidebar-home.tsx`
@@ -49,34 +50,34 @@ All paths relative to `packages/npm/enterprise.core/src/`.
 - [ ] **Step 1: Create `sidebar/sidebar-org-switcher.tsx`**
 
 ```tsx
-import { OrganizationSwitcher } from "@rio.js/enterprise-ui/components/organization/organization-switcher";
-import { useSidebar } from "@rio.js/ui/components/sidebar";
-import { useIsMobile } from "@rio.js/ui/hooks/use-is-mobile";
+import { OrganizationSwitcher } from "@rio.js/enterprise-ui/components/organization/organization-switcher"
+import { useSidebar } from "@rio.js/ui/components/sidebar"
+import { useIsMobile } from "@rio.js/ui/hooks/use-is-mobile"
 
 export function SidebarOrgSwitcher() {
-  const { open } = useSidebar();
-  const isMobile = useIsMobile();
+  const { open } = useSidebar()
+  const isMobile = useIsMobile()
 
   return (
     <OrganizationSwitcher
       classNames={{}}
       side={isMobile ? "bottom" : open ? "bottom" : "right"}
     />
-  );
+  )
 }
 ```
 
 - [ ] **Step 2: Create `sidebar/sidebar-app-logo.tsx`**
 
 ```tsx
-import { useApp } from "@rio.js/app-ui/hooks/use-app";
+import { useApp } from "@rio.js/app-ui/hooks/use-app"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@rio.js/ui/components/sidebar";
+} from "@rio.js/ui/components/sidebar"
 
 export function SidebarAppLogo() {
-  const app = useApp();
+  const app = useApp()
 
   return (
     <SidebarMenuItem>
@@ -101,51 +102,48 @@ export function SidebarAppLogo() {
         </div>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 ```
 
 - [ ] **Step 3: Create `sidebar/sidebar-home.tsx`**
 
 ```tsx
-import { useLocation } from "react-router";
+import { useLocation } from "react-router"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@rio.js/ui/components/sidebar";
-import { Icon } from "@rio.js/ui/icon";
+} from "@rio.js/ui/components/sidebar"
+import { Icon } from "@rio.js/ui/icon"
 
 export function SidebarHome() {
-  const location = useLocation();
+  const location = useLocation()
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        tooltip="Home"
-        isActive={location.pathname === "/"}
-      >
+      <SidebarMenuButton tooltip="Home" isActive={location.pathname === "/"}>
         <div className="relative inline-block">
           <Icon icon="icon-[ph--house-duotone]" className="text-icon-lg" />
         </div>
         <span className="text-base flex-grow">Home</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 ```
 
 - [ ] **Step 4: Create `sidebar/sidebar-search.tsx`**
 
 ```tsx
-import { useLocation } from "react-router";
+import { useLocation } from "react-router"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@rio.js/ui/components/sidebar";
-import { Icon } from "@rio.js/ui/icon";
+} from "@rio.js/ui/components/sidebar"
+import { Icon } from "@rio.js/ui/icon"
 
 export function SidebarSearch() {
-  const location = useLocation();
+  const location = useLocation()
 
   return (
     <SidebarMenuItem>
@@ -154,51 +152,54 @@ export function SidebarSearch() {
         isActive={location.pathname.startsWith("/search")}
       >
         <div className="relative inline-block">
-          <Icon icon="icon-[ph--magnifying-glass-duotone]" className="text-icon-lg" />
+          <Icon
+            icon="icon-[ph--magnifying-glass-duotone]"
+            className="text-icon-lg"
+          />
         </div>
         <span className="text-base flex-grow">Search</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 ```
 
 - [ ] **Step 5: Create `sidebar/sidebar-extensions.tsx`**
 
 ```tsx
-import * as React from "react";
-import { useLocation } from "react-router";
-import { AppSidebarGroup } from "@rio.js/app-ui/components/app-sidebar";
-import { useObserver, useRio } from "@rio.js/client";
-import { useCurrentOrganization } from "@rio.js/enterprise-ui/hooks/use-current-organization";
-import { Separator } from "@rio.js/ui/separator";
+import * as React from "react"
+import { useLocation } from "react-router"
+import { AppSidebarGroup } from "@rio.js/app-ui/components/app-sidebar"
+import { useObserver, useRio } from "@rio.js/client"
+import { useCurrentOrganization } from "@rio.js/enterprise-ui/hooks/use-current-organization"
+import { Separator } from "@rio.js/ui/separator"
 
 export function SidebarExtensions() {
-  using _ = useObserver();
-  const rio = useRio();
-  const location = useLocation();
-  const { data: activeOrganization } = useCurrentOrganization();
-  const sidebarGroups = rio.extensions.getContributions("sidebarGroups");
-  const sidebarItems = rio.extensions.getContributions("sidebarItems");
+  using _ = useObserver()
+  const rio = useRio()
+  const location = useLocation()
+  const { data: activeOrganization } = useCurrentOrganization()
+  const sidebarGroups = rio.extensions.getContributions("sidebarGroups")
+  const sidebarItems = rio.extensions.getContributions("sidebarItems")
 
-  const groups: Record<string, any> = {};
+  const groups: Record<string, any> = {}
   sidebarGroups.forEach((sidebarGroup: any) => {
     if (!groups[sidebarGroup.id]) {
       groups[sidebarGroup.id] = {
         ...sidebarGroup,
         sidebarItems: [],
-      };
+      }
     }
-  });
+  })
 
   sidebarItems.forEach((sidebarItem: any) => {
     if (!groups[sidebarItem.group]) {
-      return;
+      return
     }
-    groups[sidebarItem.group].sidebarItems.push(sidebarItem);
-  });
+    groups[sidebarItem.group].sidebarItems.push(sidebarItem)
+  })
 
-  if (!activeOrganization) return null;
+  if (!activeOrganization) return null
 
   return (
     <>
@@ -216,26 +217,26 @@ export function SidebarExtensions() {
             />
             {index < Object.entries(groups).length - 1 && <Separator />}
           </React.Fragment>
-        ),
+        )
       )}
       <Separator />
     </>
-  );
+  )
 }
 ```
 
 - [ ] **Step 6: Create `sidebar/sidebar-notifications.tsx`**
 
 ```tsx
-import { useLocation } from "react-router";
+import { useLocation } from "react-router"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@rio.js/ui/components/sidebar";
-import { Icon, Icons } from "@rio.js/ui/icon";
+} from "@rio.js/ui/components/sidebar"
+import { Icon, Icons } from "@rio.js/ui/icon"
 
 export function SidebarNotifications() {
-  const location = useLocation();
+  const location = useLocation()
 
   return (
     <SidebarMenuItem>
@@ -249,22 +250,22 @@ export function SidebarNotifications() {
         <span className="text-base flex-grow">Notifications</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 ```
 
 - [ ] **Step 7: Create `sidebar/sidebar-support.tsx`**
 
 ```tsx
-import { useLocation } from "react-router";
+import { useLocation } from "react-router"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@rio.js/ui/components/sidebar";
-import { Icon } from "@rio.js/ui/icon";
+} from "@rio.js/ui/components/sidebar"
+import { Icon } from "@rio.js/ui/icon"
 
 export function SidebarSupport() {
-  const location = useLocation();
+  const location = useLocation()
 
   return (
     <SidebarMenuItem>
@@ -278,21 +279,21 @@ export function SidebarSupport() {
         <span className="text-base flex-grow">Support</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  )
 }
 ```
 
 - [ ] **Step 8: Create `sidebar/sidebar-user.tsx`**
 
 ```tsx
-import { Suspense } from "react";
-import { UserButton } from "@rio.js/enterprise-ui/components/user-button";
-import { useSidebar } from "@rio.js/ui/components/sidebar";
-import { useIsMobile } from "@rio.js/ui/hooks/use-is-mobile";
+import { Suspense } from "react"
+import { UserButton } from "@rio.js/enterprise-ui/components/user-button"
+import { useSidebar } from "@rio.js/ui/components/sidebar"
+import { useIsMobile } from "@rio.js/ui/hooks/use-is-mobile"
 
 export function SidebarUser() {
-  const { open } = useSidebar();
-  const isMobile = useIsMobile();
+  const { open } = useSidebar()
+  const isMobile = useIsMobile()
 
   return (
     <Suspense>
@@ -309,7 +310,7 @@ export function SidebarUser() {
         }}
       />
     </Suspense>
-  );
+  )
 }
 ```
 
@@ -325,6 +326,7 @@ git commit -m "feat(enterprise.core): extract atomic sidebar components"
 ### Task 2: Create wrapper components
 
 **Files:**
+
 - Create: `sidebar/app-sidebar-header.tsx`
 - Create: `sidebar/app-sidebar-content.tsx`
 - Create: `sidebar/app-sidebar-footer.tsx`
@@ -332,21 +334,18 @@ git commit -m "feat(enterprise.core): extract atomic sidebar components"
 - [ ] **Step 1: Create `sidebar/app-sidebar-header.tsx`**
 
 ```tsx
-import { useApp } from "@rio.js/app-ui/hooks/use-app";
-import { Portkey } from "@rio.js/tunnel";
-import {
-  SidebarHeader,
-  SidebarMenu,
-} from "@rio.js/ui/components/sidebar";
+import { useApp } from "@rio.js/app-ui/hooks/use-app"
+import { Portkey } from "@rio.js/tunnel"
+import { SidebarHeader, SidebarMenu } from "@rio.js/ui/components/sidebar"
 
 export function AppSidebarHeader({
   children,
   className,
 }: {
-  children: React.ReactNode;
-  className?: string;
+  children: React.ReactNode
+  className?: string
 }) {
-  const app = useApp();
+  const app = useApp()
 
   return (
     <Portkey id={`${app.id}/sidebar/header`}>
@@ -359,25 +358,25 @@ export function AppSidebarHeader({
         <SidebarMenu>{children}</SidebarMenu>
       </SidebarHeader>
     </Portkey>
-  );
+  )
 }
 ```
 
 - [ ] **Step 2: Create `sidebar/app-sidebar-content.tsx`**
 
 ```tsx
-import { useApp } from "@rio.js/app-ui/hooks/use-app";
-import { Portkey } from "@rio.js/tunnel";
-import { SidebarContent } from "@rio.js/ui/components/sidebar";
+import { useApp } from "@rio.js/app-ui/hooks/use-app"
+import { Portkey } from "@rio.js/tunnel"
+import { SidebarContent } from "@rio.js/ui/components/sidebar"
 
 export function AppSidebarContent({
   children,
   className,
 }: {
-  children: React.ReactNode;
-  className?: string;
+  children: React.ReactNode
+  className?: string
 }) {
-  const app = useApp();
+  const app = useApp()
 
   return (
     <Portkey id={`${app.id}/sidebar/content`}>
@@ -385,41 +384,37 @@ export function AppSidebarContent({
         {children}
       </SidebarContent>
     </Portkey>
-  );
+  )
 }
 ```
 
 - [ ] **Step 3: Create `sidebar/app-sidebar-footer.tsx`**
 
 ```tsx
-import { useApp } from "@rio.js/app-ui/hooks/use-app";
-import { Portkey } from "@rio.js/tunnel";
-import {
-  SidebarFooter,
-  SidebarMenu,
-} from "@rio.js/ui/components/sidebar";
+import { useApp } from "@rio.js/app-ui/hooks/use-app"
+import { Portkey } from "@rio.js/tunnel"
+import { SidebarFooter, SidebarMenu } from "@rio.js/ui/components/sidebar"
 
 export function AppSidebarFooter({
   children,
   className,
 }: {
-  children: React.ReactNode;
-  className?: string;
+  children: React.ReactNode
+  className?: string
 }) {
-  const app = useApp();
+  const app = useApp()
 
   return (
     <Portkey id={`${app.id}/sidebar/footer`}>
       <SidebarFooter
         className={
-          className ??
-          "bg-scale-300 border-t border-scale-500 pb-2 pt-1"
+          className ?? "bg-scale-300 border-t border-scale-500 pb-2 pt-1"
         }
       >
         <SidebarMenu>{children}</SidebarMenu>
       </SidebarFooter>
     </Portkey>
-  );
+  )
 }
 ```
 
@@ -435,23 +430,24 @@ git commit -m "feat(enterprise.core): add AppSidebarHeader/Content/Footer wrappe
 ### Task 3: Create barrel export and update sidebar.tsx
 
 **Files:**
+
 - Create: `sidebar/index.ts`
 - Modify: `routes/(app)/(dashboard)/sidebar.tsx`
 
 - [ ] **Step 1: Create `sidebar/index.ts`**
 
 ```ts
-export { AppSidebarHeader } from "./app-sidebar-header";
-export { AppSidebarContent } from "./app-sidebar-content";
-export { AppSidebarFooter } from "./app-sidebar-footer";
-export { SidebarOrgSwitcher } from "./sidebar-org-switcher";
-export { SidebarAppLogo } from "./sidebar-app-logo";
-export { SidebarHome } from "./sidebar-home";
-export { SidebarSearch } from "./sidebar-search";
-export { SidebarExtensions } from "./sidebar-extensions";
-export { SidebarNotifications } from "./sidebar-notifications";
-export { SidebarSupport } from "./sidebar-support";
-export { SidebarUser } from "./sidebar-user";
+export { AppSidebarHeader } from "./app-sidebar-header"
+export { AppSidebarContent } from "./app-sidebar-content"
+export { AppSidebarFooter } from "./app-sidebar-footer"
+export { SidebarOrgSwitcher } from "./sidebar-org-switcher"
+export { SidebarAppLogo } from "./sidebar-app-logo"
+export { SidebarHome } from "./sidebar-home"
+export { SidebarSearch } from "./sidebar-search"
+export { SidebarExtensions } from "./sidebar-extensions"
+export { SidebarNotifications } from "./sidebar-notifications"
+export { SidebarSupport } from "./sidebar-support"
+export { SidebarUser } from "./sidebar-user"
 ```
 
 - [ ] **Step 2: Rewrite `routes/(app)/(dashboard)/sidebar.tsx` to compose from atomics**
@@ -459,10 +455,10 @@ export { SidebarUser } from "./sidebar-user";
 Replace the entire file with:
 
 ```tsx
-import { Suspense } from "react";
+import { Suspense } from "react"
 
-import { useApp } from "@rio.js/app-ui/hooks/use-app";
-import { PortkeyOut, usePortkeyHasElements } from "@rio.js/tunnel";
+import { useApp } from "@rio.js/app-ui/hooks/use-app"
+import { PortkeyOut, usePortkeyHasElements } from "@rio.js/tunnel"
 import {
   Sidebar,
   SidebarContent,
@@ -470,14 +466,14 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarRail,
-} from "@rio.js/ui/components/sidebar";
+} from "@rio.js/ui/components/sidebar"
 
-import { SidebarAppLogo } from "../../../sidebar/sidebar-app-logo";
-import { SidebarExtensions } from "../../../sidebar/sidebar-extensions";
-import { SidebarNotifications } from "../../../sidebar/sidebar-notifications";
-import { SidebarOrgSwitcher } from "../../../sidebar/sidebar-org-switcher";
-import { SidebarSupport } from "../../../sidebar/sidebar-support";
-import { SidebarUser } from "../../../sidebar/sidebar-user";
+import { SidebarAppLogo } from "../../../sidebar/sidebar-app-logo"
+import { SidebarExtensions } from "../../../sidebar/sidebar-extensions"
+import { SidebarNotifications } from "../../../sidebar/sidebar-notifications"
+import { SidebarOrgSwitcher } from "../../../sidebar/sidebar-org-switcher"
+import { SidebarSupport } from "../../../sidebar/sidebar-support"
+import { SidebarUser } from "../../../sidebar/sidebar-user"
 
 function DefaultSidebarHeader() {
   return (
@@ -487,7 +483,7 @@ function DefaultSidebarHeader() {
         <SidebarAppLogo />
       </SidebarMenu>
     </SidebarHeader>
-  );
+  )
 }
 
 function DefaultSidebarContent() {
@@ -495,7 +491,7 @@ function DefaultSidebarContent() {
     <SidebarContent className="bg-scale-200">
       <SidebarExtensions />
     </SidebarContent>
-  );
+  )
 }
 
 function DefaultSidebarFooter() {
@@ -507,14 +503,14 @@ function DefaultSidebarFooter() {
       </SidebarMenu>
       <SidebarUser />
     </SidebarFooter>
-  );
+  )
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const app = useApp();
-  const hasCustomHeader = usePortkeyHasElements(`${app.id}/sidebar/header`);
-  const hasCustomContent = usePortkeyHasElements(`${app.id}/sidebar/content`);
-  const hasCustomFooter = usePortkeyHasElements(`${app.id}/sidebar/footer`);
+  const app = useApp()
+  const hasCustomHeader = usePortkeyHasElements(`${app.id}/sidebar/header`)
+  const hasCustomContent = usePortkeyHasElements(`${app.id}/sidebar/content`)
+  const hasCustomFooter = usePortkeyHasElements(`${app.id}/sidebar/footer`)
 
   return (
     <>
@@ -535,7 +531,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       )}
       <SidebarRail />
     </>
-  );
+  )
 }
 
 export function DashboardSidebar() {
@@ -543,7 +539,7 @@ export function DashboardSidebar() {
     <Suspense>
       <AppSidebar />
     </Suspense>
-  );
+  )
 }
 ```
 

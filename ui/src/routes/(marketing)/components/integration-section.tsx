@@ -2,13 +2,7 @@ import { Button } from "@rio.js/ui/button"
 import { Icon, Icons } from "@rio.js/ui/icon"
 import { cn } from "@rio.js/ui/lib/utils"
 
-const integrations = [
-  "Salesforce",
-  "SAP",
-  "Google Maps",
-  "ERP",
-  "Custom API",
-]
+const integrations = ["Salesforce", "SAP", "Google Maps", "ERP", "Custom API"]
 
 export function IntegrationSection() {
   return (
@@ -19,8 +13,8 @@ export function IntegrationSection() {
             Connects to Your Existing Stack
           </h2>
           <p className="mb-12 text-lg text-scale-1000">
-            No rip-and-replace. SmartMarket integrates seamlessly with your
-            CRM, ERP, DMS, and existing data infrastructure to enrich what you
+            No rip-and-replace. SmartMarket integrates seamlessly with your CRM,
+            ERP, DMS, and existing data infrastructure to enrich what you
             already have.
           </p>
 

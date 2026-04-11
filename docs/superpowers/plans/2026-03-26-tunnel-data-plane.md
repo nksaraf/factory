@@ -1229,7 +1229,7 @@ export interface TunnelInfo {
  * Opens a WebSocket tunnel to the factory broker.
  *
  * Protocol:
- *  1. Connect to ws(s)://<api>/api/factory/infra/gateway/tunnels/ws
+ *  1. Connect to ws(s)://<api>/api/v1/factory/infra/gateway/tunnels/ws
  *  2. Send JSON: { type: "register", localAddr, subdomain?, principalId }
  *  3. Receive JSON: { type: "registered", tunnelId, subdomain, url }
  *  4. After registration, handle binary frames:
@@ -1247,7 +1247,7 @@ export async function openTunnel(
   const config = await readConfig()
   const base = resolveFactoryUrl(config)
   const wsUrl =
-    base.replace(/^http/, "ws") + "/api/factory/infra/gateway/tunnels/ws"
+    base.replace(/^http/, "ws") + "/api/v1/factory/infra/gateway/tunnels/ws"
 
   const ws = new WebSocket(wsUrl)
   ws.binaryType = "arraybuffer"

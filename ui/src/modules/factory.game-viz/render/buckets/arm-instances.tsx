@@ -1,7 +1,14 @@
 import { Instance, Instances } from "@react-three/drei"
 import { useQuery } from "koota/react"
 
-import { Position, RoboticArm, Rotation, Scale, Tint, Visible } from "../../ecs/traits"
+import {
+  Position,
+  RoboticArm,
+  Rotation,
+  Scale,
+  Tint,
+  Visible,
+} from "../../ecs/traits"
 
 export function ArmInstances() {
   const arms = useQuery(RoboticArm, Visible)

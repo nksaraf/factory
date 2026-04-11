@@ -20,11 +20,11 @@ export function SecuritySection() {
                 Enterprise-grade security
               </h2>
               <p className="mb-6 text-lg leading-relaxed text-scale-1000">
-                Your business data deserves the highest level of protection.
-                All data is encrypted both in transit and at rest, with
-                role-based access controls, audit logging, and compliance
-                with global data protection standards. AES-256 for storage
-                and TLS 1.2/1.3 for secure communication.
+                Your business data deserves the highest level of protection. All
+                data is encrypted both in transit and at rest, with role-based
+                access controls, audit logging, and compliance with global data
+                protection standards. AES-256 for storage and TLS 1.2/1.3 for
+                secure communication.
               </p>
               <Button variant="outline" icon={Icons.plus}>
                 Learn more

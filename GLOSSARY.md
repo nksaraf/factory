@@ -28,16 +28,16 @@
 
 **Factory** — The overarching software production system that designs, builds, commercializes, deploys, and operates all products. Organized into six Factory-level planes plus three per-Site planes.
 
-| Level | Planes | Scope |
-|-------|--------|-------|
+| Level   | Planes                                                 | Scope                   |
+| ------- | ------------------------------------------------------ | ----------------------- |
 | Factory | Product, Build, Agent, Commerce, Fleet, Infrastructure | Global system of record |
-| Site | Control, Service, Data | Per-deployment runtime |
+| Site    | Control, Service, Data                                 | Per-deployment runtime  |
 
 ---
 
 ## Product Plane
 
-> System of record for *what* gets built, *why*, and *when* it ships.
+> System of record for _what_ gets built, _why_, and _when_ it ships.
 > Schema: `factory_product`
 
 ### Module
@@ -86,18 +86,18 @@ Links a Module to an external project in a WorkTrackerProvider.
 - Sync direction: `pull` | `push` | `bidirectional`
 - Relationships: N→1 WorkTrackerProvider, N→1 Module
 
-### Release Plan *(doc-level concept)*
+### Release Plan _(doc-level concept)_
 
 Declaration of what will ship and when. Belongs to a Milestone, scoped to one or more Modules.
 
 - Lifecycle: `draft` → `scoped` → `finalized` → `released` → `cancelled`
 - Contains N:M relationship with WorkItems (stories can be rescheduled)
 
-### Milestone *(doc-level concept)*
+### Milestone _(doc-level concept)_
 
 Time-bound target anchoring Release Plans. May be product-scoped or company-wide.
 
-### ADR (Architecture Decision Record) *(doc-level concept)*
+### ADR (Architecture Decision Record) _(doc-level concept)_
 
 Versioned document recording significant architectural decisions. Stored in GitHub as Markdown in `/docs/adr/` directories.
 
@@ -200,14 +200,14 @@ A single invocation of an Agent to perform a task.
 - Fields: `executionId`, `agentId`, `task`, `costCents`, `startedAt`, `completedAt`
 - Relationship: N→1 Agent
 
-### Agent Memory *(doc-level concept)*
+### Agent Memory _(doc-level concept)_
 
 Persistent knowledge accumulated across executions.
 
 - Layers: ephemeral (within execution), task (within single task), agent (across executions), shared (cross-agent knowledge graph)
 - Hybrid: vector embeddings + structured knowledge graphs
 
-### Tool *(doc-level concept)*
+### Tool _(doc-level concept)_
 
 External capability an Agent can invoke, registered in a Tool Registry, exposed via MCP (Model Context Protocol).
 
@@ -247,15 +247,15 @@ Signed blob delivered to a Site containing all entitlement grants for a customer
 - Fields: `bundleId`, `customerId`, `siteId`, `payload` (JSON), `signature`, `issuedAt`, `expiresAt`, `gracePeriodDays`
 - Relationship: N→1 CustomerAccount
 
-### License *(doc-level concept)*
+### License _(doc-level concept)_
 
 Deployable authorization record bound to a Subscription. Scoped to one or more Sites. Contains module entitlements, seat limits, quota definitions. Produces signed EntitlementBundles.
 
-### Subscription *(doc-level concept)*
+### Subscription _(doc-level concept)_
 
 Commercial agreement between company and customer. References a Plan, has billing cycle, produces invoices.
 
-### Partner Account *(doc-level concept)*
+### Partner Account _(doc-level concept)_
 
 Channel entity (MSP, Reseller, SI) managing customers on behalf of the company.
 
@@ -263,7 +263,7 @@ Channel entity (MSP, Reseller, SI) managing customers on behalf of the company.
 
 ## Fleet Plane
 
-> Deployment and lifecycle governance: manages *where* software runs.
+> Deployment and lifecycle governance: manages _where_ software runs.
 > Schema: `factory_fleet`
 
 ### Site (FleetSite)
@@ -272,7 +272,7 @@ A running instance of a product in a specific customer environment. Self-governi
 
 - **Not** "Deployment" (overloaded) or "Environment" (overloaded)
 - Status: `provisioning` | `active` | `suspended` | `decommissioned`
-- Deployment types *(doc-level)*: `shared_saas` | `dedicated_saas` | `self_hosted_connected` | `self_hosted_airgapped`
+- Deployment types _(doc-level)_: `shared_saas` | `dedicated_saas` | `self_hosted_connected` | `self_hosted_airgapped`
 - Fields: `siteId`, `name`, `slug`, `product`, `clusterId`, `status`, `lastCheckinAt`, `currentManifestVersion`
 - Relationships: N→1 Cluster, 1→N DeploymentTarget, 1→N Route, 1→N Domain
 
@@ -559,7 +559,7 @@ Node in an org-defined hierarchy of arbitrary depth. Principals assigned at node
 
 Graph edge representing a specific resource relationship (owner, team member, shared viewer/editor, assignee, approver). Distinct from Roles: Roles = "can do X in general"; Relationships = "has connection Y to resource Z specifically."
 
-### Constraint *(doc-level concept)*
+### Constraint _(doc-level concept)_
 
 Runtime-evaluated condition: time window, workflow state, skill/certification, financial authority, multi-party approval, explicit deny, priority elevation, break-glass.
 
@@ -587,19 +587,19 @@ Runtime incarnation of an enabled Module in a specific Namespace/Site. Binds a M
 
 - Relationships: N→1 Namespace, N→1 ModuleVersion
 
-### Job / TaskRun *(doc-level concept)*
+### Job / TaskRun _(doc-level concept)_
 
 Unit of async work execution within a ModuleInstance.
 
-### WorkflowRun *(doc-level concept)*
+### WorkflowRun _(doc-level concept)_
 
 Temporal-like workflow execution within a ModuleInstance.
 
-### EventStream *(doc-level concept)*
+### EventStream _(doc-level concept)_
 
 Named channel for event publication. ModuleInstances publish/subscribe to event streams.
 
-### IntegrationConnector *(doc-level concept)*
+### IntegrationConnector _(doc-level concept)_
 
 Connection to an external system (webhook endpoint, external API).
 
@@ -609,15 +609,15 @@ Connection to an external system (webhook endpoint, external API).
 
 > Per-Site: manages storage, analytics, indexing, backup, replication.
 
-### Dataset *(doc-level concept)*
+### Dataset _(doc-level concept)_
 
 Logical data collection scoped to a Namespace.
 
-### BackupSnapshot *(doc-level concept)*
+### BackupSnapshot _(doc-level concept)_
 
 Point-in-time backup of tenant data with retention policies.
 
-### Pipeline *(doc-level concept)*
+### Pipeline _(doc-level concept)_
 
 Data processing workflow with scheduled or triggered runs.
 
@@ -627,7 +627,7 @@ Data processing workflow with scheduled or triggered runs.
 
 > Cross-cutting: logs, traces, metrics, alerts. Adapter-based (no dedicated DB tables).
 
-### Alert *(as implemented in Trafficure)*
+### Alert _(as implemented in Trafficure)_
 
 Traffic/operational incident notification.
 
@@ -680,18 +680,18 @@ Site(Service) → Site(Data)
 
 These vocabulary choices are intentional. Use the Factory term, not the alternatives.
 
-| Factory Term | NOT | Why |
-|---|---|---|
-| **Module** | Service, Project, Package | "Service" is overloaded (K8s), "Project" is a repo checkout, "Package" is too generic |
-| **ComponentSpec** | Service, Container | "Service" is a K8s network endpoint; "Container" is a built artifact (image) |
-| **Artifact** | Deployment, Build Output | Clear distinction: immutable built output from the Build Plane |
-| **Release** | Deployment | Release = collection of module version pins; Deployment is overloaded |
-| **Rollout** | Deployment | Rollout = the act of deploying a Release to a Site |
-| **Site** | Deployment, Environment | Running instance of a product; unique and unambiguous |
-| **Namespace** | Project, Workspace | Runtime tenancy boundary, not a repo checkout or UI context |
-| **Route** | Alias | Standard networking term, not Vercel-style mutable DNS |
-| **DeploymentTarget** | Environment | Specific runtime target with kind (production/staging/sandbox/dev) |
-| **Factory** | Platform, System | The overall software production system across all six planes |
+| Factory Term         | NOT                       | Why                                                                                   |
+| -------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| **Module**           | Service, Project, Package | "Service" is overloaded (K8s), "Project" is a repo checkout, "Package" is too generic |
+| **ComponentSpec**    | Service, Container        | "Service" is a K8s network endpoint; "Container" is a built artifact (image)          |
+| **Artifact**         | Deployment, Build Output  | Clear distinction: immutable built output from the Build Plane                        |
+| **Release**          | Deployment                | Release = collection of module version pins; Deployment is overloaded                 |
+| **Rollout**          | Deployment                | Rollout = the act of deploying a Release to a Site                                    |
+| **Site**             | Deployment, Environment   | Running instance of a product; unique and unambiguous                                 |
+| **Namespace**        | Project, Workspace        | Runtime tenancy boundary, not a repo checkout or UI context                           |
+| **Route**            | Alias                     | Standard networking term, not Vercel-style mutable DNS                                |
+| **DeploymentTarget** | Environment               | Specific runtime target with kind (production/staging/sandbox/dev)                    |
+| **Factory**          | Platform, System          | The overall software production system across all six planes                          |
 
 ---
 
@@ -701,75 +701,75 @@ Quick lookup for all status and type enumerations.
 
 ### Lifecycle & Status Enums
 
-| Entity | Enum | Values |
-|---|---|---|
-| Module | lifecycleState | `active`, `deprecated`, `retired` |
-| WorkItem | status | `backlog`, `ready`, `in_progress`, `in_review`, `done` |
-| WorkItem | kind | `epic`, `story`, `task`, `bug` |
-| WorkItem | priority | `critical`, `high`, `medium`, `low`, `none` |
-| Site | status | `provisioning`, `active`, `suspended`, `decommissioned` |
-| Release | status | `draft`, `staging`, `production`, `superseded`, `failed` |
-| DeploymentTarget | status | `provisioning`, `active`, `suspended`, `destroying`, `destroyed` |
-| Workload | status | `provisioning`, `running`, `degraded`, `stopped`, `failed`, `completed` |
-| Rollout | status | `pending`, `in_progress`, `succeeded`, `failed`, `rolled_back` |
-| Cluster | status | `provisioning`, `ready`, `degraded`, `destroying` |
-| Host | status | `active`, `maintenance`, `offline`, `decommissioned` |
-| VM | status | `provisioning`, `running`, `stopped`, `destroying` |
-| KubeNode | status | `ready`, `not_ready`, `paused`, `evacuating` |
-| Provider | status | `active`, `inactive` |
-| CustomerAccount | status | `trial`, `active`, `suspended`, `terminated` |
-| Entitlement | status | `active`, `suspended`, `revoked` |
-| Agent | status | `active`, `disabled` |
-| AgentExecution | status | `pending`, `running`, `succeeded`, `failed` |
-| WebhookEvent | status | `pending`, `processing`, `completed`, `failed` |
-| Sandbox | status | via DeploymentTarget |
-| SandboxSnapshot | status | `creating`, `ready`, `failed`, `deleted` |
-| ReleaseBundle | status | `building`, `ready`, `failed`, `expired` |
-| Route | status | `pending`, `active`, `error`, `expired` |
-| Domain | status | `pending`, `verified`, `active`, `error` |
-| Tunnel | status | `connecting`, `active`, `disconnected` |
-| IpAddress | status | `available`, `assigned`, `reserved`, `dhcp` |
+| Entity           | Enum           | Values                                                                  |
+| ---------------- | -------------- | ----------------------------------------------------------------------- |
+| Module           | lifecycleState | `active`, `deprecated`, `retired`                                       |
+| WorkItem         | status         | `backlog`, `ready`, `in_progress`, `in_review`, `done`                  |
+| WorkItem         | kind           | `epic`, `story`, `task`, `bug`                                          |
+| WorkItem         | priority       | `critical`, `high`, `medium`, `low`, `none`                             |
+| Site             | status         | `provisioning`, `active`, `suspended`, `decommissioned`                 |
+| Release          | status         | `draft`, `staging`, `production`, `superseded`, `failed`                |
+| DeploymentTarget | status         | `provisioning`, `active`, `suspended`, `destroying`, `destroyed`        |
+| Workload         | status         | `provisioning`, `running`, `degraded`, `stopped`, `failed`, `completed` |
+| Rollout          | status         | `pending`, `in_progress`, `succeeded`, `failed`, `rolled_back`          |
+| Cluster          | status         | `provisioning`, `ready`, `degraded`, `destroying`                       |
+| Host             | status         | `active`, `maintenance`, `offline`, `decommissioned`                    |
+| VM               | status         | `provisioning`, `running`, `stopped`, `destroying`                      |
+| KubeNode         | status         | `ready`, `not_ready`, `paused`, `evacuating`                            |
+| Provider         | status         | `active`, `inactive`                                                    |
+| CustomerAccount  | status         | `trial`, `active`, `suspended`, `terminated`                            |
+| Entitlement      | status         | `active`, `suspended`, `revoked`                                        |
+| Agent            | status         | `active`, `disabled`                                                    |
+| AgentExecution   | status         | `pending`, `running`, `succeeded`, `failed`                             |
+| WebhookEvent     | status         | `pending`, `processing`, `completed`, `failed`                          |
+| Sandbox          | status         | via DeploymentTarget                                                    |
+| SandboxSnapshot  | status         | `creating`, `ready`, `failed`, `deleted`                                |
+| ReleaseBundle    | status         | `building`, `ready`, `failed`, `expired`                                |
+| Route            | status         | `pending`, `active`, `error`, `expired`                                 |
+| Domain           | status         | `pending`, `verified`, `active`, `error`                                |
+| Tunnel           | status         | `connecting`, `active`, `disconnected`                                  |
+| IpAddress        | status         | `available`, `assigned`, `reserved`, `dhcp`                             |
 
 ### Type/Kind Enums
 
-| Entity | Enum | Values |
-|---|---|---|
-| ComponentSpec | kind | `server`, `worker`, `task`, `scheduled`, `site`, `database`, `gateway` |
-| Repo | kind | `product-module`, `platform-module`, `library`, `vendor-module`, `client-project`, `infra`, `docs`, `tool` |
-| Artifact | kind | `container_image`, `binary`, `archive`, `package`, `bundle` |
-| DeploymentTarget | kind | `production`, `staging`, `sandbox`, `dev` |
-| DeploymentTarget | runtime | `kubernetes`, `compose`, `systemd`, `windows_service`, `iis`, `process` |
-| DeploymentTarget | trigger | `manual`, `pr`, `release`, `agent`, `ci` |
-| Provider | providerType | `proxmox`, `hetzner`, `aws`, `gcp` |
-| Provider | providerKind | `internal`, `cloud`, `partner` |
-| GitHostProvider | hostType | `github`, `gitlab`, `gitea`, `bitbucket` |
-| GitHostProvider | authMode | `pat`, `github_app`, `oauth` |
-| WorkTrackerProvider | kind | `jira`, `linear` |
-| Agent | agentType | `engineering`, `qa`, `product`, `security`, `ops`, `external-mcp` |
-| Route | kind | `ingress`, `sandbox`, `preview`, `tunnel`, `custom_domain` |
-| Route | protocol | `http`, `grpc`, `tcp` |
-| Route | tlsMode | `auto`, `custom`, `none` |
-| Domain | kind | `primary`, `alias`, `custom`, `wildcard` |
-| Subnet | subnetType | `management`, `storage`, `vm`, `public`, `private`, `other` |
-| KubeNode | role | `server`, `agent` |
-| Host/VM | osType | `linux`, `windows` |
-| Host/VM | accessMethod | `ssh`, `winrm`, `rdp` |
-| Sandbox | runtimeType | `container`, `vm` |
-| Sandbox | ownerType | `user`, `agent` |
-| ReleaseBundle | arch | `amd64`, `arm64` |
-| InstallManifest | role | `site`, `factory` |
-| InstallManifest | installMode | `connected`, `offline` |
+| Entity              | Enum         | Values                                                                                                     |
+| ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| ComponentSpec       | kind         | `server`, `worker`, `task`, `scheduled`, `site`, `database`, `gateway`                                     |
+| Repo                | kind         | `product-module`, `platform-module`, `library`, `vendor-module`, `client-project`, `infra`, `docs`, `tool` |
+| Artifact            | kind         | `container_image`, `binary`, `archive`, `package`, `bundle`                                                |
+| DeploymentTarget    | kind         | `production`, `staging`, `sandbox`, `dev`                                                                  |
+| DeploymentTarget    | runtime      | `kubernetes`, `compose`, `systemd`, `windows_service`, `iis`, `process`                                    |
+| DeploymentTarget    | trigger      | `manual`, `pr`, `release`, `agent`, `ci`                                                                   |
+| Provider            | providerType | `proxmox`, `hetzner`, `aws`, `gcp`                                                                         |
+| Provider            | providerKind | `internal`, `cloud`, `partner`                                                                             |
+| GitHostProvider     | hostType     | `github`, `gitlab`, `gitea`, `bitbucket`                                                                   |
+| GitHostProvider     | authMode     | `pat`, `github_app`, `oauth`                                                                               |
+| WorkTrackerProvider | kind         | `jira`, `linear`                                                                                           |
+| Agent               | agentType    | `engineering`, `qa`, `product`, `security`, `ops`, `external-mcp`                                          |
+| Route               | kind         | `ingress`, `sandbox`, `preview`, `tunnel`, `custom_domain`                                                 |
+| Route               | protocol     | `http`, `grpc`, `tcp`                                                                                      |
+| Route               | tlsMode      | `auto`, `custom`, `none`                                                                                   |
+| Domain              | kind         | `primary`, `alias`, `custom`, `wildcard`                                                                   |
+| Subnet              | subnetType   | `management`, `storage`, `vm`, `public`, `private`, `other`                                                |
+| KubeNode            | role         | `server`, `agent`                                                                                          |
+| Host/VM             | osType       | `linux`, `windows`                                                                                         |
+| Host/VM             | accessMethod | `ssh`, `winrm`, `rdp`                                                                                      |
+| Sandbox             | runtimeType  | `container`, `vm`                                                                                          |
+| Sandbox             | ownerType    | `user`, `agent`                                                                                            |
+| ReleaseBundle       | arch         | `amd64`, `arm64`                                                                                           |
+| InstallManifest     | role         | `site`, `factory`                                                                                          |
+| InstallManifest     | installMode  | `connected`, `offline`                                                                                     |
 
 ### Database Schemas
 
-| Schema | Plane | Contains |
-|---|---|---|
-| `factory_product` | Product | Modules, ComponentSpecs, WorkItems, WorkTrackerProviders |
-| `factory_build` | Build | Repos, ModuleVersions, Artifacts, GitHostProviders, Webhooks |
-| `factory_fleet` | Fleet | Sites, Releases, DeploymentTargets, Workloads, Rollouts, Sandboxes, Routes, Domains, Tunnels |
-| `factory_infra` | Infrastructure | Providers, Regions, Datacenters, Clusters, Hosts, VMs, KubeNodes, Subnets, IpAddresses |
-| `factory_agent` | Agent | Agents, AgentExecutions |
-| `factory_commerce` | Commerce | CustomerAccounts, Plans, Entitlements, EntitlementBundles |
+| Schema             | Plane          | Contains                                                                                     |
+| ------------------ | -------------- | -------------------------------------------------------------------------------------------- |
+| `factory_product`  | Product        | Modules, ComponentSpecs, WorkItems, WorkTrackerProviders                                     |
+| `factory_build`    | Build          | Repos, ModuleVersions, Artifacts, GitHostProviders, Webhooks                                 |
+| `factory_fleet`    | Fleet          | Sites, Releases, DeploymentTargets, Workloads, Rollouts, Sandboxes, Routes, Domains, Tunnels |
+| `factory_infra`    | Infrastructure | Providers, Regions, Datacenters, Clusters, Hosts, VMs, KubeNodes, Subnets, IpAddresses       |
+| `factory_agent`    | Agent          | Agents, AgentExecutions                                                                      |
+| `factory_commerce` | Commerce       | CustomerAccounts, Plans, Entitlements, EntitlementBundles                                    |
 
 ---
 

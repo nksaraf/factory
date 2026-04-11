@@ -169,7 +169,7 @@ describe.skipIf(skipTunnel)(
         // Connect tunnel to production
         const wsUrl =
           FACTORY_URL!.replace(/^http/, "ws") +
-          "/api/factory/infra/tunnel-broker"
+          "/api/v1/factory/infra/tunnel-broker"
         console.log(
           `Connecting tunnel to ${wsUrl} with subdomain ${SUBDOMAIN}...`
         )
@@ -289,7 +289,7 @@ describe.skipIf(skipTunnel)(
 
       it("tunnel WS endpoint exists", async () => {
         const res = await fetch(
-          `http://localhost:${API_PORT}/api/factory/infra/tunnel-broker`
+          `http://localhost:${API_PORT}/api/v1/factory/infra/tunnel-broker`
         )
         expect([101, 400, 404, 426]).toContain(res.status)
       })
@@ -648,7 +648,7 @@ describe.skipIf(skipTunnel)(
         const reg = await new Promise<{ tunnelId: string; subdomain: string }>(
           (resolve, reject) => {
             const ws = new WebSocket(
-              `ws://localhost:${API_PORT}/api/factory/infra/tunnel-broker`
+              `ws://localhost:${API_PORT}/api/v1/factory/infra/tunnel-broker`
             )
             ws.binaryType = "arraybuffer"
             resumeWs = ws
@@ -724,7 +724,7 @@ describe.skipIf(skipTunnel)(
 
         await new Promise<void>((resolve, reject) => {
           const ws = new WebSocket(
-            `ws://localhost:${API_PORT}/api/factory/infra/tunnel-broker`
+            `ws://localhost:${API_PORT}/api/v1/factory/infra/tunnel-broker`
           )
           ws.binaryType = "arraybuffer"
 
@@ -819,7 +819,7 @@ async function registerTunnel(opts: RegisterOpts) {
   return new Promise<{ tunnelId: string; subdomain: string; url: string }>(
     (resolve, reject) => {
       const ws = new WebSocket(
-        `ws://localhost:${opts.port}/api/factory/infra/tunnel-broker`
+        `ws://localhost:${opts.port}/api/v1/factory/infra/tunnel-broker`
       )
       ws.binaryType = "arraybuffer"
       opts.onWs?.(ws)

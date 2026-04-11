@@ -72,7 +72,7 @@ async function fetchIdentities(
 ): Promise<IdentityLinkRow[]> {
   const res = await rest.request<{ data: IdentityLinkRow[] }>(
     "GET",
-    `/api/factory/org/principals/${principalId}/identities`
+    `/api/v1/factory/org/principals/${principalId}/identities`
   )
   return res?.data ?? []
 }
@@ -215,7 +215,7 @@ export async function runIdentityLink(
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/factory/org/principals/${principalSlug}/link-identity`,
+    `/api/v1/factory/org/principals/${principalSlug}/link-identity`,
     { type: provider, externalId, displayName }
   )
   actionResult(
@@ -235,7 +235,7 @@ export async function runIdentityUnlink(
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/factory/org/principals/${principalSlug}/unlink-identity`,
+    `/api/v1/factory/org/principals/${principalSlug}/unlink-identity`,
     { provider }
   )
   actionResult(
@@ -267,7 +267,7 @@ export async function runIdentityMerge(
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ data: unknown }>(
     "POST",
-    `/api/factory/org/principals/${keepSlug}/merge`,
+    `/api/v1/factory/org/principals/${keepSlug}/merge`,
     { duplicateId: dup.id }
   )
   actionResult(
@@ -284,7 +284,7 @@ export async function runIdentitySync(flags: DxFlags): Promise<void> {
   const rest = await getFactoryRestClient()
   const data = await rest.request<{ status: string; data: SyncResult[] }>(
     "POST",
-    "/api/factory/org/sync/identities",
+    "/api/v1/factory/org/sync/identities",
     {}
   )
 

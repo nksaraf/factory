@@ -31,7 +31,7 @@ export async function runCustomerList(flags: DxFlags): Promise<void> {
 
 export async function runCustomerShow(
   flags: DxFlags,
-  id: string,
+  id: string
 ): Promise<void> {
   const api = await getFactoryClient()
   const data = await apiCall(flags, () =>

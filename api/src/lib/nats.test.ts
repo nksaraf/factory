@@ -18,10 +18,12 @@ describe("nats module", () => {
     expect(result).toBeNull()
   })
 
-  it("publishToNats returns false when NATS is not connected", async () => {
+  it("publishToNats returns { ok: false } with error when NATS is not connected", async () => {
     delete process.env.NATS_URL
-    const { publishToNats } = await import("./nats")
+    const { publishToNats, resetNatsForTesting } = await import("./nats")
+    resetNatsForTesting()
     const result = await publishToNats("test.topic", '{"foo":"bar"}')
-    expect(result).toBe(false)
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain("NATS not connected")
   })
 })

@@ -306,6 +306,14 @@ export async function registerDomain(
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
 
+  const spec: DnsDomainSpec = {
+    verificationToken,
+    createdBy: input.createdBy,
+    verified: false,
+    status: "pending",
+    records: [],
+  }
+
   const [row] = await db
     .insert(dnsDomain)
     .values({
@@ -314,22 +322,18 @@ export async function registerDomain(
       type: input.type,
       fqdn: input.fqdn,
       siteId: input.siteId,
-      spec: {
-        verificationToken,
-        createdBy: input.createdBy,
-        dnsVerified: false,
-        status: "pending",
-      } as any,
+      spec,
     })
     .returning()
 
+  const rowSpec = row.spec as DnsDomainSpec
   return {
     ...row,
     domainId: row.id,
-    verificationToken: (row.spec as any)?.verificationToken,
-    createdBy: (row.spec as any)?.createdBy,
-    dnsVerified: (row.spec as any)?.dnsVerified ?? false,
-    status: (row.spec as any)?.status,
+    verificationToken: rowSpec.verificationToken,
+    createdBy: rowSpec.createdBy,
+    dnsVerified: rowSpec.verified ?? false,
+    status: rowSpec.status,
   }
 }
 
@@ -341,13 +345,14 @@ export async function getDomain(db: Database, domainId: string) {
     .limit(1)
 
   if (!row) return null
+  const spec = row.spec as DnsDomainSpec
   return {
     ...row,
     domainId: row.id,
-    verificationToken: (row.spec as any)?.verificationToken,
-    createdBy: (row.spec as any)?.createdBy,
-    dnsVerified: (row.spec as any)?.dnsVerified ?? false,
-    status: (row.spec as any)?.status,
+    verificationToken: spec.verificationToken,
+    createdBy: spec.createdBy,
+    dnsVerified: spec.verified ?? false,
+    status: spec.status,
   }
 }
 
@@ -359,13 +364,14 @@ export async function getDomainByFqdn(db: Database, fqdn: string) {
     .limit(1)
 
   if (!row) return null
+  const spec = row.spec as DnsDomainSpec
   return {
     ...row,
     domainId: row.id,
-    verificationToken: (row.spec as any)?.verificationToken,
-    createdBy: (row.spec as any)?.createdBy,
-    dnsVerified: (row.spec as any)?.dnsVerified ?? false,
-    status: (row.spec as any)?.status,
+    verificationToken: spec.verificationToken,
+    createdBy: spec.createdBy,
+    dnsVerified: spec.verified ?? false,
+    status: spec.status,
   }
 }
 
@@ -381,10 +387,10 @@ export async function updateDomain(
   const existing = await getDomain(db, domainId)
   if (!existing) return null
 
-  const newSpec = {
-    ...(existing.spec as any),
+  const newSpec: DnsDomainSpec = {
+    ...(existing.spec as DnsDomainSpec),
     ...(updates.dnsVerified !== undefined
-      ? { dnsVerified: updates.dnsVerified }
+      ? { verified: updates.dnsVerified }
       : {}),
     ...(updates.status !== undefined ? { status: updates.status } : {}),
     ...(updates.tlsCertRef !== undefined
@@ -399,11 +405,12 @@ export async function updateDomain(
     .returning()
 
   if (!row) return null
+  const rowSpec = row.spec as DnsDomainSpec
   return {
     ...row,
     domainId: row.id,
-    dnsVerified: (row.spec as any)?.dnsVerified ?? false,
-    status: (row.spec as any)?.status,
+    dnsVerified: rowSpec.verified ?? false,
+    status: rowSpec.status,
   }
 }
 
@@ -461,6 +468,50 @@ export async function verifyDomain(
     status: "verified",
   })
 
+  // Create IP entities + dns-resolution links from resolved A/AAAA records
+  const resolvedA = await dns.resolve4(dom.fqdn).catch(() => [])
+  const resolvedAAAA = await dns.resolve6(dom.fqdn).catch(() => [])
+  const resolved = [
+    ...resolvedA.map((address) => ({ address, recordType: "A" as const })),
+    ...resolvedAAAA.map((address) => ({
+      address,
+      recordType: "AAAA" as const,
+    })),
+  ]
+
+  for (const rec of resolved) {
+    const ip = await ensureIp(db, {
+      address: rec.address,
+      spec: {
+        version: rec.recordType === "AAAA" ? "v6" : "v4",
+        scope:
+          rec.recordType === "A" && isRfc1918(rec.address)
+            ? "private"
+            : "public",
+      },
+    })
+    const linkSlug = slugify(`dns-${dom.fqdn}-${rec.recordType}-${rec.address}`)
+    await db
+      .insert(networkLink)
+      .values({
+        id: newId("nlnk"),
+        slug: linkSlug,
+        name: `${dom.fqdn} → ${rec.address}`,
+        type: "dns-resolution",
+        sourceKind: "dns-domain",
+        sourceId: domainId,
+        targetKind: "ip-address",
+        targetId: ip.ipAddressId,
+        spec: {
+          recordType: rec.recordType,
+          enabled: true,
+          priority: 0,
+          middlewares: [],
+        } as any,
+      })
+      .onConflictDoNothing()
+  }
+
   // Auto-create a custom-domain route for this domain
   const newRoute = await createRoute(db, {
     type: "custom-domain",
@@ -472,6 +523,22 @@ export async function verifyDomain(
   })
 
   return { verified: true, domain: updated, route: newRoute }
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
+function isRfc1918(ip: string): boolean {
+  const parts = ip.split(".").map(Number)
+  if (parts[0] === 10) return true
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  if (parts[0] === 192 && parts[1] === 168) return true
+  return false
 }
 
 // ---------------------------------------------------------------------------

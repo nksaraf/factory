@@ -48,25 +48,25 @@ Every data query follows four steps:
 
 ### 4.1 Why These Choices
 
-| Decision | Alternative considered | Why this is faster |
-|---|---|---|
-| `ltree` with GiST index | TEXT with `LIKE` + `text_pattern_ops` | GiST on ltree is purpose-built for ancestor/descendant queries. `<@` operator uses index-native containment checks. LIKE requires sequential prefix comparison. At depth 5+, ltree is 3-10x faster. |
-| `smallint` for classifications | TEXT with `= ANY()` | Integer comparison is 3-5x faster than string comparison. Smaller column width = more rows per page = fewer I/O ops. Index is ~40% smaller. |
-| RLS for scopes (not just tenant) | SDK WHERE clause injection | RLS is applied at the query planner level before execution. The planner can use RLS predicates for index selection and partition pruning. SDK-injected WHERE clauses are applied after planning in some ORMs. |
-| Cached scope resolution | SpiceDB call per request | Scope assignments change on admin action (rare). Caching with event-driven invalidation eliminates >99% of SpiceDB round-trips. |
-| Table partitioning | Single table with indexes | At 1B+ rows, even good indexes produce large btree structures. Partition pruning eliminates entire partitions from consideration before index lookup. |
-| BRIN for time-series | Btree for time columns | BRIN indexes are ~1000x smaller than btree for naturally ordered data. Smaller index = fits in memory = faster scans. |
-| Covering indexes | Standard indexes + heap fetch | Index-only scans avoid heap page fetches entirely. For narrow SELECT lists (dashboards, lists), this eliminates 50-80% of I/O. |
+| Decision                         | Alternative considered                | Why this is faster                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ltree` with GiST index          | TEXT with `LIKE` + `text_pattern_ops` | GiST on ltree is purpose-built for ancestor/descendant queries. `<@` operator uses index-native containment checks. LIKE requires sequential prefix comparison. At depth 5+, ltree is 3-10x faster.           |
+| `smallint` for classifications   | TEXT with `= ANY()`                   | Integer comparison is 3-5x faster than string comparison. Smaller column width = more rows per page = fewer I/O ops. Index is ~40% smaller.                                                                   |
+| RLS for scopes (not just tenant) | SDK WHERE clause injection            | RLS is applied at the query planner level before execution. The planner can use RLS predicates for index selection and partition pruning. SDK-injected WHERE clauses are applied after planning in some ORMs. |
+| Cached scope resolution          | SpiceDB call per request              | Scope assignments change on admin action (rare). Caching with event-driven invalidation eliminates >99% of SpiceDB round-trips.                                                                               |
+| Table partitioning               | Single table with indexes             | At 1B+ rows, even good indexes produce large btree structures. Partition pruning eliminates entire partitions from consideration before index lookup.                                                         |
+| BRIN for time-series             | Btree for time columns                | BRIN indexes are ~1000x smaller than btree for naturally ordered data. Smaller index = fits in memory = faster scans.                                                                                         |
+| Covering indexes                 | Standard indexes + heap fetch         | Index-only scans avoid heap page fetches entirely. For narrow SELECT lists (dashboards, lists), this eliminates 50-80% of I/O.                                                                                |
 
 ### 4.2 Enforcement Layers
 
-| Layer | Mechanism | Strictness | Bypassable? |
-|---|---|---|---|
-| Tenant isolation | RLS on `tenant_id` (session variable) | **Hard** — database-enforced | Never. |
-| Scope boundaries | RLS on `ltree` scope columns (session variables) | **Hard** — database-enforced | Never in normal operation. Requires `SET ROLE` to platform superuser for admin ops. |
-| Classification gates | SDK WHERE clause injection | **Soft** — SDK-enforced | Yes, with explicit opt-out + audit. |
-| Boolean gates | SDK WHERE clause injection | **Soft** — SDK-enforced | Yes, with explicit opt-out + audit. |
-| Runtime constraints | Custom Runtime pre-check | **Soft** — request rejected pre-query | No. Failure prevents query execution. |
+| Layer                | Mechanism                                        | Strictness                            | Bypassable?                                                                         |
+| -------------------- | ------------------------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Tenant isolation     | RLS on `tenant_id` (session variable)            | **Hard** — database-enforced          | Never.                                                                              |
+| Scope boundaries     | RLS on `ltree` scope columns (session variables) | **Hard** — database-enforced          | Never in normal operation. Requires `SET ROLE` to platform superuser for admin ops. |
+| Classification gates | SDK WHERE clause injection                       | **Soft** — SDK-enforced               | Yes, with explicit opt-out + audit.                                                 |
+| Boolean gates        | SDK WHERE clause injection                       | **Soft** — SDK-enforced               | Yes, with explicit opt-out + audit.                                                 |
+| Runtime constraints  | Custom Runtime pre-check                         | **Soft** — request rejected pre-query | No. Failure prevents query execution.                                               |
 
 **Design upgrade from v2:** Scopes are now RLS-enforced (hard), not SDK-injected (soft). This means product code physically cannot bypass scope boundaries — the database itself refuses to return out-of-scope rows, just like it refuses cross-tenant rows. Classifications remain SDK-injected because they have legitimate bypass scenarios (admin dashboards, reports).
 
@@ -169,13 +169,13 @@ WHERE sensitivity = ANY(ARRAY[1, 2]::smallint[])
 ```typescript
 // Product code uses labels
 await trafficSensors.insert(ctx, {
-  sensitivity: 'internal',     // SDK resolves to smallint 2
-  criticality: 'p3',           // SDK resolves to smallint 3
+  sensitivity: "internal", // SDK resolves to smallint 2
+  criticality: "p3", // SDK resolves to smallint 3
   // ...
-});
+})
 
 // Query results are enriched back to labels by SDK
-const nodes = await trafficSensors.query(ctx).select('*');
+const nodes = await trafficSensors.query(ctx).select("*")
 // nodes[0].sensitivity === 'internal'  (not 2)
 ```
 
@@ -274,7 +274,9 @@ The SDK provides this as:
 
 ```typescript
 // Bypasses scope RLS (not tenant RLS — that's never bypassable)
-const results = await networkNodes.query(ctx.withScopeElevation('admin_dashboard'));
+const results = await networkNodes.query(
+  ctx.withScopeElevation("admin_dashboard")
+)
 
 // Under the hood: SET app.scope_{type}_unrestricted = 'true' for this connection
 // Audit log entry created automatically
@@ -292,33 +294,33 @@ SpiceDB resolution takes ~5-10ms per request (network hop + graph traversal). At
 
 ```typescript
 interface CachedScopeProfile {
-  principal_id: string;
-  tenant_id: string;
-  scopes: Record<string, ScopeResolution>;
-  clearances: Record<string, ClassificationClearance>;
-  resolved_at: number;        // timestamp
-  version: number;            // incremented on invalidation
+  principal_id: string
+  tenant_id: string
+  scopes: Record<string, ScopeResolution>
+  clearances: Record<string, ClassificationClearance>
+  resolved_at: number // timestamp
+  version: number // incremented on invalidation
 }
 ```
 
 **Cache layers:**
 
-| Layer | Storage | TTL | Hit rate | Latency |
-|---|---|---|---|---|
-| L1: In-process | Node.js Map per worker | 30 seconds | ~85% | <0.01ms |
-| L2: Shared | Redis / KeyDB | 5 minutes | ~14% | <1ms |
-| L3: SpiceDB | Network call | — (source of truth) | ~1% | 5-10ms |
+| Layer          | Storage                | TTL                 | Hit rate | Latency |
+| -------------- | ---------------------- | ------------------- | -------- | ------- |
+| L1: In-process | Node.js Map per worker | 30 seconds          | ~85%     | <0.01ms |
+| L2: Shared     | Redis / KeyDB          | 5 minutes           | ~14%     | <1ms    |
+| L3: SpiceDB    | Network call           | — (source of truth) | ~1%      | 5-10ms  |
 
 **Invalidation:** When an admin changes a principal's scope assignments (grants, revokes, group membership changes), the Control Plane publishes an invalidation event:
 
 ```typescript
 // On scope assignment change (Control Plane admin API)
-await outbox.publish('scope.principal.invalidated', {
+await outbox.publish("scope.principal.invalidated", {
   tenant_id: tenantId,
   principal_id: principalId,
-  scope_types_affected: ['geo', 'infra_tier'],
+  scope_types_affected: ["geo", "infra_tier"],
   timestamp: Date.now(),
-});
+})
 
 // All instances clear L1 + L2 for this principal
 // Next request triggers L3 (SpiceDB) resolution
@@ -327,11 +329,11 @@ await outbox.publish('scope.principal.invalidated', {
 **On hierarchy structure change** (node renamed, moved, split), invalidate ALL principals in the affected tenant for the affected scope_type:
 
 ```typescript
-await outbox.publish('scope.hierarchy.invalidated', {
+await outbox.publish("scope.hierarchy.invalidated", {
   tenant_id: tenantId,
-  scope_type: 'geo',
+  scope_type: "geo",
   timestamp: Date.now(),
-});
+})
 // Bulk invalidation — all principals in this tenant re-resolve geo scope on next request
 ```
 
@@ -343,22 +345,29 @@ For connection pooling (PgBouncer / built-in pool), the SDK hooks into the check
 
 ```typescript
 // Connection checkout hook
-pool.on('checkout', async (connection) => {
-  const ctx = getCurrentRequestContext();
-  const profile = await scopeCache.get(ctx.principalId); // L1 -> L2 -> L3
+pool.on("checkout", async (connection) => {
+  const ctx = getCurrentRequestContext()
+  const profile = await scopeCache.get(ctx.principalId) // L1 -> L2 -> L3
 
-  await connection.query(`
+  await connection.query(
+    `
     SET app.tenant_id = $1;
     SET app.scope_geo = $2;
     SET app.scope_geo_unrestricted = $3;
     -- ... all scope variables
-  `, [profile.tenant_id, profile.scopes.geo.ltree_value, profile.scopes.geo.is_unrestricted]);
-});
+  `,
+    [
+      profile.tenant_id,
+      profile.scopes.geo.ltree_value,
+      profile.scopes.geo.is_unrestricted,
+    ]
+  )
+})
 
 // Connection checkin hook — reset to prevent leakage
-pool.on('checkin', async (connection) => {
-  await connection.query('RESET ALL');
-});
+pool.on("checkin", async (connection) => {
+  await connection.query("RESET ALL")
+})
 ```
 
 ---
@@ -367,12 +376,12 @@ pool.on('checkin', async (connection) => {
 
 ### 8.1 When to Partition
 
-| Table size | Strategy |
-|---|---|
-| < 10M rows | No partitioning. Indexes are sufficient. |
-| 10M – 100M rows | Partition by `tenant_id` (hash, 16-64 partitions) if multi-tenant. |
-| 100M – 1B rows | Partition by `tenant_id` (hash) + sub-partition by primary scope or time. |
-| > 1B rows | Partition by `tenant_id` (list for large tenants, hash for small) + sub-partition by primary scope (range on ltree) or time (range on timestamp). |
+| Table size      | Strategy                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| < 10M rows      | No partitioning. Indexes are sufficient.                                                                                                          |
+| 10M – 100M rows | Partition by `tenant_id` (hash, 16-64 partitions) if multi-tenant.                                                                                |
+| 100M – 1B rows  | Partition by `tenant_id` (hash) + sub-partition by primary scope or time.                                                                         |
+| > 1B rows       | Partition by `tenant_id` (list for large tenants, hash for small) + sub-partition by primary scope (range on ltree) or time (range on timestamp). |
 
 ### 8.2 Partition-Aware RLS
 
@@ -383,49 +392,47 @@ For a billion-row table with 64 hash partitions, this immediately reduces the se
 ### 8.3 Migration Helper with Partitioning
 
 ```typescript
-import { createPartitionedTable } from '@platform-fabric/sdk/migrations';
+import { createPartitionedTable } from "@platform-fabric/sdk/migrations"
 
 export async function up(knex) {
-  await createPartitionedTable(knex, 'network_nodes', {
+  await createPartitionedTable(knex, "network_nodes", {
     // Partition strategy
-    partitionBy: 'hash',
-    partitionColumn: 'tenant_id',
+    partitionBy: "hash",
+    partitionColumn: "tenant_id",
     partitionCount: 64,
 
     // Columns (includes scope + classification columns)
     columns: (t) => {
-      t.uuid('tenant_id').notNullable();
-      t.specificType('geo', 'ltree').notNullable();
-      t.specificType('infra_tier', 'ltree');
-      t.smallint('sensitivity').notNullable().defaultTo(1);
-      t.smallint('criticality');
-      t.boolean('has_pii').notNullable().defaultTo(false);
+      t.uuid("tenant_id").notNullable()
+      t.specificType("geo", "ltree").notNullable()
+      t.specificType("infra_tier", "ltree")
+      t.smallint("sensitivity").notNullable().defaultTo(1)
+      t.smallint("criticality")
+      t.boolean("has_pii").notNullable().defaultTo(false)
       // product columns
-      t.text('node_name');
-      t.float('lat');
-      t.float('lng');
-      t.specificType('geom', 'geometry(Point, 4326)');
-      t.text('status');
-      t.timestamp('last_maintenance');
+      t.text("node_name")
+      t.float("lat")
+      t.float("lng")
+      t.specificType("geom", "geometry(Point, 4326)")
+      t.text("status")
+      t.timestamp("last_maintenance")
     },
 
     // Scope dimensions (generates RLS policies + GiST indexes)
     scopes: [
-      { scopeType: 'geo',        column: 'geo',        inheritance: 'downward' },
-      { scopeType: 'infra_tier', column: 'infra_tier',  inheritance: 'strict' },
+      { scopeType: "geo", column: "geo", inheritance: "downward" },
+      { scopeType: "infra_tier", column: "infra_tier", inheritance: "strict" },
     ],
 
     // Classification dimensions (generates btree indexes)
     classifications: [
-      { classificationType: 'sensitivity', column: 'sensitivity' },
-      { classificationType: 'criticality', column: 'criticality' },
+      { classificationType: "sensitivity", column: "sensitivity" },
+      { classificationType: "criticality", column: "criticality" },
     ],
 
     // Boolean gates
-    booleanGates: [
-      { name: 'pii', column: 'has_pii' },
-    ],
-  });
+    booleanGates: [{ name: "pii", column: "has_pii" }],
+  })
 }
 ```
 
@@ -505,13 +512,13 @@ CREATE INDEX idx_network_nodes_sensitivity ON network_nodes (tenant_id, sensitiv
 
 ### 9.1 Per-Dimension Index Types
 
-| Dimension type | Column type | Index type | Why |
-|---|---|---|---|
-| Scope (hierarchical) | `ltree` | GiST | Purpose-built for `<@` (descendant) and `@>` (ancestor) queries. Handles multi-path `<@ ANY(array)` in a single scan. |
-| Classification (flat) | `smallint` | Btree composite with `tenant_id` | Integer btree is compact. Leading `tenant_id` aligns with RLS partition pruning. |
-| Boolean gate | `boolean` | Partial index | `WHERE has_pii = true` — index only the minority case. |
-| Time-series column | `timestamptz` | BRIN (block range) | ~1000x smaller than btree for naturally ordered data. |
-| Spatial column | `geometry` | GiST (PostGIS) | Standard spatial index. Combined with scope via bitmap AND. |
+| Dimension type        | Column type   | Index type                       | Why                                                                                                                   |
+| --------------------- | ------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Scope (hierarchical)  | `ltree`       | GiST                             | Purpose-built for `<@` (descendant) and `@>` (ancestor) queries. Handles multi-path `<@ ANY(array)` in a single scan. |
+| Classification (flat) | `smallint`    | Btree composite with `tenant_id` | Integer btree is compact. Leading `tenant_id` aligns with RLS partition pruning.                                      |
+| Boolean gate          | `boolean`     | Partial index                    | `WHERE has_pii = true` — index only the minority case.                                                                |
+| Time-series column    | `timestamptz` | BRIN (block range)               | ~1000x smaller than btree for naturally ordered data.                                                                 |
+| Spatial column        | `geometry`    | GiST (PostGIS)                   | Standard spatial index. Combined with scope via bitmap AND.                                                           |
 
 ### 9.2 Covering Indexes for Hot Queries
 
@@ -611,10 +618,10 @@ Classifications and boolean gates remain SDK-compiled (not RLS) because they hav
 
 ```typescript
 interface PredicateSet {
-  clauses: string[];        // ['sensitivity = ANY($1::smallint[])', 'has_pii = FALSE']
-  params: any[];            // [[1, 2]]
-  omitted: string[];        // unrestricted dimensions
-  audit: PredicateAudit;
+  clauses: string[] // ['sensitivity = ANY($1::smallint[])', 'has_pii = FALSE']
+  params: any[] // [[1, 2]]
+  omitted: string[] // unrestricted dimensions
+  audit: PredicateAudit
 }
 ```
 
@@ -628,7 +635,7 @@ Cached mapping from classification labels to integer codes:
 
 ```typescript
 // Resolved at startup and on classification_values table change
-const classificationMap = await loadClassificationMap(tenantId);
+const classificationMap = await loadClassificationMap(tenantId)
 // { sensitivity: { unclassified: 1, internal: 2, confidential: 3, restricted: 4 },
 //   criticality: { p1: 1, p2: 2, p3: 3, p4: 4 } }
 
@@ -642,28 +649,26 @@ const classificationMap = await loadClassificationMap(tenantId);
 ### 11.1 Declare Dimensions Per Table
 
 ```typescript
-import { defineTableScoping } from '@platform-fabric/sdk/scoping';
+import { defineTableScoping } from "@platform-fabric/sdk/scoping"
 
-export const networkNodes = defineTableScoping('network_nodes', {
+export const networkNodes = defineTableScoping("network_nodes", {
   scopes: [
-    { scopeType: 'geo',         column: 'geo',         inheritance: 'downward' },
-    { scopeType: 'infra_tier',  column: 'infra_tier',   inheritance: 'strict' },
+    { scopeType: "geo", column: "geo", inheritance: "downward" },
+    { scopeType: "infra_tier", column: "infra_tier", inheritance: "strict" },
   ],
   classifications: [
-    { classificationType: 'sensitivity', column: 'sensitivity' },
-    { classificationType: 'criticality', column: 'criticality' },
+    { classificationType: "sensitivity", column: "sensitivity" },
+    { classificationType: "criticality", column: "criticality" },
   ],
-  booleanGates: [
-    { name: 'pii', column: 'has_pii' },
-  ],
+  booleanGates: [{ name: "pii", column: "has_pii" }],
   hotQueries: [
     {
-      name: 'dashboard',
-      indexColumns: ['tenant_id', 'geo', 'status'],
-      includeColumns: ['node_name', 'lat', 'lng', 'last_maintenance'],
+      name: "dashboard",
+      indexColumns: ["tenant_id", "geo", "status"],
+      includeColumns: ["node_name", "lat", "lng", "last_maintenance"],
     },
   ],
-});
+})
 ```
 
 If an org has dimensions that don't apply to this table, don't declare them. The RLS policy is only generated for declared dimensions. The compiler skips undeclared dimensions.
@@ -672,31 +677,31 @@ If an org has dimensions that don't apply to this table, don't declare them. The
 
 ```typescript
 async function createNode(ctx: RequestContext, input: NodeInput) {
-  const geoValue = await resolver.resolveLtree('geo', input.region);
-  const infraValue = await resolver.resolveLtree('infra_tier', input.tier);
+  const geoValue = await resolver.resolveLtree("geo", input.region)
+  const infraValue = await resolver.resolveLtree("infra_tier", input.tier)
 
   return networkNodes.insert(ctx, {
-    geo: geoValue,                  // ltree: 'in.mh.mumbai.west'
-    infra_tier: infraValue,         // ltree: 'core.aggr.dist.access'
-    sensitivity: 'unclassified',    // SDK resolves to smallint 1
-    criticality: 'p3',             // SDK resolves to smallint 3
+    geo: geoValue, // ltree: 'in.mh.mumbai.west'
+    infra_tier: infraValue, // ltree: 'core.aggr.dist.access'
+    sensitivity: "unclassified", // SDK resolves to smallint 1
+    criticality: "p3", // SDK resolves to smallint 3
     has_pii: false,
     node_name: input.name,
     lat: input.latitude,
     lng: input.longitude,
-  });
+  })
 }
 ```
 
 **SDK validates on insert:**
 
-| Rule | Enforcement | Failure |
-|---|---|---|
-| `tenant_id` must be set | SDK middleware (automatic) | 400 error |
-| Declared scope columns must be non-null (unless nullable) | SDK insert hook | 400 with column name |
-| ltree values must be valid format | SDK validation | 400 with invalid value |
-| ltree values must match existing hierarchy node | SDK validation (opt-in) | 400 with unresolved node |
-| Classification labels must exist in lookup table | SDK validation | 400 with unknown label |
+| Rule                                                      | Enforcement                | Failure                  |
+| --------------------------------------------------------- | -------------------------- | ------------------------ |
+| `tenant_id` must be set                                   | SDK middleware (automatic) | 400 error                |
+| Declared scope columns must be non-null (unless nullable) | SDK insert hook            | 400 with column name     |
+| ltree values must be valid format                         | SDK validation             | 400 with invalid value   |
+| ltree values must match existing hierarchy node           | SDK validation (opt-in)    | 400 with unresolved node |
+| Classification labels must exist in lookup table          | SDK validation             | 400 with unknown label   |
 
 ### 11.3 Use Scoped Queries for Reads
 
@@ -706,10 +711,10 @@ async function createNode(ctx: RequestContext, input: NodeInput) {
 async function listNodes(ctx: RequestContext) {
   return networkNodes
     .query(ctx)
-    .select('node_id', 'node_name', 'lat', 'lng')
-    .where('status', 'active')
-    .orderBy('last_maintenance', 'asc')
-    .limit(200);
+    .select("node_id", "node_name", "lat", "lng")
+    .where("status", "active")
+    .orderBy("last_maintenance", "asc")
+    .limit(200)
 }
 ```
 
@@ -755,15 +760,17 @@ async function spatialAnalysis(ctx: RequestContext) {
   // RLS handles all scope enforcement automatically
   // Only need classification predicates manually for joined tables
   const storePreds = compileScopePredicates(ctx, {
-    table: 'stores', alias: 's',
+    table: "stores",
+    alias: "s",
     classifications: [
-      { classificationType: 'sensitivity', column: 'sensitivity' },
+      { classificationType: "sensitivity", column: "sensitivity" },
     ],
-    booleanGates: [{ name: 'pii', column: 'has_pii' }],
-  });
+    booleanGates: [{ name: "pii", column: "has_pii" }],
+  })
 
   // Note: NO scope predicates in raw SQL — RLS handles them
-  const result = await db.raw(`
+  const result = await db.raw(
+    `
     SELECT s.store_id, s.store_name,
            ST_Distance(s.geom, c.geom) as competitor_dist,
            f.weekly_footfall
@@ -773,25 +780,27 @@ async function spatialAnalysis(ctx: RequestContext) {
     WHERE ${storePreds.whereClause}
       AND f.period = ?
     ORDER BY f.weekly_footfall DESC
-  `, [...storePreds.params, '2026-W10']);
+  `,
+    [...storePreds.params, "2026-W10"]
+  )
 
-  return result.rows;
+  return result.rows
 }
 ```
 
 ### 11.4 Register for Hierarchy Mutations
 
 ```typescript
-import { onHierarchyRewrite } from '@platform-fabric/sdk/scopes';
+import { onHierarchyRewrite } from "@platform-fabric/sdk/scopes"
 
-onHierarchyRewrite('geo', {
+onHierarchyRewrite("geo", {
   tables: [
-    { name: 'network_nodes',    column: 'geo' },
-    { name: 'sensor_readings',  column: 'geo' },
-    { name: 'incident_reports', column: 'geo' },
+    { name: "network_nodes", column: "geo" },
+    { name: "sensor_readings", column: "geo" },
+    { name: "incident_reports", column: "geo" },
   ],
   batchSize: 10000,
-});
+})
 ```
 
 **ltree mutation is cleaner than TEXT path rewriting:**
@@ -834,23 +843,23 @@ q1_2026.smartmarket_v2           -- project portfolio
 
 ### 12.2 Query Operators
 
-| Operator | Meaning | Example | Use case |
-|---|---|---|---|
-| `<@` | Is descendant of (or equal) | `geo <@ 'in.mh'` | Downward inheritance — see all within |
-| `@>` | Is ancestor of (or equal) | `geo @> 'in.mh.mumbai.west'` | "Which scopes cover this node?" |
-| `=` | Exact match | `infra_tier = 'core.aggr.dist.access'` | Strict inheritance mode |
-| `<@ ANY(arr)` | Descendant of any in array | `geo <@ ANY('{in.mh.mumbai,in.gj.ahmedabad}'::ltree[])` | Multi-path scope |
-| `nlevel()` | Depth of path | `nlevel(geo) = 3` | Filter/aggregate by level |
-| `subpath(p, off, len)` | Extract sub-path | `subpath(geo, 0, 2)` = `'in.mh'` | Subtree extraction |
-| `lca(p1, p2)` | Lowest common ancestor | `lca(a.geo, b.geo)` | Scope overlap analysis |
+| Operator               | Meaning                     | Example                                                 | Use case                              |
+| ---------------------- | --------------------------- | ------------------------------------------------------- | ------------------------------------- |
+| `<@`                   | Is descendant of (or equal) | `geo <@ 'in.mh'`                                        | Downward inheritance — see all within |
+| `@>`                   | Is ancestor of (or equal)   | `geo @> 'in.mh.mumbai.west'`                            | "Which scopes cover this node?"       |
+| `=`                    | Exact match                 | `infra_tier = 'core.aggr.dist.access'`                  | Strict inheritance mode               |
+| `<@ ANY(arr)`          | Descendant of any in array  | `geo <@ ANY('{in.mh.mumbai,in.gj.ahmedabad}'::ltree[])` | Multi-path scope                      |
+| `nlevel()`             | Depth of path               | `nlevel(geo) = 3`                                       | Filter/aggregate by level             |
+| `subpath(p, off, len)` | Extract sub-path            | `subpath(geo, 0, 2)` = `'in.mh'`                        | Subtree extraction                    |
+| `lca(p1, p2)`          | Lowest common ancestor      | `lca(a.geo, b.geo)`                                     | Scope overlap analysis                |
 
 ### 12.3 Inheritance Modes
 
-| Mode | Operator | Behavior | Example |
-|---|---|---|---|
-| `downward` | `<@` | Access at parent includes all descendants | Geo: Maharashtra includes Mumbai, Pune, all districts |
-| `strict` | `=` | Access at node X means only X, not its children or parent | Infra: access-tier access does NOT imply distribution-tier |
-| `downward_only` | `<@` with level check | Access at node X includes descendants but not ancestors | Channel: distributor sees reseller data, not vice versa |
+| Mode            | Operator              | Behavior                                                  | Example                                                    |
+| --------------- | --------------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
+| `downward`      | `<@`                  | Access at parent includes all descendants                 | Geo: Maharashtra includes Mumbai, Pune, all districts      |
+| `strict`        | `=`                   | Access at node X means only X, not its children or parent | Infra: access-tier access does NOT imply distribution-tier |
+| `downward_only` | `<@` with level check | Access at node X includes descendants but not ancestors   | Channel: distributor sees reseller data, not vice versa    |
 
 The inheritance mode is configured per scope_type in the Ontology Registry. The RLS policy generator reads this config to select the correct operator.
 
@@ -860,15 +869,15 @@ The inheritance mode is configured per scope_type in the Ontology Registry. The 
 
 Classifications are flat label dimensions. No hierarchy, no paths. Just a set of org-defined values, and a set of values the principal is cleared for.
 
-| Property | Scope dimension | Classification dimension |
-|---|---|---|
-| Structure | Hierarchical (tree) | Flat (set of labels) |
-| Column type | `ltree` | `smallint` (mapped to label) |
-| Predicate | `<@` (descendant) or `=` (strict) | `= ANY(cleared_ids)` |
-| Enforcement | RLS (hard) | SDK WHERE (soft, bypassable with audit) |
-| Inheritance | Configurable per type | None — explicit clearance required |
-| Index type | GiST | Btree composite |
-| Typical cardinality | Deep (5+ levels, thousands of nodes) | Shallow (3-10 values per type) |
+| Property            | Scope dimension                      | Classification dimension                |
+| ------------------- | ------------------------------------ | --------------------------------------- |
+| Structure           | Hierarchical (tree)                  | Flat (set of labels)                    |
+| Column type         | `ltree`                              | `smallint` (mapped to label)            |
+| Predicate           | `<@` (descendant) or `=` (strict)    | `= ANY(cleared_ids)`                    |
+| Enforcement         | RLS (hard)                           | SDK WHERE (soft, bypassable with audit) |
+| Inheritance         | Configurable per type                | None — explicit clearance required      |
+| Index type          | GiST                                 | Btree composite                         |
+| Typical cardinality | Deep (5+ levels, thousands of nodes) | Shallow (3-10 values per type)          |
 
 ---
 
@@ -876,14 +885,14 @@ Classifications are flat label dimensions. No hierarchy, no paths. Just a set of
 
 Targets for a table with 1.2 billion rows, 64 hash partitions, GiST on ltree.
 
-| Scenario | Rows scanned | Rows returned | Expected latency |
-|---|---|---|---|
-| Single narrow scope (city zone, 1 tier) | ~45K | ~35K | <150ms |
-| Regional scope (state-wide, all tiers) | ~180M | ~170M (paginated) | <250ms first page |
-| National scope (unrestricted geo) | ~300M | ~280M (paginated) | <300ms first page |
-| Cross-scope join (spatial + scope) | ~4K stores x spatial | ~3.5K | <400ms |
-| Time-range + scope (BRIN + GiST) | ~100K | ~50K | <100ms |
-| Dashboard with covering index | ~200 | 200 | <20ms |
+| Scenario                                | Rows scanned         | Rows returned     | Expected latency  |
+| --------------------------------------- | -------------------- | ----------------- | ----------------- |
+| Single narrow scope (city zone, 1 tier) | ~45K                 | ~35K              | <150ms            |
+| Regional scope (state-wide, all tiers)  | ~180M                | ~170M (paginated) | <250ms first page |
+| National scope (unrestricted geo)       | ~300M                | ~280M (paginated) | <300ms first page |
+| Cross-scope join (spatial + scope)      | ~4K stores x spatial | ~3.5K             | <400ms            |
+| Time-range + scope (BRIN + GiST)        | ~100K                | ~50K              | <100ms            |
+| Dashboard with covering index           | ~200                 | 200               | <20ms             |
 
 **What makes this fast:**
 
@@ -915,16 +924,22 @@ No step is wasted. Partition pruning removes 63/64 of data. GiST ltree narrows t
 
 ```typescript
 // Bypass scope RLS for admin dashboard
-const results = await networkNodes.query(ctx.withScopeElevation('admin_dashboard'));
+const results = await networkNodes.query(
+  ctx.withScopeElevation("admin_dashboard")
+)
 // Under the hood: SET app.scope_{type}_unrestricted = 'true'
 // Audit entry created automatically
 
 // Bypass classification predicates
-const results = await networkNodes.query(ctx.withClassificationBypass(['sensitivity']));
+const results = await networkNodes.query(
+  ctx.withClassificationBypass(["sensitivity"])
+)
 // Omits sensitivity from SDK WHERE clause
 
 // Full bypass (platform admin tools only)
-const results = await networkNodes.query(ctx.withFullElevation('MIGRATION-1234'));
+const results = await networkNodes.query(
+  ctx.withFullElevation("MIGRATION-1234")
+)
 // All scopes unrestricted + all classifications omitted
 // tenant_id RLS is NEVER bypassed
 ```
@@ -955,66 +970,91 @@ const results = await networkNodes.query(ctx.withFullElevation('MIGRATION-1234')
 ### 16.2 SDK Test Helpers
 
 ```typescript
-import { createTestContext, seed } from '@platform-fabric/sdk/testing';
+import { createTestContext, seed } from "@platform-fabric/sdk/testing"
 
-describe('network_nodes scope isolation', () => {
-  it('geo scope excludes out-of-scope rows via RLS', async () => {
+describe("network_nodes scope isolation", () => {
+  it("geo scope excludes out-of-scope rows via RLS", async () => {
     const ctx = createTestContext({
-      tenantId: 'test-tenant',
+      tenantId: "test-tenant",
       scopes: {
-        geo: { ltree_values: ['in.mh.mumbai.west'], inheritance: 'downward' },
-        infra_tier: { ltree_values: ['core.aggr.dist.access'], inheritance: 'strict' },
+        geo: { ltree_values: ["in.mh.mumbai.west"], inheritance: "downward" },
+        infra_tier: {
+          ltree_values: ["core.aggr.dist.access"],
+          inheritance: "strict",
+        },
       },
       clearances: {
         sensitivity: { cleared_ids: [1, 2] },
       },
-    });
+    })
 
-    await seed('network_nodes', [
-      { geo: 'in.mh.mumbai.west',  infra_tier: 'core.aggr.dist.access', sensitivity: 1, name: 'visible' },
-      { geo: 'in.mh.mumbai.east',  infra_tier: 'core.aggr.dist.access', sensitivity: 1, name: 'wrong-geo' },
-      { geo: 'in.mh.mumbai.west',  infra_tier: 'core',                  sensitivity: 1, name: 'wrong-tier' },
-      { geo: 'in.mh.mumbai.west',  infra_tier: 'core.aggr.dist.access', sensitivity: 4, name: 'wrong-class' },
-    ]);
+    await seed("network_nodes", [
+      {
+        geo: "in.mh.mumbai.west",
+        infra_tier: "core.aggr.dist.access",
+        sensitivity: 1,
+        name: "visible",
+      },
+      {
+        geo: "in.mh.mumbai.east",
+        infra_tier: "core.aggr.dist.access",
+        sensitivity: 1,
+        name: "wrong-geo",
+      },
+      {
+        geo: "in.mh.mumbai.west",
+        infra_tier: "core",
+        sensitivity: 1,
+        name: "wrong-tier",
+      },
+      {
+        geo: "in.mh.mumbai.west",
+        infra_tier: "core.aggr.dist.access",
+        sensitivity: 4,
+        name: "wrong-class",
+      },
+    ])
 
-    const result = await networkNodes.query(ctx).select('name');
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('visible');
-  });
+    const result = await networkNodes.query(ctx).select("name")
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe("visible")
+  })
 
-  it('RLS enforces scope even with raw SQL', async () => {
+  it("RLS enforces scope even with raw SQL", async () => {
     const ctx = createTestContext({
-      tenantId: 'test-tenant',
-      scopes: { geo: { ltree_values: ['in.mh.mumbai.west'], inheritance: 'downward' } },
-    });
+      tenantId: "test-tenant",
+      scopes: {
+        geo: { ltree_values: ["in.mh.mumbai.west"], inheritance: "downward" },
+      },
+    })
 
-    await seed('network_nodes', [
-      { geo: 'in.mh.mumbai.west', name: 'visible' },
-      { geo: 'in.gj.ahmedabad',   name: 'invisible' },
-    ]);
+    await seed("network_nodes", [
+      { geo: "in.mh.mumbai.west", name: "visible" },
+      { geo: "in.gj.ahmedabad", name: "invisible" },
+    ])
 
     // Raw SQL — no SDK involvement, RLS still enforces
-    const result = await db.raw('SELECT name FROM network_nodes');
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].name).toBe('visible');
-  });
-});
+    const result = await db.raw("SELECT name FROM network_nodes")
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0].name).toBe("visible")
+  })
+})
 ```
 
 ---
 
 ## 17. Decision Matrix
 
-| Question | If Yes | If No |
-|---|---|---|
-| Does this table hold tenant data? | Add `tenant_id`, enable RLS. Mandatory. | Platform table — no scoping. |
-| Is this data associated with any org hierarchy? | Declare scope dimensions (`ltree` + GiST). | Omit. |
-| Does the scope use downward inheritance? | `inheritance: 'downward'` — ltree `<@`. | `inheritance: 'strict'` — ltree `=`. |
-| Does your org define classification types for this data? | Declare classification dimensions (`smallint` + btree). | Omit. |
-| Could rows contain PII? | Add boolean gate. | Omit or default false. |
-| Is this table > 100M rows? | `createPartitionedTable` with hash partitions. | Standard table. |
-| Is this table append-only / time-series? | BRIN index on timestamp. | Btree. |
-| Does one query pattern dominate? | Declare `hotQueries` for covering indexes. | Default indexes. |
+| Question                                                 | If Yes                                                  | If No                                |
+| -------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| Does this table hold tenant data?                        | Add `tenant_id`, enable RLS. Mandatory.                 | Platform table — no scoping.         |
+| Is this data associated with any org hierarchy?          | Declare scope dimensions (`ltree` + GiST).              | Omit.                                |
+| Does the scope use downward inheritance?                 | `inheritance: 'downward'` — ltree `<@`.                 | `inheritance: 'strict'` — ltree `=`. |
+| Does your org define classification types for this data? | Declare classification dimensions (`smallint` + btree). | Omit.                                |
+| Could rows contain PII?                                  | Add boolean gate.                                       | Omit or default false.               |
+| Is this table > 100M rows?                               | `createPartitionedTable` with hash partitions.          | Standard table.                      |
+| Is this table append-only / time-series?                 | BRIN index on timestamp.                                | Btree.                               |
+| Does one query pattern dominate?                         | Declare `hotQueries` for covering indexes.              | Default indexes.                     |
 
 ---
 
@@ -1085,13 +1125,13 @@ describe('network_nodes scope isolation', () => {
 
 The platform SDK ships in three languages. The platform team maintains all three as first-class implementations — not wrappers. The core contract (ltree columns, SMALLINT classifications, RLS policies, GiST indexes) is identical. Only the API surface differs.
 
-| Concern | TypeScript (Node.js) | Python | Java |
-|---|---|---|---|
-| Migration tool | Knex migrations | Alembic | Flyway |
-| ORM / query builder | Knex | SQLAlchemy | JOOQ / JDBI |
-| Connection pooling | node-postgres pool | SQLAlchemy engine pool / asyncpg | HikariCP |
-| Test framework | Jest / Vitest | pytest | JUnit 5 |
-| SDK package | `@platform-fabric/sdk` | `platform_fabric.sdk` | `com.platformfabric:scope-sdk` |
+| Concern             | TypeScript (Node.js)   | Python                           | Java                           |
+| ------------------- | ---------------------- | -------------------------------- | ------------------------------ |
+| Migration tool      | Knex migrations        | Alembic                          | Flyway                         |
+| ORM / query builder | Knex                   | SQLAlchemy                       | JOOQ / JDBI                    |
+| Connection pooling  | node-postgres pool     | SQLAlchemy engine pool / asyncpg | HikariCP                       |
+| Test framework      | Jest / Vitest          | pytest                           | JUnit 5                        |
+| SDK package         | `@platform-fabric/sdk` | `platform_fabric.sdk`            | `com.platformfabric:scope-sdk` |
 
 ---
 
@@ -2046,26 +2086,26 @@ The three SDKs are independently implemented but **functionally identical**. The
 
 **What the platform team guarantees across all SDKs:**
 
-| Contract | Identical across languages |
-|---|---|
-| RLS policy SQL | Yes — generated from same template |
-| GiST index definitions | Yes — same CREATE INDEX statements |
-| ltree path format | Yes — same dot-separated convention |
-| Session variable names | Yes — `app.tenant_id`, `app.scope_{type}_paths`, `app.scope_{type}_unrestricted` |
-| Classification lookup table schema | Yes — same `classification_values` table |
-| SMALLINT mapping | Yes — same IDs for same labels in same tenant |
-| Hierarchy rewrite SQL | Yes — same `subpath()` / `nlevel()` pattern |
-| Audit log schema | Yes — same `site-control-audit` events |
+| Contract                           | Identical across languages                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| RLS policy SQL                     | Yes — generated from same template                                               |
+| GiST index definitions             | Yes — same CREATE INDEX statements                                               |
+| ltree path format                  | Yes — same dot-separated convention                                              |
+| Session variable names             | Yes — `app.tenant_id`, `app.scope_{type}_paths`, `app.scope_{type}_unrestricted` |
+| Classification lookup table schema | Yes — same `classification_values` table                                         |
+| SMALLINT mapping                   | Yes — same IDs for same labels in same tenant                                    |
+| Hierarchy rewrite SQL              | Yes — same `subpath()` / `nlevel()` pattern                                      |
+| Audit log schema                   | Yes — same `site-control-audit` events                                           |
 
 **What differs by language (surface only):**
 
-| Concern | TypeScript | Python | Java |
-|---|---|---|---|
-| Migration tool | Knex | Alembic | Flyway (raw SQL) |
-| Async model | `async/await` (native) | `async/await` (asyncio) or sync | `CompletableFuture` or sync |
-| Connection hook | `pool.on('checkout')` | `@event.listens_for(engine, 'checkout')` | `HikariDataSource` override |
-| Test setup | `createTestContext()` | `create_test_context()` | `@ScopeTestContext` annotation |
-| ORM integration | Knex query builder | SQLAlchemy `scoped_query()` | JOOQ / JDBI + `scopedQuery()` |
+| Concern         | TypeScript             | Python                                   | Java                           |
+| --------------- | ---------------------- | ---------------------------------------- | ------------------------------ |
+| Migration tool  | Knex                   | Alembic                                  | Flyway (raw SQL)               |
+| Async model     | `async/await` (native) | `async/await` (asyncio) or sync          | `CompletableFuture` or sync    |
+| Connection hook | `pool.on('checkout')`  | `@event.listens_for(engine, 'checkout')` | `HikariDataSource` override    |
+| Test setup      | `createTestContext()`  | `create_test_context()`                  | `@ScopeTestContext` annotation |
+| ORM integration | Knex query builder     | SQLAlchemy `scoped_query()`              | JOOQ / JDBI + `scopedQuery()`  |
 
 ---
 

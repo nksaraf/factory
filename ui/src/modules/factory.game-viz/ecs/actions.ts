@@ -75,7 +75,10 @@ export const gameActions = createActions((world) => ({
 }))
 
 // Standalone select function — takes entity object directly from click handler
-export function selectEntity(entity: { add: (trait: any) => void }, world: any) {
+export function selectEntity(
+  entity: { add: (trait: any) => void },
+  world: any
+) {
   // Deselect all first
   world.query(Selected).forEach((e: any) => {
     e.remove(Selected)

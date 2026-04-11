@@ -73,52 +73,52 @@ Every term used across the company maps to exactly one definition. Previous docu
 
 ### 3.1 Factory Entities
 
-| Term | Definition | Plane |
-|---|---|---|
-| **Product** | A commercially distinct offering sold to customers (Trafficure, NetworkAccess, SmartMarket). | Product |
-| **Module** | A deployable product capability. The fundamental unit that spans all planes. Has its own code, its own runtime, its own versioning. Can be enabled per customer. Examples: `geoanalytics`, `traffic-engine`, `network-planner`, `auth`. | Cross-plane |
-| **Module Version** | A specific buildable, deployable version of a module with semantic versioning and compatibility metadata. | Build |
-| **Artifact** | A built output of a module version — container image, binary, UI bundle, worker package. A single module version can produce multiple artifacts. | Build |
-| **Release** | A collection of module version pins that are deployed together as an atomic unit. A release is the unit of deployment at the Fleet level. | Fleet |
-| **Site** | A running instance of a product in a specific customer environment. Self-governing at runtime. Contains its own Control Plane, Service Plane, and Data Plane. | Fleet |
-| **Tenant** | A customer's isolated partition within a shared Site. Most customers are tenants in a shared Site. Enterprise customers get dedicated Sites. | Fleet / Control |
-| **Entitlement** | A record of what a customer is allowed to use — which modules, what usage limits, what features. Managed by Commerce, enforced by Control. | Commerce |
-| **Work Item** | A unit of planned work — story, task, bug. Lives in Product Plane, syncs with external trackers (Jira, Linear). | Product |
-| **Agent** | An AI or automation entity with its own identity, permissions, execution history, and cost tracking. First-class citizen alongside human workers. | Agent |
+| Term               | Definition                                                                                                                                                                                                                              | Plane           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| **Product**        | A commercially distinct offering sold to customers (Trafficure, NetworkAccess, SmartMarket).                                                                                                                                            | Product         |
+| **Module**         | A deployable product capability. The fundamental unit that spans all planes. Has its own code, its own runtime, its own versioning. Can be enabled per customer. Examples: `geoanalytics`, `traffic-engine`, `network-planner`, `auth`. | Cross-plane     |
+| **Module Version** | A specific buildable, deployable version of a module with semantic versioning and compatibility metadata.                                                                                                                               | Build           |
+| **Artifact**       | A built output of a module version — container image, binary, UI bundle, worker package. A single module version can produce multiple artifacts.                                                                                        | Build           |
+| **Release**        | A collection of module version pins that are deployed together as an atomic unit. A release is the unit of deployment at the Fleet level.                                                                                               | Fleet           |
+| **Site**           | A running instance of a product in a specific customer environment. Self-governing at runtime. Contains its own Control Plane, Service Plane, and Data Plane.                                                                           | Fleet           |
+| **Tenant**         | A customer's isolated partition within a shared Site. Most customers are tenants in a shared Site. Enterprise customers get dedicated Sites.                                                                                            | Fleet / Control |
+| **Entitlement**    | A record of what a customer is allowed to use — which modules, what usage limits, what features. Managed by Commerce, enforced by Control.                                                                                              | Commerce        |
+| **Work Item**      | A unit of planned work — story, task, bug. Lives in Product Plane, syncs with external trackers (Jira, Linear).                                                                                                                         | Product         |
+| **Agent**          | An AI or automation entity with its own identity, permissions, execution history, and cost tracking. First-class citizen alongside human workers.                                                                                       | Agent           |
 
 ### 3.2 Build & Dev Entities
 
-| Term | Definition | Plane |
-|---|---|---|
-| **Repo** | A git repository. Contains the source code for one or more modules. | Build |
-| **Branch** | A git branch within a repo. Follows naming conventions enforced by the Convention Engine. | Build |
-| **Pull Request** | A code review unit. Links to work items, triggers CI, produces build artifacts. | Build |
-| **Build** | The process of turning a git ref into one or more artifacts. Tracked, logged, cacheable. | Build |
-| **Convention** | An organizational rule enforced by the Factory — branch naming, commit format, deployment gates, code quality. Violations are helpful, not hostile. Overridable with `--force --reason`. | Build |
-| **Workflow** | A named sequence of dx commands defined as a shell script. Developer-facing automation. | Build |
-| **Sandbox** | An ephemeral environment for testing or preview. Can be K8s-based (namespace) or VM-based. Auto-created on PR, auto-destroyed on TTL. | Fleet |
+| Term             | Definition                                                                                                                                                                               | Plane |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **Repo**         | A git repository. Contains the source code for one or more modules.                                                                                                                      | Build |
+| **Branch**       | A git branch within a repo. Follows naming conventions enforced by the Convention Engine.                                                                                                | Build |
+| **Pull Request** | A code review unit. Links to work items, triggers CI, produces build artifacts.                                                                                                          | Build |
+| **Build**        | The process of turning a git ref into one or more artifacts. Tracked, logged, cacheable.                                                                                                 | Build |
+| **Convention**   | An organizational rule enforced by the Factory — branch naming, commit format, deployment gates, code quality. Violations are helpful, not hostile. Overridable with `--force --reason`. | Build |
+| **Workflow**     | A named sequence of dx commands defined as a shell script. Developer-facing automation.                                                                                                  | Build |
+| **Sandbox**      | An ephemeral environment for testing or preview. Can be K8s-based (namespace) or VM-based. Auto-created on PR, auto-destroyed on TTL.                                                    | Fleet |
 
 ### 3.3 Infrastructure Entities
 
-| Term | Definition | Plane |
-|---|---|---|
-| **Provider** | An infrastructure source — Proxmox cluster, Hetzner account, AWS account. | Infrastructure |
-| **Datacenter** | A geographic grouping of providers. | Infrastructure |
-| **Host** | A physical or virtual hypervisor (Proxmox cluster). | Infrastructure |
-| **VM** | A virtual machine on any provider. | Infrastructure |
-| **Cluster** | A Kubernetes cluster spanning one or more VMs. | Infrastructure |
-| **IP Address** | A managed IP with allocation tracking (IPAM). | Infrastructure |
-| **Asset** | Any tracked infrastructure resource — generic term for VM, host, node, cluster, IP. | Infrastructure |
+| Term           | Definition                                                                          | Plane          |
+| -------------- | ----------------------------------------------------------------------------------- | -------------- |
+| **Provider**   | An infrastructure source — Proxmox cluster, Hetzner account, AWS account.           | Infrastructure |
+| **Datacenter** | A geographic grouping of providers.                                                 | Infrastructure |
+| **Host**       | A physical or virtual hypervisor (Proxmox cluster).                                 | Infrastructure |
+| **VM**         | A virtual machine on any provider.                                                  | Infrastructure |
+| **Cluster**    | A Kubernetes cluster spanning one or more VMs.                                      | Infrastructure |
+| **IP Address** | A managed IP with allocation tracking (IPAM).                                       | Infrastructure |
+| **Asset**      | Any tracked infrastructure resource — generic term for VM, host, node, cluster, IP. | Infrastructure |
 
 ### 3.4 Terms We Retired
 
-| Old Term | Was Used In | Replaced By | Why |
-|---|---|---|---|
-| **Project** (as deployable unit) | dx PRD | **Module** | A "project" is what a developer has checked out locally — the repo directory context. The deployable unit is the module. `docker-compose.yaml` still lives in a project directory, and components are declared as services with `catalog.*` / `dx.*` labels. |
-| **Service** (as single container) | dx PRD | **Artifact** (built output) / **Component** (running process within a module) | "Service" was overloaded. In K8s it means a network endpoint. In dx it meant "one container." We use "artifact" for the built thing and "component" for the running thing. |
-| **Deployment** (as immutable snapshot) | dx PRD | **Build Artifact + Rollout** | The immutable-snapshot-with-permanent-URL pattern is retained but split: the artifact is immutable (Build Plane), the act of placing it on a Site is a rollout (Fleet Plane). |
-| **Alias** (mutable DNS pointer) | dx PRD | **Route** (Infrastructure Plane traffic routing) | Aliases were a clever Vercel-style pattern. We keep the concept but call it what it is — a traffic route. "Production" is a route that points to the current rollout. |
-| **Environment** (production/staging) | dx PRD | **Tier** (deployment category) + **Site** (actual instance) | "Production" is a tier — a category of Sites with certain policies. A specific Site like "Trafficure SaaS India" is the actual target. |
+| Old Term                               | Was Used In | Replaced By                                                                   | Why                                                                                                                                                                                                                                                          |
+| -------------------------------------- | ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Project** (as deployable unit)       | dx PRD      | **Module**                                                                    | A "project" is what a developer has checked out locally — the repo directory context. The deployable unit is the module. `docker-compose.yaml` still lives in a project directory, and components are declared as services with `catalog.*` / `dx.*` labels. |
+| **Service** (as single container)      | dx PRD      | **Artifact** (built output) / **Component** (running process within a module) | "Service" was overloaded. In K8s it means a network endpoint. In dx it meant "one container." We use "artifact" for the built thing and "component" for the running thing.                                                                                   |
+| **Deployment** (as immutable snapshot) | dx PRD      | **Build Artifact + Rollout**                                                  | The immutable-snapshot-with-permanent-URL pattern is retained but split: the artifact is immutable (Build Plane), the act of placing it on a Site is a rollout (Fleet Plane).                                                                                |
+| **Alias** (mutable DNS pointer)        | dx PRD      | **Route** (Infrastructure Plane traffic routing)                              | Aliases were a clever Vercel-style pattern. We keep the concept but call it what it is — a traffic route. "Production" is a route that points to the current rollout.                                                                                        |
+| **Environment** (production/staging)   | dx PRD      | **Tier** (deployment category) + **Site** (actual instance)                   | "Production" is a tier — a category of Sites with certain policies. A specific Site like "Trafficure SaaS India" is the actual target.                                                                                                                       |
 
 ---
 
@@ -821,19 +821,19 @@ site_data.*             Datasets, pipelines, backups, retention policies
 
 ### 6.4 Technology Stack (Reconciled)
 
-| Concern | Technology | Notes |
-|---|---|---|
-| Identity/Auth | Better-Auth | OAuth, SAML, SCIM, passkeys, MCP agent auth. Handles authentication only. |
-| Authorization | SpiceDB + PostgreSQL | Three-layer: generic SpiceDB schema, PostgreSQL resource type registry, runtime interpreter. dx's viewer/deployer/admin/platform-admin roles are defined in this system. |
-| Primary database | PostgreSQL | Source of truth. `ltree`, GiST indexes, RLS, partitioning. SpiceDB is a read-optimized projection. |
-| Observability | SigNoz (OTel-native) | Replaces Loki + Prometheus from original dx PRD. Infrastructure Plane owns the SigNoz instance. Audit events in PostgreSQL as authoritative source, outbox-mirrored to SigNoz. |
-| Workflow orchestration | Temporal | Platform-level orchestration (site provisioning, release rollouts, tenant migration). |
-| Developer workflows | Shell scripts (.dx/workflows/) | Developer-facing shortcuts. Not Temporal — these are lightweight CLI automation. |
-| Ingress | Traefik | ForwardAuth integration with Control Plane. |
-| Container registry | Bundled (dx) or external (Harbor, ECR) | Build Plane artifact storage. |
-| Object storage | MinIO | S3-compatible. |
-| Search/AI memory | pgvector (Phase 1-2), Qdrant (Phase 3+) | Agent Plane memory. |
-| CLI language | Go | Single static binary, K8s-native, fast startup, agent-friendly. |
+| Concern                | Technology                              | Notes                                                                                                                                                                          |
+| ---------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Identity/Auth          | Better-Auth                             | OAuth, SAML, SCIM, passkeys, MCP agent auth. Handles authentication only.                                                                                                      |
+| Authorization          | SpiceDB + PostgreSQL                    | Three-layer: generic SpiceDB schema, PostgreSQL resource type registry, runtime interpreter. dx's viewer/deployer/admin/platform-admin roles are defined in this system.       |
+| Primary database       | PostgreSQL                              | Source of truth. `ltree`, GiST indexes, RLS, partitioning. SpiceDB is a read-optimized projection.                                                                             |
+| Observability          | SigNoz (OTel-native)                    | Replaces Loki + Prometheus from original dx PRD. Infrastructure Plane owns the SigNoz instance. Audit events in PostgreSQL as authoritative source, outbox-mirrored to SigNoz. |
+| Workflow orchestration | Temporal                                | Platform-level orchestration (site provisioning, release rollouts, tenant migration).                                                                                          |
+| Developer workflows    | Shell scripts (.dx/workflows/)          | Developer-facing shortcuts. Not Temporal — these are lightweight CLI automation.                                                                                               |
+| Ingress                | Traefik                                 | ForwardAuth integration with Control Plane.                                                                                                                                    |
+| Container registry     | Bundled (dx) or external (Harbor, ECR)  | Build Plane artifact storage.                                                                                                                                                  |
+| Object storage         | MinIO                                   | S3-compatible.                                                                                                                                                                 |
+| Search/AI memory       | pgvector (Phase 1-2), Qdrant (Phase 3+) | Agent Plane memory.                                                                                                                                                            |
+| CLI language           | Go                                      | Single static binary, K8s-native, fast startup, agent-friendly.                                                                                                                |
 
 ---
 
@@ -969,6 +969,7 @@ services:
 ### 8.2 Component Classification (from labels)
 
 Components vs resources are classified automatically:
+
 - **Component**: service with a `build:` block, or explicit `catalog.kind: Component` label
 - **Resource**: service with just an `image:` (postgres, redis, etc.), or explicit `catalog.kind: Resource` label
 - Per-component build/dev/test/lint config is specified via `dx.*` labels on each service
@@ -1117,13 +1118,13 @@ dx manages five infrastructure layers. Workers enter at whatever layer they need
 └───────────────────────────────────────────────────────────────┘
 ```
 
-| Starting point | What dx does |
-|---|---|
-| Bare Proxmox cluster | Creates VMs → installs k3s → installs Factory platform → deploys workloads |
-| Bare VMs (any source) | Installs k3s → installs Factory platform → deploys workloads |
-| Existing K8s cluster | Installs Factory platform → deploys workloads |
-| Factory already running | Deploys workloads |
-| Just want local dev | `dx dev` works with no platform at all |
+| Starting point          | What dx does                                                               |
+| ----------------------- | -------------------------------------------------------------------------- |
+| Bare Proxmox cluster    | Creates VMs → installs k3s → installs Factory platform → deploys workloads |
+| Bare VMs (any source)   | Installs k3s → installs Factory platform → deploys workloads               |
+| Existing K8s cluster    | Installs Factory platform → deploys workloads                              |
+| Factory already running | Deploys workloads                                                          |
+| Just want local dev     | `dx dev` works with no platform at all                                     |
 
 ---
 
@@ -1215,14 +1216,14 @@ The previous dx PRD and Platform Fabric overview each had concepts that the othe
 
 ### Resolved Conflicts
 
-| Conflict | Resolution |
-|---|---|
-| Loki/Prometheus vs SigNoz | **SigNoz** — OTel-native, single stack. `dx logs` queries SigNoz. |
-| Simple RBAC vs SpiceDB | **SpiceDB** — dx's viewer/deployer/admin/platform-admin are roles in the SpiceDB model. Simple CLI experience, full authorization engine underneath. |
-| Password/OIDC vs Better-Auth | **Better-Auth** — dx delegates identity to Better-Auth. OAuth, SAML, SCIM, passkeys, agent auth all handled. |
-| Project vs Module | **Module** — the deployable unit is a module. "Project" is the local directory context where a developer works. `docker-compose.yaml` declares the module's components via labeled services. |
-| Environment vs Site | **Both, at different levels** — "tier" (staging/production) is the deployment category. "Site" is the actual running instance. `dx deploy --tier staging` hits all staging Sites. `dx deploy --site trafficure-us-east` hits one. |
-| Shell workflows vs Temporal | **Both, at different levels** — Shell scripts for developer-facing shortcuts (`dx start`, `dx submit`, `dx ship`). Temporal for platform orchestration (site provisioning, release rollouts, tenant migration). |
+| Conflict                     | Resolution                                                                                                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Loki/Prometheus vs SigNoz    | **SigNoz** — OTel-native, single stack. `dx logs` queries SigNoz.                                                                                                                                                                 |
+| Simple RBAC vs SpiceDB       | **SpiceDB** — dx's viewer/deployer/admin/platform-admin are roles in the SpiceDB model. Simple CLI experience, full authorization engine underneath.                                                                              |
+| Password/OIDC vs Better-Auth | **Better-Auth** — dx delegates identity to Better-Auth. OAuth, SAML, SCIM, passkeys, agent auth all handled.                                                                                                                      |
+| Project vs Module            | **Module** — the deployable unit is a module. "Project" is the local directory context where a developer works. `docker-compose.yaml` declares the module's components via labeled services.                                      |
+| Environment vs Site          | **Both, at different levels** — "tier" (staging/production) is the deployment category. "Site" is the actual running instance. `dx deploy --tier staging` hits all staging Sites. `dx deploy --site trafficure-us-east` hits one. |
+| Shell workflows vs Temporal  | **Both, at different levels** — Shell scripts for developer-facing shortcuts (`dx start`, `dx submit`, `dx ship`). Temporal for platform orchestration (site provisioning, release rollouts, tenant migration).                   |
 
 ---
 
@@ -1283,30 +1284,30 @@ The previous dx PRD and Platform Fabric overview each had concepts that the othe
 
 ## Appendix A: Glossary
 
-| Term | Definition |
-|---|---|
-| **dx** | The unified CLI, API, and UI for the Software Factory. The one tool every worker uses. |
+| Term                 | Definition                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| **dx**               | The unified CLI, API, and UI for the Software Factory. The one tool every worker uses.       |
 | **Software Factory** | The company's internal operating system for building, deploying, and operating all products. |
-| **Factory** | The company-wide system that designs, builds, and operates products. Runs once, centrally. |
-| **Site** | A running instance of a product in a customer environment. Self-governing at runtime. |
-| **Plane** | A logical domain of the Factory with defined scope, data model, and authority. |
-| **Module** | A deployable product capability. The fundamental unit spanning all planes. |
-| **Module Version** | A specific buildable version of a module with semantic versioning. |
-| **Artifact** | A built output — container image, binary, UI bundle. |
-| **Component** | A running process within a module — api server, worker, frontend. |
-| **Release** | A collection of module version pins deployed together. The unit of Fleet deployment. |
-| **Rollout** | The act of deploying a release to a specific Site. |
-| **Tier** | A deployment category — staging, production, sandbox. |
-| **Tenant** | A customer's isolated partition within a shared Site. |
-| **Entitlement** | A record of what a customer can use. Commerce manages, Control enforces. |
-| **Convention** | An organizational rule enforced by the Factory. |
-| **Workflow** | A named shell script sequence of dx commands. Developer-facing automation. |
-| **Sandbox** | An ephemeral environment for testing/preview. |
-| **Asset** | Any tracked infrastructure resource. |
-| **Provider** | An infrastructure source (Proxmox, Hetzner, AWS). |
-| **Route** | A traffic routing rule that maps a domain to a specific rollout. |
-| **Target** | A resolvable reference (VM, host, pod, IP) for ssh/exec/logs/code. |
-| **Principal** | A security subject — user, service account, or agent. |
+| **Factory**          | The company-wide system that designs, builds, and operates products. Runs once, centrally.   |
+| **Site**             | A running instance of a product in a customer environment. Self-governing at runtime.        |
+| **Plane**            | A logical domain of the Factory with defined scope, data model, and authority.               |
+| **Module**           | A deployable product capability. The fundamental unit spanning all planes.                   |
+| **Module Version**   | A specific buildable version of a module with semantic versioning.                           |
+| **Artifact**         | A built output — container image, binary, UI bundle.                                         |
+| **Component**        | A running process within a module — api server, worker, frontend.                            |
+| **Release**          | A collection of module version pins deployed together. The unit of Fleet deployment.         |
+| **Rollout**          | The act of deploying a release to a specific Site.                                           |
+| **Tier**             | A deployment category — staging, production, sandbox.                                        |
+| **Tenant**           | A customer's isolated partition within a shared Site.                                        |
+| **Entitlement**      | A record of what a customer can use. Commerce manages, Control enforces.                     |
+| **Convention**       | An organizational rule enforced by the Factory.                                              |
+| **Workflow**         | A named shell script sequence of dx commands. Developer-facing automation.                   |
+| **Sandbox**          | An ephemeral environment for testing/preview.                                                |
+| **Asset**            | Any tracked infrastructure resource.                                                         |
+| **Provider**         | An infrastructure source (Proxmox, Hetzner, AWS).                                            |
+| **Route**            | A traffic routing rule that maps a domain to a specific rollout.                             |
+| **Target**           | A resolvable reference (VM, host, pod, IP) for ssh/exec/logs/code.                           |
+| **Principal**        | A security subject — user, service account, or agent.                                        |
 
 ## Appendix B: Command Quick Reference by Plane
 

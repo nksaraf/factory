@@ -1,1 +1,1 @@
-export default { preset: "ts-jest" };
+export default { preset: "ts-jest" }

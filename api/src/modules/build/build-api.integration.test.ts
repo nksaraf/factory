@@ -16,7 +16,7 @@ describe("build plane API", () => {
   it("creates and lists repos", async () => {
     await truncateAllTables(ctx.client)
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/repos", {
+      new Request("http://localhost/api/v1/factory/build/repos", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -38,7 +38,7 @@ describe("build plane API", () => {
     expect(created.data.slug).toBe("billing-git")
 
     const list = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/repos")
+      new Request("http://localhost/api/v1/factory/build/repos")
     )
     expect(list.status).toBe(200)
     const body = (await list.json()) as {
@@ -49,7 +49,9 @@ describe("build plane API", () => {
     expect(body.meta.total).toBeGreaterThan(0)
 
     const one = await ctx.app.handle(
-      new Request(`http://localhost/api/factory/build/repos/${created.data.id}`)
+      new Request(
+        `http://localhost/api/v1/factory/build/repos/${created.data.id}`
+      )
     )
     expect(one.status).toBe(200)
   })
@@ -57,7 +59,9 @@ describe("build plane API", () => {
   it("returns 404 for unknown repo", async () => {
     await truncateAllTables(ctx.client)
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/repos/repo_nonexistent")
+      new Request(
+        "http://localhost/api/v1/factory/build/repos/repo_nonexistent"
+      )
     )
     expect(res.status).toBe(404)
     const json = (await res.json()) as { error: { code: string } }
@@ -67,7 +71,7 @@ describe("build plane API", () => {
   it("updates a repo slug and name", async () => {
     await truncateAllTables(ctx.client)
     const createRes = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/repos", {
+      new Request("http://localhost/api/v1/factory/build/repos", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +92,7 @@ describe("build plane API", () => {
 
     const patchRes = await ctx.app.handle(
       new Request(
-        `http://localhost/api/factory/build/repos/${created.data.id}/update`,
+        `http://localhost/api/v1/factory/build/repos/${created.data.id}/update`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -106,7 +110,7 @@ describe("build plane API", () => {
   it("creates git host providers and lists them", async () => {
     await truncateAllTables(ctx.client)
     const res = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/git-host-providers", {
+      new Request("http://localhost/api/v1/factory/build/git-host-providers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +132,7 @@ describe("build plane API", () => {
     expect(created.data.type).toBe("github")
 
     const list = await ctx.app.handle(
-      new Request("http://localhost/api/factory/build/git-host-providers")
+      new Request("http://localhost/api/v1/factory/build/git-host-providers")
     )
     expect(list.status).toBe(200)
     const listBody = (await list.json()) as {

@@ -85,7 +85,7 @@ export async function runCatalogSync(
   try {
     syncResult = await client.request<{ data: CatalogSyncResult }>(
       "POST",
-      "/api/factory/catalog/sync",
+      "/api/v1/factory/catalog/sync",
       catalog
     )
   } catch (err) {

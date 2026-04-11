@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo } from "react"
 
-const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
-const sans = "'DM Sans', system-ui, sans-serif";
+const mono = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace"
+const sans = "'DM Sans', system-ui, sans-serif"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTH SCHEMA SPEC
@@ -101,7 +101,7 @@ roles:
     # Which actions on which resource types this role grants
     grants:
       <resource_type>:
-        - <action_name>`;
+        - <action_name>`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // JIRA-LIKE EXAMPLE
@@ -309,7 +309,7 @@ roles:
     grants:
       project: [view]
       epic: [view]
-      issue: [view, assign, transition]`;
+      issue: [view, assign, transition]`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SMARTMARKET EXAMPLE
@@ -518,7 +518,7 @@ roles:
       workspace: [view]
       discovery_board: [view]
       report: [view]
-      dataset: [view]`;
+      dataset: [view]`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPILER OUTPUT
@@ -648,7 +648,7 @@ const COMPILER_OUTPUT = `$ dx module auth compile --input ./auth.yaml --dry-run
   config/
     project_management.auth.json               (runtime config)
 
-  Run with --apply to execute migration.`;
+  Run with --apply to execute migration.`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DX CLI COMMANDS
@@ -717,7 +717,7 @@ dx module auth compile --input ./auth.yaml --apply
 # 8. No slot reassignment on version bump (would break tuples)
 # 9. Hierarchical marking types need ordered levels
 # 10. Required scope bindings can't be added to existing types
-#     with untagged instances (data migration needed first)`;
+#     with untagged instances (data migration needed first)`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MIGRATION SQL EXAMPLE
@@ -790,7 +790,7 @@ VALUES
 
 -- ... (epic and attachment INSERTs follow same pattern)
 
-COMMIT;`;
+COMMIT;`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -804,25 +804,48 @@ const TABS = [
   { id: "migration", label: "Migration SQL" },
   { id: "dx", label: "dx CLI" },
   { id: "design", label: "Design Notes" },
-];
+]
 
 const Badge = ({ text, color = "#71717a", small = false }) => (
-  <span style={{
-    display: "inline-block", padding: small ? "1px 5px" : "2px 7px",
-    borderRadius: "3px", fontSize: small ? "9px" : "10px", fontWeight: 700,
-    fontFamily: mono, color, backgroundColor: `${color}12`, border: `1px solid ${color}25`,
-    letterSpacing: "0.03em",
-  }}>{text}</span>
-);
+  <span
+    style={{
+      display: "inline-block",
+      padding: small ? "1px 5px" : "2px 7px",
+      borderRadius: "3px",
+      fontSize: small ? "9px" : "10px",
+      fontWeight: 700,
+      fontFamily: mono,
+      color,
+      backgroundColor: `${color}12`,
+      border: `1px solid ${color}25`,
+      letterSpacing: "0.03em",
+    }}
+  >
+    {text}
+  </span>
+)
 
 const Code = ({ children, maxHeight = null, lang = "" }) => (
-  <pre style={{
-    padding: "14px 16px", borderRadius: "6px", border: "1px solid #1a1a22",
-    backgroundColor: "#08080c", fontSize: "11px", fontFamily: mono,
-    lineHeight: "1.7", color: "#a1a1aa", overflow: "auto", maxHeight,
-    whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0,
-  }}>{children}</pre>
-);
+  <pre
+    style={{
+      padding: "14px 16px",
+      borderRadius: "6px",
+      border: "1px solid #1a1a22",
+      backgroundColor: "#08080c",
+      fontSize: "11px",
+      fontFamily: mono,
+      lineHeight: "1.7",
+      color: "#a1a1aa",
+      overflow: "auto",
+      maxHeight,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      margin: 0,
+    }}
+  >
+    {children}
+  </pre>
+)
 
 const DESIGN_NOTES = [
   {
@@ -963,58 +986,101 @@ scope_slot_assignments:
 #   issue:
 #     8: "link (removed in v3)"`,
   },
-];
+]
 
 export default function AuthSchemaYAML() {
-  const [tab, setTab] = useState("jira");
-  const [designNote, setDesignNote] = useState(0);
+  const [tab, setTab] = useState("jira")
+  const [designNote, setDesignNote] = useState(0)
 
   return (
-    <div style={{
-      minHeight: "100vh", backgroundColor: "#0a0a0c", color: "#e4e4e7",
-      fontFamily: sans, padding: "20px",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#0a0a0c",
+        color: "#e4e4e7",
+        fontFamily: sans,
+        padding: "20px",
+      }}
+    >
       {/* Header */}
       <div style={{ marginBottom: "20px" }}>
-        <div style={{
-          fontSize: "9px", fontWeight: 800, fontFamily: mono,
-          color: "#22c55e", letterSpacing: "0.12em", marginBottom: "4px",
-        }}>PLATFORM FABRIC — AUTHORIZATION AS CODE</div>
+        <div
+          style={{
+            fontSize: "9px",
+            fontWeight: 800,
+            fontFamily: mono,
+            color: "#22c55e",
+            letterSpacing: "0.12em",
+            marginBottom: "4px",
+          }}
+        >
+          PLATFORM FABRIC — AUTHORIZATION AS CODE
+        </div>
         <div style={{ fontSize: "18px", fontWeight: 700, color: "#fafafa" }}>
           auth.yaml — Declarative Auth Schema for Module Authors
         </div>
         <div style={{ fontSize: "11px", color: "#52525b", marginTop: "3px" }}>
-          Declare resource types · Compile to registry + migrations · Version-controlled · dx CLI
+          Declare resource types · Compile to registry + migrations ·
+          Version-controlled · dx CLI
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{
-        display: "flex", gap: "1px", marginBottom: "16px",
-        borderRadius: "5px", overflow: "hidden", border: "1px solid #18181b",
-        backgroundColor: "#0d0d0f", padding: "2px",
-      }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: "6px 11px", borderRadius: "3px", border: "none", cursor: "pointer",
-            fontSize: "10.5px", fontWeight: 600, fontFamily: sans, transition: "all 0.12s",
-            backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
-            color: tab === t.id ? "#fafafa" : "#52525b",
-          }}>{t.label}</button>
+      <div
+        style={{
+          display: "flex",
+          gap: "1px",
+          marginBottom: "16px",
+          borderRadius: "5px",
+          overflow: "hidden",
+          border: "1px solid #18181b",
+          backgroundColor: "#0d0d0f",
+          padding: "2px",
+        }}
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "6px 11px",
+              borderRadius: "3px",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "10.5px",
+              fontWeight: 600,
+              fontFamily: sans,
+              transition: "all 0.12s",
+              backgroundColor: tab === t.id ? "#1c1c24" : "transparent",
+              color: tab === t.id ? "#fafafa" : "#52525b",
+            }}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
       {/* SPEC */}
       {tab === "spec" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #22c55e25", backgroundColor: "#080e08",
-            fontSize: "11px", color: "#86efac", lineHeight: "1.7",
-          }}>
-            This is the schema specification. Module authors write <code style={{ fontFamily: mono }}>auth.yaml</code> following 
-            this format. The compiler (<code style={{ fontFamily: mono }}>dx module auth compile</code>) validates, assigns slots, 
-            and generates PG migrations. Authors never see slot numbers.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #22c55e25",
+              backgroundColor: "#080e08",
+              fontSize: "11px",
+              color: "#86efac",
+              lineHeight: "1.7",
+            }}
+          >
+            This is the schema specification. Module authors write{" "}
+            <code style={{ fontFamily: mono }}>auth.yaml</code> following this
+            format. The compiler (
+            <code style={{ fontFamily: mono }}>dx module auth compile</code>)
+            validates, assigns slots, and generates PG migrations. Authors never
+            see slot numbers.
           </div>
           <Code maxHeight="700px">{SPEC}</Code>
         </div>
@@ -1023,15 +1089,24 @@ export default function AuthSchemaYAML() {
       {/* JIRA */}
       {tab === "jira" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #3b82f625", backgroundColor: "#080a0e",
-            fontSize: "11px", color: "#93c5fd", lineHeight: "1.7",
-          }}>
-            A Jira-like project management module. Notice how the author thinks in domain terms — 
-            "an issue has view, comment, edit, assign, transition, delete, admin" — not slots. 
-            The cascade/implies/requires model captures real PM semantics: assigning an issue is a 
-            distinct capability from editing it, and it doesn't cascade from the parent project.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #3b82f625",
+              backgroundColor: "#080a0e",
+              fontSize: "11px",
+              color: "#93c5fd",
+              lineHeight: "1.7",
+            }}
+          >
+            A Jira-like project management module. Notice how the author thinks
+            in domain terms — "an issue has view, comment, edit, assign,
+            transition, delete, admin" — not slots. The cascade/implies/requires
+            model captures real PM semantics: assigning an issue is a distinct
+            capability from editing it, and it doesn't cascade from the parent
+            project.
           </div>
           <Code maxHeight="700px">{JIRA_YAML}</Code>
         </div>
@@ -1040,14 +1115,26 @@ export default function AuthSchemaYAML() {
       {/* SMARTMARKET */}
       {tab === "smartmarket" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #f59e0b25", backgroundColor: "#0e0c08",
-            fontSize: "11px", color: "#fde68a", lineHeight: "1.7",
-          }}>
-            SmartMarket's auth model. Key patterns: discovery boards have <code style={{ fontFamily: mono }}>run_analysis</code> (domain-specific), 
-            reports have <code style={{ fontFamily: mono }}>publish</code> which <code style={{ fontFamily: mono }}>requires: [edit, approve]</code> (separation 
-            of duties), and datasets have <code style={{ fontFamily: mono }}>ingest</code> (data pipeline permission). Two scope dimensions: region + channel.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #f59e0b25",
+              backgroundColor: "#0e0c08",
+              fontSize: "11px",
+              color: "#fde68a",
+              lineHeight: "1.7",
+            }}
+          >
+            SmartMarket's auth model. Key patterns: discovery boards have{" "}
+            <code style={{ fontFamily: mono }}>run_analysis</code>{" "}
+            (domain-specific), reports have{" "}
+            <code style={{ fontFamily: mono }}>publish</code> which{" "}
+            <code style={{ fontFamily: mono }}>requires: [edit, approve]</code>{" "}
+            (separation of duties), and datasets have{" "}
+            <code style={{ fontFamily: mono }}>ingest</code> (data pipeline
+            permission). Two scope dimensions: region + channel.
           </div>
           <Code maxHeight="700px">{SMARTMARKET_YAML}</Code>
         </div>
@@ -1056,14 +1143,21 @@ export default function AuthSchemaYAML() {
       {/* COMPILER */}
       {tab === "compiler" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #c084fc25", backgroundColor: "#0c080e",
-            fontSize: "11px", color: "#d8b4fe", lineHeight: "1.7",
-          }}>
-            The compiler validates the schema, assigns slot numbers, resolves cross-references, 
-            and generates PG migration SQL + runtime config JSON. Dry-run mode shows everything 
-            without applying.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #c084fc25",
+              backgroundColor: "#0c080e",
+              fontSize: "11px",
+              color: "#d8b4fe",
+              lineHeight: "1.7",
+            }}
+          >
+            The compiler validates the schema, assigns slot numbers, resolves
+            cross-references, and generates PG migration SQL + runtime config
+            JSON. Dry-run mode shows everything without applying.
           </div>
           <Code maxHeight="700px">{COMPILER_OUTPUT}</Code>
         </div>
@@ -1072,14 +1166,21 @@ export default function AuthSchemaYAML() {
       {/* MIGRATION */}
       {tab === "migration" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #22c55e25", backgroundColor: "#080e08",
-            fontSize: "11px", color: "#86efac", lineHeight: "1.7",
-          }}>
-            Generated SQL migration. The author never writes this — the compiler produces it.
-            Note how slot numbers are assigned automatically and the implies arrays are translated 
-            from action names.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #22c55e25",
+              backgroundColor: "#080e08",
+              fontSize: "11px",
+              color: "#86efac",
+              lineHeight: "1.7",
+            }}
+          >
+            Generated SQL migration. The author never writes this — the compiler
+            produces it. Note how slot numbers are assigned automatically and
+            the implies arrays are translated from action names.
           </div>
           <Code maxHeight="700px">{MIGRATION_SQL}</Code>
         </div>
@@ -1088,13 +1189,21 @@ export default function AuthSchemaYAML() {
       {/* DX CLI */}
       {tab === "dx" && (
         <div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "5px", marginBottom: "12px",
-            border: "1px solid #f59e0b25", backgroundColor: "#0e0c08",
-            fontSize: "11px", color: "#fde68a", lineHeight: "1.7",
-          }}>
-            The <code style={{ fontFamily: mono }}>dx module auth</code> command tree. Validates, compiles, diffs, 
-            and exports auth schemas. Integrates with module lifecycle and CI/CD.
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "5px",
+              marginBottom: "12px",
+              border: "1px solid #f59e0b25",
+              backgroundColor: "#0e0c08",
+              fontSize: "11px",
+              color: "#fde68a",
+              lineHeight: "1.7",
+            }}
+          >
+            The <code style={{ fontFamily: mono }}>dx module auth</code> command
+            tree. Validates, compiles, diffs, and exports auth schemas.
+            Integrates with module lifecycle and CI/CD.
           </div>
           <Code maxHeight="700px">{DX_COMMANDS}</Code>
         </div>
@@ -1103,30 +1212,53 @@ export default function AuthSchemaYAML() {
       {/* DESIGN NOTES */}
       {tab === "design" && (
         <div>
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "4px", marginBottom: "14px",
-          }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "4px",
+              marginBottom: "14px",
+            }}
+          >
             {DESIGN_NOTES.map((n, i) => (
-              <button key={i} onClick={() => setDesignNote(i)} style={{
-                padding: "5px 8px", borderRadius: "4px", border: "none", cursor: "pointer",
-                fontSize: "9px", fontWeight: 600, fontFamily: mono, textAlign: "left",
-                backgroundColor: designNote === i ? "#1c1c24" : "#0d0d0f",
-                color: designNote === i ? "#fafafa" : "#52525b",
-              }}>
+              <button
+                key={i}
+                onClick={() => setDesignNote(i)}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: "4px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "9px",
+                  fontWeight: 600,
+                  fontFamily: mono,
+                  textAlign: "left",
+                  backgroundColor: designNote === i ? "#1c1c24" : "#0d0d0f",
+                  color: designNote === i ? "#fafafa" : "#52525b",
+                }}
+              >
                 {n.title.length > 24 ? n.title.slice(0, 22) + "…" : n.title}
               </button>
             ))}
           </div>
 
-          <div style={{
-            borderRadius: "6px", border: "1px solid #18181b", overflow: "hidden",
-          }}>
-            <div style={{
-              padding: "10px 14px", backgroundColor: "#0e0e12",
-              borderBottom: "1px solid #18181b",
-              fontSize: "12px", fontWeight: 700, color: "#e4e4e7",
-            }}>
+          <div
+            style={{
+              borderRadius: "6px",
+              border: "1px solid #18181b",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "10px 14px",
+                backgroundColor: "#0e0e12",
+                borderBottom: "1px solid #18181b",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#e4e4e7",
+              }}
+            >
               {DESIGN_NOTES[designNote].title}
             </div>
             <div style={{ padding: "12px 14px" }}>
@@ -1136,5 +1268,5 @@ export default function AuthSchemaYAML() {
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -1,16 +1,16 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js"
 
 /** Converts a hyphenated name to a Python module name (e.g. "my-lib" -> "my_lib") */
 export function toPythonModule(name: string): string {
-  return name.replace(/-/g, "_");
+  return name.replace(/-/g, "_")
 }
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, description } = vars;
-  const pythonName = toPythonModule(name);
+  const { name, description } = vars
+  const pythonName = toPythonModule(name)
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // pyproject.toml
   files.push({
@@ -30,19 +30,19 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/${pythonName}"]
 ${pythonQualityToml()}`,
-  });
+  })
 
   // src/{pythonName}/__init__.py
   files.push({
     path: `src/${pythonName}/__init__.py`,
     content: `"""${description}"""\n`,
-  });
+  })
 
   // tests/__init__.py
   files.push({
     path: "tests/__init__.py",
     content: ``,
-  });
+  })
 
   // tests/test_{pythonName}.py
   files.push({
@@ -51,7 +51,7 @@ ${pythonQualityToml()}`,
     """Placeholder test — replace with real tests."""
     assert True
 `,
-  });
+  })
 
   // .gitignore
   files.push({
@@ -62,10 +62,10 @@ dist/
 *.egg-info/
 .ruff_cache/
 `,
-  });
+  })
 
   // Quality tooling configs
-  files.push(...pythonQualityFiles());
+  files.push(...pythonQualityFiles())
 
-  return files;
+  return files
 }

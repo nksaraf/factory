@@ -24,16 +24,16 @@ These go in `src/sidebar/` and are used by apps to compose sidebar sections. Eac
 
 Each lives in its own file in `src/sidebar/`.
 
-| Component | Source | Wraps in SidebarMenuItem? | Notes |
-|---|---|---|---|
-| `SidebarOrgSwitcher` | Extracted from `DefaultSidebarHeader` | No (OrganizationSwitcher handles its own) | Uses sidebar state for popover side |
-| `SidebarAppLogo` | Extracted from `DefaultSidebarHeader` | Yes | Renders app logo + name from `useApp()`. Contains "Smart" brand logic (kept as-is for now). |
-| `SidebarHome` | New, opt-in | Yes | Button with home icon, active when pathname is `/` |
-| `SidebarSearch` | New, opt-in | Yes | Button with search icon, active when pathname starts with `/search` |
-| `SidebarExtensions` | Extracted from `DefaultSidebarContent` | No (renders full groups) | Dynamic manifest-contributed `sidebarGroups`/`sidebarItems` |
-| `SidebarNotifications` | Extracted from `DefaultSidebarFooter` | Yes | Button (non-navigating, matching current behavior), active when pathname is `/notifications` |
-| `SidebarSupport` | Renamed from Help | Yes | Button (non-navigating), active when pathname is `/support`. Icon: `icon-[ph--lifebuoy-duotone]`. This is a label/icon change from the current "Help" button. |
-| `SidebarUser` | Extracted from `DefaultSidebarFooter` | No (UserButton handles its own) | Wraps `UserButton` in `Suspense`. Forwards `classNames` prop. |
+| Component              | Source                                 | Wraps in SidebarMenuItem?                 | Notes                                                                                                                                                         |
+| ---------------------- | -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SidebarOrgSwitcher`   | Extracted from `DefaultSidebarHeader`  | No (OrganizationSwitcher handles its own) | Uses sidebar state for popover side                                                                                                                           |
+| `SidebarAppLogo`       | Extracted from `DefaultSidebarHeader`  | Yes                                       | Renders app logo + name from `useApp()`. Contains "Smart" brand logic (kept as-is for now).                                                                   |
+| `SidebarHome`          | New, opt-in                            | Yes                                       | Button with home icon, active when pathname is `/`                                                                                                            |
+| `SidebarSearch`        | New, opt-in                            | Yes                                       | Button with search icon, active when pathname starts with `/search`                                                                                           |
+| `SidebarExtensions`    | Extracted from `DefaultSidebarContent` | No (renders full groups)                  | Dynamic manifest-contributed `sidebarGroups`/`sidebarItems`                                                                                                   |
+| `SidebarNotifications` | Extracted from `DefaultSidebarFooter`  | Yes                                       | Button (non-navigating, matching current behavior), active when pathname is `/notifications`                                                                  |
+| `SidebarSupport`       | Renamed from Help                      | Yes                                       | Button (non-navigating), active when pathname is `/support`. Icon: `icon-[ph--lifebuoy-duotone]`. This is a label/icon change from the current "Help" button. |
+| `SidebarUser`          | Extracted from `DefaultSidebarFooter`  | No (UserButton handles its own)           | Wraps `UserButton` in `Suspense`. Forwards `classNames` prop.                                                                                                 |
 
 ### File Structure
 
@@ -63,6 +63,7 @@ Note: An identical sidebar exists in `packages/npm/app.core/src/routes/(root)/(a
 `AppSidebar` in `sidebar.tsx` continues to use `PortkeyOut` with fallback defaults. The defaults are updated to compose from the new atomic components, so the rendered output is identical. Apps that don't customize via Portkey see no change.
 
 Updated defaults:
+
 - `DefaultSidebarHeader` → `SidebarOrgSwitcher` + `SidebarAppLogo`
 - `DefaultSidebarContent` → `SidebarExtensions`
 - `DefaultSidebarFooter` → `SidebarNotifications` + `SidebarSupport` + `SidebarUser`

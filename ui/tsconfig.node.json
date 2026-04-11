@@ -11,5 +11,12 @@
       "@/lib/*": ["./src/lib/*"]
     }
   },
-  "include": ["app.config.ts", "app.settings.ts", "env.d.ts", "scripts", "src/lib", "src/better-auth.ts"]
+  "include": [
+    "app.config.ts",
+    "app.settings.ts",
+    "env.d.ts",
+    "scripts",
+    "src/lib",
+    "src/better-auth.ts"
+  ]
 }

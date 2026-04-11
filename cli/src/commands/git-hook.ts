@@ -84,31 +84,50 @@ export function gitHookCommand(app: DxBase) {
     )
     .command("pre-push", (c) =>
       c.meta({ description: "Run quality checks before push" }).run(() => {
-        const PRE_PUSH_TIMEOUT_MS = 30_000
-        const result = spawnSync("dx", ["check", "lint"], {
-          cwd: process.cwd(),
-          stdio: "inherit",
-          timeout: PRE_PUSH_TIMEOUT_MS,
-        })
+        const TIMEOUT_MS = 30_000
+        const checks: Array<{
+          name: string
+          args: string[]
+          advisory?: boolean
+        }> = [
+          { name: "lint", args: ["run", "lint"] },
+          { name: "typecheck", args: ["run", "typecheck"], advisory: true },
+          { name: "format", args: ["run", "format:check"] },
+        ]
 
-        if (result.signal === "SIGTERM") {
-          console.error("")
-          console.error(
-            "  Pre-push lint timed out (30s). Skipping — full checks run in CI."
-          )
-          console.error("")
-          process.exit(0)
-        }
+        for (const check of checks) {
+          const result = spawnSync("pnpm", check.args, {
+            cwd: process.cwd(),
+            stdio: "inherit",
+            timeout: TIMEOUT_MS,
+          })
 
-        if (result.status !== 0) {
-          console.error("")
-          console.error(
-            "  Pre-push lint failed. Fix the issues above and try again."
-          )
-          console.error("  To bypass: git push --no-verify")
-          console.error("")
+          if (result.signal === "SIGTERM") {
+            console.error("")
+            console.error(
+              `  Pre-push ${check.name} timed out (30s). Skipping — full checks run in CI.`
+            )
+            console.error("")
+            if (!check.advisory) process.exit(0)
+            continue
+          }
+
+          if (result.status !== 0) {
+            if (check.advisory) {
+              console.error(
+                `  ⚠ Pre-push ${check.name} failed (advisory, not blocking push).`
+              )
+              continue
+            }
+            console.error("")
+            console.error(
+              `  Pre-push ${check.name} failed. Fix the issues above and try again.`
+            )
+            console.error("  To bypass: git push --no-verify")
+            console.error("")
+            process.exit(result.status ?? 1)
+          }
         }
-        process.exit(result.status ?? 1)
       })
     )
     .command("post-merge", (c) =>

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod"
 
 /**
  * Single settings model for factory-api: YAML (`config/application.yml`), profiles,
@@ -6,8 +6,8 @@ import { z } from "zod";
  *
  * Env overlay: FACTORY_DATABASE_URL, FACTORY_AUTH_JWKS_URL, FACTORY_LOG_LEVEL, FACTORY_LOG_FORMAT
  */
-export const factoryModes = ["factory", "site", "dev"] as const;
-export type FactoryMode = (typeof factoryModes)[number];
+export const factoryModes = ["factory", "site", "dev"] as const
+export type FactoryMode = (typeof factoryModes)[number]
 
 export const factorySettingsSchema = z.object({
   factory: z
@@ -49,40 +49,40 @@ export const factorySettingsSchema = z.object({
         .default({}),
     })
     .default({}),
-});
+})
 
-export type FactorySettings = z.infer<typeof factorySettingsSchema>;
+export type FactorySettings = z.infer<typeof factorySettingsSchema>
 
 /** Non-empty connection URL, or undefined. */
 export function getDatabaseUrl(s: FactorySettings): string | undefined {
-  const v = (s.factory.database.url ?? "").trim();
-  return v === "" ? undefined : v;
+  const v = (s.factory.database.url ?? "").trim()
+  return v === "" ? undefined : v
 }
 
 /** Non-empty JWKS URL, or undefined. */
 export function getJwksUrl(s: FactorySettings): string | undefined {
-  const v = (s.factory.auth.jwksUrl ?? "").trim();
-  return v === "" ? undefined : v;
+  const v = (s.factory.auth.jwksUrl ?? "").trim()
+  return v === "" ? undefined : v
 }
 
 /** Resolved run mode. */
 export function getMode(s: FactorySettings): FactoryMode {
-  return s.factory.mode;
+  return s.factory.mode
 }
 
 /** Non-empty auth service URL, or undefined. */
 export function getAuthServiceUrl(s: FactorySettings): string | undefined {
-  const v = (s.factory.auth.serviceUrl ?? "").trim();
-  return v === "" ? undefined : v;
+  const v = (s.factory.auth.serviceUrl ?? "").trim()
+  return v === "" ? undefined : v
 }
 
 /** Non-empty Redis URL, or undefined. */
 export function getRedisUrl(s: FactorySettings): string | undefined {
-  const v = (s.factory.redis.url ?? "").trim();
-  return v === "" ? undefined : v;
+  const v = (s.factory.redis.url ?? "").trim()
+  return v === "" ? undefined : v
 }
 
 /** Site-side config (meaningful only when mode is "site" or "dev"). */
 export function getSiteConfig(s: FactorySettings) {
-  return s.factory.site;
+  return s.factory.site
 }

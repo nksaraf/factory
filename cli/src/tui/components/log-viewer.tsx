@@ -102,8 +102,8 @@ export function LogViewer({ entries, focused }: LogViewerProps) {
       ))}
       <Box paddingX={1} marginTop={1}>
         <Text dimColor>
-          {autoScroll ? "▼ auto-scroll" : "▲ scroll paused"}{" "}
-          ({entries.length} entries)
+          {autoScroll ? "▼ auto-scroll" : "▲ scroll paused"} ({entries.length}{" "}
+          entries)
         </Text>
       </Box>
     </Box>

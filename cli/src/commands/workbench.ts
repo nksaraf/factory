@@ -42,7 +42,7 @@ setExamples("workbench", [
   "$ dx workbench delete my-ws                   Delete a workbench",
 ])
 
-const WS_BASE = "/api/factory/ops/workbenches"
+const WS_BASE = "/api/v1/factory/ops/workbenches"
 function wsPath(id?: string, action?: string): string {
   let p = WS_BASE
   if (id) p += `/${id}`
@@ -50,7 +50,7 @@ function wsPath(id?: string, action?: string): string {
   return p
 }
 
-const SNAP_BASE = "/api/factory/ops/workbench-snapshots"
+const SNAP_BASE = "/api/v1/factory/ops/workbench-snapshots"
 function snapPath(id?: string, action?: string): string {
   let p = SNAP_BASE
   if (id) p += `/${id}`

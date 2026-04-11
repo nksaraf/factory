@@ -6,10 +6,19 @@ export default function ProxmoxPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <PlaneHeader plane="infra" title="Proxmox Clusters" description="Proxmox VE cluster sync status" />
+      <PlaneHeader
+        plane="infra"
+        title="Proxmox Clusters"
+        description="Proxmox VE cluster sync status"
+      />
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
-      {!isLoading && (clusters ?? []).length === 0 && <EmptyState icon="icon-[ph--cube-duotone]" title="No Proxmox clusters" />}
+      {!isLoading && (clusters ?? []).length === 0 && (
+        <EmptyState
+          icon="icon-[ph--cube-duotone]"
+          title="No Proxmox clusters"
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(clusters ?? []).map((c) => (
@@ -18,9 +27,16 @@ export default function ProxmoxPage() {
               <h3 className="font-medium">{c.name}</h3>
               <StatusBadge status={c.syncStatus} />
             </div>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">{c.apiHost}:{c.apiPort}</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              {c.apiHost}:{c.apiPort}
+            </p>
             <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              <p>Last sync: {c.lastSyncAt ? new Date(c.lastSyncAt).toLocaleString() : "Never"}</p>
+              <p>
+                Last sync:{" "}
+                {c.lastSyncAt
+                  ? new Date(c.lastSyncAt).toLocaleString()
+                  : "Never"}
+              </p>
               {c.syncError && (
                 <p className="text-red-400">Error: {c.syncError}</p>
               )}

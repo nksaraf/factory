@@ -11,11 +11,11 @@
  *   dx workflow emit test.ping --data '{"id":"abc","payload":"pong"}'
  */
 
-import { z } from "zod";
+import { z } from "zod"
 
-import { createWorkflow, getWorkflowId } from "../../../lib/workflow-engine";
-import { waitForEvent } from "../../../lib/workflow-events";
-import { getWorkflowDb, updateRun } from "../../../lib/workflow-helpers";
+import { createWorkflow, getWorkflowId } from "../../../lib/workflow-engine"
+import { waitForEvent } from "../../../lib/workflow-events"
+import { getWorkflowDb, updateRun } from "../../../lib/workflow-helpers"
 
 const echoWorkflowInputSchema = z.object({
   /** Message to echo back */
@@ -29,9 +29,9 @@ const echoWorkflowInputSchema = z.object({
 
   /** Timeout in seconds for event wait (default 300 = 5 min) */
   waitTimeout: z.number().default(300),
-});
+})
 
-export type EchoWorkflowInput = z.infer<typeof echoWorkflowInputSchema>;
+export type EchoWorkflowInput = z.infer<typeof echoWorkflowInputSchema>
 
 export const echoWorkflow = createWorkflow({
   name: "echo-workflow",
@@ -39,29 +39,37 @@ export const echoWorkflow = createWorkflow({
   triggerTypes: ["cli", "manual"],
   inputSchema: echoWorkflowInputSchema as z.ZodType<EchoWorkflowInput>,
   fn: async (input: EchoWorkflowInput) => {
-    const db = getWorkflowDb();
-    const wfId = getWorkflowId();
+    const db = getWorkflowDb()
+    const wfId = getWorkflowId()
 
-    await updateRun(db, wfId, { phase: "running", state: { message: input.message } });
+    await updateRun(db, wfId, {
+      phase: "running",
+      state: { message: input.message },
+    })
 
-    let receivedEvent: unknown = null;
+    let receivedEvent: unknown = null
 
     if (input.waitForEvent) {
       await updateRun(db, wfId, {
         phase: "waiting",
-        state: { waitingFor: input.waitForEvent, waitMatch: input.waitMatch ?? {} },
-      });
+        state: {
+          waitingFor: input.waitForEvent,
+          waitMatch: input.waitMatch ?? {},
+        },
+      })
 
       receivedEvent = await waitForEvent(
         input.waitForEvent,
         input.waitMatch ?? {},
-        input.waitTimeout,
-      );
+        input.waitTimeout
+      )
 
       if (receivedEvent) {
-        await updateRun(db, wfId, { state: { receivedEvent } });
+        await updateRun(db, wfId, { state: { receivedEvent } })
       } else {
-        await updateRun(db, wfId, { state: { receivedEvent: null, timedOut: true } });
+        await updateRun(db, wfId, {
+          state: { receivedEvent: null, timedOut: true },
+        })
       }
     }
 
@@ -69,15 +77,15 @@ export const echoWorkflow = createWorkflow({
       echo: input.message,
       receivedEvent,
       timestamp: new Date().toISOString(),
-    };
+    }
 
     await updateRun(db, wfId, {
       phase: "completed",
       status: "succeeded",
       output,
       completedAt: new Date(),
-    });
+    })
 
-    return output;
+    return output
   },
-});
+})

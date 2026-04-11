@@ -11,10 +11,19 @@ import type {
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import dns from "node:dns/promises"
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
 
 import type { Database } from "../db/connection"
-import { estate, realm } from "../db/schema/infra-v2"
+import { dnsDomain, estate, realm } from "../db/schema/infra-v2"
 import { site, systemDeployment } from "../db/schema/ops"
 import { principal } from "../db/schema/org-v2"
 import { system } from "../db/schema/software-v2"
@@ -220,7 +229,7 @@ describe("Gateway Service", () => {
       const dSpec = d.spec as Record<string, unknown>
       expect(dSpec.verificationToken).toMatch(/^dx-verify-/)
       expect(dSpec.status).toBe("pending")
-      expect(dSpec.dnsVerified).toBe(false)
+      expect(dSpec.verified).toBe(false)
     })
 
     it("gets domain by id and by fqdn", async () => {
@@ -252,8 +261,47 @@ describe("Gateway Service", () => {
       })
 
       const updatedSpec = updated!.spec as Record<string, unknown>
-      expect(updatedSpec.dnsVerified).toBe(true)
+      expect(updatedSpec.verified).toBe(true)
       expect(updatedSpec.status).toBe("verified")
+    })
+
+    it("verifyDomain validates DNS and creates A/AAAA resolution links", async () => {
+      const txtSpy = vi
+        .spyOn(dns, "resolveTxt")
+        .mockResolvedValue([["token-123"]])
+      const v4Spy = vi
+        .spyOn(dns, "resolve4")
+        .mockResolvedValue(["203.0.113.20"])
+      const v6Spy = vi
+        .spyOn(dns, "resolve6")
+        .mockResolvedValue(["2001:db8::10"])
+      const created = await gw.registerDomain(db, {
+        fqdn: "verify.acme.com",
+        type: "custom",
+        createdBy: "test",
+      })
+      await gw.updateDomain(db, created.id, { status: "pending" })
+      const rowSpec = created.spec as Record<string, unknown>
+      await db
+        .update(dnsDomain)
+        .set({
+          spec: {
+            ...rowSpec,
+            verificationToken: "token-123",
+            verified: false,
+          },
+        })
+        .where(eq(dnsDomain.id, created.id))
+
+      const verified = await gw.verifyDomain(db, created.id)
+      expect(verified.verified).toBe(true)
+      expect(txtSpy).toHaveBeenCalled()
+      expect(v4Spy).toHaveBeenCalled()
+      expect(v6Spy).toHaveBeenCalled()
+
+      txtSpy.mockRestore()
+      v4Spy.mockRestore()
+      v6Spy.mockRestore()
     })
 
     it("removes domain", async () => {

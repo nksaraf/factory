@@ -76,23 +76,29 @@ async function ensureStream(jsm: JetStreamManager): Promise<void> {
   }
 }
 
+export interface PublishResult {
+  ok: boolean
+  error?: string
+}
+
 /**
  * Publish an event to NATS JetStream.
- * Returns true on success, false on failure.
+ * Returns { ok: true } on success, { ok: false, error } on failure.
  */
 export async function publishToNats(
   topic: string,
   payload: string
-): Promise<boolean> {
+): Promise<PublishResult> {
   const conn = await getNatsConnection()
-  if (!conn) return false
+  if (!conn) return { ok: false, error: "NATS not connected (NATS_URL unset)" }
 
   try {
     await conn.js.publish(topic, sc.encode(payload))
-    return true
+    return { ok: true }
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
     logger.error({ err, topic }, "nats: publish failed")
-    return false
+    return { ok: false, error: message }
   }
 }
 
@@ -106,4 +112,13 @@ export async function closeNats(): Promise<void> {
     js = null
     logger.info("nats: connection closed")
   }
+}
+
+/**
+ * Reset singleton state for test isolation.
+ * Does NOT drain — just drops references so the next call starts fresh.
+ */
+export function resetNatsForTesting(): void {
+  nc = null
+  js = null
 }

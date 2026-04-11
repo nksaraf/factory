@@ -69,7 +69,7 @@ describe("curlRequest", () => {
       "retry-after": "30",
     })
     const result = await curlRequest({
-      url: "https://slack.com/api/auth.test",
+      url: "https://slack.com/api/v1/auth.test",
     })
     expect(result.data).toEqual({ ok: true })
     expect(result.status).toBe(200)
@@ -233,12 +233,12 @@ describe("curlAxiosAdapter", () => {
   it("resolves absolute URLs directly (no double baseURL)", async () => {
     mockCurl('{"ok":true}')
     await curlAxiosAdapter({
-      url: "https://slack.com/api/auth.test",
+      url: "https://slack.com/api/v1/auth.test",
       baseURL: "https://slack.com/api/",
       method: "POST",
     })
     const args = getCurlArgs()
-    expect(args[args.length - 1]).toBe("https://slack.com/api/auth.test")
+    expect(args[args.length - 1]).toBe("https://slack.com/api/v1/auth.test")
   })
 
   it("prepends baseURL for relative URLs", async () => {
@@ -249,7 +249,7 @@ describe("curlAxiosAdapter", () => {
       method: "POST",
     })
     const args = getCurlArgs()
-    expect(args[args.length - 1]).toBe("https://slack.com/api/auth.test")
+    expect(args[args.length - 1]).toBe("https://slack.com/api/v1/auth.test")
   })
 
   it("handles undefined config.url with baseURL", async () => {
@@ -283,7 +283,7 @@ describe("curlAxiosAdapter", () => {
 
   it("returns all fields required by @slack/web-api WebClient", async () => {
     mockCurl('{"ok":true}', 200)
-    const config = { url: "https://slack.com/api/auth.test", method: "POST" }
+    const config = { url: "https://slack.com/api/v1/auth.test", method: "POST" }
     const result = await curlAxiosAdapter(config)
     expect(result).toHaveProperty("data")
     expect(result).toHaveProperty("status")

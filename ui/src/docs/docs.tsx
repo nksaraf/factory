@@ -52,7 +52,7 @@ export function Docs({ children }) {
 
   console.log(
     "active",
-    actionRoutes.flatMap((item) => item),
+    actionRoutes.flatMap((item) => item)
   )
 
   return (
@@ -73,7 +73,7 @@ export function Docs({ children }) {
               >
                 <div
                   className={cn(
-                    "rounded-md h-6 w-6 z-10 flex justify-center items-center bg-scale-900",
+                    "rounded-md h-6 w-6 z-10 flex justify-center items-center bg-scale-900"
                   )}
                 >
                   {/* <span
@@ -92,19 +92,19 @@ export function Docs({ children }) {
               <Collapsible
                 defaultOpen
                 className={cn(
-                  "transition-all pb-3 flex flex-col gap-[1px] rounded-md w-full py-2 text-scale-1100 shadow-lg",
+                  "transition-all pb-3 flex flex-col gap-[1px] rounded-md w-full py-2 text-scale-1100 shadow-lg"
                 )}
               >
                 <CollapsibleTrigger className="w-9/12 flex gap-3 items-center">
                   <div
                     className={cn(
-                      "rounded-md relative h-6 w-6 z-10 flex justify-center items-center bg-scale-900",
+                      "rounded-md relative h-6 w-6 z-10 flex justify-center items-center bg-scale-900"
                     )}
                   >
                     <span
                       className={cn(
                         "text-base text-scale-1200",
-                        "icon-[ic--sharp-draw]",
+                        "icon-[ic--sharp-draw]"
                       )}
                     ></span>
                   </div>
@@ -119,30 +119,30 @@ export function Docs({ children }) {
                             "top-0 left-0 w-full h-6 rounded-md border border-transparent flex justify-start items-center transition-all hover:bg-scale-500 hover:border-scale-900",
                             active === item.name
                               ? "bg-brand-500/50 border border-brand-600"
-                              : "text-foreground",
+                              : "text-foreground"
                           )}
                         >
                           <Link
                             key={index}
                             to={`${item.link}`}
                             className={cn(
-                              "flex gap-2 px-6 w-[95%] items-center transition-all text-base duration-200 relative ml-3 text-foreground ",
+                              "flex gap-2 px-6 w-[95%] items-center transition-all text-base duration-200 relative ml-3 text-foreground "
                             )}
                           >
                             <div
                               className={cn(
-                                "absolute top-3 left-0 w-3 h-[0.1rem] rounded-r-md bg-scale-900",
+                                "absolute top-3 left-0 w-3 h-[0.1rem] rounded-r-md bg-scale-900"
                               )}
                             ></div>
                             <div
                               className={cn(
-                                "absolute -top-[15px] left-0 w-[0.1rem] h-[27px] bg-scale-900",
+                                "absolute -top-[15px] left-0 w-[0.1rem] h-[27px] bg-scale-900"
                               )}
                             ></div>
                             <span
                               className={cn(
                                 "transition icon text-foreground",
-                                item.icon,
+                                item.icon
                               )}
                             ></span>
 
@@ -206,7 +206,7 @@ export function Navigation() {
       </Link>
       <Link
         className={cn(
-          "flex-1 border border-brand-500 rounded-sm px-4 py-2 hover:scale-105 transition-all",
+          "flex-1 border border-brand-500 rounded-sm px-4 py-2 hover:scale-105 transition-all"
         )}
         to={nextPath?.link}
       >

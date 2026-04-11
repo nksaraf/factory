@@ -23,7 +23,7 @@ interface PreviewRow {
   spec: PreviewSpec
 }
 
-const BASE = "http://localhost/api/factory/ops/previews"
+const BASE = "http://localhost/api/v1/factory/ops/previews"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {

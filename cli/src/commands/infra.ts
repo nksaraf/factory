@@ -870,6 +870,39 @@ export function infraCommand(app: DxBase) {
                 const result = await apiCall(flags, () =>
                   api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
                 )
+                const row = (result?.data ?? null) as InfraRow | null
+                let ipDisplay = row?.spec?.ipAddress
+                  ? String(row.spec.ipAddress)
+                  : styleMuted("-")
+
+                if (row?.id) {
+                  const rest = await getRestApi()
+                  const ipsResult = await apiCall(flags, () =>
+                    restCall(() =>
+                      rest.request<Array<Record<string, unknown>>>(
+                        "GET",
+                        `/api/v1/factory/infra/hosts/${row.id}/ip-addresses`,
+                        {}
+                      )
+                    )
+                  )
+                  const ips = (ipsResult?.data ?? []) as Array<
+                    Record<string, unknown>
+                  >
+                  if (ips.length > 0) {
+                    ipDisplay = ips
+                      .map((ip) => {
+                        const spec = (ip.spec ?? {}) as Record<string, unknown>
+                        const tags: string[] = []
+                        if (spec.scope) tags.push(String(spec.scope))
+                        if (spec.primary) tags.push("primary")
+                        if (spec.interface) tags.push(String(spec.interface))
+                        return `${ip.address}${tags.length > 0 ? ` (${tags.join(", ")})` : ""}`
+                      })
+                      .join(", ")
+                  }
+                }
+
                 detailView<InfraRow>(flags, result, [
                   ["ID", (r) => styleMuted(String(r.id ?? ""))],
                   ["Name", (r) => styleBold(String(r.name ?? ""))],
@@ -880,7 +913,7 @@ export function infraCommand(app: DxBase) {
                       `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`,
                   ],
                   ["Disk", (r) => `${r.spec?.diskGb ?? ""}GB`],
-                  ["IP", (r) => String(r.spec?.ipAddress ?? "")],
+                  ["IPs", () => ipDisplay],
                   ["Estate", (r) => String(r.spec?.estateId ?? "")],
                   ["Datacenter", (r) => String(r.spec?.datacenterId ?? "")],
                   [

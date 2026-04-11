@@ -86,7 +86,11 @@ function getValue(row: Record<string, unknown>, col: Column): string {
   const raw = row[col.key]
   if (col.format) return col.format(raw, row)
   if (raw === null || raw === undefined) return "-"
-  if (col.key.includes("At") || col.key.includes("Date") || col.key === "since") {
+  if (
+    col.key.includes("At") ||
+    col.key.includes("Date") ||
+    col.key === "since"
+  ) {
     return timeAgo(String(raw))
   }
   return String(raw)
@@ -108,7 +112,8 @@ function formatDetailValue(val: unknown): string {
   if (typeof val === "object") return JSON.stringify(val)
   const s = String(val)
   // Auto-detect timestamps
-  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return `${s.slice(0, 19).replace("T", " ")} (${timeAgo(s)})`
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s))
+    return `${s.slice(0, 19).replace("T", " ")} (${timeAgo(s)})`
   return s
 }
 
@@ -202,21 +207,26 @@ export function DataTable({
                   <Box key={col.key} width={colWidths[colIdx]}>
                     <Text
                       backgroundColor={isCursor ? "blue" : undefined}
-                      color={isCursor ? "white" : color ?? undefined}
+                      color={isCursor ? "white" : (color ?? undefined)}
                       bold={colIdx === 0 && !isCursor}
                     >
                       {color && !isCursor ? `● ${val}` : val}
                     </Text>
                     {slug && slug !== val && (
-                      <Text dimColor={!isCursor} color={isCursor ? "white" : undefined} backgroundColor={isCursor ? "blue" : undefined}> {slug}</Text>
+                      <Text
+                        dimColor={!isCursor}
+                        color={isCursor ? "white" : undefined}
+                        backgroundColor={isCursor ? "blue" : undefined}
+                      >
+                        {" "}
+                        {slug}
+                      </Text>
                     )}
                   </Box>
                 )
               })}
             </Box>
-            {isExpanded && (
-              <DetailRow row={row} fields={detailFields} />
-            )}
+            {isExpanded && <DetailRow row={row} fields={detailFields} />}
           </React.Fragment>
         )
       })}
@@ -232,7 +242,13 @@ export function DataTable({
   )
 }
 
-function DetailRow({ row, fields }: { row: Record<string, unknown>; fields?: DetailField[] }) {
+function DetailRow({
+  row,
+  fields,
+}: {
+  row: Record<string, unknown>
+  fields?: DetailField[]
+}) {
   const resolvedFields = fields ?? autoDetailFields(row)
   const maxLabel = Math.max(...resolvedFields.map((f) => f.label.length))
 
@@ -250,16 +266,14 @@ function DetailRow({ row, fields }: { row: Record<string, unknown>; fields?: Det
     >
       {resolvedFields.map((field) => {
         const raw = row[field.key]
-        const val = field.format ? field.format(raw, row) : formatDetailValue(raw)
+        const val = field.format
+          ? field.format(raw, row)
+          : formatDetailValue(raw)
         const sc = typeof raw === "string" ? statusColor(raw) : undefined
         return (
           <Box key={field.key}>
-            <Text dimColor>{field.label.padEnd(maxLabel)}  </Text>
-            {sc ? (
-              <Text color={sc}>● {val}</Text>
-            ) : (
-              <Text>{val}</Text>
-            )}
+            <Text dimColor>{field.label.padEnd(maxLabel)} </Text>
+            {sc ? <Text color={sc}>● {val}</Text> : <Text>{val}</Text>}
           </Box>
         )
       })}

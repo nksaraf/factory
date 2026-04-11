@@ -56,7 +56,7 @@ function getFactoryUrl(): string {
 
 function getAuthBasePath(): string {
   const config = readJsonFile(join(getDxConfigDir(), "config.json"))
-  return (config?.authBasePath as string) || "/api/auth"
+  return (config?.authBasePath as string) || "/api/v1/auth"
 }
 
 async function refreshJwt(
@@ -143,7 +143,7 @@ export async function sendEvent(
     payload: event.payload ? truncatePayload(event.payload) : {},
   }
 
-  const res = await fetch(`${auth.url}/api/factory/ide-hooks/events`, {
+  const res = await fetch(`${auth.url}/api/v1/factory/ide-hooks/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

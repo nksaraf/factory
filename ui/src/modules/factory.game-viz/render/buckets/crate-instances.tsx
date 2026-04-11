@@ -2,7 +2,14 @@ import { Instance, Instances } from "@react-three/drei"
 import { useQuery } from "koota/react"
 
 import { selectEntity } from "../../ecs/actions"
-import { Crate, Position, Rotation, Scale, Tint, Visible } from "../../ecs/traits"
+import {
+  Crate,
+  Position,
+  Rotation,
+  Scale,
+  Tint,
+  Visible,
+} from "../../ecs/traits"
 import { world } from "../../ecs/world"
 
 export function CrateInstances() {

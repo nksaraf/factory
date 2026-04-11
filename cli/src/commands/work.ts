@@ -79,7 +79,7 @@ export function workCommand(app: DxBase) {
               success: boolean
               workflowRunId?: string
               error?: string
-            }>("POST", "/api/factory/workflow/runs", {
+            }>("POST", "/api/v1/factory/workflow/runs", {
               workflowName: "god-workflow",
               input,
             })
@@ -123,7 +123,7 @@ export function workCommand(app: DxBase) {
             // Find most recent god-workflow run for this issue key
             const res = await client.request<{ data: any[] }>(
               "GET",
-              "/api/factory/workflow/runs?workflowName=god-workflow&limit=10"
+              "/api/v1/factory/workflow/runs?workflowName=god-workflow&limit=10"
             )
 
             const run = res.data.find(
@@ -176,7 +176,7 @@ export function workCommand(app: DxBase) {
             // Find the running workflow for this issue
             const res = await client.request<{ data: any[] }>(
               "GET",
-              "/api/factory/workflow/runs?workflowName=god-workflow&status=running"
+              "/api/v1/factory/workflow/runs?workflowName=god-workflow&status=running"
             )
 
             const run = res.data.find(
@@ -193,7 +193,10 @@ export function workCommand(app: DxBase) {
             const cancelRes = await client.request<{
               success: boolean
               error?: string
-            }>("POST", `/api/factory/workflow/runs/${run.workflowRunId}/cancel`)
+            }>(
+              "POST",
+              `/api/v1/factory/workflow/runs/${run.workflowRunId}/cancel`
+            )
 
             if (json) {
               console.log(JSON.stringify(cancelRes, null, 2))

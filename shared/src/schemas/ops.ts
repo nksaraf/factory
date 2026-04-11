@@ -171,7 +171,7 @@ export const SystemDeploymentSchema = z
     name: z.string(),
     type: DeploymentKindSchema,
     systemId: z.string(),
-    siteId: z.string().nullable(),
+    siteId: z.string(),
     tenantId: z.string().nullable(),
     realmId: z.string().nullable(),
     workbenchId: z.string().nullable(),

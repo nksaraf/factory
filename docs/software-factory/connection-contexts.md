@@ -107,17 +107,17 @@ dependencies:
 # In staging/prod: resolved to the co-located module's service endpoint
 connections:
   auth:
-    module: auth                          # the auth module
-    component: api                        # specifically its api component
-    env_var: AUTH_API_URL                  # the env var that receives the resolved URL
-    local_default: http://localhost:9090   # if running auth locally via dx dev
+    module: auth # the auth module
+    component: api # specifically its api component
+    env_var: AUTH_API_URL # the env var that receives the resolved URL
+    local_default: http://localhost:9090 # if running auth locally via dx dev
 
   analytics:
     module: analytics
     component: api
     env_var: ANALYTICS_API_URL
     local_default: http://localhost:9091
-    optional: true                         # geoanalytics works without analytics (degrades gracefully)
+    optional: true # geoanalytics works without analytics (degrades gracefully)
 ```
 
 The `dependencies` block is what gets spun up as containers (postgres, redis). The `connections` block is what gets resolved to URLs (other modules). Together they form the full set of external things this module talks to.
@@ -602,16 +602,16 @@ Teams can configure what connections are allowed and what profiles exist:
 connections:
   # Which targets can developers connect to?
   allow:
-    - kind: sandbox           # anyone can connect to any sandbox
-    - kind: dev               # anyone can connect to any dev target
-    - kind: staging           # team members can connect to staging
+    - kind: sandbox # anyone can connect to any sandbox
+    - kind: dev # anyone can connect to any dev target
+    - kind: staging # team members can connect to staging
       require: team-member
-    - kind: production        # explicit grant required, readonly only
+    - kind: production # explicit grant required, readonly only
       require: connect-production-grant
       force-readonly: true
 
   # Default profile when no flags given
-  default-profile: null       # null means fully local. "staging-deps" would default to staging.
+  default-profile: null # null means fully local. "staging-deps" would default to staging.
 
   # Maximum production connection duration
   production-session-ttl: 2h
@@ -633,13 +633,13 @@ Connection contexts don't introduce new entities into the data model. They're a 
 
 The new things are:
 
-| Concept | What it is | Where it lives |
-|---|---|---|
-| `connections` block in docker-compose.yaml | Declares which other modules this module talks to | Build Plane (source code) |
-| Connection profiles | Named, reusable connection configurations | Build Plane (`.dx/profiles/`, checked into git) |
-| `dx connect` command | Bare tunnel manager | CLI tool |
-| `dx dev --connect-to` | Hybrid dev with remote deps | CLI tool, uses above |
-| `connection_audit_event` | Who connected to what, when | Fleet Plane audit table |
-| Tunnel manager | Background process managing port-forwards | CLI infrastructure |
+| Concept                                    | What it is                                        | Where it lives                                  |
+| ------------------------------------------ | ------------------------------------------------- | ----------------------------------------------- |
+| `connections` block in docker-compose.yaml | Declares which other modules this module talks to | Build Plane (source code)                       |
+| Connection profiles                        | Named, reusable connection configurations         | Build Plane (`.dx/profiles/`, checked into git) |
+| `dx connect` command                       | Bare tunnel manager                               | CLI tool                                        |
+| `dx dev --connect-to`                      | Hybrid dev with remote deps                       | CLI tool, uses above                            |
+| `connection_audit_event`                   | Who connected to what, when                       | Fleet Plane audit table                         |
+| Tunnel manager                             | Background process managing port-forwards         | CLI infrastructure                              |
 
 The code doesn't know or care where its dependencies are. It reads `DATABASE_URL` and connects. dx makes `DATABASE_URL` point to the right place — local container, staging tunnel, production read-only connection — depending on the connection context. Same code, same image, different wiring.

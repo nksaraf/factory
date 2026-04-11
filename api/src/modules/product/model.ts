@@ -49,9 +49,7 @@ export const ProductModel = {
     apiUrl: t.Optional(t.String()),
     credentialsRef: t.Optional(t.String()),
     defaultProjectKey: t.Optional(t.String()),
-    status: t.Optional(
-      t.Union([t.Literal("active"), t.Literal("inactive")])
-    ),
+    status: t.Optional(t.Union([t.Literal("active"), t.Literal("inactive")])),
     syncEnabled: t.Optional(t.Boolean()),
     syncIntervalMinutes: t.Optional(t.Number()),
   }),

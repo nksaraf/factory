@@ -80,6 +80,13 @@ import {
   parsePagination,
 } from "../../lib/pagination"
 import { list, ok } from "../../lib/responses"
+import {
+  assignIp as assignIpAddress,
+  ensureIp,
+  getEntityIps,
+} from "../../services/infra/ipam.service"
+import { syncFromCloudflare } from "../../services/infra/dns-sync.service"
+import { verifyDomain } from "./gateway.service"
 import { drizzleDbReader, resolveRouteTargets } from "./route-resolver"
 import {
   domainMatches,
@@ -88,6 +95,14 @@ import {
   validateEndpoints,
 } from "./trace"
 import { createTunnelHandlers } from "./tunnel-broker"
+
+function isRfc1918Ip(ip: string): boolean {
+  const parts = ip.split(".").map(Number)
+  if (parts[0] === 10) return true
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  if (parts[0] === 192 && parts[1] === 168) return true
+  return false
+}
 
 const TraceBodySchema = z.object({
   entityKind: NetworkLinkEndpointKindSchema,
@@ -169,6 +184,28 @@ export function infraControllerV2(db: Database) {
           updateSchema: UpdateHostSchema,
           deletable: true,
           hooks: {
+            afterCreate: async ({ db: hookDb, row }) => {
+              const spec = row.spec as HostSpec
+              const ips = spec.ips ?? (spec.ipAddress ? [spec.ipAddress] : [])
+
+              for (let i = 0; i < ips.length; i++) {
+                const address = ips[i]
+                const ip = await ensureIp(hookDb, {
+                  address,
+                  spec: {
+                    scope: isRfc1918Ip(address) ? "private" : "public",
+                    purpose: "dev",
+                    primary: i === 0,
+                  },
+                })
+                await assignIpAddress(hookDb, ip.ipAddressId, {
+                  assignedToType: "host",
+                  assignedToId: row.id,
+                })
+              }
+
+              return row
+            },
             beforeUpdate: async ({ entity, parsed }) => {
               if (parsed.spec) {
                 const currentSpec = (entity.spec ?? {}) as Record<
@@ -561,16 +598,7 @@ export function infraControllerV2(db: Database) {
           actions: {
             verify: {
               handler: async ({ db, entity }) => {
-                const spec = entity.spec as DnsDomainSpec
-                const [row] = await db
-                  .update(dnsDomain)
-                  .set({
-                    spec: { ...spec, verified: true, verifiedAt: new Date() },
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(dnsDomain.id, entity.id as string))
-                  .returning()
-                return row
+                return verifyDomain(db, entity.id as string)
               },
             },
           },
@@ -934,6 +962,46 @@ export function infraControllerV2(db: Database) {
           detail: {
             tags: ["infra/ip-addresses"],
             summary: "Get IPAM statistics",
+          },
+        }
+      )
+
+      // ── Hosts: Assigned IP entities ───────────────────────
+      .get(
+        "/hosts/:slugOrId/ip-addresses",
+        async ({ params }) => {
+          const [targetHost] = await db
+            .select({ id: host.id })
+            .from(host)
+            .where(
+              or(eq(host.id, params.slugOrId), eq(host.slug, params.slugOrId))
+            )
+            .limit(1)
+          if (!targetHost) {
+            throw new NotFoundError(`Host '${params.slugOrId}' not found`)
+          }
+          const ips = await getEntityIps(db, "host", targetHost.id)
+          return ok(ips)
+        },
+        {
+          detail: {
+            tags: ["infra/hosts"],
+            summary: "List IP entities assigned to a host",
+          },
+        }
+      )
+
+      // ── DNS: Cloudflare sync ──────────────────────────────
+      .post(
+        "/dns-sync",
+        async ({ body }) => {
+          const parsed = z.object({ estateId: z.string().min(1) }).parse(body)
+          return ok(await syncFromCloudflare(db, parsed.estateId))
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "Sync Cloudflare zones and records",
           },
         }
       )

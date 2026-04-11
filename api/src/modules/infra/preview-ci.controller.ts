@@ -8,7 +8,7 @@ import * as previewSvc from "../../services/preview/preview.service"
  * Mounted outside the auth boundary so GitHub Actions can call them.
  */
 export function previewCiController(db: Database) {
-  return new Elysia({ prefix: "/api/factory/build/ci/previews" }).post(
+  return new Elysia({ prefix: "/api/v1/factory/build/ci/previews" }).post(
     "/:slug/image",
     async ({ params, body, set }) => {
       const row = await previewSvc.getPreviewBySlug(db, params.slug)

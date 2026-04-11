@@ -1,4 +1,6 @@
 {
   "name": "test",
-  "scripts": { "lint": "custom-linter --strict" }
+  "scripts": {
+    "lint": "custom-linter --strict"
+  }
 }

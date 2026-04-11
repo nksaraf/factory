@@ -248,7 +248,7 @@ export interface Entitlement {
   createdAt: string
 }
 
-/** Fleet plane */
+/** Ops plane */
 export type SiteStatus =
   | "provisioning"
   | "active"

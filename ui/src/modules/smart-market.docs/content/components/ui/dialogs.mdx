@@ -3,7 +3,15 @@
 Modal and overlay components for focused interactions. Built on Radix Dialog primitives with consistent animations and accessibility.
 
 ```tsx
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@rio.js/ui-next/components/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@rio.js/ui-next/components/dialog"
 ```
 
 ---
@@ -20,7 +28,9 @@ A centered modal overlay for forms, confirmations, and focused workflows. Traps 
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Edit Profile</DialogTitle>
-        <DialogDescription>Make changes to your profile here.</DialogDescription>
+        <DialogDescription>
+          Make changes to your profile here.
+        </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4">
         <div className="space-y-2">
@@ -61,15 +71,15 @@ A centered modal overlay for forms, confirmations, and focused workflows. Traps 
 
 ### Dialog structure
 
-| Component | Purpose |
-|-----------|---------|
-| `Dialog` | Root — manages open/close state |
-| `DialogTrigger` | Element that opens the dialog |
-| `DialogContent` | The modal panel itself |
-| `DialogHeader` | Container for title and description |
-| `DialogTitle` | Heading text (required for accessibility) |
-| `DialogDescription` | Supporting text below the title |
-| `DialogFooter` | Action buttons area, right-aligned |
+| Component           | Purpose                                   |
+| ------------------- | ----------------------------------------- |
+| `Dialog`            | Root — manages open/close state           |
+| `DialogTrigger`     | Element that opens the dialog             |
+| `DialogContent`     | The modal panel itself                    |
+| `DialogHeader`      | Container for title and description       |
+| `DialogTitle`       | Heading text (required for accessibility) |
+| `DialogDescription` | Supporting text below the title           |
+| `DialogFooter`      | Action buttons area, right-aligned        |
 
 ### Controlled dialog
 
@@ -93,7 +103,17 @@ const [open, setOpen] = useState(false)
 A confirmation dialog that requires an explicit user decision. Unlike Dialog, it cannot be dismissed by clicking the overlay or pressing Escape — the user must choose an action.
 
 ```tsx
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@rio.js/ui-next/components/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@rio.js/ui-next/components/alert-dialog"
 ```
 
 <ComponentPreview>
@@ -105,7 +125,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
       <AlertDialogHeader>
         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
         <AlertDialogDescription>
-          This action cannot be undone. This will permanently delete the item from the system.
+          This action cannot be undone. This will permanently delete the item
+          from the system.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -146,7 +167,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 A panel that slides in from the edge of the screen. Use for secondary navigation, detail views, or forms that don't warrant a full modal.
 
 ```tsx
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@rio.js/ui-next/components/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@rio.js/ui-next/components/sheet"
 ```
 
 <ComponentPreview>
@@ -158,10 +186,14 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Side Panel</SheetTitle>
-          <SheetDescription>A slide-out panel from the edge of the screen.</SheetDescription>
+          <SheetDescription>
+            A slide-out panel from the edge of the screen.
+          </SheetDescription>
         </SheetHeader>
         <div className="py-4">
-          <p className="text-sm text-muted-foreground">Panel content goes here.</p>
+          <p className="text-sm text-muted-foreground">
+            Panel content goes here.
+          </p>
         </div>
       </SheetContent>
     </Sheet>
@@ -196,12 +228,12 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 
 ### Side options
 
-| Side | Description |
-|------|-------------|
-| `right` | Default. Slides in from the right edge |
-| `left` | Slides in from the left edge |
-| `top` | Slides down from the top |
-| `bottom` | Slides up from the bottom |
+| Side     | Description                            |
+| -------- | -------------------------------------- |
+| `right`  | Default. Slides in from the right edge |
+| `left`   | Slides in from the left edge           |
+| `top`    | Slides down from the top               |
+| `bottom` | Slides up from the bottom              |
 
 ---
 
@@ -209,25 +241,25 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 
 ### Dialog Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `open` | `boolean` | — | Controlled open state |
-| `defaultOpen` | `boolean` | `false` | Uncontrolled default |
-| `onOpenChange` | `(open: boolean) => void` | — | Called when open state changes |
-| `modal` | `boolean` | `true` | Whether to render as a modal |
-| `variant` | `"default" \| "loud"` | `"default"` | `loud` adds a prominent ring highlight around the dialog |
+| Prop           | Type                      | Default     | Description                                              |
+| -------------- | ------------------------- | ----------- | -------------------------------------------------------- |
+| `open`         | `boolean`                 | —           | Controlled open state                                    |
+| `defaultOpen`  | `boolean`                 | `false`     | Uncontrolled default                                     |
+| `onOpenChange` | `(open: boolean) => void` | —           | Called when open state changes                           |
+| `modal`        | `boolean`                 | `true`      | Whether to render as a modal                             |
+| `variant`      | `"default" \| "loud"`     | `"default"` | `loud` adds a prominent ring highlight around the dialog |
 
 ### AlertDialog Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `open` | `boolean` | — | Controlled open state |
-| `defaultOpen` | `boolean` | `false` | Uncontrolled default |
-| `onOpenChange` | `(open: boolean) => void` | — | Called when open state changes |
+| Prop           | Type                      | Default | Description                    |
+| -------------- | ------------------------- | ------- | ------------------------------ |
+| `open`         | `boolean`                 | —       | Controlled open state          |
+| `defaultOpen`  | `boolean`                 | `false` | Uncontrolled default           |
+| `onOpenChange` | `(open: boolean) => void` | —       | Called when open state changes |
 
 ### SheetContent Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"right"` | Edge the sheet slides from |
-| `className` | `string` | — | Additional CSS classes |
+| Prop        | Type                                     | Default   | Description                |
+| ----------- | ---------------------------------------- | --------- | -------------------------- |
+| `side`      | `"top" \| "right" \| "bottom" \| "left"` | `"right"` | Edge the sheet slides from |
+| `className` | `string`                                 | —         | Additional CSS classes     |

@@ -16,25 +16,26 @@
 
 ## File Structure
 
-| File | Responsibility | Action |
-|------|---------------|--------|
-| `api/src/modules/infra/gateway-proxy.ts` | HTTP server: hostname parsing, LRU cache, reverse proxy | Create |
-| `api/src/modules/infra/gateway-proxy.test.ts` | Unit tests for hostname parsing and route resolution | Create |
-| `api/src/modules/infra/traefik-sync.ts` | Generate Traefik YAML — now only for custom_domain + ingress | Modify |
-| `api/src/modules/infra/gateway.service.ts` | Add `lookupRouteByDomain()` for gateway, cache invalidation hooks | Modify |
-| `api/src/modules/infra/gateway.controller.ts` | Wire gateway startup on API boot | Modify |
-| `api/src/db/schema/gateway.ts` | Add `mode` and `tcpPort` columns to tunnel table | Modify |
-| `api/src/db/schema/fleet.ts` | Add `preview` table | Modify |
-| `api/src/lib/id.ts` | Add `"prev"` entity prefix for previews | Modify |
-| `api/src/services/preview/preview.service.ts` | Preview CRUD + lifecycle state machine | Create |
-| `api/src/__tests__/gateway-services.test.ts` | Integration tests for gateway service + preview service | Create |
-| `api/src/__tests__/traefik-sync.test.ts` | Tests for simplified traefik-sync | Create |
+| File                                          | Responsibility                                                    | Action |
+| --------------------------------------------- | ----------------------------------------------------------------- | ------ |
+| `api/src/modules/infra/gateway-proxy.ts`      | HTTP server: hostname parsing, LRU cache, reverse proxy           | Create |
+| `api/src/modules/infra/gateway-proxy.test.ts` | Unit tests for hostname parsing and route resolution              | Create |
+| `api/src/modules/infra/traefik-sync.ts`       | Generate Traefik YAML — now only for custom_domain + ingress      | Modify |
+| `api/src/modules/infra/gateway.service.ts`    | Add `lookupRouteByDomain()` for gateway, cache invalidation hooks | Modify |
+| `api/src/modules/infra/gateway.controller.ts` | Wire gateway startup on API boot                                  | Modify |
+| `api/src/db/schema/gateway.ts`                | Add `mode` and `tcpPort` columns to tunnel table                  | Modify |
+| `api/src/db/schema/fleet.ts`                  | Add `preview` table                                               | Modify |
+| `api/src/lib/id.ts`                           | Add `"prev"` entity prefix for previews                           | Modify |
+| `api/src/services/preview/preview.service.ts` | Preview CRUD + lifecycle state machine                            | Create |
+| `api/src/__tests__/gateway-services.test.ts`  | Integration tests for gateway service + preview service           | Create |
+| `api/src/__tests__/traefik-sync.test.ts`      | Tests for simplified traefik-sync                                 | Create |
 
 ---
 
 ## Task 1: Hostname Parser + Route Family Detection
 
 **Files:**
+
 - Create: `api/src/modules/infra/gateway-proxy.ts`
 - Create: `api/src/modules/infra/gateway-proxy.test.ts`
 
@@ -45,49 +46,49 @@ This task builds the pure-function hostname parsing layer. No HTTP server yet �
 Create `api/src/modules/infra/gateway-proxy.test.ts`:
 
 ```typescript
-import { describe, expect, it } from "vitest";
-import { parseHostname } from "./gateway-proxy";
+import { describe, expect, it } from "vitest"
+import { parseHostname } from "./gateway-proxy"
 
 describe("parseHostname", () => {
   it("parses tunnel hostname", () => {
     expect(parseHostname("happy-fox-42.tunnel.dx.dev")).toEqual({
       family: "tunnel",
       slug: "happy-fox-42",
-    });
-  });
+    })
+  })
 
   it("parses preview hostname", () => {
     expect(parseHostname("pr-42--fix-auth--myapp.preview.dx.dev")).toEqual({
       family: "preview",
       slug: "pr-42--fix-auth--myapp",
-    });
-  });
+    })
+  })
 
   it("parses sandbox hostname", () => {
     expect(parseHostname("dev-nikhil-abc.sandbox.dx.dev")).toEqual({
       family: "sandbox",
       slug: "dev-nikhil-abc",
-    });
-  });
+    })
+  })
 
   it("parses sandbox with port suffix", () => {
     expect(parseHostname("dev-nikhil-abc-8080.sandbox.dx.dev")).toEqual({
       family: "sandbox",
       slug: "dev-nikhil-abc-8080",
-    });
-  });
+    })
+  })
 
   it("returns null for non-gateway hostnames", () => {
-    expect(parseHostname("api.prod.dx.dev")).toBeNull();
-    expect(parseHostname("app.example.com")).toBeNull();
-    expect(parseHostname("dx.dev")).toBeNull();
-  });
+    expect(parseHostname("api.prod.dx.dev")).toBeNull()
+    expect(parseHostname("app.example.com")).toBeNull()
+    expect(parseHostname("dx.dev")).toBeNull()
+  })
 
   it("returns null for empty or missing host", () => {
-    expect(parseHostname("")).toBeNull();
-    expect(parseHostname(undefined as any)).toBeNull();
-  });
-});
+    expect(parseHostname("")).toBeNull()
+    expect(parseHostname(undefined as any)).toBeNull()
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -107,35 +108,35 @@ Create `api/src/modules/infra/gateway-proxy.ts`:
  * the hostname, looking up the route from cache/DB, and proxying to the target.
  */
 
-export type RouteFamily = "tunnel" | "preview" | "sandbox";
+export type RouteFamily = "tunnel" | "preview" | "sandbox"
 
 export interface ParsedHost {
-  family: RouteFamily;
-  slug: string;
+  family: RouteFamily
+  slug: string
 }
 
 const FAMILY_SUFFIXES: { suffix: string; family: RouteFamily }[] = [
   { suffix: ".tunnel.dx.dev", family: "tunnel" },
   { suffix: ".preview.dx.dev", family: "preview" },
   { suffix: ".sandbox.dx.dev", family: "sandbox" },
-];
+]
 
 export function parseHostname(host: string | undefined): ParsedHost | null {
-  if (!host) return null;
+  if (!host) return null
 
   // Strip port if present
-  const hostname = host.split(":")[0];
+  const hostname = host.split(":")[0]
 
   for (const { suffix, family } of FAMILY_SUFFIXES) {
     if (hostname.endsWith(suffix)) {
-      const slug = hostname.slice(0, -suffix.length);
+      const slug = hostname.slice(0, -suffix.length)
       if (slug.length > 0) {
-        return { family, slug };
+        return { family, slug }
       }
     }
   }
 
-  return null;
+  return null
 }
 ```
 
@@ -156,6 +157,7 @@ git commit -m "feat: add hostname parser for factory gateway"
 ## Task 2: Route Lookup Service with LRU Cache
 
 **Files:**
+
 - Modify: `api/src/modules/infra/gateway.service.ts` (add `lookupRouteByDomain`)
 - Modify: `api/src/modules/infra/gateway-proxy.ts` (add `RouteCache` class)
 - Modify: `api/src/modules/infra/gateway-proxy.test.ts` (add cache tests)
@@ -169,29 +171,29 @@ Run: `cd api && bun add lru-cache`
 Add to `api/src/__tests__/gateway-services.test.ts` (new file):
 
 ```typescript
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createTestContext, truncateAllTables } from "../test-helpers";
-import * as gw from "../modules/infra/gateway.service";
-import type { Database } from "../db/connection";
-import type { PGlite } from "@electric-sql/pglite";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { createTestContext, truncateAllTables } from "../test-helpers"
+import * as gw from "../modules/infra/gateway.service"
+import type { Database } from "../db/connection"
+import type { PGlite } from "@electric-sql/pglite"
 
 describe("Gateway Services", () => {
-  let db: Database;
-  let client: PGlite;
+  let db: Database
+  let client: PGlite
 
   beforeAll(async () => {
-    const ctx = await createTestContext();
-    db = ctx.db as unknown as Database;
-    client = ctx.client;
-  });
+    const ctx = await createTestContext()
+    db = ctx.db as unknown as Database
+    client = ctx.client
+  })
 
   afterAll(async () => {
-    await client.close();
-  });
+    await client.close()
+  })
 
   beforeEach(async () => {
-    await truncateAllTables(client);
-  });
+    await truncateAllTables(client)
+  })
 
   describe("lookupRouteByDomain", () => {
     it("finds an active route by domain", async () => {
@@ -201,18 +203,21 @@ describe("Gateway Services", () => {
         targetService: "tunnel-broker",
         status: "active",
         createdBy: "system",
-      });
+      })
 
-      const found = await gw.lookupRouteByDomain(db, "happy-fox-42.tunnel.dx.dev");
-      expect(found).not.toBeNull();
-      expect(found!.kind).toBe("tunnel");
-      expect(found!.domain).toBe("happy-fox-42.tunnel.dx.dev");
-    });
+      const found = await gw.lookupRouteByDomain(
+        db,
+        "happy-fox-42.tunnel.dx.dev"
+      )
+      expect(found).not.toBeNull()
+      expect(found!.kind).toBe("tunnel")
+      expect(found!.domain).toBe("happy-fox-42.tunnel.dx.dev")
+    })
 
     it("returns null for non-existent domain", async () => {
-      const found = await gw.lookupRouteByDomain(db, "nope.tunnel.dx.dev");
-      expect(found).toBeNull();
-    });
+      const found = await gw.lookupRouteByDomain(db, "nope.tunnel.dx.dev")
+      expect(found).toBeNull()
+    })
 
     it("returns null for inactive routes", async () => {
       await gw.createRoute(db, {
@@ -221,13 +226,13 @@ describe("Gateway Services", () => {
         targetService: "tunnel-broker",
         status: "expired",
         createdBy: "system",
-      });
+      })
 
-      const found = await gw.lookupRouteByDomain(db, "stale.tunnel.dx.dev");
-      expect(found).toBeNull();
-    });
-  });
-});
+      const found = await gw.lookupRouteByDomain(db, "stale.tunnel.dx.dev")
+      expect(found).toBeNull()
+    })
+  })
+})
 ```
 
 - [ ] **Step 3: Run test to verify it fails**
@@ -252,9 +257,9 @@ export async function lookupRouteByDomain(
     .select()
     .from(route)
     .where(and(eq(route.domain, domain), eq(route.status, "active")))
-    .limit(1);
+    .limit(1)
 
-  return row ?? null;
+  return row ?? null
 }
 ```
 
@@ -268,59 +273,74 @@ Expected: All 3 tests PASS
 Add to `api/src/modules/infra/gateway-proxy.test.ts`:
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { parseHostname, RouteCache } from "./gateway-proxy";
+import { describe, expect, it, vi, beforeEach } from "vitest"
+import { parseHostname, RouteCache } from "./gateway-proxy"
 
 // ... existing parseHostname tests ...
 
 describe("RouteCache", () => {
-  let cache: RouteCache;
-  const mockLookup = vi.fn();
+  let cache: RouteCache
+  const mockLookup = vi.fn()
 
   beforeEach(() => {
-    mockLookup.mockReset();
-    cache = new RouteCache({ lookup: mockLookup, maxSize: 100, ttlMs: 60_000 });
-  });
+    mockLookup.mockReset()
+    cache = new RouteCache({ lookup: mockLookup, maxSize: 100, ttlMs: 60_000 })
+  })
 
   it("calls lookup on cache miss", async () => {
-    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
-    mockLookup.mockResolvedValueOnce(fakeRoute);
+    const fakeRoute = {
+      routeId: "rte_1",
+      kind: "tunnel",
+      domain: "a.tunnel.dx.dev",
+      targetService: "tunnel-broker",
+    }
+    mockLookup.mockResolvedValueOnce(fakeRoute)
 
-    const result = await cache.get("a.tunnel.dx.dev");
-    expect(result).toEqual(fakeRoute);
-    expect(mockLookup).toHaveBeenCalledWith("a.tunnel.dx.dev");
-  });
+    const result = await cache.get("a.tunnel.dx.dev")
+    expect(result).toEqual(fakeRoute)
+    expect(mockLookup).toHaveBeenCalledWith("a.tunnel.dx.dev")
+  })
 
   it("returns cached value on subsequent calls", async () => {
-    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
-    mockLookup.mockResolvedValueOnce(fakeRoute);
+    const fakeRoute = {
+      routeId: "rte_1",
+      kind: "tunnel",
+      domain: "a.tunnel.dx.dev",
+      targetService: "tunnel-broker",
+    }
+    mockLookup.mockResolvedValueOnce(fakeRoute)
 
-    await cache.get("a.tunnel.dx.dev");
-    const result = await cache.get("a.tunnel.dx.dev");
-    expect(result).toEqual(fakeRoute);
-    expect(mockLookup).toHaveBeenCalledTimes(1);
-  });
+    await cache.get("a.tunnel.dx.dev")
+    const result = await cache.get("a.tunnel.dx.dev")
+    expect(result).toEqual(fakeRoute)
+    expect(mockLookup).toHaveBeenCalledTimes(1)
+  })
 
   it("invalidate removes entry from cache", async () => {
-    const fakeRoute = { routeId: "rte_1", kind: "tunnel", domain: "a.tunnel.dx.dev", targetService: "tunnel-broker" };
-    mockLookup.mockResolvedValue(fakeRoute);
+    const fakeRoute = {
+      routeId: "rte_1",
+      kind: "tunnel",
+      domain: "a.tunnel.dx.dev",
+      targetService: "tunnel-broker",
+    }
+    mockLookup.mockResolvedValue(fakeRoute)
 
-    await cache.get("a.tunnel.dx.dev");
-    cache.invalidate("a.tunnel.dx.dev");
-    await cache.get("a.tunnel.dx.dev");
-    expect(mockLookup).toHaveBeenCalledTimes(2);
-  });
+    await cache.get("a.tunnel.dx.dev")
+    cache.invalidate("a.tunnel.dx.dev")
+    await cache.get("a.tunnel.dx.dev")
+    expect(mockLookup).toHaveBeenCalledTimes(2)
+  })
 
   it("caches null results (negative cache)", async () => {
-    mockLookup.mockResolvedValueOnce(null);
+    mockLookup.mockResolvedValueOnce(null)
 
-    const r1 = await cache.get("missing.tunnel.dx.dev");
-    const r2 = await cache.get("missing.tunnel.dx.dev");
-    expect(r1).toBeNull();
-    expect(r2).toBeNull();
-    expect(mockLookup).toHaveBeenCalledTimes(1);
-  });
-});
+    const r1 = await cache.get("missing.tunnel.dx.dev")
+    const r2 = await cache.get("missing.tunnel.dx.dev")
+    expect(r1).toBeNull()
+    expect(r2).toBeNull()
+    expect(mockLookup).toHaveBeenCalledTimes(1)
+  })
+})
 ```
 
 - [ ] **Step 7: Run tests to verify cache tests fail**
@@ -333,45 +353,45 @@ Expected: FAIL — `RouteCache` not exported
 Add to `api/src/modules/infra/gateway-proxy.ts`:
 
 ```typescript
-import { LRUCache } from "lru-cache";
+import { LRUCache } from "lru-cache"
 
 export interface RouteCacheOptions {
-  lookup: (domain: string) => Promise<any | null>;
-  maxSize?: number;
-  ttlMs?: number;
+  lookup: (domain: string) => Promise<any | null>
+  maxSize?: number
+  ttlMs?: number
 }
 
-const SENTINEL_NULL = Symbol("null");
+const SENTINEL_NULL = Symbol("null")
 
 export class RouteCache {
-  private cache: LRUCache<string, any>;
-  private lookup: (domain: string) => Promise<any | null>;
+  private cache: LRUCache<string, any>
+  private lookup: (domain: string) => Promise<any | null>
 
   constructor(opts: RouteCacheOptions) {
-    this.lookup = opts.lookup;
+    this.lookup = opts.lookup
     this.cache = new LRUCache<string, any>({
       max: opts.maxSize ?? 10_000,
       ttl: opts.ttlMs ?? 300_000, // 5 min default
-    });
+    })
   }
 
   async get(domain: string): Promise<any | null> {
-    const cached = this.cache.get(domain);
+    const cached = this.cache.get(domain)
     if (cached !== undefined) {
-      return cached === SENTINEL_NULL ? null : cached;
+      return cached === SENTINEL_NULL ? null : cached
     }
 
-    const result = await this.lookup(domain);
-    this.cache.set(domain, result ?? SENTINEL_NULL);
-    return result;
+    const result = await this.lookup(domain)
+    this.cache.set(domain, result ?? SENTINEL_NULL)
+    return result
   }
 
   invalidate(domain: string): void {
-    this.cache.delete(domain);
+    this.cache.delete(domain)
   }
 
   clear(): void {
-    this.cache.clear();
+    this.cache.clear()
   }
 }
 ```
@@ -393,6 +413,7 @@ git commit -m "feat: add route lookup + LRU cache for factory gateway"
 ## Task 3: Gateway HTTP Server (Reverse Proxy)
 
 **Files:**
+
 - Modify: `api/src/modules/infra/gateway-proxy.ts` (add HTTP server + proxy logic)
 - Modify: `api/src/modules/infra/gateway-proxy.test.ts` (add integration tests)
 
@@ -401,30 +422,41 @@ git commit -m "feat: add route lookup + LRU cache for factory gateway"
 Add to `api/src/modules/infra/gateway-proxy.test.ts`:
 
 ```typescript
-import { describe, expect, it, vi, beforeEach, afterAll, afterEach } from "vitest";
-import { parseHostname, RouteCache, createGatewayServer } from "./gateway-proxy";
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterAll,
+  afterEach,
+} from "vitest"
+import { parseHostname, RouteCache, createGatewayServer } from "./gateway-proxy"
 
 // ... existing tests ...
 
 describe("createGatewayServer", () => {
-  let targetServer: ReturnType<typeof Bun.serve> | null = null;
-  let gateway: { server: ReturnType<typeof Bun.serve>; stop: () => void } | null = null;
+  let targetServer: ReturnType<typeof Bun.serve> | null = null
+  let gateway: {
+    server: ReturnType<typeof Bun.serve>
+    stop: () => void
+  } | null = null
 
   afterEach(() => {
-    gateway?.stop();
-    targetServer?.stop();
-    gateway = null;
-    targetServer = null;
-  });
+    gateway?.stop()
+    targetServer?.stop()
+    gateway = null
+    targetServer = null
+  })
 
   it("proxies request to target service based on hostname", async () => {
     // Start a mock target server
     targetServer = Bun.serve({
       port: 0, // random port
       fetch() {
-        return new Response("hello from target", { status: 200 });
+        return new Response("hello from target", { status: 200 })
       },
-    });
+    })
 
     const cache = new RouteCache({
       lookup: async (domain) => {
@@ -436,40 +468,40 @@ describe("createGatewayServer", () => {
             targetService: "localhost",
             targetPort: targetServer!.port,
             status: "active",
-          };
+          }
         }
-        return null;
+        return null
       },
-    });
+    })
 
-    gateway = createGatewayServer({ cache, port: 0 });
+    gateway = createGatewayServer({ cache, port: 0 })
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
       headers: { Host: "test-slug.sandbox.dx.dev" },
-    });
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe("hello from target");
-  });
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe("hello from target")
+  })
 
   it("returns 404 for unknown hostname", async () => {
-    const cache = new RouteCache({ lookup: async () => null });
-    gateway = createGatewayServer({ cache, port: 0 });
+    const cache = new RouteCache({ lookup: async () => null })
+    gateway = createGatewayServer({ cache, port: 0 })
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
       headers: { Host: "nope.sandbox.dx.dev" },
-    });
-    expect(res.status).toBe(404);
-  });
+    })
+    expect(res.status).toBe(404)
+  })
 
   it("returns 404 for non-gateway hostname", async () => {
-    const cache = new RouteCache({ lookup: async () => null });
-    gateway = createGatewayServer({ cache, port: 0 });
+    const cache = new RouteCache({ lookup: async () => null })
+    gateway = createGatewayServer({ cache, port: 0 })
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
       headers: { Host: "api.prod.dx.dev" },
-    });
-    expect(res.status).toBe(404);
-  });
+    })
+    expect(res.status).toBe(404)
+  })
 
   it("returns 502 when target is unreachable", async () => {
     const cache = new RouteCache({
@@ -481,15 +513,15 @@ describe("createGatewayServer", () => {
         targetPort: 1, // nothing listening
         status: "active",
       }),
-    });
-    gateway = createGatewayServer({ cache, port: 0 });
+    })
+    gateway = createGatewayServer({ cache, port: 0 })
 
     const res = await fetch(`http://localhost:${gateway.server.port}/`, {
       headers: { Host: "dead.sandbox.dx.dev" },
-    });
-    expect(res.status).toBe(502);
-  });
-});
+    })
+    expect(res.status).toBe(502)
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -503,22 +535,22 @@ Add to `api/src/modules/infra/gateway-proxy.ts`:
 
 ```typescript
 export interface GatewayServerOptions {
-  cache: RouteCache;
-  port?: number;
-  getTunnelSocket?: (subdomain: string) => WebSocket | undefined;
+  cache: RouteCache
+  port?: number
+  getTunnelSocket?: (subdomain: string) => WebSocket | undefined
 }
 
 export function createGatewayServer(opts: GatewayServerOptions) {
-  const { cache, port = 9090 } = opts;
+  const { cache, port = 9090 } = opts
 
   const server = Bun.serve({
     port,
     async fetch(req) {
-      const host = req.headers.get("host") ?? "";
-      const parsed = parseHostname(host);
+      const host = req.headers.get("host") ?? ""
+      const parsed = parseHostname(host)
 
       if (!parsed) {
-        return new Response("Not Found", { status: 404 });
+        return new Response("Not Found", { status: 404 })
       }
 
       // Build the full domain for route lookup
@@ -526,26 +558,26 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         tunnel: ".tunnel.dx.dev",
         preview: ".preview.dx.dev",
         sandbox: ".sandbox.dx.dev",
-      };
-      const domain = parsed.slug + suffixMap[parsed.family];
+      }
+      const domain = parsed.slug + suffixMap[parsed.family]
 
-      const route = await cache.get(domain);
+      const route = await cache.get(domain)
       if (!route) {
-        return new Response("Not Found", { status: 404 });
+        return new Response("Not Found", { status: 404 })
       }
 
       // For tunnels, delegate to tunnel relay (Phase 3)
       if (parsed.family === "tunnel") {
         // TODO: Phase 3 — binary frame relay through WebSocket
-        return new Response("Tunnel relay not yet implemented", { status: 501 });
+        return new Response("Tunnel relay not yet implemented", { status: 501 })
       }
 
       // Reverse proxy for preview/sandbox
-      const targetPort = route.targetPort ?? 80;
-      const targetUrl = new URL(req.url);
-      targetUrl.hostname = route.targetService;
-      targetUrl.port = String(targetPort);
-      targetUrl.protocol = "http:";
+      const targetPort = route.targetPort ?? 80
+      const targetUrl = new URL(req.url)
+      targetUrl.hostname = route.targetService
+      targetUrl.port = String(targetPort)
+      targetUrl.protocol = "http:"
 
       try {
         const proxyRes = await fetch(targetUrl.toString(), {
@@ -553,24 +585,24 @@ export function createGatewayServer(opts: GatewayServerOptions) {
           headers: req.headers,
           body: req.body,
           redirect: "manual",
-        });
+        })
         return new Response(proxyRes.body, {
           status: proxyRes.status,
           statusText: proxyRes.statusText,
           headers: proxyRes.headers,
-        });
+        })
       } catch {
-        return new Response("Bad Gateway", { status: 502 });
+        return new Response("Bad Gateway", { status: 502 })
       }
     },
-  });
+  })
 
   return {
     server,
     stop() {
-      server.stop();
+      server.stop()
     },
-  };
+  }
 }
 ```
 
@@ -591,6 +623,7 @@ git commit -m "feat: add factory gateway HTTP server with reverse proxy"
 ## Task 4: Simplify traefik-sync.ts
 
 **Files:**
+
 - Modify: `api/src/modules/infra/traefik-sync.ts`
 - Create: `api/src/__tests__/traefik-sync.test.ts`
 
@@ -601,8 +634,11 @@ The change: `syncFactoryRoutes` should only generate per-route Traefik config fo
 Create `api/src/__tests__/traefik-sync.test.ts`:
 
 ```typescript
-import { describe, expect, it } from "vitest";
-import { generateTraefikYaml, type TraefikRoute } from "../modules/infra/traefik-sync";
+import { describe, expect, it } from "vitest"
+import {
+  generateTraefikYaml,
+  type TraefikRoute,
+} from "../modules/infra/traefik-sync"
 
 describe("generateTraefikYaml", () => {
   it("generates config for custom_domain routes", () => {
@@ -618,11 +654,11 @@ describe("generateTraefikYaml", () => {
         priority: 100,
         status: "active",
       },
-    ];
-    const yaml = generateTraefikYaml(routes);
-    expect(yaml).toContain("app.example.com");
-    expect(yaml).toContain("rte-custom1");
-  });
+    ]
+    const yaml = generateTraefikYaml(routes)
+    expect(yaml).toContain("app.example.com")
+    expect(yaml).toContain("rte-custom1")
+  })
 
   it("generates config for ingress routes", () => {
     const routes: TraefikRoute[] = [
@@ -638,24 +674,25 @@ describe("generateTraefikYaml", () => {
         priority: 100,
         status: "active",
       },
-    ];
-    const yaml = generateTraefikYaml(routes);
-    expect(yaml).toContain("api.prod.dx.dev");
-  });
+    ]
+    const yaml = generateTraefikYaml(routes)
+    expect(yaml).toContain("api.prod.dx.dev")
+  })
 
   it("returns empty config for no routes", () => {
-    const yaml = generateTraefikYaml([]);
-    expect(yaml).toContain("routers: {}");
-  });
-});
+    const yaml = generateTraefikYaml([])
+    expect(yaml).toContain("routers: {}")
+  })
+})
 
 describe("syncFactoryRoutes filtering", () => {
   it("only generates files for custom_domain and ingress kinds", async () => {
     // This tests the KINDS_WITH_TRAEFIK_ROUTES constant
-    const { KINDS_WITH_TRAEFIK_ROUTES } = await import("../modules/infra/traefik-sync");
-    expect(KINDS_WITH_TRAEFIK_ROUTES).toEqual(["ingress", "custom_domain"]);
-  });
-});
+    const { KINDS_WITH_TRAEFIK_ROUTES } =
+      await import("../modules/infra/traefik-sync")
+    expect(KINDS_WITH_TRAEFIK_ROUTES).toEqual(["ingress", "custom_domain"])
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -675,16 +712,19 @@ Replace the `kinds` array in `syncFactoryRoutes` (line 137) and export it:
  * High-cardinality kinds (tunnel, preview, sandbox) are routed
  * through the factory gateway via static wildcard Traefik routers.
  */
-export const KINDS_WITH_TRAEFIK_ROUTES = ["ingress", "custom_domain"] as const;
+export const KINDS_WITH_TRAEFIK_ROUTES = ["ingress", "custom_domain"] as const
 ```
 
 Then in `syncFactoryRoutes`, replace line 137:
+
 ```typescript
-  const kinds = ["sandbox", "tunnel", "preview", "ingress", "custom_domain"];
+const kinds = ["sandbox", "tunnel", "preview", "ingress", "custom_domain"]
 ```
+
 with:
+
 ```typescript
-  const kinds = [...KINDS_WITH_TRAEFIK_ROUTES];
+const kinds = [...KINDS_WITH_TRAEFIK_ROUTES]
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -704,6 +744,7 @@ git commit -m "feat: simplify traefik-sync to only handle custom_domain and ingr
 ## Task 5: Wire Gateway into API Startup
 
 **Files:**
+
 - Modify: `api/src/modules/infra/gateway.controller.ts`
 - Modify: `api/src/modules/infra/gateway.service.ts` (add cache invalidation hooks)
 - Modify: `api/src/modules/infra/gateway-proxy.ts` (export `startGateway` convenience function)
@@ -717,28 +758,32 @@ In `api/src/modules/infra/gateway.service.ts`, add after the imports (after line
  * Route change listener for cache invalidation.
  * The factory gateway registers its cache.invalidate here.
  */
-let onRouteChanged: ((domain: string) => void) | null = null;
+let onRouteChanged: ((domain: string) => void) | null = null
 
-export function setRouteChangeListener(listener: (domain: string) => void): void {
-  onRouteChanged = listener;
+export function setRouteChangeListener(
+  listener: (domain: string) => void
+): void {
+  onRouteChanged = listener
 }
 
 function notifyRouteChanged(domain: string): void {
-  onRouteChanged?.(domain);
+  onRouteChanged?.(domain)
 }
 ```
 
 Then add `notifyRouteChanged(row.domain)` calls after mutations:
+
 - In `createRoute` (after line 87, before `return row`): `notifyRouteChanged(row.domain);`
 - In `updateRoute` (after line 120, before `return row`): `if (row) notifyRouteChanged(row.domain);`
 - In `deleteRoute` (line 127): Read the route first, then delete, then notify:
 
 Replace `deleteRoute`:
+
 ```typescript
 export async function deleteRoute(db: Database, routeId: string) {
-  const existing = await getRoute(db, routeId);
-  await db.delete(route).where(eq(route.routeId, routeId));
-  if (existing) notifyRouteChanged(existing.domain);
+  const existing = await getRoute(db, routeId)
+  await db.delete(route).where(eq(route.routeId, routeId))
+  if (existing) notifyRouteChanged(existing.domain)
 }
 ```
 
@@ -747,26 +792,30 @@ export async function deleteRoute(db: Database, routeId: string) {
 Add to the end of `api/src/modules/infra/gateway-proxy.ts`:
 
 ```typescript
-import type { Database } from "../../db/connection";
-import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service";
+import type { Database } from "../../db/connection"
+import { lookupRouteByDomain, setRouteChangeListener } from "./gateway.service"
 
-export function startGateway(opts: { db: Database; port?: number; getTunnelSocket?: (subdomain: string) => WebSocket | undefined }) {
+export function startGateway(opts: {
+  db: Database
+  port?: number
+  getTunnelSocket?: (subdomain: string) => WebSocket | undefined
+}) {
   const cache = new RouteCache({
     lookup: (domain) => lookupRouteByDomain(opts.db, domain),
     maxSize: 10_000,
     ttlMs: 300_000,
-  });
+  })
 
   // Wire up cache invalidation
-  setRouteChangeListener((domain) => cache.invalidate(domain));
+  setRouteChangeListener((domain) => cache.invalidate(domain))
 
   const gw = createGatewayServer({
     cache,
     port: opts.port ?? 9090,
     getTunnelSocket: opts.getTunnelSocket,
-  });
+  })
 
-  return { ...gw, cache };
+  return { ...gw, cache }
 }
 ```
 
@@ -801,6 +850,7 @@ git commit -m "feat: wire factory gateway into API startup with cache invalidati
 ## Task 6: Preview Table Schema
 
 **Files:**
+
 - Modify: `api/src/db/schema/fleet.ts` (add `preview` table)
 - Modify: `api/src/db/schema/fleet.ts` (add `"preview"` to `deploymentTarget.kind` constraint)
 - Modify: `api/src/lib/id.ts` (add `"prev"` prefix)
@@ -818,11 +868,13 @@ In `api/src/lib/id.ts`, add `"prev"` to the `EntityPrefix` union type (after `"g
 In `api/src/db/schema/fleet.ts`, line 127, change:
 
 ```typescript
-      sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev')`
+sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev')`
 ```
+
 to:
+
 ```typescript
-      sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev', 'preview')`
+sql`${t.kind} IN ('production', 'staging', 'sandbox', 'dev', 'preview')`
 ```
 
 - [ ] **Step 3: Add preview table**
@@ -883,7 +935,7 @@ export const preview = factoryFleet.table(
       sql`${t.status} IN ('building', 'deploying', 'active', 'inactive', 'expired', 'failed')`
     ),
   ]
-);
+)
 ```
 
 - [ ] **Step 4: Generate Drizzle migration**
@@ -903,6 +955,7 @@ git commit -m "feat: add preview table and update deploymentTarget kinds"
 ## Task 7: Preview Service — CRUD Operations
 
 **Files:**
+
 - Create: `api/src/services/preview/preview.service.ts`
 - Modify: `api/src/__tests__/gateway-services.test.ts` (add preview tests)
 
@@ -911,114 +964,122 @@ git commit -m "feat: add preview table and update deploymentTarget kinds"
 Add to `api/src/__tests__/gateway-services.test.ts`:
 
 ```typescript
-import * as previewSvc from "../services/preview/preview.service";
+import * as previewSvc from "../services/preview/preview.service"
 
 // Inside the main describe block, after the lookupRouteByDomain tests:
 
-  describe("Preview Service", () => {
-    describe("createPreview", () => {
-      it("creates preview with deploymentTarget and route", async () => {
-        const result = await previewSvc.createPreview(db, {
-          name: "PR #42 - fix-auth-bug",
-          sourceBranch: "fix-auth-bug",
-          commitSha: "a13f000000000000000000000000000000000000",
-          repo: "github.com/org/myapp",
-          prNumber: 42,
-          siteName: "myapp",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
+describe("Preview Service", () => {
+  describe("createPreview", () => {
+    it("creates preview with deploymentTarget and route", async () => {
+      const result = await previewSvc.createPreview(db, {
+        name: "PR #42 - fix-auth-bug",
+        sourceBranch: "fix-auth-bug",
+        commitSha: "a13f000000000000000000000000000000000000",
+        repo: "github.com/org/myapp",
+        prNumber: 42,
+        siteName: "myapp",
+        ownerId: "user_1",
+        createdBy: "system",
+      })
 
-        expect(result.preview.previewId).toBeTruthy();
-        expect(result.preview.slug).toBe("pr-42--fix-auth-bug--myapp");
-        expect(result.preview.status).toBe("building");
-        expect(result.deploymentTarget.kind).toBe("preview");
-        expect(result.route.domain).toBe("pr-42--fix-auth-bug--myapp.preview.dx.dev");
-      });
+      expect(result.preview.previewId).toBeTruthy()
+      expect(result.preview.slug).toBe("pr-42--fix-auth-bug--myapp")
+      expect(result.preview.status).toBe("building")
+      expect(result.deploymentTarget.kind).toBe("preview")
+      expect(result.route.domain).toBe(
+        "pr-42--fix-auth-bug--myapp.preview.dx.dev"
+      )
+    })
 
-      it("creates branch-only preview (no PR number)", async () => {
-        const result = await previewSvc.createPreview(db, {
-          name: "feat-dashboard",
-          sourceBranch: "feat-dashboard",
-          commitSha: "b24f000000000000000000000000000000000000",
-          repo: "github.com/org/myapp",
-          siteName: "myapp",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
+    it("creates branch-only preview (no PR number)", async () => {
+      const result = await previewSvc.createPreview(db, {
+        name: "feat-dashboard",
+        sourceBranch: "feat-dashboard",
+        commitSha: "b24f000000000000000000000000000000000000",
+        repo: "github.com/org/myapp",
+        siteName: "myapp",
+        ownerId: "user_1",
+        createdBy: "system",
+      })
 
-        expect(result.preview.slug).toBe("feat-dashboard--myapp");
-        expect(result.preview.prNumber).toBeNull();
-      });
-    });
+      expect(result.preview.slug).toBe("feat-dashboard--myapp")
+      expect(result.preview.prNumber).toBeNull()
+    })
+  })
 
-    describe("getPreview", () => {
-      it("returns preview by id", async () => {
-        const { preview } = await previewSvc.createPreview(db, {
-          name: "PR #1",
-          sourceBranch: "main",
-          commitSha: "abc",
-          repo: "github.com/org/app",
-          prNumber: 1,
-          siteName: "app",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
+  describe("getPreview", () => {
+    it("returns preview by id", async () => {
+      const { preview } = await previewSvc.createPreview(db, {
+        name: "PR #1",
+        sourceBranch: "main",
+        commitSha: "abc",
+        repo: "github.com/org/app",
+        prNumber: 1,
+        siteName: "app",
+        ownerId: "user_1",
+        createdBy: "system",
+      })
 
-        const found = await previewSvc.getPreview(db, preview.previewId);
-        expect(found).not.toBeNull();
-        expect(found!.previewId).toBe(preview.previewId);
-      });
+      const found = await previewSvc.getPreview(db, preview.previewId)
+      expect(found).not.toBeNull()
+      expect(found!.previewId).toBe(preview.previewId)
+    })
 
-      it("returns null for non-existent id", async () => {
-        const found = await previewSvc.getPreview(db, "prev_nonexistent");
-        expect(found).toBeNull();
-      });
-    });
+    it("returns null for non-existent id", async () => {
+      const found = await previewSvc.getPreview(db, "prev_nonexistent")
+      expect(found).toBeNull()
+    })
+  })
 
-    describe("updatePreviewStatus", () => {
-      it("transitions preview to active", async () => {
-        const { preview } = await previewSvc.createPreview(db, {
-          name: "PR #5",
-          sourceBranch: "fix",
-          commitSha: "def",
-          repo: "github.com/org/app",
-          prNumber: 5,
-          siteName: "app",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
+  describe("updatePreviewStatus", () => {
+    it("transitions preview to active", async () => {
+      const { preview } = await previewSvc.createPreview(db, {
+        name: "PR #5",
+        sourceBranch: "fix",
+        commitSha: "def",
+        repo: "github.com/org/app",
+        prNumber: 5,
+        siteName: "app",
+        ownerId: "user_1",
+        createdBy: "system",
+      })
 
-        const updated = await previewSvc.updatePreviewStatus(db, preview.previewId, {
+      const updated = await previewSvc.updatePreviewStatus(
+        db,
+        preview.previewId,
+        {
           status: "active",
           runtimeClass: "hot",
-        });
-        expect(updated!.status).toBe("active");
-        expect(updated!.runtimeClass).toBe("hot");
-      });
-    });
+        }
+      )
+      expect(updated!.status).toBe("active")
+      expect(updated!.runtimeClass).toBe("hot")
+    })
+  })
 
-    describe("expirePreview", () => {
-      it("marks preview as expired and updates route", async () => {
-        const { preview, route } = await previewSvc.createPreview(db, {
-          name: "PR #10",
-          sourceBranch: "old",
-          commitSha: "ghi",
-          repo: "github.com/org/app",
-          prNumber: 10,
-          siteName: "app",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
+  describe("expirePreview", () => {
+    it("marks preview as expired and updates route", async () => {
+      const { preview, route } = await previewSvc.createPreview(db, {
+        name: "PR #10",
+        sourceBranch: "old",
+        commitSha: "ghi",
+        repo: "github.com/org/app",
+        prNumber: 10,
+        siteName: "app",
+        ownerId: "user_1",
+        createdBy: "system",
+      })
 
-        await previewSvc.updatePreviewStatus(db, preview.previewId, { status: "active" });
-        await previewSvc.expirePreview(db, preview.previewId);
+      await previewSvc.updatePreviewStatus(db, preview.previewId, {
+        status: "active",
+      })
+      await previewSvc.expirePreview(db, preview.previewId)
 
-        const expired = await previewSvc.getPreview(db, preview.previewId);
-        expect(expired!.status).toBe("expired");
-      });
-    });
-  });
+      const expired = await previewSvc.getPreview(db, preview.previewId)
+      expect(expired!.status).toBe("expired")
+    })
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1031,51 +1092,55 @@ Expected: FAIL — module `../services/preview/preview.service` not found
 Create `api/src/services/preview/preview.service.ts`:
 
 ```typescript
-import { eq, and, lt, sql } from "drizzle-orm";
+import { eq, and, lt, sql } from "drizzle-orm"
 
-import type { Database } from "../../db/connection";
-import { preview, deploymentTarget } from "../../db/schema/fleet";
-import { route } from "../../db/schema/gateway";
-import { createRoute, updateRoute } from "../../modules/infra/gateway.service";
+import type { Database } from "../../db/connection"
+import { preview, deploymentTarget } from "../../db/schema/fleet"
+import { route } from "../../db/schema/gateway"
+import { createRoute, updateRoute } from "../../modules/infra/gateway.service"
 
-function buildPreviewSlug(input: { prNumber?: number; sourceBranch: string; siteName: string }): string {
+function buildPreviewSlug(input: {
+  prNumber?: number
+  sourceBranch: string
+  siteName: string
+}): string {
   // Sanitize branch name: lowercase, replace non-alphanumeric with dashes, trim dashes
   const branch = input.sourceBranch
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/^-|-$/g, "")
 
   const site = input.siteName
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/^-|-$/g, "")
 
   if (input.prNumber != null) {
-    return `pr-${input.prNumber}--${branch}--${site}`;
+    return `pr-${input.prNumber}--${branch}--${site}`
   }
-  return `${branch}--${site}`;
+  return `${branch}--${site}`
 }
 
 export async function createPreview(
   db: Database,
   input: {
-    name: string;
-    sourceBranch: string;
-    commitSha: string;
-    repo: string;
-    prNumber?: number;
-    siteName: string;
-    siteId?: string;
-    clusterId?: string;
-    ownerId: string;
-    createdBy: string;
-    authMode?: string;
-    expiresAt?: Date;
+    name: string
+    sourceBranch: string
+    commitSha: string
+    repo: string
+    prNumber?: number
+    siteName: string
+    siteId?: string
+    clusterId?: string
+    ownerId: string
+    createdBy: string
+    authMode?: string
+    expiresAt?: Date
   }
 ): Promise<{ preview: any; deploymentTarget: any; route: any }> {
-  const slug = buildPreviewSlug(input);
+  const slug = buildPreviewSlug(input)
 
   // Layer 1: Create deploymentTarget
   const [dt] = await db
@@ -1092,7 +1157,7 @@ export async function createPreview(
       expiresAt: input.expiresAt,
       status: "provisioning",
     })
-    .returning();
+    .returning()
 
   // Layer 2: Create preview record
   const [prev] = await db
@@ -1110,7 +1175,7 @@ export async function createPreview(
       authMode: input.authMode ?? "team",
       status: "building",
     })
-    .returning();
+    .returning()
 
   // Layer 3: Create route
   const previewRoute = await createRoute(db, {
@@ -1123,9 +1188,9 @@ export async function createPreview(
     protocol: "http",
     status: "active",
     createdBy: input.createdBy,
-  });
+  })
 
-  return { preview: prev, deploymentTarget: dt, route: previewRoute };
+  return { preview: prev, deploymentTarget: dt, route: previewRoute }
 }
 
 export async function getPreview(db: Database, previewId: string) {
@@ -1133,9 +1198,9 @@ export async function getPreview(db: Database, previewId: string) {
     .select()
     .from(preview)
     .where(eq(preview.previewId, previewId))
-    .limit(1);
+    .limit(1)
 
-  return row ?? null;
+  return row ?? null
 }
 
 export async function getPreviewBySlug(db: Database, slug: string) {
@@ -1143,70 +1208,71 @@ export async function getPreviewBySlug(db: Database, slug: string) {
     .select()
     .from(preview)
     .where(eq(preview.slug, slug))
-    .limit(1);
+    .limit(1)
 
-  return row ?? null;
+  return row ?? null
 }
 
 export async function updatePreviewStatus(
   db: Database,
   previewId: string,
   updates: {
-    status?: string;
-    runtimeClass?: string;
-    statusMessage?: string;
-    commitSha?: string;
-    lastAccessedAt?: Date;
+    status?: string
+    runtimeClass?: string
+    statusMessage?: string
+    commitSha?: string
+    lastAccessedAt?: Date
   }
 ) {
   const [row] = await db
     .update(preview)
     .set({ ...updates, updatedAt: new Date() })
     .where(eq(preview.previewId, previewId))
-    .returning();
+    .returning()
 
-  return row ?? null;
+  return row ?? null
 }
 
 export async function expirePreview(db: Database, previewId: string) {
-  const prev = await getPreview(db, previewId);
-  if (!prev) return null;
+  const prev = await getPreview(db, previewId)
+  if (!prev) return null
 
   // Mark preview as expired
-  await updatePreviewStatus(db, previewId, { status: "expired" });
+  await updatePreviewStatus(db, previewId, { status: "expired" })
 
   // Update associated route status to expired
   const routes = await db
     .select()
     .from(route)
-    .where(eq(route.deploymentTargetId, prev.deploymentTargetId));
+    .where(eq(route.deploymentTargetId, prev.deploymentTargetId))
 
   for (const r of routes) {
-    await updateRoute(db, r.routeId, { status: "expired" });
+    await updateRoute(db, r.routeId, { status: "expired" })
   }
 
-  return await getPreview(db, previewId);
+  return await getPreview(db, previewId)
 }
 
 export async function listPreviews(
   db: Database,
   opts?: {
-    siteId?: string;
-    status?: string;
-    sourceBranch?: string;
-    repo?: string;
+    siteId?: string
+    status?: string
+    sourceBranch?: string
+    repo?: string
   }
 ) {
-  const conditions = [];
-  if (opts?.siteId) conditions.push(eq(preview.siteId, opts.siteId));
-  if (opts?.status) conditions.push(eq(preview.status, opts.status));
-  if (opts?.sourceBranch) conditions.push(eq(preview.sourceBranch, opts.sourceBranch));
-  if (opts?.repo) conditions.push(eq(preview.repo, opts.repo));
+  const conditions = []
+  if (opts?.siteId) conditions.push(eq(preview.siteId, opts.siteId))
+  if (opts?.status) conditions.push(eq(preview.status, opts.status))
+  if (opts?.sourceBranch)
+    conditions.push(eq(preview.sourceBranch, opts.sourceBranch))
+  if (opts?.repo) conditions.push(eq(preview.repo, opts.repo))
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const base = db.select().from(preview);
-  return where ? await base.where(where) : await base;
+  const base = db.select().from(preview)
+  return where ? await base.where(where) : await base
 }
 ```
 
@@ -1227,6 +1293,7 @@ git commit -m "feat: add preview service with CRUD operations"
 ## Task 8: Preview Cleanup Job
 
 **Files:**
+
 - Modify: `api/src/services/preview/preview.service.ts` (add `runPreviewCleanup`)
 - Modify: `api/src/__tests__/gateway-services.test.ts` (add cleanup tests)
 
@@ -1235,55 +1302,58 @@ git commit -m "feat: add preview service with CRUD operations"
 Add to `api/src/__tests__/gateway-services.test.ts` inside the Preview Service describe block:
 
 ```typescript
-    describe("runPreviewCleanup", () => {
-      it("marks expired previews based on expiresAt", async () => {
-        const { preview: p } = await previewSvc.createPreview(db, {
-          name: "PR #20",
-          sourceBranch: "old-branch",
-          commitSha: "xyz",
-          repo: "github.com/org/app",
-          prNumber: 20,
-          siteName: "app",
-          ownerId: "user_1",
-          createdBy: "system",
-          expiresAt: new Date(Date.now() - 60_000), // expired 1 min ago
-        });
-        // Manually set preview status to active + set expiresAt
-        await previewSvc.updatePreviewStatus(db, p.previewId, { status: "active" });
-        // Set expiresAt on the preview row directly
-        await db.update(preview).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(preview.previewId, p.previewId));
+describe("runPreviewCleanup", () => {
+  it("marks expired previews based on expiresAt", async () => {
+    const { preview: p } = await previewSvc.createPreview(db, {
+      name: "PR #20",
+      sourceBranch: "old-branch",
+      commitSha: "xyz",
+      repo: "github.com/org/app",
+      prNumber: 20,
+      siteName: "app",
+      ownerId: "user_1",
+      createdBy: "system",
+      expiresAt: new Date(Date.now() - 60_000), // expired 1 min ago
+    })
+    // Manually set preview status to active + set expiresAt
+    await previewSvc.updatePreviewStatus(db, p.previewId, { status: "active" })
+    // Set expiresAt on the preview row directly
+    await db
+      .update(preview)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(preview.previewId, p.previewId))
 
-        const result = await previewSvc.runPreviewCleanup(db);
-        expect(result.expired).toBeGreaterThanOrEqual(1);
+    const result = await previewSvc.runPreviewCleanup(db)
+    expect(result.expired).toBeGreaterThanOrEqual(1)
 
-        const updated = await previewSvc.getPreview(db, p.previewId);
-        expect(updated!.status).toBe("expired");
-      });
+    const updated = await previewSvc.getPreview(db, p.previewId)
+    expect(updated!.status).toBe("expired")
+  })
 
-      it("transitions hot previews to warm after idle period", async () => {
-        const { preview: p } = await previewSvc.createPreview(db, {
-          name: "PR #21",
-          sourceBranch: "idle-branch",
-          commitSha: "abc",
-          repo: "github.com/org/app",
-          prNumber: 21,
-          siteName: "app",
-          ownerId: "user_1",
-          createdBy: "system",
-        });
-        await previewSvc.updatePreviewStatus(db, p.previewId, {
-          status: "active",
-          runtimeClass: "hot",
-          lastAccessedAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-        });
+  it("transitions hot previews to warm after idle period", async () => {
+    const { preview: p } = await previewSvc.createPreview(db, {
+      name: "PR #21",
+      sourceBranch: "idle-branch",
+      commitSha: "abc",
+      repo: "github.com/org/app",
+      prNumber: 21,
+      siteName: "app",
+      ownerId: "user_1",
+      createdBy: "system",
+    })
+    await previewSvc.updatePreviewStatus(db, p.previewId, {
+      status: "active",
+      runtimeClass: "hot",
+      lastAccessedAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
+    })
 
-        const result = await previewSvc.runPreviewCleanup(db);
-        expect(result.scaledToWarm).toBeGreaterThanOrEqual(1);
+    const result = await previewSvc.runPreviewCleanup(db)
+    expect(result.scaledToWarm).toBeGreaterThanOrEqual(1)
 
-        const updated = await previewSvc.getPreview(db, p.previewId);
-        expect(updated!.runtimeClass).toBe("warm");
-      });
-    });
+    const updated = await previewSvc.getPreview(db, p.previewId)
+    expect(updated!.runtimeClass).toBe("warm")
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1306,36 +1376,31 @@ Add to `api/src/services/preview/preview.service.ts`:
  * 4. expired + expiresAt < 30d ago → hard delete
  */
 export async function runPreviewCleanup(db: Database): Promise<{
-  expired: number;
-  scaledToWarm: number;
-  scaledToCold: number;
-  deleted: number;
+  expired: number
+  scaledToWarm: number
+  scaledToCold: number
+  deleted: number
 }> {
-  const now = new Date();
-  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const now = new Date()
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
   // 1. Expire active previews past expiresAt
   const expiredRows = await db
     .update(preview)
     .set({ status: "expired", updatedAt: now })
-    .where(
-      and(
-        eq(preview.status, "active"),
-        lt(preview.expiresAt, now)
-      )
-    )
-    .returning();
+    .where(and(eq(preview.status, "active"), lt(preview.expiresAt, now)))
+    .returning()
 
   // Also expire their routes
   for (const p of expiredRows) {
     const routes = await db
       .select()
       .from(route)
-      .where(eq(route.deploymentTargetId, p.deploymentTargetId));
+      .where(eq(route.deploymentTargetId, p.deploymentTargetId))
     for (const r of routes) {
-      await updateRoute(db, r.routeId, { status: "expired" });
+      await updateRoute(db, r.routeId, { status: "expired" })
     }
   }
 
@@ -1350,7 +1415,7 @@ export async function runPreviewCleanup(db: Database): Promise<{
         lt(preview.lastAccessedAt, twoHoursAgo)
       )
     )
-    .returning();
+    .returning()
 
   // 3. Warm → Cold (idle > 24h)
   const coldRows = await db
@@ -1363,25 +1428,22 @@ export async function runPreviewCleanup(db: Database): Promise<{
         lt(preview.lastAccessedAt, twentyFourHoursAgo)
       )
     )
-    .returning();
+    .returning()
 
   // 4. Hard delete expired previews older than 30 days
   const deletedRows = await db
     .delete(preview)
     .where(
-      and(
-        eq(preview.status, "expired"),
-        lt(preview.expiresAt, thirtyDaysAgo)
-      )
+      and(eq(preview.status, "expired"), lt(preview.expiresAt, thirtyDaysAgo))
     )
-    .returning();
+    .returning()
 
   return {
     expired: expiredRows.length,
     scaledToWarm: warmRows.length,
     scaledToCold: coldRows.length,
     deleted: deletedRows.length,
-  };
+  }
 }
 ```
 
@@ -1390,8 +1452,8 @@ export async function runPreviewCleanup(db: Database): Promise<{
 In `api/src/__tests__/gateway-services.test.ts`, add this import:
 
 ```typescript
-import { preview } from "../db/schema/fleet";
-import { eq } from "drizzle-orm";
+import { preview } from "../db/schema/fleet"
+import { eq } from "drizzle-orm"
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -1411,6 +1473,7 @@ git commit -m "feat: add preview cleanup job for lifecycle transitions"
 ## Task 9: Gateway Status Pages (Cold/Expired/Building Previews)
 
 **Files:**
+
 - Modify: `api/src/modules/infra/gateway-proxy.ts` (add status page responses for preview states)
 - Modify: `api/src/modules/infra/gateway-proxy.test.ts`
 
@@ -1419,33 +1482,41 @@ git commit -m "feat: add preview cleanup job for lifecycle transitions"
 Add to `api/src/modules/infra/gateway-proxy.test.ts`:
 
 ```typescript
-import { renderStatusPage } from "./gateway-proxy";
+import { renderStatusPage } from "./gateway-proxy"
 
 describe("renderStatusPage", () => {
   it("returns building page for building previews", () => {
-    const html = renderStatusPage("building", "PR #42 - fix-auth-bug", "Building container image...");
-    expect(html).toContain("Building");
-    expect(html).toContain("PR #42 - fix-auth-bug");
-    expect(html).toContain("auto-refresh");
-  });
+    const html = renderStatusPage(
+      "building",
+      "PR #42 - fix-auth-bug",
+      "Building container image..."
+    )
+    expect(html).toContain("Building")
+    expect(html).toContain("PR #42 - fix-auth-bug")
+    expect(html).toContain("auto-refresh")
+  })
 
   it("returns starting page for cold previews", () => {
-    const html = renderStatusPage("cold", "PR #42 - fix-auth-bug");
-    expect(html).toContain("Starting");
-    expect(html).toContain("auto-refresh");
-  });
+    const html = renderStatusPage("cold", "PR #42 - fix-auth-bug")
+    expect(html).toContain("Starting")
+    expect(html).toContain("auto-refresh")
+  })
 
   it("returns expired page", () => {
-    const html = renderStatusPage("expired", "PR #42 - fix-auth-bug");
-    expect(html).toContain("expired");
-  });
+    const html = renderStatusPage("expired", "PR #42 - fix-auth-bug")
+    expect(html).toContain("expired")
+  })
 
   it("returns failed page", () => {
-    const html = renderStatusPage("failed", "PR #42 - fix-auth-bug", "Build failed: OOM");
-    expect(html).toContain("failed");
-    expect(html).toContain("Build failed: OOM");
-  });
-});
+    const html = renderStatusPage(
+      "failed",
+      "PR #42 - fix-auth-bug",
+      "Build failed: OOM"
+    )
+    expect(html).toContain("failed")
+    expect(html).toContain("Build failed: OOM")
+  })
+})
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1458,11 +1529,24 @@ Expected: FAIL — `renderStatusPage` not exported
 Add to `api/src/modules/infra/gateway-proxy.ts`:
 
 ```typescript
-type StatusPageKind = "building" | "deploying" | "cold" | "expired" | "failed" | "inactive";
+type StatusPageKind =
+  | "building"
+  | "deploying"
+  | "cold"
+  | "expired"
+  | "failed"
+  | "inactive"
 
-export function renderStatusPage(kind: StatusPageKind, previewName: string, message?: string): string {
-  const shouldAutoRefresh = kind === "building" || kind === "deploying" || kind === "cold";
-  const refreshMeta = shouldAutoRefresh ? '<meta http-equiv="refresh" content="5">' : "";
+export function renderStatusPage(
+  kind: StatusPageKind,
+  previewName: string,
+  message?: string
+): string {
+  const shouldAutoRefresh =
+    kind === "building" || kind === "deploying" || kind === "cold"
+  const refreshMeta = shouldAutoRefresh
+    ? '<meta http-equiv="refresh" content="5">'
+    : ""
 
   const titles: Record<StatusPageKind, string> = {
     building: "Building Preview...",
@@ -1471,18 +1555,20 @@ export function renderStatusPage(kind: StatusPageKind, previewName: string, mess
     expired: "Preview Expired",
     failed: "Preview Failed",
     inactive: "Preview Inactive",
-  };
+  }
 
   const descriptions: Record<StatusPageKind, string> = {
-    building: "Your preview environment is being built. This page will auto-refresh.",
+    building:
+      "Your preview environment is being built. This page will auto-refresh.",
     deploying: "Your preview is being deployed. This page will auto-refresh.",
     cold: "Your preview is starting up. This page will auto-refresh.",
     expired: "This preview environment has expired.",
     failed: "This preview environment failed to deploy.",
     inactive: "This preview environment has been deactivated.",
-  };
+  }
 
-  const statusCode = kind === "expired" ? "410 Gone" : kind === "failed" ? "500" : "200";
+  const statusCode =
+    kind === "expired" ? "410 Gone" : kind === "failed" ? "500" : "200"
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1511,7 +1597,7 @@ export function renderStatusPage(kind: StatusPageKind, previewName: string, mess
     ${message ? `<div class="message">${escapeHtml(message)}</div>` : ""}
   </div>
 </body>
-</html>`;
+</html>`
 }
 
 function escapeHtml(str: string): string {
@@ -1519,7 +1605,7 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
 }
 ```
 
@@ -1528,21 +1614,33 @@ function escapeHtml(str: string): string {
 In `createGatewayServer`'s `fetch` function, after the route lookup and before the reverse proxy, add preview state handling. Replace the section after `if (!route)` with:
 
 ```typescript
-      // Handle preview status pages
-      if (parsed.family === "preview" && route.metadata?.previewStatus) {
-        const ps = route.metadata.previewStatus as string;
-        const pn = route.metadata.previewName as string ?? parsed.slug;
-        const pm = route.metadata.previewMessage as string | undefined;
+// Handle preview status pages
+if (parsed.family === "preview" && route.metadata?.previewStatus) {
+  const ps = route.metadata.previewStatus as string
+  const pn = (route.metadata.previewName as string) ?? parsed.slug
+  const pm = route.metadata.previewMessage as string | undefined
 
-        if (ps === "building" || ps === "deploying" || ps === "cold" || ps === "failed" || ps === "inactive") {
-          const html = renderStatusPage(ps as any, pn, pm);
-          const status = ps === "failed" ? 500 : 200;
-          return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
-        }
-        if (ps === "expired") {
-          return new Response(renderStatusPage("expired", pn), { status: 410, headers: { "Content-Type": "text/html; charset=utf-8" } });
-        }
-      }
+  if (
+    ps === "building" ||
+    ps === "deploying" ||
+    ps === "cold" ||
+    ps === "failed" ||
+    ps === "inactive"
+  ) {
+    const html = renderStatusPage(ps as any, pn, pm)
+    const status = ps === "failed" ? 500 : 200
+    return new Response(html, {
+      status,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    })
+  }
+  if (ps === "expired") {
+    return new Response(renderStatusPage("expired", pn), {
+      status: 410,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    })
+  }
+}
 ```
 
 - [ ] **Step 5: Run all tests**
@@ -1562,6 +1660,7 @@ git commit -m "feat: add status pages for building/cold/expired previews"
 ## Task 10: Add Tunnel Mode/TcpPort Columns
 
 **Files:**
+
 - Modify: `api/src/db/schema/gateway.ts` (add `mode` and `tcpPort` to tunnel table)
 
 This is a small schema-only change preparing for Phase 3 (tunnel data plane). No service changes needed yet.
@@ -1601,6 +1700,7 @@ git commit -m "feat: add mode and tcpPort columns to tunnel table for TCP tunnel
 ## Task 11: Full Integration Test
 
 **Files:**
+
 - Modify: `api/src/__tests__/gateway-services.test.ts` (add end-to-end gateway flow test)
 
 - [ ] **Step 1: Write integration test for the full gateway flow**
@@ -1608,53 +1708,59 @@ git commit -m "feat: add mode and tcpPort columns to tunnel table for TCP tunnel
 Add to `api/src/__tests__/gateway-services.test.ts`:
 
 ```typescript
-  describe("Full Gateway Flow", () => {
-    it("creates preview → resolves via gateway lookup → serves status page → transitions to active → proxies", async () => {
-      // 1. Create preview
-      const { preview: p, route: r } = await previewSvc.createPreview(db, {
-        name: "PR #99 - e2e-test",
-        sourceBranch: "e2e-test",
-        commitSha: "e2e000",
-        repo: "github.com/org/app",
-        prNumber: 99,
-        siteName: "app",
-        ownerId: "user_1",
-        createdBy: "system",
-      });
+describe("Full Gateway Flow", () => {
+  it("creates preview → resolves via gateway lookup → serves status page → transitions to active → proxies", async () => {
+    // 1. Create preview
+    const { preview: p, route: r } = await previewSvc.createPreview(db, {
+      name: "PR #99 - e2e-test",
+      sourceBranch: "e2e-test",
+      commitSha: "e2e000",
+      repo: "github.com/org/app",
+      prNumber: 99,
+      siteName: "app",
+      ownerId: "user_1",
+      createdBy: "system",
+    })
 
-      expect(r.domain).toBe("pr-99--e2e-test--app.preview.dx.dev");
+    expect(r.domain).toBe("pr-99--e2e-test--app.preview.dx.dev")
 
-      // 2. Route should be resolvable
-      const found = await gw.lookupRouteByDomain(db, "pr-99--e2e-test--app.preview.dx.dev");
-      expect(found).not.toBeNull();
-      expect(found!.kind).toBe("preview");
+    // 2. Route should be resolvable
+    const found = await gw.lookupRouteByDomain(
+      db,
+      "pr-99--e2e-test--app.preview.dx.dev"
+    )
+    expect(found).not.toBeNull()
+    expect(found!.kind).toBe("preview")
 
-      // 3. Transition to active
-      await previewSvc.updatePreviewStatus(db, p.previewId, {
-        status: "active",
-        runtimeClass: "hot",
-        lastAccessedAt: new Date(),
-      });
+    // 3. Transition to active
+    await previewSvc.updatePreviewStatus(db, p.previewId, {
+      status: "active",
+      runtimeClass: "hot",
+      lastAccessedAt: new Date(),
+    })
 
-      const active = await previewSvc.getPreview(db, p.previewId);
-      expect(active!.status).toBe("active");
-      expect(active!.runtimeClass).toBe("hot");
-    });
+    const active = await previewSvc.getPreview(db, p.previewId)
+    expect(active!.status).toBe("active")
+    expect(active!.runtimeClass).toBe("hot")
+  })
 
-    it("sandbox route is resolvable", async () => {
-      await gw.createSandboxRoutes(db, {
-        deploymentTargetId: undefined as any, // will be set below
-        sandboxSlug: "dev-nikhil-abc",
-        publishPorts: [8080],
-        createdBy: "system",
-      });
+  it("sandbox route is resolvable", async () => {
+    await gw.createSandboxRoutes(db, {
+      deploymentTargetId: undefined as any, // will be set below
+      sandboxSlug: "dev-nikhil-abc",
+      publishPorts: [8080],
+      createdBy: "system",
+    })
 
-      // Note: createSandboxRoutes may fail without a valid deploymentTargetId
-      // This test verifies the domain pattern is correct for lookup
-      const found = await gw.lookupRouteByDomain(db, "dev-nikhil-abc.preview.dx.dev");
-      // May be null without valid FK - that's fine, we're testing the lookup path
-    });
-  });
+    // Note: createSandboxRoutes may fail without a valid deploymentTargetId
+    // This test verifies the domain pattern is correct for lookup
+    const found = await gw.lookupRouteByDomain(
+      db,
+      "dev-nikhil-abc.preview.dx.dev"
+    )
+    // May be null without valid FK - that's fine, we're testing the lookup path
+  })
+})
 ```
 
 - [ ] **Step 2: Run all tests**
@@ -1688,6 +1794,7 @@ After completing these 11 tasks, you'll have:
 6. **Tunnel schema prep** — `mode` and `tcpPort` columns ready for Phase 3
 
 **Next plans (separate documents):**
+
 - Phase 3: Tunnel Data Plane (binary framing protocol, stream multiplexing)
 - Phase 4: TCP Tunneling (port allocator, TCP listeners)
 - Phase 5: Production Hardening (reconnection, flow control, rate limits, metrics)

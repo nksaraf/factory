@@ -57,7 +57,7 @@ description: "Local components, staging databases and caches"
 
 connect:
   postgres:
-    from: staging                    # resolve from the staging deployment target
+    from: staging # resolve from the staging deployment target
   redis:
     from: staging
   # everything else: local (default)
@@ -74,7 +74,7 @@ connect:
   redis:
     from: staging
   auth-api:
-    from: staging                    # resolve the auth module's api component URL
+    from: staging # resolve the auth module's api component URL
   analytics-api:
     from: staging
 ```
@@ -89,7 +89,7 @@ connect:
     from: trafficure-prod-india
     override:
       POSTGRES_URL: "postgresql://readonly:${VAULT_SECRET}@prod-replica.internal:5432/geoanalytics"
-    readonly: true                   # enforces read-only connection string if possible
+    readonly: true # enforces read-only connection string if possible
 ```
 
 ### Ad-hoc from the CLI
@@ -145,7 +145,7 @@ services:
       OBJECT_STORAGE_URL: "http://minio:9000"
     volumes:
       - ./services/api:/app
-    depends_on: [minio]   # only local deps listed
+    depends_on: [minio] # only local deps listed
 
   # Local-only dependencies (not connected to staging)
   minio:
@@ -172,13 +172,13 @@ dx dev api --connect-to staging
   Starting tunnels to staging...
     postgres: localhost:15432 → staging/postgres:5432  ✓
     redis:    localhost:16379 → staging/redis:6379     ✓
-  
+
   Starting local services...
     minio:    localhost:9000  ✓
     api:      localhost:8080  ✓ (hot-reload active)
-  
+
   ⚠  Connected to staging. Writes to staging database are real.
-  
+
   Press Ctrl+C to stop.
 ```
 
@@ -212,7 +212,7 @@ dx sandbox create integration-test \
 
 ## 5. The Data Model
 
-Connection profiles don't need a heavy data model. They're primarily a CLI/dev-time concern, not a Fleet Plane entity. But the *act* of connecting to remote targets needs to be tracked for audit and security.
+Connection profiles don't need a heavy data model. They're primarily a CLI/dev-time concern, not a Fleet Plane entity. But the _act_ of connecting to remote targets needs to be tracked for audit and security.
 
 ### Profile definition (in code, not DB)
 
@@ -227,8 +227,8 @@ connection_profile:
   connect:
     <dependency_or_component_name>:
       from: <deployment_target_name>
-      override: map[string]string    # explicit env var overrides
-      readonly: boolean              # hint to use read-only endpoints
+      override: map[string]string # explicit env var overrides
+      readonly: boolean # hint to use read-only endpoints
 ```
 
 ### Active connections (tracked in Factory DB)
@@ -332,22 +332,22 @@ The deployment target's tier policies control who can connect to it:
 ```yaml
 # Tier policy on the staging deployment target
 tier_policies:
-  allow_dev_connections: true         # developers can tunnel in
-  allow_write_connections: true       # tunnels can write
-  require_auth: true                  # tunnel requires authenticated dx session
-  allowed_teams: [analytics-eng, platform-eng]  # only these teams
+  allow_dev_connections: true # developers can tunnel in
+  allow_write_connections: true # tunnels can write
+  require_auth: true # tunnel requires authenticated dx session
+  allowed_teams: [analytics-eng, platform-eng] # only these teams
 ```
 
 ```yaml
 # Tier policy on a production deployment target
 tier_policies:
-  allow_dev_connections: true         # yes, but...
-  allow_write_connections: false      # read-only tunnels only
+  allow_dev_connections: true # yes, but...
+  allow_write_connections: false # read-only tunnels only
   require_auth: true
-  require_approval: true              # needs a second person to approve
-  allowed_teams: [platform-eng]      # only platform team
-  max_duration: 2h                   # tunnels auto-close after 2 hours
-  audit_level: high                  # extra logging
+  require_approval: true # needs a second person to approve
+  allowed_teams: [platform-eng] # only platform team
+  max_duration: 2h # tunnels auto-close after 2 hours
+  audit_level: high # extra logging
 ```
 
 ### Connection lifecycle
@@ -406,10 +406,10 @@ For production, the warning is even louder, and `--readonly` is required (unless
 $ dx dev api --connect-to trafficure-prod-india
 
   ✗ Cannot connect to production without --readonly flag.
-  
+
   If you need write access: dx dev api --connect-to trafficure-prod-india \
     --force --reason "Debugging data corruption issue INCIDENT-847"
-  
+
   This will be logged and require approval from a platform-eng member.
 ```
 
@@ -435,16 +435,16 @@ dx connect staging postgres
 
   Tunnel established:
     POSTGRES_URL=postgresql://dev:***@localhost:15432/geoanalytics
-  
+
   Export:
     export POSTGRES_URL="postgresql://dev:***@localhost:15432/geoanalytics"
-  
+
   Or source it:
     eval $(dx connect staging postgres --export)
-  
+
   Or write an .env file:
     dx connect staging postgres --env-file .env
-  
+
   Tunnel will close when you press Ctrl+C or close this terminal.
 ```
 

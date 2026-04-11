@@ -36,6 +36,15 @@ import {
 import { component, system } from "../../db/schema/software-v2"
 import { newId } from "../../lib/id"
 import { extractHost, extractPort } from "../../lib/url-utils"
+import { assignIp, ensureIp } from "./ipam.service"
+
+function isRfc1918Ip(ip: string): boolean {
+  const parts = ip.split(".").map(Number)
+  if (parts[0] === 10) return true
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  if (parts[0] === 192 && parts[1] === 168) return true
+  return false
+}
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -720,6 +729,16 @@ export async function reconcileHostScan(
         .limit(1)
 
       if (existing) {
+        const ensured = await ensureIp(tx, {
+          address: ip,
+          spec: {
+            scope: isRfc1918Ip(ip) ? "private" : "public",
+          },
+        })
+        await assignIp(tx, ensured.ipAddressId, {
+          assignedToType: "host",
+          assignedToId: existing.id,
+        })
         summary.discoveredHosts.hosts.push({
           slug: existing.slug,
           ip,
@@ -734,9 +753,10 @@ export async function reconcileHostScan(
       const discoveredName = entry.hostname || `host-${ip.replace(/\./g, "-")}`
       const discoveredSlug = slugify(discoveredName)
       const scanningSpec = hostEntity.spec as HostSpec
+      const discoveredHostId = newId("host")
 
       await tx.insert(host).values({
-        id: newId("host"),
+        id: discoveredHostId,
         slug: discoveredSlug,
         name: discoveredName,
         type: "vm",
@@ -757,6 +777,18 @@ export async function reconcileHostScan(
             discoveredAt: new Date().toISOString(),
           },
         },
+      })
+
+      const ensured = await ensureIp(tx, {
+        address: ip,
+        spec: {
+          scope: isRfc1918Ip(ip) ? "private" : "public",
+          primary: true,
+        },
+      })
+      await assignIp(tx, ensured.ipAddressId, {
+        assignedToType: "host",
+        assignedToId: discoveredHostId,
       })
 
       summary.discoveredHosts.hosts.push({
@@ -931,6 +963,20 @@ export async function reconcileHostScan(
       composeProjectCount: scanResult.composeProjects.length,
     })
     if (scanHistory.length > 50) scanHistory.length = 50
+
+    if (scanResult.ipAddress) {
+      const ensured = await ensureIp(tx, {
+        address: scanResult.ipAddress,
+        spec: {
+          scope: isRfc1918Ip(scanResult.ipAddress) ? "private" : "public",
+          primary: true,
+        },
+      })
+      await assignIp(tx, ensured.ipAddressId, {
+        assignedToType: "host",
+        assignedToId: hostEntity.id,
+      })
+    }
 
     // Merge ipAddress/hostname into host spec if provided and changed
     const currentSpec = hostEntity.spec as HostSpec

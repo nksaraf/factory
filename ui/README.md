@@ -132,13 +132,13 @@ trafficure/
 
 ## Available Scripts
 
-| Command              | Description                                                                                                       |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`           | Start development server with hot reload                                                                          |
-| `pnpm build`         | Build for production                                                                                              |
-| `pnpm start`         | Run production build                                                                                              |
-| `pnpm openapi:fetch` | Download OpenAPI spec from data service (set `OPENAPI_SPEC_URL` or uses `http://localhost:8084/api/data/openapi`) |
-| `pnpm openapi-ts`    | Generate API client + TanStack Query hooks from `openapi.json` into `src/client`                                  |
+| Command              | Description                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`           | Start development server with hot reload                                                                             |
+| `pnpm build`         | Build for production                                                                                                 |
+| `pnpm start`         | Run production build                                                                                                 |
+| `pnpm openapi:fetch` | Download OpenAPI spec from data service (set `OPENAPI_SPEC_URL` or uses `http://localhost:8084/api/v1/data/openapi`) |
+| `pnpm openapi-ts`    | Generate API client + TanStack Query hooks from `openapi.json` into `src/client`                                     |
 
 ### OpenAPI codegen (TanStack Query)
 

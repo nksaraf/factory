@@ -1,5 +1,5 @@
-import { eq, and, sql } from "drizzle-orm";
-import type { Database } from "../../db/connection";
+import { eq, and, sql } from "drizzle-orm"
+import type { Database } from "../../db/connection"
 import {
   messagingProvider,
   channel,
@@ -7,26 +7,34 @@ import {
   threadTurn,
   identityLink,
   principal,
-} from "../../db/schema/org-v2";
-import { getMessagingAdapter } from "../../adapters/adapter-registry";
-import type { MessagingConfig, MessagingType } from "../../adapters/messaging-adapter";
-import type { MessagingProviderSpec, ChannelSpec, ThreadSpec, IdentityLinkSpec } from "@smp/factory-shared/schemas/org";
-import { allocateSlug } from "../../lib/slug";
-import { logger } from "../../logger";
+} from "../../db/schema/org-v2"
+import { getMessagingAdapter } from "../../adapters/adapter-registry"
+import type {
+  MessagingConfig,
+  MessagingType,
+} from "../../adapters/messaging-adapter"
+import type {
+  MessagingProviderSpec,
+  ChannelSpec,
+  ThreadSpec,
+  IdentityLinkSpec,
+} from "@smp/factory-shared/schemas/org"
+import { allocateSlug } from "../../lib/slug"
+import { logger } from "../../logger"
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function providerConfig(
-  provider: typeof messagingProvider.$inferSelect,
+  provider: typeof messagingProvider.$inferSelect
 ): MessagingConfig {
-  const spec = provider.spec as MessagingProviderSpec;
+  const spec = provider.spec as MessagingProviderSpec
   return {
     botToken: spec?.botToken ?? "",
     signingSecret: spec?.signingSecret ?? "",
     workspaceExternalId: spec?.workspaceId ?? undefined,
-  };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -35,46 +43,46 @@ function providerConfig(
 
 export async function listMessagingProviders(
   db: Database,
-  filters?: { status?: string },
+  filters?: { status?: string }
 ) {
-  const rows = await db.select().from(messagingProvider);
+  const rows = await db.select().from(messagingProvider)
   if (filters?.status) {
     return {
       data: rows.filter(
-        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status,
+        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status
       ),
       total: rows.filter(
-        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status,
+        (r) => (r.spec as MessagingProviderSpec)?.status === filters.status
       ).length,
-    };
+    }
   }
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }
 
 export async function getMessagingProvider(db: Database, idOrSlug: string) {
   let rows = await db
     .select()
     .from(messagingProvider)
-    .where(eq(messagingProvider.id, idOrSlug));
+    .where(eq(messagingProvider.id, idOrSlug))
   if (rows.length === 0) {
     rows = await db
       .select()
       .from(messagingProvider)
-      .where(eq(messagingProvider.slug, idOrSlug));
+      .where(eq(messagingProvider.slug, idOrSlug))
   }
-  return rows[0] ?? null;
+  return rows[0] ?? null
 }
 
 export async function createMessagingProvider(
   db: Database,
   data: {
-    name: string;
-    type: string;
-    teamId: string;
-    workspaceId?: string;
-    botToken?: string;
-    signingSecret?: string;
-  },
+    name: string
+    type: string
+    teamId: string
+    workspaceId?: string
+    botToken?: string
+    signingSecret?: string
+  }
 ) {
   const slug = await allocateSlug({
     baseLabel: data.name,
@@ -82,10 +90,10 @@ export async function createMessagingProvider(
       const existing = await db
         .select()
         .from(messagingProvider)
-        .where(eq(messagingProvider.slug, s));
-      return existing.length > 0;
+        .where(eq(messagingProvider.slug, s))
+      return existing.length > 0
     },
-  });
+  })
   const rows = await db
     .insert(messagingProvider)
     .values({
@@ -100,19 +108,19 @@ export async function createMessagingProvider(
         status: "active",
       } satisfies MessagingProviderSpec,
     })
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function testMessagingProviderConnection(
   db: Database,
-  providerId: string,
+  providerId: string
 ) {
-  const provider = await getMessagingProvider(db, providerId);
-  if (!provider) return { ok: false, error: "provider_not_found" };
+  const provider = await getMessagingProvider(db, providerId)
+  if (!provider) return { ok: false, error: "provider_not_found" }
 
-  const adapter = getMessagingAdapter(provider.type as MessagingType);
-  return adapter.testConnection(providerConfig(provider));
+  const adapter = getMessagingAdapter(provider.type as MessagingType)
+  return adapter.testConnection(providerConfig(provider))
 }
 
 // ---------------------------------------------------------------------------
@@ -122,13 +130,13 @@ export async function testMessagingProviderConnection(
 export async function mapChannel(
   db: Database,
   data: {
-    messagingProviderId: string;
-    externalChannelId: string;
-    externalChannelName?: string;
-    entityKind: string;
-    entityId: string;
-    isDefault?: boolean;
-  },
+    messagingProviderId: string
+    externalChannelId: string
+    externalChannelName?: string
+    entityKind: string
+    entityId: string
+    isDefault?: boolean
+  }
 ) {
   const rows = await db
     .insert(channel)
@@ -143,36 +151,31 @@ export async function mapChannel(
         isDefault: data.isDefault ?? false,
       } satisfies ChannelSpec,
     })
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function unmapChannel(db: Database, channelId: string) {
-  await db
-    .delete(channel)
-    .where(eq(channel.id, channelId));
+  await db.delete(channel).where(eq(channel.id, channelId))
 }
 
-export async function listChannelMappings(
-  db: Database,
-  providerId: string,
-) {
+export async function listChannelMappings(db: Database, providerId: string) {
   const rows = await db
     .select()
     .from(channel)
     .where(
       and(
         eq(channel.kind, "slack"),
-        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`,
-      ),
-    );
-  return { data: rows, total: rows.length };
+        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`
+      )
+    )
+  return { data: rows, total: rows.length }
 }
 
 export async function resolveChannelContext(
   db: Database,
   providerId: string,
-  externalChannelId: string,
+  externalChannelId: string
 ) {
   const rows = await db
     .select()
@@ -181,13 +184,13 @@ export async function resolveChannelContext(
       and(
         eq(channel.kind, "slack"),
         eq(channel.externalId, externalChannelId),
-        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`,
-      ),
+        sql`${channel.spec}->>'messagingProviderId' = ${providerId}`
+      )
     )
-    .limit(1);
-  if (rows.length === 0) return null;
-  const spec = rows[0].spec as ChannelSpec;
-  return { entityKind: spec.entityKind ?? "", entityId: spec.entityId ?? "" };
+    .limit(1)
+  if (rows.length === 0) return null
+  const spec = rows[0].spec as ChannelSpec
+  return { entityKind: spec.entityKind ?? "", entityId: spec.entityId ?? "" }
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +200,7 @@ export async function resolveChannelContext(
 export async function resolveMessagingUser(
   db: Database,
   providerKind: string,
-  externalUserId: string,
+  externalUserId: string
 ): Promise<string | null> {
   const rows = await db
     .select({ principalId: identityLink.principalId })
@@ -205,29 +208,29 @@ export async function resolveMessagingUser(
     .where(
       and(
         eq(identityLink.type, providerKind),
-        eq(identityLink.externalId, externalUserId),
-      ),
+        eq(identityLink.externalId, externalUserId)
+      )
     )
-    .limit(1);
-  return rows[0]?.principalId ?? null;
+    .limit(1)
+  return rows[0]?.principalId ?? null
 }
 
 export async function syncProviderUsers(
   db: Database,
-  providerId: string,
+  providerId: string
 ): Promise<{ linked: number; unlinked: number; total: number }> {
-  const provider = await getMessagingProvider(db, providerId);
-  if (!provider) throw new Error("provider_not_found");
+  const provider = await getMessagingProvider(db, providerId)
+  if (!provider) throw new Error("provider_not_found")
 
-  const adapter = getMessagingAdapter(provider.type as MessagingType);
-  const externalUsers = await adapter.listUsers(providerConfig(provider));
+  const adapter = getMessagingAdapter(provider.type as MessagingType)
+  const externalUsers = await adapter.listUsers(providerConfig(provider))
 
-  let linked = 0;
-  let unlinked = 0;
+  let linked = 0
+  let unlinked = 0
 
   for (const extUser of externalUsers) {
     if (extUser.isBot || extUser.deleted || !extUser.email) {
-      continue;
+      continue
     }
 
     // Find a principal by email in spec JSONB
@@ -235,14 +238,14 @@ export async function syncProviderUsers(
       .select()
       .from(principal)
       .where(sql`${principal.spec}->>'email' = ${extUser.email}`)
-      .limit(1);
+      .limit(1)
 
     if (principals.length === 0) {
-      unlinked++;
-      continue;
+      unlinked++
+      continue
     }
 
-    const prin = principals[0];
+    const prin = principals[0]
 
     // Check if link already exists
     const existingLinks = await db
@@ -251,10 +254,10 @@ export async function syncProviderUsers(
       .where(
         and(
           eq(identityLink.type, provider.type),
-          eq(identityLink.externalId, extUser.id),
-        ),
+          eq(identityLink.externalId, extUser.id)
+        )
       )
-      .limit(1);
+      .limit(1)
 
     if (existingLinks.length > 0) {
       // Update if principal changed
@@ -273,10 +276,10 @@ export async function syncProviderUsers(
             } as IdentityLinkSpec,
             updatedAt: new Date(),
           })
-          .where(eq(identityLink.id, existingLinks[0].id));
+          .where(eq(identityLink.id, existingLinks[0].id))
       }
-      linked++;
-      continue;
+      linked++
+      continue
     }
 
     // Create new identity link
@@ -292,23 +295,23 @@ export async function syncProviderUsers(
           avatarUrl: extUser.avatarUrl,
         },
       } as IdentityLinkSpec,
-    });
-    linked++;
+    })
+    linked++
   }
 
   logger.info(
     { providerId, linked, unlinked, total: externalUsers.length },
-    "messaging user sync complete",
-  );
+    "messaging user sync complete"
+  )
 
-  return { linked, unlinked, total: externalUsers.length };
+  return { linked, unlinked, total: externalUsers.length }
 }
 
 export async function linkMessagingUser(
   db: Database,
   providerKind: string,
   externalUserId: string,
-  principalId: string,
+  principalId: string
 ) {
   await db
     .insert(identityLink)
@@ -320,22 +323,22 @@ export async function linkMessagingUser(
     .onConflictDoUpdate({
       target: [identityLink.type, identityLink.externalId],
       set: { principalId, updatedAt: new Date() },
-    });
+    })
 }
 
 export async function unlinkMessagingUser(
   db: Database,
   providerKind: string,
-  externalUserId: string,
+  externalUserId: string
 ) {
   await db
     .delete(identityLink)
     .where(
       and(
         eq(identityLink.type, providerKind),
-        eq(identityLink.externalId, externalUserId),
-      ),
-    );
+        eq(identityLink.externalId, externalUserId)
+      )
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -345,12 +348,12 @@ export async function unlinkMessagingUser(
 export async function getOrCreateThread(
   db: Database,
   data: {
-    messagingProviderId: string;
-    externalChannelId: string;
-    externalThreadId: string;
-    initiatorPrincipalId?: string;
-    subject?: string;
-  },
+    messagingProviderId: string
+    externalChannelId: string
+    externalThreadId: string
+    initiatorPrincipalId?: string
+    subject?: string
+  }
 ) {
   // Try to find existing thread by source + external ID
   const existing = await db
@@ -359,12 +362,12 @@ export async function getOrCreateThread(
     .where(
       and(
         eq(thread.source, "slack"),
-        eq(thread.externalId, data.externalThreadId),
-      ),
+        eq(thread.externalId, data.externalThreadId)
+      )
     )
-    .limit(1);
+    .limit(1)
 
-  if (existing.length > 0) return existing[0];
+  if (existing.length > 0) return existing[0]
 
   // Resolve the channel to link the thread
   const channelRows = await db
@@ -373,10 +376,10 @@ export async function getOrCreateThread(
     .where(
       and(
         eq(channel.kind, "slack"),
-        eq(channel.externalId, data.externalChannelId),
-      ),
+        eq(channel.externalId, data.externalChannelId)
+      )
     )
-    .limit(1);
+    .limit(1)
 
   const rows = await db
     .insert(thread)
@@ -393,20 +396,20 @@ export async function getOrCreateThread(
         messagingProviderId: data.messagingProviderId,
       } satisfies ThreadSpec,
     })
-    .returning();
-  return rows[0];
+    .returning()
+  return rows[0]
 }
 
 export async function appendMessage(
   db: Database,
   threadId: string,
   message: {
-    role: string;
-    text: string;
-    externalUserId?: string;
-    principalId?: string;
-    timestamp: string;
-  },
+    role: string
+    text: string
+    externalUserId?: string
+    principalId?: string
+    timestamp: string
+  }
 ) {
   await db.execute(sql`
     INSERT INTO org.thread_turn (thread_id, turn_index, role, spec)
@@ -416,38 +419,35 @@ export async function appendMessage(
       ${message.role},
       ${JSON.stringify({ message: message.text, timestamp: message.timestamp })}::jsonb
     )
-  `);
+  `)
 
   await db
     .update(thread)
     .set({ updatedAt: new Date() })
-    .where(eq(thread.id, threadId));
+    .where(eq(thread.id, threadId))
 }
 
 export async function resolveThread(db: Database, threadId: string) {
   await db
     .update(thread)
     .set({ status: "completed", updatedAt: new Date() })
-    .where(eq(thread.id, threadId));
+    .where(eq(thread.id, threadId))
 }
 
 export async function listThreads(
   db: Database,
   providerId: string,
-  filters?: { status?: string },
+  filters?: { status?: string }
 ) {
   const condition = filters?.status
     ? and(
         sql`${thread.spec}->>'messagingProviderId' = ${providerId}`,
-        eq(thread.status, filters.status),
+        eq(thread.status, filters.status)
       )
-    : sql`${thread.spec}->>'messagingProviderId' = ${providerId}`;
+    : sql`${thread.spec}->>'messagingProviderId' = ${providerId}`
 
-  const rows = await db
-    .select()
-    .from(thread)
-    .where(condition);
-  return { data: rows, total: rows.length };
+  const rows = await db.select().from(thread).where(condition)
+  return { data: rows, total: rows.length }
 }
 
 export async function getThread(db: Database, threadId: string) {
@@ -455,6 +455,6 @@ export async function getThread(db: Database, threadId: string) {
     .select()
     .from(thread)
     .where(eq(thread.id, threadId))
-    .limit(1);
-  return rows[0] ?? null;
+    .limit(1)
+  return rows[0] ?? null
 }

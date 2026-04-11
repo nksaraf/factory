@@ -497,7 +497,7 @@ export default function AgentSessionDetailView({
   const { messages, status, sendMessage, stop, isLoadingHistory } =
     useAgentChat({
       sessionId: chatId,
-      api: "/api/chat/",
+      api: "/api/v1/chat/",
     })
 
   // Auto-send initial message passed via navigation state (e.g. from home chat input)

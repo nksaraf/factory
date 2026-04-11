@@ -1,11 +1,11 @@
-import type { TemplateVars, GeneratedFile } from "../types.js";
-import { componentLabels, labelsToYaml } from "../compose-labels.js";
-import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js";
+import type { TemplateVars, GeneratedFile } from "../types.js"
+import { componentLabels, labelsToYaml } from "../compose-labels.js"
+import { pythonQualityToml, pythonQualityFiles } from "../quality-configs.js"
 
 export function generate(vars: TemplateVars): GeneratedFile[] {
-  const { name, owner, description } = vars;
+  const { name, owner, description } = vars
 
-  const files: GeneratedFile[] = [];
+  const files: GeneratedFile[] = []
 
   // pyproject.toml
   files.push({
@@ -31,7 +31,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 ${pythonQualityToml()}`,
-  });
+  })
 
   // config/application.yml
   files.push({
@@ -42,7 +42,7 @@ ${pythonQualityToml()}`,
   port: \${APP_PORT:8092}
   log_level: \${LOG_LEVEL:info}
 `,
-  });
+  })
 
   // Dockerfile
   files.push({
@@ -63,7 +63,7 @@ EXPOSE 8092
 
 CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8092"]
 `,
-  });
+  })
 
   // docker-compose.yaml
   const svcLabels = componentLabels({
@@ -72,7 +72,7 @@ CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "809
     description,
     runtime: "python",
     port: { number: 8092, name: "http", protocol: "tcp" },
-  });
+  })
 
   files.push({
     path: "docker-compose.yaml",
@@ -88,13 +88,13 @@ CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "809
     labels:
 ${labelsToYaml(svcLabels, 6)}
 `,
-  });
+  })
 
   // src/__init__.py
   files.push({
     path: "src/__init__.py",
     content: ``,
-  });
+  })
 
   // src/main.py
   files.push({
@@ -123,7 +123,7 @@ app = FastAPI(
 async def health():
     return {"status": "ok"}
 `,
-  });
+  })
 
   // src/config.py
   files.push({
@@ -144,13 +144,13 @@ class Settings(BaseSettings):
 
 settings = Settings()
 `,
-  });
+  })
 
   // tests/__init__.py
-  files.push({ path: "tests/__init__.py", content: "" });
+  files.push({ path: "tests/__init__.py", content: "" })
 
   // Quality tooling configs
-  files.push(...pythonQualityFiles());
+  files.push(...pythonQualityFiles())
 
-  return files;
+  return files
 }

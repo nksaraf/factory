@@ -165,7 +165,7 @@ public class HealthController {
     content: `server:
   port: 8080
   servlet:
-    context-path: /api/${name}
+    context-path: /api/v1/${name}
 
 spring:
   datasource:

@@ -74,10 +74,10 @@ export async function processOutbox(db: Database): Promise<number> {
       createdAt: row.createdAt,
     })
 
-    const success = await publishToNats(row.topic, payload)
+    const result = await publishToNats(row.topic, payload)
     const newAttempts = row.attempts + 1
 
-    if (success) {
+    if (result.ok) {
       await db
         .update(eventOutbox)
         .set({
@@ -96,7 +96,7 @@ export async function processOutbox(db: Database): Promise<number> {
         .set({
           status: newStatus,
           attempts: newAttempts,
-          lastError: "NATS publish failed",
+          lastError: result.error ?? "NATS publish failed",
         })
         .where(eq(eventOutbox.eventId, row.eventId))
 

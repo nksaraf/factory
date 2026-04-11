@@ -1,4 +1,6 @@
 {
   "name": "jest-project",
-  "jest": { "preset": "ts-jest" }
+  "jest": {
+    "preset": "ts-jest"
+  }
 }

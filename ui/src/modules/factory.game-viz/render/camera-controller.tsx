@@ -116,9 +116,7 @@ export function CameraController({ mode }: CameraControllerProps) {
     currentLookAt.lerpVectors(
       camera.position
         .clone()
-        .add(
-          new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-        ),
+        .add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)),
       targetLookAt.current,
       t
     )

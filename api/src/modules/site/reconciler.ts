@@ -28,7 +28,7 @@ export class SiteReconciler {
   }
 
   async reconcileOnce(): Promise<ReconcileResult> {
-    const checkinUrl = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/checkin`
+    const checkinUrl = `${this.config.factoryUrl}/api/v1/factory/ops/sites/${this.config.siteName}/checkin`
     const checkinRes = await fetch(checkinUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -56,7 +56,7 @@ export class SiteReconciler {
       }
     }
 
-    const manifestUrl = `${this.config.factoryUrl}/api/factory/ops/sites/${this.config.siteName}/manifest`
+    const manifestUrl = `${this.config.factoryUrl}/api/v1/factory/ops/sites/${this.config.siteName}/manifest`
     const manifestRes = await fetch(manifestUrl)
     if (!manifestRes.ok)
       throw new Error(`Manifest fetch failed: ${manifestRes.status}`)

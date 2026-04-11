@@ -1,4 +1,4 @@
-import { useDeploymentTargets, useFleetSite } from "@/lib/fleet"
+import { useDeploymentTargets, useOpsSite } from "@/lib/ops"
 import { useCluster } from "@/lib/infra"
 import { Link, useParams } from "react-router"
 
@@ -11,7 +11,7 @@ import {
 
 export default function SiteDetailPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { data: site, isLoading } = useFleetSite(slug)
+  const { data: site, isLoading } = useOpsSite(slug)
   const { data: targets } = useDeploymentTargets(
     site ? ({ siteId: site.id } as any) : undefined
   )
@@ -32,7 +32,7 @@ export default function SiteDetailPage() {
   return (
     <div className="space-y-6 p-6">
       <PlaneHeader
-        plane="fleet"
+        plane="ops"
         title={site.name}
         description={`${site.product} · ${site.slug}`}
         actions={<StatusBadge status={site.status} />}
@@ -42,17 +42,17 @@ export default function SiteDetailPage() {
         <MetricCard
           label="Deployment Targets"
           value={siteTargets.length}
-          plane="fleet"
+          plane="ops"
         />
         <MetricCard
           label="Manifest Version"
           value={site.currentManifestVersion ?? "—"}
-          plane="fleet"
+          plane="ops"
         />
         <MetricCard
           label="Cluster"
           value={cluster?.name ?? site.clusterId}
-          plane="fleet"
+          plane="ops"
         />
       </div>
 
@@ -67,7 +67,7 @@ export default function SiteDetailPage() {
             {siteTargets.map((t) => (
               <Link
                 key={t.id}
-                to={`/fleet/targets/${t.slug}`}
+                to={`/ops/targets/${t.slug}`}
                 className="flex items-center justify-between rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50"
               >
                 <div>

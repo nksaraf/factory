@@ -121,7 +121,6 @@ className="icon-[ph--gear-duotone]"
 
 ```tsx
 import { Icon } from "@rio.js/ui/icon"
-
 ;<Icon icon="icon-[ph--gear-duotone]" className="h-5 w-5" />
 ```
 
@@ -229,7 +228,7 @@ Modules filter their sidebar items based on these flags in their `index.ts`.
 
 ### Add a new API endpoint
 
-1. Create `src/routes/api/your-endpoint/[...page].tsx`
+1. Create `src/routes/api/v1/your-endpoint/[...page].tsx`
 2. Export handler: `export async function GET(event) { ... }`
 
 ### Add a new data hook

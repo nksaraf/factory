@@ -2,7 +2,7 @@ import type {
   IdentityProviderAdapter,
   IdentityProviderConfig,
   ExternalIdentityUser,
-} from "./identity-provider-adapter";
+} from "./identity-provider-adapter"
 
 /**
  * Google identity provider adapter.
@@ -18,28 +18,30 @@ import type {
  * - fetchUserProfile: GET https://www.googleapis.com/oauth2/v2/userinfo
  */
 export class GoogleIdentityProviderAdapter implements IdentityProviderAdapter {
-  readonly provider = "google" as const;
+  readonly provider = "google" as const
 
   /**
    * No bulk discovery — Google users are linked via OAuth login flow.
    * Returns empty array.
    */
-  async fetchUsers(_config: IdentityProviderConfig): Promise<ExternalIdentityUser[]> {
-    return [];
+  async fetchUsers(
+    _config: IdentityProviderConfig
+  ): Promise<ExternalIdentityUser[]> {
+    return []
   }
 
   async fetchUserProfile(
     config: IdentityProviderConfig,
-    _externalUserId: string,
+    _externalUserId: string
   ): Promise<ExternalIdentityUser | null> {
     try {
       const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
         headers: { Authorization: `Bearer ${config.token}` },
-      });
+      })
 
-      if (!res.ok) return null;
+      if (!res.ok) return null
 
-      const data = (await res.json()) as GoogleUserInfo;
+      const data = (await res.json()) as GoogleUserInfo
 
       return {
         externalUserId: data.id,
@@ -58,9 +60,9 @@ export class GoogleIdentityProviderAdapter implements IdentityProviderAdapter {
         },
         isBot: false,
         deleted: false,
-      };
+      }
     } catch {
-      return null;
+      return null
     }
   }
 }
@@ -68,15 +70,15 @@ export class GoogleIdentityProviderAdapter implements IdentityProviderAdapter {
 // ── Google userinfo response ───────────────────────────────────
 
 interface GoogleUserInfo {
-  id: string;
-  email?: string;
-  verified_email?: boolean;
-  name?: string;
-  given_name?: string;
-  family_name?: string;
-  picture?: string;
-  locale?: string;
-  hd?: string; // hosted domain (Google Workspace)
+  id: string
+  email?: string
+  verified_email?: boolean
+  name?: string
+  given_name?: string
+  family_name?: string
+  picture?: string
+  locale?: string
+  hd?: string // hosted domain (Google Workspace)
 }
 
 /**
@@ -87,9 +89,9 @@ interface GoogleUserInfo {
  * the existing access token has expired.
  */
 export async function refreshGoogleAccessToken(opts: {
-  refreshToken: string;
-  clientId: string;
-  clientSecret: string;
+  refreshToken: string
+  clientId: string
+  clientSecret: string
 }): Promise<{ accessToken: string; expiresAt: Date }> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -100,16 +102,19 @@ export async function refreshGoogleAccessToken(opts: {
       client_id: opts.clientId,
       client_secret: opts.clientSecret,
     }),
-  });
+  })
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Google token refresh failed: ${res.status} ${text}`);
+    const text = await res.text()
+    throw new Error(`Google token refresh failed: ${res.status} ${text}`)
   }
 
-  const data = (await res.json()) as { access_token: string; expires_in: number };
+  const data = (await res.json()) as {
+    access_token: string
+    expires_in: number
+  }
   return {
     accessToken: data.access_token,
     expiresAt: new Date(Date.now() + data.expires_in * 1000),
-  };
+  }
 }

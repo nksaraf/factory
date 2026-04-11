@@ -15,42 +15,46 @@
 ## File Map
 
 ### New Files — Route Pages
-| File | Screen |
-|---|---|
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/page.tsx` | Fleet Map (Sites List) |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/[slug]/page.tsx` | Site Detail |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/page.tsx` | Deployment Targets List |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/[slug]/page.tsx` | Deployment Target Detail |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/releases/page.tsx` | Release Manager |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/rollouts/page.tsx` | Rollout Tracker |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/incidents/page.tsx` | Incident Console (placeholder) |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sandboxes/page.tsx` | Sandbox Manager |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/routes/page.tsx` | Routes & Domains (placeholder) |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/drift/page.tsx` | Drift Report |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/interventions/page.tsx` | Intervention Log |
-| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/bundles/page.tsx` | Release Bundle Manager |
+
+| File                                                                           | Screen                         |
+| ------------------------------------------------------------------------------ | ------------------------------ |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/page.tsx`          | Fleet Map (Sites List)         |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/[slug]/page.tsx`   | Site Detail                    |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/page.tsx`        | Deployment Targets List        |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/[slug]/page.tsx` | Deployment Target Detail       |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/releases/page.tsx`       | Release Manager                |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/rollouts/page.tsx`       | Rollout Tracker                |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/incidents/page.tsx`      | Incident Console (placeholder) |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sandboxes/page.tsx`      | Sandbox Manager                |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/routes/page.tsx`         | Routes & Domains (placeholder) |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/drift/page.tsx`          | Drift Report                   |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/interventions/page.tsx`  | Intervention Log               |
+| `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/bundles/page.tsx`        | Release Bundle Manager         |
 
 ### New Files — Sub-components
-| File | Purpose |
-|---|---|
-| `ui/src/modules/factory.fleet/components/site-card.tsx` | Card for Fleet Map grid |
-| `ui/src/modules/factory.fleet/components/workload-table.tsx` | Reusable workload table (used by Target Detail and Drift Report) |
-| `ui/src/modules/factory.fleet/components/rollout-row.tsx` | Timeline-aware rollout row |
-| `ui/src/modules/factory.fleet/components/sandbox-card.tsx` | Card for Sandbox Manager grid |
-| `ui/src/modules/factory.fleet/components/release-detail-drawer.tsx` | Expandable release module pins |
+
+| File                                                                | Purpose                                                          |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `ui/src/modules/factory.fleet/components/site-card.tsx`             | Card for Fleet Map grid                                          |
+| `ui/src/modules/factory.fleet/components/workload-table.tsx`        | Reusable workload table (used by Target Detail and Drift Report) |
+| `ui/src/modules/factory.fleet/components/rollout-row.tsx`           | Timeline-aware rollout row                                       |
+| `ui/src/modules/factory.fleet/components/sandbox-card.tsx`          | Card for Sandbox Manager grid                                    |
+| `ui/src/modules/factory.fleet/components/release-detail-drawer.tsx` | Expandable release module pins                                   |
 
 ### Modified Files
-| File | Change |
-|---|---|
-| `ui/src/lib/fleet/types.ts` | Add `Intervention`, `ReleaseBundle`, `ReleaseModulePin` types |
+
+| File                            | Change                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `ui/src/lib/fleet/types.ts`     | Add `Intervention`, `ReleaseBundle`, `ReleaseModulePin` types               |
 | `ui/src/lib/fleet/use-fleet.ts` | Add `useInterventions()`, `useReleaseBundles()`, `useFleetSite(slug)` hooks |
-| `ui/src/lib/fleet/index.ts` | Re-export new types and hooks |
+| `ui/src/lib/fleet/index.ts`     | Re-export new types and hooks                                               |
 
 ---
 
 ## Task 1: Fleet Map (Sites List) — `fleet/sites/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/components/site-card.tsx`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/page.tsx`
 
@@ -149,7 +153,13 @@ import { useFleetSites } from "@/lib/fleet"
 
 import { SiteCard } from "../../../../components/site-card"
 
-const STATUS_OPTIONS = ["all", "active", "provisioning", "degraded", "offline"] as const
+const STATUS_OPTIONS = [
+  "all",
+  "active",
+  "provisioning",
+  "degraded",
+  "offline",
+] as const
 
 export default function FleetSitesPage() {
   const { data: sites, isLoading } = useFleetSites()
@@ -195,7 +205,9 @@ export default function FleetSitesPage() {
           <SelectContent>
             {STATUS_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === "all" ? "All statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all"
+                  ? "All statuses"
+                  : s.charAt(0).toUpperCase() + s.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -251,6 +263,7 @@ git commit -m "feat(fleet): add Fleet Map sites list page with filterable card g
 ## Task 2: Site Detail — `fleet/sites/[slug]/page.tsx`
 
 **Files:**
+
 - Modify: `ui/src/lib/fleet/use-fleet.ts` — add `useFleetSite(slug)` hook
 - Modify: `ui/src/lib/fleet/index.ts` — re-export `useFleetSite`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sites/[slug]/page.tsx`
@@ -328,8 +341,13 @@ export default function SiteDetailPage() {
   if (!site) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
-        <Icon icon="icon-[ph--warning-duotone]" className="h-12 w-12 text-muted-foreground" />
-        <p className="text-base text-muted-foreground">Site not found: {slug}</p>
+        <Icon
+          icon="icon-[ph--warning-duotone]"
+          className="h-12 w-12 text-muted-foreground"
+        />
+        <p className="text-base text-muted-foreground">
+          Site not found: {slug}
+        </p>
         <Button asChild variant="outline">
           <Link to="/fleet/sites">Back to Fleet Map</Link>
         </Button>
@@ -377,7 +395,11 @@ export default function SiteDetailPage() {
           />
           <InfoItem
             label="Last Check-in"
-            value={site.lastCheckinAt ? new Date(site.lastCheckinAt).toLocaleString() : "Never"}
+            value={
+              site.lastCheckinAt
+                ? new Date(site.lastCheckinAt).toLocaleString()
+                : "Never"
+            }
           />
         </div>
       </div>
@@ -452,6 +474,7 @@ git commit -m "feat(fleet): add Site Detail page with deployment targets list"
 ## Task 3: Deployment Targets List — `fleet/targets/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/page.tsx`
 
 - [ ] **Step 1: Create the Deployment Targets List page**
@@ -481,8 +504,21 @@ import {
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
 import { useDeploymentTargets } from "@/lib/fleet"
 
-const KIND_OPTIONS = ["all", "production", "staging", "preview", "sandbox"] as const
-const STATUS_OPTIONS = ["all", "running", "provisioning", "degraded", "failed", "destroyed"] as const
+const KIND_OPTIONS = [
+  "all",
+  "production",
+  "staging",
+  "preview",
+  "sandbox",
+] as const
+const STATUS_OPTIONS = [
+  "all",
+  "running",
+  "provisioning",
+  "degraded",
+  "failed",
+  "destroyed",
+] as const
 
 export default function DeploymentTargetsPage() {
   const { data: targets, isLoading } = useDeploymentTargets()
@@ -530,7 +566,9 @@ export default function DeploymentTargetsPage() {
           <SelectContent>
             {KIND_OPTIONS.map((k) => (
               <SelectItem key={k} value={k}>
-                {k === "all" ? "All kinds" : k.charAt(0).toUpperCase() + k.slice(1)}
+                {k === "all"
+                  ? "All kinds"
+                  : k.charAt(0).toUpperCase() + k.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -542,7 +580,9 @@ export default function DeploymentTargetsPage() {
           <SelectContent>
             {STATUS_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === "all" ? "All statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all"
+                  ? "All statuses"
+                  : s.charAt(0).toUpperCase() + s.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -589,7 +629,9 @@ export default function DeploymentTargetsPage() {
                     >
                       {target.name}
                     </Link>
-                    <p className="text-xs text-muted-foreground">{target.slug}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {target.slug}
+                    </p>
                   </TableCell>
                   <TableCell className="text-sm">{target.kind}</TableCell>
                   <TableCell className="text-sm">{target.runtime}</TableCell>
@@ -628,6 +670,7 @@ git commit -m "feat(fleet): add Deployment Targets list page with table and filt
 ## Task 4: Deployment Target Detail — `fleet/targets/[slug]/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/components/workload-table.tsx`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/targets/[slug]/page.tsx`
 
@@ -657,7 +700,11 @@ interface WorkloadTableProps {
   showTarget?: boolean
 }
 
-export function WorkloadTable({ workloads, isLoading, showTarget }: WorkloadTableProps) {
+export function WorkloadTable({
+  workloads,
+  isLoading,
+  showTarget,
+}: WorkloadTableProps) {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -773,7 +820,10 @@ export default function DeploymentTargetDetailPage() {
   if (!target) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12">
-        <Icon icon="icon-[ph--warning-duotone]" className="h-12 w-12 text-muted-foreground" />
+        <Icon
+          icon="icon-[ph--warning-duotone]"
+          className="h-12 w-12 text-muted-foreground"
+        />
         <p className="text-base text-muted-foreground">
           Deployment target not found: {slug}
         </p>
@@ -833,14 +883,14 @@ export default function DeploymentTargetDetailPage() {
           value={workloads?.reduce((sum, w) => sum + w.replicas, 0) ?? 0}
           plane="fleet"
         />
-        <MetricCard
-          label="Drift Detected"
-          value={driftCount}
-          plane="fleet"
-        />
+        <MetricCard label="Drift Detected" value={driftCount} plane="fleet" />
         <MetricCard
           label="Expires"
-          value={target.expiresAt ? new Date(target.expiresAt).toLocaleDateString() : "Never"}
+          value={
+            target.expiresAt
+              ? new Date(target.expiresAt).toLocaleDateString()
+              : "Never"
+          }
           plane="fleet"
         />
       </div>
@@ -884,6 +934,7 @@ git commit -m "feat(fleet): add Deployment Target Detail page with workload tabl
 ## Task 5: Release Manager — `fleet/releases/page.tsx`
 
 **Files:**
+
 - Modify: `ui/src/lib/fleet/types.ts` — add `ReleaseModulePin` type
 - Create: `ui/src/modules/factory.fleet/components/release-detail-drawer.tsx`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/releases/page.tsx`
@@ -936,20 +987,16 @@ export function ReleaseDetailDrawer({
   return (
     <div className="mt-2 rounded-lg border bg-muted/30 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-medium">
-          Module Pins — {release.version}
-        </h4>
-        <button
-          onClick={onClose}
-          className="rounded p-1 hover:bg-muted"
-        >
+        <h4 className="text-sm font-medium">Module Pins — {release.version}</h4>
+        <button onClick={onClose} className="rounded p-1 hover:bg-muted">
           <Icon icon="icon-[ph--x]" className="h-4 w-4" />
         </button>
       </div>
 
       {pins.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No module pins available. Pin data is loaded from the release detail API.
+          No module pins available. Pin data is loaded from the release detail
+          API.
         </p>
       ) : (
         <Table>
@@ -964,7 +1011,9 @@ export function ReleaseDetailDrawer({
             {pins.map((pin) => (
               <TableRow key={pin.moduleId}>
                 <TableCell className="font-medium">{pin.moduleName}</TableCell>
-                <TableCell className="font-mono text-sm">{pin.version}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {pin.version}
+                </TableCell>
                 <TableCell className="max-w-[200px] truncate text-xs font-mono text-muted-foreground">
                   {pin.artifactUri ?? "—"}
                 </TableCell>
@@ -1044,7 +1093,9 @@ export default function ReleasesPage() {
           <SelectContent>
             {STATUS_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === "all" ? "All statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all"
+                  ? "All statuses"
+                  : s.charAt(0).toUpperCase() + s.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1086,9 +1137,7 @@ export default function ReleasesPage() {
                   release={release}
                   isExpanded={expandedId === release.id}
                   onToggle={() =>
-                    setExpandedId(
-                      expandedId === release.id ? null : release.id
-                    )
+                    setExpandedId(expandedId === release.id ? null : release.id)
                   }
                 />
               ))}
@@ -1115,14 +1164,14 @@ function ReleaseRow({
         <TableCell>
           <Icon
             icon={
-              isExpanded
-                ? "icon-[ph--caret-down]"
-                : "icon-[ph--caret-right]"
+              isExpanded ? "icon-[ph--caret-down]" : "icon-[ph--caret-right]"
             }
             className="h-4 w-4 text-muted-foreground"
           />
         </TableCell>
-        <TableCell className="font-mono font-medium">{release.version}</TableCell>
+        <TableCell className="font-mono font-medium">
+          {release.version}
+        </TableCell>
         <TableCell>
           <StatusBadge status={release.status} />
         </TableCell>
@@ -1166,6 +1215,7 @@ git commit -m "feat(fleet): add Release Manager page with expandable module pins
 ## Task 6: Rollout Tracker — `fleet/rollouts/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/components/rollout-row.tsx`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/rollouts/page.tsx`
 
@@ -1283,13 +1333,19 @@ export default function RolloutsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
   const releaseMap = useMemo(() => {
-    const map = new Map<string, (typeof releases extends (infer T)[] | undefined ? T : never)>()
+    const map = new Map<
+      string,
+      typeof releases extends (infer T)[] | undefined ? T : never
+    >()
     releases?.forEach((r) => map.set(r.id, r))
     return map
   }, [releases])
 
   const targetMap = useMemo(() => {
-    const map = new Map<string, (typeof targets extends (infer T)[] | undefined ? T : never)>()
+    const map = new Map<
+      string,
+      typeof targets extends (infer T)[] | undefined ? T : never
+    >()
     targets?.forEach((t) => map.set(t.id, t))
     return map
   }, [targets])
@@ -1358,8 +1414,12 @@ export default function RolloutsPage() {
               <TimelineView
                 items={activeRollouts.map((r) => ({
                   id: r.id,
-                  title: releaseMap.get(r.releaseId)?.version ?? r.releaseId.slice(0, 8),
-                  subtitle: targetMap.get(r.deploymentTargetId)?.name ?? r.deploymentTargetId.slice(0, 8),
+                  title:
+                    releaseMap.get(r.releaseId)?.version ??
+                    r.releaseId.slice(0, 8),
+                  subtitle:
+                    targetMap.get(r.deploymentTargetId)?.name ??
+                    r.deploymentTargetId.slice(0, 8),
                   status: r.status,
                   timestamp: r.startedAt,
                 }))}
@@ -1385,16 +1445,17 @@ export default function RolloutsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(activeRollouts.length > 0 ? completedRollouts : filtered).map(
-                    (rollout) => (
-                      <RolloutRow
-                        key={rollout.id}
-                        rollout={rollout}
-                        release={releaseMap.get(rollout.releaseId)}
-                        target={targetMap.get(rollout.deploymentTargetId)}
-                      />
-                    )
-                  )}
+                  {(activeRollouts.length > 0
+                    ? completedRollouts
+                    : filtered
+                  ).map((rollout) => (
+                    <RolloutRow
+                      key={rollout.id}
+                      rollout={rollout}
+                      release={releaseMap.get(rollout.releaseId)}
+                      target={targetMap.get(rollout.deploymentTargetId)}
+                    />
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -1423,6 +1484,7 @@ git commit -m "feat(fleet): add Rollout Tracker page with timeline and history t
 ## Task 7: Incident Console (Placeholder) — `fleet/incidents/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/incidents/page.tsx`
 
 - [ ] **Step 1: Create the Incident Console placeholder page**
@@ -1463,6 +1525,7 @@ git commit -m "feat(fleet): add Incident Console placeholder page"
 ## Task 8: Sandbox Manager — `fleet/sandboxes/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/components/sandbox-card.tsx`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/sandboxes/page.tsx`
 
@@ -1485,19 +1548,12 @@ export function SandboxCard({ sandbox, className }: SandboxCardProps) {
   const isAgent = sandbox.ownerType === "agent"
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border bg-card p-4",
-        className
-      )}
-    >
+    <div className={cn("rounded-lg border bg-card p-4", className)}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <Icon
             icon={
-              isAgent
-                ? "icon-[ph--robot-duotone]"
-                : "icon-[ph--user-duotone]"
+              isAgent ? "icon-[ph--robot-duotone]" : "icon-[ph--user-duotone]"
             }
             className="h-5 w-5 text-muted-foreground"
           />
@@ -1557,7 +1613,10 @@ export function SandboxCard({ sandbox, className }: SandboxCardProps) {
         )}
         {sandbox.sshHost && (
           <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground">
-            <Icon icon="icon-[ph--plugs-connected-duotone]" className="h-3.5 w-3.5" />
+            <Icon
+              icon="icon-[ph--plugs-connected-duotone]"
+              className="h-3.5 w-3.5"
+            />
             {sandbox.sshHost}:{sandbox.sshPort}
           </span>
         )}
@@ -1633,7 +1692,9 @@ export default function SandboxesPage() {
           <SelectContent>
             {OWNER_OPTIONS.map((o) => (
               <SelectItem key={o} value={o}>
-                {o === "all" ? "All owners" : o.charAt(0).toUpperCase() + o.slice(1)}
+                {o === "all"
+                  ? "All owners"
+                  : o.charAt(0).toUpperCase() + o.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1688,6 +1749,7 @@ git commit -m "feat(fleet): add Sandbox Manager page with owner-filtered card gr
 ## Task 9: Routes & Domains (Placeholder) — `fleet/routes/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/routes/page.tsx`
 
 - [ ] **Step 1: Create the Routes & Domains placeholder page**
@@ -1728,6 +1790,7 @@ git commit -m "feat(fleet): add Routes & Domains placeholder page"
 ## Task 10: Drift Report — `fleet/drift/page.tsx`
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/drift/page.tsx`
 
 This page reuses the `WorkloadTable` component from Task 4 and fetches workloads across all targets, filtering for `driftDetected === true`.
@@ -1749,7 +1812,12 @@ import {
 import { Icon } from "@rio.js/ui/icon"
 import { cn } from "@rio.js/ui/lib/utils"
 
-import { EmptyState, MetricCard, PlaneHeader, StatusBadge } from "@/components/factory"
+import {
+  EmptyState,
+  MetricCard,
+  PlaneHeader,
+  StatusBadge,
+} from "@/components/factory"
 import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
 import type { DeploymentTarget, Workload } from "@/lib/fleet"
 
@@ -1819,9 +1887,7 @@ function TargetDriftSection({ target }: { target: DeploymentTarget }) {
   if (!isLoading && drifted.length === 0) return null
 
   if (isLoading) {
-    return (
-      <div className="h-16 animate-pulse rounded-lg bg-muted" />
-    )
+    return <div className="h-16 animate-pulse rounded-lg bg-muted" />
   }
 
   return (
@@ -1892,6 +1958,7 @@ git commit -m "feat(fleet): add Drift Report page showing workloads with state d
 ## Task 11: Intervention Log — `fleet/interventions/page.tsx`
 
 **Files:**
+
 - Modify: `ui/src/lib/fleet/types.ts` — add `Intervention` type
 - Modify: `ui/src/lib/fleet/use-fleet.ts` — add `useInterventions()` hook
 - Modify: `ui/src/lib/fleet/index.ts` — re-export new type and hook
@@ -1925,7 +1992,9 @@ const toIntervention = (r: Record<string, unknown>): Intervention => ({
   action: r.action as string,
   principalId: (r.principal_id ?? r.principalId) as string,
   principalType: (r.principal_type ?? r.principalType) as string,
-  deploymentTargetId: (r.deployment_target_id ?? r.deploymentTargetId ?? null) as string | null,
+  deploymentTargetId: (r.deployment_target_id ??
+    r.deploymentTargetId ??
+    null) as string | null,
   workloadId: (r.workload_id ?? r.workloadId ?? null) as string | null,
   reason: (r.reason ?? "") as string,
   metadata: parseJson(r.metadata),
@@ -1949,6 +2018,7 @@ export function useInterventions() {
 - [ ] **Step 3: Re-export Intervention type and useInterventions hook**
 
 Update `ui/src/lib/fleet/index.ts` to add:
+
 - `Intervention` to the type exports
 - `useInterventions` to the hook exports
 
@@ -2073,7 +2143,9 @@ export default function InterventionsPage() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <span className="text-sm">{intervention.principalId.slice(0, 12)}</span>
+                      <span className="text-sm">
+                        {intervention.principalId.slice(0, 12)}
+                      </span>
                       <p className="text-xs text-muted-foreground">
                         {intervention.principalType}
                       </p>
@@ -2123,6 +2195,7 @@ git commit -m "feat(fleet): add Intervention Log page with audit trail table"
 ## Task 12: Release Bundle Manager — `fleet/bundles/page.tsx`
 
 **Files:**
+
 - Modify: `ui/src/lib/fleet/types.ts` — add `ReleaseBundle` type
 - Modify: `ui/src/lib/fleet/use-fleet.ts` — add `useReleaseBundles()` hook
 - Modify: `ui/src/lib/fleet/index.ts` — re-export new type and hook
@@ -2182,6 +2255,7 @@ export function useReleaseBundles() {
 - [ ] **Step 3: Re-export ReleaseBundle type and useReleaseBundles hook**
 
 Update `ui/src/lib/fleet/index.ts` to add:
+
 - `ReleaseBundle` to the type exports
 - `useReleaseBundles` to the hook exports
 
@@ -2237,7 +2311,13 @@ import { Icon } from "@rio.js/ui/icon"
 import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
 import { useReleaseBundles } from "@/lib/fleet"
 
-const STATUS_OPTIONS = ["all", "building", "ready", "failed", "expired"] as const
+const STATUS_OPTIONS = [
+  "all",
+  "building",
+  "ready",
+  "failed",
+  "expired",
+] as const
 const ARCH_OPTIONS = ["all", "amd64", "arm64"] as const
 
 export default function BundlesPage() {
@@ -2271,7 +2351,9 @@ export default function BundlesPage() {
           <SelectContent>
             {STATUS_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === "all" ? "All statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all"
+                  ? "All statuses"
+                  : s.charAt(0).toUpperCase() + s.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -2329,7 +2411,10 @@ export default function BundlesPage() {
                   <TableCell className="text-sm">{bundle.role}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium">
-                      <Icon icon="icon-[ph--cpu-duotone]" className="h-3.5 w-3.5" />
+                      <Icon
+                        icon="icon-[ph--cpu-duotone]"
+                        className="h-3.5 w-3.5"
+                      />
                       {bundle.arch}
                     </span>
                   </TableCell>

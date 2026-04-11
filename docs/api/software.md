@@ -2,7 +2,7 @@
 
 The `software` domain is the catalog of what your organization builds and ships. It models software in Backstage-aligned vocabulary: **Systems** (product boundaries), **Components** (deployable units), **APIs** (service contracts), **Artifacts** (built outputs like container images), **Releases** (versioned bundles), and **Templates** (scaffold blueprints).
 
-**Base prefix:** `/api/factory/software`
+**Base prefix:** `/api/v1/factory/software`
 
 ## Endpoints
 
@@ -67,7 +67,7 @@ Additional per-resource filters:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
-  "https://factory.example.com/api/factory/software/systems?lifecycle=production"
+  "https://factory.example.com/api/v1/factory/software/systems?lifecycle=production"
 ```
 
 ```json
@@ -120,7 +120,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       ]
     }
   }' \
-  "https://factory.example.com/api/factory/software/systems"
+  "https://factory.example.com/api/v1/factory/software/systems"
 ```
 
 ### Create a component
@@ -155,7 +155,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       ]
     }
   }' \
-  "https://factory.example.com/api/factory/software/components"
+  "https://factory.example.com/api/v1/factory/software/components"
 ```
 
 ### Register an artifact (container image)
@@ -179,7 +179,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       }
     }
   }' \
-  "https://factory.example.com/api/factory/software/artifacts"
+  "https://factory.example.com/api/v1/factory/software/artifacts"
 ```
 
 ### Create a release
@@ -204,7 +204,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       "releasedAt": "2026-04-10T16:00:00Z"
     }
   }' \
-  "https://factory.example.com/api/factory/software/releases"
+  "https://factory.example.com/api/v1/factory/software/releases"
 ```
 
 ### Create a template
@@ -229,7 +229,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
       ]
     }
   }' \
-  "https://factory.example.com/api/factory/software/templates"
+  "https://factory.example.com/api/v1/factory/software/templates"
 ```
 
 ## CLI equivalent

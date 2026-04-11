@@ -1,7 +1,7 @@
 /**
  * useDualQuery — generic helper that abstracts the PowerSync-vs-REST pattern.
  *
- * Every fleet hook does the same thing:
+ * Every ops-plane hook does the same thing:
  *   1. Check if PowerSync is enabled
  *   2. If yes → run a reactive SQL query against local SQLite
  *   3. If no  → run a TanStack useQuery with fetch + polling
@@ -12,7 +12,7 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { usePowerSyncEnabled } from "../powersync/provider"
-import { fleetFetch } from "./api"
+import { opsFetch } from "./api"
 
 // ---------------------------------------------------------------------------
 // Lazy PowerSync import
@@ -84,7 +84,7 @@ export function useDualListQuery<T>(
   const fetchResult = useQuery<T[]>({
     queryKey: config.queryKey,
     queryFn: async () => {
-      const res = await fleetFetch<{ data: Record<string, unknown>[] }>(
+      const res = await opsFetch<{ data: Record<string, unknown>[] }>(
         config.fetchPath
       )
       const transform = config.fromApi ?? config.fromRow
@@ -121,7 +121,7 @@ export function useDualOneQuery<T>(
   const fetchResult = useQuery<T | null>({
     queryKey: config.queryKey,
     queryFn: async () => {
-      const res = await fleetFetch<Record<string, unknown>>(config.fetchPath)
+      const res = await opsFetch<Record<string, unknown>>(config.fetchPath)
       const transform = config.fromApi ?? config.fromRow
       return transform(res)
     },

@@ -13,6 +13,6 @@ export const ExitCodes = {
   INSTALL_PHASE_FAILURE: 21,
   UPGRADE_FAILURE: 22,
   JOIN_FAILURE: 23,
-} as const;
+} as const
 
-export type ExitCode = (typeof ExitCodes)[keyof typeof ExitCodes];
+export type ExitCode = (typeof ExitCodes)[keyof typeof ExitCodes]

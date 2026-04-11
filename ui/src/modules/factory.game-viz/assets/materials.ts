@@ -38,11 +38,11 @@ export const ground = new THREE.MeshStandardMaterial({
 
 // Color palette by category
 export const PALETTE = {
-  build: { r: 1, g: 0.6, b: 0.2 },       // amber/orange
-  logistics: { r: 0.2, g: 0.6, b: 1 },    // blue
-  storage: { r: 1, g: 0.85, b: 0.2 },     // yellow
-  office: { r: 0.2, g: 0.7, b: 0.65 },    // teal
-  infra: { r: 0.9, g: 0.25, b: 0.2 },     // red
+  build: { r: 1, g: 0.6, b: 0.2 }, // amber/orange
+  logistics: { r: 0.2, g: 0.6, b: 1 }, // blue
+  storage: { r: 1, g: 0.85, b: 0.2 }, // yellow
+  office: { r: 0.2, g: 0.7, b: 0.65 }, // teal
+  infra: { r: 0.9, g: 0.25, b: 0.2 }, // red
   utilities: { r: 0.3, g: 0.75, b: 0.35 }, // green
 } as const
 

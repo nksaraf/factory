@@ -38,10 +38,10 @@ describe("generateTraefikYaml", () => {
   })
 
   it("includes path prefix in match rule", () => {
-    const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api" }
+    const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api/v1" }
     const yaml = generateTraefikYaml([r])
     expect(yaml).toContain(
-      "Host(`my-workbench.preview.dx.dev`) && PathPrefix(`/api`)"
+      "Host(`my-workbench.preview.dx.dev`) && PathPrefix(`/api/v1`)"
     )
   })
 

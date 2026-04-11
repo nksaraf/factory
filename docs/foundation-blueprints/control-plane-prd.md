@@ -196,7 +196,6 @@ Control must:
 - Validate signature
 - Store active entitlement
 - Enforce:
-
   - Enabled modules
   - Seat limits
   - Quotas

@@ -1,13 +1,13 @@
-import { ExitCodes } from "@smp/factory-shared/exit-codes";
+import { ExitCodes } from "@smp/factory-shared/exit-codes"
 
-import { styleWarn } from "./cli-style.js";
+import { styleWarn } from "./cli-style.js"
 
 export type DxFlags = {
-  json?: boolean;
-  verbose?: boolean;
-  quiet?: boolean;
-  debug?: boolean;
-};
+  json?: boolean
+  verbose?: boolean
+  quiet?: boolean
+  debug?: boolean
+}
 
 export function emitStub(
   flags: DxFlags,
@@ -34,9 +34,9 @@ export function emitStub(
         null,
         2
       )
-    );
-    process.exit(ExitCodes.GENERAL_FAILURE);
-    return;
+    )
+    process.exit(ExitCodes.GENERAL_FAILURE)
+    return
   }
-  console.error(styleWarn(message));
+  console.error(styleWarn(message))
 }

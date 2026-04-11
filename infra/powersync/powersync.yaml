@@ -15,7 +15,7 @@ storage:
 # JWT auth — uses the same JWKS endpoint as the Factory API
 client_auth:
   jwks:
-    - uri: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/auth/.well-known/jwks.json}
+    - uri: ${POWERSYNC_JWKS_URL:-http://infra-auth:3000/api/v1/auth/.well-known/jwks.json}
 
 # Sync rules: define which data each client receives.
 #

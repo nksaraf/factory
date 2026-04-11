@@ -5,6 +5,7 @@
 The current `@rio.js/ui` package started as a shadcn/ui fork but has heavily drifted: three overlapping color token systems, 4 competing toast implementations, heavily rewritten components with dead code, inconsistent z-index values (2000-40000), and hardcoded colors bypassing tokens. A comprehensive audit cataloged all drift across ~80 component files.
 
 This redesign creates a **new package** (`@rio.js/ui-next`) that:
+
 - Keeps shadcn/ui API compatibility so AI-generated code works out of the box
 - Owns the styling through a clean Radix Colors-based token system
 - Extends components with rich, smart props for developer and agent ergonomics
@@ -119,7 +120,7 @@ Both `@rio.js/ui` (frozen) and `@rio.js/ui-next` coexist. Consumers migrate impo
 All color variables store **raw HSL triplets** (no `hsl()` wrapper) for Tailwind v3 opacity utility compatibility:
 
 ```css
---scale-50: 300 20% 99%;    /* Radix Mauve 1 as HSL */
+--scale-50: 300 20% 99%; /* Radix Mauve 1 as HSL */
 --accent-800: 226 70% 55.5%; /* Radix Indigo 9 as HSL */
 ```
 
@@ -130,20 +131,20 @@ Usage with opacity: `bg-scale-50/50` works because Tailwind injects the alpha in
 
 ### Radix → Tailwind Scale Mapping
 
-| Tailwind Step | Radix Step | Semantic Purpose |
-|---------------|-----------|------------------|
-| 50 | 1 | App background |
-| 100 | 2 | Subtle background |
-| 200 | 3 | UI element background |
-| 300 | 4 | Hovered UI element bg |
-| 400 | 5 | Active / selected bg |
-| 500 | 6 | Subtle borders |
-| 600 | 7 | Border, focus rings |
-| 700 | 8 | Hovered border |
-| 800 | 9 | Solid bg (the "brand" swatch) |
-| 850 | 10 | Hovered solid bg |
-| 900 | 11 | Low-contrast text |
-| 950 | 12 | High-contrast text |
+| Tailwind Step | Radix Step | Semantic Purpose              |
+| ------------- | ---------- | ----------------------------- |
+| 50            | 1          | App background                |
+| 100           | 2          | Subtle background             |
+| 200           | 3          | UI element background         |
+| 300           | 4          | Hovered UI element bg         |
+| 400           | 5          | Active / selected bg          |
+| 500           | 6          | Subtle borders                |
+| 600           | 7          | Border, focus rings           |
+| 700           | 8          | Hovered border                |
+| 800           | 9          | Solid bg (the "brand" swatch) |
+| 850           | 10         | Hovered solid bg              |
+| 900           | 11         | Low-contrast text             |
+| 950           | 12         | High-contrast text            |
 
 ### shadcn Token Aliases
 
@@ -235,8 +236,8 @@ The Radix dark scale values are used (Radix provides separate light/dark palette
 ```tsx
 <ThemeProvider
   defaultTheme="light"
-  neutral="mauve"    // Radix gray palette: mauve | slate | gray | sand | olive
-  accent="indigo"    // Radix chromatic: indigo | blue | violet | cyan | teal | ...
+  neutral="mauve" // Radix gray palette: mauve | slate | gray | sand | olive
+  accent="indigo" // Radix chromatic: indigo | blue | violet | cyan | teal | ...
 >
   {children}
 </ThemeProvider>
@@ -314,16 +315,16 @@ Keep the **hand-rolled CVA** from `lib/utils.ts` (supports compound variants). D
 
 All three legacy token systems are replaced:
 
-| Killed | Replaced By |
-|--------|-------------|
+| Killed                             | Replaced By                    |
+| ---------------------------------- | ------------------------------ |
 | `scale-100..1200` (Supabase-style) | `scale-50..950` (Radix values) |
-| `--colors-gray-dark-*` | `scale-*` in dark theme |
-| `--colors-slate-light-*` | `scale-*` in light theme |
-| `--foreground-default` (semantic) | `--foreground` (shadcn alias) |
-| `--background-surface-300` | `--card` or `scale-*` directly |
-| `brand-*` tokens | `accent-*` |
-| `scaleA-*` (alpha tokens) | `scale-*/opacity` via Tailwind |
-| RGB `--accent` (format bug) | HSL-based `--accent` alias |
+| `--colors-gray-dark-*`             | `scale-*` in dark theme        |
+| `--colors-slate-light-*`           | `scale-*` in light theme       |
+| `--foreground-default` (semantic)  | `--foreground` (shadcn alias)  |
+| `--background-surface-300`         | `--card` or `scale-*` directly |
+| `brand-*` tokens                   | `accent-*`                     |
+| `scaleA-*` (alpha tokens)          | `scale-*/opacity` via Tailwind |
+| RGB `--accent` (format bug)        | HSL-based `--accent` alias     |
 
 ---
 
@@ -332,6 +333,7 @@ All three legacy token systems are replaced:
 ### React 19 Patterns
 
 All components use React 19 idioms:
+
 - **No `forwardRef`** — use `ref` as a regular prop
 - **`use()` hook** for context consumption (not `useContext`)
 - **`data-slot` attributes** on all component parts for CSS targeting
@@ -343,10 +345,12 @@ Complex components expose a Provider + `use[Component]()` hook pattern:
 
 ```tsx
 // Provider sets variant at root, children inherit
-<DialogProvider variant="loud">
+;<DialogProvider variant="loud">
   <Dialog>
-    <DialogContent>     {/* inherits "loud" styling */}
-      <DialogHeader />  {/* inherits "loud" styling */}
+    <DialogContent>
+      {" "}
+      {/* inherits "loud" styling */}
+      <DialogHeader /> {/* inherits "loud" styling */}
     </DialogContent>
   </Dialog>
 </DialogProvider>
@@ -356,6 +360,7 @@ const { variant } = useDialog()
 ```
 
 Components that get providers:
+
 - **Dialog** — variant: "default" | "loud"
 - **Select** — size: "sm" | "default" | "lg"
 - **Tabs** — variant: "default" | "outline" | "pills"
@@ -371,18 +376,19 @@ Available on all interactive components (Button, MenuItem, Tab, Select items, et
 
 ```tsx
 interface RichProps {
-  icon?: string              // Iconify icon name, renders before children
-  iconRight?: string         // Iconify icon name, renders after children
-  loading?: boolean          // Shows spinner, disables interaction
-  tooltip?: string | ReactNode  // Wraps in Tooltip. Defaults to `description` if set
-  shortcut?: string          // Keyboard shortcut display (e.g. "⌘K")
-  allowed?: boolean          // Permission-based enable/disable
-  reason?: string            // Displayed in tooltip when disabled or !allowed
-  description?: string       // Secondary text below the label
+  icon?: string // Iconify icon name, renders before children
+  iconRight?: string // Iconify icon name, renders after children
+  loading?: boolean // Shows spinner, disables interaction
+  tooltip?: string | ReactNode // Wraps in Tooltip. Defaults to `description` if set
+  shortcut?: string // Keyboard shortcut display (e.g. "⌘K")
+  allowed?: boolean // Permission-based enable/disable
+  reason?: string // Displayed in tooltip when disabled or !allowed
+  description?: string // Secondary text below the label
 }
 ```
 
 **Smart defaults:**
+
 - If `tooltip` is not set but `description` is, tooltip auto-shows `description` on hover
 - If `allowed === false`, component renders disabled + shows `reason` in a tooltip
 - If `loading === true`, content is replaced with spinner + component becomes non-interactive
@@ -393,18 +399,38 @@ interface RichProps {
 
 ```tsx
 // Example: how Button uses rich props internally
-function Button({ icon, iconRight, loading, tooltip, shortcut, allowed, reason, description, children, ...props }) {
-  const rich = useRichProps({ icon, iconRight, loading, tooltip, shortcut, allowed, reason, description })
+function Button({
+  icon,
+  iconRight,
+  loading,
+  tooltip,
+  shortcut,
+  allowed,
+  reason,
+  description,
+  children,
+  ...props
+}) {
+  const rich = useRichProps({
+    icon,
+    iconRight,
+    loading,
+    tooltip,
+    shortcut,
+    allowed,
+    reason,
+    description,
+  })
 
   const button = (
     <button disabled={rich.disabled} {...props}>
-      {rich.leftSlot}    {/* icon or spinner */}
-      {rich.children(children)}  {/* children or loading placeholder */}
-      {rich.rightSlot}   {/* iconRight or shortcut */}
+      {rich.leftSlot} {/* icon or spinner */}
+      {rich.children(children)} {/* children or loading placeholder */}
+      {rich.rightSlot} {/* iconRight or shortcut */}
     </button>
   )
 
-  return rich.wrap(button)  // wraps in Tooltip if needed
+  return rich.wrap(button) // wraps in Tooltip if needed
 }
 ```
 
@@ -439,27 +465,27 @@ Components: Alert, AlertDialog, AspectRatio, Avatar, Badge, Breadcrumb, Calendar
 
 Start from shadcn, add back good customizations, clean up bad drift:
 
-| Component | Keep | Cut |
-|-----------|------|-----|
-| **Button** | icon, loading, iconRight, size variants | 13→7 variants: default, secondary, outline, ghost, link, danger, success. Kill alternativeScale, dashed, primary-light, text. Kill MapControlButton. Kill window.createStories. |
-| **Input** | size variants (sm/default/lg), icon variant | Remove duplicate TextArea, unreachable code, commented handleChange, duplicate border classes. |
-| **Dialog** | loud variant (via provider), DialogBody | Clean commented code. Use `--radius` token not hardcoded `rounded-[16px]`. |
-| **Select** | size variants via provider | Extract FancyMultiSelect to composed/multi-select.tsx. Use z-popover. |
-| **Tabs** | icon support, variant provider | Remove forced `text-white`. Use tokens for active state. |
-| **Table** | sticky headers, variant provider (default/grid/compact) | Kill `bg-sky-100` hardcode. Use z-sticky. |
-| **Popover** | portal prop | Deduplicate portal/non-portal branches. Use shadow token. Use `border-border`. |
-| **Sheet** | data-slot, icon header | Remove 140 lines of commented-out old version. |
-| **Tooltip** | color variants (popover/accent), arrow prop | Use z-tooltip instead of z-[40000]. |
-| **Accordion** | hidden chevron, contentClassName | Restyle with tokens. |
-| **Command** | custom input wrapper | Restyle with tokens. |
-| **Form** | SubmitButton, `use()` hook, data-slot, zod/form re-exports | Keep as-is, restyle. |
-| **Slider** | RangeSlider, SingleSlider | Remove nprogress import. Don't hardcode two thumbs on base Slider. |
-| **DropdownMenu** | icon, info tooltip, allowed props | Great UX pattern. Restyle. |
-| **ContextMenu** | tooltip, permission UX | Fix z-index to named layers. |
-| **Menubar** | core functionality | Remove framer-motion. Use CSS transitions. |
-| **Sonner** | theme integration | Single toast implementation. |
-| **Sidebar** | custom width constants, ~600 lines | Restyle with tokens. Complex — gets provider pattern. |
-| **NavigationMenu** | core structure | Un-comment viewport. Fix commented-out chevron. Restyle. |
+| Component          | Keep                                                       | Cut                                                                                                                                                                             |
+| ------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Button**         | icon, loading, iconRight, size variants                    | 13→7 variants: default, secondary, outline, ghost, link, danger, success. Kill alternativeScale, dashed, primary-light, text. Kill MapControlButton. Kill window.createStories. |
+| **Input**          | size variants (sm/default/lg), icon variant                | Remove duplicate TextArea, unreachable code, commented handleChange, duplicate border classes.                                                                                  |
+| **Dialog**         | loud variant (via provider), DialogBody                    | Clean commented code. Use `--radius` token not hardcoded `rounded-[16px]`.                                                                                                      |
+| **Select**         | size variants via provider                                 | Extract FancyMultiSelect to composed/multi-select.tsx. Use z-popover.                                                                                                           |
+| **Tabs**           | icon support, variant provider                             | Remove forced `text-white`. Use tokens for active state.                                                                                                                        |
+| **Table**          | sticky headers, variant provider (default/grid/compact)    | Kill `bg-sky-100` hardcode. Use z-sticky.                                                                                                                                       |
+| **Popover**        | portal prop                                                | Deduplicate portal/non-portal branches. Use shadow token. Use `border-border`.                                                                                                  |
+| **Sheet**          | data-slot, icon header                                     | Remove 140 lines of commented-out old version.                                                                                                                                  |
+| **Tooltip**        | color variants (popover/accent), arrow prop                | Use z-tooltip instead of z-[40000].                                                                                                                                             |
+| **Accordion**      | hidden chevron, contentClassName                           | Restyle with tokens.                                                                                                                                                            |
+| **Command**        | custom input wrapper                                       | Restyle with tokens.                                                                                                                                                            |
+| **Form**           | SubmitButton, `use()` hook, data-slot, zod/form re-exports | Keep as-is, restyle.                                                                                                                                                            |
+| **Slider**         | RangeSlider, SingleSlider                                  | Remove nprogress import. Don't hardcode two thumbs on base Slider.                                                                                                              |
+| **DropdownMenu**   | icon, info tooltip, allowed props                          | Great UX pattern. Restyle.                                                                                                                                                      |
+| **ContextMenu**    | tooltip, permission UX                                     | Fix z-index to named layers.                                                                                                                                                    |
+| **Menubar**        | core functionality                                         | Remove framer-motion. Use CSS transitions.                                                                                                                                      |
+| **Sonner**         | theme integration                                          | Single toast implementation.                                                                                                                                                    |
+| **Sidebar**        | custom width constants, ~600 lines                         | Restyle with tokens. Complex — gets provider pattern.                                                                                                                           |
+| **NavigationMenu** | core structure                                             | Un-comment viewport. Fix commented-out chevron. Restyle.                                                                                                                        |
 
 #### Tier 3: Composed components (~12)
 
@@ -547,7 +573,9 @@ import { Button } from "@rio.js/ui-next/components/button"
   <Button icon="mdi:check">With Icon</Button>
   <Button loading>Loading</Button>
   <Button shortcut="⌘S">Save</Button>
-  <Button allowed={false} reason="No permission">Restricted</Button>
+  <Button allowed={false} reason="No permission">
+    Restricted
+  </Button>
 </ComponentPreview>
 
 ## Props
@@ -558,6 +586,7 @@ import { Button } from "@rio.js/ui-next/components/button"
 ### ComponentPreview
 
 A custom Fumadocs component that renders live examples with:
+
 - Source code toggle
 - Dark/light mode toggle
 - Copy code button
@@ -574,6 +603,7 @@ Auto-generated from TypeScript types using `fumadocs-typescript` plugin.
 ### Unit Tests (Vitest + @testing-library/react)
 
 Every component gets tests covering:
+
 - **Rendering:** all variants, sizes, and states
 - **Interaction:** click, keyboard, focus management
 - **Accessibility:** ARIA attributes, roles, labels
@@ -595,6 +625,7 @@ describe('Button', () => {
 ### Visual Regression (Playwright)
 
 Screenshot tests for each component:
+
 - All variants × dark/light mode
 - Responsive breakpoints
 - Interactive states (hover, focus, active, disabled)
@@ -603,9 +634,10 @@ Screenshot tests for each component:
 ### Accessibility (axe-core)
 
 Integrated into unit tests:
+
 ```tsx
-import { axe } from 'vitest-axe'
-it('has no a11y violations', async () => {
+import { axe } from "vitest-axe"
+it("has no a11y violations", async () => {
   const { container } = render(<Button>Test</Button>)
   expect(await axe(container)).toHaveNoViolations()
 })
@@ -614,6 +646,7 @@ it('has no a11y violations', async () => {
 ### Browser Testing (agent-browser)
 
 Use agent-browser skill during development to:
+
 - Visually verify component rendering in real browser
 - Test interactive behavior (hover states, animations, transitions)
 - Verify theme switching works visually
@@ -624,6 +657,7 @@ Use agent-browser skill during development to:
 ## 6. Implementation Phases
 
 ### Phase 1: Foundation
+
 1. Create `packages/npm/ui-next/` package with structure
 2. Set up `tokens.css` with Radix Colors mapped to scale-50..950 + accent-50..950
 3. Set up shadcn alias layer (--background, --primary, etc.)
@@ -637,14 +671,18 @@ Use agent-browser skill during development to:
 11. Set up Vitest + Testing Library + Playwright
 
 ### Phase 2: Tier 1 Components (reset + restyle)
+
 Build ~25 components from latest shadcn source, applying new tokens and rich props. Each component gets:
+
 - The component file in `src/components/`
 - An MDX doc page
 - Unit tests
 - Visual snapshot
 
 ### Phase 3: Tier 2 Components (rebuild with enhancements)
+
 Build ~15 components from shadcn base + good customizations. Key work:
+
 - Button: trim to 7 variants
 - Input: clean rewrite
 - Dialog: provider pattern for loud variant
@@ -654,13 +692,16 @@ Build ~15 components from shadcn base + good customizations. Key work:
 - Toast: Sonner only
 
 ### Phase 4: Tier 3 Composed Components
+
 Build ~12 higher-order components:
+
 - Menu (unified), MultiSelect, Combobox
 - DatePicker, DateRangePicker, TimePicker (consolidated)
 - DataTable, AutoForm, Panel, InputGroup
 - Kbd, StatusChip
 
 ### Phase 5: Migration Support
+
 - Archive Tier 4 components
 - Create migration guide (old import → new import mapping)
 - Add `@rio.js/ui-next` to consuming apps alongside `@rio.js/ui`
@@ -670,23 +711,23 @@ Build ~12 higher-order components:
 
 ## 7. Key Files to Create/Modify
 
-| File | Action |
-|------|--------|
-| `packages/npm/ui-next/package.json` | Create — new package |
-| `packages/npm/ui-next/tsconfig.json` | Create |
-| `packages/npm/ui-next/tailwind.config.ts` | Create — tokens, z-index, fonts |
-| `packages/npm/ui-next/src/styles/tokens.css` | Create — all CSS custom properties |
-| `packages/npm/ui-next/src/styles/themes/light.css` | Create — Radix light palette |
-| `packages/npm/ui-next/src/styles/themes/dark.css` | Create — Radix dark palette |
-| `packages/npm/ui-next/src/styles/globals.css` | Create — base styles, Inter font |
-| `packages/npm/ui-next/src/lib/utils.ts` | Create — reuse pattern from `packages/npm/ui/lib/utils.ts` |
-| `packages/npm/ui-next/src/lib/rich-props.tsx` | Create — useRichProps + RichWrapper |
-| `packages/npm/ui-next/src/lib/icons.tsx` | Create — Iconify wrapper |
-| `packages/npm/ui-next/src/providers/theme-provider.tsx` | Create — runtime theming |
-| `packages/npm/ui-next/src/components/*.tsx` | Create — all components |
-| `packages/npm/ui-next/docs/**/*.mdx` | Create — Fumadocs pages |
-| `packages/npm/ui-next/tests/**/*.test.tsx` | Create — all tests |
-| `packages/npm/ui-next/archive/*.tsx` | Create — moved domain components |
+| File                                                    | Action                                                     |
+| ------------------------------------------------------- | ---------------------------------------------------------- |
+| `packages/npm/ui-next/package.json`                     | Create — new package                                       |
+| `packages/npm/ui-next/tsconfig.json`                    | Create                                                     |
+| `packages/npm/ui-next/tailwind.config.ts`               | Create — tokens, z-index, fonts                            |
+| `packages/npm/ui-next/src/styles/tokens.css`            | Create — all CSS custom properties                         |
+| `packages/npm/ui-next/src/styles/themes/light.css`      | Create — Radix light palette                               |
+| `packages/npm/ui-next/src/styles/themes/dark.css`       | Create — Radix dark palette                                |
+| `packages/npm/ui-next/src/styles/globals.css`           | Create — base styles, Inter font                           |
+| `packages/npm/ui-next/src/lib/utils.ts`                 | Create — reuse pattern from `packages/npm/ui/lib/utils.ts` |
+| `packages/npm/ui-next/src/lib/rich-props.tsx`           | Create — useRichProps + RichWrapper                        |
+| `packages/npm/ui-next/src/lib/icons.tsx`                | Create — Iconify wrapper                                   |
+| `packages/npm/ui-next/src/providers/theme-provider.tsx` | Create — runtime theming                                   |
+| `packages/npm/ui-next/src/components/*.tsx`             | Create — all components                                    |
+| `packages/npm/ui-next/docs/**/*.mdx`                    | Create — Fumadocs pages                                    |
+| `packages/npm/ui-next/tests/**/*.test.tsx`              | Create — all tests                                         |
+| `packages/npm/ui-next/archive/*.tsx`                    | Create — moved domain components                           |
 
 ### Existing code to reference/reuse
 
@@ -703,11 +744,13 @@ Build ~12 higher-order components:
 ## 8. Verification
 
 ### During Development
+
 - `agent-browser` skill to visually verify each component in real browser
 - Fumadocs dev server for live preview of docs and examples
 - `vitest --watch` for continuous unit test feedback
 
 ### Before Merge
+
 - All unit tests pass: `vitest run`
 - Visual snapshots updated: `playwright test`
 - No a11y violations: axe-core checks in unit tests
@@ -716,6 +759,7 @@ Build ~12 higher-order components:
 - Theme switching works: dark/light + at least one accent swap
 
 ### Migration Verification
+
 - Import `@rio.js/ui-next` in one consuming app page
 - Verify it renders correctly alongside `@rio.js/ui` components
 - Verify no CSS conflicts between old and new packages

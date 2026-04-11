@@ -1,4 +1,10 @@
-import { createPrivateKey, createPublicKey, sign, verify, generateKeyPairSync } from "node:crypto"
+import {
+  createPrivateKey,
+  createPublicKey,
+  sign,
+  verify,
+  generateKeyPairSync,
+} from "node:crypto"
 
 /** The payload embedded in a signed bundle */
 export interface EntitlementBundlePayload {
@@ -19,7 +25,7 @@ export interface EntitlementBundlePayload {
 /** A signed bundle — the artifact shipped to sites */
 export interface SignedEntitlementBundle {
   payload: EntitlementBundlePayload
-  signature: string  // base64 Ed25519 signature
+  signature: string // base64 Ed25519 signature
 }
 
 /** Generate a new Ed25519 key pair for bundle signing */
@@ -79,7 +85,9 @@ export function checkEnforcementState(
   if (now < expiresAt) {
     return {
       state: "active",
-      daysRemaining: Math.ceil((expiresAt.getTime() - now.getTime()) / msPerDay),
+      daysRemaining: Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / msPerDay
+      ),
     }
   }
   if (now < graceEnd) {

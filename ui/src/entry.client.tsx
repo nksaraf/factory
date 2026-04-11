@@ -58,7 +58,7 @@ async function boot() {
     // "settings.user": () => import("@rio.js/settings.user"),
     // "settings.organization": () => import("@rio.js/settings.organization"),
     "factory.auth": () => import("./modules/factory.auth"),
-    "factory.fleet": () => import("./modules/factory.fleet"),
+    "factory.ops": () => import("./modules/factory.ops"),
     "factory.infra": () => import("./modules/factory.infra"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
@@ -70,7 +70,7 @@ async function boot() {
     baseURL: import.meta.env.DEV
       ? "http://localhost:8180"
       : "https://dev.trafficure.rio.software",
-    basePath: "/api/auth",
+    basePath: "/api/v1/auth",
     bearer: true,
   })
 
@@ -81,7 +81,7 @@ async function boot() {
     // "settings.user",
     // "settings.organization",
     "factory.auth",
-    "factory.fleet",
+    "factory.ops",
     "factory.infra",
     "factory.game-viz"
   )

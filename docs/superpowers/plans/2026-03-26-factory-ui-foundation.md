@@ -13,6 +13,7 @@
 ## File Structure
 
 ### New Files
+
 - `ui/src/globals-factory.css` — Plane color tokens + ambient health CSS
 - `ui/src/components/factory/status-badge.tsx` — Status badge with plane-aware coloring
 - `ui/src/components/factory/metric-card.tsx` — Number + trend sparkline card
@@ -35,6 +36,7 @@
 - `ui/src/lib/infra/index.ts` — Barrel export
 
 ### Modified Files
+
 - `ui/src/globals.css` — Import `globals-factory.css`
 - `ui/src/entry.client.tsx` — Register and enable factory.fleet + factory.infra extensions
 
@@ -43,6 +45,7 @@
 ### Task 1: Plane Color Tokens & Ambient Health CSS
 
 **Files:**
+
 - Create: `ui/src/globals-factory.css`
 - Modify: `ui/src/globals.css`
 
@@ -58,32 +61,32 @@
 
 :root {
   /* Product Plane — creative studio, warm purple */
-  --plane-product: 271 81% 76%;       /* #b794f4 */
+  --plane-product: 271 81% 76%; /* #b794f4 */
   --plane-product-dim: 271 40% 30%;
   --plane-product-glow: 271 81% 76% / 0.15;
 
   /* Build Plane — industrial, amber/copper */
-  --plane-build: 38 62% 58%;          /* #d9a94f */
+  --plane-build: 38 62% 58%; /* #d9a94f */
   --plane-build-dim: 38 30% 25%;
   --plane-build-glow: 38 62% 58% / 0.15;
 
   /* Fleet Plane — mission control, teal/cyan */
-  --plane-fleet: 174 60% 60%;         /* #4fd1c5 */
+  --plane-fleet: 174 60% 60%; /* #4fd1c5 */
   --plane-fleet-dim: 174 30% 25%;
   --plane-fleet-glow: 174 60% 60% / 0.15;
 
   /* Infra Plane — server room, cool blue */
-  --plane-infra: 212 100% 67%;        /* #58a6ff */
+  --plane-infra: 212 100% 67%; /* #58a6ff */
   --plane-infra-dim: 212 40% 28%;
   --plane-infra-glow: 212 100% 67% / 0.15;
 
   /* Agent Plane — bot army, green */
-  --plane-agent: 145 49% 62%;         /* #68d391 */
+  --plane-agent: 145 49% 62%; /* #68d391 */
   --plane-agent-dim: 145 25% 25%;
   --plane-agent-glow: 145 49% 62% / 0.15;
 
   /* Commerce Plane — trading floor, emerald */
-  --plane-commerce: 145 48% 52%;      /* #48bb78 */
+  --plane-commerce: 145 48% 52%; /* #48bb78 */
   --plane-commerce-dim: 145 25% 22%;
   --plane-commerce-glow: 145 48% 52% / 0.15;
 }
@@ -122,19 +125,38 @@
    STATUS BADGE VARIANTS
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.status-running, .status-active, .status-ready, .status-succeeded, .status-production {
+.status-running,
+.status-active,
+.status-ready,
+.status-succeeded,
+.status-production {
   --status-color: 145 70% 50%;
 }
-.status-provisioning, .status-pending, .status-draft, .status-staging, .status-in_progress {
+.status-provisioning,
+.status-pending,
+.status-draft,
+.status-staging,
+.status-in_progress {
   --status-color: 212 80% 60%;
 }
-.status-degraded, .status-warning, .status-maintenance, .status-suspended {
+.status-degraded,
+.status-warning,
+.status-maintenance,
+.status-suspended {
   --status-color: 38 92% 60%;
 }
-.status-failed, .status-error, .status-critical, .status-offline, .status-destroyed, .status-decommissioned {
+.status-failed,
+.status-error,
+.status-critical,
+.status-offline,
+.status-destroyed,
+.status-decommissioned {
   --status-color: 0 72% 60%;
 }
-.status-stopped, .status-unknown, .status-idle, .status-paused {
+.status-stopped,
+.status-unknown,
+.status-idle,
+.status-paused {
   --status-color: 0 0% 50%;
 }
 ```
@@ -164,6 +186,7 @@ git commit -m "feat(ui): add Factory plane color tokens and ambient health CSS"
 ### Task 2: StatusBadge Component
 
 **Files:**
+
 - Create: `ui/src/components/factory/status-badge.tsx`
 
 - [ ] **Step 1: Create the StatusBadge component**
@@ -271,6 +294,7 @@ git commit -m "feat(ui): add StatusBadge component for entity status display"
 ### Task 3: MetricCard Component
 
 **Files:**
+
 - Create: `ui/src/components/factory/metric-card.tsx`
 
 - [ ] **Step 1: Create the MetricCard component**
@@ -317,9 +341,7 @@ export function MetricCard({
       <p className="text-xs text-muted-foreground">{label}</p>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span className="text-2xl font-semibold tracking-tight">{value}</span>
-        {unit && (
-          <span className="text-sm text-muted-foreground">{unit}</span>
-        )}
+        {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
       </div>
       {change != null && (
         <p
@@ -353,6 +375,7 @@ git commit -m "feat(ui): add MetricCard component for dashboard metrics"
 ### Task 4: HealthGauge Component
 
 **Files:**
+
 - Create: `ui/src/components/factory/health-gauge.tsx`
 
 - [ ] **Step 1: Create the HealthGauge component**
@@ -416,6 +439,7 @@ git commit -m "feat(ui): add HealthGauge component for resource utilization"
 ### Task 5: EntityCard, PlaneHeader, EmptyState, TimelineView
 
 **Files:**
+
 - Create: `ui/src/components/factory/entity-card.tsx`
 - Create: `ui/src/components/factory/plane-header.tsx`
 - Create: `ui/src/components/factory/empty-state.tsx`
@@ -496,7 +520,10 @@ const PLANE_CONFIG: Record<Plane, { color: string; icon: string }> = {
   fleet: { color: "text-teal-400", icon: "icon-[ph--rocket-launch-duotone]" },
   infra: { color: "text-blue-400", icon: "icon-[ph--hard-drives-duotone]" },
   agent: { color: "text-green-400", icon: "icon-[ph--robot-duotone]" },
-  commerce: { color: "text-emerald-400", icon: "icon-[ph--storefront-duotone]" },
+  commerce: {
+    color: "text-emerald-400",
+    icon: "icon-[ph--storefront-duotone]",
+  },
 }
 
 interface PlaneHeaderProps {
@@ -563,10 +590,7 @@ export function EmptyState({
         className
       )}
     >
-      <Icon
-        icon={icon}
-        className="mb-4 h-12 w-12 text-muted-foreground/50"
-      />
+      <Icon icon={icon} className="mb-4 h-12 w-12 text-muted-foreground/50" />
       <h3 className="font-medium">{title}</h3>
       {description && (
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
@@ -653,6 +677,7 @@ git commit -m "feat(ui): add EntityCard, PlaneHeader, EmptyState, TimelineView c
 ### Task 6: Barrel Export
 
 **Files:**
+
 - Create: `ui/src/components/factory/index.ts`
 
 - [ ] **Step 1: Create barrel export**
@@ -679,6 +704,7 @@ git commit -m "feat(ui): add barrel export for factory dashboard components"
 ### Task 7: Infra API Client Library
 
 **Files:**
+
 - Create: `ui/src/lib/infra/api.ts`
 - Create: `ui/src/lib/infra/types.ts`
 - Create: `ui/src/lib/infra/use-infra.ts`
@@ -956,9 +982,7 @@ export function useCluster(id: string | undefined) {
   return useQuery<Cluster | null>({
     queryKey: ["infra", "cluster", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Cluster>>(
-        `/clusters/${id}`
-      )
+      const res = await infraFetch<SuccessResponse<Cluster>>(`/clusters/${id}`)
       return res.data
     },
     enabled: !!id,
@@ -1195,6 +1219,7 @@ git commit -m "feat(ui): add Infra API client library with typed hooks"
 ### Task 8: Fleet Extension Module Scaffold
 
 **Files:**
+
 - Create: `ui/src/modules/factory.fleet/manifest.json`
 - Create: `ui/src/modules/factory.fleet/index.ts`
 - Create: `ui/src/modules/factory.fleet/(app)/(dashboard)/fleet/page.tsx`
@@ -1455,6 +1480,7 @@ git commit -m "feat(ui): scaffold factory.fleet extension module with manifest a
 ### Task 9: Infra Extension Module Scaffold
 
 **Files:**
+
 - Create: `ui/src/modules/factory.infra/manifest.json`
 - Create: `ui/src/modules/factory.infra/index.ts`
 - Create: `ui/src/modules/factory.infra/(app)/(dashboard)/infra/page.tsx`
@@ -1677,7 +1703,8 @@ export const extension = {
       () => import("./(app)/(dashboard)/infra/network/page")
     ),
     "factory.infra.route.nodes": lazy(
-      () => import("./(app)/(dashboard)/infra/clusters/[clusterId]/nodes/[slug]/page")
+      () =>
+        import("./(app)/(dashboard)/infra/clusters/[clusterId]/nodes/[slug]/page")
     ),
     "factory.infra.route.proxmox": lazy(
       () => import("./(app)/(dashboard)/infra/proxmox/page")
@@ -1715,6 +1742,7 @@ git commit -m "feat(ui): scaffold factory.infra extension module with manifest a
 ### Task 10: Register Extensions in entry.client.tsx
 
 **Files:**
+
 - Modify: `ui/src/entry.client.tsx`
 
 - [ ] **Step 1: Register factory.fleet and factory.infra**

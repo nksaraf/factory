@@ -45,7 +45,8 @@ export function FactorySidebar() {
   const app = useApp()
   const pathname = usePathname()
 
-  const groups = rio.extensions.getContributions<SidebarGroupDef>("sidebarGroups")
+  const groups =
+    rio.extensions.getContributions<SidebarGroupDef>("sidebarGroups")
   const items = rio.extensions.getContributions<SidebarItem>("sidebarItems")
 
   const groupedItems = new Map<string, SidebarItem[]>()
@@ -59,7 +60,9 @@ export function FactorySidebar() {
     <Portkey id={`${app.id}/sidebar`}>
       <SidebarHeader className="p-3">
         <div className="flex items-center gap-2 px-1">
-          {app.logo && <img src={app.logo} alt={app.name} className="h-6 w-6" />}
+          {app.logo && (
+            <img src={app.logo} alt={app.name} className="h-6 w-6" />
+          )}
           <span className="text-base font-semibold">{app.name}</span>
         </div>
       </SidebarHeader>

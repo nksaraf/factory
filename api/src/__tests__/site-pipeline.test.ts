@@ -13,7 +13,7 @@ function createReconciler(adapter: NoopGatewayAdapter) {
       issuerName: "letsencrypt-prod",
       pollIntervalMs: 30000,
     },
-    adapter,
+    adapter
   )
 }
 
@@ -33,7 +33,7 @@ describe("Site Gateway Pipeline", () => {
         routeId: "rte_pipe_api",
         kind: "ingress",
         domain: "api.myapp.dx.dev",
-        pathPrefix: "/api",
+        pathPrefix: "/api/v1",
         targetService: "api-svc",
         targetPort: 8080,
         protocol: "http",
@@ -56,7 +56,12 @@ describe("Site Gateway Pipeline", () => {
     ]
 
     const domains: ManifestDomain[] = [
-      { domainId: "dom_pipe_custom", fqdn: "myapp.example.com", kind: "custom", tlsCertRef: null },
+      {
+        domainId: "dom_pipe_custom",
+        fqdn: "myapp.example.com",
+        kind: "custom",
+        tlsCertRef: null,
+      },
     ]
 
     const manifest = computeManifest({
@@ -64,7 +69,9 @@ describe("Site Gateway Pipeline", () => {
       release: {
         releaseId: "rel_001",
         version: "1.0.0",
-        pins: [{ moduleVersionId: "mv_1", moduleName: "api", version: "1.0.0" }],
+        pins: [
+          { moduleVersionId: "mv_1", moduleName: "api", version: "1.0.0" },
+        ],
       },
       routes,
       domains,
@@ -80,15 +87,15 @@ describe("Site Gateway Pipeline", () => {
     // 2 IngressRoutes + 1 Certificate (custom domain) + 1 Middleware (cors)
     expect(crds).toHaveLength(4)
 
-    const ingressRoutes = crds.filter(c => c.kind === "IngressRoute")
+    const ingressRoutes = crds.filter((c) => c.kind === "IngressRoute")
     expect(ingressRoutes).toHaveLength(2)
 
-    const certs = crds.filter(c => c.kind === "Certificate")
+    const certs = crds.filter((c) => c.kind === "Certificate")
     expect(certs).toHaveLength(1)
     expect(certs[0].spec.dnsNames).toEqual(["myapp.example.com"])
     expect(certs[0].metadata.namespace).toBe("production")
 
-    const middlewares = crds.filter(c => c.kind === "Middleware")
+    const middlewares = crds.filter((c) => c.kind === "Middleware")
     expect(middlewares).toHaveLength(1)
     expect(middlewares[0].metadata.name).toBe("dx-mw-cors")
   })
@@ -99,9 +106,16 @@ describe("Site Gateway Pipeline", () => {
       release: null,
       routes: [
         {
-          routeId: "rte_v1", kind: "ingress", domain: "v1.dx.dev",
-          pathPrefix: null, targetService: "svc-v1", targetPort: 80,
-          protocol: "http", tlsMode: "auto", middlewares: [], priority: 100,
+          routeId: "rte_v1",
+          kind: "ingress",
+          domain: "v1.dx.dev",
+          pathPrefix: null,
+          targetService: "svc-v1",
+          targetPort: 80,
+          protocol: "http",
+          tlsMode: "auto",
+          middlewares: [],
+          priority: 100,
         },
       ],
       domains: [],
@@ -115,9 +129,16 @@ describe("Site Gateway Pipeline", () => {
       release: null,
       routes: [
         {
-          routeId: "rte_v2", kind: "ingress", domain: "v2.dx.dev",
-          pathPrefix: null, targetService: "svc-v2", targetPort: 80,
-          protocol: "http", tlsMode: "auto", middlewares: [], priority: 100,
+          routeId: "rte_v2",
+          kind: "ingress",
+          domain: "v2.dx.dev",
+          pathPrefix: null,
+          targetService: "svc-v2",
+          targetPort: 80,
+          protocol: "http",
+          tlsMode: "auto",
+          middlewares: [],
+          priority: 100,
         },
       ],
       domains: [],
@@ -140,12 +161,26 @@ describe("Site Gateway Pipeline", () => {
       release: null,
       routes: [
         {
-          routeId: "rte_cleanup", kind: "ingress", domain: "cleanup.dx.dev",
-          pathPrefix: null, targetService: "svc", targetPort: 80,
-          protocol: "http", tlsMode: "auto", middlewares: ["cors"], priority: 100,
+          routeId: "rte_cleanup",
+          kind: "ingress",
+          domain: "cleanup.dx.dev",
+          pathPrefix: null,
+          targetService: "svc",
+          targetPort: 80,
+          protocol: "http",
+          tlsMode: "auto",
+          middlewares: ["cors"],
+          priority: 100,
         },
       ],
-      domains: [{ domainId: "dom_cleanup", fqdn: "cleanup.example.com", kind: "custom", tlsCertRef: null }],
+      domains: [
+        {
+          domainId: "dom_cleanup",
+          fqdn: "cleanup.example.com",
+          kind: "custom",
+          tlsCertRef: null,
+        },
+      ],
     })
     await reconciler.pushManifest(manifest1)
 

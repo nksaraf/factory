@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod"
 
 export const siteConfigSchema = z.object({
   role: z.enum(["site", "factory"]).default("site"),
@@ -14,7 +14,9 @@ export const siteConfigSchema = z.object({
 
   tls: z
     .object({
-      mode: z.enum(["letsencrypt", "self-signed", "provided"]).default("self-signed"),
+      mode: z
+        .enum(["letsencrypt", "self-signed", "provided"])
+        .default("self-signed"),
       certPath: z.string().optional(),
       keyPath: z.string().optional(),
     })
@@ -26,10 +28,9 @@ export const siteConfigSchema = z.object({
       url: z.string().optional(),
     })
     .default({})
-    .refine(
-      (db) => db.mode !== "external" || (db.url && db.url.length > 0),
-      { message: "database.url is required when database.mode is 'external'" }
-    ),
+    .refine((db) => db.mode !== "external" || (db.url && db.url.length > 0), {
+      message: "database.url is required when database.mode is 'external'",
+    }),
 
   registry: z
     .object({
@@ -57,6 +58,6 @@ export const siteConfigSchema = z.object({
       factoryUrl: z.string().default(""),
     })
     .default({}),
-});
+})
 
-export type SiteConfig = z.infer<typeof siteConfigSchema>;
+export type SiteConfig = z.infer<typeof siteConfigSchema>
