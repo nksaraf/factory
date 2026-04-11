@@ -1,15 +1,48 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "bun:test"
 
 import { canonicalize } from "./event-canonicalizers"
 
 describe("canonicalize", () => {
-  it("canonicalizes GitHub push events", () => {
+  it("canonicalizes GitHub push events to build.push.received", () => {
     const result = canonicalize({
       source: "github",
       eventType: "push",
       payload: { ref: "refs/heads/main", commits: [{ id: "abc" }] },
     })
-    expect(result.topic).toBe("ext.github.push")
+    expect(result.topic).toBe("build.push.received")
+    expect(result.entityKind).toBe("repository")
+    expect(result.severity).toBe("info")
+  })
+
+  it("canonicalizes GitHub pull_request.opened to build.pr.opened", () => {
+    const result = canonicalize({
+      source: "github",
+      eventType: "pull_request.opened",
+      payload: { number: 42, title: "My PR" },
+    })
+    expect(result.topic).toBe("build.pr.opened")
+    expect(result.entityKind).toBe("pull_request")
+    expect(result.severity).toBe("info")
+  })
+
+  it("canonicalizes GitHub issue_comment.created to build.pr.commented", () => {
+    const result = canonicalize({
+      source: "github",
+      eventType: "issue_comment.created",
+      payload: { comment: { body: "LGTM" } },
+    })
+    expect(result.topic).toBe("build.pr.commented")
+    expect(result.entityKind).toBe("pull_request")
+    expect(result.severity).toBe("info")
+  })
+
+  it("falls back to ext.github.* for unknown GitHub events", () => {
+    const result = canonicalize({
+      source: "github",
+      eventType: "star.created",
+      payload: { starred_at: "2026-01-01" },
+    })
+    expect(result.topic).toBe("ext.github.star.created")
     expect(result.entityKind).toBe("repository")
     expect(result.severity).toBe("info")
   })
@@ -45,23 +78,24 @@ describe("canonicalize", () => {
     expect(result.severity).toBe("debug")
   })
 
-  it("canonicalizes Slack events", () => {
+  it("canonicalizes Slack message to org.thread.turn_added", () => {
     const result = canonicalize({
       source: "slack",
       eventType: "message",
       payload: { text: "hello" },
     })
-    expect(result.topic).toBe("ext.slack.message")
+    expect(result.topic).toBe("org.thread.turn_added")
     expect(result.entityKind).toBe("channel")
+    expect(result.data).toMatchObject({ source: "slack", text: "hello" })
   })
 
-  it("canonicalizes Jira events", () => {
+  it("canonicalizes Jira issue_updated to ops.work_item.updated", () => {
     const result = canonicalize({
       source: "jira",
       eventType: "issue_updated",
       payload: { issueKey: "PROJ-123" },
     })
-    expect(result.topic).toBe("ext.jira.issue_updated")
-    expect(result.entityKind).toBe("issue")
+    expect(result.topic).toBe("ops.work_item.updated")
+    expect(result.entityKind).toBe("work_item")
   })
 })

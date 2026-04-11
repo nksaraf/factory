@@ -23,32 +23,101 @@ interface RawIngest {
 type Canonicalizer = (raw: RawIngest) => CanonicalFields
 
 const github: Canonicalizer = (raw) => {
-  const topic = `ext.github.${raw.eventType}`
-  return {
-    topic,
-    entityKind: "repository",
-    severity: "info",
-    data: raw.payload,
+  switch (raw.eventType) {
+    case "push":
+      return {
+        topic: "build.push.received",
+        entityKind: "repository",
+        severity: "info",
+        data: raw.payload,
+      }
+    case "pull_request.opened":
+      return {
+        topic: "build.pr.opened",
+        entityKind: "pull_request",
+        severity: "info",
+        data: raw.payload,
+      }
+    case "pull_request.closed":
+      return {
+        topic: (raw.payload as any).merged
+          ? "build.pr.merged"
+          : "build.pr.closed",
+        entityKind: "pull_request",
+        severity: "info",
+        data: raw.payload,
+      }
+    case "pull_request_review_comment.created":
+    case "issue_comment.created":
+      return {
+        topic: "build.pr.commented",
+        entityKind: "pull_request",
+        severity: "info",
+        data: raw.payload,
+      }
+    case "check_run.completed":
+      return {
+        topic:
+          (raw.payload as any).conclusion === "success"
+            ? "build.pipeline.completed"
+            : "build.pipeline.failed",
+        entityKind: "pipeline",
+        severity:
+          (raw.payload as any).conclusion === "success" ? "info" : "warning",
+        data: raw.payload,
+      }
+    default:
+      return {
+        topic: `ext.github.${raw.eventType}`,
+        entityKind: "repository",
+        severity: "info",
+        data: raw.payload,
+      }
   }
 }
 
 const slack: Canonicalizer = (raw) => {
-  const topic = `ext.slack.${raw.eventType}`
-  return {
-    topic,
-    entityKind: "channel",
-    severity: "info",
-    data: raw.payload,
+  switch (raw.eventType) {
+    case "message":
+      return {
+        topic: "org.thread.turn_added",
+        entityKind: "channel",
+        severity: "info",
+        data: { source: "slack", ...raw.payload },
+      }
+    default:
+      return {
+        topic: `ext.slack.${raw.eventType}`,
+        entityKind: "channel",
+        severity: "info",
+        data: raw.payload,
+      }
   }
 }
 
 const jira: Canonicalizer = (raw) => {
-  const topic = `ext.jira.${raw.eventType}`
-  return {
-    topic,
-    entityKind: "issue",
-    severity: "info",
-    data: raw.payload,
+  switch (raw.eventType) {
+    case "issue_updated":
+      return {
+        topic: "ops.work_item.updated",
+        entityKind: "work_item",
+        severity: "info",
+        data: raw.payload,
+      }
+    case "issue_created":
+      return {
+        topic: "ops.work_item.created",
+        entityKind: "work_item",
+        severity: "info",
+        data: raw.payload,
+      }
+    default:
+      return {
+        topic: `ext.jira.${raw.eventType}`,
+        entityKind: "issue",
+        severity: "info",
+        data: raw.payload,
+      }
   }
 }
 
