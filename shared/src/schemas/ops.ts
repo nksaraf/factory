@@ -2,53 +2,50 @@
  * Zod schemas for the `ops` schema — "What Is Running"
  * Single source of truth. TS types derived via z.infer<>.
  */
+import { z } from "zod"
 
-import { z } from "zod";
-import { BitemporalSchema, ReconciliationSchema } from "./common";
+import { BitemporalSchema, ReconciliationSchema } from "./common"
 
 // ── Site ────────────────────────────────────────────────────
 
-export const SiteTypeSchema = z.enum([
-  "shared",
-  "dedicated",
-  "on-prem",
-  "edge",
-]);
-export type SiteType = z.infer<typeof SiteTypeSchema>;
+export const SiteTypeSchema = z.enum(["shared", "dedicated", "on-prem", "edge"])
+export type SiteType = z.infer<typeof SiteTypeSchema>
 
 export const SiteStatusSchema = z.enum([
   "provisioning",
   "active",
   "suspended",
   "decommissioned",
-]);
-export type SiteStatus = z.infer<typeof SiteStatusSchema>;
+])
+export type SiteStatus = z.infer<typeof SiteStatusSchema>
 
 export const SitePreviewConfigSchema = z.object({
   enabled: z.boolean().default(false),
   registry: z.string().optional(),
   defaultAuthMode: z.enum(["public", "team", "private"]).optional(),
   containerPort: z.number().optional(),
-});
-export type SitePreviewConfig = z.infer<typeof SitePreviewConfigSchema>;
+})
+export type SitePreviewConfig = z.infer<typeof SitePreviewConfigSchema>
 
 export const SiteSpecSchema = z.object({
   type: SiteTypeSchema.default("shared"),
   product: z.string().optional(), // derived from system deployments
   status: SiteStatusSchema.default("provisioning"),
   previewConfig: SitePreviewConfigSchema.optional(),
-});
-export type SiteSpec = z.infer<typeof SiteSpecSchema>;
+})
+export type SiteSpec = z.infer<typeof SiteSpecSchema>
 
-export const SiteSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  spec: SiteSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(BitemporalSchema);
-export type Site = z.infer<typeof SiteSchema>;
+export const SiteSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    spec: SiteSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(BitemporalSchema)
+export type Site = z.infer<typeof SiteSchema>
 
 // ── Tenant ─────────────────────────────────────────────────
 
@@ -57,59 +54,66 @@ export const TenantEnvironmentSchema = z.enum([
   "staging",
   "development",
   "preview",
-]);
-export type TenantEnvironment = z.infer<typeof TenantEnvironmentSchema>;
+])
+export type TenantEnvironment = z.infer<typeof TenantEnvironmentSchema>
 
 export const TenantStatusSchema = z.enum([
   "provisioning",
   "active",
   "suspended",
   "decommissioned",
-]);
-export type TenantStatus = z.infer<typeof TenantStatusSchema>;
+])
+export type TenantStatus = z.infer<typeof TenantStatusSchema>
 
 export const TenantIsolationSchema = z.enum([
-  "dedicated",   // own infra (single tenant on site)
-  "shared",      // shared infra, app-level isolation (RLS, tenant ID)
-  "siloed",      // shared infra, infra-level isolation (own namespace, own pods)
-]);
-export type TenantIsolation = z.infer<typeof TenantIsolationSchema>;
+  "dedicated", // own infra (single tenant on site)
+  "shared", // shared infra, app-level isolation (RLS, tenant ID)
+  "siloed", // shared infra, infra-level isolation (own namespace, own pods)
+])
+export type TenantIsolation = z.infer<typeof TenantIsolationSchema>
 
 export const TenantSpecSchema = z.object({
   environment: TenantEnvironmentSchema.default("development"),
   isolation: TenantIsolationSchema.default("shared"),
   status: TenantStatusSchema.default("provisioning"),
   k8sNamespace: z.string().optional(),
-  resourceQuota: z.object({
-    cpu: z.string().optional(),
-    memory: z.string().optional(),
-    storage: z.string().optional(),
-  }).optional(),
-  previewConfig: z.object({
-    enabled: z.boolean().default(false),
-    ttlDays: z.number().int().default(7),
-    maxConcurrent: z.number().int().optional(),
-    defaultAuthMode: z.enum(["public", "team", "private"]).default("team"),
-  }).optional(),
-});
-export type TenantSpec = z.infer<typeof TenantSpecSchema>;
+  resourceQuota: z
+    .object({
+      cpu: z.string().optional(),
+      memory: z.string().optional(),
+      storage: z.string().optional(),
+    })
+    .optional(),
+  previewConfig: z
+    .object({
+      enabled: z.boolean().default(false),
+      ttlDays: z.number().int().default(7),
+      maxConcurrent: z.number().int().optional(),
+      defaultAuthMode: z.enum(["public", "team", "private"]).default("team"),
+    })
+    .optional(),
+})
+export type TenantSpec = z.infer<typeof TenantSpecSchema>
 
-export const TenantSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  siteId: z.string(),
-  customerId: z.string(),
-  spec: TenantSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(BitemporalSchema).merge(ReconciliationSchema);
-export type Tenant = z.infer<typeof TenantSchema>;
+export const TenantSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    siteId: z.string(),
+    customerId: z.string(),
+    spec: TenantSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(BitemporalSchema)
+  .merge(ReconciliationSchema)
+export type Tenant = z.infer<typeof TenantSchema>
 
 // ── System Deployment ───────────────────────────────────────
 
-export const DeploymentKindSchema = z.enum(["production", "staging", "dev"]);
-export type DeploymentKind = z.infer<typeof DeploymentKindSchema>;
+export const DeploymentKindSchema = z.enum(["production", "staging", "dev"])
+export type DeploymentKind = z.infer<typeof DeploymentKindSchema>
 
 export const DeploymentTriggerSchema = z.enum([
   "manual",
@@ -117,8 +121,8 @@ export const DeploymentTriggerSchema = z.enum([
   "release",
   "agent",
   "ci",
-]);
-export type DeploymentTrigger = z.infer<typeof DeploymentTriggerSchema>;
+])
+export type DeploymentTrigger = z.infer<typeof DeploymentTriggerSchema>
 
 export const DeploymentStatusSchema = z.enum([
   "provisioning",
@@ -126,16 +130,16 @@ export const DeploymentStatusSchema = z.enum([
   "suspended",
   "destroying",
   "destroyed",
-]);
-export type DeploymentStatus = z.infer<typeof DeploymentStatusSchema>;
+])
+export type DeploymentStatus = z.infer<typeof DeploymentStatusSchema>
 
 export const DeploymentStrategySchema = z.enum([
   "rolling",
   "blue-green",
   "canary",
   "stateful",
-]);
-export type DeploymentStrategy = z.infer<typeof DeploymentStrategySchema>;
+])
+export type DeploymentStrategy = z.infer<typeof DeploymentStrategySchema>
 
 export const SystemDeploymentSpecSchema = z.object({
   trigger: DeploymentTriggerSchema.default("manual"),
@@ -147,31 +151,36 @@ export const SystemDeploymentSpecSchema = z.object({
   desiredVersion: z.string().optional(),
   namespace: z.string().optional(), // k8s namespace
   createdBy: z.string().optional(),
-  runtime: z.enum([
-    "kubernetes",
-    "compose",
-    "systemd",
-    "windows_service",
-    "iis",
-    "process",
-  ]).default("kubernetes"),
-});
-export type SystemDeploymentSpec = z.infer<typeof SystemDeploymentSpecSchema>;
+  runtime: z
+    .enum([
+      "kubernetes",
+      "compose",
+      "systemd",
+      "windows_service",
+      "iis",
+      "process",
+    ])
+    .default("kubernetes"),
+})
+export type SystemDeploymentSpec = z.infer<typeof SystemDeploymentSpecSchema>
 
-export const SystemDeploymentSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  type: DeploymentKindSchema,
-  systemId: z.string(),
-  siteId: z.string().nullable(),
-  tenantId: z.string().nullable(), // null = shared across all tenants on this site
-  runtimeId: z.string().nullable(),
-  spec: SystemDeploymentSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(BitemporalSchema).merge(ReconciliationSchema);
-export type SystemDeployment = z.infer<typeof SystemDeploymentSchema>;
+export const SystemDeploymentSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    type: DeploymentKindSchema,
+    systemId: z.string(),
+    siteId: z.string().nullable(),
+    tenantId: z.string().nullable(), // null = shared across all tenants on this site
+    realmId: z.string().nullable(),
+    spec: SystemDeploymentSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(BitemporalSchema)
+  .merge(ReconciliationSchema)
+export type SystemDeployment = z.infer<typeof SystemDeploymentSchema>
 
 // ── Component Deployment ────────────────────────────────────
 
@@ -182,36 +191,44 @@ export const ComponentDeploymentStatusSchema = z.enum([
   "stopped",
   "failed",
   "completed",
-]);
-export type ComponentDeploymentStatus = z.infer<typeof ComponentDeploymentStatusSchema>;
+])
+export type ComponentDeploymentStatus = z.infer<
+  typeof ComponentDeploymentStatusSchema
+>
 
 export const ComponentDeploymentSpecSchema = z.object({
   replicas: z.number().int().default(1),
   envOverrides: z.record(z.string()).default({}),
-  resourceOverrides: z.object({
-    cpu: z.string().optional(),
-    memory: z.string().optional(),
-  }).default({}),
+  resourceOverrides: z
+    .object({
+      cpu: z.string().optional(),
+      memory: z.string().optional(),
+    })
+    .default({}),
   desiredImage: z.string().optional(),
   actualImage: z.string().optional(),
   driftDetected: z.boolean().default(false),
   status: ComponentDeploymentStatusSchema.default("provisioning"),
   lastReconciledAt: z.coerce.date().optional(),
   statusMessage: z.string().optional(),
-});
-export type ComponentDeploymentSpec = z.infer<typeof ComponentDeploymentSpecSchema>;
+})
+export type ComponentDeploymentSpec = z.infer<
+  typeof ComponentDeploymentSpecSchema
+>
 
-export const ComponentDeploymentSchema = z.object({
-  id: z.string(),
-  systemDeploymentId: z.string(),
-  deploymentSetId: z.string().nullable(), // null = shared/pinned component (e.g., DB)
-  componentId: z.string(),
-  artifactId: z.string().nullable(),
-  spec: ComponentDeploymentSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(ReconciliationSchema);
-export type ComponentDeployment = z.infer<typeof ComponentDeploymentSchema>;
+export const ComponentDeploymentSchema = z
+  .object({
+    id: z.string(),
+    systemDeploymentId: z.string(),
+    deploymentSetId: z.string().nullable(), // null = shared/pinned component (e.g., DB)
+    componentId: z.string(),
+    artifactId: z.string().nullable(),
+    spec: ComponentDeploymentSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
+export type ComponentDeployment = z.infer<typeof ComponentDeploymentSchema>
 
 export const CreateComponentDeploymentSchema = z.object({
   systemDeploymentId: z.string().min(1),
@@ -219,57 +236,63 @@ export const CreateComponentDeploymentSchema = z.object({
   componentId: z.string().min(1),
   artifactId: z.string().nullable().optional(),
   spec: ComponentDeploymentSpecSchema.partial().default({}),
-});
-export type CreateComponentDeployment = z.infer<typeof CreateComponentDeploymentSchema>;
+})
+export type CreateComponentDeployment = z.infer<
+  typeof CreateComponentDeploymentSchema
+>
 
 export const UpdateComponentDeploymentSchema = z.object({
   spec: ComponentDeploymentSpecSchema.partial().optional(),
   artifactId: z.string().nullable().optional(),
-});
-export type UpdateComponentDeployment = z.infer<typeof UpdateComponentDeploymentSchema>;
+})
+export type UpdateComponentDeployment = z.infer<
+  typeof UpdateComponentDeploymentSchema
+>
 
 // ── DeploymentSet ──────────────────────────────────────────
 
 export const DeploymentSetRoleSchema = z.enum([
-  "active",     // single active (rolling deploy, or post-cutover)
-  "blue",       // blue-green: current live
-  "green",      // blue-green: new version being promoted
-  "stable",     // canary: baseline
-  "canary",     // canary: experimental
-  "primary",    // stateful: write leader
-  "replica",    // stateful: read follower
-  "standby",    // warm standby for failover
-]);
-export type DeploymentSetRole = z.infer<typeof DeploymentSetRoleSchema>;
+  "active", // single active (rolling deploy, or post-cutover)
+  "blue", // blue-green: current live
+  "green", // blue-green: new version being promoted
+  "stable", // canary: baseline
+  "canary", // canary: experimental
+  "primary", // stateful: write leader
+  "replica", // stateful: read follower
+  "standby", // warm standby for failover
+])
+export type DeploymentSetRole = z.infer<typeof DeploymentSetRoleSchema>
 
 export const DeploymentSetStatusSchema = z.enum([
   "provisioning",
   "running",
-  "draining",   // traffic being shifted away
+  "draining", // traffic being shifted away
   "stopped",
   "failed",
-]);
-export type DeploymentSetStatus = z.infer<typeof DeploymentSetStatusSchema>;
+])
+export type DeploymentSetStatus = z.infer<typeof DeploymentSetStatusSchema>
 
 export const DeploymentSetSpecSchema = z.object({
   role: DeploymentSetRoleSchema.default("active"),
   trafficWeight: z.number().min(0).max(100).default(100),
   status: DeploymentSetStatusSchema.default("provisioning"),
-  desiredVersion: z.string().optional(),  // overrides SystemDeployment if set
-  testUrl: z.string().optional(),         // per-set URL for pre-switch verification
-});
-export type DeploymentSetSpec = z.infer<typeof DeploymentSetSpecSchema>;
+  desiredVersion: z.string().optional(), // overrides SystemDeployment if set
+  testUrl: z.string().optional(), // per-set URL for pre-switch verification
+})
+export type DeploymentSetSpec = z.infer<typeof DeploymentSetSpecSchema>
 
-export const DeploymentSetSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  systemDeploymentId: z.string(),
-  runtimeId: z.string().nullable(), // can target a different runtime than parent
-  spec: DeploymentSetSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(ReconciliationSchema);
-export type DeploymentSet = z.infer<typeof DeploymentSetSchema>;
+export const DeploymentSetSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    systemDeploymentId: z.string(),
+    realmId: z.string().nullable(), // can target a different realm than parent
+    spec: DeploymentSetSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
+export type DeploymentSet = z.infer<typeof DeploymentSetSchema>
 
 // ── Workspace ───────────────────────────────────────────────
 
@@ -278,11 +301,11 @@ export const WorkspaceTypeSchema = z.enum([
   "agent",
   "ci",
   "playground",
-]);
-export type WorkspaceType = z.infer<typeof WorkspaceTypeSchema>;
+])
+export type WorkspaceType = z.infer<typeof WorkspaceTypeSchema>
 
-export const WorkspaceRuntimeTypeSchema = z.enum(["container", "vm"]);
-export type WorkspaceRuntimeType = z.infer<typeof WorkspaceRuntimeTypeSchema>;
+export const WorkspaceRealmTypeSchema = z.enum(["container", "vm"])
+export type WorkspaceRealmType = z.infer<typeof WorkspaceRealmTypeSchema>
 
 export const WorkspaceHealthSchema = z.enum([
   "unknown",
@@ -290,18 +313,18 @@ export const WorkspaceHealthSchema = z.enum([
   "ready",
   "unhealthy",
   "terminated",
-]);
-export type WorkspaceHealth = z.infer<typeof WorkspaceHealthSchema>;
+])
+export type WorkspaceHealth = z.infer<typeof WorkspaceHealthSchema>
 
 export const WorkspaceRepoSchema = z.object({
   url: z.string(),
   branch: z.string().optional(),
   clonePath: z.string().optional(),
-});
-export type WorkspaceRepo = z.infer<typeof WorkspaceRepoSchema>;
+})
+export type WorkspaceRepo = z.infer<typeof WorkspaceRepoSchema>
 
 export const WorkspaceSpecSchema = z.object({
-  runtimeType: WorkspaceRuntimeTypeSchema.default("container"),
+  realmType: WorkspaceRealmTypeSchema.default("container"),
   devcontainerConfig: z.record(z.unknown()).default({}),
   repos: z.array(WorkspaceRepoSchema).default([]),
   cpu: z.string().optional(), // e.g., "2"
@@ -318,43 +341,50 @@ export const WorkspaceSpecSchema = z.object({
   ipAddress: z.string().optional(),
   healthStatus: WorkspaceHealthSchema.default("unknown"),
   setupProgress: z.record(z.unknown()).default({}),
-  lifecycle: z.enum(["provisioning", "active", "suspended", "destroying", "destroyed"]).default("provisioning"),
+  lifecycle: z
+    .enum(["provisioning", "active", "suspended", "destroying", "destroyed"])
+    .default("provisioning"),
   expiresAt: z.coerce.date().optional(),
-});
-export type WorkspaceSpec = z.infer<typeof WorkspaceSpecSchema>;
+})
+export type WorkspaceSpec = z.infer<typeof WorkspaceSpecSchema>
 
-export const WorkspaceSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  type: WorkspaceTypeSchema,
-  hostId: z.string().nullable(),
-  runtimeId: z.string().nullable(),
-  templateId: z.string().nullable(),
-  ownerId: z.string(),
-  spec: WorkspaceSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(BitemporalSchema).merge(ReconciliationSchema);
-export type Workspace = z.infer<typeof WorkspaceSchema>;
+export const WorkspaceSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    type: WorkspaceTypeSchema,
+    hostId: z.string().nullable(),
+    realmId: z.string().nullable(),
+    templateId: z.string().nullable(),
+    ownerId: z.string(),
+    spec: WorkspaceSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(BitemporalSchema)
+  .merge(ReconciliationSchema)
+export type Workspace = z.infer<typeof WorkspaceSchema>
 
 // ── Workspace Snapshot ──────────────────────────────────────
 
 export const WorkspaceSnapshotSpecSchema = z.object({
   volumeSnapshotName: z.string().optional(),
   sizeBytes: z.number().int().optional(),
-  status: z.enum(["creating", "ready", "failed", "deleted"]).default("creating"),
+  status: z
+    .enum(["creating", "ready", "failed", "deleted"])
+    .default("creating"),
   error: z.string().optional(),
-});
-export type WorkspaceSnapshotSpec = z.infer<typeof WorkspaceSnapshotSpecSchema>;
+})
+export type WorkspaceSnapshotSpec = z.infer<typeof WorkspaceSnapshotSpecSchema>
 
 export const WorkspaceSnapshotSchema = z.object({
   id: z.string(),
   workspaceId: z.string(),
   spec: WorkspaceSnapshotSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>;
+})
+export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>
 
 // ── Preview ─────────────────────────────────────────────────
 
@@ -366,11 +396,11 @@ export const PreviewStatusSchema = z.enum([
   "inactive",
   "expired",
   "failed",
-]);
-export type PreviewStatus = z.infer<typeof PreviewStatusSchema>;
+])
+export type PreviewStatus = z.infer<typeof PreviewStatusSchema>
 
-export const RuntimeClassSchema = z.enum(["hot", "warm", "cold"]);
-export type RuntimeClass = z.infer<typeof RuntimeClassSchema>;
+export const RuntimeClassSchema = z.enum(["hot", "warm", "cold"])
+export type RuntimeClass = z.infer<typeof RuntimeClassSchema>
 
 export const PreviewSpecSchema = z.object({
   slug: z.string().optional(),
@@ -387,21 +417,23 @@ export const PreviewSpecSchema = z.object({
   githubCommentId: z.number().int().optional(),
   lastAccessedAt: z.coerce.date().optional(),
   systemDeploymentId: z.string().optional(),
-});
-export type PreviewSpec = z.infer<typeof PreviewSpecSchema>;
+})
+export type PreviewSpec = z.infer<typeof PreviewSpecSchema>
 
-export const PreviewSchema = z.object({
-  id: z.string(),
-  siteId: z.string(),
-  ownerId: z.string(),
-  phase: PreviewStatusSchema.default("pending_image"),
-  sourceBranch: z.string(),
-  prNumber: z.number().int().nullable(),
-  spec: PreviewSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(ReconciliationSchema);
-export type Preview = z.infer<typeof PreviewSchema>;
+export const PreviewSchema = z
+  .object({
+    id: z.string(),
+    siteId: z.string(),
+    ownerId: z.string(),
+    phase: PreviewStatusSchema.default("pending_image"),
+    sourceBranch: z.string(),
+    prNumber: z.number().int().nullable(),
+    spec: PreviewSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
+export type Preview = z.infer<typeof PreviewSchema>
 
 // ── Database ────────────────────────────────────────────────
 
@@ -410,29 +442,35 @@ export const DatabaseEngineSchema = z.enum([
   "mysql",
   "redis",
   "mongodb",
-]);
-export type DatabaseEngine = z.infer<typeof DatabaseEngineSchema>;
+])
+export type DatabaseEngine = z.infer<typeof DatabaseEngineSchema>
 
-export const ProvisionModeSchema = z.enum(["sidecar", "managed", "external"]);
-export type ProvisionMode = z.infer<typeof ProvisionModeSchema>;
+export const ProvisionModeSchema = z.enum(["sidecar", "managed", "external"])
+export type ProvisionMode = z.infer<typeof ProvisionModeSchema>
 
 export const DatabaseSpecSchema = z.object({
   engine: DatabaseEngineSchema,
   version: z.string().optional(),
   provisionMode: ProvisionModeSchema.default("sidecar"),
   connectionString: z.string().optional(), // encrypted at rest
-  backupConfig: z.object({
-    schedule: z.string().optional(), // cron expression
-    retention: z.number().int().default(7), // days
-    destination: z.string().optional(), // s3 bucket, etc.
-  }).optional(),
-  seedConfig: z.object({
-    sourceRef: z.string().optional(), // backup ID or URL
-    anonymizationProfileId: z.string().optional(),
-  }).optional(),
-  status: z.enum(["provisioning", "running", "stopped", "failed"]).default("provisioning"),
-});
-export type DatabaseSpec = z.infer<typeof DatabaseSpecSchema>;
+  backupConfig: z
+    .object({
+      schedule: z.string().optional(), // cron expression
+      retention: z.number().int().default(7), // days
+      destination: z.string().optional(), // s3 bucket, etc.
+    })
+    .optional(),
+  seedConfig: z
+    .object({
+      sourceRef: z.string().optional(), // backup ID or URL
+      anonymizationProfileId: z.string().optional(),
+    })
+    .optional(),
+  status: z
+    .enum(["provisioning", "running", "stopped", "failed"])
+    .default("provisioning"),
+})
+export type DatabaseSpec = z.infer<typeof DatabaseSpecSchema>
 
 export const DatabaseSchema = z.object({
   id: z.string(),
@@ -443,8 +481,8 @@ export const DatabaseSchema = z.object({
   spec: DatabaseSpecSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-});
-export type Database = z.infer<typeof DatabaseSchema>;
+})
+export type Database = z.infer<typeof DatabaseSchema>
 
 // ── Database Operation ──────────────────────────────────────
 
@@ -453,19 +491,21 @@ export const DatabaseOperationTypeSchema = z.enum([
   "restore",
   "seed",
   "anonymize",
-]);
-export type DatabaseOperationType = z.infer<typeof DatabaseOperationTypeSchema>;
+])
+export type DatabaseOperationType = z.infer<typeof DatabaseOperationTypeSchema>
 
 export const DatabaseOperationSpecSchema = z.object({
-  status: z.enum(["pending", "running", "succeeded", "failed"]).default("pending"),
+  status: z
+    .enum(["pending", "running", "succeeded", "failed"])
+    .default("pending"),
   k8sJobRef: z.string().optional(),
   startedAt: z.coerce.date().optional(),
   completedAt: z.coerce.date().optional(),
   error: z.string().optional(),
   sizeBytes: z.number().int().optional(),
   targetRef: z.string().optional(), // backup destination or restore source
-});
-export type DatabaseOperationSpec = z.infer<typeof DatabaseOperationSpecSchema>;
+})
+export type DatabaseOperationSpec = z.infer<typeof DatabaseOperationSpecSchema>
 
 export const DatabaseOperationSchema = z.object({
   id: z.string(),
@@ -473,8 +513,8 @@ export const DatabaseOperationSchema = z.object({
   databaseId: z.string(),
   spec: DatabaseOperationSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type DatabaseOperation = z.infer<typeof DatabaseOperationSchema>;
+})
+export type DatabaseOperation = z.infer<typeof DatabaseOperationSchema>
 
 // ── Anonymization Profile ───────────────────────────────────
 
@@ -483,15 +523,17 @@ export const AnonymizationRuleSchema = z.object({
   column: z.string(),
   strategy: z.enum(["hash", "fake", "mask", "null", "truncate", "shuffle"]),
   params: z.record(z.string()).default({}),
-});
-export type AnonymizationRule = z.infer<typeof AnonymizationRuleSchema>;
+})
+export type AnonymizationRule = z.infer<typeof AnonymizationRuleSchema>
 
 export const AnonymizationProfileSpecSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   rules: z.array(AnonymizationRuleSchema).default([]),
-});
-export type AnonymizationProfileSpec = z.infer<typeof AnonymizationProfileSpecSchema>;
+})
+export type AnonymizationProfileSpec = z.infer<
+  typeof AnonymizationProfileSpecSchema
+>
 
 export const AnonymizationProfileSchema = z.object({
   id: z.string(),
@@ -499,8 +541,8 @@ export const AnonymizationProfileSchema = z.object({
   spec: AnonymizationProfileSpecSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-});
-export type AnonymizationProfile = z.infer<typeof AnonymizationProfileSchema>;
+})
+export type AnonymizationProfile = z.infer<typeof AnonymizationProfileSchema>
 
 // ── Rollout ─────────────────────────────────────────────────
 
@@ -510,30 +552,32 @@ export const RolloutStatusSchema = z.enum([
   "succeeded",
   "failed",
   "rolled_back",
-]);
-export type RolloutStatus = z.infer<typeof RolloutStatusSchema>;
+])
+export type RolloutStatus = z.infer<typeof RolloutStatusSchema>
 
 export const RolloutSpecSchema = z.object({
   status: RolloutStatusSchema.default("pending"),
   strategy: z.enum(["rolling", "blue-green", "canary"]).default("rolling"),
   progress: z.number().min(0).max(100).default(0),
   fromDeploymentSetId: z.string().optional(), // the set being replaced
-  toDeploymentSetId: z.string().optional(),   // the set being promoted
+  toDeploymentSetId: z.string().optional(), // the set being promoted
   startedAt: z.coerce.date().optional(),
   completedAt: z.coerce.date().optional(),
   error: z.string().optional(),
-});
-export type RolloutSpec = z.infer<typeof RolloutSpecSchema>;
+})
+export type RolloutSpec = z.infer<typeof RolloutSpecSchema>
 
-export const RolloutSchema = z.object({
-  id: z.string(),
-  releaseId: z.string(),
-  systemDeploymentId: z.string(),
-  spec: RolloutSpecSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-}).merge(ReconciliationSchema);
-export type Rollout = z.infer<typeof RolloutSchema>;
+export const RolloutSchema = z
+  .object({
+    id: z.string(),
+    releaseId: z.string(),
+    systemDeploymentId: z.string(),
+    spec: RolloutSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
+export type Rollout = z.infer<typeof RolloutSchema>
 
 // ── Intervention ────────────────────────────────────────────
 
@@ -542,8 +586,8 @@ export const InterventionTypeSchema = z.enum([
   "scale",
   "rollback",
   "manual",
-]);
-export type InterventionType = z.infer<typeof InterventionTypeSchema>;
+])
+export type InterventionType = z.infer<typeof InterventionTypeSchema>
 
 export const InterventionSpecSchema = z.object({
   reason: z.string(),
@@ -551,8 +595,8 @@ export const InterventionSpecSchema = z.object({
   result: z.enum(["pending", "success", "failure"]).default("pending"),
   details: z.record(z.unknown()).default({}),
   executedAt: z.coerce.date().optional(),
-});
-export type InterventionSpec = z.infer<typeof InterventionSpecSchema>;
+})
+export type InterventionSpec = z.infer<typeof InterventionSpecSchema>
 
 export const InterventionSchema = z.object({
   id: z.string(),
@@ -561,21 +605,21 @@ export const InterventionSchema = z.object({
   componentDeploymentId: z.string().nullable(),
   spec: InterventionSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type Intervention = z.infer<typeof InterventionSchema>;
+})
+export type Intervention = z.infer<typeof InterventionSchema>
 
 // ── Forwarded Port ──────────────────────────────────────────
 
-export const ForwardedPortTypeSchema = z.enum(["http", "tcp"]);
-export type ForwardedPortType = z.infer<typeof ForwardedPortTypeSchema>;
+export const ForwardedPortTypeSchema = z.enum(["http", "tcp"])
+export type ForwardedPortType = z.infer<typeof ForwardedPortTypeSchema>
 
 export const ForwardedPortSpecSchema = z.object({
   localPort: z.number().int(),
   remotePort: z.number().int(),
   protocol: z.enum(["http", "tcp"]).default("http"),
   label: z.string().optional(),
-});
-export type ForwardedPortSpec = z.infer<typeof ForwardedPortSpecSchema>;
+})
+export type ForwardedPortSpec = z.infer<typeof ForwardedPortSpecSchema>
 
 export const ForwardedPortSchema = z.object({
   id: z.string(),
@@ -583,8 +627,8 @@ export const ForwardedPortSchema = z.object({
   workspaceId: z.string(),
   spec: ForwardedPortSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type ForwardedPort = z.infer<typeof ForwardedPortSchema>;
+})
+export type ForwardedPort = z.infer<typeof ForwardedPortSchema>
 
 // ── Site Manifest ───────────────────────────────────────────
 
@@ -592,8 +636,8 @@ export const SiteManifestSpecSchema = z.object({
   version: z.number().int(),
   config: z.record(z.unknown()).default({}),
   appliedAt: z.coerce.date().optional(),
-});
-export type SiteManifestSpec = z.infer<typeof SiteManifestSpecSchema>;
+})
+export type SiteManifestSpec = z.infer<typeof SiteManifestSpecSchema>
 
 export const SiteManifestSchema = z.object({
   id: z.string(),
@@ -601,8 +645,8 @@ export const SiteManifestSchema = z.object({
   releaseId: z.string().nullable(),
   spec: SiteManifestSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type SiteManifest = z.infer<typeof SiteManifestSchema>;
+})
+export type SiteManifest = z.infer<typeof SiteManifestSchema>
 
 // ── Install Manifest ────────────────────────────────────────
 
@@ -610,8 +654,8 @@ export const InstallManifestSpecSchema = z.object({
   installState: z.record(z.unknown()).default({}),
   lastCheckinAt: z.coerce.date().optional(),
   currentVersion: z.number().int().optional(),
-});
-export type InstallManifestSpec = z.infer<typeof InstallManifestSpecSchema>;
+})
+export type InstallManifestSpec = z.infer<typeof InstallManifestSpecSchema>
 
 export const InstallManifestSchema = z.object({
   id: z.string(),
@@ -619,18 +663,13 @@ export const InstallManifestSchema = z.object({
   spec: InstallManifestSpecSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-});
-export type InstallManifest = z.infer<typeof InstallManifestSchema>;
+})
+export type InstallManifest = z.infer<typeof InstallManifestSchema>
 
 // ── Workbench ───────────────────────────────────────────────
 
-export const WorkbenchTypeSchema = z.enum([
-  "developer",
-  "ci",
-  "agent",
-  "build",
-]);
-export type WorkbenchType = z.infer<typeof WorkbenchTypeSchema>;
+export const WorkbenchTypeSchema = z.enum(["developer", "ci", "agent", "build"])
+export type WorkbenchType = z.infer<typeof WorkbenchTypeSchema>
 
 export const WorkbenchSpecSchema = z.object({
   machineId: z.string(),
@@ -641,8 +680,8 @@ export const WorkbenchSpecSchema = z.object({
   enabledPlanes: z.array(z.string()).default([]),
   nodes: z.array(z.record(z.unknown())).default([]),
   connectedResources: z.record(z.unknown()).default({}),
-});
-export type WorkbenchSpec = z.infer<typeof WorkbenchSpecSchema>;
+})
+export type WorkbenchSpec = z.infer<typeof WorkbenchSpecSchema>
 
 export const WorkbenchSchema = z.object({
   id: z.string(),
@@ -652,8 +691,8 @@ export const WorkbenchSchema = z.object({
   spec: WorkbenchSpecSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-});
-export type Workbench = z.infer<typeof WorkbenchSchema>;
+})
+export type Workbench = z.infer<typeof WorkbenchSchema>
 
 // ── Connection Audit Event ──────────────────────────────────
 
@@ -665,16 +704,16 @@ export const ConnectionAuditSpecSchema = z.object({
   timestamp: z.coerce.date(),
   duration: z.number().int().optional(), // seconds
   metadata: z.record(z.string()).default({}),
-});
-export type ConnectionAuditSpec = z.infer<typeof ConnectionAuditSpecSchema>;
+})
+export type ConnectionAuditSpec = z.infer<typeof ConnectionAuditSpecSchema>
 
 export const ConnectionAuditEventSchema = z.object({
   id: z.string(),
   systemDeploymentId: z.string().nullable(),
   spec: ConnectionAuditSpecSchema,
   createdAt: z.coerce.date(),
-});
-export type ConnectionAuditEvent = z.infer<typeof ConnectionAuditEventSchema>;
+})
+export type ConnectionAuditEvent = z.infer<typeof ConnectionAuditEventSchema>
 
 // ── Input Schemas (CREATE / UPDATE) ────────────────────────
 
@@ -682,8 +721,8 @@ export const CreateSiteSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   spec: SiteSpecSchema.default({}),
-});
-export const UpdateSiteSchema = CreateSiteSchema.partial();
+})
+export const UpdateSiteSchema = CreateSiteSchema.partial()
 
 export const CreateTenantSchema = z.object({
   slug: z.string().min(1).max(100),
@@ -691,8 +730,8 @@ export const CreateTenantSchema = z.object({
   siteId: z.string(),
   customerId: z.string(),
   spec: TenantSpecSchema.default({}),
-});
-export const UpdateTenantSchema = CreateTenantSchema.partial();
+})
+export const UpdateTenantSchema = CreateTenantSchema.partial()
 
 export const CreateSystemDeploymentSchema = z.object({
   slug: z.string().min(1).max(100),
@@ -701,45 +740,46 @@ export const CreateSystemDeploymentSchema = z.object({
   systemId: z.string(),
   siteId: z.string(),
   tenantId: z.string().optional(),
-  runtimeId: z.string().optional(),
+  realmId: z.string().optional(),
   spec: SystemDeploymentSpecSchema.default({}),
-});
-export const UpdateSystemDeploymentSchema = CreateSystemDeploymentSchema.partial();
+})
+export const UpdateSystemDeploymentSchema =
+  CreateSystemDeploymentSchema.partial()
 
 export const CreateDeploymentSetSchema = z.object({
   slug: z.string().min(1).max(100),
   systemDeploymentId: z.string(),
-  runtimeId: z.string().optional(),
+  realmId: z.string().optional(),
   spec: DeploymentSetSpecSchema.default({}),
-});
-export const UpdateDeploymentSetSchema = CreateDeploymentSetSchema.partial();
+})
+export const UpdateDeploymentSetSchema = CreateDeploymentSetSchema.partial()
 
 export const CreateWorkspaceSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: WorkspaceTypeSchema,
   hostId: z.string().optional(),
-  runtimeId: z.string().optional(),
+  realmId: z.string().optional(),
   templateId: z.string().optional(),
   ownerId: z.string(),
   spec: WorkspaceSpecSchema.default({}),
-});
-export const UpdateWorkspaceSchema = CreateWorkspaceSchema.partial();
+})
+export const UpdateWorkspaceSchema = CreateWorkspaceSchema.partial()
 
 export const CreateRolloutSchema = z.object({
   releaseId: z.string(),
   systemDeploymentId: z.string(),
   spec: RolloutSpecSchema.default({}),
-});
-export const UpdateRolloutSchema = CreateRolloutSchema.partial();
+})
+export const UpdateRolloutSchema = CreateRolloutSchema.partial()
 
 export const CreateWorkbenchSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: WorkbenchTypeSchema,
   spec: WorkbenchSpecSchema,
-});
-export const UpdateWorkbenchSchema = CreateWorkbenchSchema.partial();
+})
+export const UpdateWorkbenchSchema = CreateWorkbenchSchema.partial()
 
 // ── Preview ─────────────────────────────────────────────────
 
@@ -749,11 +789,11 @@ export const CreatePreviewSchema = z.object({
   sourceBranch: z.string().min(1),
   prNumber: z.number().int().optional(),
   spec: PreviewSpecSchema.default({}),
-});
+})
 export const UpdatePreviewSchema = z.object({
   phase: PreviewStatusSchema.optional(),
   spec: PreviewSpecSchema.partial().optional(),
-});
+})
 
 // ── Intervention ────────────────────────────────────────────
 
@@ -761,28 +801,30 @@ export const CreateInterventionSchema = z.object({
   type: InterventionTypeSchema,
   systemDeploymentId: z.string().min(1),
   componentDeploymentId: z.string().optional(),
-  spec: InterventionSpecSchema.partial().default({ reason: "Manual intervention" }),
-});
+  spec: InterventionSpecSchema.partial().default({
+    reason: "Manual intervention",
+  }),
+})
 
 // ── Connection Audit Event ──────────────────────────────────
 
 export const CreateConnectionAuditEventSchema = z.object({
   systemDeploymentId: z.string().optional(),
   spec: ConnectionAuditSpecSchema,
-});
+})
 export const UpdateConnectionAuditEventSchema = z.object({
   spec: ConnectionAuditSpecSchema.partial(),
-});
+})
 
 // ── Install Manifest ────────────────────────────────────────
 
 export const CreateInstallManifestSchema = z.object({
   siteId: z.string().min(1),
   spec: InstallManifestSpecSchema.default({}),
-});
+})
 export const UpdateInstallManifestSchema = z.object({
   spec: InstallManifestSpecSchema.partial(),
-});
+})
 
 // ── Site Manifest ───────────────────────────────────────────
 
@@ -790,10 +832,10 @@ export const CreateSiteManifestSchema = z.object({
   siteId: z.string().min(1),
   releaseId: z.string().optional(),
   spec: SiteManifestSpecSchema,
-});
+})
 export const UpdateSiteManifestSchema = z.object({
   spec: SiteManifestSpecSchema.partial(),
-});
+})
 
 // ── Database ────────────────────────────────────────────────
 
@@ -803,8 +845,8 @@ export const CreateDatabaseSchema = z.object({
   systemDeploymentId: z.string().optional(),
   componentId: z.string().optional(),
   spec: DatabaseSpecSchema,
-});
-export const UpdateDatabaseSchema = CreateDatabaseSchema.partial();
+})
+export const UpdateDatabaseSchema = CreateDatabaseSchema.partial()
 
 // ── Database Operation ──────────────────────────────────────
 
@@ -812,7 +854,7 @@ export const CreateDatabaseOperationSchema = z.object({
   type: DatabaseOperationTypeSchema,
   databaseId: z.string().min(1),
   spec: DatabaseOperationSpecSchema.default({}),
-});
+})
 
 // ── Anonymization Profile ───────────────────────────────────
 
@@ -820,8 +862,9 @@ export const CreateAnonymizationProfileSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   spec: AnonymizationProfileSpecSchema,
-});
-export const UpdateAnonymizationProfileSchema = CreateAnonymizationProfileSchema.partial();
+})
+export const UpdateAnonymizationProfileSchema =
+  CreateAnonymizationProfileSchema.partial()
 
 // ── Forwarded Port ──────────────────────────────────────────
 
@@ -829,4 +872,4 @@ export const CreateForwardedPortSchema = z.object({
   type: ForwardedPortTypeSchema,
   workspaceId: z.string().min(1),
   spec: ForwardedPortSpecSchema,
-});
+})

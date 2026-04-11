@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from "react"
 import { Box, Text, useInput } from "ink"
-import { useSelection, type Selection } from "../hooks/use-selection.js"
+import React, { useEffect, useState } from "react"
+
+import { type Selection, useSelection } from "../hooks/use-selection.js"
 
 export interface TreeNode {
   id: string
   name: string
   slug?: string
-  type: "substrate" | "runtime" | "workspace"
+  type: "estate" | "realm" | "workspace"
   status?: string
   children?: TreeNode[]
-  substrateId?: string
-  runtimeId?: string
+  estateId?: string
+  realmId?: string
   /** Unique key for this node in the tree — set by the parent to disambiguate duplicates */
   treeKey?: string
 }
@@ -63,10 +64,14 @@ function flattenTree(
   for (const node of nodes) {
     const hasChildren = (node.children?.length ?? 0) > 0
     const expanded = expandedSet.has(node.id)
-    const treeKey = parentPath ? `${parentPath}/${node.type}-${node.id}` : `${node.type}-${node.id}`
+    const treeKey = parentPath
+      ? `${parentPath}/${node.type}-${node.id}`
+      : `${node.type}-${node.id}`
     result.push({ node, depth, expanded, hasChildren, treeKey })
     if (expanded && node.children) {
-      result.push(...flattenTree(node.children, expandedSet, depth + 1, treeKey))
+      result.push(
+        ...flattenTree(node.children, expandedSet, depth + 1, treeKey)
+      )
     }
   }
   return result
@@ -131,8 +136,8 @@ export function ResourceTree({ nodes, focused }: ResourceTreeProps) {
           type: item.node.type,
           id: item.node.id,
           name: item.node.name,
-          runtimeId: item.node.runtimeId,
-          substrateId: item.node.substrateId,
+          realmId: item.node.realmId,
+          estateId: item.node.estateId,
         })
       }
     },
@@ -147,8 +152,8 @@ export function ResourceTree({ nodes, focused }: ResourceTreeProps) {
         type: item.node.type,
         id: item.node.id,
         name: item.node.name,
-        runtimeId: item.node.runtimeId,
-        substrateId: item.node.substrateId,
+        realmId: item.node.realmId,
+        estateId: item.node.estateId,
       })
     }
   }, [cursorIndex])
@@ -171,11 +176,7 @@ export function ResourceTree({ nodes, focused }: ResourceTreeProps) {
         const isCursor = index === cursorIndex && focused
         const icon = statusIcon(item.node.status)
         const indent = "  ".repeat(item.depth)
-        const chevron = item.hasChildren
-          ? item.expanded
-            ? "▾ "
-            : "▸ "
-          : "  "
+        const chevron = item.hasChildren ? (item.expanded ? "▾ " : "▸ ") : "  "
 
         return (
           <Box key={item.treeKey} paddingX={1}>
@@ -185,8 +186,7 @@ export function ResourceTree({ nodes, focused }: ResourceTreeProps) {
             >
               {indent}
               {chevron}
-              <Text color={icon.color}>{icon.char}</Text>{" "}
-              {item.node.name}
+              <Text color={icon.color}>{icon.char}</Text> {item.node.name}
               {item.node.slug && item.node.slug !== item.node.name && (
                 <Text dimColor={!isCursor}> {item.node.slug}</Text>
               )}

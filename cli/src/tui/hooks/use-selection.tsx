@@ -1,14 +1,19 @@
-import React, { createContext, useContext, useState, type ReactNode } from "react"
+import React, {
+  type ReactNode,
+  createContext,
+  useContext,
+  useState,
+} from "react"
 
-export type ResourceType = "substrate" | "runtime" | "workspace"
+export type ResourceType = "estate" | "realm" | "workspace"
 
 export interface Selection {
   type: ResourceType
   id: string
   name: string
   /** Parent IDs for breadcrumb context */
-  runtimeId?: string
-  substrateId?: string
+  realmId?: string
+  estateId?: string
 }
 
 interface SelectionContextValue {

@@ -142,8 +142,8 @@ services:
       - ./infra/auth/auth.settings.yaml:/app/config/application.yml:ro
     environment:
       AUTH_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
-      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_REVERSE_PROXY_PORT:-9000}}
-      AUTH_SPICEDB_ENABLED: "true"
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:${INFRA_AUTH_PORT:-8180}}
+      AUTH_SPICEDB_ENABLED: "false"
       AUTH_SPICEDB_ENDPOINT: infra-spicedb:50051
       AUTH_SPICEDB_TOKEN: ${SPICEDB_PRESHARED_KEY:-dev-key}
       AUTH_SPICEDB_INSECURE: "true"
@@ -398,6 +398,11 @@ services:
       catalog.port.3000.name: http
       catalog.port.3000.protocol: http
       catalog.docs.url: "https://www.metabase.com/docs/latest/"
+      # Connection env templates for hybrid dev (non-URL pattern)
+      dx.dep.infra-postgres.env.MB_DB_HOST: "{host}"
+      dx.dep.infra-postgres.env.MB_DB_PORT: "{port}"
+      dx.dep.infra-postgres.env.MB_DB_USER: "{POSTGRES_USER}"
+      dx.dep.infra-postgres.env.MB_DB_PASS: "{POSTGRES_PASSWORD}"
 
 volumes:
   postgres-data:

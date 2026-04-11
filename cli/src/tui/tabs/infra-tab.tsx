@@ -1,48 +1,49 @@
-import React from "react"
 import { Box } from "ink"
-import { ResourceTree, type TreeNode } from "../components/resource-tree.js"
+import React from "react"
+
 import { DetailPane } from "../components/detail-pane.js"
+import { ResourceTree, type TreeNode } from "../components/resource-tree.js"
 
 interface InfraTabProps {
-  substrates: any[]
-  runtimes: any[]
+  estates: any[]
+  realms: any[]
   workspaces: any[]
   focused: boolean
 }
 
 function buildTree(
-  substrates: any[],
-  runtimes: any[],
+  estates: any[],
+  realms: any[],
   workspaces: any[]
 ): TreeNode[] {
-  return substrates.map((p) => {
-    const seenRuntimes = new Set<string>()
-    const substrateRuntimes = runtimes.filter((c: any) => {
+  return estates.map((p) => {
+    const seenRealms = new Set<string>()
+    const estateRealms = realms.filter((c: any) => {
       const matches =
-        c.substrateId === p.substrateId ||
-        c.substrateId === p.id ||
-        c.substrateSlug === p.slug
+        c.estateId === p.estateId ||
+        c.estateId === p.id ||
+        c.estateSlug === p.slug
       if (!matches) return false
-      const cid = c.runtimeId ?? c.id ?? c.name
-      if (seenRuntimes.has(cid)) return false
-      seenRuntimes.add(cid)
+      const cid = c.realmId ?? c.id ?? c.name
+      if (seenRealms.has(cid)) return false
+      seenRealms.add(cid)
       return true
     })
 
     return {
-      id: p.substrateId ?? p.id ?? p.name,
+      id: p.estateId ?? p.id ?? p.name,
       name: p.name ?? p.slug ?? "unknown",
       slug: p.slug,
-      type: "substrate" as const,
+      type: "estate" as const,
       status: p.status,
-      children: substrateRuntimes.map((c: any) => {
-        const cid = c.runtimeId ?? c.id
+      children: estateRealms.map((c: any) => {
+        const cid = c.realmId ?? c.id
         const seen = new Set<string>()
-        const runtimeWorkspaces = workspaces.filter((s: any) => {
+        const realmWorkspaces = workspaces.filter((s: any) => {
           const matches =
-            s.runtimeId === c.runtimeId ||
-            s.runtimeId === c.id ||
-            s.runtimeSlug === c.slug
+            s.realmId === c.realmId ||
+            s.realmId === c.id ||
+            s.realmSlug === c.slug
           if (!matches) return false
           const sid = s.workspaceId ?? s.id ?? s.name
           if (seen.has(sid)) return false
@@ -51,20 +52,20 @@ function buildTree(
         })
 
         return {
-          id: c.runtimeId ?? c.id ?? c.name,
+          id: c.realmId ?? c.id ?? c.name,
           name: c.name ?? c.slug ?? "unknown",
           slug: c.slug,
-          type: "runtime" as const,
+          type: "realm" as const,
           status: c.status,
-          substrateId: p.substrateId ?? p.id,
-          children: runtimeWorkspaces.map((s: any) => ({
+          estateId: p.estateId ?? p.id,
+          children: realmWorkspaces.map((s: any) => ({
             id: s.workspaceId ?? s.id ?? s.name,
             name: s.name ?? s.slug ?? "unknown",
             slug: s.slug,
             type: "workspace" as const,
             status: s.status,
-            runtimeId: c.runtimeId ?? c.id,
-            substrateId: p.substrateId ?? p.id,
+            realmId: c.realmId ?? c.id,
+            estateId: p.estateId ?? p.id,
           })),
         }
       }),
@@ -73,12 +74,12 @@ function buildTree(
 }
 
 export function InfraTab({
-  substrates,
-  runtimes,
+  estates,
+  realms,
   workspaces,
   focused,
 }: InfraTabProps) {
-  const tree = buildTree(substrates, runtimes, workspaces)
+  const tree = buildTree(estates, realms, workspaces)
 
   return (
     <Box flexGrow={1} flexDirection="row">
@@ -94,11 +95,7 @@ export function InfraTab({
         <ResourceTree nodes={tree} focused={focused} />
       </Box>
       <Box width="60%" flexDirection="column" paddingLeft={1}>
-        <DetailPane
-          workspaces={workspaces}
-          runtimes={runtimes}
-          substrates={substrates}
-        />
+        <DetailPane workspaces={workspaces} realms={realms} estates={estates} />
       </Box>
     </Box>
   )

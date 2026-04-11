@@ -1,21 +1,28 @@
 #!/usr/bin/env bun
 /**
  * IDE Hooks Setup — configures Claude Code and Cursor to send telemetry
- * events to the Factory API via hook scripts.
+ * events to the Factory API via `dx hook` CLI commands.
  *
  * Usage:
  *   bun run scripts/ide-hooks/setup.ts [--claude-code] [--cursor] [--all]
  *
  * Without flags, sets up both IDEs.
+ *
+ * NOTE: This is a convenience script. The canonical path is `dx setup` which
+ * uses cli/src/handlers/install/defaults/ide-hooks-defaults.ts. Both produce
+ * identical `dx hook <source> <event>` commands.
  */
-
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
+import { join } from "node:path"
 
-const SCRIPTS_DIR = resolve(import.meta.dir)
-const CC_HOOK_SCRIPT = join(SCRIPTS_DIR, "claude-code-hook.ts")
-const CURSOR_HOOK_SCRIPT = join(SCRIPTS_DIR, "cursor-hook.ts")
+function isOurHookCommand(command: string): boolean {
+  return (
+    command.includes("dx hook") ||
+    command.includes("claude-code-hook.ts") ||
+    command.includes("cursor-hook.ts")
+  )
+}
 
 // ── Claude Code Setup ────────────────────────────────────────
 
@@ -25,8 +32,13 @@ const CC_HOOK_EVENTS = [
   "UserPromptSubmit",
   "PreToolUse",
   "PostToolUse",
+  "PostToolUseFailure",
   "Stop",
+  "StopFailure",
+  "SubagentStart",
   "SubagentStop",
+  "PreCompact",
+  "PostCompact",
 ]
 
 function setupClaudeCode() {
@@ -44,31 +56,29 @@ function setupClaudeCode() {
   const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
 
   for (const event of CC_HOOK_EVENTS) {
-    const command = `bun run ${CC_HOOK_SCRIPT} ${event}`
-    const hookEntry = {
-      type: "command",
-      command,
-    }
+    const command = `dx hook claude-code ${event}`
 
     if (!hooks[event]) {
       hooks[event] = []
     }
 
-    // Remove any stale entries for our hook (matching by script name)
-    hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter((entry) => {
-      if (entry.hooks) {
-        const innerHooks = entry.hooks as Array<Record<string, unknown>>
-        return !innerHooks.some(
-          (h) => typeof h.command === "string" && h.command.includes("claude-code-hook.ts"),
+    // Remove stale entries (old bun-run paths and current dx hook)
+    hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter(
+      (entry) => {
+        if (entry.hooks) {
+          const innerHooks = entry.hooks as Array<Record<string, unknown>>
+          return !innerHooks.some(
+            (h) => typeof h.command === "string" && isOurHookCommand(h.command)
+          )
+        }
+        return !(
+          typeof entry.command === "string" && isOurHookCommand(entry.command)
         )
       }
-      return !(typeof entry.command === "string" && entry.command.includes("claude-code-hook.ts"))
-    })
-
-    // Add the current entry
+    )
     ;(hooks[event] as Array<Record<string, unknown>>).push({
       matcher: "*",
-      hooks: [hookEntry],
+      hooks: [{ type: "command", command }],
     })
   }
 
@@ -121,18 +131,17 @@ function setupCursor() {
   const hooks = (config.hooks ?? {}) as Record<string, unknown[]>
 
   for (const event of CURSOR_HOOK_EVENTS) {
-    const command = `bun run ${CURSOR_HOOK_SCRIPT} ${event}`
+    const command = `dx hook cursor ${event}`
 
     if (!hooks[event]) {
       hooks[event] = []
     }
 
-    // Remove stale entries for our hook
+    // Remove stale entries (old bun-run paths and current dx hook)
     hooks[event] = (hooks[event] as Array<Record<string, unknown>>).filter(
-      (entry) => !(typeof entry.command === "string" && entry.command.includes("cursor-hook.ts")),
+      (entry) =>
+        !(typeof entry.command === "string" && isOurHookCommand(entry.command))
     )
-
-    // Add the current entry
     ;(hooks[event] as Array<Record<string, unknown>>).push({ command })
   }
 
@@ -147,8 +156,10 @@ function setupCursor() {
 // ── Main ─────────────────────────────────────────────────────
 
 const args = process.argv.slice(2)
-const setupCC = args.includes("--claude-code") || args.includes("--all") || args.length === 0
-const setupCursorFlag = args.includes("--cursor") || args.includes("--all") || args.length === 0
+const setupCC =
+  args.includes("--claude-code") || args.includes("--all") || args.length === 0
+const setupCursorFlag =
+  args.includes("--cursor") || args.includes("--all") || args.length === 0
 
 console.log("Setting up IDE hook telemetry...\n")
 
@@ -156,5 +167,7 @@ if (setupCC) setupClaudeCode()
 if (setupCursorFlag) setupCursor()
 
 console.log("\nDone! Make sure you're logged in with `dx factory login`.")
-console.log("Hook events will be sent to the Factory API using your dx session token.")
+console.log(
+  "Hooks use `dx hook` — only requires dx on your PATH, no source code."
+)
 console.log("\nSet FACTORY_HOOK_DEBUG=1 to see debug output from hook scripts.")

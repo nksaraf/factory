@@ -1,39 +1,34 @@
 /**
  * Zod schemas for the `infra` schema — "Where Things Run"
  * Single source of truth. TS types derived via z.infer<>.
+ *
+ * DESIGN: All entity type/kind columns are plain `text` in Postgres.
+ * Validation happens here in TypeScript via Zod enums.
+ * Adding a new type = add it to the enum here (code only, zero migrations).
  */
 import { z } from "zod"
 
 import { ReconciliationSchema } from "./common"
 
-// ── Substrate ───────────────────────────────────────────────
+// ── Estate ───────────────────────────────────────────────
+// Ownership hierarchy: accounts, regions, datacenters, network topology.
+// Renamed from "substrate" — "estate" is easier to explain.
 
-export const SubstrateTypeSchema = z.enum([
+export const EstateTypeSchema = z.enum([
   "cloud-account",
   "region",
   "datacenter",
   "vpc",
   "subnet",
-  "hypervisor",
   "rack",
   "dns-zone",
   "wan",
+  "cdn",
 ])
-export type SubstrateType = z.infer<typeof SubstrateTypeSchema>
+export type EstateType = z.infer<typeof EstateTypeSchema>
 
-export const ProviderKindSchema = z.enum([
-  "aws",
-  "gcp",
-  "azure",
-  "proxmox",
-  "hetzner",
-  "digitalocean",
-  "bare-metal",
-])
-export type ProviderKind = z.infer<typeof ProviderKindSchema>
-
-export const SubstrateSpecSchema = z.object({
-  providerKind: ProviderKindSchema.optional(),
+export const EstateSpecSchema = z.object({
+  providerKind: z.string().optional(), // open-ended: aws, gcp, azure, proxmox, hetzner, atlassian, anthropic, stripe, etc.
   credentialsRef: z.string().optional(),
   accessMechanism: z.enum(["api", "ssh", "console"]).optional(),
   endpoint: z.string().optional(),
@@ -57,22 +52,26 @@ export const SubstrateSpecSchema = z.object({
   dnsProvider: z.string().optional(),
   registrar: z.string().optional(),
   zone: z.string().optional(),
+  // Gateway-specific
+  managementUrl: z.string().optional(),
+  model: z.string().optional(),
+  publicIpCount: z.number().int().optional(),
 })
-export type SubstrateSpec = z.infer<typeof SubstrateSpecSchema>
+export type EstateSpec = z.infer<typeof EstateSpecSchema>
 
-export const SubstrateSchema = z
+export const EstateSchema = z
   .object({
     id: z.string(),
     slug: z.string(),
     name: z.string(),
-    type: SubstrateTypeSchema,
-    parentSubstrateId: z.string().nullable(),
-    spec: SubstrateSpecSchema,
+    type: EstateTypeSchema,
+    parentEstateId: z.string().nullable(),
+    spec: EstateSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
   .merge(ReconciliationSchema)
-export type Substrate = z.infer<typeof SubstrateSchema>
+export type Estate = z.infer<typeof EstateSchema>
 
 // ── Host ────────────────────────────────────────────────────
 
@@ -91,8 +90,8 @@ export type Os = z.infer<typeof OsSchema>
 export const ArchSchema = z.enum(["amd64", "arm64"])
 export type Arch = z.infer<typeof ArchSchema>
 
-export const AccessMethodSchema = z.enum(["ssh", "winrm", "rdp"])
-export type AccessMethod = z.infer<typeof AccessMethodSchema>
+export const HostAccessMethodSchema = z.enum(["ssh", "winrm", "rdp"])
+export type HostAccessMethod = z.infer<typeof HostAccessMethodSchema>
 
 export const HostSpecSchema = z.object({
   hostname: z.string(),
@@ -101,7 +100,7 @@ export const HostSpecSchema = z.object({
   cpu: z.number().int().optional(),
   memoryMb: z.number().int().optional(),
   diskGb: z.number().int().optional(),
-  accessMethod: AccessMethodSchema.default("ssh"),
+  accessMethod: HostAccessMethodSchema.default("ssh"),
   accessUser: z.string().default("root"),
   sshPort: z.number().int().min(1).max(65535).default(22),
   ipAddress: z.string().optional(),
@@ -117,6 +116,12 @@ export const HostSpecSchema = z.object({
   // Network-appliance-specific
   model: z.string().optional(),
   managementUrl: z.string().optional(),
+  // dx workbench registration (absorbed from ops.workbench)
+  dxVersion: z.string().optional(),
+  lastPingAt: z.string().optional(),
+  lastCommand: z.string().optional(),
+  principalId: z.string().optional(),
+  ips: z.array(z.string()).optional(),
 })
 export type HostSpec = z.infer<typeof HostSpecSchema>
 
@@ -126,7 +131,7 @@ export const HostSchema = z
     slug: z.string(),
     name: z.string(),
     type: HostTypeSchema,
-    substrateId: z.string().nullable(),
+    estateId: z.string().nullable(),
     spec: HostSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -134,24 +139,66 @@ export const HostSchema = z
   .merge(ReconciliationSchema)
 export type Host = z.infer<typeof HostSchema>
 
-// ── Runtime ─────────────────────────────────────────────────
+// ── Realm ──────────────────────────────────────────────────
+// Active governance — bounded domain of authority where things spawn and are controlled.
+// Renamed from "runtime" — realm covers compute, network, storage, ai, build, scheduling.
 
-export const RuntimeTypeSchema = z.enum([
+export const RealmTypeSchema = z.enum([
+  // compute
   "k8s-cluster",
   "k8s-namespace",
   "docker-engine",
   "compose-project",
   "systemd",
-  "reverse-proxy",
-  "iis",
-  "windows-service",
   "process",
+  "proxmox",
+  "kvm",
+  // network
+  "reverse-proxy",
   "firewall",
   "router",
+  "load-balancer",
+  "vpn-gateway",
+  "service-mesh",
+  // storage
+  "ceph",
+  "zfs-pool",
+  "nfs-server",
+  "minio",
+  "glusterfs",
+  "lvm",
+  // ai
+  "ollama",
+  "vllm",
+  "triton-server",
+  "tgi",
+  // build
+  "docker-buildkit",
+  "nix-daemon",
+  "bazel-remote",
+  // scheduling
+  "temporal-server",
+  "airflow-scheduler",
+  "inngest",
+  "celery-worker",
+  // legacy compat
+  "iis",
+  "windows-service",
 ])
-export type RuntimeType = z.infer<typeof RuntimeTypeSchema>
+export type RealmType = z.infer<typeof RealmTypeSchema>
 
-export const RuntimeSpecSchema = z.object({
+export const RealmCategorySchema = z.enum([
+  "compute",
+  "network",
+  "storage",
+  "ai",
+  "build",
+  "scheduling",
+])
+export type RealmCategory = z.infer<typeof RealmCategorySchema>
+
+export const RealmSpecSchema = z.object({
+  category: RealmCategorySchema.optional(),
   endpoint: z.string().optional(),
   kubeconfigRef: z.string().optional(),
   version: z.string().optional(),
@@ -168,9 +215,9 @@ export const RuntimeSpecSchema = z.object({
     })
     .optional(),
 })
-export type RuntimeSpec = z.infer<typeof RuntimeSpecSchema>
+export type RealmSpec = z.infer<typeof RealmSpecSchema>
 
-// ── Reverse Proxy Runtime Spec ──────────────────────────────
+// ── Reverse Proxy Realm Spec ──────────────────────────────
 
 export const ProxyEntrypointSchema = z.object({
   name: z.string(),
@@ -179,7 +226,7 @@ export const ProxyEntrypointSchema = z.object({
 })
 export type ProxyEntrypoint = z.infer<typeof ProxyEntrypointSchema>
 
-export const ReverseProxyRuntimeSpecSchema = z.object({
+export const ReverseProxyRealmSpecSchema = z.object({
   engine: z.enum(["traefik", "caddy", "nginx", "factory-gateway"]),
   entrypoints: z.array(ProxyEntrypointSchema).default([]),
   configRef: z.string().optional(),
@@ -187,24 +234,101 @@ export const ReverseProxyRuntimeSpecSchema = z.object({
   dashboardUrl: z.string().optional(),
   certResolvers: z.array(z.string()).default([]),
 })
-export type ReverseProxyRuntimeSpec = z.infer<
-  typeof ReverseProxyRuntimeSpecSchema
->
+export type ReverseProxyRealmSpec = z.infer<typeof ReverseProxyRealmSpecSchema>
 
-export const RuntimeSchema = z
+export const RealmSchema = z
   .object({
     id: z.string(),
     slug: z.string(),
     name: z.string(),
-    type: RuntimeTypeSchema,
-    parentRuntimeId: z.string().nullable(),
-    hostId: z.string().nullable(),
-    spec: RuntimeSpecSchema,
+    type: RealmTypeSchema,
+    parentRealmId: z.string().nullable(),
+    estateId: z.string().nullable(),
+    workbenchId: z.string().nullable(),
+    spec: RealmSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
   .merge(ReconciliationSchema)
-export type Runtime = z.infer<typeof RuntimeSchema>
+export type Realm = z.infer<typeof RealmSchema>
+
+// ── Realm-Host join ────────────────────────────────────────
+
+export const RealmHostRoleSchema = z.enum(["single", "control-plane", "worker"])
+export type RealmHostRole = z.infer<typeof RealmHostRoleSchema>
+
+// ── Service ────────────────────────────────────────────────
+// Anything consumed via protocol/API: managed infra, SaaS, AI/ML, internal services.
+
+export const ServiceTypeSchema = z.enum([
+  "database",
+  "cache",
+  "object-store",
+  "queue",
+  "search",
+  "cdn",
+  "managed-k8s",
+  "compute-platform",
+  "llm",
+  "auth-provider",
+  "ci-cd",
+  "source-control",
+  "issue-tracker",
+  "messaging",
+  "payment",
+  "monitoring",
+  "email",
+  "dns-provider",
+  "analytics",
+])
+export type ServiceType = z.infer<typeof ServiceTypeSchema>
+
+export const ServiceSpecSchema = z.object({
+  endpoint: z.string().optional(),
+  protocol: z.string().optional(),
+  provider: z.string().optional(),
+  version: z.string().optional(),
+  connectionString: z.string().optional(),
+  arnRef: z.string().optional(),
+  apiKeyRef: z.string().optional(),
+  billing: z
+    .object({
+      plan: z.string().optional(),
+      cost: z.number().optional(),
+      currency: z.string().optional(),
+      renewal: z.string().optional(),
+    })
+    .optional(),
+  sla: z
+    .object({
+      uptime: z.number().optional(),
+      latencyMs: z.number().optional(),
+    })
+    .optional(),
+  compliance: z
+    .object({
+      certifications: z.array(z.string()).optional(),
+      dataResidency: z.string().optional(),
+    })
+    .optional(),
+})
+export type ServiceSpec = z.infer<typeof ServiceSpecSchema>
+
+export const ServiceSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    type: ServiceTypeSchema,
+    estateId: z.string().nullable(),
+    realmId: z.string().nullable(),
+    systemDeploymentId: z.string().nullable(),
+    spec: ServiceSpecSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .merge(ReconciliationSchema)
+export type Service = z.infer<typeof ServiceSchema>
 
 // ── Route ───────────────────────────────────────────────────
 
@@ -257,7 +381,7 @@ export const RouteSchema = z
     name: z.string(),
     type: RouteTypeSchema,
     domain: z.string(),
-    runtimeId: z.string().nullable(),
+    realmId: z.string().nullable(),
     spec: RouteSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -273,7 +397,7 @@ export const ResolvedTargetSchema = z.object({
   address: z.string(),
   port: z.number().int(),
   weight: z.number().min(0).max(100),
-  runtimeType: z.string(),
+  realmType: z.string(),
   geo: z.array(z.string()).optional(),
 })
 export type ResolvedTarget = z.infer<typeof ResolvedTargetSchema>
@@ -360,7 +484,7 @@ export type IpAddressStatus = z.infer<typeof IpAddressStatusSchema>
 export const IpAddressSpecSchema = z.object({
   version: z.enum(["v4", "v6"]).default("v4"),
   status: IpAddressStatusSchema.default("available"),
-  assignedToType: z.string().optional(), // e.g., "host", "runtime", "service"
+  assignedToType: z.string().optional(), // e.g., "host", "realm", "service"
   assignedToId: z.string().optional(),
   gateway: z.string().optional(),
   cidr: z.number().int().optional(),
@@ -423,17 +547,21 @@ export const NetworkLinkTypeSchema = z.enum([
   "host-local",
   "container-bridge",
   "socket",
+  "cdn-forward",
 ])
 export type NetworkLinkType = z.infer<typeof NetworkLinkTypeSchema>
 
 export const NetworkLinkEndpointKindSchema = z.enum([
-  "substrate",
+  "estate",
   "host",
-  "runtime",
+  "realm",
+  "service",
+  "workbench",
   "dns-domain",
   "ip-address",
   "route",
   "component-deployment",
+  "system-deployment",
 ])
 export type NetworkLinkEndpointKind = z.infer<
   typeof NetworkLinkEndpointKindSchema
@@ -520,42 +648,54 @@ export type NetworkLink = z.infer<typeof NetworkLinkSchema>
 
 // ── Input Schemas (CREATE / UPDATE) ────────────────────────
 
-export const CreateSubstrateSchema = z.object({
+export const CreateEstateSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
-  type: SubstrateTypeSchema,
-  parentSubstrateId: z.string().optional(),
-  spec: SubstrateSpecSchema.default({}),
+  type: EstateTypeSchema,
+  parentEstateId: z.string().optional(),
+  spec: EstateSpecSchema.default({}),
 })
-export const UpdateSubstrateSchema = CreateSubstrateSchema.partial()
+export const UpdateEstateSchema = CreateEstateSchema.partial()
 
 export const CreateHostSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: HostTypeSchema,
-  substrateId: z.string().optional(),
+  estateId: z.string().optional(),
   spec: HostSpecSchema,
 })
 export const UpdateHostSchema = CreateHostSchema.partial().extend({
   spec: HostSpecSchema.partial().optional(),
 })
 
-export const CreateRuntimeSchema = z.object({
+export const CreateRealmSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
-  type: RuntimeTypeSchema,
-  parentRuntimeId: z.string().optional(),
-  hostId: z.string().optional(),
-  spec: RuntimeSpecSchema.default({}),
+  type: RealmTypeSchema,
+  parentRealmId: z.string().optional(),
+  estateId: z.string().optional(),
+  workbenchId: z.string().optional(),
+  spec: RealmSpecSchema.default({}),
 })
-export const UpdateRuntimeSchema = CreateRuntimeSchema.partial()
+export const UpdateRealmSchema = CreateRealmSchema.partial()
+
+export const CreateServiceSchema = z.object({
+  slug: z.string().min(1).max(100),
+  name: z.string().min(1).max(200),
+  type: ServiceTypeSchema,
+  estateId: z.string().optional(),
+  realmId: z.string().optional(),
+  systemDeploymentId: z.string().optional(),
+  spec: ServiceSpecSchema.default({}),
+})
+export const UpdateServiceSchema = CreateServiceSchema.partial()
 
 export const CreateRouteSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: RouteTypeSchema,
   domain: z.string().min(1),
-  runtimeId: z.string().optional(),
+  realmId: z.string().optional(),
   spec: RouteSpecSchema,
 })
 export const UpdateRouteSchema = CreateRouteSchema.partial()
@@ -631,7 +771,7 @@ export const HostScanServiceSchema = z.object({
 })
 export type HostScanService = z.infer<typeof HostScanServiceSchema>
 
-export const HostScanRuntimeSchema = z.object({
+export const HostScanRealmSchema = z.object({
   type: z.enum([
     "docker-engine",
     "systemd",
@@ -642,7 +782,7 @@ export const HostScanRuntimeSchema = z.object({
   version: z.string().optional(),
   status: z.string().optional(),
 })
-export type HostScanRuntime = z.infer<typeof HostScanRuntimeSchema>
+export type HostScanRealm = z.infer<typeof HostScanRealmSchema>
 
 export const HostScanComposeProjectSchema = z.object({
   name: z.string(),
@@ -729,7 +869,7 @@ export const HostScanResultSchema = z.object({
   arch: ArchSchema.optional(),
   hostname: z.string().optional(),
   ipAddress: z.string().optional(),
-  runtimes: z.array(HostScanRuntimeSchema).default([]),
+  realms: z.array(HostScanRealmSchema).default([]),
   services: z.array(HostScanServiceSchema).default([]),
   ports: z.array(HostScanPortSchema).default([]),
   composeProjects: z.array(HostScanComposeProjectSchema).default([]),
@@ -766,6 +906,8 @@ export const NetworkCrawlHostEntrySchema = z.object({
   reachable: z.boolean(),
   error: z.string().optional(),
   resolvedServices: z.array(NetworkCrawlResolvedServiceSchema).default([]),
+  /** Full scan data from this host — used by --deep to submit scans for discovered hosts. Untyped to avoid circular ref with HostScanResult. */
+  scanResult: z.record(z.unknown()).optional(),
 })
 export type NetworkCrawlHostEntry = z.infer<typeof NetworkCrawlHostEntrySchema>
 

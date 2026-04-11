@@ -1,66 +1,64 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest"
+
 import {
-  getRuntimeStrategy,
-  registerRuntimeStrategy,
-  clearRuntimeStrategies,
-} from "../reconciler/runtime-strategy";
-import { NoopStrategy } from "../reconciler/strategies/noop";
-import { ComposeStrategy } from "../reconciler/strategies/compose";
-import { SystemdStrategy } from "../reconciler/strategies/systemd";
+  clearRealmStrategies,
+  getRealmStrategy,
+  registerRealmStrategy,
+} from "../reconciler/runtime-strategy"
+import { ComposeStrategy } from "../reconciler/strategies/compose"
+import { NoopStrategy } from "../reconciler/strategies/noop"
+import { SystemdStrategy } from "../reconciler/strategies/systemd"
 import {
-  WindowsServiceStrategy,
   IisStrategy,
-} from "../reconciler/strategies/windows";
+  WindowsServiceStrategy,
+} from "../reconciler/strategies/windows"
 
 describe("Runtime Strategy Registry", () => {
   beforeEach(() => {
-    clearRuntimeStrategies();
-    registerRuntimeStrategy("compose", () => new ComposeStrategy());
-    registerRuntimeStrategy("systemd", () => new SystemdStrategy());
-    registerRuntimeStrategy(
-      "windows_service",
-      () => new WindowsServiceStrategy()
-    );
-    registerRuntimeStrategy("iis", () => new IisStrategy());
-    registerRuntimeStrategy("process", () => new NoopStrategy());
-  });
+    clearRealmStrategies()
+    registerRealmStrategy("compose", () => new ComposeStrategy())
+    registerRealmStrategy("systemd", () => new SystemdStrategy())
+    registerRealmStrategy("windows_service", () => new WindowsServiceStrategy())
+    registerRealmStrategy("iis", () => new IisStrategy())
+    registerRealmStrategy("process", () => new NoopStrategy())
+  })
 
   it("returns compose strategy", () => {
-    const strategy = getRuntimeStrategy("compose");
-    expect(strategy.runtime).toBe("compose");
-  });
+    const strategy = getRealmStrategy("compose")
+    expect(strategy.runtime).toBe("compose")
+  })
 
   it("returns systemd strategy", () => {
-    const strategy = getRuntimeStrategy("systemd");
-    expect(strategy.runtime).toBe("systemd");
-  });
+    const strategy = getRealmStrategy("systemd")
+    expect(strategy.runtime).toBe("systemd")
+  })
 
   it("returns windows_service strategy", () => {
-    const strategy = getRuntimeStrategy("windows_service");
-    expect(strategy.runtime).toBe("windows_service");
-  });
+    const strategy = getRealmStrategy("windows_service")
+    expect(strategy.runtime).toBe("windows_service")
+  })
 
   it("returns iis strategy", () => {
-    const strategy = getRuntimeStrategy("iis");
-    expect(strategy.runtime).toBe("iis");
-  });
+    const strategy = getRealmStrategy("iis")
+    expect(strategy.runtime).toBe("iis")
+  })
 
   it("returns noop for process runtime", () => {
-    const strategy = getRuntimeStrategy("process");
-    expect(strategy.runtime).toBe("noop");
-  });
+    const strategy = getRealmStrategy("process")
+    expect(strategy.runtime).toBe("noop")
+  })
 
   it("throws for unknown runtime", () => {
-    expect(() => getRuntimeStrategy("unknown_runtime")).toThrow(
+    expect(() => getRealmStrategy("unknown_runtime")).toThrow(
       /No strategy for runtime: unknown_runtime/
-    );
-  });
-});
+    )
+  })
+})
 
 // v2: workload → componentDeployment, target → systemDeployment, module → system
 describe("NoopStrategy", () => {
   it("returns running for server component", async () => {
-    const strategy = new NoopStrategy();
+    const strategy = new NoopStrategy()
     const result = await strategy.reconcile({
       workload: {
         workloadId: "cdp_test",
@@ -90,14 +88,14 @@ describe("NoopStrategy", () => {
         namespace: null,
       },
       moduleName: "test-system",
-    });
+    })
 
-    expect(result.status).toBe("running");
-    expect(result.driftDetected).toBe(false);
-  });
+    expect(result.status).toBe("running")
+    expect(result.driftDetected).toBe(false)
+  })
 
   it("returns completed for task component", async () => {
-    const strategy = new NoopStrategy();
+    const strategy = new NoopStrategy()
     const result = await strategy.reconcile({
       workload: {
         workloadId: "cdp_test",
@@ -127,8 +125,8 @@ describe("NoopStrategy", () => {
         namespace: null,
       },
       moduleName: "test-system",
-    });
+    })
 
-    expect(result.status).toBe("completed");
-  });
-});
+    expect(result.status).toBe("completed")
+  })
+})

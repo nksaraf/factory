@@ -255,7 +255,7 @@ export class DevController {
 
   async start(
     component: string,
-    opts?: { port?: number }
+    opts?: { port?: number; env?: Record<string, string> }
   ): Promise<StartResult> {
     const resolved = this.resolveComponent(component)
 
@@ -305,6 +305,7 @@ export class DevController {
     const procEnv = {
       ...process.env,
       ...portEnv,
+      ...opts?.env,
       PORT: String(actualPort),
     }
 

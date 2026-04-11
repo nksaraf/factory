@@ -3,8 +3,8 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 
 import type { NetworkDeviceAdapter } from "../../adapters/network-device-adapter"
 import type { Database } from "../../db/connection"
-// v2: subnet → infra.substrate (type='subnet'), ip fields → spec JSONB
-import { ipAddress, substrate } from "../../db/schema/infra-v2"
+// v2: subnet → infra.estate (type='subnet'), ip fields → spec JSONB
+import { estate, ipAddress } from "../../db/schema/infra-v2"
 
 // hostname/purpose/assignedToType/assignedToId are now in IpAddressSpecSchema
 type IpAddressSpecStored = IpAddressSpec
@@ -61,7 +61,7 @@ type SubnetRow = {
   description?: string | null
 }
 
-function mapSubnetRow(row: typeof substrate.$inferSelect): SubnetRow {
+function mapSubnetRow(row: typeof estate.$inferSelect): SubnetRow {
   const spec = (row.spec ?? {}) as Record<string, unknown>
   return {
     subnetId: row.id,
@@ -91,7 +91,7 @@ export async function createSubnet(
   }
 ) {
   const [row] = await db
-    .insert(substrate)
+    .insert(estate)
     .values({
       slug: data.cidr.replace(/[^a-z0-9-]/g, "-"),
       name: data.cidr,
@@ -561,8 +561,8 @@ export async function importIps(
   ] as string[]
   const allSubnets = await db
     .select()
-    .from(substrate)
-    .where(eq(substrate.type, "subnet"))
+    .from(estate)
+    .where(eq(estate.type, "subnet"))
   const cidrToId = new Map(
     allSubnets.map((s) => {
       const spec = (s.spec ?? {}) as Record<string, unknown>
@@ -636,8 +636,8 @@ export async function exportIps(
 ): Promise<{ data: any[]; csv?: string }> {
   const allSubnets = await db
     .select()
-    .from(substrate)
-    .where(eq(substrate.type, "subnet"))
+    .from(estate)
+    .where(eq(estate.type, "subnet"))
   const idToCidr = new Map(
     allSubnets.map((s) => {
       const spec = (s.spec ?? {}) as Record<string, unknown>
@@ -755,10 +755,10 @@ export async function importFromDevice(
 
 export async function getSubnetTree(db: Database, subnetId?: string) {
   const conditions = subnetId
-    ? and(eq(substrate.type, "subnet"), eq(substrate.id, subnetId))
-    : eq(substrate.type, "subnet")
+    ? and(eq(estate.type, "subnet"), eq(estate.id, subnetId))
+    : eq(estate.type, "subnet")
 
-  const subnets = await db.select().from(substrate).where(conditions)
+  const subnets = await db.select().from(estate).where(conditions)
   const mapped = subnets.map(mapSubnetRow)
 
   const stats = await Promise.all(

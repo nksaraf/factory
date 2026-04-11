@@ -2,9 +2,9 @@
  * v2 Infra controller.
  *
  * Maps legacy infra routes to v2 ontology tables:
- *   /infra/substrates    → infra.substrate   (was /infra/providers + /infra/subnets + /infra/regions)
+ *   /infra/estates       → infra.estate      (was /infra/providers + /infra/subnets + /infra/regions)
  *   /infra/hosts         → infra.host        (was /infra/hosts + /infra/vms + /infra/kube-nodes)
- *   /infra/runtimes      → infra.runtime     (was /infra/clusters + /infra/vm-clusters)
+ *   /infra/realms        → infra.realm       (was /infra/clusters + /infra/vm-clusters)
  *   /infra/routes        → infra.route       (was /infra/gateway/routes)
  *   /infra/dns-domains   → infra.dns_domain  (was /infra/gateway/domains)
  *   /infra/tunnels       → infra.tunnel      (was /infra/gateway/tunnels)
@@ -24,35 +24,35 @@ import {
   RevokeSecretBody,
   ScanHostBody,
   SnapshotHostBody,
-  SyncSubstrateBody,
-  UpgradeRuntimeBody,
+  SyncEstateBody,
+  UpgradeRealmBody,
 } from "@smp/factory-shared/schemas/actions"
 import {
   CreateDnsDomainSchema,
+  CreateEstateSchema,
   CreateHostSchema,
   CreateIpAddressSchema,
   CreateNetworkLinkSchema,
+  CreateRealmSchema,
   CreateRouteSchema,
-  CreateRuntimeSchema,
   CreateSecretSchema,
-  CreateSubstrateSchema,
   CreateTunnelSchema,
   type DnsDomainSpec,
+  type EstateSpec,
   type HostSpec,
   type IpAddressSpec,
   NetworkLinkEndpointKindSchema,
+  type RealmSpec,
   type RouteSpec,
-  type RuntimeSpec,
   type SecretSpec,
-  type SubstrateSpec,
   UpdateDnsDomainSchema,
+  UpdateEstateSchema,
   UpdateHostSchema,
   UpdateIpAddressSchema,
   UpdateNetworkLinkSchema,
+  UpdateRealmSchema,
   UpdateRouteSchema,
-  UpdateRuntimeSchema,
   UpdateSecretSchema,
-  UpdateSubstrateSchema,
   UpdateTunnelSchema,
 } from "@smp/factory-shared/schemas/infra"
 import { and, eq, sql } from "drizzle-orm"
@@ -62,13 +62,14 @@ import { z } from "zod"
 import type { Database } from "../../db/connection"
 import {
   dnsDomain,
+  estate,
   host,
   ipAddress,
   networkLink,
+  realm,
+  realmHost,
   route,
-  runtime,
   secret,
-  substrate,
   tunnel,
 } from "../../db/schema/infra-v2"
 import { ontologyRoutes } from "../../lib/crud"
@@ -80,7 +81,12 @@ import {
 } from "../../lib/pagination"
 import { list, ok } from "../../lib/responses"
 import { drizzleDbReader, resolveRouteTargets } from "./route-resolver"
-import { drizzleGraphReader, traceFrom, validateEndpoints } from "./trace"
+import {
+  domainMatches,
+  drizzleGraphReader,
+  traceFrom,
+  validateEndpoints,
+} from "./trace"
 import { createTunnelHandlers } from "./tunnel-broker"
 
 const TraceBodySchema = z.object({
@@ -93,24 +99,24 @@ export function infraControllerV2(db: Database) {
   return (
     new Elysia({ prefix: "/infra" })
 
-      // ── Substrates ─────────────────────────────────────────
+      // ── Estates ─────────────────────────────────────────
       // Covers: providers, regions, datacenters, VPCs, subnets, hypervisors, racks
       .use(
         ontologyRoutes(db, {
           schema: "infra",
-          entity: "substrates",
-          singular: "substrate",
-          table: substrate,
-          slugColumn: substrate.slug,
-          idColumn: substrate.id,
-          createSchema: CreateSubstrateSchema,
-          updateSchema: UpdateSubstrateSchema,
+          entity: "estates",
+          singular: "estate",
+          table: estate,
+          slugColumn: estate.slug,
+          idColumn: estate.id,
+          createSchema: CreateEstateSchema,
+          updateSchema: UpdateEstateSchema,
           deletable: true,
           relations: {
             hosts: {
               path: "hosts",
               table: host,
-              fk: host.substrateId,
+              fk: host.estateId,
             },
             "ip-addresses": {
               path: "ip-addresses",
@@ -119,27 +125,27 @@ export function infraControllerV2(db: Database) {
             },
             children: {
               path: "children",
-              table: substrate,
-              fk: substrate.parentSubstrateId,
+              table: estate,
+              fk: estate.parentEstateId,
             },
           },
           actions: {
             sync: {
-              bodySchema: SyncSubstrateBody,
+              bodySchema: SyncEstateBody,
               handler: async ({ db, entity, body }) => {
                 const parsed = body as { force?: boolean }
-                const spec = entity.spec as SubstrateSpec
+                const spec = entity.spec as EstateSpec
                 const [row] = await db
-                  .update(substrate)
+                  .update(estate)
                   .set({
                     spec: {
                       ...spec,
                       lastSyncRequestedAt: new Date(),
                       forceSyncRequested: parsed.force ?? false,
-                    } as SubstrateSpec,
+                    } as EstateSpec,
                     updatedAt: new Date(),
                   })
-                  .where(eq(substrate.id, entity.id as string))
+                  .where(eq(estate.id, entity.id as string))
                   .returning()
                 return row
               },
@@ -176,10 +182,10 @@ export function infraControllerV2(db: Database) {
             },
           },
           relations: {
-            runtimes: {
-              path: "runtimes",
-              table: runtime,
-              fk: runtime.hostId,
+            realms: {
+              path: "realms",
+              table: realmHost,
+              fk: realmHost.hostId,
             },
           },
           actions: {
@@ -268,14 +274,14 @@ export function infraControllerV2(db: Database) {
               bodySchema: MigrateHostBody,
               handler: async ({ db, entity, body }) => {
                 const parsed = body as {
-                  targetSubstrateId: string
+                  targetEstateId: string
                   reason?: string
                 }
                 const spec = entity.spec as HostSpec
                 const [row] = await db
                   .update(host)
                   .set({
-                    substrateId: parsed.targetSubstrateId,
+                    estateId: parsed.targetEstateId,
                     spec: {
                       ...spec,
                       lastMigratedAt: new Date(),
@@ -299,7 +305,7 @@ export function infraControllerV2(db: Database) {
                     slug: parsed.slug,
                     name: parsed.name,
                     type: entity.type as string,
-                    substrateId: entity.substrateId as string | null,
+                    estateId: entity.estateId as string | null,
                     spec: { ...spec, clonedFrom: entity.id } as HostSpec,
                   })
                   .returning()
@@ -423,25 +429,25 @@ export function infraControllerV2(db: Database) {
         })
       )
 
-      // ── Runtimes ───────────────────────────────────────────
+      // ── Realms ───────────────────────────────────────────
       // Covers: k8s clusters (was /infra/clusters), namespaces, docker engines,
       //         compose projects, systemd, reverse proxies, VM clusters
       .use(
         ontologyRoutes(db, {
           schema: "infra",
-          entity: "runtimes",
-          singular: "runtime",
-          table: runtime,
-          slugColumn: runtime.slug,
-          idColumn: runtime.id,
-          createSchema: CreateRuntimeSchema,
-          updateSchema: UpdateRuntimeSchema,
+          entity: "realms",
+          singular: "realm",
+          table: realm,
+          slugColumn: realm.slug,
+          idColumn: realm.id,
+          createSchema: CreateRealmSchema,
+          updateSchema: UpdateRealmSchema,
           deletable: true,
           relations: {
             routes: {
               path: "routes",
               table: route,
-              fk: route.runtimeId,
+              fk: route.realmId,
             },
             outboundLinks: {
               path: "outbound-links",
@@ -455,21 +461,21 @@ export function infraControllerV2(db: Database) {
             },
             children: {
               path: "children",
-              table: runtime,
-              fk: runtime.parentRuntimeId,
+              table: realm,
+              fk: realm.parentRealmId,
             },
           },
           actions: {
             upgrade: {
-              bodySchema: UpgradeRuntimeBody,
+              bodySchema: UpgradeRealmBody,
               handler: async ({ db, entity, body }) => {
                 const parsed = body as {
                   targetVersion: string
                   strategy: string
                 }
-                const spec = entity.spec as RuntimeSpec
+                const spec = entity.spec as RealmSpec
                 const [row] = await db
-                  .update(runtime)
+                  .update(realm)
                   .set({
                     spec: {
                       ...spec,
@@ -477,10 +483,10 @@ export function infraControllerV2(db: Database) {
                       upgradeStrategy: parsed.strategy,
                       upgradeRequestedAt: new Date(),
                       status: "provisioning",
-                    } as RuntimeSpec,
+                    } as RealmSpec,
                     updatedAt: new Date(),
                   })
-                  .where(eq(runtime.id, entity.id as string))
+                  .where(eq(realm.id, entity.id as string))
                   .returning()
                 return row
               },
@@ -762,6 +768,72 @@ export function infraControllerV2(db: Database) {
         }
       )
 
+      // ── Domain trace ────────────────────────────────────
+      .get(
+        "/trace/domain",
+        async ({ query }) => {
+          const domain = query.domain
+          if (!domain) {
+            throw new ValidationError("domain query parameter is required")
+          }
+
+          // Narrow at SQL level: exact match OR wildcard routes that could match
+          // Extract the parent domain suffix for wildcard matching (e.g. "foo.bar.com" → ".bar.com")
+          const dotIdx = domain.indexOf(".")
+          const parentSuffix = dotIdx >= 0 ? domain.slice(dotIdx) : null
+
+          const candidates = await db
+            .select({
+              id: route.id,
+              slug: route.slug,
+              name: route.name,
+              domain: route.domain,
+              realmId: route.realmId,
+              spec: route.spec,
+            })
+            .from(route)
+            .where(
+              parentSuffix
+                ? sql`${route.domain} = ${domain} OR ${route.domain} = ${"*" + parentSuffix}`
+                : eq(route.domain, domain)
+            )
+
+          // Final in-memory check for edge cases (multi-level wildcards, etc.)
+          const matchingRoutes = candidates.filter((r) =>
+            domainMatches(r.domain, domain)
+          )
+
+          if (matchingRoutes.length === 0) {
+            throw new NotFoundError(`No routes found for domain: ${domain}`)
+          }
+
+          // Only include routes that have a realm to trace
+          const traceableRoutes = matchingRoutes.filter((r) => r.realmId)
+
+          const reader = drizzleGraphReader(db)
+          const traces = await Promise.all(
+            traceableRoutes.map(async (r) => {
+              const trace = await traceFrom(
+                reader,
+                "realm",
+                r.realmId!,
+                "outbound",
+                { matchDomain: domain }
+              )
+              return { route: r, trace }
+            })
+          )
+
+          return ok({ domain, routes: traceableRoutes, traces })
+        },
+        {
+          detail: {
+            tags: ["infra/trace"],
+            summary: "Trace network path for a domain",
+          },
+        }
+      )
+
       // ── IPAM: Allocate next available IP ─────────────────
       .post(
         "/ip-addresses/allocate",
@@ -914,15 +986,15 @@ export function infraControllerV2(db: Database) {
       .get(
         "/assets",
         async () => {
-          const [substrateCount] = await db
+          const [estateCount] = await db
             .select({ count: sql<number>`count(*)::int` })
-            .from(substrate)
+            .from(estate)
           const [hostCount] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(host)
-          const [runtimeCount] = await db
+          const [realmCount] = await db
             .select({ count: sql<number>`count(*)::int` })
-            .from(runtime)
+            .from(realm)
           const [routeCount] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(route)
@@ -940,9 +1012,9 @@ export function infraControllerV2(db: Database) {
             .from(networkLink)
 
           return ok({
-            substrates: substrateCount.count,
+            estates: estateCount.count,
             hosts: hostCount.count,
-            runtimes: runtimeCount.count,
+            realms: realmCount.count,
             routes: routeCount.count,
             tunnels: tunnelCount.count,
             ipAddresses: ipCount.count,

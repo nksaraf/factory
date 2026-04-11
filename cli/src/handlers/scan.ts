@@ -235,6 +235,7 @@ function detectArch(): "amd64" | "arm64" {
 async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
   const dryRun = !!(flags as any)["dry-run"] || !!(flags as any).dryRun
   const json = !!flags.json
+  const deep = !!(flags as any).deep
 
   // ── Step 1: Run collector ──────────────────────────────────
   let scanResult: ScanResult
@@ -405,6 +406,7 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
           runtime: string
         }
       }[]
+      scanResult?: Record<string, unknown>
     }[] = []
 
     for (const proxy of scanResult.reverseProxies) {
@@ -428,6 +430,10 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
               routerName: rs.routerName,
               service: rs.service,
             })),
+            // Preserve full scan data for --deep mode
+            scanResult: entry.scanResult
+              ? (entry.scanResult as unknown as Record<string, unknown>)
+              : undefined,
           })
         }
       }
@@ -559,9 +565,28 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
     return
   }
   try {
-    const reconciliation = await rest.infraAction("hosts", hostSlug, "scan", {
-      scanResult: finalResult,
+    // Strip full scanResult from crawl entries before sending — they're huge and
+    // only needed CLI-side for --deep. The API only needs IP/hostname/reachable/resolvedServices.
+    const apiPayload = { ...finalResult }
+    if (apiPayload.networkCrawl) {
+      apiPayload.networkCrawl = {
+        ...apiPayload.networkCrawl,
+        hostEntries: apiPayload.networkCrawl.hostEntries.map(
+          ({ scanResult: _sr, ...rest }) => rest
+        ),
+      }
+    }
+    if (!json) {
+      const payloadJson = JSON.stringify({ scanResult: apiPayload })
+      process.stderr.write(
+        `\n  Submitting scan (${(payloadJson.length / 1024).toFixed(0)}KB)...`
+      )
+    }
+    const response = await rest.infraAction("hosts", hostSlug, "scan", {
+      scanResult: apiPayload,
     })
+    // API returns { data: ReconciliationSummary, action: "scan" }
+    const reconciliation = (response as any)?.data ?? response
 
     if (json) {
       console.log(
@@ -580,10 +605,88 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
     } else {
       printReconciliationSummary(reconciliation as any)
     }
+
+    // ── Step 8: Deep scan — submit scans for discovered hosts ──
+    const recon = reconciliation as {
+      discoveredHosts?: {
+        hosts?: { slug: string; ip: string; reachable: boolean }[]
+      }
+    }
+    const discoveredReachable = (recon.discoveredHosts?.hosts ?? []).filter(
+      (h) => h.reachable
+    )
+
+    if (deep && discoveredReachable.length > 0) {
+      const crawlEntries =
+        finalResult.networkCrawl?.hostEntries ??
+        scanResult.networkCrawl?.hostEntries ??
+        []
+      const visited = new Set<string>([hostSlug])
+
+      if (!json) {
+        console.log(
+          styleBold(
+            `\n  Deep scan: ${discoveredReachable.length} reachable hosts to catalog`
+          )
+        )
+      }
+
+      for (const discovered of discoveredReachable) {
+        if (visited.has(discovered.slug)) continue
+        visited.add(discovered.slug)
+
+        // Find this host's full scan data from the crawl
+        const crawlEntry = crawlEntries.find((e) => e.ip === discovered.ip)
+        if (!crawlEntry?.scanResult) {
+          if (!json) {
+            console.log(
+              `    ${styleMuted(discovered.slug)} (${discovered.ip}) — no scan data, skipped`
+            )
+          }
+          continue
+        }
+
+        try {
+          if (!json)
+            process.stderr.write(`    ${discovered.slug} (${discovered.ip})...`)
+          const deepResponse = await rest.infraAction(
+            "hosts",
+            discovered.slug,
+            "scan",
+            { scanResult: crawlEntry.scanResult }
+          )
+          const deepRecon = ((deepResponse as any)?.data ??
+            deepResponse) as Record<string, unknown>
+          if (!json) {
+            const comp = deepRecon.components as {
+              created: number
+              updated: number
+            }
+            const rts = deepRecon.routes as {
+              created: number
+              updated: number
+            }
+            const compTotal = (comp?.created ?? 0) + (comp?.updated ?? 0)
+            const rteTotal = (rts?.created ?? 0) + (rts?.updated ?? 0)
+            console.log(
+              ` ${styleSuccess("✓")} ${compTotal} components, ${rteTotal} routes`
+            )
+          }
+        } catch (err) {
+          if (!json) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.log(` ${styleError("✗")} ${msg.slice(0, 80)}`)
+          }
+        }
+      }
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     exitWithError(flags, `Failed to submit scan: ${msg}`)
   }
+
+  // Force exit — SSH child processes from network crawl can keep the event loop alive
+  process.exit(0)
 }
 
 // ── Output formatting ───────────────────────────────────────
@@ -608,10 +711,10 @@ function printInfraScanSummary(result: ScanResult, hostSlug: string): void {
     console.log()
   }
 
-  // Runtimes
-  if (result.runtimes.length > 0) {
-    console.log(styleBold("  Runtimes"))
-    for (const rt of result.runtimes) {
+  // Realms
+  if (result.realms.length > 0) {
+    console.log(styleBold("  Realms"))
+    for (const rt of result.realms) {
       console.log(
         `    ${rt.type.padEnd(20)} ${styleMuted(rt.version ?? "")}  ${rt.status ?? ""}`
       )
@@ -721,16 +824,21 @@ function printInfraScanSummary(result: ScanResult, hostSlug: string): void {
 
 function printReconciliationSummary(recon: {
   systems?: { created: number; updated: number }
-  runtimes?: { created: number; updated: number }
+  realms?: { created: number; updated: number }
   components?: { created: number; updated: number; decommissioned: number }
   site?: { created: boolean; siteId: string }
   systemDeployments?: { created: number; updated: number }
   componentDeployments?: { created: number; updated: number }
   routes?: { created: number; updated: number; stale: number }
   networkLinks?: { created: number; updated: number; stale: number }
+  discoveredHosts?: {
+    created: number
+    existing: number
+    hosts: { slug: string; ip: string; reachable: boolean; created: boolean }[]
+  }
 }): void {
   const sys = recon.systems ?? { created: 0, updated: 0 }
-  const rt = recon.runtimes ?? { created: 0, updated: 0 }
+  const rt = recon.realms ?? { created: 0, updated: 0 }
   const cmp = recon.components ?? { created: 0, updated: 0, decommissioned: 0 }
   const sdp = recon.systemDeployments ?? { created: 0, updated: 0 }
   const cdp = recon.componentDeployments ?? { created: 0, updated: 0 }
@@ -761,7 +869,7 @@ function printReconciliationSummary(recon: {
   if (sys.created + sys.updated > 0)
     parts.push(`${sys.created + sys.updated} systems`)
   if (rt.created + rt.updated > 0)
-    parts.push(`${rt.created + rt.updated} runtimes`)
+    parts.push(`${rt.created + rt.updated} realms`)
   if (cmp.created + cmp.updated + cmp.decommissioned > 0) {
     parts.push(`${cmp.created + cmp.updated + cmp.decommissioned} components`)
   }
@@ -773,6 +881,13 @@ function printReconciliationSummary(recon: {
     parts.push(`${rte.created + rte.updated} routes`)
   if (lnk.created + lnk.updated > 0)
     parts.push(`${lnk.created + lnk.updated} links`)
+  const dh = recon.discoveredHosts ?? { created: 0, existing: 0, hosts: [] }
+  if (dh.hosts.length > 0) {
+    const reachable = dh.hosts.filter((h) => h.reachable).length
+    parts.push(
+      `${dh.hosts.length} discovered hosts (${dh.created} new, ${reachable} reachable)`
+    )
+  }
 
   const actions: string[] = []
   if (totalCreated > 0) actions.push(`${totalCreated} created`)

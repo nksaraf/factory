@@ -1,26 +1,10 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest"
 
 import {
   connectionProfileSchema,
   normalizeProfileEntry,
-  tierOverlaySchema,
   tunnelSpecSchema,
-} from "./connection-context-schemas";
-
-describe("tierOverlaySchema", () => {
-  test("parses valid tier overlay", () => {
-    const result = tierOverlaySchema.parse({
-      env: { DATABASE_URL: "postgresql://staging:5432/db", LOG_LEVEL: "debug" },
-    });
-    expect(result.env.DATABASE_URL).toBe("postgresql://staging:5432/db");
-    expect(result.env.LOG_LEVEL).toBe("debug");
-  });
-
-  test("defaults env to empty object", () => {
-    const result = tierOverlaySchema.parse({});
-    expect(result.env).toEqual({});
-  });
-});
+} from "./connection-context-schemas"
 
 describe("connectionProfileSchema", () => {
   test("parses shorthand string entries", () => {
@@ -30,10 +14,10 @@ describe("connectionProfileSchema", () => {
         postgres: "staging",
         redis: "staging",
       },
-    });
-    expect(result.connect.postgres).toBe("staging");
-    expect(result.connect.redis).toBe("staging");
-  });
+    })
+    expect(result.connect.postgres).toBe("staging")
+    expect(result.connect.redis).toBe("staging")
+  })
 
   test("parses object entries", () => {
     const result = connectionProfileSchema.parse({
@@ -41,14 +25,14 @@ describe("connectionProfileSchema", () => {
         postgres: { target: "production", readonly: true, backend: "kubectl" },
         auth: { target: "staging" },
       },
-    });
+    })
     expect(result.connect.postgres).toEqual({
       target: "production",
       readonly: true,
       backend: "kubectl",
-    });
-    expect(result.connect.auth).toEqual({ target: "staging" });
-  });
+    })
+    expect(result.connect.auth).toEqual({ target: "staging" })
+  })
 
   test("parses mixed shorthand and object entries", () => {
     const result = connectionProfileSchema.parse({
@@ -56,11 +40,11 @@ describe("connectionProfileSchema", () => {
         postgres: { target: "production", readonly: true },
         redis: "staging",
       },
-    });
-    expect(typeof result.connect.postgres).toBe("object");
-    expect(typeof result.connect.redis).toBe("string");
-  });
-});
+    })
+    expect(typeof result.connect.postgres).toBe("object")
+    expect(typeof result.connect.redis).toBe("string")
+  })
+})
 
 describe("tunnelSpecSchema", () => {
   test("parses full spec", () => {
@@ -72,10 +56,10 @@ describe("tunnelSpecSchema", () => {
       namespace: "data",
       backend: "kubectl",
       connectionString: "postgresql://dev:dev@localhost:15432/db",
-    });
-    expect(result.name).toBe("postgres");
-    expect(result.backend).toBe("kubectl");
-  });
+    })
+    expect(result.name).toBe("postgres")
+    expect(result.backend).toBe("kubectl")
+  })
 
   test("defaults backend to direct", () => {
     const result = tunnelSpecSchema.parse({
@@ -83,42 +67,42 @@ describe("tunnelSpecSchema", () => {
       localPort: 15432,
       remoteHost: "localhost",
       remotePort: 5432,
-    });
-    expect(result.backend).toBe("direct");
-    expect(result.namespace).toBeUndefined();
-    expect(result.connectionString).toBeUndefined();
-  });
-});
+    })
+    expect(result.backend).toBe("direct")
+    expect(result.namespace).toBeUndefined()
+    expect(result.connectionString).toBeUndefined()
+  })
+})
 
 describe("normalizeProfileEntry", () => {
   test("normalizes string shorthand", () => {
-    const result = normalizeProfileEntry("staging");
+    const result = normalizeProfileEntry("staging")
     expect(result).toEqual({
       target: "staging",
       readonly: false,
       backend: "direct",
-    });
-  });
+    })
+  })
 
   test("normalizes object with defaults", () => {
-    const result = normalizeProfileEntry({ target: "staging" });
+    const result = normalizeProfileEntry({ target: "staging" })
     expect(result).toEqual({
       target: "staging",
       readonly: false,
       backend: "direct",
-    });
-  });
+    })
+  })
 
   test("preserves explicit values", () => {
     const result = normalizeProfileEntry({
       target: "production",
       readonly: true,
       backend: "kubectl",
-    });
+    })
     expect(result).toEqual({
       target: "production",
       readonly: true,
       backend: "kubectl",
-    });
-  });
-});
+    })
+  })
+})

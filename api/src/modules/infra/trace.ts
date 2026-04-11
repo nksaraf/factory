@@ -9,12 +9,12 @@ import { and, eq } from "drizzle-orm"
 import type { Database } from "../../db/connection"
 import {
   dnsDomain,
+  estate,
   host,
   ipAddress,
   networkLink,
+  realm,
   route,
-  runtime,
-  substrate,
 } from "../../db/schema/infra-v2"
 import { componentDeployment } from "../../db/schema/ops"
 import { NotFoundError } from "../../lib/errors"
@@ -139,9 +139,9 @@ export async function traceFrom(
 // ── Drizzle implementation ───────────────────────────────────
 
 const ENTITY_TABLES: Record<string, { table: any; idCol: any }> = {
-  substrate: { table: substrate, idCol: substrate.id },
+  estate: { table: estate, idCol: estate.id },
   host: { table: host, idCol: host.id },
-  runtime: { table: runtime, idCol: runtime.id },
+  realm: { table: realm, idCol: realm.id },
   "ip-address": { table: ipAddress, idCol: ipAddress.id },
   "dns-domain": { table: dnsDomain, idCol: dnsDomain.id },
   route: { table: route, idCol: route.id },

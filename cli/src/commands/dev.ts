@@ -1,12 +1,41 @@
+import {
+  type DerivedOverride,
+  buildConnectionEndpoints,
+  deriveServiceEnvOverrides,
+  expandRemoteDeps,
+} from "@smp/factory-shared/compose-env-propagation"
+import type {
+  NormalizedProfileEntry,
+  ResolvedConnectionContext,
+} from "@smp/factory-shared/connection-context-schemas"
+import { normalizeProfileEntry } from "@smp/factory-shared/connection-context-schemas"
+import { loadConnectionProfile } from "@smp/factory-shared/connection-profile-loader"
+import { DependencyGraph } from "@smp/factory-shared/dependency-graph"
+import { resolveEnvVars } from "@smp/factory-shared/env-resolution"
 import { spawnSync } from "node:child_process"
-import { join } from "node:path"
+import { existsSync, unlinkSync, writeFileSync } from "node:fs"
+import { createConnection } from "node:net"
+import { basename, join } from "node:path"
 
 import { styleMuted } from "../cli-style.js"
 import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
+import {
+  COMPOSE_OVERRIDE_FILE,
+  cleanupConnectionContext,
+  readConnectionContext,
+  writeConnectionContext,
+} from "../lib/connection-context-file.js"
 import { DevController } from "../lib/dev-controller.js"
+import { Compose } from "../lib/docker.js"
 import { type ProjectContextData, resolveDxContext } from "../lib/dx-context.js"
 import { hooksHealthy, installHooks } from "../lib/hooks.js"
+import {
+  mergeConnectionSources,
+  parseConnectFlags,
+  parseConnectToFlag,
+  parseEnvFlags,
+} from "../lib/parse-connect-flags.js"
 import {
   PortManager,
   catalogToPortRequests,
@@ -18,6 +47,8 @@ import { toDxFlags } from "./dx-flags.js"
 setExamples("dev", [
   "$ dx dev                           Start all component dev servers",
   "$ dx dev factory-api               Start specific components",
+  "$ dx dev --connect-to production   Start with production deps",
+  "$ dx dev --profile production      Start with saved connection profile",
   "$ dx dev stop                      Stop all dev servers",
   "$ dx dev ps                        Show running dev servers",
 ])
@@ -42,6 +73,27 @@ export function devCommand(app: DxBase) {
         description: "Component names to start (all if omitted)",
       },
     ])
+    .flags({
+      "connect-to": {
+        type: "string" as const,
+        description: "Connect all deps to a deployment target",
+      },
+      connect: {
+        type: "string" as const,
+        short: "c",
+        description: "Selective connection: dep:target (repeatable)",
+      },
+      profile: {
+        type: "string" as const,
+        short: "p",
+        description: "Connection profile name",
+      },
+      env: {
+        type: "string" as const,
+        short: "e",
+        description: "Env var override: KEY=VALUE (repeatable)",
+      },
+    })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
 
@@ -83,6 +135,185 @@ export function devCommand(app: DxBase) {
         const envPath = join(project.rootDir, ".dx", "ports.env")
         portManager.writeEnvFile(allEnvVars, envPath)
 
+        // ── Active restore: clean up stale connection state ─────────
+        const hasConnectionFlags =
+          flags["connect-to"] || flags.connect || flags.profile
+
+        if (!hasConnectionFlags) {
+          restoreLocalState(project, envPath, !!f.quiet)
+        }
+
+        // ── Connection resolution (hybrid dev) ──────────────────────
+        let connectionCtx: ResolvedConnectionContext | null = null
+        let connectionEnv: Record<string, string> = {}
+        let profileName: string | undefined
+
+        if (hasConnectionFlags) {
+          // Resolve the profile name: --connect-to and --profile both load
+          // a named profile. --connect-to also overrides ALL deps to remote.
+          profileName =
+            (flags["connect-to"] as string | undefined) ??
+            (flags.profile as string | undefined)
+
+          // Load the profile (merged: connect entries + env vars)
+          const profile = profileName
+            ? loadConnectionProfile(project.rootDir, profileName)
+            : null
+
+          const profileEnv = profile?.env ?? {}
+
+          // Build connection overrides
+          let profileOverrides:
+            | Record<string, NormalizedProfileEntry>
+            | undefined
+          if (profile && Object.keys(profile.connect).length > 0) {
+            profileOverrides = {}
+            for (const [key, entry] of Object.entries(profile.connect)) {
+              profileOverrides[key] = normalizeProfileEntry(entry)
+            }
+          }
+
+          // --connect-to overrides ALL deps (not just those in the profile)
+          const connectToOverrides = flags["connect-to"]
+            ? parseConnectToFlag(flags["connect-to"] as string, project.catalog)
+            : undefined
+
+          const connectFlags = flags.connect
+            ? parseConnectFlags(
+                Array.isArray(flags.connect)
+                  ? flags.connect
+                  : [flags.connect as string]
+              )
+            : undefined
+
+          const overrides = mergeConnectionSources(
+            profileOverrides,
+            connectToOverrides,
+            connectFlags
+          )
+
+          // Parse --env flags (these win over everything)
+          const envFlags = flags.env
+            ? parseEnvFlags(
+                Array.isArray(flags.env) ? flags.env : [flags.env as string]
+              )
+            : undefined
+
+          // Profile env is the tier overlay (merged — no separate tier file)
+          const tierOverlay =
+            Object.keys(profileEnv).length > 0 ? profileEnv : undefined
+
+          connectionCtx = resolveEnvVars({
+            catalog: project.catalog,
+            tierOverlay,
+            connectionOverrides: overrides,
+            cliEnvFlags: envFlags,
+          })
+
+          // Flatten resolved env for passing to dev processes
+          connectionEnv = Object.fromEntries(
+            Object.entries(connectionCtx.envVars).map(([k, v]) => [k, v.value])
+          )
+
+          // ── Graph-based connection propagation ───────────────────
+          const graph = DependencyGraph.fromCatalog(project.catalog)
+          const endpoints = buildConnectionEndpoints(
+            overrides ?? {},
+            project.catalog
+          )
+          const explicitDeps = Object.keys(overrides ?? {}).filter((name) =>
+            endpoints.has(name)
+          )
+
+          // Expand transitive deps (auth → postgres)
+          const allRemoteDeps = expandRemoteDeps(
+            explicitDeps,
+            graph,
+            endpoints,
+            profileName ?? "remote"
+          )
+
+          // Derive env overrides for Docker services that depend on remote deps
+          const derivedOverrides = deriveServiceEnvOverrides(
+            project.catalog,
+            graph,
+            allRemoteDeps,
+            endpoints
+          )
+
+          // Stop remote deps' containers to free ports
+          const compose = new Compose(
+            project.composeFiles,
+            basename(project.rootDir),
+            envPath
+          )
+          if (allRemoteDeps.length > 0) {
+            if (!f.quiet) {
+              console.log(
+                `  Stopping remote dep containers: ${allRemoteDeps.join(", ")}`
+              )
+            }
+            compose.stop(allRemoteDeps)
+          }
+
+          // Write compose override and restart reconfigured services
+          const reconfiguredServices: string[] = []
+          if (derivedOverrides.length > 0) {
+            const overridesWithEnv = derivedOverrides.filter(
+              (d) => Object.keys(d.overrides).length > 0
+            )
+            reconfiguredServices.push(...overridesWithEnv.map((d) => d.service))
+
+            if (overridesWithEnv.length > 0) {
+              writeComposeOverride(project.rootDir, overridesWithEnv)
+
+              const overridePath = join(
+                project.rootDir,
+                ".dx",
+                COMPOSE_OVERRIDE_FILE
+              )
+              const overrideCompose = new Compose(
+                [...project.composeFiles, overridePath],
+                basename(project.rootDir),
+                envPath
+              )
+              overrideCompose.up({
+                detach: true,
+                noBuild: true,
+                services: reconfiguredServices,
+              })
+            }
+
+            // Print warnings
+            for (const d of derivedOverrides) {
+              for (const w of d.warnings) {
+                console.log(`  \u26A0 ${w}`)
+              }
+            }
+          }
+
+          // Write connection context with tracking info for active restore
+          writeConnectionContext(project.rootDir, connectionCtx, {
+            stoppedServices: allRemoteDeps,
+            reconfiguredServices,
+          })
+
+          // Print connection banner
+          printConnectionBanner(
+            connectionCtx,
+            profileName ?? "remote",
+            derivedOverrides,
+            allRemoteDeps
+          )
+
+          // Health-check remote direct connections before starting
+          if (connectionCtx.remoteDeps.length > 0) {
+            await checkRemoteHealth(connectionCtx, !!f.quiet)
+          }
+        }
+
+        // ── Start dev servers ───────────────────────────────────────
+
         // Only start components that declare a dev command or have a detectable runtime
         const devableComponents = Object.entries(project.catalog.components)
           .filter(([_, comp]) => comp.spec.dev?.command != null)
@@ -101,7 +332,12 @@ export function devCommand(app: DxBase) {
 
         for (const component of targets) {
           try {
-            const result = await ctrl.start(component)
+            const result = await ctrl.start(component, {
+              env:
+                Object.keys(connectionEnv).length > 0
+                  ? connectionEnv
+                  : undefined,
+            })
 
             if (result.alreadyRunning) {
               console.log(
@@ -296,4 +532,214 @@ export function devCommand(app: DxBase) {
           }
         })
     )
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function printConnectionBanner(
+  ctx: ResolvedConnectionContext,
+  target: string,
+  derivedOverrides: DerivedOverride[],
+  stoppedServices: string[]
+): void {
+  const label = target.toUpperCase()
+  const lines: string[] = []
+
+  lines.push(`  \u26A0  CONNECTING TO ${label}`)
+  lines.push("")
+
+  if (stoppedServices.length > 0) {
+    lines.push("  Stopped (remote) containers:")
+    for (const dep of stoppedServices) {
+      lines.push(`    ${dep} \u2192 ${target}`)
+    }
+    lines.push("")
+  }
+
+  const reconfigured = derivedOverrides.filter(
+    (d) => Object.keys(d.overrides).length > 0
+  )
+  if (reconfigured.length > 0) {
+    lines.push("  Reconfigured Docker services:")
+    for (const d of reconfigured) {
+      const vars = Object.keys(d.overrides).join(", ")
+      lines.push(`    ${d.service} \u2192 ${vars}`)
+    }
+    lines.push("")
+  }
+
+  if (ctx.localDeps.length > 0) {
+    lines.push("  Local dependencies:")
+    for (const dep of ctx.localDeps) {
+      lines.push(`    ${dep} \u2192 local Docker container`)
+    }
+    lines.push("")
+  }
+
+  // Key env vars that were overridden
+  const connectionVars = Object.entries(ctx.envVars).filter(
+    ([, v]) => v.source === "connection" || v.source === "tier"
+  )
+  if (connectionVars.length > 0) {
+    lines.push("  Resolved env vars:")
+    for (const [key, entry] of connectionVars) {
+      // Mask passwords in connection strings
+      const display = entry.value.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@")
+      lines.push(`    ${key}=${display}`)
+    }
+    lines.push("")
+  }
+
+  const maxLen = Math.max(...lines.map((l) => l.length), 60)
+  const border = "\u2550".repeat(maxLen + 2)
+
+  console.log("")
+  console.log(`  \u2554${border}\u2557`)
+  for (const line of lines) {
+    console.log(`  \u2551 ${line.padEnd(maxLen)} \u2551`)
+  }
+  console.log(`  \u255A${border}\u255D`)
+  console.log("")
+}
+
+/** TCP health check — resolve host:port from connection strings in env. */
+async function checkRemoteHealth(
+  ctx: ResolvedConnectionContext,
+  quiet: boolean
+): Promise<void> {
+  // Extract unique host:port pairs from connection-sourced env vars
+  const targets: { label: string; host: string; port: number }[] = []
+
+  for (const [key, entry] of Object.entries(ctx.envVars)) {
+    if (entry.source !== "connection" && entry.source !== "tier") continue
+
+    // Parse postgresql://...@host:port/... or http://host:port/...
+    const pgMatch = entry.value.match(/@([^:/]+):(\d+)/)
+    const httpMatch = entry.value.match(/\/\/([^:/]+):(\d+)/)
+    const match = pgMatch ?? httpMatch
+    if (!match) continue
+
+    const host = match[1]!
+    const port = parseInt(match[2]!, 10)
+    const already = targets.some((t) => t.host === host && t.port === port)
+    if (!already) {
+      targets.push({ label: key, host, port })
+    }
+  }
+
+  if (targets.length === 0) return
+  if (!quiet) console.log("  Checking remote connectivity...")
+
+  for (const { label, host, port } of targets) {
+    const ok = await tcpCheck(host, port, 3000)
+    if (!quiet) {
+      const status = ok ? "\u2713" : "\u2717 unreachable"
+      console.log(`    ${host}:${port} (${label}) ${status}`)
+    }
+    if (!ok) {
+      console.error(
+        `\n  Error: Cannot reach ${host}:${port} (${label}).` +
+          `\n  Check that the remote service is running and your network can reach it.\n`
+      )
+      process.exit(1)
+    }
+  }
+  if (!quiet) console.log("")
+}
+
+function tcpCheck(
+  host: string,
+  port: number,
+  timeoutMs: number
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host, port, timeout: timeoutMs })
+    socket.on("connect", () => {
+      socket.destroy()
+      resolve(true)
+    })
+    socket.on("error", () => {
+      socket.destroy()
+      resolve(false)
+    })
+    socket.on("timeout", () => {
+      socket.destroy()
+      resolve(false)
+    })
+  })
+}
+
+/** Write a docker-compose override file from derived env overrides. */
+function writeComposeOverride(
+  rootDir: string,
+  derivedOverrides: DerivedOverride[]
+): void {
+  const overridePath = join(rootDir, ".dx", COMPOSE_OVERRIDE_FILE)
+  const lines: string[] = ["services:"]
+  for (const d of derivedOverrides) {
+    if (Object.keys(d.overrides).length === 0) continue
+    lines.push(`  ${d.service}:`)
+    lines.push(`    environment:`)
+    for (const [key, val] of Object.entries(d.overrides)) {
+      // Escape quotes and use double-quoted YAML strings for safety
+      const escaped = val.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+      lines.push(`      ${key}: "${escaped}"`)
+    }
+  }
+  writeFileSync(overridePath, lines.join("\n") + "\n")
+}
+
+/**
+ * Active restore: detect stale connection context from a previous --connect-to
+ * session. Restart stopped + reconfigured services with local config, then
+ * clean up the override file and context.
+ */
+function restoreLocalState(
+  project: ProjectContextData,
+  envPath: string,
+  quiet: boolean
+): void {
+  const prevCtx = readConnectionContext(project.rootDir)
+  if (!prevCtx) return
+
+  const stopped = prevCtx.stoppedServices ?? []
+  const reconfigured = prevCtx.reconfiguredServices ?? []
+  if (stopped.length === 0 && reconfigured.length === 0) {
+    // Old-style context without tracking — just clean up
+    cleanupConnectionContext(project.rootDir)
+    return
+  }
+
+  if (!quiet) {
+    console.log("  Restoring local state from previous connection session...")
+  }
+
+  // Remove the override file first so compose uses local config
+  const overridePath = join(project.rootDir, ".dx", COMPOSE_OVERRIDE_FILE)
+  if (existsSync(overridePath)) {
+    unlinkSync(overridePath)
+  }
+
+  // Restart all affected services (stopped + reconfigured) with local config
+  const allAffected = [...new Set([...stopped, ...reconfigured])]
+  if (allAffected.length > 0) {
+    const compose = new Compose(
+      project.composeFiles,
+      basename(project.rootDir),
+      envPath
+    )
+    compose.up({
+      detach: true,
+      noBuild: true,
+      services: allAffected,
+    })
+
+    if (!quiet) {
+      console.log(
+        `  Restored ${allAffected.length} service(s) to local config: ${allAffected.join(", ")}`
+      )
+    }
+  }
+
+  cleanupConnectionContext(project.rootDir)
 }

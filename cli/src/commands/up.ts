@@ -1,7 +1,12 @@
+import { existsSync, unlinkSync } from "node:fs"
 import { basename, join } from "node:path"
 
 import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
+import {
+  COMPOSE_OVERRIDE_FILE,
+  cleanupConnectionContext,
+} from "../lib/connection-context-file.js"
 import { Compose, isDockerRunning } from "../lib/docker.js"
 import { resolveDxContext } from "../lib/dx-context.js"
 import {
@@ -68,6 +73,13 @@ export function upCommand(app: DxBase) {
         }
         const envPath = join(project.rootDir, ".dx", "ports.env")
         portManager.writeEnvFile(allEnvVars, envPath)
+
+        // Clean up stale connection override from a previous dx dev --connect-to session
+        const overridePath = join(project.rootDir, ".dx", COMPOSE_OVERRIDE_FILE)
+        if (existsSync(overridePath)) {
+          unlinkSync(overridePath)
+        }
+        cleanupConnectionContext(project.rootDir)
 
         const knownProfiles = new Set(project.allProfiles)
         const targets = args.targets ?? []

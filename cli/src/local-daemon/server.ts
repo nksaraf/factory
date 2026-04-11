@@ -9,22 +9,21 @@
  * - Gateway proxy on port 9090
  * - No auth middleware
  */
-
-import { existsSync, mkdirSync, writeFileSync, unlinkSync } from "node:fs"
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 
 // Import directly from api source to avoid pnpm symlink module duplication
 // (symlink-resolved modules can get different Drizzle table references)
 import {
+  KubeClientImpl,
+  Reconciler,
+  createLocalApp,
   createPgliteDb,
+  getTunnelStreamManager,
   migrateWithPglite,
   seedLocalInfra,
-  createLocalApp,
   startGateway,
-  Reconciler,
-  KubeClientImpl,
-  getTunnelStreamManager,
 } from "../../../api/src/factory-core"
 
 const API_PORT = 4100
@@ -60,7 +59,8 @@ async function main() {
 
   mkdirSync(PGLITE_DIR, { recursive: true })
 
-  const migrationsDir = process.env.FACTORY_MIGRATIONS_DIR ?? findMigrationsDir()
+  const migrationsDir =
+    process.env.FACTORY_MIGRATIONS_DIR ?? findMigrationsDir()
 
   console.log(`[local-factory] PGlite data: ${PGLITE_DIR}`)
   console.log(`[local-factory] Migrations: ${migrationsDir}`)
@@ -72,10 +72,12 @@ async function main() {
   // Graceful shutdown: close PGlite cleanly to flush WAL and avoid corruption
   function shutdown() {
     console.log("[local-factory] Shutting down...")
-    try { unlinkSync(PID_FILE) } catch {}
+    try {
+      unlinkSync(PID_FILE)
+    } catch {}
     client.close().then(
       () => process.exit(0),
-      () => process.exit(1),
+      () => process.exit(1)
     )
     // Force exit after 5s if close hangs
     setTimeout(() => process.exit(1), 5000).unref()
@@ -87,8 +89,8 @@ async function main() {
   const kubeClient = new KubeClientImpl()
   const reconciler = new Reconciler(db, kubeClient)
 
-  // Seed local substrate + anonymous principal (idempotent).
-  // NOTE: Runtime (cluster) registration is handled by `dx setup --role factory`,
+  // Seed local estate + anonymous principal (idempotent).
+  // NOTE: Realm (cluster) registration is handled by `dx setup --role factory`,
   // NOT by daemon startup. The daemon trusts that setup was run first.
   await seedLocalInfra(db, {})
 
@@ -107,7 +109,9 @@ async function main() {
   // see routes created by the reconciler and API.
   try {
     startGateway({ db, port: GATEWAY_PORT, getTunnelStreamManager })
-    console.log(`[local-factory] Gateway proxy listening on port ${GATEWAY_PORT}`)
+    console.log(
+      `[local-factory] Gateway proxy listening on port ${GATEWAY_PORT}`
+    )
   } catch (err) {
     console.warn(`[local-factory] Gateway proxy failed to start: ${err}`)
   }

@@ -2,14 +2,14 @@
  * Periodic Proxmox inventory sync loop
  * Syncs all active Proxmox hypervisor substrates on a timer + on startup
  */
+import { and, eq, sql } from "drizzle-orm"
 
-import { eq, and, sql } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { substrate } from "../../db/schema/infra-v2";
-import { getVMProviderAdapter } from "../../adapters/adapter-registry";
-import { createOperationRunner, type OperationRunner } from "../operations";
+import { getVMProviderAdapter } from "../../adapters/adapter-registry"
+import type { Database } from "../../db/connection"
+import { estate } from "../../db/schema/infra-v2"
+import { type OperationRunner, createOperationRunner } from "../operations"
 
-const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
 /**
  * Start the periodic Proxmox sync loop.
@@ -17,7 +17,7 @@ const DEFAULT_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
  */
 export function startProxmoxSyncLoop(
   db: Database,
-  opts?: { intervalMs?: number },
+  opts?: { intervalMs?: number }
 ): OperationRunner {
   return createOperationRunner(db, {
     name: "proxmox",
@@ -25,36 +25,49 @@ export function startProxmoxSyncLoop(
     async execute(log) {
       const hypervisors = await db
         .select()
-        .from(substrate)
+        .from(estate)
         .where(
           and(
-            eq(substrate.type, "hypervisor"),
-            sql`${substrate.spec}->>'providerKind' = 'proxmox'`,
-            sql`${substrate.spec}->>'lifecycle' = 'active'`,
-          ),
-        );
+            eq(estate.type, "hypervisor"),
+            sql`${estate.spec}->>'providerKind' = 'proxmox'`,
+            sql`${estate.spec}->>'lifecycle' = 'active'`
+          )
+        )
 
-      if (hypervisors.length === 0) return { hypervisors: 0, hostsDiscovered: 0, vmsDiscovered: 0 };
+      if (hypervisors.length === 0)
+        return { hypervisors: 0, hostsDiscovered: 0, vmsDiscovered: 0 }
 
-      const adapter = getVMProviderAdapter("proxmox", db);
-      let totalHosts = 0;
-      let totalVms = 0;
+      const adapter = getVMProviderAdapter("proxmox", db)
+      let totalHosts = 0
+      let totalVms = 0
 
       for (const hyp of hypervisors) {
         try {
-          const result = await adapter.syncInventory(hyp);
+          const result = await adapter.syncInventory(hyp)
           log.info(
-            { substrateId: hyp.id, name: hyp.name, hosts: result.hostsDiscovered, vms: result.vmsDiscovered },
-            "Proxmox hypervisor sync complete",
-          );
-          totalHosts += result.hostsDiscovered;
-          totalVms += result.vmsDiscovered;
+            {
+              estateId: hyp.id,
+              name: hyp.name,
+              hosts: result.hostsDiscovered,
+              vms: result.vmsDiscovered,
+            },
+            "Proxmox hypervisor sync complete"
+          )
+          totalHosts += result.hostsDiscovered
+          totalVms += result.vmsDiscovered
         } catch (err) {
-          log.error({ err, substrateId: hyp.id, name: hyp.name }, "Proxmox hypervisor sync failed");
+          log.error(
+            { err, estateId: hyp.id, name: hyp.name },
+            "Proxmox hypervisor sync failed"
+          )
         }
       }
 
-      return { hypervisors: hypervisors.length, hostsDiscovered: totalHosts, vmsDiscovered: totalVms };
+      return {
+        hypervisors: hypervisors.length,
+        hostsDiscovered: totalHosts,
+        vmsDiscovered: totalVms,
+      }
     },
-  });
+  })
 }

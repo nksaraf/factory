@@ -87,14 +87,14 @@ export const MACOS_COLLECTOR_SCRIPT =
   '  add_collector "ports" "ok" "" "0"\n' +
   "fi\n" +
   "\n" +
-  "# -- Runtimes --\n" +
-  'RUNTIMES="[]"\n' +
+  "# -- Realms --\n" +
+  'REALMS="[]"\n' +
   "\n" +
   "# Docker\n" +
   "if command -v docker >/dev/null 2>&1; then\n" +
   "  DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '')\n" +
   '  if [ -n "$DOCKER_VERSION" ]; then\n' +
-  '    RUNTIMES=\'[{"type":"docker-engine","version":"\'"$DOCKER_VERSION"\'","status":"running"}]\'\n' +
+  '    REALMS=\'[{"type":"docker-engine","version":"\'"$DOCKER_VERSION"\'","status":"running"}]\'\n' +
   '    add_collector "docker" "ok" ""\n' +
   "  else\n" +
   '    add_collector "docker" "failed" "docker daemon not reachable"\n' +
@@ -108,10 +108,10 @@ export const MACOS_COLLECTOR_SCRIPT =
   "  BREW_VERSION=$(brew --version 2>/dev/null | head -1 | sed 's/Homebrew //' || echo '')\n" +
   '  if [ -n "$BREW_VERSION" ]; then\n' +
   '    entry=\'{"type":"process","version":"\'"$BREW_VERSION"\'","status":"running"}\'\n' +
-  '    if [ "$RUNTIMES" = "[]" ]; then\n' +
-  '      RUNTIMES="[$entry]"\n' +
+  '    if [ "$REALMS" = "[]" ]; then\n' +
+  '      REALMS="[$entry]"\n' +
   "    else\n" +
-  '      RUNTIMES="${RUNTIMES%]},$entry]"\n' +
+  '      REALMS="${REALMS%]},$entry]"\n' +
   "    fi\n" +
   '    add_collector "homebrew" "ok" ""\n' +
   "  fi\n" +
@@ -148,7 +148,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   "            stderr=subprocess.DEVNULL, timeout=10\n" +
   "        ).decode()\n" +
   "        containers = []\n" +
-  "        for line in ps_out.strip().split('\\n'):\n" +
+  "        for line in ps_out.strip().splitlines():\n" +
   "            if not line.strip(): continue\n" +
   "            try:\n" +
   "                c = json.loads(line)\n" +
@@ -254,7 +254,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   "    else\n" +
   '      SERVICES=$(printf \'%s\\n%s\' "$SERVICES" "$PROC_SVCS" | python3 -c "\n' +
   "import json, sys\n" +
-  "lines = sys.stdin.read().strip().split('\\n')\n" +
+  "lines = sys.stdin.read().strip().splitlines()\n" +
   "a = json.loads(lines[0])\n" +
   "b = json.loads(lines[1])\n" +
   "print(json.dumps(a + b))\n" +
@@ -273,7 +273,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   '  "arch": "$ARCH_JSON",\n' +
   '  "hostname": "$HOSTNAME_VAL",\n' +
   '  "ipAddress": "$IP_ADDR",\n' +
-  '  "runtimes": $RUNTIMES,\n' +
+  '  "realms": $REALMS,\n' +
   '  "services": $SERVICES,\n' +
   '  "ports": $PORTS,\n' +
   '  "composeProjects": $COMPOSE_PROJECTS,\n' +

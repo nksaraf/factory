@@ -1,11 +1,11 @@
 import { getFactoryClient } from "../../client.js"
-import { usePoll, unwrap } from "./use-poll.js"
+import { unwrap, usePoll } from "./use-poll.js"
 
-export function useSubstrates() {
+export function useEstates() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.infra.substrates.get()
+      const res = await api.api.v1.factory.infra.estates.get()
       return unwrap(res)
     },
     [],
@@ -13,11 +13,11 @@ export function useSubstrates() {
   )
 }
 
-export function useRuntimes() {
+export function useRealms() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.infra.runtimes.get()
+      const res = await api.api.v1.factory.infra.realms.get()
       return unwrap(res)
     },
     [],
@@ -77,7 +77,9 @@ export function useDomains() {
   return usePoll(
     async () => {
       const api = await getFactoryClient()
-      const res = await api.api.v1.factory.infra["dns-domains"].get({ query: {} })
+      const res = await api.api.v1.factory.infra["dns-domains"].get({
+        query: {},
+      })
       return unwrap(res)
     },
     [],

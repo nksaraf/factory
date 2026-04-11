@@ -1,165 +1,250 @@
 import { defineConfig } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
-import fs from "node:fs";
-import path from "node:path";
-
-const docsRoot = path.resolve(__dirname, "..");
-
-function readModeFromFile(filePath: string): string | undefined {
-  try {
-    const content = fs.readFileSync(filePath, "utf-8");
-    const match = content.match(/^---([\s\S]*?)---/m);
-    if (!match) return undefined;
-
-    const frontmatter = match[1];
-    const modeMatch = frontmatter.match(/^\s*mode:\s*([a-zA-Z0-9_-]+)/m);
-    return modeMatch ? modeMatch[1].toLowerCase() : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function buildModeGroupedSidebar(dir: string, basePath: string = "/"): any[] {
-  const entries = fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter(
-      (e) => e.isFile() && e.name.endsWith(".md") && e.name !== "index.md"
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const modeOrder = [
-    "general",
-    "strategy",
-    "operations",
-    "performance",
-    "other",
-  ];
-  const modeLabels: Record<string, string> = {
-    strategy: "Strategy",
-    operations: "Operations",
-    performance: "Performance",
-    other: "Other",
-    general: "General",
-  };
-
-  const grouped: Record<string, any[]> = {};
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    const relativePath = path.join(basePath, entry.name);
-    const rawMode = readModeFromFile(fullPath) ?? "other";
-    const mode = modeOrder.includes(rawMode) ? rawMode : "other";
-
-    const link = relativePath.replace(/\.md$/, "");
-    const item = {
-      text: titleFromFilename(entry.name),
-      link: "/" + link.replace(/^\//, ""),
-    };
-
-    if (!grouped[mode]) {
-      grouped[mode] = [];
-    }
-    grouped[mode].push(item);
-  }
-
-  const result: any[] = [];
-  for (const key of modeOrder) {
-    const items = grouped[key];
-    if (!items || items.length === 0) continue;
-    result.push({
-      text: modeLabels[key],
-      collapsed: true,
-      items,
-    });
-  }
-
-  return result;
-}
-
-function titleFromFilename(filename: string): string {
-  return filename
-    .replace(/\.md$/, "")
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/\b(Blueprints?|Requirements?)\b/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .replace(/README/i, "Overview");
-}
-
-function buildSidebarGroup(dir: string, basePath: string = "/"): any[] {
-  const basename = path.basename(dir);
-  if (
-    basename === "feature-requirements" ||
-    basename === "feature-blueprints"
-  ) {
-    return buildModeGroupedSidebar(dir, basePath);
-  }
-
-  const entries = fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter((e) => !e.name.startsWith(".") && e.name !== "node_modules")
-    .sort((a, b) => {
-      if (a.name === "README.md") return -1;
-      if (b.name === "README.md") return 1;
-      const aIsDir = a.isDirectory() ? 0 : 1;
-      const bIsDir = b.isDirectory() ? 0 : 1;
-      if (aIsDir !== bIsDir) return aIsDir - bIsDir;
-      return a.name.localeCompare(b.name);
-    });
-
-  const items: any[] = [];
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    const relativePath = path.join(basePath, entry.name);
-
-    if (entry.isDirectory()) {
-      const children = buildSidebarGroup(fullPath, relativePath);
-      if (children.length > 0) {
-        items.push({
-          text: titleFromFilename(entry.name),
-          collapsed: true,
-          items: children,
-        });
-      }
-    } else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
-      const link = relativePath.replace(/\.md$/, "");
-      items.push({
-        text: titleFromFilename(entry.name),
-        link: "/" + link.replace(/^\//, ""),
-      });
-    }
-  }
-
-  return items;
-}
-
-const sidebar = buildSidebarGroup(docsRoot);
 
 export default withMermaid(
   defineConfig({
-    title: "Smart Market Platform",
-    description: "Product & engineering documentation for Smart Market",
+    title: "Factory",
+    description: "Developer documentation for the Factory platform",
     ignoreDeadLinks: true,
-    srcExclude: ["**/node_modules/**"],
+    srcExclude: [
+      "**/node_modules/**",
+      "control-plane/**",
+      "foundation-blueprints/**",
+      "superpowers/**",
+      "software-factory/**",
+      "reference/**",
+    ],
 
     themeConfig: {
       nav: [
-        { text: "Product", link: "/product-overview/product-description" },
-        {
-          text: "Features",
-          link: "/feature-requirements/ai-data-analyst-assistant-requirements",
-        },
-        {
-          text: "Blueprints",
-          link: "/feature-blueprints/ai-data-analyst-assistant-blueprint",
-        },
+        { text: "Getting Started", link: "/getting-started/what-is-factory" },
+        { text: "Concepts", link: "/concepts/" },
+        { text: "Guides", link: "/guides/" },
+        { text: "CLI Reference", link: "/cli/" },
         { text: "API", link: "/api/" },
-        { text: "Services", link: "/services/platform/" },
+        { text: "Architecture", link: "/architecture/" },
       ],
 
-      sidebar,
+      sidebar: {
+        "/getting-started/": [
+          {
+            text: "Getting Started",
+            items: [
+              {
+                text: "What is Factory?",
+                link: "/getting-started/what-is-factory",
+              },
+              {
+                text: "Installation",
+                link: "/getting-started/installation",
+              },
+              { text: "Quickstart", link: "/getting-started/quickstart" },
+              {
+                text: "Core Workflow",
+                link: "/getting-started/core-workflow",
+              },
+              {
+                text: "Project Structure",
+                link: "/getting-started/project-structure",
+              },
+            ],
+          },
+        ],
+
+        "/concepts/": [
+          {
+            text: "Mental Model",
+            items: [
+              { text: "Overview", link: "/concepts/" },
+              {
+                text: "Domains",
+                collapsed: false,
+                items: [
+                  {
+                    text: "org — Actors & Identity",
+                    link: "/concepts/org",
+                  },
+                  {
+                    text: "software — What Gets Built",
+                    link: "/concepts/software",
+                  },
+                  {
+                    text: "infra — Where Things Run",
+                    link: "/concepts/infra",
+                  },
+                  {
+                    text: "ops — What Is Running",
+                    link: "/concepts/ops",
+                  },
+                  {
+                    text: "build — How It Ships",
+                    link: "/concepts/build",
+                  },
+                  {
+                    text: "commerce — Who Pays",
+                    link: "/concepts/commerce",
+                  },
+                ],
+              },
+              {
+                text: "Entity Relationships",
+                link: "/concepts/relationships",
+              },
+              { text: "Glossary", link: "/concepts/glossary" },
+            ],
+          },
+        ],
+
+        "/guides/": [
+          {
+            text: "Development",
+            items: [
+              {
+                text: "Local Development",
+                link: "/guides/local-development",
+              },
+              { text: "Testing", link: "/guides/testing" },
+              {
+                text: "Linting & Quality",
+                link: "/guides/linting-and-quality",
+              },
+              {
+                text: "Database Workflows",
+                link: "/guides/database-workflows",
+              },
+            ],
+          },
+          {
+            text: "Shipping",
+            items: [
+              { text: "New Project", link: "/guides/new-project" },
+              { text: "Existing Project", link: "/guides/existing-project" },
+              { text: "Deploying", link: "/guides/deploying" },
+              { text: "Previews", link: "/guides/previews" },
+              { text: "Releases", link: "/guides/releases" },
+            ],
+          },
+          {
+            text: "Infrastructure",
+            items: [
+              {
+                text: "Managing Infrastructure",
+                link: "/guides/infrastructure",
+              },
+              {
+                text: "Secrets & Config",
+                link: "/guides/secrets-and-config",
+              },
+            ],
+          },
+          {
+            text: "Platform",
+            items: [
+              { text: "Software Catalog", link: "/guides/catalog" },
+              { text: "AI Agents", link: "/guides/agents" },
+            ],
+          },
+        ],
+
+        "/cli/": [
+          {
+            text: "CLI Reference",
+            items: [{ text: "Overview", link: "/cli/" }],
+          },
+          {
+            text: "Inner Loop",
+            collapsed: false,
+            items: [
+              { text: "dx up", link: "/cli/up" },
+              { text: "dx dev", link: "/cli/dev" },
+              { text: "dx down", link: "/cli/down" },
+              { text: "dx status", link: "/cli/status" },
+              { text: "dx test", link: "/cli/test" },
+              { text: "dx lint", link: "/cli/lint" },
+              { text: "dx check", link: "/cli/check" },
+              { text: "dx logs", link: "/cli/logs" },
+              { text: "dx exec", link: "/cli/exec" },
+            ],
+          },
+          {
+            text: "Shipping",
+            collapsed: false,
+            items: [
+              { text: "dx deploy", link: "/cli/deploy" },
+              { text: "dx preview", link: "/cli/preview" },
+              { text: "dx release", link: "/cli/release" },
+            ],
+          },
+          {
+            text: "Infrastructure",
+            collapsed: false,
+            items: [
+              { text: "dx infra", link: "/cli/infra" },
+              { text: "dx fleet", link: "/cli/fleet" },
+              { text: "dx ssh", link: "/cli/ssh" },
+              { text: "dx tunnel", link: "/cli/tunnel" },
+              { text: "dx scan", link: "/cli/scan" },
+              { text: "dx cluster", link: "/cli/cluster" },
+            ],
+          },
+          {
+            text: "Data & Config",
+            collapsed: false,
+            items: [
+              { text: "dx db", link: "/cli/db" },
+              { text: "dx env", link: "/cli/env" },
+            ],
+          },
+          {
+            text: "Catalog & Project",
+            collapsed: false,
+            items: [
+              { text: "dx catalog", link: "/cli/catalog" },
+              { text: "dx open", link: "/cli/open" },
+              { text: "dx route", link: "/cli/route" },
+              { text: "dx workspace", link: "/cli/workspace" },
+            ],
+          },
+        ],
+
+        "/api/": [
+          {
+            text: "API Reference",
+            items: [
+              { text: "Overview", link: "/api/" },
+              { text: "org", link: "/api/org" },
+              { text: "software", link: "/api/software" },
+              { text: "infra", link: "/api/infra" },
+              { text: "ops", link: "/api/ops" },
+              { text: "build", link: "/api/build" },
+              { text: "commerce", link: "/api/commerce" },
+            ],
+          },
+        ],
+
+        "/architecture/": [
+          {
+            text: "Architecture",
+            items: [
+              { text: "Overview", link: "/architecture/" },
+              { text: "Schema Design", link: "/architecture/schemas" },
+              {
+                text: "Catalog System",
+                link: "/architecture/catalog-system",
+              },
+              { text: "Reconciler", link: "/architecture/reconciler" },
+              {
+                text: "Connection Contexts",
+                link: "/architecture/connection-contexts",
+              },
+              {
+                text: "Deployment Model",
+                link: "/architecture/deployment-model",
+              },
+            ],
+          },
+        ],
+      },
 
       search: {
         provider: "local",

@@ -10,7 +10,7 @@
  * Timestamps are stored as text (ISO strings).
  * Bigints are stored as text.
  */
-import { column, Schema, Table } from "@powersync/web"
+import { Schema, Table, column } from "@powersync/web"
 
 // ---------------------------------------------------------------------------
 // Fleet domain (factory_fleet)
@@ -31,7 +31,7 @@ const deployment_target = new Table({
   name: column.text,
   slug: column.text,
   kind: column.text,
-  runtime: column.text,
+  realm: column.text,
   host_id: column.text,
   vm_id: column.text,
   site_id: column.text,
@@ -100,7 +100,7 @@ const sandbox = new Table({
   deployment_target_id: column.text,
   name: column.text,
   slug: column.text,
-  runtime_type: column.text,
+  realm_type: column.text,
   vm_id: column.text,
   pod_name: column.text,
   devcontainer_config: column.text,
@@ -125,7 +125,7 @@ const sandbox = new Table({
 const sandbox_template = new Table({
   name: column.text,
   slug: column.text,
-  runtime_type: column.text,
+  realm_type: column.text,
   image: column.text,
   default_cpu: column.text,
   default_memory: column.text,
@@ -143,7 +143,7 @@ const sandbox_snapshot = new Table({
   sandbox_id: column.text,
   name: column.text,
   description: column.text,
-  runtime_type: column.text,
+  realm_type: column.text,
   volume_snapshot_name: column.text,
   image_ref: column.text,
   proxmox_snapshot_name: column.text,

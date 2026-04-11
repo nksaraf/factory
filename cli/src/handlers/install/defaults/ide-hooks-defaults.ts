@@ -1,34 +1,18 @@
 /**
  * IDE hook defaults — configures Claude Code and Cursor to send
- * telemetry events to the Factory API via hook scripts.
+ * telemetry events to the Factory API via `dx hook` CLI commands.
+ *
+ * Hooks are registered as `dx hook cursor <event>` / `dx hook claude-code <event>`,
+ * so they only depend on `dx` being on $PATH — no source code paths.
  *
  * Detects whether each IDE's hook config already includes our telemetry
  * hooks. If not, proposes adding them.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 
 import type { ConfigChange, ConfigProvider } from "./types.js"
-
-/**
- * Resolve the hook scripts directory.
- * Walks up from this file's directory looking for the repo root (has package.json with workspaces),
- * then returns scripts/ide-hooks under it.
- */
-function resolveScriptsDir(): string {
-  // Default to a well-known relative path from the CLI source
-  // The scripts live at <repo>/scripts/ide-hooks/
-  let dir = resolve(import.meta.dir, "../../../../..")
-  const candidate = join(dir, "scripts", "ide-hooks")
-  if (existsSync(join(candidate, "claude-code-hook.ts"))) return candidate
-
-  // Fallback: check from cwd (useful when running from repo root)
-  const cwdCandidate = join(process.cwd(), "scripts", "ide-hooks")
-  if (existsSync(join(cwdCandidate, "claude-code-hook.ts"))) return cwdCandidate
-
-  return candidate
-}
 
 // ── Claude Code ──────────────────────────────────────────────
 
@@ -47,10 +31,16 @@ const CC_HOOK_EVENTS = [
   "PostCompact",
 ] as const
 
+function isOurHookCommand(command: string): boolean {
+  return (
+    command.includes("dx hook") ||
+    command.includes("claude-code-hook.ts") ||
+    command.includes("cursor-hook.ts")
+  )
+}
+
 function detectClaudeCode(): ConfigChange {
   const settingsPath = join(homedir(), ".claude", "settings.json")
-  const scriptsDir = resolveScriptsDir()
-  const hookScript = join(scriptsDir, "claude-code-hook.ts")
 
   let alreadyApplied = false
   let currentValue: string | null = null
@@ -59,7 +49,6 @@ function detectClaudeCode(): ConfigChange {
     try {
       const settings = JSON.parse(readFileSync(settingsPath, "utf8"))
       const hooks = settings.hooks ?? {}
-      // Check if at least the key events are registered
       const registered = CC_HOOK_EVENTS.filter((event) => {
         const entries = hooks[event] as
           | Array<Record<string, unknown>>
@@ -72,7 +61,8 @@ function detectClaudeCode(): ConfigChange {
           if (!innerHooks) return false
           return innerHooks.some(
             (h) =>
-              typeof h.command === "string" && h.command.includes(hookScript)
+              typeof h.command === "string" &&
+              h.command.includes("dx hook claude-code")
           )
         })
       })
@@ -106,10 +96,10 @@ function detectClaudeCode(): ConfigChange {
         const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
 
         for (const event of CC_HOOK_EVENTS) {
-          const command = `bun run ${hookScript} ${event}`
+          const command = `dx hook claude-code ${event}`
           if (!hooks[event]) hooks[event] = []
 
-          // Remove stale entries, then add current
+          // Remove stale entries (both old bun-run and current dx hook)
           hooks[event] = (
             hooks[event] as Array<Record<string, unknown>>
           ).filter((entry) => {
@@ -119,8 +109,7 @@ function detectClaudeCode(): ConfigChange {
             if (!innerHooks) return true
             return !innerHooks.some(
               (h) =>
-                typeof h.command === "string" &&
-                h.command.includes("claude-code-hook.ts")
+                typeof h.command === "string" && isOurHookCommand(h.command)
             )
           })
           ;(hooks[event] as Array<Record<string, unknown>>).push({
@@ -168,8 +157,6 @@ const CURSOR_HOOK_EVENTS = [
 function detectCursor(): ConfigChange {
   const hooksDir = join(homedir(), ".cursor", "hooks")
   const hooksPath = join(hooksDir, "hooks.json")
-  const scriptsDir = resolveScriptsDir()
-  const hookScript = join(scriptsDir, "cursor-hook.ts")
 
   let alreadyApplied = false
   let currentValue: string | null = null
@@ -186,7 +173,7 @@ function detectCursor(): ConfigChange {
         return entries.some(
           (entry) =>
             typeof entry.command === "string" &&
-            entry.command.includes(hookScript)
+            entry.command.includes("dx hook cursor")
         )
       })
       alreadyApplied = registered.length === CURSOR_HOOK_EVENTS.length
@@ -219,17 +206,17 @@ function detectCursor(): ConfigChange {
         const hooks = (config.hooks ?? {}) as Record<string, unknown[]>
 
         for (const event of CURSOR_HOOK_EVENTS) {
-          const command = `bun run ${hookScript} ${event}`
+          const command = `dx hook cursor ${event}`
           if (!hooks[event]) hooks[event] = []
 
-          // Remove stale entries, then add current
+          // Remove stale entries (both old bun-run and current dx hook)
           hooks[event] = (
             hooks[event] as Array<Record<string, unknown>>
           ).filter(
             (entry) =>
               !(
                 typeof entry.command === "string" &&
-                entry.command.includes("cursor-hook.ts")
+                isOurHookCommand(entry.command)
               )
           )
           ;(hooks[event] as Array<Record<string, unknown>>).push({ command })

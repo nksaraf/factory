@@ -1,8 +1,12 @@
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RealmStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
-/** systemd runtime strategy — deploys components as systemd units on Linux hosts/VMs */
-export class SystemdStrategy implements RuntimeStrategy {
-  readonly runtime = "systemd";
+/** systemd realm strategy — deploys components as systemd units on Linux hosts/VMs */
+export class SystemdStrategy implements RealmStrategy {
+  readonly runtime = "systemd"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target host/VM
@@ -13,6 +17,6 @@ export class SystemdStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }

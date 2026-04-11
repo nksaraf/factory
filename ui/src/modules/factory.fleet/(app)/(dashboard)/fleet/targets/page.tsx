@@ -1,10 +1,10 @@
+import { useDeploymentTargets } from "@/lib/fleet"
 import { useState } from "react"
 import { Link } from "react-router"
 
 import { Input } from "@rio.js/ui/input"
 
-import { PlaneHeader, StatusBadge, EmptyState } from "@/components/factory"
-import { useDeploymentTargets } from "@/lib/fleet"
+import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
 
 export default function DeploymentTargetsPage() {
   const { data: targets, isLoading } = useDeploymentTargets()
@@ -12,17 +12,27 @@ export default function DeploymentTargetsPage() {
   const [kindFilter, setKindFilter] = useState<string>("")
 
   const filtered = (targets ?? []).filter((t) => {
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase()))
+      return false
     if (kindFilter && t.kind !== kindFilter) return false
     return true
   })
 
   return (
     <div className="space-y-6 p-6">
-      <PlaneHeader plane="fleet" title="Deployment Targets" description="All environments across all sites" />
+      <PlaneHeader
+        plane="fleet"
+        title="Deployment Targets"
+        description="All environments across all sites"
+      />
 
       <div className="flex gap-3">
-        <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <Input
+          placeholder="Search..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
         <select
           value={kindFilter}
           onChange={(e) => setKindFilter(e.target.value)}
@@ -39,7 +49,10 @@ export default function DeploymentTargetsPage() {
       {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
 
       {!isLoading && filtered.length === 0 && (
-        <EmptyState icon="icon-[ph--crosshair-duotone]" title="No targets found" />
+        <EmptyState
+          icon="icon-[ph--crosshair-duotone]"
+          title="No targets found"
+        />
       )}
 
       <div className="overflow-x-auto">
@@ -48,7 +61,7 @@ export default function DeploymentTargetsPage() {
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th className="pb-2 pr-4">Name</th>
               <th className="pb-2 pr-4">Kind</th>
-              <th className="pb-2 pr-4">Runtime</th>
+              <th className="pb-2 pr-4">Realm</th>
               <th className="pb-2 pr-4">Trigger</th>
               <th className="pb-2 pr-4">Status</th>
             </tr>
@@ -57,14 +70,19 @@ export default function DeploymentTargetsPage() {
             {filtered.map((t) => (
               <tr key={t.id} className="border-b last:border-0">
                 <td className="py-2 pr-4">
-                  <Link to={`/fleet/targets/${t.slug}`} className="font-medium hover:underline">
+                  <Link
+                    to={`/fleet/targets/${t.slug}`}
+                    className="font-medium hover:underline"
+                  >
                     {t.name}
                   </Link>
                 </td>
                 <td className="py-2 pr-4">{t.kind}</td>
-                <td className="py-2 pr-4">{t.runtime}</td>
+                <td className="py-2 pr-4">{t.realm}</td>
                 <td className="py-2 pr-4">{t.trigger}</td>
-                <td className="py-2 pr-4"><StatusBadge status={t.status} /></td>
+                <td className="py-2 pr-4">
+                  <StatusBadge status={t.status} />
+                </td>
               </tr>
             ))}
           </tbody>

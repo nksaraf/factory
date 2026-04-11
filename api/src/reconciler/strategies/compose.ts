@@ -1,8 +1,12 @@
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RealmStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
-/** Docker Compose runtime strategy — deploys components as compose services on a host/VM */
-export class ComposeStrategy implements RuntimeStrategy {
-  readonly runtime = "compose";
+/** Docker Compose realm strategy — deploys components as compose services on a host/VM */
+export class ComposeStrategy implements RealmStrategy {
+  readonly runtime = "compose"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target host/VM
@@ -13,6 +17,6 @@ export class ComposeStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }

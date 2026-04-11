@@ -44,9 +44,9 @@ const fleet: EntityDef[] = [
 ]
 
 const infra: EntityDef[] = [
-  { module: "infra", entity: "substrates", label: "Substrates" },
+  { module: "infra", entity: "estates", label: "Estates" },
   { module: "infra", entity: "hosts", label: "Hosts" },
-  { module: "infra", entity: "runtimes", label: "Runtimes" },
+  { module: "infra", entity: "realms", label: "Realms" },
   { module: "infra", entity: "routes", label: "Routes" },
   { module: "infra", entity: "dns-domains", label: "DNS Domains" },
   { module: "infra", entity: "tunnels", label: "Tunnels" },
@@ -131,14 +131,14 @@ export const ALL_ENTITIES: EntityDef[] = MODULE_GROUPS.flatMap(
 )
 
 /**
- * Map ID prefixes (e.g. "subs" from "subs_xxx") to their entity definition.
+ * Map ID prefixes (e.g. "est" from "est_xxx") to their entity definition.
  * Used to resolve foreign key references in the explorer.
  */
 const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   // infra
-  subs: { module: "infra", entity: "substrates", label: "Substrates" },
+  est: { module: "infra", entity: "estates", label: "Estates" },
   host: { module: "infra", entity: "hosts", label: "Hosts" },
-  rt: { module: "infra", entity: "runtimes", label: "Runtimes" },
+  rlm: { module: "infra", entity: "realms", label: "Realms" },
   rte: { module: "infra", entity: "routes", label: "Routes" },
   dom: { module: "infra", entity: "dns-domains", label: "DNS Domains" },
   tnl: { module: "infra", entity: "tunnels", label: "Tunnels" },
@@ -227,7 +227,7 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   },
 }
 
-/** Extract the prefix from an entity ID like "subs_cmnmcgq0f..." → "subs" */
+/** Extract the prefix from an entity ID like "est_cmnmcgq0f..." → "est" */
 export function extractIdPrefix(id: string): string | null {
   const idx = id.indexOf("_")
   return idx > 0 ? id.slice(0, idx) : null
@@ -250,7 +250,7 @@ const ENTITY_KIND_BY_PATH: Record<string, EntityKind> = {
   "org/teams": "team",
   "agent/agents": "agent",
   "infra/hosts": "host",
-  "infra/runtimes": "runtime",
+  "infra/realms": "realm",
   "infra/routes": "route",
   "build/repos": "repo",
   "build/work-tracker-projects": "work-tracker-project",

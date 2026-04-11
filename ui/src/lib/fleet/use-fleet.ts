@@ -4,13 +4,6 @@
  * Each hook is a thin config passed to useDualListQuery / useDualOneQuery.
  * The helpers handle PowerSync vs REST switching, polling, and transforms.
  */
-import {
-  buildQueryString,
-  buildWhere,
-  parseJson,
-  useDualListQuery,
-  useDualOneQuery,
-} from "./use-dual-query"
 import type {
   DeploymentTarget,
   FleetSite,
@@ -21,6 +14,13 @@ import type {
   Sandbox,
   Workload,
 } from "./types"
+import {
+  buildQueryString,
+  buildWhere,
+  parseJson,
+  useDualListQuery,
+  useDualOneQuery,
+} from "./use-dual-query"
 
 // ---------------------------------------------------------------------------
 // Row transformers (PowerSync snake_case → domain camelCase)
@@ -31,7 +31,7 @@ const toDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget => ({
   name: r.name as string,
   slug: r.slug as string,
   kind: r.kind as string,
-  runtime: r.runtime as string,
+  realm: r.realm as string,
   hostId: (r.host_id ?? r.hostId ?? null) as string | null,
   vmId: (r.vm_id ?? r.vmId ?? null) as string | null,
   siteId: (r.site_id ?? r.siteId ?? null) as string | null,
@@ -54,7 +54,8 @@ const apiToDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget =>
 
 const toWorkload = (r: Record<string, unknown>): Workload => ({
   id: r.id as string,
-  deploymentTargetId: (r.deployment_target_id ?? r.deploymentTargetId) as string,
+  deploymentTargetId: (r.deployment_target_id ??
+    r.deploymentTargetId) as string,
   moduleVersionId: (r.module_version_id ?? r.moduleVersionId) as string,
   componentId: (r.component_id ?? r.componentId) as string,
   artifactId: (r.artifact_id ?? r.artifactId) as string,
@@ -63,10 +64,17 @@ const toWorkload = (r: Record<string, unknown>): Workload => ({
   resourceOverrides: parseJson(r.resource_overrides ?? r.resourceOverrides),
   status: r.status as string,
   desiredImage: (r.desired_image ?? r.desiredImage) as string,
-  desiredArtifactUri: (r.desired_artifact_uri ?? r.desiredArtifactUri ?? null) as string | null,
+  desiredArtifactUri: (r.desired_artifact_uri ??
+    r.desiredArtifactUri ??
+    null) as string | null,
   actualImage: (r.actual_image ?? r.actualImage ?? null) as string | null,
-  driftDetected: r.drift_detected === 1 || r.driftDetected === true || r.drift_detected === true,
-  lastReconciledAt: (r.last_reconciled_at ?? r.lastReconciledAt ?? null) as string | null,
+  driftDetected:
+    r.drift_detected === 1 ||
+    r.driftDetected === true ||
+    r.drift_detected === true,
+  lastReconciledAt: (r.last_reconciled_at ?? r.lastReconciledAt ?? null) as
+    | string
+    | null,
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
   updatedAt: (r.updated_at ?? r.updatedAt ?? "") as string,
 })
@@ -76,10 +84,11 @@ const apiToWorkload = (r: Record<string, unknown>): Workload =>
 
 const toSandbox = (r: Record<string, unknown>): Sandbox => ({
   id: r.id as string,
-  deploymentTargetId: (r.deployment_target_id ?? r.deploymentTargetId) as string,
+  deploymentTargetId: (r.deployment_target_id ??
+    r.deploymentTargetId) as string,
   name: r.name as string,
   slug: r.slug as string,
-  runtimeType: (r.runtime_type ?? r.runtimeType) as string,
+  realmType: (r.realm_type ?? r.realmType) as string,
   vmId: (r.vm_id ?? r.vmId ?? null) as string | null,
   podName: (r.pod_name ?? r.podName ?? null) as string | null,
   ownerId: (r.owner_id ?? r.ownerId) as string,
@@ -90,7 +99,9 @@ const toSandbox = (r: Record<string, unknown>): Sandbox => ({
   storageGb: (r.storage_gb ?? r.storageGb ?? 10) as number,
   sshHost: (r.ssh_host ?? r.sshHost ?? null) as string | null,
   sshPort: (r.ssh_port ?? r.sshPort ?? null) as number | null,
-  webTerminalUrl: (r.web_terminal_url ?? r.webTerminalUrl ?? null) as string | null,
+  webTerminalUrl: (r.web_terminal_url ?? r.webTerminalUrl ?? null) as
+    | string
+    | null,
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
   updatedAt: (r.updated_at ?? r.updatedAt ?? "") as string,
 })
@@ -112,7 +123,8 @@ const apiToRelease = (r: Record<string, unknown>): Release =>
 const toRollout = (r: Record<string, unknown>): Rollout => ({
   id: r.id as string,
   releaseId: (r.release_id ?? r.releaseId) as string,
-  deploymentTargetId: (r.deployment_target_id ?? r.deploymentTargetId) as string,
+  deploymentTargetId: (r.deployment_target_id ??
+    r.deploymentTargetId) as string,
   status: r.status as string,
   startedAt: (r.started_at ?? r.startedAt) as string,
   completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,
@@ -129,8 +141,12 @@ const toSite = (r: Record<string, unknown>): FleetSite => ({
   clusterId: (r.cluster_id ?? r.clusterId) as string,
   status: r.status as string,
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  lastCheckinAt: (r.last_checkin_at ?? r.lastCheckinAt ?? null) as string | null,
-  currentManifestVersion: (r.current_manifest_version ?? r.currentManifestVersion ?? null) as number | null,
+  lastCheckinAt: (r.last_checkin_at ?? r.lastCheckinAt ?? null) as
+    | string
+    | null,
+  currentManifestVersion: (r.current_manifest_version ??
+    r.currentManifestVersion ??
+    null) as number | null,
 })
 
 const apiToSite = (r: Record<string, unknown>): FleetSite =>
@@ -140,7 +156,10 @@ const apiToSite = (r: Record<string, unknown>): FleetSite =>
 // Hooks
 // ---------------------------------------------------------------------------
 
-export function useDeploymentTargets(opts?: { kind?: string; status?: string }) {
+export function useDeploymentTargets(opts?: {
+  kind?: string
+  status?: string
+}) {
   const where = buildWhere(opts)
   return useDualListQuery<DeploymentTarget>({
     queryKey: ["fleet", "deployment-targets", opts],
@@ -234,7 +253,8 @@ export function useFleetSite(slug: string | undefined) {
 
 const toIntervention = (r: Record<string, unknown>): Intervention => ({
   id: (r.interventionId ?? r.id) as string,
-  deploymentTargetId: (r.deployment_target_id ?? r.deploymentTargetId) as string,
+  deploymentTargetId: (r.deployment_target_id ??
+    r.deploymentTargetId) as string,
   workloadId: (r.workload_id ?? r.workloadId ?? null) as string | null,
   action: r.action as string,
   principalId: (r.principal_id ?? r.principalId) as string,
@@ -271,7 +291,9 @@ const toReleaseBundle = (r: Record<string, unknown>): ReleaseBundle => ({
   helmChartVersion: (r.helm_chart_version ?? r.helmChartVersion) as string,
   imageCount: (r.image_count ?? r.imageCount ?? 0) as number,
   sizeBytes: (r.size_bytes ?? r.sizeBytes ?? null) as string | null,
-  checksumSha256: (r.checksum_sha256 ?? r.checksumSha256 ?? null) as string | null,
+  checksumSha256: (r.checksum_sha256 ?? r.checksumSha256 ?? null) as
+    | string
+    | null,
   storagePath: (r.storage_path ?? r.storagePath ?? null) as string | null,
   status: r.status as string,
   createdBy: (r.created_by ?? r.createdBy) as string,
@@ -279,7 +301,10 @@ const toReleaseBundle = (r: Record<string, unknown>): ReleaseBundle => ({
   completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,
 })
 
-export function useReleaseBundles(opts?: { releaseId?: string; status?: string }) {
+export function useReleaseBundles(opts?: {
+  releaseId?: string
+  status?: string
+}) {
   const qs = buildQueryString(opts ?? {})
   return useDualListQuery<ReleaseBundle>({
     queryKey: ["fleet", "bundles", opts],

@@ -36,7 +36,7 @@ add_collector() {
   if [ "$COLLECTORS" = "[]" ]; then
     COLLECTORS="[$entry]"
   else
-    COLLECTORS="\${COLLECTORS%]},$entry]"
+    COLLECTORS="${"${"}COLLECTORS%]},$entry]"
   fi
 }
 
@@ -54,7 +54,7 @@ if command -v ss >/dev/null 2>&1; then
     addr=$(echo "$local_addr" | rev | cut -d: -f2- | rev)
     [ "$addr" = "*" ] && addr="0.0.0.0"
     proc=$(echo "$line" | grep -oP 'users:\\(\\("\\K[^"]+' 2>/dev/null || echo "")
-    pid=$(echo "$line" | grep -oP 'pid=\\K[0-9]+' 2>/dev/null || echo "")
+    pid=$(echo "$line" | grep -oP 'pid=\\K[0-9]+' 2>/dev/null | head -1 || echo "")
 
     entry=$(printf '{"port":%s,"protocol":"tcp","address":"%s"' "$port" "$addr")
     [ -n "$proc" ] && entry="$entry,\\"process\\":\\"$proc\\""
@@ -64,7 +64,7 @@ if command -v ss >/dev/null 2>&1; then
     if [ "$PORTS" = "[]" ]; then
       PORTS="[$entry]"
     else
-      PORTS="\${PORTS%]},$entry]"
+      PORTS="${"${"}PORTS%]},$entry]"
     fi
     PORT_COUNT=$((PORT_COUNT + 1))
   done <<< "$PORTS_RAW"
@@ -80,7 +80,7 @@ if command -v ss >/dev/null 2>&1; then
     if [ "$PORTS" = "[]" ]; then
       PORTS="[$entry]"
     else
-      PORTS="\${PORTS%]},$entry]"
+      PORTS="${"${"}PORTS%]},$entry]"
     fi
     PORT_COUNT=$((PORT_COUNT + 1))
   done <<< "$PORTS_UDP_RAW"
@@ -90,14 +90,14 @@ else
   add_collector "ports" "failed" "ss not found"
 fi
 
-# ── Runtimes ──
-RUNTIMES="[]"
+# ── Realms ──
+REALMS="[]"
 
 # Docker
 if command -v docker >/dev/null 2>&1; then
   DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "")
   if [ -n "$DOCKER_VERSION" ]; then
-    RUNTIMES='[{"type":"docker-engine","version":"'"$DOCKER_VERSION"'","status":"running"}]'
+    REALMS='[{"type":"docker-engine","version":"'"$DOCKER_VERSION"'","status":"running"}]'
     add_collector "docker" "ok" ""
   else
     add_collector "docker" "failed" "docker daemon not reachable"
@@ -110,10 +110,10 @@ fi
 if command -v systemctl >/dev/null 2>&1; then
   SYSTEMD_VERSION=$(systemctl --version 2>/dev/null | head -1 | awk '{print $2}' || echo "")
   entry='{"type":"systemd","version":"'"$SYSTEMD_VERSION"'","status":"running"}'
-  if [ "$RUNTIMES" = "[]" ]; then
-    RUNTIMES="[$entry]"
+  if [ "$REALMS" = "[]" ]; then
+    REALMS="[$entry]"
   else
-    RUNTIMES="\${RUNTIMES%]},$entry]"
+    REALMS="${"${"}REALMS%]},$entry]"
   fi
   add_collector "systemd" "ok" ""
 else
@@ -160,7 +160,7 @@ for p in projects:
             stderr=subprocess.DEVNULL, timeout=10
         ).decode()
         containers = []
-        for line in ps_out.strip().split('\n'):
+        for line in ps_out.strip().splitlines():
             if not line.strip(): continue
             try:
                 c = json.loads(line)
@@ -218,7 +218,7 @@ if command -v systemctl >/dev/null 2>&1; then
     SYSTEMD_SVCS=$(echo "$SYSTEMD_UNITS" | python3 -c "
 import json, subprocess, sys
 
-units = sys.stdin.read().strip().split('\n')
+units = sys.stdin.read().strip().splitlines()
 services = []
 for unit in units:
     unit = unit.strip()
@@ -242,7 +242,7 @@ for unit in units:
                 ['ss', '-tlnp'],
                 stderr=subprocess.DEVNULL, timeout=5
             ).decode()
-            for line in ss_out.split('\n'):
+            for line in ss_out.splitlines():
                 if 'pid=%d,' % pid in line or 'pid=%d}' % pid in line:
                     parts = line.split()
                     if len(parts) >= 4:
@@ -272,7 +272,7 @@ print(json.dumps(services))
       else
         SERVICES=$(printf '%s\n%s' "$SERVICES" "$SYSTEMD_SVCS" | python3 -c "
 import json, sys
-lines = sys.stdin.read().strip().split('\n')
+lines = sys.stdin.read().strip().splitlines()
 a = json.loads(lines[0])
 b = json.loads(lines[1])
 print(json.dumps(a + b))
@@ -291,7 +291,7 @@ cat <<ENDJSON
   "os": "linux",
   "arch": "$ARCH_JSON",
   "hostname": "$HOSTNAME_VAL",
-  "runtimes": $RUNTIMES,
+  "realms": $REALMS,
   "services": $SERVICES,
   "ports": $PORTS,
   "composeProjects": $COMPOSE_PROJECTS,

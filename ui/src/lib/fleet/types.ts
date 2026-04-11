@@ -10,7 +10,7 @@ export interface DeploymentTarget {
   name: string
   slug: string
   kind: string
-  runtime: string
+  realm: string
   hostId: string | null
   vmId: string | null
   siteId: string | null
@@ -51,7 +51,7 @@ export interface Sandbox {
   deploymentTargetId: string
   name: string
   slug: string
-  runtimeType: string
+  realmType: string
   vmId: string | null
   podName: string | null
   ownerId: string

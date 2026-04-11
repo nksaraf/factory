@@ -263,20 +263,20 @@ export const PromoteReleaseBody = z.object({
 })
 export type PromoteReleaseBody = z.infer<typeof PromoteReleaseBody>
 
-// ── Infra: Substrate actions ────────────────────────────────
+// ── Infra: Estate actions ────────────────────────────────
 
-export const SyncSubstrateBody = z.object({
+export const SyncEstateBody = z.object({
   force: z.boolean().default(false),
 })
-export type SyncSubstrateBody = z.infer<typeof SyncSubstrateBody>
+export type SyncEstateBody = z.infer<typeof SyncEstateBody>
 
-// ── Infra: Runtime actions ──────────────────────────────────
+// ── Infra: Realm actions ──────────────────────────────────
 
-export const UpgradeRuntimeBody = z.object({
+export const UpgradeRealmBody = z.object({
   targetVersion: z.string().min(1),
   strategy: z.enum(["in-place", "rolling", "blue-green"]).default("rolling"),
 })
-export type UpgradeRuntimeBody = z.infer<typeof UpgradeRuntimeBody>
+export type UpgradeRealmBody = z.infer<typeof UpgradeRealmBody>
 
 // ── Infra: Host actions ─────────────────────────────────────
 
@@ -293,7 +293,7 @@ export const ResizeHostBody = z.object({
 export type ResizeHostBody = z.infer<typeof ResizeHostBody>
 
 export const MigrateHostBody = z.object({
-  targetSubstrateId: z.string().min(1),
+  targetEstateId: z.string().min(1),
   reason: z.string().optional(),
 })
 export type MigrateHostBody = z.infer<typeof MigrateHostBody>

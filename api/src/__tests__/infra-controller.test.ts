@@ -1,22 +1,27 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PGlite } from "@electric-sql/pglite"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+
 import {
+  type TestApp,
   createTestContext,
   truncateAllTables,
-  type TestApp,
-} from "../test-helpers";
-import type { PGlite } from "@electric-sql/pglite";
+} from "../test-helpers"
 
-interface ApiResponse<T = Record<string, unknown>> { data: T }
-interface ApiListResponse<T = Record<string, unknown>> { data: T[] }
+interface ApiResponse<T = Record<string, unknown>> {
+  data: T
+}
+interface ApiListResponse<T = Record<string, unknown>> {
+  data: T[]
+}
 
-const BASE = "http://localhost/api/v1/factory/infra";
+const BASE = "http://localhost/api/v1/factory/infra"
 
 function post(url: string, body: Record<string, unknown>) {
   return new Request(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  })
 }
 
 // v2: ontologyRoutes uses POST /:id/update (not PATCH)
@@ -25,151 +30,151 @@ function update(url: string, body: Record<string, unknown>) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  })
 }
 
 // v2: ontologyRoutes uses POST /:id/delete (not DELETE)
 function del(url: string) {
-  return new Request(`${url}/delete`, { method: "POST" });
+  return new Request(`${url}/delete`, { method: "POST" })
 }
 
 describe("Infra Controller (v2)", () => {
-  let app: TestApp;
-  let client: PGlite;
+  let app: TestApp
+  let client: PGlite
 
   beforeAll(async () => {
-    const ctx = await createTestContext();
-    app = ctx.app;
-    client = ctx.client;
-  });
+    const ctx = await createTestContext()
+    app = ctx.app
+    client = ctx.client
+  })
 
   afterAll(async () => {
-    await client.close();
-  });
+    await client.close()
+  })
 
   beforeEach(async () => {
-    await truncateAllTables(client);
-  });
+    await truncateAllTables(client)
+  })
 
   // ==========================================================================
-  // Substrates (was providers + subnets)
+  // Estates (was substrates, was providers + subnets)
   // ==========================================================================
-  describe("substrates", () => {
-    it("POST creates and GET lists substrates", async () => {
+  describe("estates", () => {
+    it("POST creates and GET lists estates", async () => {
       const create = await app.handle(
-        post(`${BASE}/substrates`, {
-          name: "test-substrate",
-          slug: "test-substrate",
+        post(`${BASE}/estates`, {
+          name: "test-estate",
+          slug: "test-estate",
           type: "datacenter",
           spec: {},
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
-      expect(created.slug).toBe("test-substrate");
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
+      expect(created.slug).toBe("test-estate")
 
-      const list = await app.handle(new Request(`${BASE}/substrates`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
+      const list = await app.handle(new Request(`${BASE}/estates`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
 
-    it("GET /substrates/:slugOrId returns detail by slug", async () => {
+    it("GET /estates/:slugOrId returns detail by slug", async () => {
       await app.handle(
-        post(`${BASE}/substrates`, {
-          name: "my-substrate",
-          slug: "my-substrate",
+        post(`${BASE}/estates`, {
+          name: "my-estate",
+          slug: "my-estate",
           type: "vpc",
           spec: {},
         })
-      );
+      )
 
+      const res = await app.handle(new Request(`${BASE}/estates/my-estate`))
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse
+      expect(data.name).toBe("my-estate")
+      expect(data.type).toBe("vpc")
+    })
+
+    it("GET /estates/:slugOrId returns 404 for missing", async () => {
       const res = await app.handle(
-        new Request(`${BASE}/substrates/my-substrate`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse;
-      expect(data.name).toBe("my-substrate");
-      expect(data.type).toBe("vpc");
-    });
+        new Request(`${BASE}/estates/sub_nonexistent`)
+      )
+      expect(res.status).toBe(404)
+    })
 
-    it("GET /substrates/:slugOrId returns 404 for missing", async () => {
-      const res = await app.handle(
-        new Request(`${BASE}/substrates/sub_nonexistent`)
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it("POST /substrates/:slugOrId/update updates substrate", async () => {
+    it("POST /estates/:slugOrId/update updates estate", async () => {
       const createRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "update-me",
           slug: "update-me",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(
-        update(`${BASE}/substrates/${created.id}`, {
+        update(`${BASE}/estates/${created.id}`, {
           spec: { location: "us-east" },
         })
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse<{ spec: Record<string, unknown> }>;
-      expect(data.spec.location).toBe("us-east");
-    });
+      )
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse<{
+        spec: Record<string, unknown>
+      }>
+      expect(data.spec.location).toBe("us-east")
+    })
 
-    it("POST /substrates/:slugOrId/delete soft-deletes", async () => {
+    it("POST /estates/:slugOrId/delete soft-deletes", async () => {
       const createRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "delete-me",
           slug: "delete-me",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
-      const res = await app.handle(del(`${BASE}/substrates/${created.id}`));
-      expect(res.status).toBe(200);
+      const res = await app.handle(del(`${BASE}/estates/${created.id}`))
+      expect(res.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/substrates`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(0);
-    });
+      const list = await app.handle(new Request(`${BASE}/estates`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(0)
+    })
 
-    it("GET /substrates/:id/hosts returns related hosts", async () => {
+    it("GET /estates/:id/hosts returns related hosts", async () => {
       const subRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "sub-with-hosts",
           slug: "sub-with-hosts",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: sub } = (await subRes.json()) as ApiResponse;
+      )
+      const { data: sub } = (await subRes.json()) as ApiResponse
 
       await app.handle(
         post(`${BASE}/hosts`, {
           name: "host-1",
           slug: "host-1",
           type: "bare-metal",
-          substrateId: sub.id,
+          estateId: sub.id,
           spec: { hostname: "host-1.local" },
         })
-      );
+      )
 
       const res = await app.handle(
-        new Request(`${BASE}/substrates/${sub.id}/hosts`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-      expect(data[0].name).toBe("host-1");
-    });
-  });
+        new Request(`${BASE}/estates/${sub.id}/hosts`)
+      )
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+      expect(data[0].name).toBe("host-1")
+    })
+  })
 
   // ==========================================================================
   // Hosts
@@ -177,222 +182,228 @@ describe("Infra Controller (v2)", () => {
   describe("hosts", () => {
     it("POST creates and GET lists hosts", async () => {
       const subRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "host-sub",
           slug: "host-sub",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: sub } = (await subRes.json()) as ApiResponse;
+      )
+      const { data: sub } = (await subRes.json()) as ApiResponse
 
       const create = await app.handle(
         post(`${BASE}/hosts`, {
           name: "test-host",
           slug: "test-host",
           type: "bare-metal",
-          substrateId: sub.id,
-          spec: { hostname: "test-host.local", arch: "amd64", cpu: 16, memoryMb: 65536 },
+          estateId: sub.id,
+          spec: {
+            hostname: "test-host.local",
+            arch: "amd64",
+            cpu: 16,
+            memoryMb: 65536,
+          },
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
 
-      const list = await app.handle(new Request(`${BASE}/hosts`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
+      const list = await app.handle(new Request(`${BASE}/hosts`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
 
     it("GET /hosts/:slugOrId returns detail", async () => {
       const subRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "h-sub",
           slug: "h-sub",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: sub } = (await subRes.json()) as ApiResponse;
+      )
+      const { data: sub } = (await subRes.json()) as ApiResponse
 
       await app.handle(
         post(`${BASE}/hosts`, {
           name: "detail-host",
           slug: "detail-host",
           type: "bare-metal",
-          substrateId: sub.id,
+          estateId: sub.id,
           spec: { hostname: "detail-host.local", arch: "arm64" },
         })
-      );
+      )
 
-      const res = await app.handle(
-        new Request(`${BASE}/hosts/detail-host`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse<{ spec: Record<string, unknown> }>;
-      expect(data.spec.arch).toBe("arm64");
-    });
+      const res = await app.handle(new Request(`${BASE}/hosts/detail-host`))
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse<{
+        spec: Record<string, unknown>
+      }>
+      expect(data.spec.arch).toBe("arm64")
+    })
 
     it("POST /hosts/:slugOrId/delete soft-deletes", async () => {
       const subRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "del-sub",
           slug: "del-sub",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: sub } = (await subRes.json()) as ApiResponse;
+      )
+      const { data: sub } = (await subRes.json()) as ApiResponse
 
       const createRes = await app.handle(
         post(`${BASE}/hosts`, {
           name: "del-host",
           slug: "del-host",
           type: "bare-metal",
-          substrateId: sub.id,
+          estateId: sub.id,
           spec: { hostname: "del-host.local" },
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
-      const res = await app.handle(del(`${BASE}/hosts/${created.id}`));
-      expect(res.status).toBe(200);
+      const res = await app.handle(del(`${BASE}/hosts/${created.id}`))
+      expect(res.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/hosts`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(0);
-    });
+      const list = await app.handle(new Request(`${BASE}/hosts`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(0)
+    })
 
-    it("GET /hosts/:id/runtimes returns related runtimes", async () => {
+    it("GET /hosts/:id/realms returns related realms", async () => {
       const subRes = await app.handle(
-        post(`${BASE}/substrates`, {
+        post(`${BASE}/estates`, {
           name: "rt-sub",
           slug: "rt-sub",
           type: "datacenter",
           spec: {},
         })
-      );
-      const { data: sub } = (await subRes.json()) as ApiResponse;
+      )
+      const { data: sub } = (await subRes.json()) as ApiResponse
 
       const hostRes = await app.handle(
         post(`${BASE}/hosts`, {
           name: "rt-host",
           slug: "rt-host",
           type: "bare-metal",
-          substrateId: sub.id,
+          estateId: sub.id,
           spec: { hostname: "rt-host.local" },
         })
-      );
-      const { data: h } = (await hostRes.json()) as ApiResponse;
+      )
+      const { data: h } = (await hostRes.json()) as ApiResponse
 
       await app.handle(
-        post(`${BASE}/runtimes`, {
-          name: "k3s-runtime",
-          slug: "k3s-runtime",
+        post(`${BASE}/realms`, {
+          name: "k3s-realm",
+          slug: "k3s-realm",
           type: "k8s-cluster",
           hostId: h.id,
           spec: { kubeconfigRef: "fake-kc", status: "ready" },
         })
-      );
+      )
 
-      const res = await app.handle(
-        new Request(`${BASE}/hosts/${h.id}/runtimes`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-      expect(data[0].name).toBe("k3s-runtime");
-    });
-  });
+      const res = await app.handle(new Request(`${BASE}/hosts/${h.id}/realms`))
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+      expect(data[0].name).toBe("k3s-realm")
+    })
+  })
 
   // ==========================================================================
-  // Runtimes (was clusters)
+  // Realms (was runtimes, was clusters)
   // ==========================================================================
-  describe("runtimes", () => {
-    it("POST creates and GET lists runtimes", async () => {
+  describe("realms", () => {
+    it("POST creates and GET lists realms", async () => {
       const create = await app.handle(
-        post(`${BASE}/runtimes`, {
-          name: "test-runtime",
-          slug: "test-runtime",
+        post(`${BASE}/realms`, {
+          name: "test-realm",
+          slug: "test-realm",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "fake-kc", status: "ready" },
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
 
-      const list = await app.handle(new Request(`${BASE}/runtimes`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data.some((r: any) => r.slug === "test-runtime")).toBe(true);
-    });
+      const list = await app.handle(new Request(`${BASE}/realms`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data.some((r: any) => r.slug === "test-realm")).toBe(true)
+    })
 
-    it("GET /runtimes/:slugOrId returns detail by slug", async () => {
+    it("GET /realms/:slugOrId returns detail by slug", async () => {
       await app.handle(
-        post(`${BASE}/runtimes`, {
-          name: "my-runtime",
-          slug: "my-runtime",
+        post(`${BASE}/realms`, {
+          name: "my-realm",
+          slug: "my-realm",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "kc-data", status: "provisioning" },
         })
-      );
+      )
 
+      const res = await app.handle(new Request(`${BASE}/realms/my-realm`))
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse<{
+        name: string
+        spec: Record<string, unknown>
+      }>
+      expect(data.name).toBe("my-realm")
+      expect(data.spec.status).toBe("provisioning")
+    })
+
+    it("GET /realms/:slugOrId returns 404 for missing", async () => {
       const res = await app.handle(
-        new Request(`${BASE}/runtimes/my-runtime`)
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse<{ name: string; spec: Record<string, unknown> }>;
-      expect(data.name).toBe("my-runtime");
-      expect(data.spec.status).toBe("provisioning");
-    });
+        new Request(`${BASE}/realms/rtm_nonexistent`)
+      )
+      expect(res.status).toBe(404)
+    })
 
-    it("GET /runtimes/:slugOrId returns 404 for missing", async () => {
-      const res = await app.handle(
-        new Request(`${BASE}/runtimes/rtm_nonexistent`)
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it("POST /runtimes/:slugOrId/update updates runtime", async () => {
+    it("POST /realms/:slugOrId/update updates realm", async () => {
       const createRes = await app.handle(
-        post(`${BASE}/runtimes`, {
+        post(`${BASE}/realms`, {
           name: "update-rt",
           slug: "update-rt",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "kc", status: "provisioning" },
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(
-        update(`${BASE}/runtimes/${created.id}`, {
+        update(`${BASE}/realms/${created.id}`, {
           spec: { status: "ready" },
         })
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse<{ spec: Record<string, unknown> }>;
-      expect(data.spec.status).toBe("ready");
-    });
+      )
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse<{
+        spec: Record<string, unknown>
+      }>
+      expect(data.spec.status).toBe("ready")
+    })
 
-    it("POST /runtimes/:slugOrId/delete soft-deletes", async () => {
+    it("POST /realms/:slugOrId/delete soft-deletes", async () => {
       const createRes = await app.handle(
-        post(`${BASE}/runtimes`, {
+        post(`${BASE}/realms`, {
           name: "del-rt",
           slug: "del-rt",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "kc", status: "ready" },
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
-      const res = await app.handle(del(`${BASE}/runtimes/${created.id}`));
-      expect(res.status).toBe(200);
+      const res = await app.handle(del(`${BASE}/realms/${created.id}`))
+      expect(res.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/runtimes`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data.some((r: any) => r.slug === "del-rt")).toBe(false);
-    });
-  });
+      const list = await app.handle(new Request(`${BASE}/realms`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data.some((r: any) => r.slug === "del-rt")).toBe(false)
+    })
+  })
 
   // ==========================================================================
   // Routes
@@ -407,15 +418,15 @@ describe("Infra Controller (v2)", () => {
           domain: "app.tunnel.dx.dev",
           spec: { targetService: "tunnel-broker" },
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
 
-      const list = await app.handle(new Request(`${BASE}/routes`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
+      const list = await app.handle(new Request(`${BASE}/routes`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
 
     it("POST /routes/:slugOrId/delete soft-deletes", async () => {
       const createRes = await app.handle(
@@ -426,17 +437,17 @@ describe("Infra Controller (v2)", () => {
           domain: "pr-1.preview.dx.dev",
           spec: {},
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
-      const res = await app.handle(del(`${BASE}/routes/${created.id}`));
-      expect(res.status).toBe(200);
+      const res = await app.handle(del(`${BASE}/routes/${created.id}`))
+      expect(res.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/routes`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(0);
-    });
-  });
+      const list = await app.handle(new Request(`${BASE}/routes`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(0)
+    })
+  })
 
   // ==========================================================================
   // DNS Domains
@@ -451,15 +462,15 @@ describe("Infra Controller (v2)", () => {
           fqdn: "dx.dev",
           spec: { zone: "dx.dev", provider: "cloudflare" },
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
 
-      const list = await app.handle(new Request(`${BASE}/dns-domains`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
+      const list = await app.handle(new Request(`${BASE}/dns-domains`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
 
     it("POST /dns-domains/:id/verify marks domain verified", async () => {
       const createRes = await app.handle(
@@ -470,18 +481,20 @@ describe("Infra Controller (v2)", () => {
           fqdn: "verify-test.dev",
           spec: { zone: "test.dev" },
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
       const res = await app.handle(
         post(`${BASE}/dns-domains/${created.id}/verify`, {})
-      );
-      expect(res.status).toBe(200);
-      const { data } = (await res.json()) as ApiResponse<{ spec: { verified: boolean; verifiedAt: string } }>;
-      expect(data.spec.verified).toBe(true);
-      expect(data.spec.verifiedAt).toBeTruthy();
-    });
-  });
+      )
+      expect(res.status).toBe(200)
+      const { data } = (await res.json()) as ApiResponse<{
+        spec: { verified: boolean; verifiedAt: string }
+      }>
+      expect(data.spec.verified).toBe(true)
+      expect(data.spec.verifiedAt).toBeTruthy()
+    })
+  })
 
   // ==========================================================================
   // Secrets
@@ -494,13 +507,13 @@ describe("Infra Controller (v2)", () => {
           slug: "db-password",
           spec: { name: "db-password", ownerType: "system", ownerId: "sys-1" },
         })
-      );
-      expect(create.status).toBe(200);
+      )
+      expect(create.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/secrets`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
+      const list = await app.handle(new Request(`${BASE}/secrets`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
 
     it("POST /secrets/:slugOrId/delete soft-deletes", async () => {
       const createRes = await app.handle(
@@ -509,43 +522,43 @@ describe("Infra Controller (v2)", () => {
           slug: "del-secret",
           spec: { name: "del-secret", ownerType: "system", ownerId: "sys-1" },
         })
-      );
-      const { data: created } = (await createRes.json()) as ApiResponse;
+      )
+      const { data: created } = (await createRes.json()) as ApiResponse
 
-      const res = await app.handle(del(`${BASE}/secrets/${created.id}`));
-      expect(res.status).toBe(200);
+      const res = await app.handle(del(`${BASE}/secrets/${created.id}`))
+      expect(res.status).toBe(200)
 
-      const list = await app.handle(new Request(`${BASE}/secrets`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(0);
-    });
-  });
+      const list = await app.handle(new Request(`${BASE}/secrets`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(0)
+    })
+  })
 
   // ==========================================================================
   // Network Links
   // ==========================================================================
   describe("network-links", () => {
     it("POST creates and GET lists network links", async () => {
-      // Create two runtimes to link
+      // Create two realms to link
       const rt1Res = await app.handle(
-        post(`${BASE}/runtimes`, {
+        post(`${BASE}/realms`, {
           name: "link-rt-1",
           slug: "link-rt-1",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "kc1", status: "ready" },
         })
-      );
-      const { data: rt1 } = (await rt1Res.json()) as ApiResponse;
+      )
+      const { data: rt1 } = (await rt1Res.json()) as ApiResponse
 
       const rt2Res = await app.handle(
-        post(`${BASE}/runtimes`, {
+        post(`${BASE}/realms`, {
           name: "link-rt-2",
           slug: "link-rt-2",
           type: "k8s-cluster",
           spec: { kubeconfigRef: "kc2", status: "ready" },
         })
-      );
-      const { data: rt2 } = (await rt2Res.json()) as ApiResponse;
+      )
+      const { data: rt2 } = (await rt2Res.json()) as ApiResponse
 
       const create = await app.handle(
         post(`${BASE}/network-links`, {
@@ -553,19 +566,19 @@ describe("Infra Controller (v2)", () => {
           slug: "rt1-to-rt2",
           type: "mesh",
           sourceId: rt1.id,
-          sourceKind: "runtime",
+          sourceKind: "realm",
           targetId: rt2.id,
-          targetKind: "runtime",
+          targetKind: "realm",
           spec: {},
         })
-      );
-      expect(create.status).toBe(200);
-      const { data: created } = (await create.json()) as ApiResponse;
-      expect(created.id).toBeTruthy();
+      )
+      expect(create.status).toBe(200)
+      const { data: created } = (await create.json()) as ApiResponse
+      expect(created.id).toBeTruthy()
 
-      const list = await app.handle(new Request(`${BASE}/network-links`));
-      const { data } = (await list.json()) as ApiListResponse;
-      expect(data).toHaveLength(1);
-    });
-  });
-});
+      const list = await app.handle(new Request(`${BASE}/network-links`))
+      const { data } = (await list.json()) as ApiListResponse
+      expect(data).toHaveLength(1)
+    })
+  })
+})

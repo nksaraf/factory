@@ -454,7 +454,7 @@ export const EntityKindSchema = z.enum([
   "team",
   "agent",
   "host",
-  "runtime",
+  "realm",
   "route",
   "repo",
   "work-tracker-project",

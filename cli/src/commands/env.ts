@@ -1,22 +1,28 @@
-import { resolveEnvVars, formatResolvedEnv } from "@smp/factory-shared/env-resolution";
-import { loadTierOverlay } from "@smp/factory-shared/tier-overlay-loader";
-import { loadNormalizedProfile } from "@smp/factory-shared/connection-profile-loader";
-
-import type { DxBase } from "../dx-root.js";
-import { resolveDxContext } from "../lib/dx-context.js";
 import {
-  parseConnectToFlag,
-  parseConnectFlags,
-  parseEnvFlags,
+  type NormalizedProfileEntry,
+  normalizeProfileEntry,
+} from "@smp/factory-shared/connection-context-schemas"
+import { loadConnectionProfile } from "@smp/factory-shared/connection-profile-loader"
+import {
+  formatResolvedEnv,
+  resolveEnvVars,
+} from "@smp/factory-shared/env-resolution"
+
+import type { DxBase } from "../dx-root.js"
+import { resolveDxContext } from "../lib/dx-context.js"
+import {
   mergeConnectionSources,
-} from "../lib/parse-connect-flags.js";
-import { toDxFlags } from "./dx-flags.js";
-import { setExamples } from "../plugins/examples-plugin.js";
+  parseConnectFlags,
+  parseConnectToFlag,
+  parseEnvFlags,
+} from "../lib/parse-connect-flags.js"
+import { setExamples } from "../plugins/examples-plugin.js"
+import { toDxFlags } from "./dx-flags.js"
 
 setExamples("env", [
   "$ dx env resolve                   Resolve environment variables",
   "$ dx env resolve --export          Export as shell vars",
-]);
+])
 
 export function envCommand(app: DxBase) {
   return app
@@ -64,20 +70,27 @@ export function envCommand(app: DxBase) {
           },
         })
         .run(async ({ flags }) => {
-          const f = toDxFlags(flags);
+          const f = toDxFlags(flags)
 
           try {
             // Remote scope-based resolution
             if (flags.scope) {
-              const validScopes = ["org", "team", "project", "principal", "system"];
-              const scopeVal = flags.scope as string;
+              const validScopes = [
+                "org",
+                "team",
+                "project",
+                "principal",
+                "system",
+              ]
+              const scopeVal = flags.scope as string
               if (!validScopes.includes(scopeVal)) {
-                console.error(`Error: Invalid scope "${scopeVal}". Must be one of: ${validScopes.join(", ")}`);
-                process.exit(1);
+                console.error(
+                  `Error: Invalid scope "${scopeVal}". Must be one of: ${validScopes.join(", ")}`
+                )
+                process.exit(1)
               }
-              const { resolveEnvScope } = await import(
-                "../handlers/env-scope.js"
-              );
+              const { resolveEnvScope } =
+                await import("../handlers/env-scope.js")
               await resolveEnvScope({
                 scope: scopeVal,
                 team: flags.team as string | undefined,
@@ -85,23 +98,41 @@ export function envCommand(app: DxBase) {
                 env: flags.env as string | undefined,
                 export: flags.export as boolean | undefined,
                 json: f.json,
-              });
-              return;
+              })
+              return
             }
-            const ctx = await resolveDxContext({ need: "project" });
-            const project = ctx.project;
+            const ctx = await resolveDxContext({ need: "project" })
+            const project = ctx.project
 
-            // Build connection overrides from flags
-            const profileOverrides = flags.profile
-              ? loadNormalizedProfile(project.rootDir, flags.profile as string) ?? undefined
-              : undefined;
+            // Resolve profile name: --connect-to and --profile both load a named profile
+            const profileName =
+              (flags["connect-to"] as string | undefined) ??
+              (flags.profile as string | undefined)
+
+            // Load merged profile (connect entries + env vars)
+            const profile = profileName
+              ? loadConnectionProfile(project.rootDir, profileName)
+              : null
+
+            const profileEnv = profile?.env ?? {}
+
+            // Build connection overrides
+            let profileOverrides:
+              | Record<string, NormalizedProfileEntry>
+              | undefined
+            if (profile && Object.keys(profile.connect).length > 0) {
+              profileOverrides = {}
+              for (const [key, entry] of Object.entries(profile.connect)) {
+                profileOverrides[key] = normalizeProfileEntry(entry)
+              }
+            }
 
             const connectToOverrides = flags["connect-to"]
               ? parseConnectToFlag(
                   flags["connect-to"] as string,
                   project.catalog
                 )
-              : undefined;
+              : undefined
 
             const connectFlags = flags.connect
               ? parseConnectFlags(
@@ -109,50 +140,44 @@ export function envCommand(app: DxBase) {
                     ? flags.connect
                     : [flags.connect as string]
                 )
-              : undefined;
+              : undefined
 
             const overrides = mergeConnectionSources(
               profileOverrides,
               connectToOverrides,
               connectFlags
-            );
+            )
 
             // Parse --env flags
             const envFlags = flags.env
               ? parseEnvFlags(
-                  Array.isArray(flags.env)
-                    ? flags.env
-                    : [flags.env as string]
+                  Array.isArray(flags.env) ? flags.env : [flags.env as string]
                 )
-              : undefined;
+              : undefined
 
-            // Determine tier for overlay
-            const tier =
-              (flags["connect-to"] as string | undefined) ??
-              (profileOverrides ? Object.values(profileOverrides)[0]?.target : undefined);
-            const tierOverlay = tier
-              ? loadTierOverlay(project.rootDir, tier) ?? undefined
-              : undefined;
+            // Profile env is the tier overlay (merged — no separate tier file)
+            const tierOverlay =
+              Object.keys(profileEnv).length > 0 ? profileEnv : undefined
 
             const resolved = resolveEnvVars({
               catalog: project.catalog,
               tierOverlay,
               connectionOverrides: overrides,
               cliEnvFlags: envFlags,
-            });
+            })
 
             if (f.json) {
-              console.log(JSON.stringify(resolved.envVars, null, 2));
+              console.log(JSON.stringify(resolved.envVars, null, 2))
             } else if (flags.export) {
-              console.log(formatResolvedEnv(resolved.envVars, "export"));
+              console.log(formatResolvedEnv(resolved.envVars, "export"))
             } else {
-              console.log(formatResolvedEnv(resolved.envVars, "annotated"));
+              console.log(formatResolvedEnv(resolved.envVars, "annotated"))
             }
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`Error: ${msg}`);
-            process.exit(1);
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error(`Error: ${msg}`)
+            process.exit(1)
           }
         })
-    );
+    )
 }

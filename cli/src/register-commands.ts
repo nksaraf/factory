@@ -29,6 +29,7 @@ import { forwardCommand } from "./commands/forward.js"
 import { generateCommand } from "./commands/generate.js"
 import { gitHookCommand } from "./commands/git-hook.js"
 import { gitCommand } from "./commands/git.js"
+import { hookCommand } from "./commands/hook.js"
 import { infraCommand } from "./commands/infra.js"
 import { initCommand } from "./commands/init.js"
 import { kubeCommand } from "./commands/kube.js"
@@ -162,5 +163,6 @@ export function registerCommands(app: DxBase): DxBase {
 
       // ── Internal (not shown in help) ────────────────────
       .command(gitHookCommand(app))
+      .command(hookCommand(app))
   )
 }

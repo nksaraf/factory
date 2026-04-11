@@ -4,6 +4,8 @@ config_file_path: ./config
 load_db_settings: true
 better_auth_secret: change-me-with-a-strong-random-secret
 
+trusted_origins: http://localhost:3002,http://localhost:3001,http://localhost:9000
+
 database:
   url: ${AUTH_DATABASE_URL:postgres://postgres:postgres@infra-postgres:5432/postgres}
   schema: auth

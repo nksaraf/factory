@@ -24,6 +24,7 @@ export class FactoryClient {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(120_000),
     })
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`)
     return res.json()

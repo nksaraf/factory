@@ -1,11 +1,12 @@
-import React from "react"
 import { Box, Text } from "ink"
+import React from "react"
+
 import { useSelection } from "../hooks/use-selection.js"
 
 interface DetailPaneProps {
   workspaces: Record<string, unknown>[]
-  runtimes: Record<string, unknown>[]
-  substrates: Record<string, unknown>[]
+  realms: Record<string, unknown>[]
+  estates: Record<string, unknown>[]
 }
 
 function timeAgo(dateStr: string | null | undefined): string {
@@ -44,12 +45,16 @@ function statusColor(status?: string): string {
 }
 
 /** Safely extract a string from a record field, returning fallback if absent/non-string */
-function str(rec: Record<string, unknown>, key: string, fallback = "-"): string {
+function str(
+  rec: Record<string, unknown>,
+  key: string,
+  fallback = "-"
+): string {
   const v = rec[key]
   return typeof v === "string" ? v : fallback
 }
 
-export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps) {
+export function DetailPane({ workspaces, realms, estates }: DetailPaneProps) {
   const { selection } = useSelection()
 
   if (!selection) {
@@ -74,9 +79,17 @@ export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps
       fields = [
         ["Name", str(sb, "name", str(sb, "slug", selection.name))],
         ["Slug", str(sb, "slug")],
-        ["Status", str(sb, "status", "unknown"), statusColor(str(sb, "status", "unknown"))],
-        ["Runtime", str(sb, "runtimeType")],
-        ["Health", str(sb, "healthStatus", "unknown"), statusColor(str(sb, "healthStatus", "unknown"))],
+        [
+          "Status",
+          str(sb, "status", "unknown"),
+          statusColor(str(sb, "status", "unknown")),
+        ],
+        ["Realm", str(sb, "realmType")],
+        [
+          "Health",
+          str(sb, "healthStatus", "unknown"),
+          statusColor(str(sb, "healthStatus", "unknown")),
+        ],
         ["CPU", str(sb, "cpu")],
         ["Memory", str(sb, "memory")],
         ["Owner", str(sb, "ownerId", str(sb, "ownerName", str(sb, "owner")))],
@@ -84,10 +97,10 @@ export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps
         ["Created", timeAgo(str(sb, "createdAt", ""))],
       ]
     }
-  } else if (selection.type === "runtime") {
-    const cl = runtimes.find(
+  } else if (selection.type === "realm") {
+    const cl = realms.find(
       (c) =>
-        c.runtimeId === selection.id ||
+        c.realmId === selection.id ||
         c.id === selection.id ||
         c.slug === selection.id ||
         c.name === selection.name
@@ -96,16 +109,20 @@ export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps
       fields = [
         ["Name", str(cl, "name", str(cl, "slug", selection.name))],
         ["Slug", str(cl, "slug")],
-        ["Status", str(cl, "status", "unknown"), statusColor(str(cl, "status", "unknown"))],
-        ["Substrate", str(cl, "substrateName", str(cl, "substrateId"))],
+        [
+          "Status",
+          str(cl, "status", "unknown"),
+          statusColor(str(cl, "status", "unknown")),
+        ],
+        ["Estate", str(cl, "estateName", str(cl, "estateId"))],
         ["Endpoint", str(cl, "endpoint")],
         ["Created", timeAgo(str(cl, "createdAt", ""))],
       ]
     }
-  } else if (selection.type === "substrate") {
-    const pr = substrates.find(
+  } else if (selection.type === "estate") {
+    const pr = estates.find(
       (p) =>
-        p.substrateId === selection.id ||
+        p.estateId === selection.id ||
         p.id === selection.id ||
         p.name === selection.name
     )
@@ -113,16 +130,23 @@ export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps
       fields = [
         ["Name", str(pr, "name", selection.name)],
         ["Slug", str(pr, "slug")],
-        ["Status", str(pr, "status", "unknown"), statusColor(str(pr, "status", "unknown"))],
-        ["Type", str(pr, "substrateType")],
-        ["Kind", str(pr, "substrateKind")],
+        [
+          "Status",
+          str(pr, "status", "unknown"),
+          statusColor(str(pr, "status", "unknown")),
+        ],
+        ["Type", str(pr, "estateType")],
+        ["Kind", str(pr, "estateKind")],
         ["Created", timeAgo(str(pr, "createdAt", ""))],
       ]
     }
   }
 
   if (fields.length === 0) {
-    fields = [["Name", selection.name], ["Type", selection.type]]
+    fields = [
+      ["Name", selection.name],
+      ["Type", selection.type],
+    ]
   }
 
   const maxLabel = Math.max(...fields.map(([l]) => l.length))
@@ -130,16 +154,14 @@ export function DetailPane({ workspaces, runtimes, substrates }: DetailPaneProps
   return (
     <Box flexDirection="column">
       <Box paddingX={1} marginBottom={1}>
-        <Text bold>{selection.type}: {selection.name}</Text>
+        <Text bold>
+          {selection.type}: {selection.name}
+        </Text>
       </Box>
       {fields.map(([label, value, color]) => (
         <Box key={label} paddingX={1}>
-          <Text dimColor>{label.padEnd(maxLabel)}  </Text>
-          {color ? (
-            <Text color={color}>● {value}</Text>
-          ) : (
-            <Text>{value}</Text>
-          )}
+          <Text dimColor>{label.padEnd(maxLabel)} </Text>
+          {color ? <Text color={color}>● {value}</Text> : <Text>{value}</Text>}
         </Box>
       ))}
 

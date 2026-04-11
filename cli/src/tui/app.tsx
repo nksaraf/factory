@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from "react"
-import { render, Box, useInput, useApp, useStdout } from "ink"
-import { TabBar, TAB_IDS, type TabId } from "./components/tab-bar.js"
-import { StatusBar } from "./components/status-bar.js"
+import { Box, render, useApp, useInput, useStdout } from "ink"
+import React, { useEffect, useState } from "react"
+
 import { HelpOverlay } from "./components/help-overlay.js"
-import { InfraTab } from "./tabs/infra-tab.js"
-import { FleetTab } from "./tabs/fleet-tab.js"
-import { WorkspaceTab } from "./tabs/workspace-tab.js"
-import { BuildTab } from "./tabs/build-tab.js"
-import { GatewayTab } from "./tabs/gateway-tab.js"
-import { CommerceTab } from "./tabs/commerce-tab.js"
-import { AlertsTab } from "./tabs/alerts-tab.js"
-import { LogsTab } from "./tabs/logs-tab.js"
-import { ExplorerTab } from "./tabs/explorer/explorer-tab.js"
+import { StatusBar } from "./components/status-bar.js"
+import { TAB_IDS, TabBar, type TabId } from "./components/tab-bar.js"
+import { useEstates, useRealms, useWorkspaces } from "./hooks/use-infra-data.js"
 import { SelectionProvider, useSelection } from "./hooks/use-selection.js"
-import { useSubstrates, useRuntimes, useWorkspaces } from "./hooks/use-infra-data.js"
+import { AlertsTab } from "./tabs/alerts-tab.js"
+import { BuildTab } from "./tabs/build-tab.js"
+import { CommerceTab } from "./tabs/commerce-tab.js"
+import { ExplorerTab } from "./tabs/explorer/explorer-tab.js"
+import { FleetTab } from "./tabs/fleet-tab.js"
+import { GatewayTab } from "./tabs/gateway-tab.js"
+import { InfraTab } from "./tabs/infra-tab.js"
+import { LogsTab } from "./tabs/logs-tab.js"
+import { WorkspaceTab } from "./tabs/workspace-tab.js"
 
 function resolveInitialTab(tab?: string): TabId {
   if (tab && TAB_IDS.includes(tab as TabId)) return tab as TabId
@@ -31,41 +32,52 @@ function useTerminalHeight() {
   useEffect(() => {
     const onResize = () => setHeight(stdout.rows ?? 24)
     stdout.on("resize", onResize)
-    return () => { stdout.off("resize", onResize) }
+    return () => {
+      stdout.off("resize", onResize)
+    }
   }, [stdout])
 
   return height
 }
 
 function Dashboard({ initialTab }: AppProps) {
-  const [activeTab, setActiveTab] = useState<TabId>(resolveInitialTab(initialTab))
+  const [activeTab, setActiveTab] = useState<TabId>(
+    resolveInitialTab(initialTab)
+  )
   const [showHelp, setShowHelp] = useState(false)
   const { exit } = useApp()
   const { selection } = useSelection()
   const termHeight = useTerminalHeight()
 
   // Infra data (used for status bar counts)
-  const substratesQuery = useSubstrates()
-  const runtimesQuery = useRuntimes()
+  const estatesQuery = useEstates()
+  const realmsQuery = useRealms()
   const workspacesQuery = useWorkspaces()
 
-  const substrates = substratesQuery.data ?? []
-  const runtimes = runtimesQuery.data ?? []
+  const estates = estatesQuery.data ?? []
+  const realms = realmsQuery.data ?? []
   const workspaces = workspacesQuery.data ?? []
 
   const counts = {
     running: workspaces.filter((s: any) =>
-      ["active", "running", "ready", "healthy"].includes(s.spec?.lifecycle ?? s.status)
+      ["active", "running", "ready", "healthy"].includes(
+        s.spec?.lifecycle ?? s.status
+      )
     ).length,
     degraded: workspaces.filter((s: any) =>
-      ["provisioning", "pending", "creating", "syncing"].includes(s.spec?.lifecycle ?? s.status)
+      ["provisioning", "pending", "creating", "syncing"].includes(
+        s.spec?.lifecycle ?? s.status
+      )
     ).length,
     down: workspaces.filter((s: any) =>
-      ["stopped", "error", "failed", "destroyed"].includes(s.spec?.lifecycle ?? s.status)
+      ["stopped", "error", "failed", "destroyed"].includes(
+        s.spec?.lifecycle ?? s.status
+      )
     ).length,
   }
 
-  const connected = !substratesQuery.error && !runtimesQuery.error && !workspacesQuery.error
+  const connected =
+    !estatesQuery.error && !realmsQuery.error && !workspacesQuery.error
 
   useInput((input, key) => {
     if (showHelp) {
@@ -90,7 +102,11 @@ function Dashboard({ initialTab }: AppProps) {
     }
 
     // Action: l on workspace switches to logs
-    if (activeTab === "infra" && selection?.type === "workspace" && input === "l") {
+    if (
+      activeTab === "infra" &&
+      selection?.type === "workspace" &&
+      input === "l"
+    ) {
       setActiveTab("logs")
     }
   })
@@ -107,8 +123,8 @@ function Dashboard({ initialTab }: AppProps) {
         <Box flexGrow={1} flexDirection="column">
           {activeTab === "infra" && (
             <InfraTab
-              substrates={substrates}
-              runtimes={runtimes}
+              estates={estates}
+              realms={realms}
               workspaces={workspaces}
               focused={tabFocused}
             />

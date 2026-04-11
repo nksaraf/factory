@@ -65,7 +65,7 @@ export async function collectRemote(
     stdin: new Blob([script]),
     stdout: "pipe",
     stderr: "pipe",
-    timeout: 60_000,
+    timeout: 120_000,
   })
 
   const [stdout, stderr] = await Promise.all([

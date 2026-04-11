@@ -1,7 +1,12 @@
+import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
 import { useParams } from "react-router"
 
-import { PlaneHeader, StatusBadge, MetricCard, EmptyState } from "@/components/factory"
-import { useDeploymentTargets, useWorkloads } from "@/lib/fleet"
+import {
+  EmptyState,
+  MetricCard,
+  PlaneHeader,
+  StatusBadge,
+} from "@/components/factory"
 
 export default function TargetDetailPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -9,8 +14,15 @@ export default function TargetDetailPage() {
   const target = (targets ?? []).find((t) => t.slug === slug)
   const { data: workloads } = useWorkloads(target?.id)
 
-  if (isLoading) return <p className="p-6 text-sm text-muted-foreground">Loading...</p>
-  if (!target) return <EmptyState title="Target not found" description={`No target with slug "${slug}"`} />
+  if (isLoading)
+    return <p className="p-6 text-sm text-muted-foreground">Loading...</p>
+  if (!target)
+    return (
+      <EmptyState
+        title="Target not found"
+        description={`No target with slug "${slug}"`}
+      />
+    )
 
   const running = (workloads ?? []).filter((w) => w.status === "running").length
   const drifted = (workloads ?? []).filter((w) => w.driftDetected).length
@@ -20,15 +32,23 @@ export default function TargetDetailPage() {
       <PlaneHeader
         plane="fleet"
         title={target.name}
-        description={`${target.kind} · ${target.runtime} · ${target.trigger}`}
+        description={`${target.kind} · ${target.realm} · ${target.trigger}`}
         actions={<StatusBadge status={target.status} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <MetricCard label="Workloads" value={(workloads ?? []).length} plane="fleet" />
+        <MetricCard
+          label="Workloads"
+          value={(workloads ?? []).length}
+          plane="fleet"
+        />
         <MetricCard label="Running" value={running} plane="fleet" />
         <MetricCard label="Drifted" value={drifted} plane="fleet" />
-        <MetricCard label="Namespace" value={target.namespace ?? "—"} plane="fleet" />
+        <MetricCard
+          label="Namespace"
+          value={target.namespace ?? "—"}
+          plane="fleet"
+        />
       </div>
 
       <div>
@@ -50,12 +70,20 @@ export default function TargetDetailPage() {
                 <tr key={w.id} className="border-b last:border-0">
                   <td className="py-2 pr-4 font-medium">{w.componentId}</td>
                   <td className="py-2 pr-4">{w.replicas}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{w.desiredImage.split(":").pop()}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{w.actualImage?.split(":").pop() ?? "—"}</td>
-                  <td className="py-2 pr-4">
-                    {w.driftDetected && <span className="text-red-500 font-medium">DRIFT</span>}
+                  <td className="py-2 pr-4 font-mono text-xs">
+                    {w.desiredImage.split(":").pop()}
                   </td>
-                  <td className="py-2 pr-4"><StatusBadge status={w.status} /></td>
+                  <td className="py-2 pr-4 font-mono text-xs">
+                    {w.actualImage?.split(":").pop() ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {w.driftDetected && (
+                      <span className="text-red-500 font-medium">DRIFT</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">
+                    <StatusBadge status={w.status} />
+                  </td>
                 </tr>
               ))}
             </tbody>

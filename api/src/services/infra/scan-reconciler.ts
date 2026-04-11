@@ -10,9 +10,9 @@ import type {
   HostScanResult,
   HostSpec,
   NetworkLinkSpec,
+  RealmSpec,
   RouteSpec,
   RouteStatus,
-  RuntimeSpec,
 } from "@smp/factory-shared/schemas/infra"
 import type {
   ComponentDeploymentSpec,
@@ -21,7 +21,13 @@ import type {
 import { and, eq, isNull, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
-import { host, networkLink, route, runtime } from "../../db/schema/infra-v2"
+import {
+  host,
+  networkLink,
+  realm,
+  realmHost,
+  route,
+} from "../../db/schema/infra-v2"
 import {
   componentDeployment,
   site,
@@ -35,13 +41,18 @@ import { extractHost, extractPort } from "../../lib/url-utils"
 
 export interface ReconciliationSummary {
   systems: { created: number; updated: number }
-  runtimes: { created: number; updated: number }
+  realms: { created: number; updated: number }
   components: { created: number; updated: number; decommissioned: number }
   site: { created: boolean; siteId: string }
   systemDeployments: { created: number; updated: number }
   componentDeployments: { created: number; updated: number }
   routes: { created: number; updated: number; stale: number }
   networkLinks: { created: number; updated: number; stale: number }
+  discoveredHosts: {
+    created: number
+    existing: number
+    hosts: { slug: string; ip: string; reachable: boolean; created: boolean }[]
+  }
 }
 
 interface HostEntity {
@@ -98,13 +109,14 @@ export async function reconcileHostScan(
   const hostName = hostEntity.name
   const summary: ReconciliationSummary = {
     systems: { created: 0, updated: 0 },
-    runtimes: { created: 0, updated: 0 },
+    realms: { created: 0, updated: 0 },
     components: { created: 0, updated: 0, decommissioned: 0 },
     site: { created: false, siteId: "" },
     systemDeployments: { created: 0, updated: 0 },
     componentDeployments: { created: 0, updated: 0 },
     routes: { created: 0, updated: 0, stale: 0 },
     networkLinks: { created: 0, updated: 0, stale: 0 },
+    discoveredHosts: { created: 0, existing: 0, hosts: [] },
   }
 
   await db.transaction(async (tx) => {
@@ -182,43 +194,49 @@ export async function reconcileHostScan(
       }
     }
 
-    // ── 3. Upsert Runtimes ──────────────────────────────────
+    // ── 3. Upsert Realms ──────────────────────────────────
 
-    for (const rt of scanResult.runtimes) {
+    for (const rt of scanResult.realms) {
       const slug = `${hostSlug}-${rt.type}`
       const [existing] = await tx
-        .select({ id: runtime.id })
-        .from(runtime)
-        .where(eq(runtime.slug, slug))
+        .select({ id: realm.id })
+        .from(realm)
+        .where(eq(realm.slug, slug))
         .limit(1)
 
-      const rtSpec: RuntimeSpec = {
+      const rtSpec: RealmSpec = {
         version: rt.version,
         status: (rt.status === "running"
           ? "ready"
-          : "provisioning") as RuntimeSpec["status"],
+          : "provisioning") as RealmSpec["status"],
       }
 
       if (existing) {
         await tx
-          .update(runtime)
+          .update(realm)
           .set({
             spec: rtSpec,
             metadata: scanMetadata({ hostSlug }),
             updatedAt: new Date(),
           })
-          .where(eq(runtime.id, existing.id))
-        summary.runtimes.updated++
+          .where(eq(realm.id, existing.id))
+        summary.realms.updated++
       } else {
-        await tx.insert(runtime).values({
+        const realmId = newId("rlm")
+        await tx.insert(realm).values({
+          id: realmId,
           slug,
           name: `${hostName} ${rt.type}`,
           type: rt.type,
-          hostId: hostEntity.id,
           spec: rtSpec,
           metadata: scanMetadata({ hostSlug }),
         })
-        summary.runtimes.created++
+        await tx.insert(realmHost).values({
+          realmId,
+          hostId: hostEntity.id,
+          role: "single",
+        })
+        summary.realms.created++
       }
     }
 
@@ -393,14 +411,14 @@ export async function reconcileHostScan(
 
     const systemDeploymentIdMap = new Map<string, string>() // systemSlug → sdpId
 
-    // Find the primary runtime for this host (prefer docker-engine)
-    const dockerRuntimeSlug = `${hostSlug}-docker-engine`
-    const [dockerRuntime] = await tx
-      .select({ id: runtime.id })
-      .from(runtime)
-      .where(eq(runtime.slug, dockerRuntimeSlug))
+    // Find the primary realm for this host (prefer docker-engine)
+    const dockerRealmSlug = `${hostSlug}-docker-engine`
+    const [dockerRealm] = await tx
+      .select({ id: realm.id })
+      .from(realm)
+      .where(eq(realm.slug, dockerRealmSlug))
       .limit(1)
-    const primaryRuntimeId = dockerRuntime?.id ?? null
+    const primaryRealmId = dockerRealm?.id ?? null
 
     for (const [systemSlug, systemId] of systemIdMap) {
       const sdpSlug = `${systemSlug}-on-${siteSlug}`
@@ -431,7 +449,7 @@ export async function reconcileHostScan(
         await tx
           .update(systemDeployment)
           .set({
-            ...(primaryRuntimeId ? { runtimeId: primaryRuntimeId } : {}),
+            ...(primaryRealmId ? { realmId: primaryRealmId } : {}),
             spec: sdpSpec,
             updatedAt: new Date(),
           })
@@ -446,7 +464,7 @@ export async function reconcileHostScan(
           type: "dev",
           systemId,
           siteId,
-          ...(primaryRuntimeId ? { runtimeId: primaryRuntimeId } : {}),
+          ...(primaryRealmId ? { realmId: primaryRealmId } : {}),
           spec: sdpSpec,
           metadata: scanMetadata({ hostSlug }),
         })
@@ -501,22 +519,22 @@ export async function reconcileHostScan(
       }
     }
 
-    // ── 8b. Upsert reverse-proxy Runtimes ───────────────────
-    // For each discovered reverse proxy, ensure a runtime entity exists.
+    // ── 8b. Upsert reverse-proxy Realms ───────────────────
+    // For each discovered reverse proxy, ensure a realm entity exists.
 
-    const proxyRuntimeIdMap = new Map<string, string>() // proxy.name → runtimeId
+    const proxyRealmIdMap = new Map<string, string>() // proxy.name → realmId
 
     for (const proxy of scanResult.reverseProxies ?? []) {
       const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
       const proxyName = `${hostName} ${proxy.engine}`
 
       const [existingProxy] = await tx
-        .select({ id: runtime.id })
-        .from(runtime)
-        .where(eq(runtime.slug, proxySlug))
+        .select({ id: realm.id })
+        .from(realm)
+        .where(eq(realm.slug, proxySlug))
         .limit(1)
 
-      const proxySpec: RuntimeSpec = {
+      const proxySpec: RealmSpec = {
         status: "ready",
         endpoint: proxy.apiUrl,
         version: proxy.version,
@@ -524,28 +542,32 @@ export async function reconcileHostScan(
 
       if (existingProxy) {
         await tx
-          .update(runtime)
+          .update(realm)
           .set({
             spec: proxySpec,
             metadata: scanMetadata({ hostSlug }),
             updatedAt: new Date(),
           })
-          .where(eq(runtime.id, existingProxy.id))
-        proxyRuntimeIdMap.set(proxy.name, existingProxy.id)
-        summary.runtimes.updated++
+          .where(eq(realm.id, existingProxy.id))
+        proxyRealmIdMap.set(proxy.name, existingProxy.id)
+        summary.realms.updated++
       } else {
-        const proxyRuntimeId = newId("rt")
-        await tx.insert(runtime).values({
-          id: proxyRuntimeId,
+        const proxyRealmId = newId("rlm")
+        await tx.insert(realm).values({
+          id: proxyRealmId,
           slug: proxySlug,
           name: proxyName,
           type: "reverse-proxy",
-          hostId: hostEntity.id,
           spec: proxySpec,
           metadata: scanMetadata({ hostSlug }),
         })
-        proxyRuntimeIdMap.set(proxy.name, proxyRuntimeId)
-        summary.runtimes.created++
+        await tx.insert(realmHost).values({
+          realmId: proxyRealmId,
+          hostId: hostEntity.id,
+          role: "single",
+        })
+        proxyRealmIdMap.set(proxy.name, proxyRealmId)
+        summary.realms.created++
       }
     }
 
@@ -555,8 +577,8 @@ export async function reconcileHostScan(
     const currentRouterSlugs = new Set<string>()
 
     for (const proxy of scanResult.reverseProxies ?? []) {
-      const proxyRuntimeId = proxyRuntimeIdMap.get(proxy.name)
-      if (!proxyRuntimeId) continue
+      const proxyRealmId = proxyRealmIdMap.get(proxy.name)
+      if (!proxyRealmId) continue
 
       for (const router of proxy.routers) {
         if (router.domains.length === 0) continue
@@ -579,7 +601,7 @@ export async function reconcileHostScan(
               address: backend.url,
               port: extractPort(backend.url) ?? 80,
               weight: 100,
-              runtimeType: "docker",
+              realmType: "docker",
             })
           }
         }
@@ -598,7 +620,7 @@ export async function reconcileHostScan(
                   address: `${hostEntry.ip}:${rs.port}`,
                   port: rs.port,
                   weight: 100,
-                  runtimeType: rs.service.runtime,
+                  realmType: rs.service.runtime,
                 })
               }
             }
@@ -634,7 +656,7 @@ export async function reconcileHostScan(
             .set({
               spec: routeSpec,
               status: routeStatus as unknown as Record<string, unknown>,
-              runtimeId: proxyRuntimeId,
+              realmId: proxyRealmId,
               metadata: scanMetadata({ hostSlug }),
               updatedAt: new Date(),
             })
@@ -647,7 +669,7 @@ export async function reconcileHostScan(
             name: domain,
             type: "ingress",
             domain,
-            runtimeId: proxyRuntimeId,
+            realmId: proxyRealmId,
             spec: routeSpec,
             status: routeStatus as unknown as Record<string, unknown>,
             metadata: scanMetadata({ hostSlug }),
@@ -681,14 +703,79 @@ export async function reconcileHostScan(
 
     summary.routes.stale = staleRouteRows.length
 
+    // ── 8c½. Register discovered hosts from network crawl ────
+    // Match crawled backend IPs to existing hosts; auto-create unknown ones
+    // so that the network link step (8d) can resolve all targets.
+
+    const hostIpAddress = (hostEntity.spec as HostSpec).ipAddress
+
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const ip = entry.ip
+      if (ip === hostIpAddress) continue // skip self
+
+      const [existing] = await tx
+        .select({ id: host.id, slug: host.slug })
+        .from(host)
+        .where(sql`${host.spec}->>'ipAddress' = ${ip}`)
+        .limit(1)
+
+      if (existing) {
+        summary.discoveredHosts.hosts.push({
+          slug: existing.slug,
+          ip,
+          reachable: entry.reachable,
+          created: false,
+        })
+        summary.discoveredHosts.existing++
+        continue
+      }
+
+      // Auto-create genuinely unknown host
+      const discoveredName = entry.hostname || `host-${ip.replace(/\./g, "-")}`
+      const discoveredSlug = slugify(discoveredName)
+      const scanningSpec = hostEntity.spec as HostSpec
+
+      await tx.insert(host).values({
+        id: newId("host"),
+        slug: discoveredSlug,
+        name: discoveredName,
+        type: "vm",
+        spec: {
+          hostname: entry.hostname || ip,
+          ipAddress: ip,
+          os: "linux",
+          arch: "amd64",
+          accessMethod: "ssh",
+          accessUser: scanningSpec.accessUser ?? "root",
+          sshPort: 22,
+          lifecycle: entry.reachable ? "active" : "offline",
+        } satisfies HostSpec,
+        metadata: {
+          annotations: {
+            discoveredBy: "network-crawl",
+            discoveredFrom: hostSlug,
+            discoveredAt: new Date().toISOString(),
+          },
+        },
+      })
+
+      summary.discoveredHosts.hosts.push({
+        slug: discoveredSlug,
+        ip,
+        reachable: entry.reachable,
+        created: true,
+      })
+      summary.discoveredHosts.created++
+    }
+
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────
     // Create directed links from reverse-proxy runtime to backend hosts.
 
     const currentLinkSlugs = new Set<string>()
 
     for (const proxy of scanResult.reverseProxies ?? []) {
-      const proxyRuntimeId = proxyRuntimeIdMap.get(proxy.name)
-      if (!proxyRuntimeId) continue
+      const proxyRealmId = proxyRealmIdMap.get(proxy.name)
+      if (!proxyRealmId) continue
 
       // Group routers by backend host IP
       const hostIpToDomains = new Map<string, string[]>()
@@ -709,14 +796,13 @@ export async function reconcileHostScan(
       }
 
       const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
-      const hostIpAddress = (hostEntity.spec as HostSpec).ipAddress
 
       // Create a proxy link for each unique backend host IP
       for (const [backendIp, domains] of hostIpToDomains) {
         const isLocalBackend = hostIpAddress && backendIp === hostIpAddress
 
         // For same-host backends, create a host-local link to docker-engine runtime
-        if (isLocalBackend && primaryRuntimeId) {
+        if (isLocalBackend && primaryRealmId) {
           const linkSlug = slugify(`${proxySlug}-to-${hostSlug}-docker`)
           currentLinkSlugs.add(linkSlug)
 
@@ -756,10 +842,10 @@ export async function reconcileHostScan(
               slug: linkSlug,
               name: `${proxySlug} → ${hostSlug}-docker`,
               type: "host-local",
-              sourceKind: "runtime",
-              sourceId: proxyRuntimeId,
-              targetKind: "runtime",
-              targetId: primaryRuntimeId,
+              sourceKind: "realm",
+              sourceId: proxyRealmId,
+              targetKind: "realm",
+              targetId: primaryRealmId,
               spec: linkSpec,
               metadata: scanMetadata({ hostSlug }),
             })
@@ -818,8 +904,8 @@ export async function reconcileHostScan(
             slug: linkSlug,
             name: `${proxySlug} → ${targetHost.slug}`,
             type: "proxy",
-            sourceKind: "runtime",
-            sourceId: proxyRuntimeId,
+            sourceKind: "realm",
+            sourceId: proxyRealmId,
             targetKind: "host",
             targetId: targetHost.id,
             spec: linkSpec,
@@ -841,7 +927,7 @@ export async function reconcileHostScan(
       scannedAt: scanResult.scannedAt,
       portCount: scanResult.ports.length,
       serviceCount: scanResult.services.length,
-      runtimeCount: scanResult.runtimes.length,
+      runtimeCount: scanResult.realms.length,
       composeProjectCount: scanResult.composeProjects.length,
     })
     if (scanHistory.length > 50) scanHistory.length = 50
@@ -872,7 +958,7 @@ export async function reconcileHostScan(
             durationMs: scanResult.scanDurationMs,
             portCount: scanResult.ports.length,
             serviceCount: scanResult.services.length,
-            runtimeCount: scanResult.runtimes.length,
+            runtimeCount: scanResult.realms.length,
             composeProjects: scanResult.composeProjects.map((p) => p.name),
             ports: scanResult.ports,
             collectors: scanResult.collectors,

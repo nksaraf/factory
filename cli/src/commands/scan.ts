@@ -11,6 +11,7 @@ setExamples("scan", [
   "$ dx scan claude-code                  Sync only Claude Code sessions",
   "$ dx scan --dry-run                    Preview without sending",
   "$ dx scan --json                       Machine-readable output",
+  "$ dx scan web01 --deep                 Spider-crawl: scan host + all discovered backends",
 ])
 
 export function scanCommand(app: DxBase) {
@@ -46,6 +47,11 @@ export function scanCommand(app: DxBase) {
       scanner: {
         type: "string",
         description: "Scanner to run: ide, infra, or all (default: all)",
+      },
+      deep: {
+        type: "boolean",
+        description:
+          "Spider-crawl: auto-register discovered backend hosts and submit their scan data",
       },
     })
     .run(async ({ args, flags }) => {

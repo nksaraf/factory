@@ -1,16 +1,16 @@
 import type {
   DnsDomainSpec,
+  EstateSpec,
   HostSpec,
   IpAddressSpec,
   NetworkLinkSpec,
+  RealmSpec,
   RouteSpec,
-  RuntimeSpec,
   SecretSpec,
-  SubstrateSpec,
+  ServiceSpec,
   TunnelSpec,
 } from "@smp/factory-shared/schemas/infra"
-import { sql } from "drizzle-orm"
-import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
 import {
@@ -23,39 +23,32 @@ import {
 } from "./helpers"
 import { principal } from "./org-v2"
 
-// ─── Substrate ──────────────────────────────────────────────
-// Represents physical/logical infrastructure layers:
-// cloud accounts, regions, datacenters, VPCs, subnets, hypervisors, racks.
+// ─── Estate ──────────────────────────────────────────────
+// Ownership hierarchy: cloud accounts, regions, datacenters, VPCs, subnets, racks.
+// Renamed from "substrate" — plain text type column, validated in TypeScript.
 
-export const substrate = infraSchema.table(
-  "substrate",
+export const estate = infraSchema.table(
+  "estate",
   {
     id: text("id")
       .primaryKey()
-      .$defaultFn(() => newId("subs")),
+      .$defaultFn(() => newId("est")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull(),
-    // Self-referential FK — Drizzle requires callback return type to be loosened
-    // because the table variable isn't fully defined yet at reference time.
-    parentSubstrateId: text("parent_substrate_id").references(
-      (): any => substrate.id,
-      { onDelete: "set null" }
-    ),
-    spec: specCol<SubstrateSpec>(),
+    parentEstateId: text("parent_estate_id").references((): any => estate.id, {
+      onDelete: "set null",
+    }),
+    spec: specCol<EstateSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...reconciliationCols(),
   },
   (t) => [
-    uniqueIndex("infra_substrate_slug_unique").on(t.slug),
-    index("infra_substrate_type_idx").on(t.type),
-    index("infra_substrate_parent_idx").on(t.parentSubstrateId),
-    check(
-      "infra_substrate_type_valid",
-      sql`${t.type} IN ('cloud-account', 'region', 'datacenter', 'vpc', 'subnet', 'hypervisor', 'rack', 'dns-zone', 'wan')`
-    ),
+    uniqueIndex("infra_estate_slug_unique").on(t.slug),
+    index("infra_estate_type_idx").on(t.type),
+    index("infra_estate_parent_idx").on(t.parentEstateId),
   ]
 )
 
@@ -71,7 +64,7 @@ export const host = infraSchema.table(
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull(),
-    substrateId: text("substrate_id").references(() => substrate.id, {
+    estateId: text("estate_id").references(() => estate.id, {
       onDelete: "set null",
     }),
     spec: specCol<HostSpec>(),
@@ -83,49 +76,101 @@ export const host = infraSchema.table(
   (t) => [
     uniqueIndex("infra_host_slug_unique").on(t.slug),
     index("infra_host_type_idx").on(t.type),
-    index("infra_host_substrate_idx").on(t.substrateId),
-    check(
-      "infra_host_type_valid",
-      sql`${t.type} IN ('bare-metal', 'vm', 'lxc', 'cloud-instance', 'network-appliance')`
-    ),
+    index("infra_host_estate_idx").on(t.estateId),
   ]
 )
 
-// ─── Runtime ────────────────────────────────────────────────
-// Execution environments where components actually run.
+// ─── Realm ────────────────────────────────────────────────
+// Active governance — bounded domain of authority where things spawn and are controlled.
+// Renamed from "runtime". Categories: compute, network, storage, ai, build, scheduling.
+// Uses realm_host join table for many-to-many (K8s cluster spans multiple hosts).
 
-export const runtime = infraSchema.table(
-  "runtime",
+export const realm = infraSchema.table(
+  "realm",
   {
     id: text("id")
       .primaryKey()
-      .$defaultFn(() => newId("rt")),
+      .$defaultFn(() => newId("rlm")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull(),
-    // Self-referential FK — see substrate comment above.
-    parentRuntimeId: text("parent_runtime_id").references(
-      (): any => runtime.id,
-      { onDelete: "set null" }
-    ),
-    hostId: text("host_id").references(() => host.id, {
+    parentRealmId: text("parent_realm_id").references((): any => realm.id, {
       onDelete: "set null",
     }),
-    spec: specCol<RuntimeSpec>(),
+    estateId: text("estate_id").references(() => estate.id, {
+      onDelete: "set null",
+    }),
+    // workbenchId FK added in ops.ts to avoid circular cross-schema import
+    workbenchId: text("workbench_id"),
+    spec: specCol<RealmSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...reconciliationCols(),
   },
   (t) => [
-    uniqueIndex("infra_runtime_slug_unique").on(t.slug),
-    index("infra_runtime_type_idx").on(t.type),
-    index("infra_runtime_parent_idx").on(t.parentRuntimeId),
-    index("infra_runtime_host_idx").on(t.hostId),
-    check(
-      "infra_runtime_type_valid",
-      sql`${t.type} IN ('k8s-cluster', 'k8s-namespace', 'docker-engine', 'compose-project', 'systemd', 'reverse-proxy', 'iis', 'windows-service', 'process', 'firewall', 'router')`
-    ),
+    uniqueIndex("infra_realm_slug_unique").on(t.slug),
+    index("infra_realm_type_idx").on(t.type),
+    index("infra_realm_parent_idx").on(t.parentRealmId),
+    index("infra_realm_estate_idx").on(t.estateId),
+    index("infra_realm_workbench_idx").on(t.workbenchId),
+  ]
+)
+
+// ─── Realm-Host join table ────────────────────────────────
+// Many-to-many: K8s cluster can span multiple hosts.
+
+export const realmHost = infraSchema.table(
+  "realm_host",
+  {
+    realmId: text("realm_id")
+      .notNull()
+      .references(() => realm.id, { onDelete: "cascade" }),
+    hostId: text("host_id")
+      .notNull()
+      .references(() => host.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("single"), // single, control-plane, worker
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("infra_realm_host_unique").on(t.realmId, t.hostId),
+    index("infra_realm_host_realm_idx").on(t.realmId),
+    index("infra_realm_host_host_idx").on(t.hostId),
+  ]
+)
+
+// ─── Service ──────────────────────────────────────────────
+// Anything consumed via protocol/API: managed infra, SaaS, AI/ML, internal services.
+
+export const service = infraSchema.table(
+  "service",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("svc")),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    estateId: text("estate_id").references(() => estate.id, {
+      onDelete: "set null",
+    }),
+    realmId: text("realm_id").references(() => realm.id, {
+      onDelete: "set null",
+    }),
+    // systemDeploymentId FK added in ops.ts to avoid circular cross-schema import
+    systemDeploymentId: text("system_deployment_id"),
+    spec: specCol<ServiceSpec>(),
+    metadata: metadataCol(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    ...reconciliationCols(),
+  },
+  (t) => [
+    uniqueIndex("infra_service_slug_unique").on(t.slug),
+    index("infra_service_type_idx").on(t.type),
+    index("infra_service_estate_idx").on(t.estateId),
+    index("infra_service_realm_idx").on(t.realmId),
+    index("infra_service_sd_idx").on(t.systemDeploymentId),
   ]
 )
 
@@ -142,7 +187,7 @@ export const route = infraSchema.table(
     name: text("name").notNull(),
     type: text("type").notNull(),
     domain: text("domain").notNull(),
-    runtimeId: text("runtime_id").references(() => runtime.id, {
+    realmId: text("realm_id").references(() => realm.id, {
       onDelete: "set null",
     }),
     spec: specCol<RouteSpec>(),
@@ -155,11 +200,7 @@ export const route = infraSchema.table(
     uniqueIndex("infra_route_slug_unique").on(t.slug),
     index("infra_route_type_idx").on(t.type),
     index("infra_route_domain_idx").on(t.domain),
-    index("infra_route_runtime_idx").on(t.runtimeId),
-    check(
-      "infra_route_type_valid",
-      sql`${t.type} IN ('ingress', 'workspace', 'preview', 'tunnel', 'custom-domain')`
-    ),
+    index("infra_route_realm_idx").on(t.realmId),
   ]
 )
 
@@ -188,10 +229,6 @@ export const dnsDomain = infraSchema.table(
     uniqueIndex("infra_dns_domain_slug_unique").on(t.slug),
     index("infra_dns_domain_type_idx").on(t.type),
     index("infra_dns_domain_site_idx").on(t.siteId),
-    check(
-      "infra_dns_domain_type_valid",
-      sql`${t.type} IN ('primary', 'alias', 'custom', 'wildcard')`
-    ),
   ]
 )
 
@@ -224,11 +261,6 @@ export const tunnel = infraSchema.table(
     index("infra_tunnel_route_idx").on(t.routeId),
     index("infra_tunnel_principal_idx").on(t.principalId),
     index("infra_tunnel_phase_idx").on(t.phase),
-    check("infra_tunnel_type_valid", sql`${t.type} IN ('http', 'tcp')`),
-    check(
-      "infra_tunnel_phase_valid",
-      sql`${t.phase} IN ('connecting', 'connected', 'disconnected', 'error')`
-    ),
   ]
 )
 
@@ -242,7 +274,7 @@ export const ipAddress = infraSchema.table(
       .primaryKey()
       .$defaultFn(() => newId("ipa")),
     address: text("address").notNull(),
-    subnetId: text("subnet_id").references(() => substrate.id, {
+    subnetId: text("subnet_id").references(() => estate.id, {
       onDelete: "set null",
     }),
     spec: specCol<IpAddressSpec>(),
@@ -302,13 +334,5 @@ export const networkLink = infraSchema.table(
     index("infra_network_link_source_idx").on(t.sourceKind, t.sourceId),
     index("infra_network_link_target_idx").on(t.targetKind, t.targetId),
     index("infra_network_link_edge_idx").on(t.sourceId, t.targetId),
-    check(
-      "infra_network_link_type_valid",
-      sql`${t.type} IN ('proxy', 'direct', 'tunnel', 'nat', 'firewall', 'mesh', 'peering', 'dns-resolution', 'port-forward', 'host-local', 'container-bridge', 'socket')`
-    ),
-    check(
-      "infra_network_link_endpoint_kind_valid",
-      sql`${t.sourceKind} IN ('substrate', 'host', 'runtime', 'dns-domain', 'ip-address', 'route', 'component-deployment') AND ${t.targetKind} IN ('substrate', 'host', 'runtime', 'dns-domain', 'ip-address', 'route', 'component-deployment')`
-    ),
   ]
 )

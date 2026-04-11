@@ -1,4 +1,4 @@
-import { t, type UnwrapSchema } from "elysia"
+import { type UnwrapSchema, t } from "elysia"
 
 export const SandboxModel = {
   idParams: t.Object({ id: t.String() }),
@@ -7,7 +7,7 @@ export const SandboxModel = {
   createSandboxBody: t.Object({
     name: t.String(),
     slug: t.Optional(t.String()),
-    runtimeType: t.Optional(t.String()),
+    realmType: t.Optional(t.String()),
     templateId: t.Optional(t.String()),
     ownerId: t.String(),
     ownerType: t.String(),
@@ -17,11 +17,15 @@ export const SandboxModel = {
     memory: t.Optional(t.String()),
     storageGb: t.Optional(t.Number()),
     dockerCacheGb: t.Optional(t.Number()),
-    repos: t.Optional(t.Array(t.Object({
-      url: t.String(),
-      branch: t.Optional(t.String()),
-      clonePath: t.Optional(t.String()),
-    }))),
+    repos: t.Optional(
+      t.Array(
+        t.Object({
+          url: t.String(),
+          branch: t.Optional(t.String()),
+          clonePath: t.Optional(t.String()),
+        })
+      )
+    ),
     devcontainerConfig: t.Optional(t.Record(t.String(), t.Unknown())),
     devcontainerImage: t.Optional(t.String()),
     gpu: t.Optional(t.Boolean()),
@@ -31,7 +35,7 @@ export const SandboxModel = {
     slug: t.Optional(t.String()),
     ownerId: t.Optional(t.String()),
     ownerType: t.Optional(t.String()),
-    runtimeType: t.Optional(t.String()),
+    realmType: t.Optional(t.String()),
     status: t.Optional(t.String()),
   }),
   resizeSandboxBody: t.Object({
@@ -56,12 +60,12 @@ export const SandboxModel = {
 
   // Templates
   listTemplatesQuery: t.Object({
-    runtimeType: t.Optional(t.String()),
+    realmType: t.Optional(t.String()),
   }),
   createTemplateBody: t.Object({
     name: t.String(),
     slug: t.Optional(t.String()),
-    runtimeType: t.String(),
+    realmType: t.String(),
     image: t.Optional(t.String()),
     defaultCpu: t.Optional(t.String()),
     defaultMemory: t.Optional(t.String()),

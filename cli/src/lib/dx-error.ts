@@ -10,30 +10,30 @@
 
 export interface DxErrorContext {
   /** What operation was being attempted (e.g., "creating workspace", "applying k8s resource"). */
-  operation: string;
-  /** Key-value pairs of relevant state (e.g., { workspaceSlug, runtimeId, kubeconfig }). */
-  metadata?: Record<string, unknown>;
+  operation: string
+  /** Key-value pairs of relevant state (e.g., { workspaceSlug, realmId, kubeconfig }). */
+  metadata?: Record<string, unknown>
   /** Actionable recovery suggestions shown to the user. */
-  suggestions?: Array<{ action: string; description: string }>;
+  suggestions?: Array<{ action: string; description: string }>
   /** Machine-readable error code (e.g., "K3D_UNREACHABLE", "API_ERROR"). */
-  code?: string;
+  code?: string
   /** The underlying cause, if wrapping another error. */
-  cause?: Error;
+  cause?: Error
 }
 
 export class DxError extends Error {
-  readonly context: DxErrorContext;
+  readonly context: DxErrorContext
 
   constructor(message: string, context: DxErrorContext) {
-    super(message);
-    this.name = "DxError";
-    this.context = context;
-    if (context.cause) this.cause = context.cause;
+    super(message)
+    this.name = "DxError"
+    this.context = context
+    if (context.cause) this.cause = context.cause
   }
 
   /** Wrap any caught value into a DxError, preserving the original as cause. */
   static wrap(err: unknown, context: Omit<DxErrorContext, "cause">): DxError {
-    const cause = err instanceof Error ? err : new Error(String(err));
-    return new DxError(cause.message, { ...context, cause });
+    const cause = err instanceof Error ? err : new Error(String(err))
+    return new DxError(cause.message, { ...context, cause })
   }
 }

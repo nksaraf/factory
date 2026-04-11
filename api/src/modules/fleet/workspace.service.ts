@@ -1,11 +1,12 @@
-import { and, desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { workspace } from "../../db/schema/ops";
-import { runtime } from "../../db/schema/infra-v2";
-import { principal } from "../../db/schema/org-v2";
-import { allocateSlug } from "../../lib/slug";
-import { removeSystemDeploymentRoutes } from "../infra/gateway.service";
-import { parseTtlToMs } from "./utils";
+import { and, desc, eq } from "drizzle-orm"
+
+import type { Database } from "../../db/connection"
+import { realm } from "../../db/schema/infra-v2"
+import { workspace } from "../../db/schema/ops"
+import { principal } from "../../db/schema/org-v2"
+import { allocateSlug } from "../../lib/slug"
+import { removeSystemDeploymentRoutes } from "../infra/gateway.service"
+import { parseTtlToMs } from "./utils"
 
 // ---------------------------------------------------------------------------
 // Workspace CRUD — v2: ops schema
@@ -16,67 +17,70 @@ const DEFAULT_TTLS: Record<string, string> = {
   agent: "2h",
   manual: "24h",
   ci: "4h",
-};
+}
 
 function generateWorkspaceName(): string {
-  return `workspace-${Math.random().toString(36).substring(2, 8)}`;
+  return `workspace-${Math.random().toString(36).substring(2, 8)}`
 }
 
 /**
- * Resolve the default runtime (k8s cluster) for a workspace.
+ * Resolve the default realm (k8s cluster) for a workspace.
  * Priority: isDefault=true > status=ready > any k8s-cluster.
- * Returns null if no runtimes are registered.
+ * Returns null if no realms are registered.
  */
-export async function resolveDefaultRuntime(
-  db: Database,
+export async function resolveDefaultRealm(
+  db: Database
 ): Promise<string | null> {
-  const allRuntimes = await db
-    .select({ id: runtime.id, spec: runtime.spec })
-    .from(runtime)
-    .where(eq(runtime.type, "k8s-cluster"));
+  const allRealms = await db
+    .select({ id: realm.id, spec: realm.spec })
+    .from(realm)
+    .where(eq(realm.type, "k8s-cluster"))
 
-  const defaultRuntime =
-    allRuntimes.find((r) => (r.spec as any)?.isDefault === true) ??
-    allRuntimes.find((r) => (r.spec as any)?.status === "ready") ??
-    allRuntimes[0];
+  const defaultRealm =
+    allRealms.find((r) => (r.spec as any)?.isDefault === true) ??
+    allRealms.find((r) => (r.spec as any)?.status === "ready") ??
+    allRealms[0]
 
-  return defaultRuntime?.id ?? null;
+  return defaultRealm?.id ?? null
 }
 
 export async function listWorkspaces(
   db: Database,
   opts?: {
-    ownerId?: string;
-    type?: string;
-    all?: boolean;
-    createdBy?: string;
-    trigger?: string;
-  },
+    ownerId?: string
+    type?: string
+    all?: boolean
+    createdBy?: string
+    trigger?: string
+  }
 ) {
-  const conditions = [];
-  if (opts?.ownerId) conditions.push(eq(workspace.ownerId, opts.ownerId));
-  if (opts?.type) conditions.push(eq(workspace.type, opts.type));
+  const conditions = []
+  if (opts?.ownerId) conditions.push(eq(workspace.ownerId, opts.ownerId))
+  if (opts?.type) conditions.push(eq(workspace.type, opts.type))
 
-  const base = db.select().from(workspace);
+  const base = db.select().from(workspace)
   const rows =
     conditions.length > 0
       ? await base.where(and(...conditions)).orderBy(desc(workspace.createdAt))
-      : await base.orderBy(desc(workspace.createdAt));
+      : await base.orderBy(desc(workspace.createdAt))
 
-  let filtered = rows;
+  let filtered = rows
   if (opts?.createdBy) {
-    filtered = filtered.filter((r) => (r.spec as any)?.createdBy === opts.createdBy);
+    filtered = filtered.filter(
+      (r) => (r.spec as any)?.createdBy === opts.createdBy
+    )
   }
   if (opts?.trigger) {
-    filtered = filtered.filter((r) => (r.spec as any)?.trigger === opts.trigger);
+    filtered = filtered.filter((r) => (r.spec as any)?.trigger === opts.trigger)
   }
   if (!opts?.all) {
     filtered = filtered.filter(
-      (r) => !["destroyed", "destroying"].includes((r.spec as any)?.lifecycle ?? ""),
-    );
+      (r) =>
+        !["destroyed", "destroying"].includes((r.spec as any)?.lifecycle ?? "")
+    )
   }
 
-  return { data: filtered, total: filtered.length };
+  return { data: filtered, total: filtered.length }
 }
 
 /**
@@ -86,28 +90,28 @@ export async function listWorkspaces(
 export async function createWorkspace(
   db: Database,
   input: {
-    name?: string;
-    ownerId?: string;
-    createdBy?: string;
-    type?: string;
-    ttl?: string;
-    trigger?: string;
-    labels?: Record<string, unknown>;
+    name?: string
+    ownerId?: string
+    createdBy?: string
+    type?: string
+    ttl?: string
+    trigger?: string
+    labels?: Record<string, unknown>
     dependencies?: Array<{
-      name: string;
-      image: string;
-      port: number;
-      env?: Record<string, unknown>;
-    }>;
-    publishPorts?: number[];
-    snapshotId?: string;
-    runtimeId?: string;
-  },
+      name: string
+      image: string
+      port: number
+      env?: Record<string, unknown>
+    }>
+    publishPorts?: number[]
+    snapshotId?: string
+    realmId?: string
+  }
 ) {
-  const name = input.name ?? generateWorkspaceName();
-  const trigger = input.trigger ?? "manual";
-  const ttl = input.ttl ?? DEFAULT_TTLS[trigger] ?? "24h";
-  const type = input.type ?? "developer";
+  const name = input.name ?? generateWorkspaceName()
+  const trigger = input.trigger ?? "manual"
+  const ttl = input.ttl ?? DEFAULT_TTLS[trigger] ?? "24h"
+  const type = input.type ?? "developer"
 
   const slug = await allocateSlug({
     baseLabel: name,
@@ -116,22 +120,22 @@ export async function createWorkspace(
         .select({ id: workspace.id })
         .from(workspace)
         .where(eq(workspace.slug, s))
-        .limit(1);
-      return !!existing;
+        .limit(1)
+      return !!existing
     },
-  });
+  })
 
-  const expiresAt = new Date(Date.now() + parseTtlToMs(ttl));
+  const expiresAt = new Date(Date.now() + parseTtlToMs(ttl))
 
-  // Auto-assign default runtime if none provided
-  let runtimeId: string | null = input.runtimeId ?? null;
-  if (!runtimeId) {
-    runtimeId = await resolveDefaultRuntime(db);
+  // Auto-assign default realm if none provided
+  let realmId: string | null = input.realmId ?? null
+  if (!realmId) {
+    realmId = await resolveDefaultRealm(db)
   }
-  if (!runtimeId) {
+  if (!realmId) {
     throw new Error(
-      "No cluster registered. Run `dx setup --role factory` to bootstrap a cluster.",
-    );
+      "No cluster registered. Run `dx setup --role factory` to bootstrap a cluster."
+    )
   }
 
   // Auto-create principal if it doesn't exist (local dev convenience)
@@ -140,15 +144,18 @@ export async function createWorkspace(
       .select({ id: principal.id })
       .from(principal)
       .where(eq(principal.id, input.ownerId))
-      .limit(1);
+      .limit(1)
     if (!existingPrincipal) {
-      await db.insert(principal).values({
-        id: input.ownerId,
-        slug: input.ownerId,
-        name: input.ownerId,
-        type: "human",
-        spec: { status: "active" },
-      } as any).onConflictDoNothing();
+      await db
+        .insert(principal)
+        .values({
+          id: input.ownerId,
+          slug: input.ownerId,
+          name: input.ownerId,
+          type: "human",
+          spec: { status: "active" },
+        } as any)
+        .onConflictDoNothing()
     }
   }
 
@@ -158,37 +165,34 @@ export async function createWorkspace(
       name,
       slug,
       type,
-      runtimeId,
+      realmId,
       ownerId: input.ownerId ?? null,
       spec: {
         trigger,
         createdBy: input.createdBy ?? input.ownerId ?? "system",
         lifecycle: "provisioning",
-        runtimeType: "container",
+        realmType: "container",
         ttl,
         expiresAt: expiresAt.toISOString(),
         labels: input.labels ?? {},
         dependencies: input.dependencies ?? [],
       } as any,
     })
-    .returning();
+    .returning()
 
-  return ws;
+  return ws
 }
 
-export async function destroyWorkspace(
-  db: Database,
-  id: string,
-) {
-  await removeSystemDeploymentRoutes(db, id);
+export async function destroyWorkspace(db: Database, id: string) {
+  await removeSystemDeploymentRoutes(db, id)
 
   const [existing] = await db
     .select()
     .from(workspace)
     .where(eq(workspace.id, id))
-    .limit(1);
+    .limit(1)
 
-  if (!existing) throw new Error(`Workspace not found: ${id}`);
+  if (!existing) throw new Error(`Workspace not found: ${id}`)
 
   const [updated] = await db
     .update(workspace)
@@ -199,29 +203,29 @@ export async function destroyWorkspace(
       } as any,
     })
     .where(eq(workspace.id, id))
-    .returning();
+    .returning()
 
-  return updated;
+  return updated
 }
 
 export async function cleanupExpiredWorkspaces(db: Database) {
-  const all = await db.select().from(workspace);
-  const now = new Date();
+  const all = await db.select().from(workspace)
+  const now = new Date()
 
   const expired = all.filter((w) => {
-    const spec = w.spec as any;
-    if (spec?.lifecycle !== "active") return false;
-    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null;
-    return ea && ea < now;
-  });
+    const spec = w.spec as any
+    if (spec?.lifecycle !== "active") return false
+    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null
+    return ea && ea < now
+  })
 
-  let cleaned = 0;
+  let cleaned = 0
   for (const ws of expired) {
-    await destroyWorkspace(db, ws.id);
-    cleaned++;
+    await destroyWorkspace(db, ws.id)
+    cleaned++
   }
 
-  return { cleaned };
+  return { cleaned }
 }
 
 // ---------------------------------------------------------------------------
@@ -231,16 +235,16 @@ export async function cleanupExpiredWorkspaces(db: Database) {
 export async function resizeWorkspace(
   db: Database,
   workspaceId: string,
-  resize: { cpu?: string; memory?: string; storageGb?: number },
+  resize: { cpu?: string; memory?: string; storageGb?: number }
 ) {
   const [existing] = await db
     .select()
     .from(workspace)
     .where(eq(workspace.id, workspaceId))
-    .limit(1);
-  if (!existing) throw new Error(`Workspace not found: ${workspaceId}`);
+    .limit(1)
+  if (!existing) throw new Error(`Workspace not found: ${workspaceId}`)
 
-  const spec = (existing.spec ?? {}) as Record<string, any>;
+  const spec = (existing.spec ?? {}) as Record<string, any>
   const [updated] = await db
     .update(workspace)
     .set({
@@ -248,13 +252,15 @@ export async function resizeWorkspace(
         ...spec,
         ...(resize.cpu !== undefined ? { cpu: resize.cpu } : {}),
         ...(resize.memory !== undefined ? { memory: resize.memory } : {}),
-        ...(resize.storageGb !== undefined ? { storageGb: resize.storageGb } : {}),
+        ...(resize.storageGb !== undefined
+          ? { storageGb: resize.storageGb }
+          : {}),
       } as any,
       updatedAt: new Date(),
     })
     .where(eq(workspace.id, workspaceId))
-    .returning();
-  return updated!;
+    .returning()
+  return updated!
 }
 
 // ---------------------------------------------------------------------------
@@ -265,16 +271,16 @@ export async function updateWorkspaceHealth(
   db: Database,
   workspaceId: string,
   healthStatus: string,
-  statusMessage?: string,
+  statusMessage?: string
 ) {
   const [existing] = await db
     .select()
     .from(workspace)
     .where(eq(workspace.id, workspaceId))
-    .limit(1);
-  if (!existing) return;
+    .limit(1)
+  if (!existing) return
 
-  const spec = (existing.spec ?? {}) as Record<string, any>;
+  const spec = (existing.spec ?? {}) as Record<string, any>
   await db
     .update(workspace)
     .set({
@@ -286,7 +292,7 @@ export async function updateWorkspaceHealth(
       } as any,
       updatedAt: new Date(),
     })
-    .where(eq(workspace.id, workspaceId));
+    .where(eq(workspace.id, workspaceId))
 }
 
 // ---------------------------------------------------------------------------
@@ -294,26 +300,26 @@ export async function updateWorkspaceHealth(
 // ---------------------------------------------------------------------------
 
 export async function expireStale(db: Database): Promise<number> {
-  const now = new Date();
-  const all = await db.select().from(workspace);
+  const now = new Date()
+  const all = await db.select().from(workspace)
 
   const expired = all.filter((w) => {
-    const spec = w.spec as any;
-    if (spec?.lifecycle !== "active") return false;
-    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null;
-    return ea != null && ea < now;
-  });
+    const spec = w.spec as any
+    if (spec?.lifecycle !== "active") return false
+    const ea = spec?.expiresAt ? new Date(spec.expiresAt) : null
+    return ea != null && ea < now
+  })
 
   for (const ws of expired) {
-    const spec = (ws.spec ?? {}) as Record<string, any>;
+    const spec = (ws.spec ?? {}) as Record<string, any>
     await db
       .update(workspace)
       .set({
         spec: { ...spec, lifecycle: "destroying" } as any,
         updatedAt: now,
       })
-      .where(eq(workspace.id, ws.id));
+      .where(eq(workspace.id, ws.id))
   }
 
-  return expired.length;
+  return expired.length
 }

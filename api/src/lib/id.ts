@@ -89,8 +89,9 @@ export type EntityPrefix =
   // org (reuses: team, prin, ptm, scope, idlk, agt, rpre, job, mem, tcred, tusg, msgp, sshk)
   | "cvar" // config_var
   // infra
-  | "subs" // substrate
-  | "rt" // runtime
+  | "est" // estate
+  | "rlm" // realm
+  | "svc" // service
   | "nlnk" // network_link
   // ops
   | "tnt" // tenant

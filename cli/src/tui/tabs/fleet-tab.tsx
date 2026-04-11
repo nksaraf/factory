@@ -1,7 +1,13 @@
-import React, { useState } from "react"
 import { Box, Text, useInput } from "ink"
-import { DataTable, type Column, type DetailField, timeAgo } from "../components/data-table.js"
-import { useSites, useReleases } from "../hooks/use-fleet-data.js"
+import React, { useState } from "react"
+
+import {
+  type Column,
+  DataTable,
+  type DetailField,
+  timeAgo,
+} from "../components/data-table.js"
+import { useReleases, useSites } from "../hooks/use-fleet-data.js"
 
 interface FleetTabProps {
   focused: boolean
@@ -13,7 +19,12 @@ const SITE_COLUMNS: Column[] = [
   { header: "Name", key: "name", width: 36, slugKey: "slug" },
   { header: "Product", key: "product", width: 16 },
   { header: "Status", key: "status", width: 14 },
-  { header: "Manifest", key: "currentManifestVersion", width: 10, format: (v: any) => v ? `v${v}` : "-" },
+  {
+    header: "Manifest",
+    key: "currentManifestVersion",
+    width: 10,
+    format: (v: any) => (v ? `v${v}` : "-"),
+  },
   {
     header: "Last Check-in",
     key: "lastCheckinAt",
@@ -25,7 +36,12 @@ const SITE_COLUMNS: Column[] = [
 const RELEASE_COLUMNS: Column[] = [
   { header: "Version", key: "version", width: 18 },
   { header: "Status", key: "status", width: 14 },
-  { header: "Created By", key: "createdBy", width: 16, format: (v: any) => v ?? "-" },
+  {
+    header: "Created By",
+    key: "createdBy",
+    width: 16,
+    format: (v: any) => v ?? "-",
+  },
   {
     header: "Created",
     key: "createdAt",
@@ -55,10 +71,16 @@ export function FleetTab({ focused }: FleetTabProps) {
     <Box flexGrow={1} flexDirection="column">
       {/* Sub-nav */}
       <Box paddingX={1} gap={2}>
-        <Text bold={subView === "sites"} color={subView === "sites" ? "cyan" : "gray"}>
+        <Text
+          bold={subView === "sites"}
+          color={subView === "sites" ? "cyan" : "gray"}
+        >
           [s] Sites ({sites.length})
         </Text>
-        <Text bold={subView === "releases"} color={subView === "releases" ? "cyan" : "gray"}>
+        <Text
+          bold={subView === "releases"}
+          color={subView === "releases" ? "cyan" : "gray"}
+        >
           [r] Releases ({releases.length})
         </Text>
       </Box>
@@ -74,10 +96,22 @@ export function FleetTab({ focused }: FleetTabProps) {
             { label: "Slug", key: "slug" },
             { label: "Product", key: "product" },
             { label: "Status", key: "status" },
-            { label: "Runtime", key: "runtimeId" },
-            { label: "Manifest", key: "currentManifestVersion", format: (v: any) => v ? `v${v}` : "-" },
-            { label: "Last Check-in", key: "lastCheckinAt", format: (v: any) => timeAgo(v) },
-            { label: "Created", key: "createdAt", format: (v: any) => timeAgo(v) },
+            { label: "Realm", key: "realmId" },
+            {
+              label: "Manifest",
+              key: "currentManifestVersion",
+              format: (v: any) => (v ? `v${v}` : "-"),
+            },
+            {
+              label: "Last Check-in",
+              key: "lastCheckinAt",
+              format: (v: any) => timeAgo(v),
+            },
+            {
+              label: "Created",
+              key: "createdAt",
+              format: (v: any) => timeAgo(v),
+            },
           ]}
         />
       )}

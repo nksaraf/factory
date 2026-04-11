@@ -25,6 +25,7 @@ import type {
 } from "../catalog-registry"
 import type { ComposeService } from "../compose-gen"
 import { composeToYaml, generateComposeFromCatalog } from "../compose-gen"
+import { parseGatewayConfigs } from "./gateway-config-parsers"
 
 // ─── Env var interpolation ───────────────────────────────────
 
@@ -83,8 +84,9 @@ function resolveEnvRecord(
 
 /**
  * Normalize environment from compose — handles both record and array forms.
+ * Exported for use by compose-env-propagation module.
  */
-function normalizeEnvironment(env: unknown): Record<string, string> {
+export function normalizeEnvironment(env: unknown): Record<string, string> {
   if (!env) return {}
   if (Array.isArray(env)) {
     const result: Record<string, string> = {}
@@ -139,6 +141,8 @@ const INFRA_IMAGE_PATTERNS: [RegExp, string][] = [
   [/^haproxy/i, "gateway"],
   [/^apisix/i, "gateway"],
   [/^kong/i, "gateway"],
+  [/^pgbouncer/i, "database"],
+  [/^pgpool/i, "database"],
   [/^mailhog/i, "other"],
   [/^adminer/i, "other"],
   [/^phpmyadmin/i, "other"],
@@ -179,6 +183,54 @@ const KNOWN_PORTS: Record<number, { name: string; protocol: string }> = {
   8181: { name: "http", protocol: "http" },
 }
 
+/** Map service name prefix → resource type. */
+const NAME_TO_RESOURCE_TYPE: [string, string][] = [
+  ["postgres", "database"],
+  ["postgresql", "database"],
+  ["pg", "database"],
+  ["mysql", "database"],
+  ["mariadb", "database"],
+  ["mongo", "database"],
+  ["mongodb", "database"],
+  ["db", "database"],
+  ["database", "database"],
+  ["pgbouncer", "database"],
+  ["pgpool", "database"],
+  ["redis", "cache"],
+  ["cache", "cache"],
+  ["memcached", "cache"],
+  ["valkey", "cache"],
+  ["rabbitmq", "queue"],
+  ["nats", "queue"],
+  ["kafka", "queue"],
+  ["zookeeper", "queue"],
+  ["minio", "storage"],
+  ["s3", "storage"],
+  ["storage", "storage"],
+  ["elasticsearch", "search"],
+  ["opensearch", "search"],
+  ["meilisearch", "search"],
+  ["solr", "search"],
+  ["traefik", "gateway"],
+  ["nginx", "gateway"],
+  ["envoy", "gateway"],
+  ["haproxy", "gateway"],
+  ["gateway", "gateway"],
+  ["proxy", "gateway"],
+  ["apisix", "gateway"],
+  ["kong", "gateway"],
+  ["mailhog", "other"],
+  ["adminer", "other"],
+]
+
+function inferResourceTypeFromName(name: string): string | null {
+  const lower = name.toLowerCase()
+  for (const [prefix, type] of NAME_TO_RESOURCE_TYPE) {
+    if (lower === prefix || lower.startsWith(`${prefix}-`)) return type
+  }
+  return null
+}
+
 /** Infra service names that imply a resource. */
 const INFRA_NAME_PATTERNS = [
   "db",
@@ -211,11 +263,129 @@ const INFRA_NAME_PATTERNS = [
   "haproxy",
   "gateway",
   "proxy",
+  "pgbouncer",
+  "pgpool",
   "mailhog",
   "adminer",
   "apisix",
   "kong",
 ]
+
+// ─── Init container detection ───────────────────────────────
+
+const INIT_NAME_SUFFIXES = [
+  "-init",
+  "-migrate",
+  "-migration",
+  "-setup",
+  "-bootstrap",
+]
+
+/**
+ * Detect whether a service is a one-shot init/migration container.
+ *
+ * Signals: restart:"no" + (name pattern OR no ports OR service_completed_successfully dependents).
+ * Label `catalog.type: init` is an explicit opt-in override.
+ */
+function isInitContainer(
+  name: string,
+  svc: ComposeService,
+  completedSuccessfullyDependents: Set<string>
+): boolean {
+  // Explicit label override
+  const labels = svc.labels ?? {}
+  if (labels["catalog.type"] === "init") return true
+
+  // Must have restart: "no" (or unset which defaults to "no" in compose,
+  // but we only match explicit "no" to avoid false positives)
+  if (svc.restart !== "no") return false
+
+  // Name matches init pattern
+  const lowerName = name.toLowerCase()
+  if (INIT_NAME_SUFFIXES.some((s) => lowerName.endsWith(s))) return true
+
+  // No exposed ports
+  if (!svc.ports?.length) return true
+
+  // Other services depend on this via service_completed_successfully
+  if (completedSuccessfullyDependents.has(name)) return true
+
+  return false
+}
+
+/**
+ * Resolve which service an init container initializes.
+ * Returns the parent service name or undefined if unresolvable.
+ */
+function resolveInitParent(
+  name: string,
+  svc: ComposeService,
+  allServices: Record<string, ComposeService>,
+  initNames: Set<string>
+): string | undefined {
+  // 1. Explicit label
+  const labels = svc.labels ?? {}
+  if (labels["catalog.initFor"]) return labels["catalog.initFor"]
+
+  // 2. Same image match — find a non-init service with the same image
+  if (svc.image) {
+    const baseImage = svc.image.split(":")[0]
+    for (const [otherName, otherSvc] of Object.entries(allServices)) {
+      if (otherName === name || initNames.has(otherName)) continue
+      if (otherSvc.image && otherSvc.image.split(":")[0] === baseImage) {
+        return otherName
+      }
+    }
+  }
+
+  // 3. Name prefix match — strip the init suffix and check if remainder is a service
+  const lowerName = name.toLowerCase()
+  for (const suffix of INIT_NAME_SUFFIXES) {
+    if (lowerName.endsWith(suffix)) {
+      const prefix = name.slice(0, -suffix.length)
+      if (prefix && allServices[prefix] && !initNames.has(prefix)) {
+        return prefix
+      }
+    }
+  }
+
+  // 4. Dependent analysis — which non-init service depends on us via service_completed_successfully?
+  const parents: string[] = []
+  for (const [otherName, otherSvc] of Object.entries(allServices)) {
+    if (otherName === name || initNames.has(otherName)) continue
+    const depOn = otherSvc.depends_on
+    if (depOn && !Array.isArray(depOn)) {
+      const cond = depOn[name]
+      if (cond?.condition === "service_completed_successfully") {
+        parents.push(otherName)
+      }
+    }
+  }
+  if (parents.length === 1) return parents[0]
+
+  return undefined
+}
+
+/**
+ * Build a set of service names that have at least one dependent
+ * using `condition: service_completed_successfully`.
+ */
+function buildCompletedSuccessfullySet(
+  services: Record<string, ComposeService>
+): Set<string> {
+  const result = new Set<string>()
+  for (const svc of Object.values(services)) {
+    const depOn = svc.depends_on
+    if (depOn && !Array.isArray(depOn)) {
+      for (const [depName, cond] of Object.entries(depOn)) {
+        if (cond?.condition === "service_completed_successfully") {
+          result.add(depName)
+        }
+      }
+    }
+  }
+  return result
+}
 
 function classifyService(
   name: string,
@@ -229,13 +399,8 @@ function classifyService(
       : "component"
   }
 
-  if (svc.build) return "component"
-
-  if (svc.image) {
-    const resourceType = inferResourceTypeFromImage(svc.image)
-    if (resourceType) return "resource"
-  }
-
+  // Name-based infra detection (overrides build: heuristic — a custom postgres
+  // Dockerfile is still a database resource, not a component you build)
   const lowerName = name.toLowerCase()
   if (
     INFRA_NAME_PATTERNS.some(
@@ -243,6 +408,13 @@ function classifyService(
     )
   ) {
     return "resource"
+  }
+
+  if (svc.build) return "component"
+
+  if (svc.image) {
+    const resourceType = inferResourceTypeFromImage(svc.image)
+    if (resourceType) return "resource"
   }
 
   return "component"
@@ -299,6 +471,8 @@ interface ParsedLabels {
       localDefault?: string
     }
   >
+  // dx.dep.<dep>.env.<var> labels — connection env var templates per dependency
+  depEnv: Record<string, Record<string, string>>
 }
 
 function parseLabels(labels: Record<string, string>): ParsedLabels {
@@ -307,6 +481,7 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
     links: [],
     extraLabels: {},
     connections: {},
+    depEnv: {},
   }
 
   for (const [key, value] of Object.entries(labels)) {
@@ -389,6 +564,17 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
       result.lintCommand = value
     } else if (key === "dx.runtime") {
       result.runtime = value
+    } else if (key.startsWith("dx.dep.")) {
+      // dx.dep.<depName>.env.<varName> = "{template}"
+      const rest = key.slice("dx.dep.".length)
+      const parts = rest.split(".")
+      // Expected: ["infra-postgres", "env", "MB_DB_HOST"]
+      if (parts.length >= 3 && parts[1] === "env") {
+        const depName = parts[0]!
+        const varName = parts.slice(2).join(".") // handle dots in var names
+        result.depEnv[depName] ??= {}
+        result.depEnv[depName][varName] = value
+      }
     } else {
       // Preserve non-catalog/non-dx labels
       result.extraLabels[key] = value
@@ -515,6 +701,42 @@ function inferConnections(
   return connections
 }
 
+// ─── Dep env auto-detection (convention) ─────────────────────
+
+/**
+ * Auto-detect env vars that reference a dependency's Docker hostname
+ * in a URL pattern. Returns raw (unresolved) template strings.
+ *
+ * Convention: if a service's env var value contains a depends_on service
+ * hostname in a URL-like pattern (postgres://, redis://, http://),
+ * it's a connection env var for that dependency.
+ */
+function autoDetectDepEnv(
+  rawEnv: Record<string, string>,
+  dependsOn: string[],
+  explicitDepEnv: Record<string, Record<string, string>>
+): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {}
+  if (dependsOn.length === 0) return result
+
+  const depSet = new Set(dependsOn)
+
+  for (const [envKey, envValue] of Object.entries(rawEnv)) {
+    for (const dep of depSet) {
+      // Skip if explicit labels already define this dep's env mapping
+      if (explicitDepEnv[dep]) continue
+
+      // Check if the value references this dep's hostname
+      if (envValue.includes(dep)) {
+        result[dep] ??= {}
+        result[dep][envKey] = envValue
+      }
+    }
+  }
+
+  return result
+}
+
 // ─── Port parsing ────────────────────────────────────────────
 
 function parsePort(
@@ -585,14 +807,10 @@ function serviceToComponent(
 ): CatalogComponent {
   const ports = parsePorts(svc.ports ?? [], labels.portOverrides)
 
-  // Dev workflow: prefer dx.* labels, fall back to compose command
-  const devCommand =
-    labels.devCommand ??
-    (svc.command
-      ? Array.isArray(svc.command)
-        ? svc.command.join(" ")
-        : svc.command
-      : undefined)
+  // Dev workflow: only use explicit dx.dev.command label.
+  // Do NOT fall back to Docker's command: field — that's a container
+  // entrypoint override, not a dev command.
+  const devCommand = labels.devCommand
   const dev =
     devCommand || labels.devSync
       ? { command: devCommand, sync: labels.devSync }
@@ -632,6 +850,7 @@ function serviceToComponent(
       lint: labels.lintCommand,
       runtime: labels.runtime as "node" | "python" | "java" | undefined,
       profiles: svc.profiles,
+      depEnv: buildDepEnv(svc, labels),
     },
   }
 }
@@ -650,11 +869,25 @@ function serviceToResource(
       )
     : null
 
+  const VALID_RESOURCE_TYPES = new Set([
+    "database",
+    "cache",
+    "queue",
+    "gateway",
+    "storage",
+    "search",
+    "auth-provider",
+    "other",
+  ])
+  const inferredType =
+    (svc.image ? inferResourceTypeFromImage(svc.image) : null) ??
+    inferResourceTypeFromName(name) ??
+    "database"
+  // Only use label type if it's a valid resource type — ignore component types like "service"
   const resourceType =
-    labels.catalogType ??
-    (svc.image
-      ? (inferResourceTypeFromImage(svc.image) ?? "database")
-      : "database")
+    labels.catalogType && VALID_RESOURCE_TYPES.has(labels.catalogType)
+      ? labels.catalogType
+      : inferredType
 
   return {
     kind: "Resource",
@@ -687,8 +920,27 @@ function serviceToResource(
             ? svc.healthcheck!.test.slice(1).join(" ")
             : undefined,
       profiles: svc.profiles,
+      depEnv: buildDepEnv(svc, labels),
     },
   }
+}
+
+/** Merge explicit dx.dep labels with convention auto-detected env vars. */
+function buildDepEnv(
+  svc: ComposeService,
+  labels: ParsedLabels
+): Record<string, Record<string, string>> | undefined {
+  const dependsOn = extractDependsOn(svc) ?? []
+  const explicit = labels.depEnv
+  // Use raw (unresolved) env for auto-detection so ${VAR:-default} patterns
+  // are preserved as templates for later resolution with profile vars.
+  const detected = autoDetectDepEnv(
+    svc.rawEnvironment ?? svc.environment ?? {},
+    dependsOn,
+    explicit
+  )
+  const merged = { ...detected, ...explicit } // explicit wins
+  return Object.keys(merged).length > 0 ? merged : undefined
 }
 
 /**
@@ -828,6 +1080,7 @@ function normalizeServices(
       build,
       ports,
       environment: resolvedEnv,
+      rawEnvironment: env,
       depends_on: dependsOn,
       volumes,
       command,
@@ -1219,17 +1472,59 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
 
     const services = normalizeServices(mergedRawServices, processEnv)
 
+    // Detect init containers before classification
+    const completedSuccessfullySet = buildCompletedSuccessfullySet(services)
+    const initNames = new Set<string>()
+    for (const [name, svc] of Object.entries(services)) {
+      if (isInitContainer(name, svc, completedSuccessfullySet)) {
+        initNames.add(name)
+      }
+    }
+    // Resolve init parents (needs full initNames set)
+    const initParents = new Map<string, string>()
+    for (const name of initNames) {
+      const parent = resolveInitParent(
+        name,
+        services[name]!,
+        services,
+        initNames
+      )
+      if (parent) initParents.set(name, parent)
+    }
+
     const components: Record<string, CatalogComponent> = {}
     const resources: Record<string, CatalogResource> = {}
 
     // Classify and convert services
     for (const [name, svc] of Object.entries(services)) {
       const labels = parseLabels(svc.labels ?? {})
+
+      // Init containers are always components with type "init"
+      if (initNames.has(name)) {
+        const comp = serviceToComponent(name, svc, labels)
+        comp.spec.type = "init"
+        const parent = initParents.get(name)
+        if (parent) comp.spec.initFor = parent
+        components[name] = comp
+        continue
+      }
+
       const kind = classifyService(name, svc)
       if (kind === "resource") {
         resources[name] = serviceToResource(name, svc, labels)
       } else {
         components[name] = serviceToComponent(name, svc, labels)
+      }
+    }
+
+    // Parse gateway config files for routing targets
+    for (const [name, resource] of Object.entries(resources)) {
+      if (resource.spec.type !== "gateway") continue
+      const svc = services[name]
+      if (!svc?.volumes?.length) continue
+      const targets = parseGatewayConfigs(svc.image ?? "", svc.volumes, rootDir)
+      if (targets.length > 0) {
+        resource.spec.gatewayTargets = targets
       }
     }
 

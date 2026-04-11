@@ -1,11 +1,15 @@
-import type { RuntimeStrategy, ReconcileContext, ReconcileResult } from "../runtime-strategy";
+import type {
+  RealmStrategy,
+  ReconcileContext,
+  ReconcileResult,
+} from "../runtime-strategy"
 
 /**
- * Windows runtime strategy — deploys components as Windows Services or IIS sites.
+ * Windows realm strategy — deploys components as Windows Services or IIS sites.
  * Handles both 'windows_service' and 'iis' runtimes.
  */
-export class WindowsServiceStrategy implements RuntimeStrategy {
-  readonly runtime = "windows_service";
+export class WindowsServiceStrategy implements RealmStrategy {
+  readonly runtime = "windows_service"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH (or WinRM) into target Windows host/VM
@@ -15,12 +19,12 @@ export class WindowsServiceStrategy implements RuntimeStrategy {
       status: ctx.component.kind === "task" ? "completed" : "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }
 
-export class IisStrategy implements RuntimeStrategy {
-  readonly runtime = "iis";
+export class IisStrategy implements RealmStrategy {
+  readonly runtime = "iis"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {
     // TODO: SSH into target Windows host/VM
@@ -30,6 +34,6 @@ export class IisStrategy implements RuntimeStrategy {
       status: "running",
       actualImage: null,
       driftDetected: false,
-    };
+    }
   }
 }

@@ -12,6 +12,7 @@ import * as infraSchema from "../../db/schema/infra-v2"
 import * as orgSchema from "../../db/schema/org-v2"
 import * as softwareSchema from "../../db/schema/software-v2"
 import { logger } from "../../logger"
+import { emitAgentEvent } from "./events"
 
 const log = logger.child({ module: "chat-agent" })
 
@@ -250,10 +251,7 @@ const requestWorkTool = tool({
       .describe("Priority if mentioned or implied by the user"),
   }),
   execute: async ({ title, description, type, priority }) => {
-    log.info(
-      { title, type, priority },
-      "Work request captured"
-    )
+    log.info({ title, type, priority }, "Work request captured")
     // TODO: Create a job/ticket in the system, dispatch to coding agent
     return {
       status: "captured",
@@ -315,10 +313,12 @@ ${schemaContext}
 - For lists, use bullet points or numbered lists.`
 }
 
+// ── Singleton agent ──────────────────────────────────────────
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _agentPromise: Promise<any> | null = null
 
-export function getAgent() {
+function getAgent() {
   if (!_agentPromise) {
     _agentPromise = (async () => {
       const apiKey =
@@ -330,9 +330,7 @@ export function getAgent() {
       }
 
       const google = createGoogleGenerativeAI({ apiKey })
-      const model = google(
-        process.env.LLM_MODEL ?? "gemini-2.5-flash"
-      )
+      const model = google(process.env.LLM_MODEL ?? "gemini-2.5-flash")
 
       return new ToolLoopAgent({
         model,
@@ -350,4 +348,57 @@ export function getAgent() {
     })
   }
   return _agentPromise
+}
+
+// ── Per-request agent session with event tracking ────────────
+
+export interface AgentSession {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stream: (opts: { messages: any[] }) => any
+  getToolCalls: () => Array<{ tool_name: string; tool_input: string }>
+  getToolsUsed: () => string[]
+}
+
+export async function createAgentSession(
+  sessionId: string
+): Promise<AgentSession> {
+  const agent = await getAgent()
+  const allToolCalls: Array<{ tool_name: string; tool_input: string }> = []
+
+  return {
+    stream: (opts) =>
+      agent.stream({
+        ...opts,
+        experimental_onToolCallStart: ({ toolCall }: any) => {
+          emitAgentEvent(sessionId, "tool.pre", {
+            tool_name: toolCall.toolName,
+            tool_input:
+              typeof toolCall.input === "string"
+                ? toolCall.input.slice(0, 2048)
+                : JSON.stringify(toolCall.input ?? "").slice(0, 2048),
+          })
+        },
+        experimental_onToolCallFinish: ({
+          toolCall,
+          durationMs,
+          success,
+        }: any) => {
+          const tc = {
+            tool_name: toolCall.toolName as string,
+            tool_input:
+              typeof toolCall.input === "string"
+                ? toolCall.input.slice(0, 2048)
+                : JSON.stringify(toolCall.input ?? "").slice(0, 2048),
+          }
+          allToolCalls.push(tc)
+          emitAgentEvent(sessionId, "tool.post", {
+            ...tc,
+            durationMs,
+            success,
+          })
+        },
+      }),
+    getToolCalls: () => allToolCalls,
+    getToolsUsed: () => [...new Set(allToolCalls.map((tc) => tc.tool_name))],
+  }
 }

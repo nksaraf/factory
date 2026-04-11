@@ -8,23 +8,19 @@
  *   - k3d cluster "dx-test" running
  *   - /tmp/k3d-direct.yaml kubeconfig
  */
-import path from "node:path"
-import { existsSync } from "node:fs"
-import { execFileSync } from "node:child_process"
-import { eq } from "drizzle-orm"
-
-import { createPgliteDb, migrateWithPglite } from "../factory-core"
-import { KubeClientImpl } from "../lib/kube-client-impl"
-import { Reconciler } from "../reconciler/reconciler"
-import { PreviewReconciler } from "../reconciler/preview-reconciler"
-import { substrate, runtime } from "../db/schema/infra-v2"
-import { site, workspace, preview, systemDeployment } from "../db/schema/ops"
-import { system } from "../db/schema/software-v2"
-import { lookupRouteByDomain } from "../modules/infra/gateway.service"
-import type { Database } from "../db/connection"
-import type { SubstrateSpec, RuntimeSpec } from "@smp/factory-shared/schemas/infra"
-import type { SiteSpec, SystemDeploymentSpec, WorkspaceSpec, PreviewSpec } from "@smp/factory-shared/schemas/ops"
+import type { EstateSpec, RealmSpec } from "@smp/factory-shared/schemas/infra"
+import type {
+  PreviewSpec,
+  SiteSpec,
+  SystemDeploymentSpec,
+  WorkspaceSpec,
+} from "@smp/factory-shared/schemas/ops"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
+import { eq } from "drizzle-orm"
+import { execFileSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import path from "node:path"
+
 import type {
   GitHostAdapter,
   GitHostCheckRun,
@@ -32,6 +28,15 @@ import type {
   GitHostPullRequestCreate,
   WebhookVerification,
 } from "../adapters/git-host-adapter"
+import type { Database } from "../db/connection"
+import { estate, realm } from "../db/schema/infra-v2"
+import { preview, site, systemDeployment, workspace } from "../db/schema/ops"
+import { system } from "../db/schema/software-v2"
+import { createPgliteDb, migrateWithPglite } from "../factory-core"
+import { KubeClientImpl } from "../lib/kube-client-impl"
+import { lookupRouteByDomain } from "../modules/infra/gateway.service"
+import { PreviewReconciler } from "../reconciler/preview-reconciler"
+import { Reconciler } from "../reconciler/reconciler"
 
 // ──────────────────────────────────────────────────────────────
 // Config
@@ -46,38 +51,87 @@ class SpyGitHostAdapter implements GitHostAdapter {
   comments: Array<{ repo: string; prNumber: number; body: string }> = []
   checks: Array<{ repo: string; check: Partial<GitHostCheckRun> }> = []
 
-  async getAccessToken() { return "spy-token" }
-  async listRepos() { return [] }
-  async getRepo() { return null }
-  async listOrgMembers() { return [] }
-  async listCollaborators() { return [] }
-  async verifyWebhook(_h: Record<string, string>, body: string): Promise<WebhookVerification> {
-    return { valid: true, eventType: "push", deliveryId: "spy", payload: JSON.parse(body) }
+  async getAccessToken() {
+    return "spy-token"
   }
-  async createWebhook() { return { webhookId: "spy-wh" } }
+  async listRepos() {
+    return []
+  }
+  async getRepo() {
+    return null
+  }
+  async listOrgMembers() {
+    return []
+  }
+  async listCollaborators() {
+    return []
+  }
+  async verifyWebhook(
+    _h: Record<string, string>,
+    body: string
+  ): Promise<WebhookVerification> {
+    return {
+      valid: true,
+      eventType: "push",
+      deliveryId: "spy",
+      payload: JSON.parse(body),
+    }
+  }
+  async createWebhook() {
+    return { webhookId: "spy-wh" }
+  }
   async deleteWebhook() {}
   async postCommitStatus() {}
   async createCheckRun(repo: string, check: GitHostCheckRun) {
     this.checks.push({ repo, check })
     return { checkRunId: `check-${this.checks.length}` }
   }
-  async updateCheckRun(repo: string, id: string, update: Partial<GitHostCheckRun>) {
+  async updateCheckRun(
+    repo: string,
+    id: string,
+    update: Partial<GitHostCheckRun>
+  ) {
     this.checks.push({ repo, check: { ...update, name: id } })
   }
-  async listPullRequests() { return [] }
-  async getPullRequest() { return null }
-  async createPullRequest(_r: string, _pr: GitHostPullRequestCreate): Promise<GitHostPullRequest> {
-    return { number: 0, title: "", body: "", state: "open", head: "", base: "", url: "", draft: false, createdAt: "", updatedAt: "", author: { login: "spy" } }
+  async listPullRequests() {
+    return []
+  }
+  async getPullRequest() {
+    return null
+  }
+  async createPullRequest(
+    _r: string,
+    _pr: GitHostPullRequestCreate
+  ): Promise<GitHostPullRequest> {
+    return {
+      number: 0,
+      title: "",
+      body: "",
+      state: "open",
+      head: "",
+      base: "",
+      url: "",
+      draft: false,
+      createdAt: "",
+      updatedAt: "",
+      author: { login: "spy" },
+    }
   }
   async mergePullRequest() {}
-  async getPullRequestChecks() { return [] }
+  async getPullRequestChecks() {
+    return []
+  }
   async postPRComment(repo: string, prNumber: number, body: string) {
     this.comments.push({ repo, prNumber, body })
     return { commentId: `comment-${this.comments.length}` }
   }
-  async listPRComments() { return [] }
+  async listPRComments() {
+    return []
+  }
   async updatePRComment() {}
-  async createDeployment() { return { deploymentId: 0 } }
+  async createDeployment() {
+    return { deploymentId: 0 }
+  }
   async createDeploymentStatus() {}
   async createBranch(_r: string, branchName: string) {
     return { ref: `refs/heads/${branchName}`, sha: "0".repeat(40) }
@@ -101,7 +155,9 @@ function step(n: number, title: string) {
 }
 
 function info(label: string, value: unknown) {
-  console.log(`  ${label}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`)
+  console.log(
+    `  ${label}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`
+  )
 }
 
 async function waitForPod(ns: string, podName: string, timeoutMs = 60_000) {
@@ -109,11 +165,24 @@ async function waitForPod(ns: string, podName: string, timeoutMs = 60_000) {
   process.stdout.write("  Waiting for pod...")
   while (Date.now() - start < timeoutMs) {
     try {
-      const phase = kubectl(["get", "pod", podName, "-n", ns, "-o", "jsonpath={.status.phase}"]).trim()
-      if (phase === "Running") { console.log(` Running!`); return }
+      const phase = kubectl([
+        "get",
+        "pod",
+        podName,
+        "-n",
+        ns,
+        "-o",
+        "jsonpath={.status.phase}",
+      ]).trim()
+      if (phase === "Running") {
+        console.log(` Running!`)
+        return
+      }
       process.stdout.write(`.`)
-    } catch { process.stdout.write(`.`) }
-    await new Promise(r => setTimeout(r, 2000))
+    } catch {
+      process.stdout.write(`.`)
+    }
+    await new Promise((r) => setTimeout(r, 2000))
   }
   console.log(` TIMEOUT`)
 }
@@ -131,30 +200,49 @@ async function main() {
     console.error(`  Run: k3d kubeconfig get dx-test > ${KUBECONFIG}`)
     process.exit(1)
   }
-  try { kubectl(["get", "nodes"]) }
-  catch { console.error("  ERROR: k3d cluster not reachable"); process.exit(1) }
+  try {
+    kubectl(["get", "nodes"])
+  } catch {
+    console.error("  ERROR: k3d cluster not reachable")
+    process.exit(1)
+  }
 
   // ── Step 1: Database ──
   step(1, "Initialize PGlite database + migrations")
   const { client, db: rawDb } = await createPgliteDb()
   const db = rawDb as unknown as Database
-  await migrateWithPglite(client as Parameters<typeof migrateWithPglite>[0], path.join(process.cwd(), "drizzle"))
+  await migrateWithPglite(
+    client as Parameters<typeof migrateWithPglite>[0],
+    path.join(process.cwd(), "drizzle")
+  )
   info("Database", "PGlite in-memory, migrations applied")
 
   // ── Step 2: Infra ──
-  step(2, "Seed infrastructure (substrate + runtime)")
-  const [sub] = await db.insert(substrate).values({
-    name: "manual-test", slug: "manual-test",
-    type: "datacenter",
-    spec: {} satisfies SubstrateSpec,
-  }).returning()
-  const [rt] = await db.insert(runtime).values({
-    name: "manual-k3d", slug: "manual-k3d",
-    type: "k8s-cluster",
-    spec: { kubeconfigRef: KUBECONFIG, status: "ready", endpoint: "localhost" } satisfies RuntimeSpec,
-  }).returning()
-  info("Substrate", sub.id)
-  info("Runtime", rt.id)
+  step(2, "Seed infrastructure (estate + realm)")
+  const [sub] = await db
+    .insert(estate)
+    .values({
+      name: "manual-test",
+      slug: "manual-test",
+      type: "datacenter",
+      spec: {} satisfies EstateSpec,
+    })
+    .returning()
+  const [rt] = await db
+    .insert(realm)
+    .values({
+      name: "manual-k3d",
+      slug: "manual-k3d",
+      type: "k8s-cluster",
+      spec: {
+        kubeconfigRef: KUBECONFIG,
+        status: "ready",
+        endpoint: "localhost",
+      } satisfies RealmSpec,
+    })
+    .returning()
+  info("Estate", sub.id)
+  info("Realm", rt.id)
   info("Kubeconfig", KUBECONFIG)
 
   // ── Step 3: Reconciler ──
@@ -168,18 +256,29 @@ async function main() {
 
   // ── Step 4: Workspace ──
   step(4, "Create workspace")
-  const [wksp] = await db.insert(workspace).values({
-    name: "manual-preview-test", slug: "manual-preview-test",
-    type: "developer",
-    runtimeId: rt.id,
-    spec: {
-      ownerType: "user", runtimeType: "container",
-      devcontainerConfig: {},
-      repos: [], cpu: "500m", memory: "256Mi",
-      storageGb: 1, dockerCacheGb: 1, lifecycle: "provisioning",
-      authMode: "private", healthStatus: "unknown", setupProgress: {},
-    } satisfies WorkspaceSpec,
-  }).returning()
+  const [wksp] = await db
+    .insert(workspace)
+    .values({
+      name: "manual-preview-test",
+      slug: "manual-preview-test",
+      type: "developer",
+      realmId: rt.id,
+      spec: {
+        ownerType: "user",
+        realmType: "container",
+        devcontainerConfig: {},
+        repos: [],
+        cpu: "500m",
+        memory: "256Mi",
+        storageGb: 1,
+        dockerCacheGb: 1,
+        lifecycle: "provisioning",
+        authMode: "private",
+        healthStatus: "unknown",
+        setupProgress: {},
+      } satisfies WorkspaceSpec,
+    })
+    .returning()
   info("Workspace ID", wksp.id)
   info("Workspace slug", wksp.slug)
 
@@ -189,53 +288,87 @@ async function main() {
   info("Namespace", `workspace-${wksp.slug}`)
 
   // Show K8s resources
-  const resources = kubectl(["get", "all", "-n", `workspace-${wksp.slug}`, "--no-headers"]).trim()
+  const resources = kubectl([
+    "get",
+    "all",
+    "-n",
+    `workspace-${wksp.slug}`,
+    "--no-headers",
+  ]).trim()
   console.log(`\n  K8s resources created:\n`)
-  resources.split("\n").forEach(line => console.log(`    ${line}`))
+  resources.split("\n").forEach((line) => console.log(`    ${line}`))
 
   // Wait for pod
   await waitForPod(`workspace-${wksp.slug}`, `workspace-${wksp.slug}`)
 
   // Re-reconcile to pick up pod IP
   await reconciler.reconcileWorkspace(wksp.id)
-  const [updatedWksp] = await db.select().from(workspace).where(eq(workspace.id, wksp.id))
+  const [updatedWksp] = await db
+    .select()
+    .from(workspace)
+    .where(eq(workspace.id, wksp.id))
   info("Pod name", updatedWksp!.spec.podName)
   info("Pod IP", updatedWksp!.spec.ipAddress)
 
   // ── Step 6: Create preview ──
   step(6, "Create preview (simulating PR #42 on feat/auth)")
   const previewSlug = "pr-42--feat-auth--default"
-  const [sys] = await db.insert(system).values({
-    name: "manual-app", slug: "manual-app",
-    spec: { namespace: "default", lifecycle: "experimental", tags: [] } satisfies SystemSpec,
-  }).returning()
-  const [s] = await db.insert(site).values({
-    name: "manual-site", slug: "manual-site",
-    spec: { type: "shared", status: "provisioning" } satisfies SiteSpec,
-  }).returning()
-  const [sd] = await db.insert(systemDeployment).values({
-    name: "manual-preview-sd", slug: "manual-preview-sd",
-    type: "dev",
-    systemId: sys.id,
-    siteId: s.id,
-    runtimeId: rt.id,
-    spec: {
-      runtime: "kubernetes",
-      createdBy: "manual-user", trigger: "pr",
-      status: "provisioning", namespace: "manual-preview-sd",
-      deploymentStrategy: "rolling", labels: {},
-    } satisfies SystemDeploymentSpec,
-  }).returning()
-  const [prev] = await db.insert(preview).values({
-    siteId: s.id,
-    sourceBranch: "feat/auth", prNumber: 42,
-    phase: "deploying",
-    spec: {
-      commitSha: "abc1234567890def", repo: "acme-corp/my-app",
-      imageRef: "nginx:alpine",
-      authMode: "team", runtimeClass: "warm",
-    } satisfies PreviewSpec,
-  }).returning()
+  const [sys] = await db
+    .insert(system)
+    .values({
+      name: "manual-app",
+      slug: "manual-app",
+      spec: {
+        namespace: "default",
+        lifecycle: "experimental",
+        tags: [],
+      } satisfies SystemSpec,
+    })
+    .returning()
+  const [s] = await db
+    .insert(site)
+    .values({
+      name: "manual-site",
+      slug: "manual-site",
+      spec: { type: "shared", status: "provisioning" } satisfies SiteSpec,
+    })
+    .returning()
+  const [sd] = await db
+    .insert(systemDeployment)
+    .values({
+      name: "manual-preview-sd",
+      slug: "manual-preview-sd",
+      type: "dev",
+      systemId: sys.id,
+      siteId: s.id,
+      realmId: rt.id,
+      spec: {
+        runtime: "kubernetes",
+        createdBy: "manual-user",
+        trigger: "pr",
+        status: "provisioning",
+        namespace: "manual-preview-sd",
+        deploymentStrategy: "rolling",
+        labels: {},
+      } satisfies SystemDeploymentSpec,
+    })
+    .returning()
+  const [prev] = await db
+    .insert(preview)
+    .values({
+      siteId: s.id,
+      sourceBranch: "feat/auth",
+      prNumber: 42,
+      phase: "deploying",
+      spec: {
+        commitSha: "abc1234567890def",
+        repo: "acme-corp/my-app",
+        imageRef: "nginx:alpine",
+        authMode: "team",
+        runtimeClass: "warm",
+      } satisfies PreviewSpec,
+    })
+    .returning()
   info("Preview ID", prev!.id)
   info("Preview slug", previewSlug)
   info("Image", "nginx:alpine")
@@ -246,13 +379,22 @@ async function main() {
   await previewReconciler.reconcilePreview(prev!.id)
 
   // Check final status
-  const [finalPrev] = await db.select().from(preview).where(eq(preview.id, prev!.id))
+  const [finalPrev] = await db
+    .select()
+    .from(preview)
+    .where(eq(preview.id, prev!.id))
   info("Preview phase", finalPrev!.phase)
 
   // Show K8s deployment
   console.log(`\n  K8s resources in preview namespace:\n`)
-  const previewResources = kubectl(["get", "all", "-n", `preview-${previewSlug}`, "--no-headers"]).trim()
-  previewResources.split("\n").forEach(line => console.log(`    ${line}`))
+  const previewResources = kubectl([
+    "get",
+    "all",
+    "-n",
+    `preview-${previewSlug}`,
+    "--no-headers",
+  ]).trim()
+  previewResources.split("\n").forEach((line) => console.log(`    ${line}`))
 
   // Show routes
   const route = await lookupRouteByDomain(db, `${previewSlug}.preview.dx.dev`)
@@ -268,31 +410,45 @@ async function main() {
     info("Repo", comment.repo)
     info("PR #", comment.prNumber)
     console.log(`\n  Comment body:\n`)
-    comment.body.split("\n").forEach(line => console.log(`    ${line}`))
+    comment.body.split("\n").forEach((line) => console.log(`    ${line}`))
   } else {
     console.log("  No PR comment was posted!")
   }
 
   // ── Step 9: Show check runs ──
   step(9, "GitHub Check Runs (captured by spy adapter)")
-  gitHost.checks.forEach((c: { repo: string; check: Partial<GitHostCheckRun> }, i: number) => {
-    console.log(`  Check ${i + 1}:`)
-    info("  Repo", c.repo)
-    info("  Status", c.check.status)
-    info("  Conclusion", c.check.conclusion)
-    if (c.check.detailsUrl) info("  Details URL", c.check.detailsUrl)
-    if (c.check.output) info("  Title", c.check.output.title)
-    console.log()
-  })
+  gitHost.checks.forEach(
+    (c: { repo: string; check: Partial<GitHostCheckRun> }, i: number) => {
+      console.log(`  Check ${i + 1}:`)
+      info("  Repo", c.repo)
+      info("  Status", c.check.status)
+      info("  Conclusion", c.check.conclusion)
+      if (c.check.detailsUrl) info("  Details URL", c.check.detailsUrl)
+      if (c.check.output) info("  Title", c.check.output.title)
+      console.log()
+    }
+  )
 
   // ── Cleanup ──
   step(10, "Cleanup")
   try {
-    kubectl(["delete", "namespace", `workspace-${wksp.slug}`, "--ignore-not-found", "--wait=false"])
+    kubectl([
+      "delete",
+      "namespace",
+      `workspace-${wksp.slug}`,
+      "--ignore-not-found",
+      "--wait=false",
+    ])
     info("Deleted", `workspace-${wksp.slug}`)
   } catch {}
   try {
-    kubectl(["delete", "namespace", `preview-${previewSlug}`, "--ignore-not-found", "--wait=false"])
+    kubectl([
+      "delete",
+      "namespace",
+      `preview-${previewSlug}`,
+      "--ignore-not-found",
+      "--wait=false",
+    ])
     info("Deleted", `preview-${previewSlug}`)
   } catch {}
   await client.close()
@@ -302,7 +458,7 @@ async function main() {
   console.log(`${"═".repeat(60)}\n`)
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("\nFATAL:", err)
   process.exit(1)
 })

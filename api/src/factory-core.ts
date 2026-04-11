@@ -9,9 +9,9 @@ import { PGlite } from "@electric-sql/pglite"
 import { cors } from "@elysiajs/cors"
 import type {
   DnsDomainSpec,
+  EstateSpec,
+  RealmSpec,
   RouteSpec,
-  RuntimeSpec,
-  SubstrateSpec,
 } from "@smp/factory-shared/schemas/infra"
 import type {
   ComponentDeploymentSpec,
@@ -35,7 +35,7 @@ import { DemoObservabilityAdapter } from "./adapters/observability-adapter-demo"
 import { NoopObservabilityAdapter } from "./adapters/observability-adapter-noop"
 import type { Database } from "./db/connection"
 import * as schema from "./db/schema"
-import { runtime, substrate } from "./db/schema/infra-v2"
+import { estate, realm } from "./db/schema/infra-v2"
 import { principal } from "./db/schema/org-v2"
 import { KubeClientImpl } from "./lib/kube-client-impl"
 import { agentControllerV2 } from "./modules/agent/index.v2"
@@ -164,8 +164,8 @@ export interface SeedLocalInfraOptions {
 }
 
 /**
- * Seed the local substrate and runtime rows if they don't already exist.
- * Used by the local daemon to ensure a "local" substrate and k3d runtime
+ * Seed the local estate and realm rows if they don't already exist.
+ * Used by the local daemon to ensure a "local" estate and k3d realm
  * are registered in the database.
  */
 export async function seedLocalInfra(
@@ -197,19 +197,19 @@ export async function seedLocalInfra(
     })
   }
 
-  // Upsert local substrate (was: provider)
+  // Upsert local estate (was: provider/substrate)
   const [existing] = await db
-    .select({ id: substrate.id })
-    .from(substrate)
-    .where(eq(substrate.slug, "local"))
+    .select({ id: estate.id })
+    .from(estate)
+    .where(eq(estate.slug, "local"))
     .limit(1)
 
-  let substrateId: string
+  let estateId: string
   if (existing) {
-    substrateId = existing.id
+    estateId = existing.id
   } else {
     const [row] = await db
-      .insert(substrate)
+      .insert(estate)
       .values({
         name: "Local",
         slug: "local",
@@ -219,21 +219,21 @@ export async function seedLocalInfra(
           lifecycle: "active",
           syncStatus: "idle",
           metadata: {},
-        } satisfies SubstrateSpec,
+        } satisfies EstateSpec,
       })
-      .returning({ id: substrate.id })
-    substrateId = row!.id
+      .returning({ id: estate.id })
+    estateId = row!.id
   }
 
-  // Upsert local runtime (was: cluster)
-  const [existingRuntime] = await db
-    .select({ id: runtime.id, spec: runtime.spec })
-    .from(runtime)
-    .where(eq(runtime.slug, clusterName))
+  // Upsert local realm (was: cluster/runtime)
+  const [existingRealm] = await db
+    .select({ id: realm.id, spec: realm.spec })
+    .from(realm)
+    .where(eq(realm.slug, clusterName))
     .limit(1)
 
-  if (!existingRuntime) {
-    await db.insert(runtime).values({
+  if (!existingRealm) {
+    await db.insert(realm).values({
       name: clusterName,
       slug: clusterName,
       type: "k8s-cluster",
@@ -244,17 +244,17 @@ export async function seedLocalInfra(
       },
     })
   } else if (kubeconfigContent) {
-    const spec = (existingRuntime.spec ?? {}) as Record<string, unknown>
+    const spec = (existingRealm.spec ?? {}) as Record<string, unknown>
     await db
-      .update(runtime)
+      .update(realm)
       .set({
         spec: {
           ...spec,
           kubeconfigRef: kubeconfigContent,
           isDefault: true,
-        } as RuntimeSpec,
+        } as RealmSpec,
       })
-      .where(eq(runtime.id, existingRuntime.id))
+      .where(eq(realm.id, existingRealm.id))
   }
 }
 

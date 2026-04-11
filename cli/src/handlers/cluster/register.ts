@@ -1,8 +1,8 @@
 /**
  * Register a local cluster in the factory database via the API.
  */
+import { existsSync, readFileSync } from "node:fs"
 
-import { readFileSync, existsSync } from "node:fs"
 import { getFactoryRestClient } from "../../client.js"
 
 /**
@@ -20,57 +20,59 @@ export async function seedLocalInfra(
 
   const rest = await getFactoryRestClient()
 
-  // Look up the "local" substrate (optional — compose factory may not have one)
-  let substrateId: string | undefined
+  // Look up the "local" estate (optional — compose factory may not have one)
+  let estateId: string | undefined
   try {
-    const substratesRes = await rest.listEntities("infra", "substrates")
-    const substrates = substratesRes?.data ?? []
-    const localSubstrate = substrates.find((s) => s.slug === "local")
-    substrateId = localSubstrate?.id as string | undefined
+    const estatesRes = await rest.listEntities("infra", "estates")
+    const estates = estatesRes?.data ?? []
+    const localEstate = estates.find((s) => s.slug === "local")
+    estateId = localEstate?.id as string | undefined
   } catch {
-    // Substrate lookup failed — proceed without it
+    // Estate lookup failed — proceed without it
   }
 
-  // Check if runtime already exists
-  const runtimesRes = await rest.listEntities("infra", "runtimes")
-  const runtimes = runtimesRes?.data ?? []
-  const existing = runtimes.find((r) => r.slug === clusterName || r.name === clusterName)
+  // Check if realm already exists
+  const realmsRes = await rest.listEntities("infra", "realms")
+  const realms = realmsRes?.data ?? []
+  const existing = realms.find(
+    (r) => r.slug === clusterName || r.name === clusterName
+  )
 
   if (existing) {
     // Update kubeconfig and isDefault (e.g. after k3d recreates with new TLS certs)
     try {
-      await rest.updateEntity("infra", "runtimes", existing.id as string, {
+      await rest.updateEntity("infra", "realms", existing.id as string, {
         spec: {
           ...(existing.spec as Record<string, unknown>),
           kubeconfigRef: kubeconfigContent,
           isDefault: true,
         },
       })
-      console.log(`Runtime '${clusterName}' updated in local factory.`)
+      console.log(`Realm '${clusterName}' updated in local factory.`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.warn(`Failed to update runtime: ${msg}`)
+      console.warn(`Failed to update realm: ${msg}`)
     }
     return
   }
 
-  // Create runtime via API
+  // Create realm via API
   try {
     const spec: Record<string, unknown> = {
       kubeconfigRef: kubeconfigContent,
       isDefault: true,
     }
-    if (substrateId) spec.substrateId = substrateId
+    if (estateId) spec.estateId = estateId
 
-    await rest.createEntity("infra", "runtimes", {
+    await rest.createEntity("infra", "realms", {
       name: clusterName,
       slug: clusterName,
       type: "k8s-cluster",
       spec,
     })
-    console.log(`Runtime '${clusterName}' registered in local factory.`)
+    console.log(`Realm '${clusterName}' registered in local factory.`)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`Failed to register runtime: ${msg}`)
+    console.warn(`Failed to register realm: ${msg}`)
   }
 }

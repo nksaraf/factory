@@ -17,7 +17,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   '$scannedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")\n' +
   "\n" +
   "$collectors = @()\n" +
-  "$runtimes = @()\n" +
+  "$realms = @()\n" +
   "$services = @()\n" +
   "$ports = @()\n" +
   "$composeProjects = @()\n" +
@@ -49,7 +49,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "try {\n" +
   "    $dockerVersion = & docker version --format '{{.Server.Version}}' 2>$null\n" +
   "    if ($LASTEXITCODE -eq 0 -and $dockerVersion) {\n" +
-  "        $runtimes += @{ type = 'docker-engine'; version = $dockerVersion; status = 'running' }\n" +
+  "        $realms += @{ type = 'docker-engine'; version = $dockerVersion; status = 'running' }\n" +
   "\n" +
   "        # Compose projects\n" +
   "        try {\n" +
@@ -107,7 +107,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "\n" +
   "    if ($iisSites) {\n" +
   "        $iisVersion = (Get-ItemProperty HKLM:\\\\SOFTWARE\\\\Microsoft\\\\InetStp).VersionString 2>$null\n" +
-  "        $runtimes += @{ type = 'iis'; version = $iisVersion; status = 'running' }\n" +
+  "        $realms += @{ type = 'iis'; version = $iisVersion; status = 'running' }\n" +
   "\n" +
   "        foreach ($site in $iisSites) {\n" +
   "            $sitePorts = @()\n" +
@@ -150,7 +150,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "        $pidPorts[$key] += $p.port\n" +
   "    }\n" +
   "\n" +
-  "    $runtimes += @{ type = 'windows-service'; status = 'running' }\n" +
+  "    $realms += @{ type = 'windows-service'; status = 'running' }\n" +
   "\n" +
   "    foreach ($svc in $winServices) {\n" +
   "        try {\n" +
@@ -188,7 +188,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "    os = 'windows'\n" +
   "    arch = $arch\n" +
   "    hostname = $hostname\n" +
-  "    runtimes = @($runtimes)\n" +
+  "    realms = @($realms)\n" +
   "    services = @($services)\n" +
   "    ports = @($ports)\n" +
   "    composeProjects = @($composeProjects)\n" +

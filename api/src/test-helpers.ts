@@ -125,8 +125,8 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE infra.ip_address RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE infra.secret RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE infra.host RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE infra.runtime RESTART IDENTITY CASCADE`,
-  `TRUNCATE TABLE infra.substrate RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.realm RESTART IDENTITY CASCADE`,
+  `TRUNCATE TABLE infra.estate RESTART IDENTITY CASCADE`,
 ]
 
 /**
@@ -193,11 +193,11 @@ export async function seedTestParents(client: PGlite) {
     /* table may not exist */
   }
 
-  // Seed a default runtime for workspace creation (fleet beforeCreate hook requires it)
+  // Seed a default realm for workspace creation (fleet beforeCreate hook requires it)
   try {
     await client.query(
-      `INSERT INTO infra.runtime (id, slug, name, type, spec)
-       VALUES ('rt_seed', '_seed-runtime', 'Seed Runtime', 'k8s-cluster',
+      `INSERT INTO infra.realm (id, slug, name, type, spec)
+       VALUES ('rt_seed', '_seed-realm', 'Seed Realm', 'k8s-cluster',
                '{"status":"ready","isDefault":true}')
        ON CONFLICT (id) DO NOTHING`
     )

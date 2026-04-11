@@ -27,7 +27,7 @@ export type ScanService = {
   metadata?: Record<string, string>
 }
 
-export type ScanRuntime = {
+export type ScanRealm = {
   type: "docker-engine" | "systemd" | "iis" | "windows-service" | "process"
   version?: string
   status?: string
@@ -116,7 +116,7 @@ export type ScanResult = {
   arch?: "amd64" | "arm64"
   hostname?: string
   ipAddress?: string
-  runtimes: ScanRuntime[]
+  realms: ScanRealm[]
   services: ScanService[]
   ports: ScanPort[]
   composeProjects: ScanComposeProject[]

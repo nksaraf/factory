@@ -196,6 +196,7 @@ export const componentTypeSchema = z.enum([
   "cronjob",
   "website",
   "library",
+  "init",
 ])
 export type ComponentType = z.infer<typeof componentTypeSchema>
 
@@ -261,6 +262,14 @@ export const catalogComponentSchema = z.object({
 
     // ── Docker compose profiles ──
     profiles: z.array(z.string()).optional(),
+
+    // ── Connection env mapping (for hybrid dev / connection propagation) ──
+    /** Per-dependency env var templates: { "infra-postgres": { "AUTH_DATABASE_URL": "{template}" } } */
+    depEnv: z.record(z.record(z.string())).optional(),
+
+    // ── Init container relationship ──
+    /** For init containers (type: "init"): the service this container initializes. */
+    initFor: z.string().optional(),
   }),
 })
 export type CatalogComponent = z.infer<typeof catalogComponentSchema>
@@ -276,6 +285,18 @@ export const resourceTypeSchema = z.enum([
   "search",
 ])
 export type ResourceType = z.infer<typeof resourceTypeSchema>
+
+export const gatewayTargetSchema = z.object({
+  /** Target service hostname (must match a compose service name) */
+  service: z.string(),
+  /** Target port */
+  port: z.number(),
+  /** Route paths that map to this target */
+  routes: z.array(z.string()).optional(),
+  /** Load balancing weight (default 1) */
+  weight: z.number().optional(),
+})
+export type GatewayTarget = z.infer<typeof gatewayTargetSchema>
 
 export const catalogResourceSchema = z.object({
   kind: z.literal("Resource"),
@@ -322,6 +343,13 @@ export const catalogResourceSchema = z.object({
 
     // ── Docker compose profiles ──
     profiles: z.array(z.string()).optional(),
+
+    // ── Connection env mapping (for hybrid dev / connection propagation) ──
+    /** Per-dependency env var templates: { "infra-postgres": { "MB_DB_HOST": "{host}" } } */
+    depEnv: z.record(z.record(z.string())).optional(),
+
+    // ── Gateway routing targets (parsed from mounted config files) ──
+    gatewayTargets: z.array(gatewayTargetSchema).optional(),
   }),
 })
 export type CatalogResource = z.infer<typeof catalogResourceSchema>

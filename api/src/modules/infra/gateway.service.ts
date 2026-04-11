@@ -1,23 +1,25 @@
-import { eq, and, desc, lt, sql, count, isNotNull } from "drizzle-orm";
-import crypto from "node:crypto";
-import dns from "node:dns/promises";
+import { and, count, desc, eq, isNotNull, lt, sql } from "drizzle-orm"
+import crypto from "node:crypto"
+import dns from "node:dns/promises"
 
-import type { Database } from "../../db/connection";
-import { route, dnsDomain, tunnel } from "../../db/schema/infra-v2";
-import { principal } from "../../db/schema/org-v2";
+import type { Database } from "../../db/connection"
+import { dnsDomain, route, tunnel } from "../../db/schema/infra-v2"
+import { principal } from "../../db/schema/org-v2"
 
 /**
  * Route change listener for cache invalidation.
  * The factory gateway registers its cache.invalidate here.
  */
-let onRouteChanged: ((domain: string) => void) | null = null;
+let onRouteChanged: ((domain: string) => void) | null = null
 
-export function setRouteChangeListener(listener: (domain: string) => void): void {
-  onRouteChanged = listener;
+export function setRouteChangeListener(
+  listener: (domain: string) => void
+): void {
+  onRouteChanged = listener
 }
 
 function notifyRouteChanged(domain: string): void {
-  onRouteChanged?.(domain);
+  onRouteChanged?.(domain)
 }
 
 // ---------------------------------------------------------------------------
@@ -27,63 +29,68 @@ function notifyRouteChanged(domain: string): void {
 export async function listRoutes(
   db: Database,
   opts?: {
-    type?: string;
-    runtimeId?: string;
-    status?: string;
+    type?: string
+    realmId?: string
+    status?: string
   }
 ): Promise<{ data: any[]; total: number }> {
-  const conditions = [];
-  if (opts?.type) conditions.push(eq(route.type, opts.type));
-  if (opts?.runtimeId) conditions.push(eq(route.runtimeId, opts.runtimeId));
+  const conditions = []
+  if (opts?.type) conditions.push(eq(route.type, opts.type))
+  if (opts?.realmId) conditions.push(eq(route.realmId, opts.realmId))
   // v2: status is in spec JSONB — filter after query for now
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const base = db.select().from(route);
+  const base = db.select().from(route)
   let rows = where
     ? await base.where(where).orderBy(desc(route.createdAt))
-    : await base.orderBy(desc(route.createdAt));
+    : await base.orderBy(desc(route.createdAt))
 
   // v2: filter by spec.status if needed
   if (opts?.status) {
-    rows = rows.filter((r) => (r.spec as any)?.status === opts.status);
+    rows = rows.filter((r) => (r.spec as any)?.status === opts.status)
   }
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }
 
 export async function createRoute(
   db: Database,
   input: {
-    name?: string;
-    slug?: string;
-    type: string;       // v2: kind → type
-    domain: string;
-    runtimeId?: string; // v2: replaces clusterId/deploymentTargetId/siteId
-    spec?: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
+    name?: string
+    slug?: string
+    type: string // v2: kind → type
+    domain: string
+    realmId?: string // v2: replaces clusterId/deploymentTargetId/siteId
+    spec?: Record<string, unknown>
+    metadata?: Record<string, unknown>
     // Convenience fields — stored in spec
-    siteId?: string;
-    deploymentTargetId?: string; // legacy compat — stored in spec as systemDeploymentId
-    clusterId?: string;          // legacy compat — stored in spec as runtimeId
-    pathPrefix?: string;
-    targetService?: string;
-    targetPort?: number;
-    protocol?: string;
-    tlsMode?: string;
-    tlsCertRef?: string;
-    priority?: number;
-    middlewares?: unknown[];
-    status?: string;
-    createdBy?: string;
-    expiresAt?: Date;
+    siteId?: string
+    deploymentTargetId?: string // legacy compat — stored in spec as systemDeploymentId
+    clusterId?: string // legacy compat — stored in spec as realmId
+    pathPrefix?: string
+    targetService?: string
+    targetPort?: number
+    protocol?: string
+    tlsMode?: string
+    tlsCertRef?: string
+    priority?: number
+    middlewares?: unknown[]
+    status?: string
+    createdBy?: string
+    expiresAt?: Date
   }
 ) {
-  const slug = input.slug ?? input.domain.replace(/[^a-z0-9-]/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  const name = input.name ?? input.domain;
+  const slug =
+    input.slug ??
+    input.domain
+      .replace(/[^a-z0-9-]/gi, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+  const name = input.name ?? input.domain
 
   const spec = {
-    ...(input.spec ?? {}),
+    ...input.spec,
     pathPrefix: input.pathPrefix,
     targetService: input.targetService,
     targetPort: input.targetPort,
@@ -98,7 +105,7 @@ export async function createRoute(
     // Store legacy FK refs in spec for migration period
     siteId: input.siteId,
     systemDeploymentId: input.deploymentTargetId,
-  };
+  }
 
   const [row] = await db
     .insert(route)
@@ -107,13 +114,13 @@ export async function createRoute(
       name,
       type: input.type,
       domain: input.domain,
-      runtimeId: input.runtimeId ?? input.clusterId,
+      realmId: input.realmId ?? input.clusterId,
       spec: spec as any,
       metadata: input.metadata as any,
     })
-    .returning();
+    .returning()
 
-  notifyRouteChanged(row.domain);
+  notifyRouteChanged(row.domain)
 
   // Return with flattened fields for backward compat
   return {
@@ -124,7 +131,7 @@ export async function createRoute(
     status: (row.spec as any)?.status ?? "active",
     targetService: (row.spec as any)?.targetService,
     targetPort: (row.spec as any)?.targetPort,
-  };
+  }
 }
 
 export async function getRoute(db: Database, routeId: string) {
@@ -132,76 +139,96 @@ export async function getRoute(db: Database, routeId: string) {
     .select()
     .from(route)
     .where(eq(route.id, routeId))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return null;
+  if (!row) return null
   return {
     ...row,
     routeId: row.id,
     kind: row.type,
     status: (row.spec as any)?.status ?? "active",
-  };
+  }
 }
 
 export async function updateRoute(
   db: Database,
   routeId: string,
   updates: {
-    status?: string;
-    targetService?: string;
-    targetPort?: number;
-    tlsMode?: string;
-    tlsCertRef?: string;
-    priority?: number;
-    middlewares?: unknown[];
-    metadata?: Record<string, unknown>;
-    expiresAt?: Date | null;
+    status?: string
+    targetService?: string
+    targetPort?: number
+    tlsMode?: string
+    tlsCertRef?: string
+    priority?: number
+    middlewares?: unknown[]
+    metadata?: Record<string, unknown>
+    expiresAt?: Date | null
   }
 ) {
   // Read current spec, merge updates into it
-  const existing = await getRoute(db, routeId);
-  if (!existing) return null;
+  const existing = await getRoute(db, routeId)
+  if (!existing) return null
 
   const newSpec = {
     ...(existing.spec as any),
     ...(updates.status !== undefined ? { status: updates.status } : {}),
-    ...(updates.targetService !== undefined ? { targetService: updates.targetService } : {}),
-    ...(updates.targetPort !== undefined ? { targetPort: updates.targetPort } : {}),
+    ...(updates.targetService !== undefined
+      ? { targetService: updates.targetService }
+      : {}),
+    ...(updates.targetPort !== undefined
+      ? { targetPort: updates.targetPort }
+      : {}),
     ...(updates.tlsMode !== undefined ? { tlsMode: updates.tlsMode } : {}),
-    ...(updates.tlsCertRef !== undefined ? { tlsCertRef: updates.tlsCertRef } : {}),
+    ...(updates.tlsCertRef !== undefined
+      ? { tlsCertRef: updates.tlsCertRef }
+      : {}),
     ...(updates.priority !== undefined ? { priority: updates.priority } : {}),
-    ...(updates.middlewares !== undefined ? { middlewares: updates.middlewares } : {}),
-    ...(updates.expiresAt !== undefined ? { expiresAt: updates.expiresAt?.toISOString() ?? null } : {}),
-  };
+    ...(updates.middlewares !== undefined
+      ? { middlewares: updates.middlewares }
+      : {}),
+    ...(updates.expiresAt !== undefined
+      ? { expiresAt: updates.expiresAt?.toISOString() ?? null }
+      : {}),
+  }
 
   const setValues: Record<string, unknown> = {
     spec: newSpec,
     updatedAt: new Date(),
-  };
-  if (updates.metadata !== undefined) setValues.metadata = updates.metadata;
+  }
+  if (updates.metadata !== undefined) setValues.metadata = updates.metadata
 
   const [row] = await db
     .update(route)
     .set(setValues as any)
     .where(eq(route.id, routeId))
-    .returning();
+    .returning()
 
-  if (row) notifyRouteChanged(row.domain);
-  return row ? { ...row, routeId: row.id, kind: row.type, status: (row.spec as any)?.status } : null;
+  if (row) notifyRouteChanged(row.domain)
+  return row
+    ? {
+        ...row,
+        routeId: row.id,
+        kind: row.type,
+        status: (row.spec as any)?.status,
+      }
+    : null
 }
 
 export async function deleteRoute(db: Database, routeId: string) {
-  const existing = await getRoute(db, routeId);
-  await db.delete(route).where(eq(route.id, routeId));
-  if (existing) notifyRouteChanged(existing.domain);
+  const existing = await getRoute(db, routeId)
+  await db.delete(route).where(eq(route.id, routeId))
+  if (existing) notifyRouteChanged(existing.domain)
 }
 
 export async function cleanupExpiredRoutes(db: Database): Promise<number> {
-  const now = new Date().toISOString();
-  const deleted = await db.delete(route)
-    .where(sql`${route.spec}->>'expiresAt' IS NOT NULL AND ${route.spec}->>'expiresAt' < ${now}`)
-    .returning();
-  return deleted.length;
+  const now = new Date().toISOString()
+  const deleted = await db
+    .delete(route)
+    .where(
+      sql`${route.spec}->>'expiresAt' IS NOT NULL AND ${route.spec}->>'expiresAt' < ${now}`
+    )
+    .returning()
+  return deleted.length
 }
 
 /**
@@ -216,11 +243,11 @@ export async function lookupRouteByDomain(
     .select()
     .from(route)
     .where(eq(route.domain, domain))
-    .limit(5);
+    .limit(5)
 
   // v2: status is in spec JSONB
-  const active = rows.find((r) => (r.spec as any)?.status === "active");
-  if (!active) return null;
+  const active = rows.find((r) => (r.spec as any)?.status === "active")
+  if (!active) return null
 
   return {
     ...active,
@@ -230,7 +257,7 @@ export async function lookupRouteByDomain(
     domain: active.domain,
     targetService: (active.spec as any)?.targetService,
     targetPort: (active.spec as any)?.targetPort,
-  };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -240,39 +267,42 @@ export async function lookupRouteByDomain(
 export async function listDomains(
   db: Database,
   opts?: {
-    siteId?: string;
-    status?: string;
+    siteId?: string
+    status?: string
   }
 ): Promise<{ data: any[]; total: number }> {
-  const conditions = [];
-  if (opts?.siteId) conditions.push(eq(dnsDomain.siteId, opts.siteId));
+  const conditions = []
+  if (opts?.siteId) conditions.push(eq(dnsDomain.siteId, opts.siteId))
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const base = db.select().from(dnsDomain);
+  const base = db.select().from(dnsDomain)
   let rows = where
     ? await base.where(where).orderBy(desc(dnsDomain.createdAt))
-    : await base.orderBy(desc(dnsDomain.createdAt));
+    : await base.orderBy(desc(dnsDomain.createdAt))
 
   // v2: status is in spec JSONB
   if (opts?.status) {
-    rows = rows.filter((r) => (r.spec as any)?.status === opts.status);
+    rows = rows.filter((r) => (r.spec as any)?.status === opts.status)
   }
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }
 
 export async function registerDomain(
   db: Database,
   input: {
-    siteId?: string;
-    fqdn: string;
-    type: string;    // v2: kind → type
-    createdBy: string;
+    siteId?: string
+    fqdn: string
+    type: string // v2: kind → type
+    createdBy: string
   }
 ) {
-  const verificationToken = `dx-verify-${crypto.randomUUID().slice(0, 16)}`;
-  const slug = input.fqdn.replace(/[^a-z0-9-]/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const verificationToken = `dx-verify-${crypto.randomUUID().slice(0, 16)}`
+  const slug = input.fqdn
+    .replace(/[^a-z0-9-]/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
 
   const [row] = await db
     .insert(dnsDomain)
@@ -289,7 +319,7 @@ export async function registerDomain(
         status: "pending",
       } as any,
     })
-    .returning();
+    .returning()
 
   return {
     ...row,
@@ -298,7 +328,7 @@ export async function registerDomain(
     createdBy: (row.spec as any)?.createdBy,
     dnsVerified: (row.spec as any)?.dnsVerified ?? false,
     status: (row.spec as any)?.status,
-  };
+  }
 }
 
 export async function getDomain(db: Database, domainId: string) {
@@ -306,9 +336,9 @@ export async function getDomain(db: Database, domainId: string) {
     .select()
     .from(dnsDomain)
     .where(eq(dnsDomain.id, domainId))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return null;
+  if (!row) return null
   return {
     ...row,
     domainId: row.id,
@@ -316,7 +346,7 @@ export async function getDomain(db: Database, domainId: string) {
     createdBy: (row.spec as any)?.createdBy,
     dnsVerified: (row.spec as any)?.dnsVerified ?? false,
     status: (row.spec as any)?.status,
-  };
+  }
 }
 
 export async function getDomainByFqdn(db: Database, fqdn: string) {
@@ -324,9 +354,9 @@ export async function getDomainByFqdn(db: Database, fqdn: string) {
     .select()
     .from(dnsDomain)
     .where(eq(dnsDomain.fqdn, fqdn))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return null;
+  if (!row) return null
   return {
     ...row,
     domainId: row.id,
@@ -334,45 +364,49 @@ export async function getDomainByFqdn(db: Database, fqdn: string) {
     createdBy: (row.spec as any)?.createdBy,
     dnsVerified: (row.spec as any)?.dnsVerified ?? false,
     status: (row.spec as any)?.status,
-  };
+  }
 }
 
 export async function updateDomain(
   db: Database,
   domainId: string,
   updates: {
-    dnsVerified?: boolean;
-    status?: string;
-    tlsCertRef?: string;
+    dnsVerified?: boolean
+    status?: string
+    tlsCertRef?: string
   }
 ) {
-  const existing = await getDomain(db, domainId);
-  if (!existing) return null;
+  const existing = await getDomain(db, domainId)
+  if (!existing) return null
 
   const newSpec = {
     ...(existing.spec as any),
-    ...(updates.dnsVerified !== undefined ? { dnsVerified: updates.dnsVerified } : {}),
+    ...(updates.dnsVerified !== undefined
+      ? { dnsVerified: updates.dnsVerified }
+      : {}),
     ...(updates.status !== undefined ? { status: updates.status } : {}),
-    ...(updates.tlsCertRef !== undefined ? { tlsCertRef: updates.tlsCertRef } : {}),
-  };
+    ...(updates.tlsCertRef !== undefined
+      ? { tlsCertRef: updates.tlsCertRef }
+      : {}),
+  }
 
   const [row] = await db
     .update(dnsDomain)
     .set({ spec: newSpec as any, updatedAt: new Date() })
     .where(eq(dnsDomain.id, domainId))
-    .returning();
+    .returning()
 
-  if (!row) return null;
+  if (!row) return null
   return {
     ...row,
     domainId: row.id,
     dnsVerified: (row.spec as any)?.dnsVerified ?? false,
     status: (row.spec as any)?.status,
-  };
+  }
 }
 
 export async function removeDomain(db: Database, domainId: string) {
-  await db.delete(dnsDomain).where(eq(dnsDomain.id, domainId));
+  await db.delete(dnsDomain).where(eq(dnsDomain.id, domainId))
 }
 
 /**
@@ -382,27 +416,27 @@ export async function verifyDomain(
   db: Database,
   domainId: string
 ): Promise<{ verified: boolean; domain: any; route?: any; error?: string }> {
-  const dom = await getDomain(db, domainId);
+  const dom = await getDomain(db, domainId)
   if (!dom) {
-    return { verified: false, domain: null, error: "Domain not found" };
+    return { verified: false, domain: null, error: "Domain not found" }
   }
 
   if (dom.dnsVerified) {
-    return { verified: true, domain: dom };
+    return { verified: true, domain: dom }
   }
 
   try {
-    const txtHost = `_dx-verify.${dom.fqdn}`;
-    const records = await dns.resolveTxt(txtHost);
-    const flatRecords = records.map((r) => r.join(""));
-    const found = flatRecords.some((r) => r === dom.verificationToken);
+    const txtHost = `_dx-verify.${dom.fqdn}`
+    const records = await dns.resolveTxt(txtHost)
+    const flatRecords = records.map((r) => r.join(""))
+    const found = flatRecords.some((r) => r === dom.verificationToken)
 
     if (!found) {
       return {
         verified: false,
         domain: dom,
         error: `TXT record not found. Add TXT record at ${txtHost} with value: ${dom.verificationToken}`,
-      };
+      }
     }
   } catch (err: any) {
     if (err?.code === "ENOTFOUND" || err?.code === "ENODATA") {
@@ -410,20 +444,20 @@ export async function verifyDomain(
         verified: false,
         domain: dom,
         error: `No DNS records found for _dx-verify.${dom.fqdn}. Add a TXT record with value: ${dom.verificationToken}`,
-      };
+      }
     }
     return {
       verified: false,
       domain: dom,
       error: `DNS lookup failed: ${err?.message ?? String(err)}`,
-    };
+    }
   }
 
   // Mark verified
   const updated = await updateDomain(db, domainId, {
     dnsVerified: true,
     status: "verified",
-  });
+  })
 
   // Auto-create a custom-domain route for this domain
   const newRoute = await createRoute(db, {
@@ -433,9 +467,9 @@ export async function verifyDomain(
     tlsMode: "custom",
     status: "active",
     createdBy: dom.createdBy,
-  });
+  })
 
-  return { verified: true, domain: updated, route: newRoute };
+  return { verified: true, domain: updated, route: newRoute }
 }
 
 // ---------------------------------------------------------------------------
@@ -445,68 +479,68 @@ export async function verifyDomain(
 export async function createWorkspaceRoutes(
   db: Database,
   input: {
-    systemDeploymentId?: string; // v2: was deploymentTargetId
-    runtimeId?: string;          // v2: was clusterId
-    workspaceSlug: string;       // v2: was sandboxSlug
-    siteId?: string;             // v2: site-scoped workspace routes
-    publishPorts?: number[];
-    createdBy: string;
+    systemDeploymentId?: string // v2: was deploymentTargetId
+    realmId?: string // v2: was clusterId
+    workspaceSlug: string // v2: was sandboxSlug
+    siteId?: string // v2: site-scoped workspace routes
+    publishPorts?: number[]
+    createdBy: string
   }
 ) {
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
   // Site-scoped workspaces use site ID as subdomain; generic workspaces use "workspace"
-  const routeScope = input.siteId ? input.siteId : "workspace";
-  const baseDomain = `${input.workspaceSlug}.${routeScope}.${gatewayDomain}`;
+  const routeScope = input.siteId ? input.siteId : "workspace"
+  const baseDomain = `${input.workspaceSlug}.${routeScope}.${gatewayDomain}`
 
-  const routes: any[] = [];
+  const routes: any[] = []
 
   const primary = await createRoute(db, {
     type: "workspace",
     domain: baseDomain,
-    runtimeId: input.runtimeId,
+    realmId: input.realmId,
     targetService: input.workspaceSlug,
     protocol: "http",
     status: "active",
     createdBy: input.createdBy,
     deploymentTargetId: input.systemDeploymentId,
-  });
-  routes.push(primary);
+  })
+  routes.push(primary)
 
   if (input.publishPorts) {
     for (const port of input.publishPorts) {
-      const portDomain = `${input.workspaceSlug}-${port}.${routeScope}.${gatewayDomain}`;
+      const portDomain = `${input.workspaceSlug}-${port}.${routeScope}.${gatewayDomain}`
 
       const portRoute = await createRoute(db, {
         type: "workspace",
         domain: portDomain,
-        runtimeId: input.runtimeId,
+        realmId: input.realmId,
         targetService: input.workspaceSlug,
         targetPort: port,
         protocol: "http",
         status: "active",
         createdBy: input.createdBy,
         deploymentTargetId: input.systemDeploymentId,
-      });
-      routes.push(portRoute);
+      })
+      routes.push(portRoute)
     }
   }
 
-  return routes;
+  return routes
 }
-
 
 export async function removeSystemDeploymentRoutes(
   db: Database,
   systemDeploymentId: string
 ): Promise<number> {
-  const deleted = await db.delete(route)
+  const deleted = await db
+    .delete(route)
     .where(sql`${route.spec}->>'systemDeploymentId' = ${systemDeploymentId}`)
-    .returning();
-  return deleted.length;
+    .returning()
+  return deleted.length
 }
 
 /** Backward compat alias */
-export const removeTargetRoutes = removeSystemDeploymentRoutes;
+export const removeTargetRoutes = removeSystemDeploymentRoutes
 
 // ---------------------------------------------------------------------------
 // Tunnel Lifecycle
@@ -515,23 +549,26 @@ export const removeTargetRoutes = removeSystemDeploymentRoutes;
 export async function registerTunnel(
   db: Database,
   input: {
-    subdomain: string;
-    principalId: string;
-    localAddr: string;
-    brokerNodeId?: string;
-    expiresAt?: Date;
-    createdBy: string;
-    routeFamily?: "workspace" | "tunnel";
-    systemDeploymentId?: string;
+    subdomain: string
+    principalId: string
+    localAddr: string
+    brokerNodeId?: string
+    expiresAt?: Date
+    createdBy: string
+    routeFamily?: "workspace" | "tunnel"
+    systemDeploymentId?: string
     // Legacy compat
-    deploymentTargetId?: string;
-    routeKind?: string;
+    deploymentTargetId?: string
+    routeKind?: string
   }
 ): Promise<{ tunnel: any; route: any }> {
-  const family = input.routeFamily ?? "tunnel";
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev";
-  const domainSuffix = family === "workspace" ? `.workspace.${gatewayDomain}` : `.tunnel.${gatewayDomain}`;
-  const routeType = family === "workspace" ? "workspace" : "tunnel";
+  const family = input.routeFamily ?? "tunnel"
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+  const domainSuffix =
+    family === "workspace"
+      ? `.workspace.${gatewayDomain}`
+      : `.tunnel.${gatewayDomain}`
+  const routeType = family === "workspace" ? "workspace" : "tunnel"
 
   const tunnelRoute = await createRoute(db, {
     type: input.routeKind ?? routeType,
@@ -540,19 +577,26 @@ export async function registerTunnel(
     deploymentTargetId: input.systemDeploymentId ?? input.deploymentTargetId,
     status: "active",
     createdBy: input.createdBy,
-  });
+  })
 
   // Ensure principal exists; auto-create if missing (local dev / first use)
-  let resolvedPrincipalId = input.principalId;
-  const [found] = await db.select({ id: principal.id }).from(principal).where(eq(principal.id, resolvedPrincipalId)).limit(1);
+  let resolvedPrincipalId = input.principalId
+  const [found] = await db
+    .select({ id: principal.id })
+    .from(principal)
+    .where(eq(principal.id, resolvedPrincipalId))
+    .limit(1)
   if (!found) {
-    await db.insert(principal).values({
-      id: resolvedPrincipalId,
-      slug: resolvedPrincipalId,
-      name: resolvedPrincipalId,
-      type: "human",
-      spec: { status: "active" },
-    } as any).onConflictDoNothing();
+    await db
+      .insert(principal)
+      .values({
+        id: resolvedPrincipalId,
+        slug: resolvedPrincipalId,
+        name: resolvedPrincipalId,
+        type: "human",
+        spec: { status: "active" },
+      } as any)
+      .onConflictDoNothing()
   }
 
   const [tunnelRow] = await db
@@ -569,7 +613,7 @@ export async function registerTunnel(
         expiresAt: input.expiresAt?.toISOString(),
       } as any,
     })
-    .returning();
+    .returning()
 
   return {
     tunnel: {
@@ -579,7 +623,7 @@ export async function registerTunnel(
       localAddr: (tunnelRow.spec as any)?.localAddr,
     },
     route: tunnelRoute,
-  };
+  }
 }
 
 export async function closeTunnel(db: Database, tunnelId: string) {
@@ -587,26 +631,29 @@ export async function closeTunnel(db: Database, tunnelId: string) {
     .select()
     .from(tunnel)
     .where(eq(tunnel.id, tunnelId))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return;
+  if (!row) return
 
-  await deleteRoute(db, row.routeId);
+  await deleteRoute(db, row.routeId)
   // Cascade should delete tunnel too, but let's be explicit
-  await db.delete(tunnel).where(eq(tunnel.id, tunnelId));
+  await db.delete(tunnel).where(eq(tunnel.id, tunnelId))
 }
 
 export async function heartbeatTunnel(db: Database, tunnelId: string) {
-  const existing = await getTunnel(db, tunnelId);
-  if (!existing) return;
+  const existing = await getTunnel(db, tunnelId)
+  if (!existing) return
 
   await db
     .update(tunnel)
     .set({
-      spec: { ...(existing.spec as any), lastHeartbeatAt: new Date().toISOString() } as any,
+      spec: {
+        ...(existing.spec as any),
+        lastHeartbeatAt: new Date().toISOString(),
+      } as any,
       updatedAt: new Date(),
     })
-    .where(eq(tunnel.id, tunnelId));
+    .where(eq(tunnel.id, tunnelId))
 }
 
 export async function getTunnel(db: Database, tunnelId: string) {
@@ -614,66 +661,66 @@ export async function getTunnel(db: Database, tunnelId: string) {
     .select()
     .from(tunnel)
     .where(eq(tunnel.id, tunnelId))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return null;
+  if (!row) return null
   return {
     ...row,
     tunnelId: row.id,
     status: row.phase,
     localAddr: (row.spec as any)?.localAddr,
     lastHeartbeatAt: (row.spec as any)?.lastHeartbeatAt,
-  };
+  }
 }
 
 export async function listTunnels(
   db: Database,
   opts?: {
-    principalId?: string;
-    status?: string;
+    principalId?: string
+    status?: string
   }
 ): Promise<{ data: any[]; total: number }> {
-  const conditions = [];
+  const conditions = []
   if (opts?.principalId)
-    conditions.push(eq(tunnel.principalId, opts.principalId));
-  if (opts?.status) conditions.push(eq(tunnel.phase, opts.status));
+    conditions.push(eq(tunnel.principalId, opts.principalId))
+  if (opts?.status) conditions.push(eq(tunnel.phase, opts.status))
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const base = db.select().from(tunnel);
+  const base = db.select().from(tunnel)
   const rows = where
     ? await base.where(where).orderBy(desc(tunnel.createdAt))
-    : await base.orderBy(desc(tunnel.createdAt));
+    : await base.orderBy(desc(tunnel.createdAt))
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }
 
 export async function cleanupStaleTunnels(
   db: Database,
   staleThresholdMs: number = 60_000
 ): Promise<number> {
-  const cutoff = new Date(Date.now() - staleThresholdMs);
+  const cutoff = new Date(Date.now() - staleThresholdMs)
 
   const activeTunnels = await db
     .select()
     .from(tunnel)
-    .where(eq(tunnel.phase, "connected"));
+    .where(eq(tunnel.phase, "connected"))
 
   const stale = activeTunnels.filter((t) => {
-    const heartbeat = (t.spec as any)?.lastHeartbeatAt;
-    return heartbeat && new Date(heartbeat) < cutoff;
-  });
+    const heartbeat = (t.spec as any)?.lastHeartbeatAt
+    return heartbeat && new Date(heartbeat) < cutoff
+  })
 
-  if (stale.length === 0) return 0;
+  if (stale.length === 0) return 0
 
   for (const t of stale) {
     await db
       .update(tunnel)
       .set({ phase: "disconnected", updatedAt: new Date() })
-      .where(eq(tunnel.id, t.id));
+      .where(eq(tunnel.id, t.id))
 
-    await deleteRoute(db, t.routeId);
+    await deleteRoute(db, t.routeId)
   }
 
-  return stale.length;
+  return stale.length
 }

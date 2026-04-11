@@ -4,85 +4,90 @@
 #
 
 upstreams:
-- id: auth-service
-  nodes:
-    infra-auth:3000: 1
-- id: factory-service
-  nodes:
-    infra-factory:4100: 1
-- id: api-docs
-  nodes:
-    infra-api-docs:80: 1
+  - id: auth-service
+    nodes:
+      infra-auth:3000: 1
+  - id: factory-service
+    nodes:
+      infra-factory:4100: 1
+    timeout:
+      connect: 5
+      send: 30
+      read: 120
+  - id: api-docs
+    nodes:
+      infra-api-docs:80: 1
 global_rules:
-- id: 1
-  plugins:
-    real-ip:
-      source: http_x_forwarded_for
+  - id: 1
+    plugins:
+      real-ip:
+        source: http_x_forwarded_for
 routes:
-# Auth route — no CORS plugin; infra-auth handles its own CORS headers
-- id: auth
-  uri: /api/v1/auth*
-  upstream_id: auth-service
-  plugins:
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-          X-Forwarded-Proto: $scheme
-- id: factory
-  uri: /api/v1/factory*
-  upstream_id: factory-service
-  enable_websocket: true
-  plugins:
-    cors:
-      allow_origins: '**'
-      allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-      allow_headers: Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
-        Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
-      expose_headers: Content-Length, Content-Type, X-Requested-With
-      allow_credential: true
-      max_age: 3600
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      regex_uri:
-      - ^/api/v1/factory(.*)
-      - /api/v1/factory$1
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-- id: webhooks
-  uri: /webhooks/*
-  upstream_id: factory-service
-  plugins:
-    opentelemetry:
-      sampler:
-        name: always_on
-    proxy-rewrite:
-      headers:
-        set:
-          X-Real-IP: $remote_addr
-          X-Forwarded-For: $remote_addr
-- id: docs-portal
-  uri: /docs
-  upstream_id: api-docs
-  plugins:
-    proxy-rewrite:
-      uri: /
-- id: health
-  uri: /health
-  plugins:
-    response-rewrite:
-      status_code: 200
-      body: '{"status":"healthy"}'
-      headers:
-        set:
-          Content-Type: application/json
+  # Auth route — no CORS plugin; infra-auth handles its own CORS headers
+  - id: auth
+    uri: /api/v1/auth*
+    upstream_id: auth-service
+    plugins:
+      opentelemetry:
+        sampler:
+          name: always_on
+      proxy-rewrite:
+        headers:
+          set:
+            X-Real-IP: $remote_addr
+            X-Forwarded-For: $remote_addr
+            X-Forwarded-Proto: $scheme
+  - id: factory
+    uri: /api/v1/factory*
+    upstream_id: factory-service
+    enable_websocket: true
+    plugins:
+      cors:
+        allow_origins: "**"
+        allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+        allow_headers:
+          Authorization, Content-Type, X-Requested-With, X-CSRF-Token,
+          Accept, Origin, Referer, User-Agent, Access-Control-Request-Method, Access-Control-Request-Headers
+        expose_headers: Content-Length, Content-Type, X-Requested-With
+        allow_credential: true
+        max_age: 3600
+      opentelemetry:
+        sampler:
+          name: always_on
+      proxy-rewrite:
+        regex_uri:
+          - ^/api/v1/factory(.*)
+          - /api/v1/factory$1
+        headers:
+          set:
+            X-Real-IP: $remote_addr
+            X-Forwarded-For: $remote_addr
+  - id: webhooks
+    uri: /webhooks/*
+    upstream_id: factory-service
+    plugins:
+      opentelemetry:
+        sampler:
+          name: always_on
+      proxy-rewrite:
+        headers:
+          set:
+            X-Real-IP: $remote_addr
+            X-Forwarded-For: $remote_addr
+  - id: docs-portal
+    uri: /docs
+    upstream_id: api-docs
+    plugins:
+      proxy-rewrite:
+        uri: /
+  - id: health
+    uri: /health
+    plugins:
+      response-rewrite:
+        status_code: 200
+        body: '{"status":"healthy"}'
+        headers:
+          set:
+            Content-Type: application/json
 
 #END
