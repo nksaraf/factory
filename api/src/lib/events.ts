@@ -50,20 +50,6 @@ export async function emitEvent(
     schemaVersion = 1,
   } = input
 
-  // Dedup by idempotency key if provided
-  if (idempotencyKey) {
-    const [existing] = await db
-      .select({ id: event.id })
-      .from(event)
-      .where(eq(event.idempotencyKey, idempotencyKey))
-      .limit(1)
-
-    if (existing) {
-      logger.debug({ idempotencyKey, topic }, "emitEvent: deduplicated")
-      return null
-    }
-  }
-
   // Validate data against schema registry (advisory, not blocking)
   const validation = validateEventData(topic, data, schemaVersion)
   if (!validation.valid) {
@@ -79,8 +65,7 @@ export async function emitEvent(
     ...(rawPayload ? { rawPayload } : {}),
   }
 
-  // Insert event row
-  await db.insert(event).values({
+  const eventValues = {
     id,
     topic,
     source,
@@ -97,12 +82,30 @@ export async function emitEvent(
     schemaVersion,
     spec,
     occurredAt: occurredAt ?? new Date(),
+  }
+
+  // Atomic insert: event + outbox in one transaction.
+  // Uses ON CONFLICT DO NOTHING for idempotency to avoid TOCTOU races
+  // when concurrent webhook retries fire with the same deliveryId.
+  const inserted = await db.transaction(async (tx) => {
+    const rows = idempotencyKey
+      ? await tx
+          .insert(event)
+          .values(eventValues)
+          .onConflictDoNothing({ target: event.idempotencyKey })
+          .returning({ id: event.id })
+      : await tx.insert(event).values(eventValues).returning({ id: event.id })
+
+    if (rows.length === 0) return null
+
+    await tx.insert(eventOutbox).values({ eventId: id })
+    return id
   })
 
-  // Insert outbox row
-  await db.insert(eventOutbox).values({
-    eventId: id,
-  })
+  if (!inserted) {
+    logger.debug({ idempotencyKey, topic }, "emitEvent: deduplicated")
+    return null
+  }
 
   logger.info(
     { eventId: id, topic, source, severity, entityKind, entityId },
