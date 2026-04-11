@@ -12,6 +12,7 @@ import type { Database } from "../db/connection"
 import { event, eventOutbox } from "../db/schema/org-v2"
 import { logger } from "../logger"
 import { publishToNats } from "./nats"
+import { type OperationRunner, createOperationRunner } from "./operations"
 
 const MAX_RETRIES = 5
 const BATCH_SIZE = 100
@@ -124,31 +125,22 @@ export async function processOutbox(db: Database): Promise<number> {
 }
 
 /**
- * Start the outbox relay as a background loop.
+ * Start the outbox relay as a DB-tracked operation runner.
  * Polls every `intervalMs` (default: 1000ms).
  */
-export function startOutboxRelay(
+export function startOutboxRelayRunner(
   db: Database,
-  intervalMs = 1000
-): { stop: () => void } {
-  let running = true
-
-  const loop = async () => {
-    while (running) {
-      try {
-        await processOutbox(db)
-      } catch (err) {
-        logger.error({ err }, "outbox-relay: error in processing loop")
+  opts?: { intervalMs?: number }
+): OperationRunner {
+  return createOperationRunner(db, {
+    name: "outbox-relay",
+    intervalMs: opts?.intervalMs ?? 1_000,
+    async execute(log) {
+      const published = await processOutbox(db)
+      if (published > 0) {
+        log.info({ published }, "outbox relay batch published")
       }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs))
-    }
-  }
-
-  loop()
-
-  return {
-    stop: () => {
-      running = false
+      return { published }
     },
-  }
+  })
 }

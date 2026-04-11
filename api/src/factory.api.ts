@@ -62,6 +62,8 @@ import "./modules/workflow/workflows/echo-workflow"
 import "./modules/chat/index"
 
 import { KubeClientImpl } from "./lib/kube-client-impl"
+import { closeNats } from "./lib/nats"
+import { startOutboxRelayRunner } from "./lib/outbox-relay"
 import { startGateway } from "./modules/infra/gateway-proxy"
 import { getTunnelStreamManager } from "./modules/infra/tunnel-broker"
 import { siteController } from "./modules/site/index"
@@ -303,6 +305,7 @@ export class FactoryAPI {
       startIdentitySyncLoop(this.db, new PostgresSecretBackend(this.db))
     )
     registerRunner(startMessagingSyncLoop(this.db))
+    registerRunner(startOutboxRelayRunner(this.db))
 
     // Start gateway proxy for tunnel routing on port 9090
     try {
@@ -354,6 +357,7 @@ export class FactoryAPI {
 
   async close() {
     stopAll()
+    await closeNats().catch(() => {})
     if (this.redis) {
       this.redis.publisher.disconnect()
       this.redis.subscriber.disconnect()
