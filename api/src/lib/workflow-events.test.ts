@@ -15,18 +15,19 @@ import {
   describe,
   expect,
   it,
-  vi,
-} from "vitest"
+  mock,
+} from "bun:test"
 
 import type { Database } from "../db/connection"
-import { eventSubscription } from "../db/schema/org-v2"
+import { eventSubscription } from "../db/schema/org"
 import { cleanupExpiredSubscriptions, emitEvent } from "./workflow-events"
 
-// Mock send() from workflow-engine since we can't run DBOS in tests
-const mockSend = vi.fn()
-vi.mock("./workflow-engine", () => ({
+const mockSend = mock()
+const mockRecv = mock()
+
+mock.module("./workflow-engine.js", () => ({
   send: (...args: unknown[]) => mockSend(...args),
-  recv: vi.fn(),
+  recv: mockRecv,
   getWorkflowId: () => "wfr_test",
 }))
 
@@ -43,9 +44,12 @@ beforeAll(async () => {
   await client.query(`
     CREATE TABLE org.event_subscription (
       id TEXT PRIMARY KEY,
-      workflow_run_id TEXT NOT NULL,
-      event_name TEXT NOT NULL,
-      match_fields JSONB NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      topic_filter TEXT NOT NULL,
+      match_fields JSONB,
+      owner_kind TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
       expires_at TIMESTAMPTZ
     )
@@ -69,16 +73,19 @@ beforeEach(async () => {
 // Helper to insert a subscription
 async function insertSub(opts: {
   id: string
-  workflowRunId: string
-  eventName: string
+  ownerId: string
+  topicFilter: string
   matchFields: Record<string, string>
   expiresAt?: Date
 }) {
   await db.insert(eventSubscription).values({
     id: opts.id,
-    workflowRunId: opts.workflowRunId,
-    eventName: opts.eventName,
+    kind: "trigger",
+    status: "active",
+    topicFilter: opts.topicFilter,
     matchFields: opts.matchFields,
+    ownerKind: "workflow",
+    ownerId: opts.ownerId,
     expiresAt: opts.expiresAt ?? new Date(Date.now() + 600_000),
   })
 }
@@ -89,8 +96,8 @@ describe("emitEvent", () => {
   it("wakes a matching subscription via send()", async () => {
     await insertSub({
       id: "esub_1",
-      workflowRunId: "wfr_abc",
-      eventName: "workbench.ready",
+      ownerId: "wfr_abc",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
     })
 
@@ -110,8 +117,8 @@ describe("emitEvent", () => {
   it("does not match subscriptions with different event names", async () => {
     await insertSub({
       id: "esub_2",
-      workflowRunId: "wfr_abc",
-      eventName: "pr.opened",
+      ownerId: "wfr_abc",
+      topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
 
@@ -123,8 +130,8 @@ describe("emitEvent", () => {
   it("does not match when matchFields are not contained in event data", async () => {
     await insertSub({
       id: "esub_3",
-      workflowRunId: "wfr_abc",
-      eventName: "workbench.ready",
+      ownerId: "wfr_abc",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-999" },
     })
 
@@ -140,14 +147,14 @@ describe("emitEvent", () => {
   it("matches multiple subscriptions for the same event", async () => {
     await insertSub({
       id: "esub_4a",
-      workflowRunId: "wfr_aaa",
-      eventName: "pr.opened",
+      ownerId: "wfr_aaa",
+      topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
     await insertSub({
       id: "esub_4b",
-      workflowRunId: "wfr_bbb",
-      eventName: "pr.opened",
+      ownerId: "wfr_bbb",
+      topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
 
@@ -167,8 +174,8 @@ describe("emitEvent", () => {
     // Subscription only cares about repoFullName and branchName
     await insertSub({
       id: "esub_5",
-      workflowRunId: "wfr_subset",
-      eventName: "pr.opened",
+      ownerId: "wfr_subset",
+      topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo", branchName: "feat/x" },
     })
 
@@ -186,16 +193,16 @@ describe("emitEvent", () => {
   it("skips expired subscriptions", async () => {
     await insertSub({
       id: "esub_expired",
-      workflowRunId: "wfr_expired",
-      eventName: "workbench.ready",
+      ownerId: "wfr_expired",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
       expiresAt: new Date(Date.now() - 60_000), // expired 1 minute ago
     })
     // Active sub for the same event
     await insertSub({
       id: "esub_active",
-      workflowRunId: "wfr_active",
-      eventName: "workbench.ready",
+      ownerId: "wfr_active",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
     })
 
@@ -215,8 +222,8 @@ describe("emitEvent", () => {
   it("does not match when only partial matchFields are present", async () => {
     await insertSub({
       id: "esub_6",
-      workflowRunId: "wfr_partial",
-      eventName: "pr.comment",
+      ownerId: "wfr_partial",
+      topicFilter: "pr.comment",
       matchFields: { repoFullName: "org/repo", prNumber: "42" },
     })
 
@@ -228,6 +235,27 @@ describe("emitEvent", () => {
 
     expect(mockSend).not.toHaveBeenCalled()
   })
+
+  it("marks trigger subscription as fired after matching", async () => {
+    await insertSub({
+      id: "esub_fired",
+      ownerId: "wfr_fired",
+      topicFilter: "workbench.ready",
+      matchFields: { workbenchId: "wb-123" },
+    })
+
+    await emitEvent(db, "workbench.ready", {
+      workbenchId: "wb-123",
+      status: "active",
+    })
+
+    const [sub] = await db
+      .select()
+      .from(eventSubscription)
+      .where(eq(eventSubscription.id, "esub_fired"))
+
+    expect(sub.status).toBe("fired")
+  })
 })
 
 // ── cleanupExpiredSubscriptions ────────────────────────
@@ -237,15 +265,15 @@ describe("cleanupExpiredSubscriptions", () => {
     // Insert one expired, one active
     await insertSub({
       id: "esub_exp",
-      workflowRunId: "wfr_exp",
-      eventName: "workbench.ready",
+      ownerId: "wfr_exp",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-old" },
       expiresAt: new Date(Date.now() - 60_000), // expired 1 minute ago
     })
     await insertSub({
       id: "esub_act",
-      workflowRunId: "wfr_act",
-      eventName: "workbench.ready",
+      ownerId: "wfr_act",
+      topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-new" },
       expiresAt: new Date(Date.now() + 600_000), // expires in 10 minutes
     })
@@ -260,8 +288,8 @@ describe("cleanupExpiredSubscriptions", () => {
   it("does nothing when no subscriptions are expired", async () => {
     await insertSub({
       id: "esub_fresh",
-      workflowRunId: "wfr_fresh",
-      eventName: "pr.opened",
+      ownerId: "wfr_fresh",
+      topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
       expiresAt: new Date(Date.now() + 3600_000),
     })
