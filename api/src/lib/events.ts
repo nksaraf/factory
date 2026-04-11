@@ -17,6 +17,7 @@ import type { Database } from "../db/connection"
 import { event, eventOutbox } from "../db/schema/org-v2"
 import { logger } from "../logger"
 import { canonicalize } from "./event-canonicalizers"
+import { validateEventData } from "./event-schemas"
 import { newId } from "./id"
 import { resolveActorPrincipal } from "./webhook-events"
 
@@ -61,6 +62,15 @@ export async function emitEvent(
       logger.debug({ idempotencyKey, topic }, "emitEvent: deduplicated")
       return null
     }
+  }
+
+  // Validate data against schema registry (advisory, not blocking)
+  const validation = validateEventData(topic, data, schemaVersion)
+  if (!validation.valid) {
+    logger.warn(
+      { topic, errors: validation.errors },
+      "emitEvent: payload validation failed"
+    )
   }
 
   const id = newId("evt")
