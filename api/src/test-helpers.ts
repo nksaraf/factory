@@ -6,15 +6,15 @@ import { fileURLToPath } from "node:url"
 
 import type { Database } from "./db/connection"
 import { createPgliteDb, migrateWithPglite } from "./factory-core"
-import { agentControllerV2 } from "./modules/agent/index.v2"
-import { buildControllerV2 } from "./modules/build/index.v2"
-import { commerceControllerV2 } from "./modules/commerce/index.v2"
+import { agentController } from "./modules/agent/index"
+import { buildController } from "./modules/build/index"
+import { commerceController } from "./modules/commerce/index"
 import { healthController } from "./modules/health/index"
-import { identityControllerV2 } from "./modules/identity/index.v2"
-import { infraControllerV2 } from "./modules/infra/index.v2"
-import { messagingControllerV2 } from "./modules/messaging/index.v2"
-import { opsControllerV2 } from "./modules/ops/index.v2"
-import { productControllerV2 } from "./modules/product/index.v2"
+import { identityController } from "./modules/identity/index"
+import { infraController } from "./modules/infra/index"
+import { messagingController } from "./modules/messaging/index"
+import { opsController } from "./modules/ops/index"
+import { productController } from "./modules/product/index"
 import { errorHandlerPlugin } from "./plugins/error-handler.plugin"
 
 export async function createTestContext() {
@@ -28,14 +28,14 @@ export async function createTestContext() {
   const factoryRoutes = new Elysia({ prefix: "/api/v1/factory" })
     .use(errorHandlerPlugin())
     .decorate("db", database)
-    .use(productControllerV2(database))
-    .use(buildControllerV2(database))
-    .use(agentControllerV2(database))
-    .use(commerceControllerV2(database))
-    .use(opsControllerV2(database))
-    .use(infraControllerV2(database))
-    .use(identityControllerV2(database))
-    .use(messagingControllerV2(database))
+    .use(productController(database))
+    .use(buildController(database))
+    .use(agentController(database))
+    .use(commerceController(database))
+    .use(opsController(database))
+    .use(infraController(database))
+    .use(identityController(database))
+    .use(messagingController(database))
 
   const app = new Elysia()
     .use(cors({ credentials: true, origin: true }))
@@ -93,6 +93,7 @@ const TRUNCATE_STATEMENTS = [
   `TRUNCATE TABLE org.event_outbox RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.event RESTART IDENTITY CASCADE`,
   // org
+  `TRUNCATE TABLE org.event_subscription_channel RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.event_subscription RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.workflow_run RESTART IDENTITY CASCADE`,
   `TRUNCATE TABLE org.tool_usage RESTART IDENTITY CASCADE`,

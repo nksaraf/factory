@@ -119,6 +119,7 @@ export type EntityPrefix =
   // workflow
   | "wfr" // workflow_run
   | "esub" // event_subscription
+  | "esch" // event_subscription_channel
   | "evt" // event
   | "eob" // event_outbox
   // operations

@@ -959,7 +959,25 @@ export const workflowRun = orgSchema.table(
 )
 
 // ─── Event Subscription ──────────────────────────────────
-// Inngest-style event subscriptions for content-based routing.
+// Unified event subscription: covers both transient workflow triggers
+// and persistent notification streams.
+//
+// kind = "trigger": fire-once, wakes a workflow, has expiresAt
+// kind = "stream":  persistent, delivers to channels, ongoing
+
+export interface EventSubscriptionSpec {
+  muted?: boolean
+  mutedUntil?: string
+  quietHoursStart?: string
+  quietHoursEnd?: string
+  timezone?: string
+  escalationPolicy?: {
+    steps: Array<{
+      delayMinutes: number
+      targetPrincipalId: string
+    }>
+  }
+}
 
 export const eventSubscription = orgSchema.table(
   "event_subscription",
@@ -968,29 +986,74 @@ export const eventSubscription = orgSchema.table(
       .primaryKey()
       .$defaultFn(() => newId("esub")),
 
-    /** The workflow run that registered this subscription. */
-    workflowRunId: text("workflow_run_id").notNull(),
+    name: text("name"),
 
-    /** Event name to match, e.g. "workbench.ready", "pr.opened". */
-    eventName: text("event_name").notNull(),
+    kind: text("kind").notNull(),
 
-    /**
-     * JSONB fields that must be a subset of the emitted event data.
-     * Uses Postgres <@ (contained-by) operator for matching.
-     * E.g. { "workbenchId": "wkbn_abc123" }
-     */
-    matchFields: jsonb("match_fields").notNull(),
+    status: text("status").notNull().default("active"),
+
+    topicFilter: text("topic_filter").notNull(),
+
+    matchFields: jsonb("match_fields"),
+
+    minSeverity: text("min_severity"),
+
+    scopeKind: text("scope_kind"),
+    scopeId: text("scope_id"),
+
+    ownerKind: text("owner_kind").notNull(),
+    ownerId: text("owner_id").notNull(),
+
+    spec: specCol<EventSubscriptionSpec>(),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
 
     createdAt: createdAt(),
-
-    /** Auto-expire stale subscriptions. */
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    updatedAt: updatedAt(),
   },
   (t) => [
-    index("org_esub_event_name_idx").on(t.eventName),
-    index("org_esub_workflow_run_idx").on(t.workflowRunId),
-    // GIN index for JSONB containment queries on matchFields
-    index("org_esub_match_fields_gin_idx").using("gin", t.matchFields),
+    index("org_esub_topic_filter_idx").on(t.topicFilter),
+    index("org_esub_kind_idx").on(t.kind),
+    index("org_esub_status_idx").on(t.status),
+    index("org_esub_owner_idx").on(t.ownerKind, t.ownerId),
+    index("org_esub_match_fields_gin_idx").using(
+      "gin",
+      sql`COALESCE(${t.matchFields}, '{}'::jsonb)`
+    ),
+  ]
+)
+
+// ─── Event Subscription Channel ─────────────────────────
+// How a stream subscription delivers — many channels per subscription.
+// Only used for kind = "stream". Triggers don't have channels.
+
+export interface EventSubscriptionChannelSpec {
+  rateLimit?: { maxPerHour: number }
+  batchWindow?: string
+  schedule?: string
+  template?: string
+}
+
+export const eventSubscriptionChannel = orgSchema.table(
+  "event_subscription_channel",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("esch")),
+    subscriptionId: text("subscription_id")
+      .notNull()
+      .references(() => eventSubscription.id, { onDelete: "cascade" }),
+    channelId: text("channel_id").notNull(),
+    delivery: text("delivery").notNull(),
+    minSeverity: text("min_severity"),
+    spec: specCol<EventSubscriptionChannelSpec>(),
+    lastDeliveredAt: timestamp("last_delivered_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_esch_sub_idx").on(t.subscriptionId),
+    index("org_esch_channel_idx").on(t.channelId),
+    index("org_esch_delivery_idx").on(t.delivery),
   ]
 )
 
