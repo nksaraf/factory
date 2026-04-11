@@ -1,4 +1,4 @@
-import { t, type UnwrapSchema } from "elysia"
+import { type UnwrapSchema, t } from "elysia"
 
 export const FleetModel = {
   // Releases
@@ -16,8 +16,8 @@ export const FleetModel = {
   siteNameParams: t.Object({ name: t.String() }),
   assignTenantBody: t.Object({ tenantId: t.String() }),
 
-  // Deployment Targets
-  createDeploymentTargetBody: t.Object({
+  // System Deployments
+  createSystemDeploymentBody: t.Object({
     name: t.String(),
     kind: t.String(),
     siteId: t.Optional(t.String()),
@@ -31,8 +31,8 @@ export const FleetModel = {
     hostId: t.Optional(t.String()),
     vmId: t.Optional(t.String()),
   }),
-  deploymentTargetIdParams: t.Object({ id: t.String() }),
-  deploymentTargetQuery: t.Object({
+  systemDeploymentIdParams: t.Object({ id: t.String() }),
+  systemDeploymentQuery: t.Object({
     kind: t.Optional(t.String()),
     status: t.Optional(t.String()),
     siteId: t.Optional(t.String()),
@@ -63,7 +63,7 @@ export const FleetModel = {
   // Rollouts
   createRolloutBody: t.Object({
     releaseId: t.String(),
-    deploymentTargetId: t.String(),
+    systemDeploymentId: t.String(),
   }),
   updateRolloutBody: t.Object({ status: t.String() }),
   rolloutIdParams: t.Object({ id: t.String() }),
@@ -82,12 +82,16 @@ export const FleetModel = {
     clusterId: t.Optional(t.String()),
     trigger: t.Optional(t.String()),
     labels: t.Optional(t.Record(t.String(), t.Unknown())),
-    dependencies: t.Optional(t.Array(t.Object({
-      name: t.String(),
-      image: t.String(),
-      port: t.Number(),
-      env: t.Optional(t.Record(t.String(), t.Unknown())),
-    }))),
+    dependencies: t.Optional(
+      t.Array(
+        t.Object({
+          name: t.String(),
+          image: t.String(),
+          port: t.Number(),
+          env: t.Optional(t.Record(t.String(), t.Unknown())),
+        })
+      )
+    ),
     publishPorts: t.Optional(t.Array(t.Number())),
     snapshotId: t.Optional(t.String()),
   }),
@@ -109,14 +113,14 @@ export const FleetModel = {
   // Connection Audit Events
   createConnectionAuditBody: t.Object({
     principalId: t.String(),
-    deploymentTargetId: t.String(),
+    systemDeploymentId: t.String(),
     connectedResources: t.Record(t.String(), t.Unknown()),
     readonly: t.Boolean(),
     reason: t.Optional(t.String()),
   }),
   connectionAuditIdParams: t.Object({ id: t.String() }),
   connectionAuditQuery: t.Object({
-    deploymentTargetId: t.Optional(t.String()),
+    systemDeploymentId: t.Optional(t.String()),
     principalId: t.Optional(t.String()),
   }),
   // Install Manifests
@@ -131,17 +135,21 @@ export const FleetModel = {
     siteName: t.String(),
     domain: t.String(),
     enabledPlanes: t.Array(t.String()),
-    nodes: t.Array(t.Object({
-      name: t.String(),
-      role: t.String(),
-      joinedAt: t.String(),
-      ip: t.String(),
-    })),
-    upgrades: t.Array(t.Object({
-      fromVersion: t.String(),
-      toVersion: t.String(),
-      upgradedAt: t.String(),
-    })),
+    nodes: t.Array(
+      t.Object({
+        name: t.String(),
+        role: t.String(),
+        joinedAt: t.String(),
+        ip: t.String(),
+      })
+    ),
+    upgrades: t.Array(
+      t.Object({
+        fromVersion: t.String(),
+        toVersion: t.String(),
+        upgradedAt: t.String(),
+      })
+    ),
   }),
   installManifestQuery: t.Object({
     role: t.Optional(t.String()),

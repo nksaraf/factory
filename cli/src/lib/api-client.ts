@@ -82,7 +82,7 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/sites/${name}/manifest`)
   }
 
-  // Fleet API methods — workspaces (was sandboxes)
+  // Fleet API methods — workspaces
   async listWorkspaces(opts?: { all?: boolean }) {
     return this.request(
       "GET",
@@ -107,7 +107,7 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/rollouts/${id}`)
   }
 
-  // Fleet API methods — system deployments (was deployment targets)
+  // Fleet API methods — system deployments
   async listSystemDeployments(opts?: { kind?: string; status?: string }) {
     return this.request("GET", `/api/v1/factory/fleet/system-deployments`)
   }
@@ -115,7 +115,7 @@ export class FactoryClient {
     return this.request("GET", `/api/v1/factory/fleet/system-deployments/${id}`)
   }
 
-  // Fleet API methods — workspace snapshots (was snapshots)
+  // Fleet API methods — workspace snapshots
   async listWorkspaceSnapshots() {
     return this.request("GET", "/api/v1/factory/fleet/workspace-snapshots")
   }

@@ -1,7 +1,7 @@
 /**
  * Scan reconciler — maps raw host scan results into the Factory ontology.
  *
- * Creates/updates Systems, Runtimes, and Components from discovered services.
+ * Creates/updates Systems, Realms, and Components from discovered services.
  * Decommissions entities that disappear between scans.
  * All scan-created entities are annotated with `metadata.annotations.discoveredBy = "scan"`.
  */
@@ -131,7 +131,7 @@ export async function reconcileHostScan(
     }
 
     // IIS sites → one system for the host's IIS
-    const hasIis = scanResult.services.some((s) => s.runtime === "iis")
+    const hasIis = scanResult.services.some((s) => s.realmType === "iis")
     if (hasIis) {
       const slug = `${hostSlug}-iis`
       systemsNeeded.set(slug, { slug, name: `${hostName} IIS` })
@@ -139,7 +139,7 @@ export async function reconcileHostScan(
 
     // Catch-all for ungrouped services
     const hasUngrouped = scanResult.services.some(
-      (s) => !s.composeProject && s.runtime !== "iis"
+      (s) => !s.composeProject && s.realmType !== "iis"
     )
     if (hasUngrouped) {
       const slug = `${hostSlug}-services`
@@ -254,7 +254,7 @@ export async function reconcileHostScan(
       let systemSlug: string
       if (svc.composeProject) {
         systemSlug = slugify(svc.composeProject)
-      } else if (svc.runtime === "iis") {
+      } else if (svc.realmType === "iis") {
         systemSlug = `${hostSlug}-iis`
       } else {
         systemSlug = `${hostSlug}-services`
@@ -266,7 +266,7 @@ export async function reconcileHostScan(
       // Build component slug
       const componentSlug = svc.composeProject
         ? `${slugify(svc.composeProject)}-${slugify(svc.name)}`
-        : `${hostSlug}-${slugify(svc.runtime)}-${slugify(svc.name)}`
+        : `${hostSlug}-${slugify(svc.realmType)}-${slugify(svc.name)}`
 
       discoveredComponentSlugs.push(componentSlug)
 
@@ -301,7 +301,7 @@ export async function reconcileHostScan(
           status: svc.status === "running" ? "active" : "inactive",
           metadata: scanMetadata({
             hostSlug,
-            scanRuntime: svc.runtime,
+            scanRealmType: svc.realmType,
             ...(svc.composeProject
               ? { composeProject: svc.composeProject }
               : {}),
@@ -331,7 +331,7 @@ export async function reconcileHostScan(
           spec,
           metadata: scanMetadata({
             hostSlug,
-            scanRuntime: svc.runtime,
+            scanRealmType: svc.realmType,
             ...(svc.composeProject
               ? { composeProject: svc.composeProject }
               : {}),
@@ -378,7 +378,7 @@ export async function reconcileHostScan(
       }
     }
 
-    // ── 6. Upsert Site (host → deployment target) ──────────
+    // ── 6. Upsert Site ─────────────────────────────────────
 
     const siteSlug = hostSlug
     const [existingSite] = await tx
@@ -620,7 +620,7 @@ export async function reconcileHostScan(
                   address: `${hostEntry.ip}:${rs.port}`,
                   port: rs.port,
                   weight: 100,
-                  realmType: rs.service.runtime,
+                  realmType: rs.service.realmType,
                 })
               }
             }
@@ -927,7 +927,7 @@ export async function reconcileHostScan(
       scannedAt: scanResult.scannedAt,
       portCount: scanResult.ports.length,
       serviceCount: scanResult.services.length,
-      runtimeCount: scanResult.realms.length,
+      realmCount: scanResult.realms.length,
       composeProjectCount: scanResult.composeProjects.length,
     })
     if (scanHistory.length > 50) scanHistory.length = 50
@@ -958,7 +958,7 @@ export async function reconcileHostScan(
             durationMs: scanResult.scanDurationMs,
             portCount: scanResult.ports.length,
             serviceCount: scanResult.services.length,
-            runtimeCount: scanResult.realms.length,
+            realmCount: scanResult.realms.length,
             composeProjects: scanResult.composeProjects.map((p) => p.name),
             ports: scanResult.ports,
             collectors: scanResult.collectors,

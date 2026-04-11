@@ -17,7 +17,7 @@ export type ScanPort = {
 export type ScanService = {
   name: string
   displayName?: string
-  runtime: "docker" | "systemd" | "iis" | "windows-service" | "process"
+  realmType: "docker" | "systemd" | "iis" | "windows-service" | "process"
   status: string
   ports: number[]
   image?: string

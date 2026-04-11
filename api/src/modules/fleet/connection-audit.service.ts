@@ -1,6 +1,7 @@
-import { and, desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { connectionAuditEvent } from "../../db/schema/ops";
+import { and, desc, eq } from "drizzle-orm"
+
+import type { Database } from "../../db/connection"
+import { connectionAuditEvent } from "../../db/schema/ops"
 
 // ---------------------------------------------------------------------------
 // Connection Audit Events — v2: spec JSONB
@@ -9,18 +10,17 @@ import { connectionAuditEvent } from "../../db/schema/ops";
 export async function createConnectionAuditEvent(
   db: Database,
   input: {
-    principalId: string;
-    systemDeploymentId?: string;
-    deploymentTargetId?: string;
-    connectedResources: Record<string, unknown>;
-    readonly: boolean;
-    reason?: string;
-  },
+    principalId: string
+    systemDeploymentId: string
+    connectedResources: Record<string, unknown>
+    readonly: boolean
+    reason?: string
+  }
 ) {
   const [row] = await db
     .insert(connectionAuditEvent)
     .values({
-      systemDeploymentId: input.systemDeploymentId ?? input.deploymentTargetId,
+      systemDeploymentId: input.systemDeploymentId,
       spec: {
         principalId: input.principalId,
         connectedResources: input.connectedResources,
@@ -29,9 +29,9 @@ export async function createConnectionAuditEvent(
         startedAt: new Date().toISOString(),
       } as any,
     })
-    .returning();
+    .returning()
 
-  return row;
+  return row
 }
 
 export async function endConnectionAuditEvent(db: Database, eventId: string) {
@@ -39,9 +39,9 @@ export async function endConnectionAuditEvent(db: Database, eventId: string) {
     .select()
     .from(connectionAuditEvent)
     .where(eq(connectionAuditEvent.id, eventId))
-    .limit(1);
+    .limit(1)
 
-  if (!existing) throw new Error(`Connection audit event not found: ${eventId}`);
+  if (!existing) throw new Error(`Connection audit event not found: ${eventId}`)
 
   const [updated] = await db
     .update(connectionAuditEvent)
@@ -52,35 +52,36 @@ export async function endConnectionAuditEvent(db: Database, eventId: string) {
       } as any,
     })
     .where(eq(connectionAuditEvent.id, eventId))
-    .returning();
+    .returning()
 
-  return updated;
+  return updated
 }
 
 export async function listConnectionAuditEvents(
   db: Database,
   opts?: {
-    systemDeploymentId?: string;
-    deploymentTargetId?: string;
-    principalId?: string;
-  },
+    systemDeploymentId?: string
+    principalId?: string
+  }
 ) {
-  const sdId = opts?.systemDeploymentId ?? opts?.deploymentTargetId;
-  const conditions = [];
-  if (sdId) conditions.push(eq(connectionAuditEvent.systemDeploymentId, sdId));
+  const sdId = opts?.systemDeploymentId
+  const conditions = []
+  if (sdId) conditions.push(eq(connectionAuditEvent.systemDeploymentId, sdId))
 
-  const base = db.select().from(connectionAuditEvent);
+  const base = db.select().from(connectionAuditEvent)
   const rows =
     conditions.length > 0
-      ? await base.where(and(...conditions)).orderBy(desc(connectionAuditEvent.createdAt))
-      : await base.orderBy(desc(connectionAuditEvent.createdAt));
+      ? await base
+          .where(and(...conditions))
+          .orderBy(desc(connectionAuditEvent.createdAt))
+      : await base.orderBy(desc(connectionAuditEvent.createdAt))
 
   if (opts?.principalId) {
     const filtered = rows.filter(
-      (r) => (r.spec as any)?.principalId === opts.principalId,
-    );
-    return { data: filtered, total: filtered.length };
+      (r) => (r.spec as any)?.principalId === opts.principalId
+    )
+    return { data: filtered, total: filtered.length }
   }
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }

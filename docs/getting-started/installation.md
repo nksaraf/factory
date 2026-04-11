@@ -4,7 +4,7 @@
 
 ```bash
 # macOS / Linux
-curl -fsSL https://get.factory.dev | sh
+curl -fsSL https://get.factory.lepton.software | sh
 
 # or via npm
 npm install -g lepton-dx
@@ -27,13 +27,13 @@ dx --version
 | Docker Desktop | Latest  | Local infrastructure (postgres, redis, etc.) |
 | Git            | 2.30+   | Version control with hook support            |
 
-## Authenticate
+## Setup
 
 ```bash
-dx auth login
+dx setup
 ```
 
-This opens a browser for OAuth authentication. After login, your session token is stored in `~/.config/dx/session.json`.
+This walks you through interactive setup — connecting to Factory, authenticating (internally calls `dx factory auth`), and configuring your workbench (laptop or VM). After setup, your session token is stored in `~/.config/dx/session.json`.
 
 ## For AI Agents
 

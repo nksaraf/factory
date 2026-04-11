@@ -8,12 +8,12 @@ Factory organizes everything into six semantic domains:
 
 ```mermaid
 graph LR
-    org["org\nWho builds?"]
-    software["software\nWhat's built?"]
-    infra["infra\nWhere it runs?"]
-    ops["ops\nWhat's running?"]
-    build["build\nHow it ships?"]
-    commerce["commerce\nWho pays?"]
+    org["<b>org</b><br/>Who builds?"]
+    software["<b>software</b><br/>What's built?"]
+    infra["<b>infra</b><br/>Where it runs?"]
+    ops["<b>ops</b><br/>What's running?"]
+    build["<b>build</b><br/>How it ships?"]
+    commerce["<b>commerce</b><br/>Who pays?"]
 
     org --> software
     software --> build

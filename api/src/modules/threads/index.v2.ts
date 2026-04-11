@@ -1,7 +1,7 @@
 /**
- * v2 Threads controller.
+ * Threads controller.
  *
- * Maps interaction ontology entities to REST routes:
+ * Route → table mapping:
  *   /threads/channels      → org.channel
  *   /threads/threads       → org.thread
  *   /threads/turns         → org.thread_turn

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
 import {
-  clearRealmStrategies,
-  getRealmStrategy,
-  registerRealmStrategy,
+  clearReconcilerStrategies,
+  getReconcilerStrategy,
+  registerReconcilerStrategy,
 } from "../reconciler/runtime-strategy"
 import { ComposeStrategy } from "../reconciler/strategies/compose"
 import { NoopStrategy } from "../reconciler/strategies/noop"
@@ -15,47 +15,49 @@ import {
 
 describe("Runtime Strategy Registry", () => {
   beforeEach(() => {
-    clearRealmStrategies()
-    registerRealmStrategy("compose", () => new ComposeStrategy())
-    registerRealmStrategy("systemd", () => new SystemdStrategy())
-    registerRealmStrategy("windows_service", () => new WindowsServiceStrategy())
-    registerRealmStrategy("iis", () => new IisStrategy())
-    registerRealmStrategy("process", () => new NoopStrategy())
+    clearReconcilerStrategies()
+    registerReconcilerStrategy("compose", () => new ComposeStrategy())
+    registerReconcilerStrategy("systemd", () => new SystemdStrategy())
+    registerReconcilerStrategy(
+      "windows_service",
+      () => new WindowsServiceStrategy()
+    )
+    registerReconcilerStrategy("iis", () => new IisStrategy())
+    registerReconcilerStrategy("process", () => new NoopStrategy())
   })
 
   it("returns compose strategy", () => {
-    const strategy = getRealmStrategy("compose")
+    const strategy = getReconcilerStrategy("compose")
     expect(strategy.runtime).toBe("compose")
   })
 
   it("returns systemd strategy", () => {
-    const strategy = getRealmStrategy("systemd")
+    const strategy = getReconcilerStrategy("systemd")
     expect(strategy.runtime).toBe("systemd")
   })
 
   it("returns windows_service strategy", () => {
-    const strategy = getRealmStrategy("windows_service")
+    const strategy = getReconcilerStrategy("windows_service")
     expect(strategy.runtime).toBe("windows_service")
   })
 
   it("returns iis strategy", () => {
-    const strategy = getRealmStrategy("iis")
+    const strategy = getReconcilerStrategy("iis")
     expect(strategy.runtime).toBe("iis")
   })
 
   it("returns noop for process runtime", () => {
-    const strategy = getRealmStrategy("process")
+    const strategy = getReconcilerStrategy("process")
     expect(strategy.runtime).toBe("noop")
   })
 
   it("throws for unknown runtime", () => {
-    expect(() => getRealmStrategy("unknown_runtime")).toThrow(
+    expect(() => getReconcilerStrategy("unknown_runtime")).toThrow(
       /No strategy for runtime: unknown_runtime/
     )
   })
 })
 
-// v2: workload → componentDeployment, target → systemDeployment, module → system
 describe("NoopStrategy", () => {
   it("returns running for server component", async () => {
     const strategy = new NoopStrategy()
@@ -80,7 +82,7 @@ describe("NoopStrategy", () => {
         defaultReplicas: 1,
       },
       target: {
-        deploymentTargetId: "sdp_test",
+        systemDeploymentId: "sdp_test",
         name: "test-target",
         kind: "production",
         runtime: "process",
@@ -117,7 +119,7 @@ describe("NoopStrategy", () => {
         defaultReplicas: 1,
       },
       target: {
-        deploymentTargetId: "sdp_test",
+        systemDeploymentId: "sdp_test",
         name: "test-target",
         kind: "dev",
         runtime: "process",

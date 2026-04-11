@@ -1,62 +1,75 @@
-import { and, desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { allocateSlug } from "../../lib/slug";
-import { gitHostProvider, gitRepoSync, gitUserSync, repo } from "../../db/schema/build-v2";
-import { getGitHostAdapter } from "../../adapters/adapter-registry";
-import type { GitHostAdapter, GitHostAdapterConfig, GitHostPullRequestCreate, GitHostType } from "../../adapters/git-host-adapter";
-import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build";
-import type { AuthAdminClient } from "../../lib/auth-admin-client";
-import { createSpecRefResolver } from "../../lib/spec-ref-resolver";
-import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend";
+import type { GitHostProviderSpec } from "@smp/factory-shared/schemas/build"
+import { and, desc, eq } from "drizzle-orm"
+
+import { getGitHostAdapter } from "../../adapters/adapter-registry"
+import type {
+  GitHostAdapter,
+  GitHostAdapterConfig,
+  GitHostPullRequestCreate,
+  GitHostType,
+} from "../../adapters/git-host-adapter"
+import type { Database } from "../../db/connection"
+import {
+  gitHostProvider,
+  gitRepoSync,
+  gitUserSync,
+  repo,
+} from "../../db/schema/build-v2"
+import type { AuthAdminClient } from "../../lib/auth-admin-client"
+import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend"
+import { allocateSlug } from "../../lib/slug"
+import { createSpecRefResolver } from "../../lib/spec-ref-resolver"
 
 // ---------------------------------------------------------------------------
 // Spec helpers — v2 stores credentials & config in the JSONB `spec` column
 // ---------------------------------------------------------------------------
 
 function providerSpec(provider: { spec: unknown }): GitHostProviderSpec {
-  return (provider.spec ?? {}) as GitHostProviderSpec;
+  return (provider.spec ?? {}) as GitHostProviderSpec
 }
 
 /**
  * Build adapter config from v2 provider spec.
  * Supports credentialsRef as plain token, JSON object, or $secret() reference.
  */
-function adapterConfigFromResolvedSpec(spec: GitHostProviderSpec): Partial<GitHostAdapterConfig> {
-  const ref = spec.credentialsRef;
-  const config: Partial<GitHostAdapterConfig> = {};
-  if (spec.apiUrl) config.apiBaseUrl = spec.apiUrl;
-  config.org = spec.org ?? process.env.GITHUB_ORG;
-  if (!ref) return config;
-  const trimmed = ref.trim();
+function adapterConfigFromResolvedSpec(
+  spec: GitHostProviderSpec
+): Partial<GitHostAdapterConfig> {
+  const ref = spec.credentialsRef
+  const config: Partial<GitHostAdapterConfig> = {}
+  if (spec.apiUrl) config.apiBaseUrl = spec.apiUrl
+  config.org = spec.org ?? process.env.GITHUB_ORG
+  if (!ref) return config
+  const trimmed = ref.trim()
   if (trimmed.startsWith("{")) {
     try {
-      return { ...config, ...JSON.parse(trimmed) };
+      return { ...config, ...JSON.parse(trimmed) }
     } catch {
-      return { ...config, token: trimmed };
+      return { ...config, token: trimmed }
     }
   }
-  return { ...config, token: trimmed };
+  return { ...config, token: trimmed }
 }
 
 export async function resolveGitHostAdapterConfig(
   db: Database,
-  spec: GitHostProviderSpec,
+  spec: GitHostProviderSpec
 ): Promise<Partial<GitHostAdapterConfig>> {
-  const resolver = createSpecRefResolver(db, new PostgresSecretBackend(db));
-  const resolvedSpec = await resolver.resolve(spec as Record<string, unknown>);
-  return adapterConfigFromResolvedSpec(resolvedSpec as GitHostProviderSpec);
+  const resolver = createSpecRefResolver(db, new PostgresSecretBackend(db))
+  const resolvedSpec = await resolver.resolve(spec as Record<string, unknown>)
+  return adapterConfigFromResolvedSpec(resolvedSpec as GitHostProviderSpec)
 }
 
 export type CreateProviderBody = {
-  name: string;
-  type: string;
+  name: string
+  type: string
   spec: {
-    apiUrl: string;
-    authMode?: string;
-    credentialsRef?: string;
-    org?: string;
-  };
-};
+    apiUrl: string
+    authMode?: string
+    credentialsRef?: string
+    org?: string
+  }
+}
 
 export class GitHostService {
   constructor(private readonly db: Database) {}
@@ -70,10 +83,10 @@ export class GitHostService {
           .select()
           .from(gitHostProvider)
           .where(eq(gitHostProvider.slug, s))
-          .limit(1);
-        return r != null;
+          .limit(1)
+        return r != null
       },
-    });
+    })
     const [row] = await this.db
       .insert(gitHostProvider)
       .values({
@@ -89,8 +102,8 @@ export class GitHostService {
           syncStatus: "idle",
         } satisfies GitHostProviderSpec,
       })
-      .returning();
-    return row;
+      .returning()
+    return row
   }
 
   async getProvider(id: string) {
@@ -98,93 +111,90 @@ export class GitHostService {
       .select()
       .from(gitHostProvider)
       .where(eq(gitHostProvider.id, id))
-      .limit(1);
-    return row ?? null;
+      .limit(1)
+    return row ?? null
   }
 
-  async listProviders(q?: {
-    limit?: number;
-    offset?: number;
-  }) {
-    const limit = Math.min(q?.limit ?? 50, 200);
-    const offset = q?.offset ?? 0;
+  async listProviders(q?: { limit?: number; offset?: number }) {
+    const limit = Math.min(q?.limit ?? 50, 200)
+    const offset = q?.offset ?? 0
     const rows = await this.db
       .select()
       .from(gitHostProvider)
       .orderBy(desc(gitHostProvider.createdAt))
       .limit(limit)
-      .offset(offset);
-    return { data: rows };
+      .offset(offset)
+    return { data: rows }
   }
 
   async updateProvider(
     id: string,
-    body: { name?: string; spec?: Record<string, unknown> },
+    body: { name?: string; spec?: Record<string, unknown> }
   ) {
-    const existing = await this.getProvider(id);
-    if (!existing) return null;
-    const updates: Record<string, unknown> = {};
-    if (body.name) updates.name = body.name;
+    const existing = await this.getProvider(id)
+    if (!existing) return null
+    const updates: Record<string, unknown> = {}
+    if (body.name) updates.name = body.name
     if (body.spec) {
-      updates.spec = { ...providerSpec(existing), ...body.spec };
+      updates.spec = { ...providerSpec(existing), ...body.spec }
     }
     const [row] = await this.db
       .update(gitHostProvider)
       .set(updates)
       .where(eq(gitHostProvider.id, id))
-      .returning();
-    return row ?? null;
+      .returning()
+    return row ?? null
   }
 
   async deleteProvider(id: string) {
-    await this.db
-      .delete(gitHostProvider)
-      .where(eq(gitHostProvider.id, id));
+    await this.db.delete(gitHostProvider).where(eq(gitHostProvider.id, id))
   }
 
   async triggerFullSync(
     providerId: string,
-    opts?: { adapter?: GitHostAdapter },
+    opts?: { adapter?: GitHostAdapter }
   ): Promise<{ created: number; updated: number; removed: number }> {
-    const provider = await this.getProvider(providerId);
-    if (!provider) throw new Error(`Provider not found: ${providerId}`);
+    const provider = await this.getProvider(providerId)
+    if (!provider) throw new Error(`Provider not found: ${providerId}`)
 
-    const spec = providerSpec(provider);
+    const spec = providerSpec(provider)
 
     // Update sync status in spec
     await this.db
       .update(gitHostProvider)
-      .set({ spec: { ...spec, syncStatus: "syncing" } satisfies GitHostProviderSpec })
-      .where(eq(gitHostProvider.id, providerId));
+      .set({
+        spec: { ...spec, syncStatus: "syncing" } satisfies GitHostProviderSpec,
+      })
+      .where(eq(gitHostProvider.id, providerId))
 
     const adapter =
       opts?.adapter ??
       getGitHostAdapter(
         provider.type as GitHostType,
-        await resolveGitHostAdapterConfig(this.db, spec),
-      );
+        await resolveGitHostAdapterConfig(this.db, spec)
+      )
 
     try {
-      const remoteRepos = await adapter.listRepos();
+      const remoteRepos = await adapter.listRepos()
 
       // Load existing sync records for this provider
       const existingSyncs = await this.db
         .select()
         .from(gitRepoSync)
-        .where(eq(gitRepoSync.gitHostProviderId, providerId));
+        .where(eq(gitRepoSync.gitHostProviderId, providerId))
 
       const existingByExtId = new Map(
-        existingSyncs.map((s) => [s.externalRepoId, s]),
-      );
-      const remoteExtIds = new Set(remoteRepos.map((r) => r.externalId));
+        existingSyncs.map((s) => [s.externalRepoId, s])
+      )
+      const remoteExtIds = new Set(remoteRepos.map((r) => r.externalId))
 
-      let created = 0;
-      let updated = 0;
-      let removed = 0;
+      let created = 0
+      let updated = 0
+      let removed = 0
 
       // Create or update repos
       for (const remote of remoteRepos) {
-        const existing = existingByExtId.get(remote.externalId);
+        const existing = existingByExtId.get(remote.externalId)
 
         if (!existing) {
           // Create new repo + sync record
@@ -196,10 +206,10 @@ export class GitHostService {
                 .select()
                 .from(repo)
                 .where(eq(repo.slug, s))
-                .limit(1);
-              return r != null;
+                .limit(1)
+              return r != null
             },
-          });
+          })
 
           const [newRepo] = await this.db
             .insert(repo)
@@ -213,25 +223,28 @@ export class GitHostService {
                 kind: this.inferRepoKind(remote.topics) as any,
               },
             })
-            .returning();
+            .returning()
 
           await this.db.insert(gitRepoSync).values({
             repoId: newRepo.id,
             gitHostProviderId: providerId,
             externalRepoId: remote.externalId,
             spec: { syncStatus: "idle" },
-          });
+          })
 
-          created++;
+          created++
         } else {
           // Update sync record timestamp
           await this.db
             .update(gitRepoSync)
             .set({
-              spec: { ...(existing.spec as Record<string, unknown>), lastSyncAt: new Date() } as any,
+              spec: {
+                ...(existing.spec as Record<string, unknown>),
+                lastSyncAt: new Date(),
+              } as any,
             })
-            .where(eq(gitRepoSync.id, existing.id));
-          updated++;
+            .where(eq(gitRepoSync.id, existing.id))
+          updated++
         }
       }
 
@@ -240,8 +253,8 @@ export class GitHostService {
         if (!remoteExtIds.has(existing.externalRepoId)) {
           await this.db
             .delete(gitRepoSync)
-            .where(eq(gitRepoSync.id, existing.id));
-          removed++;
+            .where(eq(gitRepoSync.id, existing.id))
+          removed++
         }
       }
 
@@ -255,11 +268,11 @@ export class GitHostService {
             lastSyncAt: new Date(),
           } satisfies GitHostProviderSpec,
         })
-        .where(eq(gitHostProvider.id, providerId));
+        .where(eq(gitHostProvider.id, providerId))
 
-      return { created, updated, removed };
+      return { created, updated, removed }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? err.message : String(err)
       await this.db
         .update(gitHostProvider)
         .set({
@@ -268,37 +281,37 @@ export class GitHostService {
             syncStatus: "error",
           } satisfies GitHostProviderSpec,
         })
-        .where(eq(gitHostProvider.id, providerId));
-      throw err;
+        .where(eq(gitHostProvider.id, providerId))
+      throw err
     }
   }
 
   async syncDevelopers(
     providerId: string,
-    opts?: { adapter?: GitHostAdapter; authClient?: AuthAdminClient },
+    opts?: { adapter?: GitHostAdapter; authClient?: AuthAdminClient }
   ): Promise<{ synced: number; skipped: number; failed: number }> {
-    const provider = await this.getProvider(providerId);
-    if (!provider) throw new Error(`Provider not found: ${providerId}`);
+    const provider = await this.getProvider(providerId)
+    if (!provider) throw new Error(`Provider not found: ${providerId}`)
 
-    const spec = providerSpec(provider);
+    const spec = providerSpec(provider)
     const adapter =
       opts?.adapter ??
       getGitHostAdapter(
         provider.type as GitHostType,
-        await resolveGitHostAdapterConfig(this.db, spec),
-      );
+        await resolveGitHostAdapterConfig(this.db, spec)
+      )
 
-    const authClient = opts?.authClient;
-    const members = await adapter.listOrgMembers();
+    const authClient = opts?.authClient
+    const members = await adapter.listOrgMembers()
 
-    let synced = 0;
-    let skipped = 0;
-    let failed = 0;
+    let synced = 0
+    let skipped = 0
+    let failed = 0
 
     for (const member of members) {
       if (!member.email) {
-        skipped++;
-        continue;
+        skipped++
+        continue
       }
 
       // Check if already synced
@@ -308,18 +321,18 @@ export class GitHostService {
         .where(
           and(
             eq(gitUserSync.gitHostProviderId, providerId),
-            eq(gitUserSync.externalUserId, member.externalUserId),
-          ),
+            eq(gitUserSync.externalUserId, member.externalUserId)
+          )
         )
-        .limit(1);
+        .limit(1)
 
       if (existing) {
-        skipped++;
-        continue;
+        skipped++
+        continue
       }
 
       // Create shadow user via auth admin client
-      let authUserId: string | null = null;
+      let authUserId: string | null = null
       if (authClient) {
         const user = await authClient.createUser({
           name: member.name ?? member.login,
@@ -332,12 +345,12 @@ export class GitHostService {
               avatarUrl: member.avatarUrl,
             },
           },
-        });
+        })
         if (user) {
-          authUserId = user.id;
+          authUserId = user.id
         } else {
-          failed++;
-          continue;
+          failed++
+          continue
         }
       }
 
@@ -350,82 +363,82 @@ export class GitHostService {
           externalUsername: member.login,
           avatarUrl: member.avatarUrl ?? undefined,
         },
-      });
+      })
 
-      synced++;
+      synced++
     }
 
-    return { synced, skipped, failed };
+    return { synced, skipped, failed }
   }
 
   async reportBuildStatus(
     repoId: string,
     sha: string,
-    status: import("../../adapters/git-host-adapter").GitHostCommitStatus,
+    status: import("../../adapters/git-host-adapter").GitHostCommitStatus
   ): Promise<void> {
     // Find the gitRepoSync record for this repo
     const [sync] = await this.db
       .select()
       .from(gitRepoSync)
       .where(eq(gitRepoSync.repoId, repoId))
-      .limit(1);
+      .limit(1)
 
-    if (!sync) return;
+    if (!sync) return
 
-    const provider = await this.getProvider(sync.gitHostProviderId);
-    if (!provider) return;
+    const provider = await this.getProvider(sync.gitHostProviderId)
+    if (!provider) return
 
-    const spec = providerSpec(provider);
+    const spec = providerSpec(provider)
     const adapter = getGitHostAdapter(
       provider.type as GitHostType,
-      await resolveGitHostAdapterConfig(this.db, spec),
-    );
+      await resolveGitHostAdapterConfig(this.db, spec)
+    )
 
-    // v2: externalFullName is no longer a column — resolve from repo
+    // externalFullName is not a column — resolve from repo
     const [repoRow] = await this.db
       .select()
       .from(repo)
       .where(eq(repo.id, sync.repoId))
-      .limit(1);
+      .limit(1)
 
-    if (!repoRow) return;
+    if (!repoRow) return
 
     // Use the repo name as a fallback; the sync externalRepoId is the external ID
     // For GitHub, we need the full name (owner/repo) — this may need to come from the adapter
-    const fullName = repoRow.name; // TODO: resolve full name properly
-    await adapter.postCommitStatus(fullName, sha, status);
+    const fullName = repoRow.name // TODO: resolve full name properly
+    await adapter.postCommitStatus(fullName, sha, status)
   }
 
   /** Map GitHub permission to factory role */
   static mapGitHubRoleToFactoryRole(ghRole: string): string {
     switch (ghRole) {
       case "admin":
-        return "maintainer";
+        return "maintainer"
       case "write":
       case "push":
-        return "developer";
+        return "developer"
       case "read":
       case "pull":
       default:
-        return "viewer";
+        return "viewer"
     }
   }
 
   private async resolveRepoFullName(
     providerId: string,
-    repoSlug: string,
+    repoSlug: string
   ): Promise<{ adapter: GitHostAdapter; externalFullName: string }> {
-    const provider = await this.getProvider(providerId);
-    if (!provider) throw new Error(`Provider not found: ${providerId}`);
+    const provider = await this.getProvider(providerId)
+    if (!provider) throw new Error(`Provider not found: ${providerId}`)
 
     // Find the repo by slug
     const [repoRow] = await this.db
       .select()
       .from(repo)
       .where(eq(repo.slug, repoSlug))
-      .limit(1);
+      .limit(1)
 
-    if (!repoRow) throw new Error(`Repo not found: ${repoSlug}`);
+    if (!repoRow) throw new Error(`Repo not found: ${repoSlug}`)
 
     // Find the sync record linking repo to this provider
     const [sync] = await this.db
@@ -434,85 +447,96 @@ export class GitHostService {
       .where(
         and(
           eq(gitRepoSync.gitHostProviderId, providerId),
-          eq(gitRepoSync.repoId, repoRow.id),
-        ),
+          eq(gitRepoSync.repoId, repoRow.id)
+        )
       )
-      .limit(1);
+      .limit(1)
 
-    if (!sync) throw new Error(`Repo not synced with provider: ${repoSlug}`);
+    if (!sync) throw new Error(`Repo not synced with provider: ${repoSlug}`)
 
-    const spec = providerSpec(provider);
+    const spec = providerSpec(provider)
     const adapter = getGitHostAdapter(
       provider.type as GitHostType,
-      await resolveGitHostAdapterConfig(this.db, spec),
-    );
+      await resolveGitHostAdapterConfig(this.db, spec)
+    )
 
-    // v2: externalFullName stored in sync externalRepoId (the external identifier)
-    return { adapter, externalFullName: sync.externalRepoId };
+    // externalFullName stored in sync externalRepoId (the external identifier)
+    return { adapter, externalFullName: sync.externalRepoId }
   }
 
   async listPullRequests(
     providerId: string,
     repoSlug: string,
-    filters?: { state?: string },
+    filters?: { state?: string }
   ) {
-    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    const { adapter, externalFullName } = await this.resolveRepoFullName(
+      providerId,
+      repoSlug
+    )
     return adapter.listPullRequests(externalFullName, {
       state: (filters?.state as "open" | "closed" | "all") ?? "open",
-    });
+    })
   }
 
   async createPullRequest(
     providerId: string,
     repoSlug: string,
-    pr: GitHostPullRequestCreate,
+    pr: GitHostPullRequestCreate
   ) {
-    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
-    return adapter.createPullRequest(externalFullName, pr);
+    const { adapter, externalFullName } = await this.resolveRepoFullName(
+      providerId,
+      repoSlug
+    )
+    return adapter.createPullRequest(externalFullName, pr)
   }
 
-  async getPullRequest(
-    providerId: string,
-    repoSlug: string,
-    prNumber: number,
-  ) {
-    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
-    return adapter.getPullRequest(externalFullName, prNumber);
+  async getPullRequest(providerId: string, repoSlug: string, prNumber: number) {
+    const { adapter, externalFullName } = await this.resolveRepoFullName(
+      providerId,
+      repoSlug
+    )
+    return adapter.getPullRequest(externalFullName, prNumber)
   }
 
   async mergePullRequest(
     providerId: string,
     repoSlug: string,
     prNumber: number,
-    method?: string,
+    method?: string
   ) {
-    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
+    const { adapter, externalFullName } = await this.resolveRepoFullName(
+      providerId,
+      repoSlug
+    )
     await adapter.mergePullRequest(
       externalFullName,
       prNumber,
-      method as "merge" | "squash" | "rebase" | undefined,
-    );
+      method as "merge" | "squash" | "rebase" | undefined
+    )
   }
 
   async getPullRequestChecks(
     providerId: string,
     repoSlug: string,
-    prNumber: number,
+    prNumber: number
   ) {
-    const { adapter, externalFullName } = await this.resolveRepoFullName(providerId, repoSlug);
-    return adapter.getPullRequestChecks(externalFullName, prNumber);
+    const { adapter, externalFullName } = await this.resolveRepoFullName(
+      providerId,
+      repoSlug
+    )
+    return adapter.getPullRequestChecks(externalFullName, prNumber)
   }
 
   private inferRepoKind(topics?: string[]): string {
-    if (!topics || topics.length === 0) return "tool";
-    const topicSet = new Set(topics.map((t) => t.toLowerCase()));
-    if (topicSet.has("product-module")) return "product-module";
-    if (topicSet.has("platform-module")) return "platform-module";
-    if (topicSet.has("library") || topicSet.has("lib")) return "library";
-    if (topicSet.has("vendor-module")) return "vendor-module";
-    if (topicSet.has("infra") || topicSet.has("infrastructure")) return "infra";
-    if (topicSet.has("docs") || topicSet.has("documentation")) return "docs";
-    if (topicSet.has("client-project")) return "client-project";
-    return "tool";
+    if (!topics || topics.length === 0) return "tool"
+    const topicSet = new Set(topics.map((t) => t.toLowerCase()))
+    if (topicSet.has("product-module")) return "product-module"
+    if (topicSet.has("platform-module")) return "platform-module"
+    if (topicSet.has("library") || topicSet.has("lib")) return "library"
+    if (topicSet.has("vendor-module")) return "vendor-module"
+    if (topicSet.has("infra") || topicSet.has("infrastructure")) return "infra"
+    if (topicSet.has("docs") || topicSet.has("documentation")) return "docs"
+    if (topicSet.has("client-project")) return "client-project"
+    return "tool"
   }
 }

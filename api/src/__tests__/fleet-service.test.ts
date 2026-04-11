@@ -288,7 +288,7 @@ describe("Fleet Service (v2)", () => {
     })
   })
 
-  // --- System Deployments (was Deployment Targets) ---
+  // --- System Deployments ---
   describe("system deployments", () => {
     it("creates and lists system deployments", async () => {
       const sys = await createSystem()
@@ -459,7 +459,7 @@ describe("Fleet Service (v2)", () => {
     })
   })
 
-  // --- Workspaces (was Sandboxes) ---
+  // --- Workspaces ---
   describe("workspaces", () => {
     it("creates workspace", async () => {
       await createPrincipal()

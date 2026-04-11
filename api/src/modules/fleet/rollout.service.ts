@@ -1,7 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { rollout } from "../../db/schema/ops";
-import { release } from "../../db/schema/software-v2";
+import { and, desc, eq } from "drizzle-orm"
+
+import type { Database } from "../../db/connection"
+import { rollout } from "../../db/schema/ops"
+import { release } from "../../db/schema/software-v2"
 
 // ---------------------------------------------------------------------------
 // Rollout Management — v2: status → spec JSONB
@@ -10,26 +11,29 @@ import { release } from "../../db/schema/software-v2";
 const VALID_ROLLOUT_TRANSITIONS: Record<string, string[]> = {
   pending: ["in_progress"],
   in_progress: ["succeeded", "failed", "rolled_back"],
-};
+}
 
 export async function createRollout(
   db: Database,
   input: {
-    releaseId: string;
-    systemDeploymentId?: string;
-    deploymentTargetId?: string;
-  },
+    releaseId: string
+    systemDeploymentId: string
+  }
 ) {
-  const sdId = input.systemDeploymentId ?? input.deploymentTargetId!;
+  const sdId = input.systemDeploymentId
 
-  const [rel] = await db.select().from(release).where(eq(release.id, input.releaseId)).limit(1);
-  if (!rel) throw new Error(`Release not found: ${input.releaseId}`);
+  const [rel] = await db
+    .select()
+    .from(release)
+    .where(eq(release.id, input.releaseId))
+    .limit(1)
+  if (!rel) throw new Error(`Release not found: ${input.releaseId}`)
 
-  const relStatus = (rel.spec as any)?.status ?? "draft";
+  const relStatus = (rel.spec as any)?.status ?? "draft"
   if (relStatus !== "staging" && relStatus !== "production") {
     throw new Error(
-      `Release must be in 'staging' or 'production' status to create a rollout, got '${relStatus}'`,
-    );
+      `Release must be in 'staging' or 'production' status to create a rollout, got '${relStatus}'`
+    )
   }
 
   const [row] = await db
@@ -39,18 +43,26 @@ export async function createRollout(
       systemDeploymentId: sdId,
       spec: { status: "pending" } as any,
     })
-    .returning();
+    .returning()
 
-  return row;
+  return row
 }
 
 export async function getRollout(db: Database, id: string) {
-  const [row] = await db.select().from(rollout).where(eq(rollout.id, id)).limit(1);
-  if (!row) return null;
+  const [row] = await db
+    .select()
+    .from(rollout)
+    .where(eq(rollout.id, id))
+    .limit(1)
+  if (!row) return null
 
   const [rel] = row.releaseId
-    ? await db.select().from(release).where(eq(release.id, row.releaseId)).limit(1)
-    : [null];
+    ? await db
+        .select()
+        .from(release)
+        .where(eq(release.id, row.releaseId))
+        .limit(1)
+    : [null]
 
   return {
     ...row,
@@ -66,53 +78,60 @@ export async function getRollout(db: Database, id: string) {
           createdAt: rel.createdAt,
         }
       : null,
-  };
+  }
 }
 
-export async function updateRolloutStatus(db: Database, id: string, status: string) {
-  const [existing] = await db.select().from(rollout).where(eq(rollout.id, id)).limit(1);
-  if (!existing) throw new Error(`Rollout not found: ${id}`);
+export async function updateRolloutStatus(
+  db: Database,
+  id: string,
+  status: string
+) {
+  const [existing] = await db
+    .select()
+    .from(rollout)
+    .where(eq(rollout.id, id))
+    .limit(1)
+  if (!existing) throw new Error(`Rollout not found: ${id}`)
 
-  const currentStatus = (existing.spec as any)?.status ?? "pending";
-  const allowed = VALID_ROLLOUT_TRANSITIONS[currentStatus];
+  const currentStatus = (existing.spec as any)?.status ?? "pending"
+  const allowed = VALID_ROLLOUT_TRANSITIONS[currentStatus]
   if (!allowed || !allowed.includes(status)) {
     throw new Error(
-      `Invalid rollout transition: cannot go from '${currentStatus}' to '${status}'`,
-    );
+      `Invalid rollout transition: cannot go from '${currentStatus}' to '${status}'`
+    )
   }
 
-  const specUpdates: Record<string, unknown> = { status };
+  const specUpdates: Record<string, unknown> = { status }
   if (["succeeded", "failed", "rolled_back"].includes(status)) {
-    specUpdates.completedAt = new Date().toISOString();
+    specUpdates.completedAt = new Date().toISOString()
   }
 
   const [updated] = await db
     .update(rollout)
     .set({ spec: { ...(existing.spec as any), ...specUpdates } as any })
     .where(eq(rollout.id, id))
-    .returning();
+    .returning()
 
-  return updated;
+  return updated
 }
 
 export async function listRollouts(
   db: Database,
   opts?: {
-    releaseId?: string;
-    systemDeploymentId?: string;
-    deploymentTargetId?: string;
-  },
+    releaseId?: string
+    systemDeploymentId?: string
+  }
 ) {
-  const conditions = [];
-  if (opts?.releaseId) conditions.push(eq(rollout.releaseId, opts.releaseId));
-  const sdId = opts?.systemDeploymentId ?? opts?.deploymentTargetId;
-  if (sdId) conditions.push(eq(rollout.systemDeploymentId, sdId));
+  const conditions = []
+  if (opts?.releaseId) conditions.push(eq(rollout.releaseId, opts.releaseId))
+  const sdId = opts?.systemDeploymentId
+  if (sdId) conditions.push(eq(rollout.systemDeploymentId, sdId))
 
-  const base = db.select().from(rollout);
+  const base = db.select().from(rollout)
   const rows =
     conditions.length > 0
       ? await base.where(and(...conditions)).orderBy(desc(rollout.createdAt))
-      : await base.orderBy(desc(rollout.createdAt));
+      : await base.orderBy(desc(rollout.createdAt))
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }

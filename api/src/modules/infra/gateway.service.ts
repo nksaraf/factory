@@ -37,7 +37,7 @@ export async function listRoutes(
   const conditions = []
   if (opts?.type) conditions.push(eq(route.type, opts.type))
   if (opts?.realmId) conditions.push(eq(route.realmId, opts.realmId))
-  // v2: status is in spec JSONB — filter after query for now
+  // status is in spec JSONB — filter after query for now
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -46,7 +46,7 @@ export async function listRoutes(
     ? await base.where(where).orderBy(desc(route.createdAt))
     : await base.orderBy(desc(route.createdAt))
 
-  // v2: filter by spec.status if needed
+  // filter by spec.status if needed
   if (opts?.status) {
     rows = rows.filter((r) => (r.spec as any)?.status === opts.status)
   }
@@ -59,15 +59,15 @@ export async function createRoute(
   input: {
     name?: string
     slug?: string
-    type: string // v2: kind → type
+    type: string
     domain: string
-    realmId?: string // v2: replaces clusterId/deploymentTargetId/siteId
+    realmId?: string
     spec?: Record<string, unknown>
     metadata?: Record<string, unknown>
     // Convenience fields — stored in spec
     siteId?: string
-    deploymentTargetId?: string // legacy compat — stored in spec as systemDeploymentId
-    clusterId?: string // legacy compat — stored in spec as realmId
+    systemDeploymentId?: string
+    clusterId?: string // compat — stored in spec as realmId
     pathPrefix?: string
     targetService?: string
     targetPort?: number
@@ -102,9 +102,8 @@ export async function createRoute(
     status: input.status ?? "active",
     createdBy: input.createdBy,
     expiresAt: input.expiresAt?.toISOString(),
-    // Store legacy FK refs in spec for migration period
     siteId: input.siteId,
-    systemDeploymentId: input.deploymentTargetId,
+    systemDeploymentId: input.systemDeploymentId,
   }
 
   const [row] = await db
@@ -245,7 +244,7 @@ export async function lookupRouteByDomain(
     .where(eq(route.domain, domain))
     .limit(5)
 
-  // v2: status is in spec JSONB
+  // status is in spec JSONB
   const active = rows.find((r) => (r.spec as any)?.status === "active")
   if (!active) return null
 
@@ -281,7 +280,7 @@ export async function listDomains(
     ? await base.where(where).orderBy(desc(dnsDomain.createdAt))
     : await base.orderBy(desc(dnsDomain.createdAt))
 
-  // v2: status is in spec JSONB
+  // status is in spec JSONB
   if (opts?.status) {
     rows = rows.filter((r) => (r.spec as any)?.status === opts.status)
   }
@@ -294,7 +293,7 @@ export async function registerDomain(
   input: {
     siteId?: string
     fqdn: string
-    type: string // v2: kind → type
+    type: string
     createdBy: string
   }
 ) {
@@ -473,16 +472,16 @@ export async function verifyDomain(
 }
 
 // ---------------------------------------------------------------------------
-// Workspace Route Helpers (was Sandbox)
+// Workspace Route Helpers
 // ---------------------------------------------------------------------------
 
 export async function createWorkspaceRoutes(
   db: Database,
   input: {
-    systemDeploymentId?: string // v2: was deploymentTargetId
-    realmId?: string // v2: was clusterId
-    workspaceSlug: string // v2: was sandboxSlug
-    siteId?: string // v2: site-scoped workspace routes
+    systemDeploymentId?: string
+    realmId?: string
+    workspaceSlug: string
+    siteId?: string
     publishPorts?: number[]
     createdBy: string
   }
@@ -502,7 +501,7 @@ export async function createWorkspaceRoutes(
     protocol: "http",
     status: "active",
     createdBy: input.createdBy,
-    deploymentTargetId: input.systemDeploymentId,
+    systemDeploymentId: input.systemDeploymentId,
   })
   routes.push(primary)
 
@@ -519,7 +518,7 @@ export async function createWorkspaceRoutes(
         protocol: "http",
         status: "active",
         createdBy: input.createdBy,
-        deploymentTargetId: input.systemDeploymentId,
+        systemDeploymentId: input.systemDeploymentId,
       })
       routes.push(portRoute)
     }
@@ -539,9 +538,6 @@ export async function removeSystemDeploymentRoutes(
   return deleted.length
 }
 
-/** Backward compat alias */
-export const removeTargetRoutes = removeSystemDeploymentRoutes
-
 // ---------------------------------------------------------------------------
 // Tunnel Lifecycle
 // ---------------------------------------------------------------------------
@@ -557,8 +553,6 @@ export async function registerTunnel(
     createdBy: string
     routeFamily?: "workspace" | "tunnel"
     systemDeploymentId?: string
-    // Legacy compat
-    deploymentTargetId?: string
     routeKind?: string
   }
 ): Promise<{ tunnel: any; route: any }> {
@@ -574,7 +568,7 @@ export async function registerTunnel(
     type: input.routeKind ?? routeType,
     domain: `${input.subdomain}${domainSuffix}`,
     targetService: "tunnel-broker",
-    deploymentTargetId: input.systemDeploymentId ?? input.deploymentTargetId,
+    systemDeploymentId: input.systemDeploymentId,
     status: "active",
     createdBy: input.createdBy,
   })

@@ -24,7 +24,7 @@ function post(url: string, body: Record<string, unknown>) {
   })
 }
 
-// v2: ontologyRoutes uses POST /:id/update (not PATCH)
+// ontologyRoutes uses POST /:id/update (not PATCH)
 function update(url: string, body: Record<string, unknown>) {
   return new Request(`${url}/update`, {
     method: "POST",
@@ -33,12 +33,12 @@ function update(url: string, body: Record<string, unknown>) {
   })
 }
 
-// v2: ontologyRoutes uses POST /:id/delete (not DELETE)
+// ontologyRoutes uses POST /:id/delete (not DELETE)
 function del(url: string) {
   return new Request(`${url}/delete`, { method: "POST" })
 }
 
-describe("Infra Controller (v2)", () => {
+describe("Infra Controller", () => {
   let app: TestApp
   let client: PGlite
 
@@ -57,7 +57,7 @@ describe("Infra Controller (v2)", () => {
   })
 
   // ==========================================================================
-  // Estates (was substrates, was providers + subnets)
+  // Estates
   // ==========================================================================
   describe("estates", () => {
     it("POST creates and GET lists estates", async () => {
@@ -314,7 +314,7 @@ describe("Infra Controller (v2)", () => {
   })
 
   // ==========================================================================
-  // Realms (was runtimes, was clusters)
+  // Realms
   // ==========================================================================
   describe("realms", () => {
     it("POST creates and GET lists realms", async () => {

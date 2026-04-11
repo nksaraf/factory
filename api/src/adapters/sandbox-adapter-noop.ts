@@ -2,10 +2,10 @@ import { logger } from "../logger"
 import type { SandboxAdapter } from "./sandbox-adapter"
 
 export class NoopSandboxAdapter implements SandboxAdapter {
-  readonly type = "noop";
+  readonly type = "noop"
 
   async provision(
-    sandbox: { deploymentTargetId: string; name: string; namespace?: string },
+    sandbox: { systemDeploymentId: string; name: string; namespace?: string },
     opts: {
       dependencies?: Array<{
         name: string
@@ -16,10 +16,7 @@ export class NoopSandboxAdapter implements SandboxAdapter {
       publishPorts?: number[]
     }
   ): Promise<{ externalUrl?: string; status: "provisioning" | "active" }> {
-    logger.info(
-      { sandbox, opts },
-      "noop sandbox adapter: provision"
-    )
+    logger.info({ sandbox, opts }, "noop sandbox adapter: provision")
     return { status: "active" }
   }
 
@@ -37,10 +34,7 @@ export class NoopSandboxAdapter implements SandboxAdapter {
       tty?: boolean
     }
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-    logger.info(
-      { sandboxId, command, opts },
-      "noop sandbox adapter: run"
-    )
+    logger.info({ sandboxId, command, opts }, "noop sandbox adapter: run")
     return { exitCode: 0, stdout: "", stderr: "" }
   }
 
@@ -76,17 +70,12 @@ export class NoopSandboxAdapter implements SandboxAdapter {
   async restore(
     snapshotId: string,
     snapshotConfig: Record<string, unknown>
-  ): Promise<{ deploymentTargetId: string; name: string }> {
-    logger.info(
-      { snapshotId, snapshotConfig },
-      "noop sandbox adapter: restore"
-    )
-    return { deploymentTargetId: "dt_noop", name: "noop-restored" }
+  ): Promise<{ systemDeploymentId: string; name: string }> {
+    logger.info({ snapshotId, snapshotConfig }, "noop sandbox adapter: restore")
+    return { systemDeploymentId: "dt_noop", name: "noop-restored" }
   }
 
-  async getStatus(
-    sandboxId: string
-  ): Promise<{
+  async getStatus(sandboxId: string): Promise<{
     status: string
     ports?: Array<{ port: number; url?: string }>
   }> {

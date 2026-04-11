@@ -168,7 +168,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   "                services.append({\n" +
   "                    'name': svc_name,\n" +
   "                    'displayName': svc_name,\n" +
-  "                    'runtime': 'docker',\n" +
+  "                    'realmType': 'docker',\n" +
   "                    'status': svc_status,\n" +
   "                    'ports': sorted(set(port_nums)),\n" +
   "                    'image': c.get('Image', ''),\n" +
@@ -239,7 +239,7 @@ export const MACOS_COLLECTOR_SCRIPT =
   "    services.append({\n" +
   "        'name': info['name'],\n" +
   "        'displayName': info['name'],\n" +
-  "        'runtime': 'process',\n" +
+  "        'realmType': 'process',\n" +
   "        'status': 'running',\n" +
   "        'ports': sorted(info['ports']),\n" +
   "        'pid': int(pid),\n" +

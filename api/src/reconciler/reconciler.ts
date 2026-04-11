@@ -44,8 +44,8 @@ import {
 import { PreviewReconciler } from "./preview-reconciler"
 import {
   type ReconcileContext,
-  getRealmStrategy,
-  registerRealmStrategy,
+  getReconcilerStrategy,
+  registerReconcilerStrategy,
 } from "./runtime-strategy"
 import {
   generatePVCFromSnapshot,
@@ -99,12 +99,15 @@ export class Reconciler {
     gitHost?: GitHostAdapter
   ) {
     this.previewReconciler = new PreviewReconciler(db, kube, gitHost)
-    registerRealmStrategy("kubernetes", () => new KubernetesStrategy(kube))
-    registerRealmStrategy("compose", () => new ComposeStrategy())
-    registerRealmStrategy("systemd", () => new SystemdStrategy())
-    registerRealmStrategy("windows_service", () => new WindowsServiceStrategy())
-    registerRealmStrategy("iis", () => new IisStrategy())
-    registerRealmStrategy("process", () => new NoopStrategy())
+    registerReconcilerStrategy("kubernetes", () => new KubernetesStrategy(kube))
+    registerReconcilerStrategy("compose", () => new ComposeStrategy())
+    registerReconcilerStrategy("systemd", () => new SystemdStrategy())
+    registerReconcilerStrategy(
+      "windows_service",
+      () => new WindowsServiceStrategy()
+    )
+    registerReconcilerStrategy("iis", () => new IisStrategy())
+    registerReconcilerStrategy("process", () => new NoopStrategy())
   }
 
   async reconcileAll(): Promise<{ reconciled: number; errors: number }> {
@@ -1008,7 +1011,7 @@ export class Reconciler {
       throw new Error(`System deployment not found: ${cd.systemDeploymentId}`)
     const sdSpec: SystemDeploymentSpec = sd.spec ?? ({} as SystemDeploymentSpec)
 
-    // 4. Load system name (was module name)
+    // 4. Load system name
     const [sys] = await this.db
       .select()
       .from(system)
@@ -1062,7 +1065,7 @@ export class Reconciler {
             .defaultReplicas ?? 1,
       },
       target: {
-        deploymentTargetId: sd.id,
+        systemDeploymentId: sd.id,
         name: sd.name,
         kind: sd.type,
         runtime: sdSpec.runtime ?? "kubernetes",
@@ -1075,7 +1078,7 @@ export class Reconciler {
     }
 
     // 6. Dispatch to runtime strategy
-    const strategy = getRealmStrategy(ctx.target.runtime)
+    const strategy = getReconcilerStrategy(ctx.target.runtime)
     const result = await strategy.reconcile(ctx, this.db)
 
     // 7. Update component deployment spec

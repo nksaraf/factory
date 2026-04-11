@@ -288,7 +288,7 @@ export class PreviewReconciler {
           domain: previewDomain,
           targetService: previewServiceHost,
           targetPort: port,
-          deploymentTargetId: spec.systemDeploymentId,
+          systemDeploymentId: spec.systemDeploymentId,
           status: "active",
           createdBy: "reconciler",
         })

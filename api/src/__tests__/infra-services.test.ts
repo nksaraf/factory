@@ -8,11 +8,11 @@ import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import type { Database } from "../db/connection"
-// v2 schema imports — direct DB operations instead of v1 service calls
+// schema imports — direct DB operations
 import { estate, host, realm } from "../db/schema/infra-v2"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
-describe("Infra Services (v2)", () => {
+describe("Infra Services", () => {
   let db: Database
   let client: PGlite
 
@@ -50,7 +50,7 @@ describe("Infra Services (v2)", () => {
     return sub
   }
 
-  // --- Estate (was Substrate, was Provider) ---
+  // --- Estate ---
   describe("estate", () => {
     it("creates and lists estates", async () => {
       const created = await createEstate("test-hypervisor", {
@@ -236,7 +236,7 @@ describe("Infra Services (v2)", () => {
     })
   })
 
-  // --- Realm (was Runtime, was Cluster) ---
+  // --- Realm ---
   describe("realm", () => {
     it("creates with provisioning status", async () => {
       const sub = await createEstate()

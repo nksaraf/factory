@@ -3,7 +3,6 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 
 import type { NetworkDeviceAdapter } from "../../adapters/network-device-adapter"
 import type { Database } from "../../db/connection"
-// v2: subnet → infra.estate (type='subnet'), ip fields → spec JSONB
 import { estate, ipAddress } from "../../db/schema/infra-v2"
 
 // hostname/purpose/assignedToType/assignedToId are now in IpAddressSpecSchema

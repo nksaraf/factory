@@ -197,7 +197,7 @@ export async function seedLocalInfra(
     })
   }
 
-  // Upsert local estate (was: provider/substrate)
+  // Upsert local estate
   const [existing] = await db
     .select({ id: estate.id })
     .from(estate)
@@ -225,7 +225,7 @@ export async function seedLocalInfra(
     estateId = row!.id
   }
 
-  // Upsert local realm (was: cluster/runtime)
+  // Upsert local realm
   const [existingRealm] = await db
     .select({ id: realm.id, spec: realm.spec })
     .from(realm)

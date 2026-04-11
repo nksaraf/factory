@@ -1,8 +1,8 @@
 /**
- * v2 Product controller.
+ * Product controller.
  *
- * Maps legacy product routes to v2 ontology tables:
- *   /product/systems      → software.system       (was /product/module)
+ * Route → table mapping:
+ *   /product/systems      → software.system
  *   /product/components   → software.component
  *   /product/apis         → software.api
  *   /product/artifacts    → software.artifact
@@ -11,49 +11,46 @@
  *   /product/products     → software.product
  *   /product/capabilities → software.capability
  */
-
-import { Elysia } from "elysia";
-import { eq } from "drizzle-orm";
-
-import type { Database } from "../../db/connection";
-import { ontologyRoutes } from "../../lib/crud";
+import { PromoteReleaseBody } from "@smp/factory-shared/schemas/actions"
 import {
-  system,
-  component,
-  softwareApi,
-  artifact,
-  release,
-  template,
-  product,
-  capability,
-} from "../../db/schema/software-v2";
-
-import {
-  CreateSystemSchema,
-  UpdateSystemSchema,
-  CreateComponentSchema,
-  UpdateComponentSchema,
   CreateApiSchema,
-  UpdateApiSchema,
   CreateArtifactSchema,
-  UpdateArtifactSchema,
-  CreateReleaseSchema,
-  UpdateReleaseSchema,
-  CreateTemplateSchema,
-  UpdateTemplateSchema,
-  CreateProductSchema,
-  UpdateProductSchema,
   CreateCapabilitySchema,
+  CreateComponentSchema,
+  CreateProductSchema,
+  CreateReleaseSchema,
+  CreateSystemSchema,
+  CreateTemplateSchema,
+  UpdateApiSchema,
+  UpdateArtifactSchema,
   UpdateCapabilitySchema,
-} from "@smp/factory-shared/schemas/software";
+  UpdateComponentSchema,
+  UpdateProductSchema,
+  UpdateReleaseSchema,
+  UpdateSystemSchema,
+  UpdateTemplateSchema,
+} from "@smp/factory-shared/schemas/software"
+import { eq } from "drizzle-orm"
+import { Elysia } from "elysia"
+import { z } from "zod"
 
-import { PromoteReleaseBody } from "@smp/factory-shared/schemas/actions";
-import { z } from "zod";
+import type { Database } from "../../db/connection"
+import {
+  artifact,
+  capability,
+  component,
+  product,
+  release,
+  softwareApi,
+  system,
+  template,
+} from "../../db/schema/software-v2"
+import { ontologyRoutes } from "../../lib/crud"
 
 const GenerateReleaseContentBody = z.object({
   config: z.record(z.unknown()).optional(),
-});
-type GenerateReleaseContentBody = z.infer<typeof GenerateReleaseContentBody>;
+})
+type GenerateReleaseContentBody = z.infer<typeof GenerateReleaseContentBody>
 
 export function productControllerV2(db: Database) {
   return new Elysia({ prefix: "/product" })
@@ -74,7 +71,10 @@ export function productControllerV2(db: Database) {
             path: "components",
             table: component,
             fk: component.systemId,
-            bitemporal: { validTo: component.validTo, systemTo: component.systemTo },
+            bitemporal: {
+              validTo: component.validTo,
+              systemTo: component.systemTo,
+            },
           },
           apis: {
             path: "apis",
@@ -87,7 +87,7 @@ export function productControllerV2(db: Database) {
             fk: release.systemId,
           },
         },
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -100,7 +100,10 @@ export function productControllerV2(db: Database) {
         createSchema: CreateComponentSchema,
         updateSchema: UpdateComponentSchema,
         deletable: "bitemporal",
-        bitemporal: { validTo: component.validTo, systemTo: component.systemTo },
+        bitemporal: {
+          validTo: component.validTo,
+          systemTo: component.systemTo,
+        },
         relations: {
           artifacts: {
             path: "artifacts",
@@ -108,7 +111,7 @@ export function productControllerV2(db: Database) {
             fk: artifact.componentId,
           },
         },
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -121,7 +124,7 @@ export function productControllerV2(db: Database) {
         createSchema: CreateApiSchema,
         updateSchema: UpdateApiSchema,
         deletable: true,
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -134,7 +137,7 @@ export function productControllerV2(db: Database) {
         createSchema: CreateArtifactSchema,
         updateSchema: UpdateArtifactSchema,
         deletable: true,
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -151,29 +154,45 @@ export function productControllerV2(db: Database) {
           generate: {
             bodySchema: GenerateReleaseContentBody,
             handler: async ({ db, entity, body }) => {
-              const b = body as GenerateReleaseContentBody;
-              const spec = entity.spec as Record<string, unknown>;
-              const [row] = await db.update(release)
-                .set({ spec: { ...spec, contentGeneration: { status: "pending", config: b.config } } as any, updatedAt: new Date() })
+              const b = body as GenerateReleaseContentBody
+              const spec = entity.spec as Record<string, unknown>
+              const [row] = await db
+                .update(release)
+                .set({
+                  spec: {
+                    ...spec,
+                    contentGeneration: { status: "pending", config: b.config },
+                  } as any,
+                  updatedAt: new Date(),
+                })
                 .where(eq(release.id, entity.id as string))
-                .returning();
-              return row;
+                .returning()
+              return row
             },
           },
           promote: {
             bodySchema: PromoteReleaseBody,
             handler: async ({ db, entity, body }) => {
-              const b = body as PromoteReleaseBody;
-              const spec = entity.spec as Record<string, unknown>;
-              const [row] = await db.update(release)
-                .set({ spec: { ...spec, promoted: true, promotionStrategy: b.strategy, targetSites: b.targetSites } as any, updatedAt: new Date() })
+              const b = body as PromoteReleaseBody
+              const spec = entity.spec as Record<string, unknown>
+              const [row] = await db
+                .update(release)
+                .set({
+                  spec: {
+                    ...spec,
+                    promoted: true,
+                    promotionStrategy: b.strategy,
+                    targetSites: b.targetSites,
+                  } as any,
+                  updatedAt: new Date(),
+                })
                 .where(eq(release.id, entity.id as string))
-                .returning();
-              return row;
+                .returning()
+              return row
             },
           },
         },
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -186,7 +205,7 @@ export function productControllerV2(db: Database) {
         createSchema: CreateTemplateSchema,
         updateSchema: UpdateTemplateSchema,
         deletable: true,
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -206,7 +225,7 @@ export function productControllerV2(db: Database) {
             fk: capability.productId,
           },
         },
-      }),
+      })
     )
     .use(
       ontologyRoutes(db, {
@@ -219,6 +238,6 @@ export function productControllerV2(db: Database) {
         createSchema: CreateCapabilitySchema,
         updateSchema: UpdateCapabilitySchema,
         deletable: true,
-      }),
-    );
+      })
+    )
 }

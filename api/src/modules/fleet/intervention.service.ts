@@ -1,6 +1,7 @@
-import { desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { intervention } from "../../db/schema/ops";
+import { desc, eq } from "drizzle-orm"
+
+import type { Database } from "../../db/connection"
+import { intervention } from "../../db/schema/ops"
 
 // ---------------------------------------------------------------------------
 // Interventions — v2: type is column; action, principalId, reason → spec JSONB
@@ -9,28 +10,27 @@ import { intervention } from "../../db/schema/ops";
 export async function createIntervention(
   db: Database,
   input: {
-    systemDeploymentId?: string;
-    componentDeploymentId?: string;
-    deploymentTargetId?: string;
-    workloadId?: string;
-    action: string;
-    principalId: string;
-    reason: string;
-    details?: Record<string, unknown>;
-  },
+    systemDeploymentId: string
+    componentDeploymentId?: string
+    workloadId?: string
+    action: string
+    principalId: string
+    reason: string
+    details?: Record<string, unknown>
+  }
 ) {
   const typeMap: Record<string, string> = {
     restart: "restart",
     scale: "scale",
     rollback: "rollback",
-  };
-  const type = typeMap[input.action] ?? "manual";
+  }
+  const type = typeMap[input.action] ?? "manual"
 
   const [row] = await db
     .insert(intervention)
     .values({
       type,
-      systemDeploymentId: input.systemDeploymentId ?? input.deploymentTargetId,
+      systemDeploymentId: input.systemDeploymentId,
       componentDeploymentId: input.componentDeploymentId ?? input.workloadId,
       spec: {
         action: input.action,
@@ -39,17 +39,20 @@ export async function createIntervention(
         details: input.details ?? {},
       } as any,
     })
-    .returning();
+    .returning()
 
-  return row;
+  return row
 }
 
-export async function listInterventions(db: Database, systemDeploymentId: string) {
+export async function listInterventions(
+  db: Database,
+  systemDeploymentId: string
+) {
   const rows = await db
     .select()
     .from(intervention)
     .where(eq(intervention.systemDeploymentId, systemDeploymentId))
-    .orderBy(desc(intervention.createdAt));
+    .orderBy(desc(intervention.createdAt))
 
-  return { data: rows, total: rows.length };
+  return { data: rows, total: rows.length }
 }

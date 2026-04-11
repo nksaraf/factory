@@ -1,11 +1,7 @@
 /**
- * Workspace Service Tests (was sandbox-service.test.ts)
+ * Workspace Service Tests
  *
- * Tests workspace CRUD, lifecycle, snapshots, TTL via direct DB operations
- * using v2 schema tables.
- *
- * NOTE: These tests will fail until Phase 6 migrates the workspace service.
- * They assert v2 behavior as the target specification.
+ * Tests workspace CRUD, lifecycle, snapshots, TTL via direct DB operations.
  */
 import type { PGlite } from "@electric-sql/pglite"
 import type {

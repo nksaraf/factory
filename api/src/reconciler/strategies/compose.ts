@@ -1,11 +1,11 @@
 import type {
-  RealmStrategy,
   ReconcileContext,
   ReconcileResult,
+  ReconcilerStrategy,
 } from "../runtime-strategy"
 
 /** Docker Compose realm strategy — deploys components as compose services on a host/VM */
-export class ComposeStrategy implements RealmStrategy {
+export class ComposeStrategy implements ReconcilerStrategy {
   readonly runtime = "compose"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {

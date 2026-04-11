@@ -287,7 +287,7 @@ describe("Gateway Service", () => {
   })
 
   // ---------------------------------------------------------------------------
-  // Workspace Route Helpers (was sandbox route helpers)
+  // Workspace Route Helpers
   // ---------------------------------------------------------------------------
   describe("workspace route helpers", () => {
     async function createSystemDeploymentPrereqs() {
@@ -413,7 +413,7 @@ describe("Gateway Service", () => {
         createdBy: "test",
       })
 
-      const removed = await gw.removeTargetRoutes(db, sd.id)
+      const removed = await gw.removeSystemDeploymentRoutes(db, sd.id)
       expect(removed).toBe(2)
 
       const { data } = await gw.listRoutes(db)

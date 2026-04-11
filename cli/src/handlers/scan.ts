@@ -403,7 +403,7 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
           displayName?: string
           composeProject?: string
           image?: string
-          runtime: string
+          realmType: string
         }
       }[]
       scanResult?: Record<string, unknown>
@@ -749,7 +749,7 @@ function printInfraScanSummary(result: ScanResult, hostSlug: string): void {
       const ports =
         svc.ports.length > 0 ? styleMuted(`:${svc.ports.join(", :")}`) : ""
       console.log(
-        `    ${svc.name.padEnd(24)} ${styleMuted(svc.runtime.padEnd(16))} ${ports}`
+        `    ${svc.name.padEnd(24)} ${styleMuted(svc.realmType.padEnd(16))} ${ports}`
       )
     }
     console.log()

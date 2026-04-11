@@ -1,11 +1,11 @@
-export type SandboxType = "docker" | "firecracker" | "noop";
+export type SandboxType = "docker" | "firecracker" | "noop"
 
 export interface SandboxAdapter {
-  readonly type: string;
+  readonly type: string
 
   provision(
     sandbox: {
-      deploymentTargetId: string
+      systemDeploymentId: string
       name: string
       namespace?: string
     },
@@ -52,7 +52,7 @@ export interface SandboxAdapter {
   restore(
     snapshotId: string,
     snapshotConfig: Record<string, unknown>
-  ): Promise<{ deploymentTargetId: string; name: string }>
+  ): Promise<{ systemDeploymentId: string; name: string }>
 
   getStatus(
     sandboxId: string

@@ -25,7 +25,6 @@ import { principal } from "./org-v2"
 
 // ─── Estate ──────────────────────────────────────────────
 // Ownership hierarchy: cloud accounts, regions, datacenters, VPCs, subnets, racks.
-// Renamed from "substrate" — plain text type column, validated in TypeScript.
 
 export const estate = infraSchema.table(
   "estate",
@@ -82,7 +81,6 @@ export const host = infraSchema.table(
 
 // ─── Realm ────────────────────────────────────────────────
 // Active governance — bounded domain of authority where things spawn and are controlled.
-// Renamed from "runtime". Categories: compute, network, storage, ai, build, scheduling.
 // Uses realm_host join table for many-to-many (K8s cluster spans multiple hosts).
 
 export const realm = infraSchema.table(

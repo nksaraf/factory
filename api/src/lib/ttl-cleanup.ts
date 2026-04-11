@@ -3,14 +3,17 @@
  * Cleans up expired sandboxes, routes, tunnels, and previews.
  * Also handles retention cleanup for the operation_run table.
  */
+import { and, lt } from "drizzle-orm"
 
-import { lt, and } from "drizzle-orm"
 import type { Database } from "../db/connection"
-import { cleanupExpiredWorkspaces } from "../modules/fleet/service"
-import { cleanupExpiredRoutes, cleanupStaleTunnels } from "../modules/infra/gateway.service"
-import { runPreviewCleanup } from "../services/preview/preview.service"
 import { operationRun } from "../db/schema/ops"
-import { createOperationRunner, type OperationRunner } from "./operations"
+import { cleanupExpiredWorkspaces } from "../modules/fleet/service"
+import {
+  cleanupExpiredRoutes,
+  cleanupStaleTunnels,
+} from "../modules/infra/gateway.service"
+import { runPreviewCleanup } from "../services/preview/preview.service"
+import { type OperationRunner, createOperationRunner } from "./operations"
 
 const RETENTION_DAYS = 30
 
@@ -20,23 +23,31 @@ const RETENTION_DAYS = 30
  */
 export function startTtlCleanupLoop(
   db: Database,
-  opts?: { intervalMs?: number },
+  opts?: { intervalMs?: number }
 ): OperationRunner {
   return createOperationRunner(db, {
     name: "ttl-cleanup",
     intervalMs: opts?.intervalMs ?? 60_000,
     async execute(log) {
       const { cleaned } = await cleanupExpiredWorkspaces(db)
-      if (cleaned > 0) log.info({ count: cleaned }, "cleaned up expired deployment targets")
+      if (cleaned > 0)
+        log.info({ count: cleaned }, "cleaned up expired system deployments")
 
       const expiredRoutes = await cleanupExpiredRoutes(db)
-      if (expiredRoutes > 0) log.info({ count: expiredRoutes }, "cleaned up expired routes")
+      if (expiredRoutes > 0)
+        log.info({ count: expiredRoutes }, "cleaned up expired routes")
 
       const staleTunnels = await cleanupStaleTunnels(db)
-      if (staleTunnels > 0) log.info({ count: staleTunnels }, "cleaned up stale tunnels")
+      if (staleTunnels > 0)
+        log.info({ count: staleTunnels }, "cleaned up stale tunnels")
 
       const previewCleanup = await runPreviewCleanup(db)
-      if (previewCleanup.expired > 0 || previewCleanup.scaledToWarm > 0 || previewCleanup.scaledToCold > 0 || previewCleanup.deleted > 0) {
+      if (
+        previewCleanup.expired > 0 ||
+        previewCleanup.scaledToWarm > 0 ||
+        previewCleanup.scaledToCold > 0 ||
+        previewCleanup.deleted > 0
+      ) {
         log.info(previewCleanup, "preview cleanup completed")
       }
 

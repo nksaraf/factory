@@ -8,7 +8,7 @@ import { z } from "zod"
 import * as buildSchema from "../../db/schema/build-v2"
 import * as commerceSchema from "../../db/schema/commerce-v2"
 import * as infraSchema from "../../db/schema/infra-v2"
-// Schema imports — all v2 ontology tables
+// Schema imports — ontology tables
 import * as orgSchema from "../../db/schema/org-v2"
 import * as softwareSchema from "../../db/schema/software-v2"
 import { logger } from "../../logger"

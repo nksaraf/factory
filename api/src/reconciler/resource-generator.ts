@@ -1,18 +1,19 @@
-import type { KubeResource } from "../lib/kube-client";
 import type {
   ComponentSpec,
+  SystemDeployment,
   Workload,
-  DeploymentTarget,
-} from "@smp/factory-shared/types";
+} from "@smp/factory-shared/types"
+
+import type { KubeResource } from "../lib/kube-client"
 
 export function generateResources(
   workload: Workload,
   component: ComponentSpec,
-  target: DeploymentTarget,
+  target: SystemDeployment,
   moduleName: string
 ): KubeResource[] {
-  const resources: KubeResource[] = [];
-  const ns = target.namespace ?? target.name;
+  const resources: KubeResource[] = []
+  const ns = target.namespace ?? target.name
   const labels = {
     "dx.dev/module": moduleName,
     "dx.dev/component": component.name,
@@ -20,7 +21,7 @@ export function generateResources(
     "dx.dev/target": target.name,
     "dx.dev/target-kind": target.kind,
     "dx.dev/managed-by": "factory-reconciler",
-  };
+  }
 
   // Namespace (caller should deduplicate — multiple workloads share a namespace)
   resources.push({
@@ -33,57 +34,67 @@ export function generateResources(
         "dx.dev/managed-by": "factory-reconciler",
       },
     },
-  });
+  })
 
   const resourceLimits = {
     cpu: component.defaultCpu,
     memory: component.defaultMemory,
     ...(workload.resourceOverrides as Record<string, string>),
-  };
+  }
 
   switch (component.kind) {
     case "service": // v2 name for long-running server components
-    case "server":  // legacy alias
+    case "server": // legacy alias
     case "worker":
     case "gateway":
     case "agent":
       if (component.stateful) {
-        resources.push(makeStatefulSet(workload, component, ns, labels, resourceLimits));
+        resources.push(
+          makeStatefulSet(workload, component, ns, labels, resourceLimits)
+        )
       } else {
-        resources.push(makeDeployment(workload, component, ns, labels, resourceLimits));
+        resources.push(
+          makeDeployment(workload, component, ns, labels, resourceLimits)
+        )
       }
-      break;
+      break
     case "database":
     case "cache":
     case "queue":
     case "storage":
     case "search":
-      resources.push(makeStatefulSet(workload, component, ns, labels, resourceLimits));
-      break;
+      resources.push(
+        makeStatefulSet(workload, component, ns, labels, resourceLimits)
+      )
+      break
     case "task":
-      resources.push(makeJob(workload, component, ns, labels, resourceLimits));
-      break;
-    case "cronjob":  // v2 name
+      resources.push(makeJob(workload, component, ns, labels, resourceLimits))
+      break
+    case "cronjob": // v2 name
     case "scheduled": // legacy alias
-      resources.push(makeCronJob(workload, component, ns, labels, resourceLimits));
-      break;
+      resources.push(
+        makeCronJob(workload, component, ns, labels, resourceLimits)
+      )
+      break
     case "website": // v2 name for frontend/static sites
-    case "site":    // legacy alias
+    case "site": // legacy alias
     case "cli":
     case "library":
-      resources.push(makeDeployment(workload, component, ns, labels, resourceLimits));
-      break;
+      resources.push(
+        makeDeployment(workload, component, ns, labels, resourceLimits)
+      )
+      break
   }
 
   if (component.ports.length > 0) {
-    resources.push(makeService(component, ns, labels));
+    resources.push(makeService(component, ns, labels))
   }
 
   if (component.isPublic && component.ports.length > 0) {
-    resources.push(makeIngressRoute(component, ns, labels, target));
+    resources.push(makeIngressRoute(component, ns, labels, target))
   }
 
-  return resources;
+  return resources
 }
 
 function makeContainer(
@@ -101,29 +112,33 @@ function makeContainer(
     env: Object.entries(
       (workload.envOverrides as Record<string, string>) ?? {}
     ).map(([name, value]) => ({ name, value })),
-  };
-
-  if (component.ports.length > 0) {
-    container.ports = component.ports.map((p) => ({ name: p.name, containerPort: p.port, protocol: p.protocol }));
   }
 
-  const healthcheck = component.healthcheck;
+  if (component.ports.length > 0) {
+    container.ports = component.ports.map((p) => ({
+      name: p.name,
+      containerPort: p.port,
+      protocol: p.protocol,
+    }))
+  }
+
+  const healthcheck = component.healthcheck
   if (healthcheck) {
-    const hcPort = component.ports.find((p) => p.name === healthcheck.portName);
-    const portValue = hcPort ? hcPort.port : (component.ports[0]?.port ?? 80);
+    const hcPort = component.ports.find((p) => p.name === healthcheck.portName)
+    const portValue = hcPort ? hcPort.port : (component.ports[0]?.port ?? 80)
     container.livenessProbe = {
       httpGet: { path: healthcheck.path, port: portValue },
       initialDelaySeconds: 10,
       periodSeconds: 15,
-    };
+    }
     container.readinessProbe = {
       httpGet: { path: healthcheck.path, port: portValue },
       initialDelaySeconds: 5,
       periodSeconds: 10,
-    };
+    }
   }
 
-  return container;
+  return container
 }
 
 function makeDeployment(
@@ -147,7 +162,7 @@ function makeDeployment(
         },
       },
     },
-  };
+  }
 }
 
 function makeStatefulSet(
@@ -172,7 +187,7 @@ function makeStatefulSet(
         },
       },
     },
-  };
+  }
 }
 
 function makeJob(
@@ -195,7 +210,7 @@ function makeJob(
         },
       },
     },
-  };
+  }
 }
 
 function makeCronJob(
@@ -223,7 +238,7 @@ function makeCronJob(
         },
       },
     },
-  };
+  }
 }
 
 function makeService(
@@ -237,19 +252,24 @@ function makeService(
     metadata: { name: component.name, namespace: ns, labels },
     spec: {
       selector: { "dx.dev/component": component.name },
-      ports: component.ports.map((p) => ({ name: p.name, port: p.port, targetPort: p.port, protocol: p.protocol })),
+      ports: component.ports.map((p) => ({
+        name: p.name,
+        port: p.port,
+        targetPort: p.port,
+        protocol: p.protocol,
+      })),
     },
-  };
+  }
 }
 
 function makeIngressRoute(
   component: ComponentSpec,
   ns: string,
   labels: Record<string, string>,
-  target: DeploymentTarget
+  target: SystemDeployment
 ): KubeResource {
-  const firstPort = component.ports[0]?.port ?? 80;
-  const host = `${component.name}.${target.name}.dx.dev`;
+  const firstPort = component.ports[0]?.port ?? 80
+  const host = `${component.name}.${target.name}.dx.dev`
   return {
     apiVersion: "traefik.io/v1alpha1",
     kind: "IngressRoute",
@@ -264,5 +284,5 @@ function makeIngressRoute(
         },
       ],
     },
-  };
+  }
 }

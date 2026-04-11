@@ -1,7 +1,7 @@
 /**
- * v2 Build controller.
+ * Build controller.
  *
- * Maps legacy build routes to v2 ontology tables:
+ * Route → table mapping:
  *   /build/repos                → build.repo
  *   /build/git-host-providers   → build.git_host_provider
  *   /build/work-tracker-providers → build.work_tracker_provider

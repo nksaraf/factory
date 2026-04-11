@@ -75,7 +75,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "                            $services += @{\n" +
   "                                name = $svcName\n" +
   "                                displayName = $svcName\n" +
-  "                                runtime = 'docker'\n" +
+  "                                realmType = 'docker'\n" +
   "                                status = if ($c.State) { $c.State } else { 'unknown' }\n" +
   "                                ports = @($svcPorts | Sort-Object -Unique)\n" +
   "                                image = $c.Image\n" +
@@ -121,7 +121,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "            $services += @{\n" +
   "                name = $site.Name\n" +
   "                displayName = $site.Name\n" +
-  "                runtime = 'iis'\n" +
+  "                realmType = 'iis'\n" +
   '                status = if ($site.State -eq "Started") { "running" } else { "stopped" }\n' +
   "                ports = @($sitePorts | Sort-Object -Unique)\n" +
   "                metadata = @{\n" +
@@ -167,7 +167,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "                $services += @{\n" +
   "                    name = $svc.Name\n" +
   "                    displayName = $svc.DisplayName\n" +
-  "                    runtime = 'windows-service'\n" +
+  "                    realmType = 'windows-service'\n" +
   "                    status = 'running'\n" +
   "                    ports = @($svcPorts | Sort-Object -Unique)\n" +
   "                    pid = $svcPid\n" +
@@ -176,7 +176,7 @@ export const WINDOWS_COLLECTOR_SCRIPT =
   "            }\n" +
   "        } catch {}\n" +
   "    }\n" +
-  "    $winsvcCount = ($services | Where-Object { $_.runtime -eq 'windows-service' }).Count\n" +
+  "    $winsvcCount = ($services | Where-Object { $_.realmType -eq 'windows-service' }).Count\n" +
   "    $collectors += @{ name = 'windows-service'; status = 'ok'; count = $winsvcCount }\n" +
   "} catch {\n" +
   "    $collectors += @{ name = 'windows-service'; status = 'failed'; error = $_.Exception.Message }\n" +

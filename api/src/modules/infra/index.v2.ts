@@ -1,15 +1,15 @@
 /**
- * v2 Infra controller.
+ * Infra controller.
  *
- * Maps legacy infra routes to v2 ontology tables:
- *   /infra/estates       → infra.estate      (was /infra/providers + /infra/subnets + /infra/regions)
- *   /infra/hosts         → infra.host        (was /infra/hosts + /infra/vms + /infra/kube-nodes)
- *   /infra/realms        → infra.realm       (was /infra/clusters + /infra/vm-clusters)
- *   /infra/routes        → infra.route       (was /infra/gateway/routes)
- *   /infra/dns-domains   → infra.dns_domain  (was /infra/gateway/domains)
- *   /infra/tunnels       → infra.tunnel      (was /infra/gateway/tunnels)
- *   /infra/ip-addresses  → infra.ip_address  (was /infra/ipam/*)
- *   /infra/secrets       → infra.secret      (was /infra/ssh-keys as type='ssh-key')
+ * Route → table mapping:
+ *   /infra/estates       → infra.estate
+ *   /infra/hosts         → infra.host
+ *   /infra/realms        → infra.realm
+ *   /infra/routes        → infra.route
+ *   /infra/dns-domains   → infra.dns_domain
+ *   /infra/tunnels       → infra.tunnel
+ *   /infra/ip-addresses  → infra.ip_address
+ *   /infra/secrets       → infra.secret
  *   /infra/network-links → infra.network_link
  */
 import {
@@ -155,7 +155,7 @@ export function infraControllerV2(db: Database) {
       )
 
       // ── Hosts ──────────────────────────────────────────────
-      // Covers: bare-metal, VMs (was /infra/vms), LXC, cloud instances,
+      // Covers: bare-metal, VMs, LXC, cloud instances,
       //         kube nodes (type='bare-metal' with role='k8s-*' in spec)
       .use(
         ontologyRoutes(db, {
@@ -430,7 +430,7 @@ export function infraControllerV2(db: Database) {
       )
 
       // ── Realms ───────────────────────────────────────────
-      // Covers: k8s clusters (was /infra/clusters), namespaces, docker engines,
+      // Covers: k8s clusters, namespaces, docker engines,
       //         compose projects, systemd, reverse proxies, VM clusters
       .use(
         ontologyRoutes(db, {
@@ -650,7 +650,7 @@ export function infraControllerV2(db: Database) {
       )
 
       // ── Tunnels ────────────────────────────────────────────
-      // Covers: developer tunnels (was /infra/gateway/tunnels)
+      // Covers: developer tunnels
       .use(
         ontologyRoutes(db, {
           schema: "infra",
@@ -679,7 +679,7 @@ export function infraControllerV2(db: Database) {
       )
 
       // ── IP Addresses ─────────────────────────────────────
-      // Covers: IPAM (was /infra/ipam/*)
+      // Covers: IPAM
       .use(
         ontologyRoutes(db, {
           schema: "infra",

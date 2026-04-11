@@ -6,7 +6,7 @@ The `dx` command-line tool is the primary interface for developing, testing, dep
 
 ```bash
 # macOS / Linux
-curl -fsSL https://get.factory.dev | sh
+curl -fsSL https://get.factory.lepton.software | sh
 
 # or via npm
 npm install -g lepton-dx

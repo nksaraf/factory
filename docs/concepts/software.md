@@ -161,7 +161,7 @@ Built output — container image, binary, or package. Immutable and content-addr
   "type": "container-image",
   "commitSha": "abc1234def5678",
   "spec": {
-    "imageRef": "registry.factory.dev/auth-api:abc1234",
+    "imageRef": "registry.factory.lepton.software/auth-api:abc1234",
     "imageDigest": "sha256:a1b2c3d4...",
     "sizeBytes": 145000000
   }

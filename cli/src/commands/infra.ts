@@ -73,7 +73,7 @@ export function infraCommand(app: DxBase) {
       .sub("infra")
       .meta({ description: "Infrastructure management" })
 
-      // --- Estates (formerly Substrates/Providers) ---
+      // --- Estates ---
       .command("estate", (c) =>
         c
           .meta({ description: "Manage infrastructure estates" })
@@ -320,7 +320,7 @@ export function infraCommand(app: DxBase) {
           )
       )
 
-      // --- Realms (formerly Runtimes/Clusters) ---
+      // --- Realms ---
       .command("realm", (c) =>
         c
           .meta({ description: "Manage realms" })

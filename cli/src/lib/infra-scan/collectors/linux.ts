@@ -182,7 +182,7 @@ for p in projects:
                 services.append({
                     'name': svc_name,
                     'displayName': svc_name,
-                    'runtime': 'docker',
+                    'realmType': 'docker',
                     'status': svc_status,
                     'ports': sorted(set(port_nums)),
                     'image': c.get('Image', ''),
@@ -256,7 +256,7 @@ for unit in units:
         services.append({
             'name': name,
             'displayName': name,
-            'runtime': 'systemd',
+            'realmType': 'systemd',
             'status': 'running',
             'ports': sorted(set(ports)),
             'pid': pid,

@@ -248,7 +248,8 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
               localAddr: msg.localAddr ?? "localhost:3000",
               createdBy: msg.principalId ?? "anonymous",
               routeFamily,
-              deploymentTargetId: msg.deploymentTargetId,
+              systemDeploymentId:
+                msg.systemDeploymentId ?? msg.deploymentTargetId,
             })
             tunnelId = tunnel.tunnelId
             tunnelSubdomain = tunnel.subdomain

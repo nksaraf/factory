@@ -309,7 +309,7 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     }
   })
 
-  // ─── Routes (was ingress) ─────────────────────────────────
+  // ─── Routes ──────────────────────────────────────────────
 
   it("factory-api has routes with TLS", () => {
     const entities = loadEntities()
@@ -362,7 +362,7 @@ describe.skipIf(!hasCatalogInfo)("factory catalog-info.yaml", () => {
     ])
   })
 
-  // ─── Persistent volumes (was PVC) ─────────────────────────
+  // ─── Persistent volumes ──────────────────────────────────
 
   it("factory-postgres has persistent volume with size and class", () => {
     const entities = loadEntities()

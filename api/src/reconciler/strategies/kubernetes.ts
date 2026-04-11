@@ -1,6 +1,6 @@
 import type {
   ComponentSpec,
-  DeploymentTarget,
+  SystemDeployment,
   Workload,
 } from "@smp/factory-shared/types"
 import { eq } from "drizzle-orm"
@@ -9,12 +9,12 @@ import type { Database } from "../../db/connection"
 import { realm } from "../../db/schema/infra-v2"
 import { generateResources } from "../resource-generator"
 import type {
-  RealmStrategy,
   ReconcileContext,
   ReconcileResult,
+  ReconcilerStrategy,
 } from "../runtime-strategy"
 
-export class KubernetesStrategy implements RealmStrategy {
+export class KubernetesStrategy implements ReconcilerStrategy {
   readonly runtime = "kubernetes"
 
   constructor(
@@ -32,10 +32,10 @@ export class KubernetesStrategy implements RealmStrategy {
     ctx: ReconcileContext,
     db: Database
   ): Promise<ReconcileResult> {
-    const realmId = ctx.target.clusterId // v2: clusterId maps to realmId
+    const realmId = ctx.target.clusterId
     if (!realmId)
       throw new Error(
-        `Kubernetes target ${ctx.target.deploymentTargetId} has no realm`
+        `Kubernetes target ${ctx.target.systemDeploymentId} has no realm`
       )
 
     const [rt] = await db
@@ -52,7 +52,7 @@ export class KubernetesStrategy implements RealmStrategy {
     const resources = generateResources(
       ctx.workload as unknown as Workload,
       ctx.component as unknown as ComponentSpec,
-      ctx.target as unknown as DeploymentTarget,
+      ctx.target as unknown as SystemDeployment,
       ctx.moduleName
     )
 

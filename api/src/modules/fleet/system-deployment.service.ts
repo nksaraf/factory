@@ -1,54 +1,53 @@
-import { and, desc, eq } from "drizzle-orm";
-import type { Database } from "../../db/connection";
-import { componentDeployment, systemDeployment } from "../../db/schema/ops";
-import { allocateSlug } from "../../lib/slug";
-import { parseTtlToMs } from "./utils";
+import { and, desc, eq } from "drizzle-orm"
+
+import type { Database } from "../../db/connection"
+import { componentDeployment, systemDeployment } from "../../db/schema/ops"
+import { allocateSlug } from "../../lib/slug"
+import { parseTtlToMs } from "./utils"
 
 // ---------------------------------------------------------------------------
-// System Deployment CRUD (was Deployment Target)
-// v2: deploymentTarget → systemDeployment in ops schema
+// System Deployment CRUD
 // ---------------------------------------------------------------------------
 
 export async function listSystemDeployments(
   db: Database,
-  opts?: { type?: string; status?: string; siteId?: string },
+  opts?: { type?: string; status?: string; siteId?: string }
 ) {
-  const conditions = [];
-  if (opts?.type) conditions.push(eq(systemDeployment.type, opts.type));
-  if (opts?.siteId) conditions.push(eq(systemDeployment.siteId, opts.siteId));
+  const conditions = []
+  if (opts?.type) conditions.push(eq(systemDeployment.type, opts.type))
+  if (opts?.siteId) conditions.push(eq(systemDeployment.siteId, opts.siteId))
 
-  const base = db.select().from(systemDeployment);
+  const base = db.select().from(systemDeployment)
   const rows =
     conditions.length > 0
-      ? await base.where(and(...conditions)).orderBy(desc(systemDeployment.createdAt))
-      : await base.orderBy(desc(systemDeployment.createdAt));
+      ? await base
+          .where(and(...conditions))
+          .orderBy(desc(systemDeployment.createdAt))
+      : await base.orderBy(desc(systemDeployment.createdAt))
 
-  let filtered = rows;
+  let filtered = rows
   if (opts?.status) {
-    filtered = filtered.filter((r) => (r.spec as any)?.status === opts.status);
+    filtered = filtered.filter((r) => (r.spec as any)?.status === opts.status)
   }
-  return { data: filtered, total: filtered.length };
+  return { data: filtered, total: filtered.length }
 }
-
-/** @deprecated Use listSystemDeployments */
-export const listDeploymentTargets = listSystemDeployments;
 
 export async function createSystemDeployment(
   db: Database,
   input: {
-    name: string;
-    type: string;
-    systemId: string;
-    siteId: string;
-    namespace?: string;
-    createdBy: string;
-    trigger: string;
-    ttl?: string;
-    labels?: Record<string, unknown>;
-    runtime?: string;
-    hostId?: string;
-    vmId?: string;
-  },
+    name: string
+    type: string
+    systemId: string
+    siteId: string
+    namespace?: string
+    createdBy: string
+    trigger: string
+    ttl?: string
+    labels?: Record<string, unknown>
+    runtime?: string
+    hostId?: string
+    vmId?: string
+  }
 ) {
   const slug = await allocateSlug({
     baseLabel: input.name,
@@ -57,14 +56,14 @@ export async function createSystemDeployment(
         .select({ id: systemDeployment.id })
         .from(systemDeployment)
         .where(eq(systemDeployment.slug, s))
-        .limit(1);
-      return !!existing;
+        .limit(1)
+      return !!existing
     },
-  });
+  })
 
   const expiresAt = input.ttl
     ? new Date(Date.now() + parseTtlToMs(input.ttl))
-    : undefined;
+    : undefined
 
   const [row] = await db
     .insert(systemDeployment)
@@ -87,63 +86,53 @@ export async function createSystemDeployment(
         vmId: input.vmId ?? null,
       } as any,
     })
-    .returning();
+    .returning()
 
-  return row;
+  return row
 }
-
-/** @deprecated Use createSystemDeployment */
-export const createDeploymentTarget = createSystemDeployment;
 
 export async function getSystemDeployment(db: Database, id: string) {
   const [row] = await db
     .select()
     .from(systemDeployment)
     .where(eq(systemDeployment.id, id))
-    .limit(1);
+    .limit(1)
 
-  if (!row) return null;
+  if (!row) return null
 
   const components = await db
     .select()
     .from(componentDeployment)
-    .where(eq(componentDeployment.systemDeploymentId, id));
+    .where(eq(componentDeployment.systemDeploymentId, id))
 
   return {
     ...row,
-    deploymentTargetId: row.id,
     workloads: components,
     componentDeployments: components,
-  };
+  }
 }
-
-/** @deprecated Use getSystemDeployment */
-export const getDeploymentTarget = getSystemDeployment;
 
 export async function updateSystemDeploymentStatus(
   db: Database,
   id: string,
-  status: string,
+  status: string
 ) {
   const [existing] = await db
     .select()
     .from(systemDeployment)
     .where(eq(systemDeployment.id, id))
-    .limit(1);
+    .limit(1)
 
-  if (!existing) throw new Error(`System deployment not found: ${id}`);
+  if (!existing) throw new Error(`System deployment not found: ${id}`)
 
   const [updated] = await db
     .update(systemDeployment)
     .set({ spec: { ...(existing.spec as any), status } as any })
     .where(eq(systemDeployment.id, id))
-    .returning();
+    .returning()
 
-  return updated;
+  return updated
 }
-
-/** @deprecated Use updateSystemDeploymentStatus */
-export const updateDeploymentTargetStatus = updateSystemDeploymentStatus;
 
 export async function destroySystemDeployment(db: Database, id: string) {
   return await db.transaction(async (tx) => {
@@ -151,9 +140,9 @@ export async function destroySystemDeployment(db: Database, id: string) {
       .select()
       .from(systemDeployment)
       .where(eq(systemDeployment.id, id))
-      .limit(1);
+      .limit(1)
 
-    if (!existing) throw new Error(`System deployment not found: ${id}`);
+    if (!existing) throw new Error(`System deployment not found: ${id}`)
 
     const [updated] = await tx
       .update(systemDeployment)
@@ -165,12 +154,12 @@ export async function destroySystemDeployment(db: Database, id: string) {
         } as any,
       })
       .where(eq(systemDeployment.id, id))
-      .returning();
+      .returning()
 
     const components = await tx
       .select()
       .from(componentDeployment)
-      .where(eq(componentDeployment.systemDeploymentId, id));
+      .where(eq(componentDeployment.systemDeploymentId, id))
 
     for (const c of components) {
       await tx
@@ -179,54 +168,55 @@ export async function destroySystemDeployment(db: Database, id: string) {
           spec: { ...(c.spec as any), status: "stopped" } as any,
           updatedAt: new Date(),
         })
-        .where(eq(componentDeployment.id, c.id));
+        .where(eq(componentDeployment.id, c.id))
     }
 
-    return updated;
-  });
+    return updated
+  })
 }
-
-/** @deprecated Use destroySystemDeployment */
-export const destroyDeploymentTarget = destroySystemDeployment;
 
 // ---------------------------------------------------------------------------
 // Dependency Workloads — v2: stored in systemDeployment.spec.dependencies
 // ---------------------------------------------------------------------------
 
-export async function listDependencyWorkloads(db: Database, systemDeploymentId: string) {
+export async function listDependencyWorkloads(
+  db: Database,
+  systemDeploymentId: string
+) {
   const [row] = await db
     .select()
     .from(systemDeployment)
     .where(eq(systemDeployment.id, systemDeploymentId))
-    .limit(1);
+    .limit(1)
 
-  const deps = (row?.spec as any)?.dependencies ?? [];
-  return { data: deps, total: deps.length };
+  const deps = (row?.spec as any)?.dependencies ?? []
+  return { data: deps, total: deps.length }
 }
 
 export async function createDependencyWorkload(
   db: Database,
   input: {
-    deploymentTargetId: string;
-    name: string;
-    image: string;
-    port: number;
-    env?: Record<string, unknown>;
-  },
+    systemDeploymentId: string
+    name: string
+    image: string
+    port: number
+    env?: Record<string, unknown>
+  }
 ) {
   const [row] = await db
     .select()
     .from(systemDeployment)
-    .where(eq(systemDeployment.id, input.deploymentTargetId))
-    .limit(1);
+    .where(eq(systemDeployment.id, input.systemDeploymentId))
+    .limit(1)
 
-  if (!row) throw new Error(`System deployment not found: ${input.deploymentTargetId}`);
+  if (!row)
+    throw new Error(`System deployment not found: ${input.systemDeploymentId}`)
 
   const slug = await allocateSlug({
     baseLabel: input.name,
     isTaken: async (s) =>
       ((row.spec as any)?.dependencies ?? []).some((d: any) => d.slug === s),
-  });
+  })
 
   const dep = {
     name: input.name,
@@ -235,40 +225,41 @@ export async function createDependencyWorkload(
     port: input.port,
     env: input.env ?? {},
     status: "pending",
-  };
+  }
 
-  const deps = [...((row.spec as any)?.dependencies ?? []), dep];
+  const deps = [...((row.spec as any)?.dependencies ?? []), dep]
   await db
     .update(systemDeployment)
     .set({ spec: { ...(row.spec as any), dependencies: deps } as any })
-    .where(eq(systemDeployment.id, row.id));
+    .where(eq(systemDeployment.id, row.id))
 
-  return dep;
+  return dep
 }
 
 export async function updateDependencyWorkloadStatus(
   db: Database,
   systemDeploymentId: string,
   depName: string,
-  status: string,
+  status: string
 ) {
   const [row] = await db
     .select()
     .from(systemDeployment)
     .where(eq(systemDeployment.id, systemDeploymentId))
-    .limit(1);
+    .limit(1)
 
-  if (!row) throw new Error(`System deployment not found: ${systemDeploymentId}`);
+  if (!row)
+    throw new Error(`System deployment not found: ${systemDeploymentId}`)
 
   const deps = ((row.spec as any)?.dependencies ?? []).map((d: any) =>
-    d.name === depName ? { ...d, status } : d,
-  );
+    d.name === depName ? { ...d, status } : d
+  )
 
   const [updated] = await db
     .update(systemDeployment)
     .set({ spec: { ...(row.spec as any), dependencies: deps } as any })
     .where(eq(systemDeployment.id, row.id))
-    .returning();
+    .returning()
 
-  return updated;
+  return updated
 }

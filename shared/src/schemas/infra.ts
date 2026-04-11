@@ -12,7 +12,6 @@ import { ReconciliationSchema } from "./common"
 
 // ── Estate ───────────────────────────────────────────────
 // Ownership hierarchy: accounts, regions, datacenters, network topology.
-// Renamed from "substrate" — "estate" is easier to explain.
 
 export const EstateTypeSchema = z.enum([
   "cloud-account",
@@ -141,7 +140,6 @@ export type Host = z.infer<typeof HostSchema>
 
 // ── Realm ──────────────────────────────────────────────────
 // Active governance — bounded domain of authority where things spawn and are controlled.
-// Renamed from "runtime" — realm covers compute, network, storage, ai, build, scheduling.
 
 export const RealmTypeSchema = z.enum([
   // compute
@@ -760,7 +758,7 @@ export type HostScanPort = z.infer<typeof HostScanPortSchema>
 export const HostScanServiceSchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
-  runtime: z.enum(["docker", "systemd", "iis", "windows-service", "process"]),
+  realmType: z.enum(["docker", "systemd", "iis", "windows-service", "process"]),
   status: z.string(),
   ports: z.array(z.number().int()).default([]),
   image: z.string().optional(),
@@ -892,7 +890,7 @@ export const NetworkCrawlResolvedServiceSchema = z.object({
       displayName: z.string().optional(),
       composeProject: z.string().optional(),
       image: z.string().optional(),
-      runtime: z.string(),
+      realmType: z.string(),
     })
     .optional(),
 })

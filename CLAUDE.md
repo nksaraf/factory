@@ -6,6 +6,12 @@ When ideas, features, or deferred work come up in conversation that won't be imp
 
 At the end of any session where work was discussed but not completed, prompt the user: "Want me to run `/backlog` to capture deferred items?"
 
+## Code Style
+
+- **No deprecated aliases or backward-compat shims.** When renaming something, remove the old name entirely. Don't add `@deprecated` re-exports, redirect routes, or compatibility aliases. Just use the new name everywhere.
+- **No "was X" comments.** Don't leave comments explaining what something used to be called (e.g. "was runtime", "formerly substrate"). The current name is the only name. Historical context belongs in git history, not in comments.
+- **No `v2:` prefixes in comments.** Everything is the current version. Don't annotate transitions.
+
 ## Testing
 
 - Never assert broken behavior in tests. Tests should always assert the correct/expected behavior. If the code doesn't match yet, leave the test failing — that's fine. A failing test is a signal to fix the code, not to weaken the test.
@@ -38,7 +44,7 @@ At the end of any session where work was discussed but not completed, prompt the
 - **Deploy:** Same `docker-compose.yaml` + `dx up` as local. Migrations auto-apply on API startup via `setupDb()`
 - **CLI on prod:** Build with `pnpm --filter lepton-dx run build:crust:local`, or run directly via `bun run cli/src/cli.ts`
 
-To deploy new version of CLI: 
+To deploy new version of CLI:
 Bump version (usually patch) in cli/package.json
 Build cross-platform binaries: pnpm build:crust (in cli/)
 Publish: pnpm release:publish (in cli/)

@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs"
 
 import type { DxBase } from "../dx-root.js"
-import { type IngestEvent, sendEvent } from "../lib/ingest/send.js"
+import type { IngestEvent } from "../lib/ingest/common.js"
+import { sendEvent } from "../lib/ingest/send.js"
 
 /**
  * dx hook — called by IDE hook configs (Cursor, Claude Code), not by users directly.
@@ -392,7 +393,7 @@ function parseTranscriptStats(
       model,
       turnCount,
       toolCallCount,
-      toolsUsed: [...toolNames],
+      toolsUsed: Array.from(toolNames),
       tokenUsage,
     }
   } catch {

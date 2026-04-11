@@ -1,11 +1,11 @@
 import type {
-  RealmStrategy,
   ReconcileContext,
   ReconcileResult,
+  ReconcilerStrategy,
 } from "../runtime-strategy"
 
 /** systemd realm strategy — deploys components as systemd units on Linux hosts/VMs */
-export class SystemdStrategy implements RealmStrategy {
+export class SystemdStrategy implements ReconcilerStrategy {
   readonly runtime = "systemd"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {

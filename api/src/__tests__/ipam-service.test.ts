@@ -16,7 +16,6 @@ import type {
 } from "../adapters/network-device-adapter"
 import { NoopNetworkDeviceAdapter } from "../adapters/network-device-adapter-noop"
 import type { Database } from "../db/connection"
-// v2: subnet → estate (type='subnet'), ipAddress fields moved to spec JSONB
 import { estate, ipAddress } from "../db/schema/infra-v2"
 import * as ipamSvc from "../services/infra/ipam.service"
 import { createTestContext, truncateAllTables } from "../test-helpers"
@@ -37,7 +36,6 @@ describe("IPAM Service", () => {
 
   beforeEach(async () => {
     await truncateAllTables(client)
-    // v2: ip_address is now in the infra schema, subnets are estate entities
     await client.query(
       `TRUNCATE TABLE infra.ip_address RESTART IDENTITY CASCADE`
     )
@@ -784,7 +782,7 @@ describe("IPAM Service", () => {
       })
       // Update hostname to contain a comma via direct DB update
       const { eq } = await import("drizzle-orm")
-      // v2: hostname is in spec JSONB
+      // hostname is in spec JSONB
       const [existing] = await db
         .select()
         .from(ipAddress)
@@ -814,7 +812,7 @@ describe("IPAM Service", () => {
       })
 
       const { eq } = await import("drizzle-orm")
-      // v2: purpose is in spec JSONB
+      // purpose is in spec JSONB
       const [existing] = await db
         .select()
         .from(ipAddress)

@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { generateTraefikYaml, KINDS_WITH_TRAEFIK_ROUTES, type TraefikRoute } from "../modules/infra/traefik-sync";
+import { describe, expect, it } from "vitest"
+
+import {
+  KINDS_WITH_TRAEFIK_ROUTES,
+  type TraefikRoute,
+  generateTraefikYaml,
+} from "../modules/infra/traefik-sync"
 
 describe("generateTraefikYaml", () => {
-  // v2: sandbox → workspace
   const baseRoute: TraefikRoute = {
     routeId: "rte_abc123",
     kind: "workspace",
@@ -15,53 +19,55 @@ describe("generateTraefikYaml", () => {
     middlewares: [],
     priority: 100,
     status: "active",
-  };
+  }
 
   it("generates empty config for no routes", () => {
-    const yaml = generateTraefikYaml([]);
-    expect(yaml).toContain("routers: {}");
-    expect(yaml).toContain("services: {}");
-  });
+    const yaml = generateTraefikYaml([])
+    expect(yaml).toContain("routers: {}")
+    expect(yaml).toContain("services: {}")
+  })
 
   it("generates router and service for a single route", () => {
-    const yaml = generateTraefikYaml([baseRoute]);
-    expect(yaml).toContain("rte_abc123:");
-    expect(yaml).toContain('rule: "Host(`my-workspace.preview.dx.dev`)"');
-    expect(yaml).toContain("service: rte_abc123");
-    expect(yaml).toContain("priority: 100");
-    expect(yaml).toContain('url: "http://workspace-svc:3000"');
-    expect(yaml).toContain("tls: {}");
-  });
+    const yaml = generateTraefikYaml([baseRoute])
+    expect(yaml).toContain("rte_abc123:")
+    expect(yaml).toContain('rule: "Host(`my-workspace.preview.dx.dev`)"')
+    expect(yaml).toContain("service: rte_abc123")
+    expect(yaml).toContain("priority: 100")
+    expect(yaml).toContain('url: "http://workspace-svc:3000"')
+    expect(yaml).toContain("tls: {}")
+  })
 
   it("includes path prefix in match rule", () => {
-    const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api/v1" };
-    const yaml = generateTraefikYaml([r]);
-    expect(yaml).toContain('Host(`my-workspace.preview.dx.dev`) && PathPrefix(`/api/v1`)');
-  });
+    const r: TraefikRoute = { ...baseRoute, pathPrefix: "/api/v1" }
+    const yaml = generateTraefikYaml([r])
+    expect(yaml).toContain(
+      "Host(`my-workspace.preview.dx.dev`) && PathPrefix(`/api/v1`)"
+    )
+  })
 
   it("skips tls when tlsMode is none", () => {
-    const r: TraefikRoute = { ...baseRoute, tlsMode: "none" };
-    const yaml = generateTraefikYaml([r]);
-    expect(yaml).not.toContain("tls:");
-  });
+    const r: TraefikRoute = { ...baseRoute, tlsMode: "none" }
+    const yaml = generateTraefikYaml([r])
+    expect(yaml).not.toContain("tls:")
+  })
 
   it("defaults to port 80 when no targetPort", () => {
-    const r: TraefikRoute = { ...baseRoute, targetPort: null };
-    const yaml = generateTraefikYaml([r]);
-    expect(yaml).toContain('url: "http://workspace-svc:80"');
-  });
+    const r: TraefikRoute = { ...baseRoute, targetPort: null }
+    const yaml = generateTraefikYaml([r])
+    expect(yaml).toContain('url: "http://workspace-svc:80"')
+  })
 
   it("generates multiple routes", () => {
     const routes: TraefikRoute[] = [
       { ...baseRoute, routeId: "rte_1", domain: "a.preview.dx.dev" },
       { ...baseRoute, routeId: "rte_2", domain: "b.preview.dx.dev" },
-    ];
-    const yaml = generateTraefikYaml(routes);
-    expect(yaml).toContain("rte_1:");
-    expect(yaml).toContain("rte_2:");
-    expect(yaml).toContain("a.preview.dx.dev");
-    expect(yaml).toContain("b.preview.dx.dev");
-  });
+    ]
+    const yaml = generateTraefikYaml(routes)
+    expect(yaml).toContain("rte_1:")
+    expect(yaml).toContain("rte_2:")
+    expect(yaml).toContain("a.preview.dx.dev")
+    expect(yaml).toContain("b.preview.dx.dev")
+  })
 
   it("generates config for custom_domain routes", () => {
     const routes: TraefikRoute[] = [
@@ -76,11 +82,11 @@ describe("generateTraefikYaml", () => {
         priority: 100,
         status: "active",
       },
-    ];
-    const yaml = generateTraefikYaml(routes);
-    expect(yaml).toContain("app.example.com");
-    expect(yaml).toContain("rte_custom1");
-  });
+    ]
+    const yaml = generateTraefikYaml(routes)
+    expect(yaml).toContain("app.example.com")
+    expect(yaml).toContain("rte_custom1")
+  })
 
   it("generates config for ingress routes", () => {
     const routes: TraefikRoute[] = [
@@ -96,19 +102,19 @@ describe("generateTraefikYaml", () => {
         priority: 100,
         status: "active",
       },
-    ];
-    const yaml = generateTraefikYaml(routes);
-    expect(yaml).toContain("api.prod.dx.dev");
-  });
+    ]
+    const yaml = generateTraefikYaml(routes)
+    expect(yaml).toContain("api.prod.dx.dev")
+  })
 
   it("returns empty config for no routes", () => {
-    const yaml = generateTraefikYaml([]);
-    expect(yaml).toContain("routers: {}");
-  });
-});
+    const yaml = generateTraefikYaml([])
+    expect(yaml).toContain("routers: {}")
+  })
+})
 
 describe("syncFactoryRoutes filtering", () => {
   it("only generates files for custom_domain and ingress kinds", () => {
-    expect(KINDS_WITH_TRAEFIK_ROUTES).toEqual(["ingress", "custom_domain"]);
-  });
-});
+    expect(KINDS_WITH_TRAEFIK_ROUTES).toEqual(["ingress", "custom_domain"])
+  })
+})

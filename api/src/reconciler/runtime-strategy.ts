@@ -22,7 +22,7 @@ export interface ReconcileContext {
     defaultReplicas: number
   }
   target: {
-    deploymentTargetId: string
+    systemDeploymentId: string
     name: string
     kind: string
     runtime: string
@@ -41,7 +41,7 @@ export interface ReconcileResult {
   details?: Record<string, unknown>
 }
 
-export interface RealmStrategy {
+export interface ReconcilerStrategy {
   readonly runtime: string
   reconcile(ctx: ReconcileContext, db: Database): Promise<ReconcileResult>
 }
@@ -54,16 +54,16 @@ export type RuntimeType =
   | "iis"
   | "process"
 
-const strategies: Partial<Record<RuntimeType, () => RealmStrategy>> = {}
+const strategies: Partial<Record<RuntimeType, () => ReconcilerStrategy>> = {}
 
-export function registerRealmStrategy(
+export function registerReconcilerStrategy(
   runtime: RuntimeType,
-  factory: () => RealmStrategy
+  factory: () => ReconcilerStrategy
 ): void {
   strategies[runtime] = factory
 }
 
-export function getRealmStrategy(runtime: string): RealmStrategy {
+export function getReconcilerStrategy(runtime: string): ReconcilerStrategy {
   const factory = strategies[runtime as RuntimeType]
   if (!factory) {
     throw new Error(
@@ -74,7 +74,7 @@ export function getRealmStrategy(runtime: string): RealmStrategy {
 }
 
 /** Clear all registered strategies — for test isolation only */
-export function clearRealmStrategies(): void {
+export function clearReconcilerStrategies(): void {
   for (const key of Object.keys(strategies)) {
     delete strategies[key as RuntimeType]
   }

@@ -1,10 +1,10 @@
-import { t, type UnwrapSchema } from "elysia"
+import { type UnwrapSchema, t } from "elysia"
 
 export const GatewayModel = {
   // Routes
   createRouteBody: t.Object({
     siteId: t.Optional(t.String()),
-    deploymentTargetId: t.Optional(t.String()),
+    systemDeploymentId: t.Optional(t.String()),
     clusterId: t.Optional(t.String()),
     type: t.String(),
     domain: t.String(),
@@ -35,7 +35,7 @@ export const GatewayModel = {
     type: t.Optional(t.String()),
     siteId: t.Optional(t.String()),
     status: t.Optional(t.String()),
-    deploymentTargetId: t.Optional(t.String()),
+    systemDeploymentId: t.Optional(t.String()),
   }),
 
   // Domains

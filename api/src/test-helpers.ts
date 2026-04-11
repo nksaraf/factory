@@ -153,7 +153,6 @@ export async function seedTestParents(client: PGlite) {
   }
 
   for (const id of principalIds) {
-    // v2: org.principal
     try {
       await client.query(
         `INSERT INTO org.principal (id, slug, name, type, spec, metadata)
@@ -167,7 +166,6 @@ export async function seedTestParents(client: PGlite) {
   }
 
   for (const id of repoIds) {
-    // v2: build.repo
     try {
       await client.query(
         `INSERT INTO build.repo (id, slug, name, spec)

@@ -1,11 +1,11 @@
 import type {
-  RealmStrategy,
   ReconcileContext,
   ReconcileResult,
+  ReconcilerStrategy,
 } from "../runtime-strategy"
 
-/** No-op strategy for inventory-only or unmanaged deployment targets */
-export class NoopStrategy implements RealmStrategy {
+/** No-op strategy for inventory-only or unmanaged system deployments */
+export class NoopStrategy implements ReconcilerStrategy {
   readonly runtime = "noop"
 
   async reconcile(ctx: ReconcileContext): Promise<ReconcileResult> {

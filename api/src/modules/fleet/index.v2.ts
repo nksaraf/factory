@@ -1,15 +1,15 @@
 /**
- * v2 Fleet controller → ops schema.
+ * Fleet controller → ops schema.
  *
- * Maps legacy fleet routes to v2 ontology tables:
+ * Route → table mapping:
  *   /fleet/sites                → ops.site
  *   /fleet/tenants              → ops.tenant
- *   /fleet/system-deployments   → ops.system_deployment   (was /fleet/deployment-targets)
+ *   /fleet/system-deployments   → ops.system_deployment
  *   /fleet/deployment-sets      → ops.deployment_set
  *   /fleet/rollouts             → ops.rollout
- *   /fleet/workspaces           → ops.workspace           (was /fleet/sandboxes)
+ *   /fleet/workspaces           → ops.workspace
  *   /fleet/workbenches          → ops.workbench
- *   /fleet/previews             → ops.preview             (was /infra/previews)
+ *   /fleet/previews             → ops.preview
  *   /fleet/interventions        → ops.intervention
  *   /fleet/connection-audit     → ops.connection_audit_event
  *   /fleet/install-manifests    → ops.install_manifest

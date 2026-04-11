@@ -40,7 +40,7 @@ export interface ResolvedBackendService {
     displayName?: string
     composeProject?: string
     image?: string
-    runtime: string
+    realmType: string
   }
 }
 
@@ -182,7 +182,7 @@ function matchBackendsToServices(
         displayName: portMap.containerName,
         composeProject: portMap.composeProject,
         image: portMap.image,
-        runtime: "docker",
+        realmType: "docker",
       }
     }
 
@@ -197,7 +197,7 @@ function matchBackendsToServices(
           displayName: svc.displayName,
           composeProject: svc.composeProject,
           image: svc.image,
-          runtime: svc.runtime,
+          realmType: svc.realmType,
         }
       }
     }
@@ -211,7 +211,7 @@ function matchBackendsToServices(
         service = {
           name: portEntry.process,
           displayName: portEntry.process,
-          runtime: "process",
+          realmType: "process",
         }
       }
     }
