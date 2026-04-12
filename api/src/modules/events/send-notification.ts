@@ -59,6 +59,8 @@ export async function sendNotification(
     schemaVersion: 1,
   })
 
+  const now = new Date().toISOString()
+
   // 2. Resolve recipients
   const recipients = await resolveRecipients(db, input.to, input.channels)
 
@@ -108,8 +110,8 @@ export async function sendNotification(
           scopeId: "default",
           spec: { data: notifEvent.data },
           schemaVersion: 1,
-          occurredAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
+          occurredAt: now,
+          createdAt: now,
         },
         renderFormat
       )
@@ -130,7 +132,7 @@ export async function sendNotification(
         topic: notifEvent.topic,
         severity: notifEvent.severity,
         source: notifEvent.source,
-        occurredAt: new Date().toISOString(),
+        occurredAt: now,
       })
 
       if (result.ok) {
