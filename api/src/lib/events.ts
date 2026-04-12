@@ -189,6 +189,11 @@ export async function emitExternalEvent(
     )
   }
 
+  // Add principal to refs so the full picture is in one place
+  if (principalId) {
+    refs.push({ kind: "principal", id: principalId, role: "context" })
+  }
+
   // Set entityKind/entityId from the first "subject" ref if not already set
   const subjectRef = refs.find((r) => r.role === "subject")
   const resolvedEntityKind =

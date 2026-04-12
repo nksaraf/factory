@@ -1,6 +1,6 @@
 import type { SiteSpec } from "@smp/factory-shared/schemas/ops"
 import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../../adapters/git-host-adapter"
 import type { Database } from "../../db/connection"
@@ -119,7 +119,7 @@ export class WebhookService {
    * Find a site with preview deployments enabled.
    * Site uses spec JSONB, no separate previewConfig/clusterId columns.
    */
-  private async findPreviewSite(repoFullName: string): Promise<{
+  private async findPreviewSite(_repoFullName: string): Promise<{
     siteId: string
     previewConfig: {
       enabled: boolean
