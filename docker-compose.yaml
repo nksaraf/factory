@@ -92,7 +92,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
@@ -105,6 +104,33 @@ services:
       catalog.port.5432.name: postgres
       catalog.port.5432.protocol: tcp
 
+  infra-postgres-init:
+    image: postgres:16-alpine
+    depends_on:
+      infra-postgres:
+        condition: service_healthy
+    volumes:
+      - ./infra/postgres/init-always.sql:/init-always.sql:ro
+    entrypoint:
+      [
+        "psql",
+        "-h",
+        "infra-postgres",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        "-f",
+        "/init-always.sql",
+      ]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    restart: "no"
+    labels:
+      catalog.description: "One-shot init: creates databases and users for dependent services"
+      catalog.owner: platform
+      catalog.type: init
+
   infra-spicedb:
     image: authzed/spicedb:latest
     command: serve
@@ -112,8 +138,8 @@ services:
     ports:
       - "${INFRA_SPICEDB_PORT:-50051}:50051"
     depends_on:
-      infra-postgres:
-        condition: service_healthy
+      infra-postgres-init:
+        condition: service_completed_successfully
     environment:
       SPICEDB_GRPC_PRESHARED_KEY: ${SPICEDB_PRESHARED_KEY:-dev-key}
       SPICEDB_DATASTORE_ENGINE: postgres
@@ -263,8 +289,8 @@ services:
     ports:
       - "${INFRA_POWERSYNC_PORT:-8090}:8080"
     depends_on:
-      infra-postgres:
-        condition: service_healthy
+      infra-postgres-init:
+        condition: service_completed_successfully
       infra-powersync-mongo:
         condition: service_healthy
     volumes:
@@ -391,8 +417,8 @@ services:
     ports:
       - "${INFRA_METABASE_PORT:-3000}:3000"
     depends_on:
-      infra-postgres:
-        condition: service_healthy
+      infra-postgres-init:
+        condition: service_completed_successfully
     environment:
       # Metabase app DB — isolated database for dashboards/config
       MB_DB_TYPE: postgres
