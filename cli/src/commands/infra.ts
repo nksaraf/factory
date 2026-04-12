@@ -1800,6 +1800,25 @@ export function infraCommand(app: DxBase) {
                   console.log(
                     `  ${t.type.padEnd(6)} → ${styleBold(String(label))}`
                   )
+
+                  // Show trace chain if available (IP → NAT → host → ...)
+                  const trace = t.trace
+                  if (trace?.hops?.length) {
+                    for (const hop of trace.hops) {
+                      const hopEntity = hop.entity
+                      const linkType = hop.link?.type ?? ""
+                      const entityLabel =
+                        hopEntity?.name ??
+                        hopEntity?.slug ??
+                        hopEntity?.address ??
+                        hopEntity?.id ??
+                        "?"
+                      const kindLabel = hop.link?.targetKind ?? ""
+                      console.log(
+                        `           ${styleMuted(linkType)} → ${styleBold(String(entityLabel))} ${styleMuted(`(${kindLabel})`)}`
+                      )
+                    }
+                  }
                 }
                 console.log()
               })

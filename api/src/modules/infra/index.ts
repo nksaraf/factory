@@ -1267,7 +1267,8 @@ export function infraController(db: Database) {
               )
             )
 
-          // Resolve targets
+          // Resolve targets and trace further from each IP
+          const reader = drizzleGraphReader(db)
           const targets = await Promise.all(
             links.map(async (link) => {
               if (link.targetKind === "ip-address" && link.targetId) {
@@ -1276,10 +1277,26 @@ export function infraController(db: Database) {
                   .from(ipAddress)
                   .where(eq(ipAddress.id, link.targetId))
                   .limit(1)
+                // Trace outbound from the IP to find NAT → host → services
+                let trace = null
+                if (ip) {
+                  try {
+                    const t = await traceFrom(
+                      reader,
+                      "ip-address",
+                      ip.id,
+                      "outbound"
+                    )
+                    if (t.hops.length > 0) trace = t
+                  } catch {
+                    // no trace available
+                  }
+                }
                 return {
                   type: (link.spec as any)?.recordType ?? "A",
                   target: ip ?? null,
                   targetKind: "ip-address",
+                  trace,
                   link,
                 }
               }
