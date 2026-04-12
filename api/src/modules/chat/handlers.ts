@@ -82,10 +82,23 @@ function fixDmThreadId(
   chatThread: { id: string; isDM: boolean },
   message: { id: string }
 ) {
+  log.info(
+    {
+      isDM: chatThread.isDM,
+      threadId: chatThread.id,
+      messageId: message.id,
+    },
+    "fixDmThreadId: checking"
+  )
   if (!chatThread.isDM) return
   const { slackChannelId, slackThreadTs } = parseSlackThreadId(chatThread.id)
   if (!slackThreadTs && message.id) {
-    ;(chatThread as any).id = `slack:${slackChannelId}:${message.id}`
+    const fixed = `slack:${slackChannelId}:${message.id}`
+    ;(chatThread as any).id = fixed
+    log.info(
+      { before: chatThread.id, after: fixed, actual: chatThread.id },
+      "fixDmThreadId: patched"
+    )
   }
 }
 
