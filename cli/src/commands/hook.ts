@@ -1,8 +1,33 @@
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 import type { DxBase } from "../dx-root.js"
 import type { IngestEvent } from "../lib/ingest/common.js"
 import { sendEvent } from "../lib/ingest/send.js"
+
+// ── Session ID cache ─────────────────────────────────────────
+// Claude Code only sends session_id on SessionStart/SessionEnd.
+// We cache it to a file so other events can look it up.
+const SESSION_CACHE_DIR = join(homedir(), ".cache", "dx")
+const SESSION_CACHE_FILE = join(SESSION_CACHE_DIR, "claude-session-id")
+
+function cacheSessionId(sessionId: string): void {
+  try {
+    mkdirSync(SESSION_CACHE_DIR, { recursive: true })
+    writeFileSync(SESSION_CACHE_FILE, sessionId)
+  } catch {
+    // Best-effort
+  }
+}
+
+function getCachedSessionId(): string | null {
+  try {
+    return readFileSync(SESSION_CACHE_FILE, "utf8").trim() || null
+  } catch {
+    return null
+  }
+}
 
 /**
  * dx hook — called by IDE hook configs (Cursor, Claude Code), not by users directly.
@@ -96,10 +121,13 @@ async function handleCursorEvent(hookEvent: string): Promise<void> {
 
   const input = await readStdinJson()
 
-  const sessionId =
-    (input.session_id as string) ??
-    (input.sessionId as string) ??
-    crypto.randomUUID()
+  let sessionId =
+    (input.session_id as string) ?? (input.sessionId as string) ?? undefined
+  if (sessionId) {
+    cacheSessionId(sessionId)
+  } else {
+    sessionId = getCachedSessionId() ?? crypto.randomUUID()
+  }
 
   const event: IngestEvent = {
     source: "cursor",
@@ -214,7 +242,14 @@ async function handleClaudeCodeEvent(hookEvent: string): Promise<void> {
 
   const input = await readStdinJson()
 
-  const sessionId = (input.session_id as string) ?? crypto.randomUUID()
+  // Claude Code only sends session_id on SessionStart/SessionEnd.
+  // For other events, read from the cached file.
+  let sessionId = input.session_id as string | undefined
+  if (sessionId) {
+    cacheSessionId(sessionId)
+  } else {
+    sessionId = getCachedSessionId() ?? crypto.randomUUID()
+  }
 
   const event: IngestEvent = {
     source: "claude-code",
