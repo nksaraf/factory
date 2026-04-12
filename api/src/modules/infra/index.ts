@@ -94,9 +94,13 @@ import { drizzleDbReader, resolveRouteTargets } from "./route-resolver"
 import {
   domainMatches,
   drizzleGraphReader,
+  drizzleRequestGraphReader,
+  parseRequestInput,
   traceFrom,
+  traceRequest,
   validateEndpoints,
 } from "./trace"
+import type { RequestContext, RequestTraceResult } from "./trace"
 import { createTunnelHandlers } from "./tunnel-broker"
 
 function isRfc1918Ip(ip: string): boolean {
@@ -105,6 +109,44 @@ function isRfc1918Ip(ip: string): boolean {
   if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
   if (parts[0] === 192 && parts[1] === 168) return true
   return false
+}
+
+/** Find the best-matching DNS domain entity for a hostname (exact or wildcard). */
+async function findDnsDomainForHost(
+  db: Database,
+  hostname: string
+): Promise<{
+  id: string
+  slug: string
+  name: string
+  type: string
+  fqdn: string
+} | null> {
+  const dotIdx = hostname.indexOf(".")
+  const parentSuffix = dotIdx >= 0 ? hostname.slice(dotIdx) : null
+
+  const candidates = await db
+    .select({
+      id: dnsDomain.id,
+      slug: dnsDomain.slug,
+      name: dnsDomain.name,
+      type: dnsDomain.type,
+      fqdn: dnsDomain.fqdn,
+    })
+    .from(dnsDomain)
+    .where(
+      parentSuffix
+        ? sql`${dnsDomain.fqdn} = ${hostname} OR ${dnsDomain.fqdn} = ${"*" + parentSuffix}`
+        : eq(dnsDomain.fqdn, hostname)
+    )
+
+  return (
+    candidates.find(
+      (d) =>
+        d.fqdn === hostname ||
+        (d.fqdn.startsWith("*.") && domainMatches(d.fqdn, hostname))
+    ) ?? null
+  )
 }
 
 const TraceBodySchema = z.object({
@@ -887,21 +929,40 @@ export function infraController(db: Database) {
         }
       )
 
-      // ── Domain trace ────────────────────────────────────
+      // ── Domain trace (legacy, delegates to request trace) ──
       .get(
         "/trace/domain",
         async ({ query }) => {
           const domain = query.domain
+          const port = query.port
+            ? parseInt(query.port as string, 10)
+            : undefined
           if (!domain) {
             throw new ValidationError("domain query parameter is required")
           }
 
-          // Narrow at SQL level: exact match OR wildcard routes that could match
-          // Extract the parent domain suffix for wildcard matching (e.g. "foo.bar.com" → ".bar.com")
-          const dotIdx = domain.indexOf(".")
-          const parentSuffix = dotIdx >= 0 ? domain.slice(dotIdx) : null
+          const request = parseRequestInput(port ? `${domain}:${port}` : domain)
 
-          const candidates = await db
+          // Find DNS domain entity for this domain (wildcard or exact)
+          const reader = drizzleRequestGraphReader(db)
+          let requestTrace: RequestTraceResult | undefined
+
+          const matchedDns = await findDnsDomainForHost(db, domain)
+
+          if (matchedDns) {
+            const root = await traceRequest(
+              reader,
+              request,
+              "dns-domain",
+              matchedDns.id
+            )
+            requestTrace = { request, root }
+          }
+
+          // Also find matching routes for backward compat
+          const dotIdx = domain.indexOf(".")
+          const domainSuffix = dotIdx >= 0 ? domain.slice(dotIdx) : null
+          const routeCandidates = await db
             .select({
               id: route.id,
               slug: route.slug,
@@ -912,43 +973,96 @@ export function infraController(db: Database) {
             })
             .from(route)
             .where(
-              parentSuffix
-                ? sql`${route.domain} = ${domain} OR ${route.domain} = ${"*" + parentSuffix}`
-                : eq(route.domain, domain)
+              domainSuffix
+                ? sql`${route.domain} = ${domain} OR ${route.domain} = ${"*" + domainSuffix} OR ${route.domain} = '*'`
+                : sql`${route.domain} = ${domain} OR ${route.domain} = '*'`
             )
 
-          // Final in-memory check for edge cases (multi-level wildcards, etc.)
-          const matchingRoutes = candidates.filter((r) =>
-            domainMatches(r.domain, domain)
+          const matchingRoutes = routeCandidates.filter(
+            (r) => domainMatches(r.domain, domain) || r.domain === "*"
           )
 
-          if (matchingRoutes.length === 0) {
-            throw new NotFoundError(`No routes found for domain: ${domain}`)
-          }
-
-          // Only include routes that have a realm to trace
-          const traceableRoutes = matchingRoutes.filter((r) => r.realmId)
-
-          const reader = drizzleGraphReader(db)
-          const traces = await Promise.all(
-            traceableRoutes.map(async (r) => {
-              const trace = await traceFrom(
-                reader,
-                "realm",
-                r.realmId!,
-                "outbound",
-                { matchDomain: domain }
-              )
-              return { route: r, trace }
-            })
-          )
-
-          return ok({ domain, routes: traceableRoutes, traces })
+          return ok({
+            domain,
+            request,
+            routes: matchingRoutes,
+            trace: requestTrace,
+          })
         },
         {
           detail: {
             tags: ["infra/trace"],
             summary: "Trace network path for a domain",
+          },
+        }
+      )
+
+      // ── Request trace ──────────────────────────────────────
+      .post(
+        "/trace/request",
+        async ({ body }) => {
+          const input = z
+            .object({
+              url: z.string().optional(),
+              protocol: z.string().optional(),
+              port: z.number().int().positive().optional(),
+              domain: z.string().optional(),
+              path: z.string().optional(),
+              headers: z.record(z.string()).optional(),
+              startKind: z.string().optional(),
+              startId: z.string().optional(),
+            })
+            .parse(body)
+
+          let request: RequestContext
+
+          if (input.url) {
+            request = parseRequestInput(input.url)
+          } else if (input.domain) {
+            request = parseRequestInput(
+              input.port ? `${input.domain}:${input.port}` : input.domain
+            )
+            if (input.protocol)
+              request.protocol = input.protocol as RequestContext["protocol"]
+            if (input.path) request.path = input.path
+            if (input.headers) request.headers = input.headers
+          } else {
+            throw new ValidationError("Either 'url' or 'domain' is required")
+          }
+
+          const reader = drizzleRequestGraphReader(db)
+          let root
+
+          if (input.startKind && input.startId) {
+            root = await traceRequest(
+              reader,
+              request,
+              input.startKind,
+              input.startId
+            )
+          } else if (request.domain) {
+            // Start from DNS domain
+            const matched = await findDnsDomainForHost(db, request.domain)
+
+            if (!matched) {
+              throw new NotFoundError(
+                `No DNS domain found for: ${request.domain}`
+              )
+            }
+
+            root = await traceRequest(reader, request, "dns-domain", matched.id)
+          } else {
+            throw new ValidationError("Cannot determine trace starting point")
+          }
+
+          const result: RequestTraceResult = { request, root }
+          return ok(result)
+        },
+        {
+          detail: {
+            tags: ["infra/trace"],
+            summary:
+              "Trace full request path through the network (DNS → IP → host → gateway → backend)",
           },
         }
       )

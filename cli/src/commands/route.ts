@@ -210,76 +210,113 @@ export function routeCommand(app: DxBase) {
           })
       )
 
-      // dx route trace <domain>
+      // dx route trace <url|domain>
       .command("trace", (c) =>
         c
-          .meta({ description: "Trace network path for a domain" })
+          .meta({
+            description: "Trace network path for a domain or URL",
+          })
           .args([
             {
-              name: "domain",
+              name: "target",
               type: "string",
-              description: "Domain to trace (e.g. factory.lepton.software)",
+              description:
+                "URL or domain to trace (e.g. https://bugs.rio.software/api, bugs.rio.software:443)",
             },
           ])
           .run(async ({ args, flags }) => {
             const f = toDxFlags(flags)
-            const domain = args.domain
-            if (!domain) {
-              exitWithError(f, "Usage: dx route trace <domain>")
+            const target = args.target
+            if (!target) {
+              exitWithError(
+                f,
+                "Usage: dx route trace <url|domain>\n  e.g. dx route trace https://bugs.rio.software/api\n       dx route trace bugs.rio.software:443"
+              )
             }
 
             const rest = await getFactoryRestClient()
 
-            type DomainTraceResponse = {
+            type TraceNode = {
+              entity: {
+                id: string
+                slug: string
+                name: string
+                type: string
+              }
+              link?: {
+                id: string
+                slug: string
+                name: string
+                type: string
+                spec: Record<string, unknown>
+              }
+              weight?: number
+              implicit?: boolean
+              children: TraceNode[]
+            }
+
+            type RequestContext = {
+              protocol: string
+              port: number
+              domain?: string
+              path?: string
+              headers?: Record<string, string>
+            }
+
+            type TraceResponse = {
               data: {
                 domain: string
+                request: RequestContext
                 routes: Array<{
-                  id: string
                   slug: string
-                  name: string
                   domain: string
-                  realmId: string | null
                   spec: Record<string, unknown>
                 }>
-                traces: Array<{
-                  route: { slug: string; domain: string }
-                  trace: {
-                    origin: { slug: string; name: string; type: string }
-                    hops: Array<{
-                      link: {
-                        slug: string
-                        type: string
-                        spec: Record<string, unknown>
-                      }
-                      via?: {
-                        slug: string
-                        name: string
-                        type: string
-                      }
-                      entity: {
-                        slug: string
-                        name: string
-                        type: string
-                      }
-                    }>
-                  }
-                }>
+                trace?: {
+                  request: RequestContext
+                  root: TraceNode
+                }
               }
             }
 
-            let result: DomainTraceResponse
+            // Parse target: URL, domain:port, or just domain
+            // Use POST /trace/request for full URLs (carries path/protocol),
+            // GET /trace/domain for simple domain/domain:port lookups
+            let result: TraceResponse
             try {
-              result = await rest.request<DomainTraceResponse>(
-                "GET",
-                `/api/v1/factory/infra/trace/domain?domain=${encodeURIComponent(domain)}`
-              )
+              if (target.includes("://")) {
+                // Full URL — use POST to carry path and protocol
+                const postResult = await rest.request<{
+                  data: { request: RequestContext; root: TraceNode }
+                }>("POST", "/api/v1/factory/infra/trace/request", {
+                  url: target,
+                })
+                // Wrap into the TraceResponse shape
+                result = {
+                  data: {
+                    domain: postResult.data.request.domain ?? target,
+                    request: postResult.data.request,
+                    routes: [],
+                    trace: postResult.data,
+                  },
+                }
+              } else {
+                let queryUrl: string
+                if (target.includes(":")) {
+                  const [domain, port] = target.split(":")
+                  queryUrl = `/api/v1/factory/infra/trace/domain?domain=${encodeURIComponent(domain)}&port=${port}`
+                } else {
+                  queryUrl = `/api/v1/factory/infra/trace/domain?domain=${encodeURIComponent(target)}`
+                }
+                result = await rest.request<TraceResponse>("GET", queryUrl)
+              }
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err)
               if (msg.includes("404")) {
-                exitWithError(f, `No routes found for domain: ${domain}`)
+                exitWithError(f, `No routes found for: ${target}`)
               }
-              exitWithError(f, `Failed to trace domain: ${msg}`)
-              return // unreachable, but satisfies TS
+              exitWithError(f, `Failed to trace: ${msg}`)
+              return
             }
 
             const data = result.data
@@ -289,61 +326,89 @@ export function routeCommand(app: DxBase) {
               return
             }
 
-            // Render domain trace as a visual path
-            console.log(`\n${styleBold(`Domain trace: ${domain}`)}\n`)
+            // Render request context
+            const req = data.request
+            console.log(
+              `\n${styleBold("Trace:")} ${req.protocol}://${req.domain ?? "?"}:${req.port}${req.path ?? ""}\n`
+            )
 
-            if (data.traces.length === 0) {
-              console.log(
-                styleWarn("No traceable routes found for this domain.")
-              )
+            if (!data.trace) {
+              console.log(styleWarn("No trace path found for this request."))
+              if (data.routes.length > 0) {
+                console.log(
+                  styleMuted(
+                    `\n${data.routes.length} route(s) matched but no DNS entry found to start the trace.`
+                  )
+                )
+              }
               return
             }
 
-            console.log(
-              styleMuted(
-                `Found ${data.traces.length} route(s) matching "${domain}"\n`
-              )
-            )
-
-            for (const { route: rt, trace } of data.traces) {
-              console.log(`${styleBold("Route:")} ${rt.slug} (${rt.domain})`)
-              console.log(
-                `${styleBold("Origin:")} ${trace.origin.name} ${styleMuted(`[${trace.origin.type}]`)}`
-              )
-
-              if (trace.hops.length === 0) {
-                console.log(styleMuted("  (no outbound links found)\n"))
-                continue
-              }
-
-              // Render hop chain
-              const lines: string[] = []
-              lines.push(
-                `  ${styleSuccess(trace.origin.slug)} ${styleMuted(`[${trace.origin.type}]`)}`
-              )
-
-              for (const hop of trace.hops) {
-                const port = hop.link.spec?.egressPort
-                const protocol = hop.link.spec?.egressProtocol ?? ""
-                const portStr = port ? `:${port}` : ""
-                const protoStr = protocol ? `${protocol}` : ""
-                const viaStr = hop.via ? ` (via ${hop.via.slug})` : ""
-                const label = [hop.link.type, protoStr, portStr]
-                  .filter(Boolean)
-                  .join(" ")
-
-                lines.push(
-                  `    ${styleMuted("──")} ${label}${viaStr} ${styleMuted("──▶")}`
-                )
-                lines.push(
-                  `  ${styleSuccess(hop.entity.slug)} ${styleMuted(`[${hop.entity.type}]`)}`
-                )
-              }
-
-              console.log(lines.join("\n"))
-              console.log()
-            }
+            // Render the trace tree
+            renderTraceTree(data.trace.root, "", true)
+            console.log()
           })
       )
   )
+}
+
+/** Render a TraceNode tree recursively with tree-drawing characters. */
+function renderTraceTree(
+  node: {
+    entity: { slug: string; name: string; type: string }
+    link?: { type: string; spec: Record<string, unknown> }
+    weight?: number
+    implicit?: boolean
+    children: Array<{
+      entity: { slug: string; name: string; type: string }
+      link?: { type: string; spec: Record<string, unknown> }
+      weight?: number
+      implicit?: boolean
+      children: unknown[]
+    }>
+  },
+  indent: string,
+  isRoot: boolean
+) {
+  // Render this node's entity
+  const implicitTag = node.implicit ? styleMuted(" (implicit)") : ""
+  console.log(
+    `${indent}${styleSuccess(node.entity.slug)} ${styleMuted(`[${node.entity.type}]`)}${implicitTag}`
+  )
+
+  // Render link label above each child
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i]
+    const isLast = i === node.children.length - 1
+    const connector = node.children.length > 1 ? (isLast ? "└─" : "├─") : "──"
+
+    if (child.link) {
+      const spec = child.link.spec ?? {}
+      const port = spec.egressPort as number | undefined
+      const protocol = (spec.egressProtocol as string) ?? ""
+      const portStr = port ? `:${port}` : ""
+      const protoStr = protocol ? `${protocol}` : ""
+      const weightStr =
+        child.weight != null && child.weight < 100 ? ` (w:${child.weight})` : ""
+      const label = [child.link.type, protoStr, portStr]
+        .filter(Boolean)
+        .join(" ")
+
+      console.log(
+        `${indent}  ${styleMuted(connector)} ${label}${weightStr} ${styleMuted("──▶")}`
+      )
+    } else if (child.implicit) {
+      console.log(
+        `${indent}  ${styleMuted(connector)} ${styleMuted("(port match)")} ${styleMuted("──▶")}`
+      )
+    }
+
+    const childIndent =
+      node.children.length > 1 && !isLast ? `${indent}  │ ` : `${indent}    `
+    renderTraceTree(
+      child as Parameters<typeof renderTraceTree>[0],
+      childIndent,
+      false
+    )
+  }
 }

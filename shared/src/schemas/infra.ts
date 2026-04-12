@@ -885,6 +885,7 @@ export const ScanRouterSchema = z.object({
   pathPrefixes: z.array(z.string()).default([]),
   entrypoints: z.array(z.string()).default([]),
   service: z.string(),
+  priority: z.number().int().optional(),
   tls: z
     .object({
       certResolver: z.string().optional(),

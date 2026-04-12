@@ -1,10 +1,13 @@
 /**
  * Network graph tracer.
  *
- * Walks networkLink edges from a starting entity, building the
- * full request path with protocol/port/TLS details at each hop.
+ * Two algorithms:
+ * 1. `traceFrom` — legacy linear graph walk (backward compat)
+ * 2. `traceRequest` — request-aware recursive trace that carries protocol/port/domain/path/headers,
+ *    branches at load balancers, resolves host:port → entity implicitly, and looks up routes at
+ *    reverse-proxy realms.
  */
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
 import {
@@ -14,15 +17,16 @@ import {
   ipAddress,
   networkLink,
   realm,
-  route,
+  realmHost,
+  route as routeTable,
   service,
 } from "../../db/schema/infra"
 import { componentDeployment } from "../../db/schema/ops"
 import { NotFoundError } from "../../lib/errors"
 
-// ── Reader interface (testable without DB) ───────────────────
+// ── Common types ────────────────────────────────────────────
 
-interface LinkRow {
+export interface LinkRow {
   id: string
   slug: string
   name: string
@@ -36,13 +40,15 @@ interface LinkRow {
   spec: Record<string, unknown>
 }
 
-interface EntityRow {
+export interface EntityRow {
   id: string
   slug: string
   name: string
   type: string
   [key: string]: unknown
 }
+
+// ── Legacy reader interface ─────────────────────────────────
 
 export interface GraphReader {
   findLinks(
@@ -63,6 +69,58 @@ export interface TraceResult {
   origin: EntityRow
   direction: "outbound" | "inbound"
   hops: TraceHop[]
+}
+
+// ── Request-aware trace types ───────────────────────────────
+
+export type TraceProtocol = "http" | "https" | "tcp" | "udp" | "grpc"
+
+export interface RequestContext {
+  protocol: TraceProtocol
+  port: number
+  domain?: string
+  path?: string
+  headers?: Record<string, string>
+}
+
+export interface TraceNode {
+  entity: EntityRow
+  link?: LinkRow
+  weight?: number
+  implicit?: boolean
+  children: TraceNode[]
+}
+
+export interface RequestTraceResult {
+  request: RequestContext
+  root: TraceNode
+}
+
+/** Resolved port → entity from host_listening_port view. */
+export interface PortEntity {
+  entity: EntityRow
+  isGateway: boolean
+}
+
+/** Route matched on a reverse-proxy realm. */
+export interface MatchedRoute {
+  id: string
+  slug: string
+  name: string
+  domain: string
+  realmId: string | null
+  spec: Record<string, unknown>
+  priority: number
+}
+
+/** Extended reader for request-aware tracing. */
+export interface RequestGraphReader extends GraphReader {
+  findEntityOnPort(hostId: string, port: number): Promise<PortEntity | null>
+  findRoutesOnRealm(
+    realmId: string,
+    request: RequestContext
+  ): Promise<MatchedRoute[]>
+  findHostForRealm(realmId: string): Promise<EntityRow | null>
 }
 
 const MAX_DEPTH = 20
@@ -145,6 +203,297 @@ export async function traceFrom(
   return { origin, direction, hops }
 }
 
+// ── Request-aware recursive tracer ─────────────────────────
+
+/**
+ * Parse a URL or domain string into a RequestContext.
+ * Accepts: "https://bugs.rio.software:443/api/v1", "bugs.rio.software:443", "bugs.rio.software"
+ */
+export function parseRequestInput(input: string): RequestContext {
+  // If it looks like a URL with a scheme
+  if (input.includes("://")) {
+    const url = new URL(input)
+    const protocol = url.protocol.replace(":", "") as TraceProtocol
+    const defaultPort =
+      protocol === "https" ? 443 : protocol === "http" ? 80 : 0
+    return {
+      protocol,
+      port: url.port ? parseInt(url.port, 10) : defaultPort,
+      domain: url.hostname,
+      path: url.pathname !== "/" ? url.pathname : undefined,
+      headers: undefined,
+    }
+  }
+
+  // "domain:port" or just "domain"
+  const [domainPart, portStr] = input.split(":")
+  const port = portStr ? parseInt(portStr, 10) : 443
+  const protocol: TraceProtocol = port === 80 ? "http" : "https"
+
+  return {
+    protocol,
+    port,
+    domain: domainPart,
+    path: undefined,
+    headers: undefined,
+  }
+}
+
+/**
+ * Filter outbound links against a request context.
+ * Returns all matching links, sorted by specificity (most specific first).
+ */
+export function filterByRequest(
+  links: LinkRow[],
+  request: RequestContext
+): LinkRow[] {
+  const scored: Array<{ link: LinkRow; score: number }> = []
+
+  for (const link of links) {
+    const spec = link.spec ?? {}
+    const match = spec.match as
+      | {
+          hosts?: string[]
+          pathPrefixes?: string[]
+          headers?: Record<string, string>
+          sni?: string[]
+        }
+      | undefined
+
+    let score = 0
+
+    // Port match
+    const ingressPort = spec.ingressPort as number | undefined
+    if (ingressPort && ingressPort !== request.port) continue
+    if (ingressPort) score += 10
+
+    // Domain match
+    const matchHosts = match?.hosts ?? []
+    if (matchHosts.length > 0 && request.domain) {
+      const hostMatch = matchHosts.some((h) =>
+        domainMatches(h as string, request.domain!)
+      )
+      if (!hostMatch) continue
+      // Exact match scores higher than wildcard
+      const exactMatch = matchHosts.includes(request.domain)
+      score += exactMatch ? 100 : 50
+    } else if (matchHosts.length > 0 && !request.domain) {
+      // Link requires a domain but request doesn't have one — skip
+      continue
+    }
+    // No hosts in match = catch-all, score stays low
+
+    // Path match (longest prefix wins)
+    const matchPaths = match?.pathPrefixes ?? []
+    if (matchPaths.length > 0 && request.path) {
+      const pathMatch = matchPaths
+        .filter((p) => request.path!.startsWith(p as string))
+        .sort((a, b) => (b as string).length - (a as string).length)
+      if (pathMatch.length > 0) {
+        score += 20 + (pathMatch[0] as string).length
+      } else {
+        continue // path doesn't match any prefix
+      }
+    }
+
+    // Header match (all specified headers must match)
+    const matchHeaders = match?.headers ?? {}
+    if (Object.keys(matchHeaders).length > 0 && request.headers) {
+      const allMatch = Object.entries(matchHeaders).every(
+        ([k, v]) => request.headers![k] === v
+      )
+      if (!allMatch) continue
+      score += 30
+    }
+
+    // SNI match (for TLS passthrough)
+    const matchSni = match?.sni ?? []
+    if (matchSni.length > 0 && request.domain) {
+      if (!matchSni.some((s) => domainMatches(s as string, request.domain!)))
+        continue
+      score += 40
+    }
+
+    // Priority from link spec
+    const priority = (spec.priority as number | undefined) ?? 0
+    score += priority
+
+    scored.push({ link, score })
+  }
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((s) => s.link)
+}
+
+/**
+ * Recursive request-aware tracer.
+ * Carries request context through the graph, branching at load balancers,
+ * resolving host:port → entity implicitly, and matching routes at reverse-proxy realms.
+ */
+export async function traceRequest(
+  reader: RequestGraphReader,
+  request: RequestContext,
+  startKind: string,
+  startId: string,
+  depth = 0,
+  visited: Set<string> = new Set()
+): Promise<TraceNode> {
+  const visitKey = `${startKind}:${startId}`
+
+  if (depth >= MAX_DEPTH || visited.has(visitKey)) {
+    const entity = await reader.findEntity(startKind, startId)
+    return {
+      entity: entity ?? {
+        id: startId,
+        slug: startId,
+        name: startId,
+        type: startKind,
+      },
+      children: [],
+    }
+  }
+
+  visited.add(visitKey)
+
+  const entity = await reader.findEntity(startKind, startId)
+  if (!entity) {
+    return {
+      entity: { id: startId, slug: startId, name: startId, type: startKind },
+      children: [],
+    }
+  }
+
+  const node: TraceNode = { entity, children: [] }
+
+  // Get outbound links from this entity
+  const links = await reader.findLinks(startKind, startId, "outbound")
+  const matched = filterByRequest(links, request)
+
+  if (matched.length > 0) {
+    // Normal link traversal — follow all matching links (branching)
+    for (const link of matched) {
+      const nextKind = link.targetKind
+      const nextId = link.targetId
+      const spec = link.spec ?? {}
+
+      // Update request context from link
+      const updatedRequest: RequestContext = {
+        ...request,
+        port: (spec.egressPort as number | undefined) ?? request.port,
+        protocol:
+          (spec.egressProtocol as TraceProtocol | undefined) ??
+          request.protocol,
+      }
+
+      const child = await traceRequest(
+        reader,
+        updatedRequest,
+        nextKind,
+        nextId,
+        depth + 1,
+        visited
+      )
+      child.link = link
+      child.weight =
+        (spec.loadBalancing as { weight?: number } | undefined)?.weight ??
+        undefined
+      node.children.push(child)
+    }
+    return node
+  }
+
+  // No matching links — try implicit resolution
+
+  // At a host: resolve port → entity
+  if (startKind === "host") {
+    const portEntity = await reader.findEntityOnPort(startId, request.port)
+    if (portEntity) {
+      if (portEntity.isGateway) {
+        // Gateway (reverse proxy) — recurse into it
+        const child = await traceRequest(
+          reader,
+          request,
+          "realm",
+          portEntity.entity.id,
+          depth + 1,
+          visited
+        )
+        child.implicit = true
+        node.children.push(child)
+      } else {
+        // Terminal entity (component/service)
+        node.children.push({
+          entity: portEntity.entity,
+          implicit: true,
+          children: [],
+        })
+      }
+    }
+    return node
+  }
+
+  // At a reverse-proxy realm: look up routes matching the request
+  if (startKind === "realm" && entity.type === "reverse-proxy") {
+    const routes = await reader.findRoutesOnRealm(startId, request)
+    for (const r of routes) {
+      const routeSpec = r.spec
+      const targetPort =
+        (routeSpec.targetPort as number | undefined) ?? request.port
+
+      const updatedRequest: RequestContext = { ...request, port: targetPort }
+
+      // Find outbound links from this route
+      const routeLinks = await reader.findLinks("route", r.id, "outbound")
+      if (routeLinks.length > 0) {
+        // Proxy links from the realm for this route's domain — follow them
+        for (const link of routeLinks) {
+          const child = await traceRequest(
+            reader,
+            updatedRequest,
+            link.targetKind,
+            link.targetId,
+            depth + 1,
+            visited
+          )
+          child.link = link
+          node.children.push(child)
+        }
+      } else {
+        // No route-level links — try realm-level outbound links filtered by this route's domain
+        const realmLinks = await reader.findLinks("realm", startId, "outbound")
+        const routeRequest: RequestContext = {
+          ...updatedRequest,
+          domain: r.domain !== "*" ? r.domain : request.domain,
+        }
+        const realmMatched = filterByRequest(realmLinks, routeRequest)
+        for (const link of realmMatched) {
+          const child = await traceRequest(
+            reader,
+            updatedRequest,
+            link.targetKind,
+            link.targetId,
+            depth + 1,
+            visited
+          )
+          child.link = link
+          child.weight =
+            (link.spec?.loadBalancing as { weight?: number } | undefined)
+              ?.weight ?? undefined
+          node.children.push(child)
+        }
+      }
+
+      // For domain traces, only follow the best matching route (not all)
+      // Catch-all routes are already sorted last
+      if (node.children.length > 0) break
+    }
+    return node
+  }
+
+  return node
+}
+
 // ── Drizzle implementation ───────────────────────────────────
 
 const ENTITY_TABLES: Record<string, { table: any; idCol: any }> = {
@@ -154,13 +503,14 @@ const ENTITY_TABLES: Record<string, { table: any; idCol: any }> = {
   service: { table: service, idCol: service.id },
   "ip-address": { table: ipAddress, idCol: ipAddress.id },
   "dns-domain": { table: dnsDomain, idCol: dnsDomain.id },
-  route: { table: route, idCol: route.id },
+  route: { table: routeTable, idCol: routeTable.id },
   "component-deployment": {
     table: componentDeployment,
     idCol: componentDeployment.id,
   },
 }
 
+/** Legacy reader — supports traceFrom only. */
 export function drizzleGraphReader(db: Database): GraphReader {
   return {
     async findLinks(kind, id, direction) {
@@ -177,6 +527,121 @@ export function drizzleGraphReader(db: Database): GraphReader {
       const meta = ENTITY_TABLES[kind]
       if (!meta) return null
       const [row] = await db.select().from(meta.table).where(eq(meta.idCol, id))
+      return (row as EntityRow) ?? null
+    },
+  }
+}
+
+/** Full reader — supports traceRequest with port resolution and route matching. */
+export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
+  const base = drizzleGraphReader(db)
+
+  return {
+    ...base,
+
+    async findEntityOnPort(hostId, port) {
+      // Query the host_listening_port view, preferring gateways
+      const result = await db.execute(
+        sql`SELECT entity_kind, entity_id, entity_slug, entity_type, is_gateway
+            FROM infra.host_listening_port
+            WHERE host_id = ${hostId} AND port = ${port}
+            ORDER BY is_gateway DESC
+            LIMIT 1`
+      )
+
+      const rows = result as unknown as Array<{
+        entity_kind: string
+        entity_id: string
+        entity_slug: string
+        entity_type: string
+        is_gateway: boolean
+      }>
+      const row = rows[0]
+      if (!row) return null
+
+      const entity: EntityRow = {
+        id: row.entity_id,
+        slug: row.entity_slug,
+        name: row.entity_slug,
+        type: row.entity_type,
+      }
+
+      return { entity, isGateway: row.is_gateway }
+    },
+
+    async findRoutesOnRealm(realmId, request) {
+      // Find routes on this realm, optionally filtering by domain
+      const rows = await db
+        .select({
+          id: routeTable.id,
+          slug: routeTable.slug,
+          name: routeTable.name,
+          domain: routeTable.domain,
+          realmId: routeTable.realmId,
+          spec: routeTable.spec,
+        })
+        .from(routeTable)
+        .where(eq(routeTable.realmId, realmId))
+
+      // Match routes against request context
+      const matched: MatchedRoute[] = []
+      for (const r of rows) {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        const routeDomain = r.domain
+        const routePath = spec.pathPrefix as string | undefined
+        const routePriority = (spec.priority as number | undefined) ?? 0
+
+        // Domain matching: exact, wildcard, or catch-all (*)
+        let domainMatch = false
+        if (!request.domain) {
+          domainMatch = true // no domain filter = match all
+        } else if (routeDomain === "*") {
+          domainMatch = true // catch-all
+        } else {
+          domainMatch = domainMatches(routeDomain, request.domain)
+        }
+
+        if (!domainMatch) continue
+
+        // Path matching: if route has pathPrefix, request path must start with it
+        if (routePath && request.path && !request.path.startsWith(routePath)) {
+          continue
+        }
+
+        matched.push({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          domain: r.domain,
+          realmId: r.realmId,
+          spec: spec,
+          priority: routePriority,
+        })
+      }
+
+      // Sort by priority descending, then catch-all (*) last
+      matched.sort((a, b) => {
+        if (a.domain === "*" && b.domain !== "*") return 1
+        if (a.domain !== "*" && b.domain === "*") return -1
+        return b.priority - a.priority
+      })
+
+      return matched
+    },
+
+    async findHostForRealm(realmId) {
+      const [row] = await db
+        .select({
+          id: host.id,
+          slug: host.slug,
+          name: host.name,
+          type: host.type,
+        })
+        .from(host)
+        .innerJoin(realmHost, eq(realmHost.hostId, host.id))
+        .where(eq(realmHost.realmId, realmId))
+        .limit(1)
+
       return (row as EntityRow) ?? null
     },
   }

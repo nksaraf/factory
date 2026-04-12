@@ -216,6 +216,7 @@ export async function collectTraefikRoutes(
         pathPrefixes,
         entrypoints: r.entryPoints ?? r.using ?? [],
         service: r.service,
+        priority: r.priority,
         tls: r.tls
           ? {
               certResolver: r.tls.certResolver,

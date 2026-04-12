@@ -543,10 +543,16 @@ export async function reconcileHostScan(
         .where(eq(realm.slug, proxySlug))
         .limit(1)
 
-      const proxySpec: RealmSpec = {
-        status: "ready",
+      const proxySpec = {
+        status: "ready" as const,
         endpoint: proxy.apiUrl,
         version: proxy.version,
+        engine: proxy.engine,
+        entrypoints: proxy.entrypoints.map((ep) => ({
+          name: ep.name,
+          port: ep.port,
+          protocol: ep.protocol as "http" | "https" | "tcp" | "udp",
+        })),
       }
 
       if (existingProxy) {
@@ -590,10 +596,12 @@ export async function reconcileHostScan(
       if (!proxyRealmId) continue
 
       for (const router of proxy.routers) {
-        if (router.domains.length === 0) continue
-
-        const domain = router.domains[0]
-        const routeSlug = slugify(domain)
+        // Catch-all routers (no Host rule) get domain "*" with lower priority
+        const domain = router.domains[0] ?? "*"
+        const routeSlug =
+          domain === "*"
+            ? slugify(`${hostSlug}-${proxy.engine}-catchall-${router.name}`)
+            : slugify(domain)
         currentRouterSlugs.add(routeSlug)
 
         // Determine resolution status from crawl data
@@ -644,6 +652,7 @@ export async function reconcileHostScan(
           status: phase === "resolved" ? "active" : "pending",
           createdBy: "reconciler",
           tlsMode: router.tls?.certResolver,
+          priority: domain === "*" ? -1 : (router.priority ?? 0),
           middlewares: router.middlewares.map((m) => ({ name: m })),
         }
 
