@@ -87,9 +87,9 @@ ALTER TABLE "ops"."forwarded_port" RENAME COLUMN "workspace_id" TO "workbench_id
 ALTER TABLE "ops"."workbench_snapshot" RENAME COLUMN "workspace_id" TO "workbench_id";--> statement-breakpoint
 ALTER TABLE "org"."event_subscription" RENAME COLUMN "event_name" TO "name";--> statement-breakpoint
 ALTER TABLE "software"."template" DROP CONSTRAINT "software_template_type_valid";--> statement-breakpoint
-ALTER TABLE "ops"."forwarded_port" DROP CONSTRAINT "forwarded_port_workspace_id_workspace_id_fk";
+ALTER TABLE "ops"."forwarded_port" DROP CONSTRAINT IF EXISTS "forwarded_port_workspace_id_workspace_id_fk";
 --> statement-breakpoint
-ALTER TABLE "ops"."workbench_snapshot" DROP CONSTRAINT "workspace_snapshot_workspace_id_workspace_id_fk";
+ALTER TABLE "ops"."workbench_snapshot" DROP CONSTRAINT IF EXISTS "workspace_snapshot_workspace_id_workspace_id_fk";
 --> statement-breakpoint
 DROP INDEX "ops"."ops_forwarded_port_workspace_idx";--> statement-breakpoint
 DROP INDEX "ops"."ops_workbench_slug_unique";--> statement-breakpoint
