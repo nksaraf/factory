@@ -1,3 +1,4 @@
+import { SendNotificationInputSchema } from "@smp/factory-shared/schemas/events"
 import { and, eq, or } from "drizzle-orm"
 import { Elysia } from "elysia"
 
@@ -225,28 +226,8 @@ export function eventController(db: Database) {
       .post(
         "/notify",
         async ({ body }) => {
-          const input = body as {
-            to: string
-            title: string
-            body?: string
-            topic?: string
-            severity?: string
-            source?: string
-            data?: Record<string, unknown>
-            channels?: string[]
-            correlationId?: string
-          }
-          const result = await sendNotification(db, {
-            to: input.to,
-            title: input.title,
-            body: input.body,
-            topic: input.topic,
-            severity: (input.severity as any) ?? "info",
-            source: input.source ?? "api",
-            data: input.data,
-            channels: input.channels,
-            correlationId: input.correlationId,
-          })
+          const input = SendNotificationInputSchema.parse(body)
+          const result = await sendNotification(db, input)
           return { data: result }
         },
         {

@@ -259,7 +259,7 @@ export class NotificationRouter {
               ...(deliveryError ? { error: deliveryError } : {}),
             },
           })
-          delivered++
+          if (deliveryStatus === "delivered") delivered++
         } else {
           // batch or digest — buffer for later delivery
           await this.db.insert(eventDelivery).values({
