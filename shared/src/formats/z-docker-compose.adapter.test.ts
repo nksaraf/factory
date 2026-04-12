@@ -1173,7 +1173,6 @@ services:
     image: alpine:latest
     restart: "no"
     command: ["echo", "done"]
-`
     depends_on:
       - db
 `
@@ -1193,12 +1192,15 @@ services:
     image: alpine:latest
     restart: "no"
     command: ["echo", "done"]
+`
       )
       const adapter = new DockerComposeFormatAdapter()
       const result = adapter.parse("/myproject")
       // Without depends_on, a portless restart:no container is NOT classified as init
       expect(result.system.components["standalone-job"]).toBeDefined()
-      expect(result.system.components["standalone-job"].spec.type).not.toBe("init")
+      expect(result.system.components["standalone-job"].spec.type).not.toBe(
+        "init"
+      )
     })
 
     it("detects service_completed_successfully dependents as init", () => {
