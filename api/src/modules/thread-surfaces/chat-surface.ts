@@ -53,6 +53,15 @@ const TOOL_NAME_MAP: Record<string, string> = {
   Agent: "delegating to agent",
   WebSearch: "searching web",
   WebFetch: "fetching page",
+  Skill: "running skill",
+  ToolSearch: "searching tools",
+  EnterPlanMode: "planning",
+  ExitPlanMode: "planning",
+  TaskCreate: "tracking tasks",
+  TaskUpdate: "tracking tasks",
+  TaskList: "tracking tasks",
+  ScheduleWakeup: "scheduling",
+  NotebookEdit: "editing notebook",
 }
 
 export function humanizeToolName(toolName: string): string {
@@ -97,23 +106,13 @@ function formatUserMessage(prompt: string): string {
 
 function formatAssistantMessage(
   summary: string,
-  source?: string,
-  stats?: Record<string, any>
-): string {
+  source?: string
+): string | null {
+  if (!summary) return null
+  const truncated =
+    summary.length > 3000 ? summary.slice(0, 2997) + "..." : summary
   const label = source ?? "Assistant"
-  if (summary) {
-    const truncated =
-      summary.length > 3000 ? summary.slice(0, 2997) + "..." : summary
-    return `*${label}:*\n${truncated}`
-  }
-  const parts: string[] = []
-  if (stats?.turnCount) parts.push(`${stats.turnCount} turns`)
-  if (stats?.toolCallCount) parts.push(`${stats.toolCallCount} tool calls`)
-  if (stats?.toolsUsed?.length)
-    parts.push(stats.toolsUsed.map(humanizeToolName).join(", "))
-  if (parts.length > 0)
-    return `:white_check_mark: *${label}* finished (${parts.join(" · ")})`
-  return `:white_check_mark: *${label}* finished`
+  return `*${label}:*\n${truncated}`
 }
 
 function formatEndMessage(spec: Record<string, any>): string {
@@ -367,18 +366,21 @@ export async function postToSurface(
       continue
     }
 
-    let formatted: string
+    let formatted: string | null
     switch (role) {
       case "user":
         formatted = formatUserMessage(message)
         break
       case "assistant":
-        formatted = formatAssistantMessage(message, opts?.source, opts?.stats)
+        formatted = formatAssistantMessage(message, opts?.source)
         break
       case "end":
         formatted = formatEndMessage(opts?.threadSpec ?? {})
         break
     }
+
+    // Skip posting if there's nothing to say (e.g. agent.stop with no summary)
+    if (!formatted) continue
 
     const adapter = getAdapter(surface.channelKind)
     if (!adapter) continue
