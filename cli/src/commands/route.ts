@@ -352,15 +352,73 @@ export function routeCommand(app: DxBase) {
   )
 }
 
+/** Extract detail lines for an entity based on its type and available data. */
+function entityDetails(
+  entity: Record<string, unknown>,
+  link?: { type: string; spec: Record<string, unknown> }
+): string[] {
+  const details: string[] = []
+  const spec = (entity.spec ?? {}) as Record<string, unknown>
+  const linkSpec = link?.spec ?? {}
+
+  // IP address for hosts/VMs
+  if (spec.ipAddress) {
+    details.push(`ip: ${spec.ipAddress}`)
+  }
+
+  // DNS record info
+  if (entity.fqdn && entity.fqdn !== entity.slug) {
+    details.push(`fqdn: ${entity.fqdn}`)
+  }
+
+  // NAT description
+  if (link?.type === "nat" && linkSpec.description) {
+    details.push(`${linkSpec.description}`)
+  }
+
+  // Route rule — show matched hosts when coming from a reverse proxy
+  if (link?.type === "proxy") {
+    const match = linkSpec.match as
+      | { hosts?: string[]; pathPrefixes?: string[] }
+      | undefined
+    if (match?.hosts && match.hosts.length > 0) {
+      const hosts = match.hosts as string[]
+      if (hosts.length <= 3) {
+        details.push(`rule: Host(${hosts.join(", ")})`)
+      } else {
+        details.push(
+          `rule: Host(${hosts.slice(0, 2).join(", ")} +${hosts.length - 2} more)`
+        )
+      }
+    }
+    if (match?.pathPrefixes && (match.pathPrefixes as string[]).length > 0) {
+      details.push(`path: ${(match.pathPrefixes as string[]).join(", ")}`)
+    }
+  }
+
+  // Reverse proxy entrypoints
+  if (entity.type === "reverse-proxy" && spec.entrypoints) {
+    const eps = spec.entrypoints as Array<{
+      name: string
+      port: number
+      protocol: string
+    }>
+    const summary = eps.map((e) => `${e.name}(:${e.port})`).join(", ")
+    details.push(`entrypoints: ${summary}`)
+  }
+
+  return details
+}
+
 /** Render a TraceNode tree recursively with tree-drawing characters. */
 function renderTraceTree(
   node: {
-    entity: { slug: string; name: string; type: string }
+    entity: Record<string, unknown>
     link?: { type: string; spec: Record<string, unknown> }
     weight?: number
     implicit?: boolean
     children: Array<{
-      entity: { slug: string; name: string; type: string }
+      entity: Record<string, unknown>
       link?: { type: string; spec: Record<string, unknown> }
       weight?: number
       implicit?: boolean
@@ -370,11 +428,21 @@ function renderTraceTree(
   indent: string,
   isRoot: boolean
 ) {
+  const e = node.entity
+  const slug = String(e.slug ?? e.id ?? "?")
+  const type = String(e.type ?? "?")
+
   // Render this node's entity
   const implicitTag = node.implicit ? styleMuted(" (implicit)") : ""
   console.log(
-    `${indent}${styleSuccess(node.entity.slug)} ${styleMuted(`[${node.entity.type}]`)}${implicitTag}`
+    `${indent}${styleSuccess(slug)} ${styleMuted(`[${type}]`)}${implicitTag}`
   )
+
+  // Render detail lines for this entity
+  const details = entityDetails(e, node.link ?? undefined)
+  for (const detail of details) {
+    console.log(`${indent}  ${styleMuted(detail)}`)
+  }
 
   // Render link label above each child
   for (let i = 0; i < node.children.length; i++) {

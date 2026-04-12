@@ -530,7 +530,9 @@ export function drizzleGraphReader(db: Database): GraphReader {
       if (!row) return null
       const r = row as Record<string, unknown>
       // Normalize entity tables that lack slug/name (ip_address uses address, dns_domain uses fqdn)
+      // Spread all columns so spec/fqdn/address etc. are available to the CLI for detail rendering
       return {
+        ...r,
         id: r.id as string,
         slug: (r.slug ?? r.address ?? r.fqdn ?? r.id) as string,
         name: (r.name ?? r.address ?? r.fqdn ?? r.id) as string,
