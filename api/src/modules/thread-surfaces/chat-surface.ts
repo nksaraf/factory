@@ -287,6 +287,13 @@ export async function autoAttachSurface(
 
   const channelRowId = await ensureChannel(slackChannelId)
 
+  const surfaceSpec = {
+    slackThreadTs: sent.id,
+    chatSdkThreadId,
+    adapterName: identity.type,
+    connectedAt: new Date().toISOString(),
+  }
+
   const [row] = await db
     .insert(threadChannel)
     .values({
@@ -294,12 +301,15 @@ export async function autoAttachSurface(
       channelId: channelRowId,
       role: "mirror",
       status: "connected",
-      spec: {
-        slackThreadTs: sent.id,
-        chatSdkThreadId,
-        adapterName: identity.type,
-        connectedAt: new Date().toISOString(),
-      } as any,
+      spec: surfaceSpec as any,
+    })
+    .onConflictDoUpdate({
+      target: [threadChannel.threadId, threadChannel.channelId],
+      set: {
+        status: "connected",
+        spec: surfaceSpec as any,
+        updatedAt: new Date(),
+      },
     })
     .returning({ id: threadChannel.id })
 
