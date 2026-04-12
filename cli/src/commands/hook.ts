@@ -277,8 +277,24 @@ function buildClaudePayload(
   if (input.permission_mode) base.permissionMode = input.permission_mode
 
   switch (hookEvent) {
-    case "SessionStart":
-      return { ...base, model: input.model, source: input.source }
+    case "SessionStart": {
+      let gitBranch: string | undefined
+      try {
+        const proc = Bun.spawnSync(
+          ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+          {
+            cwd: (input.cwd as string) || undefined,
+            stdout: "pipe",
+            stderr: "ignore",
+          }
+        )
+        const branch = proc.stdout.toString().trim()
+        if (branch && branch !== "HEAD") gitBranch = branch
+      } catch {
+        /* best-effort */
+      }
+      return { ...base, model: input.model, source: input.source, gitBranch }
+    }
 
     case "UserPromptSubmit":
       return { ...base, prompt: input.prompt ?? input.message }

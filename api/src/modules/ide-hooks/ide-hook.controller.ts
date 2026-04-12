@@ -15,11 +15,11 @@ import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
 import {
   autoAttachSurface,
-  detachSurfaces,
   findThreadBySessionId,
   humanizeToolName,
   postToSurface,
   startTypingOnSurface,
+  updateSurfaceStatus,
 } from "../thread-surfaces/chat-surface"
 
 const log = logger.child({ module: "ide-hooks" })
@@ -432,6 +432,28 @@ async function handlePromptSubmit(
   const threadId = await ensureThread(db, source, payload, principalId)
   if (!threadId) return
 
+  // Store the first prompt in thread.spec so the status card can reference it
+  const prompt =
+    typeof payload.prompt === "string"
+      ? payload.prompt.slice(0, 4096)
+      : undefined
+
+  const existingSpec = await (db as any)
+    .select({ spec: thread.spec })
+    .from(thread)
+    .where(eq(thread.id, threadId))
+    .limit(1)
+
+  if (prompt && !(existingSpec[0]?.spec as any)?.firstPrompt) {
+    await (db as any)
+      .update(thread)
+      .set({
+        spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ firstPrompt: prompt })}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(eq(thread.id, threadId))
+  }
+
   // Get next turn index
   const lastTurn = await (db as any)
     .select({ turnIndex: threadTurn.turnIndex })
@@ -447,10 +469,7 @@ async function handlePromptSubmit(
     turnIndex: nextIndex,
     role: "user",
     spec: {
-      prompt:
-        typeof payload.prompt === "string"
-          ? payload.prompt.slice(0, 4096)
-          : undefined,
+      prompt,
       timestamp: payload.timestamp,
     } as any,
   })
@@ -790,24 +809,26 @@ export function ideHookController(db: Database) {
               }
             } else if (body.eventType === "prompt.submit") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
-              log.info(
-                { sessionId: body.sessionId, threadFound: !!thrd },
-                "surface: prompt.submit lookup"
-              )
               if (thrd) {
                 const p = payload as Record<string, any>
                 const prompt = typeof p.prompt === "string" ? p.prompt : ""
                 await postToSurface(db, thrd.id, prompt, "user")
                 await startTypingOnSurface(db, thrd.id, "Thinking...")
+                // Update the thread-parent status card with the prompt
+                await updateSurfaceStatus(db, thrd.id, {
+                  source: thrd.source ?? body.source,
+                  cwd: thrd.spec.cwd,
+                  branch: thrd.branch ?? undefined,
+                  prompt,
+                  turnCount: thrd.spec.turnCount,
+                  toolCallCount: thrd.spec.toolCallCount,
+                  toolsUsed: thrd.spec.toolsUsed,
+                })
               }
             } else if (body.eventType === "tool.pre") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
                 const toolName = (payload as any).tool_name ?? "tool"
-                log.info(
-                  { threadId: thrd.id, toolName },
-                  "surface: tool.pre typing"
-                )
                 await startTypingOnSurface(
                   db,
                   thrd.id,
@@ -821,14 +842,6 @@ export function ideHookController(db: Database) {
               }
             } else if (body.eventType === "agent.stop") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
-              log.info(
-                {
-                  sessionId: body.sessionId,
-                  threadFound: !!thrd,
-                  hasResponse: !!(payload as any).responseSummary,
-                },
-                "surface: agent.stop lookup"
-              )
               if (thrd) {
                 const p = payload as Record<string, any>
                 await postToSurface(
@@ -836,25 +849,23 @@ export function ideHookController(db: Database) {
                   thrd.id,
                   p.responseSummary ?? "",
                   "assistant",
-                  {
-                    source: body.source,
-                    stats: {
-                      turnCount: p.turnCount,
-                      toolCallCount: p.toolCallCount,
-                      toolsUsed: p.toolsUsed,
-                    },
-                  }
+                  { source: body.source }
                 )
-              }
-            } else if (body.eventType === "session.end") {
-              const thrd = await findThreadBySessionId(db, body.sessionId)
-              if (thrd) {
-                await postToSurface(db, thrd.id, "", "end", {
-                  threadSpec: thrd.spec,
+                // Update the thread-parent status card with fresh stats
+                await updateSurfaceStatus(db, thrd.id, {
+                  source: thrd.source ?? body.source,
+                  cwd: thrd.spec.cwd,
+                  branch: thrd.branch ?? undefined,
+                  prompt: thrd.spec.firstPrompt,
+                  turnCount: thrd.spec.turnCount ?? p.turnCount,
+                  toolCallCount: thrd.spec.toolCallCount ?? p.toolCallCount,
+                  toolsUsed: thrd.spec.toolsUsed ?? p.toolsUsed,
                 })
-                await detachSurfaces(db, thrd.id)
               }
             }
+            // session.end: intentionally no surface action.
+            // Surfaces stay connected so the next compaction/subagent
+            // reuses the same Slack thread.
           } catch (err) {
             log.warn({ err, eventId }, "chat surface posting failed")
           }
