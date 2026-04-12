@@ -1637,6 +1637,215 @@ export function infraCommand(app: DxBase) {
           )
       )
 
+      // --- DNS Domains ---
+      .command("domain", (c) =>
+        c
+          .meta({ description: "DNS domain management" })
+          .command("list", (c) =>
+            c
+              .meta({ description: "List DNS domains" })
+              .flags({
+                provider: {
+                  type: "string",
+                  description:
+                    "Filter by DNS provider (cloudflare, godaddy, etc.)",
+                },
+                zone: {
+                  type: "string",
+                  description: "Filter by zone estate slug or ID",
+                },
+                type: {
+                  type: "string",
+                  description: "Filter by type (primary, custom, wildcard)",
+                },
+              })
+              .run(async ({ flags }) => {
+                const rest = await getRestApi()
+                let result
+                if (flags.provider) {
+                  result = await apiCall(flags, () =>
+                    restCall(() =>
+                      rest.request<{ data: InfraRow[] }>(
+                        "GET",
+                        `/api/v1/factory/infra/dns-domains/by-provider/${flags.provider}`
+                      )
+                    )
+                  )
+                } else if (flags.zone) {
+                  result = await apiCall(flags, () =>
+                    restCall(() =>
+                      rest.request<{ data: InfraRow[] }>(
+                        "GET",
+                        `/api/v1/factory/infra/dns-domains/by-zone/${flags.zone}`
+                      )
+                    )
+                  )
+                } else {
+                  result = await apiCall(flags, () =>
+                    restCall(() => rest.listEntities("infra", "dns-domains"))
+                  )
+                }
+                const raw = result as unknown as
+                  | { data: InfraRow[] }
+                  | InfraRow[]
+                const rows = Array.isArray(raw) ? raw : (raw?.data ?? [])
+                const filtered = flags.type
+                  ? rows.filter((r: InfraRow) => r.type === flags.type)
+                  : rows
+                tableOrJson<InfraRow>(
+                  flags,
+                  filtered,
+                  ["Slug", "FQDN", "Type", "Provider", "Status"],
+                  (r) => [
+                    styleBold(String(r.slug ?? "")),
+                    String((r as any).fqdn ?? r.name ?? ""),
+                    String(r.type ?? ""),
+                    String(r.spec?.dnsProvider ?? ""),
+                    colorStatus(resolveStatus(r.spec?.status, r.status)),
+                  ]
+                )
+              })
+          )
+          .command("get", (c) =>
+            c
+              .meta({ description: "Get domain by slug, FQDN, or ID" })
+              .args([
+                {
+                  name: "slugOrId",
+                  type: "string",
+                  required: true,
+                  description: "Domain slug, FQDN, or ID",
+                },
+              ])
+              .run(async ({ args, flags }) => {
+                const rest = await getRestApi()
+                const result = await apiCall(flags, () =>
+                  restCall(() =>
+                    rest.getEntity("infra", "dns-domains", args.slugOrId)
+                  )
+                )
+                detailView<InfraRow>(flags, result, [
+                  ["ID", (r) => styleMuted(String(r.id ?? ""))],
+                  ["Slug", (r) => styleBold(String(r.slug ?? ""))],
+                  ["FQDN", (r) => String((r as any).fqdn ?? "")],
+                  ["Type", (r) => String(r.type ?? "")],
+                  ["Provider", (r) => String(r.spec?.dnsProvider ?? "")],
+                  [
+                    "Status",
+                    (r) => colorStatus(resolveStatus(r.spec?.status, r.status)),
+                  ],
+                  ["Zone", (r) => String(r.spec?.zoneEstateId ?? "")],
+                  ["Created", (r) => String(r.createdAt ?? "")],
+                ])
+              })
+          )
+          .command("resolve", (c) =>
+            c
+              .meta({
+                description: "Resolve domain to IPs / CNAME targets",
+              })
+              .args([
+                {
+                  name: "slugOrId",
+                  type: "string",
+                  required: true,
+                  description: "Domain slug, FQDN, or ID",
+                },
+              ])
+              .run(async ({ args, flags }) => {
+                const rest = await getRestApi()
+                const result = await apiCall(flags, () =>
+                  restCall(() =>
+                    rest.request<{
+                      data: {
+                        domain: InfraRow
+                        targets: Array<{
+                          type: string
+                          targetKind: string
+                          target: InfraRow | null
+                          externalTarget?: string
+                        }>
+                      }
+                    }>(
+                      "GET",
+                      `/api/v1/factory/infra/dns-domains/${args.slugOrId}/resolve`
+                    )
+                  )
+                )
+                const data = result as any
+                if (flags.json) {
+                  console.log(JSON.stringify(data, null, 2))
+                  return
+                }
+                const domain = data?.domain ?? data?.data?.domain
+                const targets = data?.targets ?? data?.data?.targets ?? []
+                if (domain) {
+                  console.log(
+                    `\n  ${styleBold(String(domain.fqdn ?? domain.slug))}\n`
+                  )
+                }
+                if (targets.length === 0) {
+                  console.log("  No resolution targets found.\n")
+                  return
+                }
+                for (const t of targets) {
+                  const target = t.target
+                  const label =
+                    t.type === "CNAME"
+                      ? (t.externalTarget ??
+                        target?.fqdn ??
+                        target?.name ??
+                        "?")
+                      : (target?.address ?? target?.name ?? "?")
+                  console.log(
+                    `  ${t.type.padEnd(6)} → ${styleBold(String(label))}`
+                  )
+                }
+                console.log()
+              })
+          )
+          .command("by-ip", (c) =>
+            c
+              .meta({
+                description: "Find domains pointing to an IP",
+              })
+              .args([
+                {
+                  name: "address",
+                  type: "string",
+                  required: true,
+                  description: "IP address",
+                },
+              ])
+              .run(async ({ args, flags }) => {
+                const rest = await getRestApi()
+                const result = await apiCall(flags, () =>
+                  restCall(() =>
+                    rest.request<{ data: InfraRow[] }>(
+                      "GET",
+                      `/api/v1/factory/infra/dns-domains/by-ip/${args.address}`
+                    )
+                  )
+                )
+                tableOrJson<InfraRow>(
+                  flags,
+                  result,
+                  ["Slug", "FQDN", "Type", "Provider"],
+                  (r) => [
+                    styleBold(String(r.slug ?? "")),
+                    String((r as any).fqdn ?? r.name ?? ""),
+                    String(r.type ?? ""),
+                    String(r.spec?.dnsProvider ?? ""),
+                  ],
+                  undefined,
+                  {
+                    emptyMessage: `No domains resolve to ${args.address}.`,
+                  }
+                )
+              })
+          )
+      )
+
       // --- Assets ---
       .command("asset", (c) =>
         c
