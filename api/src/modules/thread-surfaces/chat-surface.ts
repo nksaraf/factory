@@ -334,15 +334,28 @@ export async function postToSurface(
     stats?: Record<string, any>
   }
 ): Promise<void> {
-  if (!hasAdapters()) return
+  if (!hasAdapters()) {
+    log.debug({ threadId, role }, "postToSurface: no adapters")
+    return
+  }
 
   const surfaces = await getConnectedSurfaces(db, threadId)
+  log.info(
+    { threadId, role, surfaceCount: surfaces.length },
+    "postToSurface: lookup"
+  )
   if (surfaces.length === 0) return
 
   for (const surface of surfaces) {
     const spec = (surface.spec ?? {}) as Record<string, any>
     const chatSdkThreadId = spec.chatSdkThreadId as string | undefined
-    if (!chatSdkThreadId) continue
+    if (!chatSdkThreadId) {
+      log.warn(
+        { surfaceId: surface.id },
+        "postToSurface: no chatSdkThreadId in spec"
+      )
+      continue
+    }
 
     let formatted: string
     switch (role) {

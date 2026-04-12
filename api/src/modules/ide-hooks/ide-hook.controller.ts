@@ -790,6 +790,10 @@ export function ideHookController(db: Database) {
               }
             } else if (body.eventType === "prompt.submit") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
+              log.info(
+                { sessionId: body.sessionId, threadFound: !!thrd },
+                "surface: prompt.submit lookup"
+              )
               if (thrd) {
                 const p = payload as Record<string, any>
                 const prompt = typeof p.prompt === "string" ? p.prompt : ""
@@ -800,6 +804,10 @@ export function ideHookController(db: Database) {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
                 const toolName = (payload as any).tool_name ?? "tool"
+                log.info(
+                  { threadId: thrd.id, toolName },
+                  "surface: tool.pre typing"
+                )
                 await startTypingOnSurface(
                   db,
                   thrd.id,
@@ -813,6 +821,14 @@ export function ideHookController(db: Database) {
               }
             } else if (body.eventType === "agent.stop") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
+              log.info(
+                {
+                  sessionId: body.sessionId,
+                  threadFound: !!thrd,
+                  hasResponse: !!(payload as any).responseSummary,
+                },
+                "surface: agent.stop lookup"
+              )
               if (thrd) {
                 const p = payload as Record<string, any>
                 await postToSurface(
