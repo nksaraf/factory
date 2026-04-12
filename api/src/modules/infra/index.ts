@@ -1287,7 +1287,22 @@ export function infraController(db: Database) {
                       ip.id,
                       "outbound"
                     )
-                    if (t.hops.length > 0) trace = t
+                    if (t.hops.length > 0) {
+                      // Enrich each hop with its primary IP
+                      const enrichedHops = await Promise.all(
+                        t.hops.map(async (hop) => {
+                          const kind = hop.link.targetKind
+                          if (kind === "ip-address") return hop
+                          const ips = await getEntityIps(
+                            db,
+                            kind,
+                            hop.entity.id
+                          )
+                          return { ...hop, ips }
+                        })
+                      )
+                      trace = { ...t, hops: enrichedHops }
+                    }
                   } catch {
                     // no trace available
                   }

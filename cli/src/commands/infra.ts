@@ -1814,8 +1814,16 @@ export function infraCommand(app: DxBase) {
                         hopEntity?.id ??
                         "?"
                       const kindLabel = hop.link?.targetKind ?? ""
+                      // Show primary IP if available
+                      const hopIps = (hop as any).ips as
+                        | Array<{ address?: string }>
+                        | undefined
+                      const primaryIp = hopIps?.[0]?.address
+                      const ipSuffix = primaryIp
+                        ? ` ${styleMuted(primaryIp)}`
+                        : ""
                       console.log(
-                        `           ${styleMuted(linkType)} → ${styleBold(String(entityLabel))} ${styleMuted(`(${kindLabel})`)}`
+                        `           ${styleMuted(linkType)} → ${styleBold(String(entityLabel))} ${styleMuted(`(${kindLabel})`)}${ipSuffix}`
                       )
                     }
                   }
