@@ -782,11 +782,11 @@ export const CreateNetworkLinkSchema = z.object({
   name: z.string().min(1).max(200),
   type: NetworkLinkTypeSchema,
   sourceKind: NetworkLinkEndpointKindSchema,
-  sourceId: z.string().min(1),
+  sourceId: z.string().min(1).optional(),
   viaKind: NetworkLinkEndpointKindSchema.optional(),
   viaId: z.string().optional(),
   targetKind: NetworkLinkEndpointKindSchema,
-  targetId: z.string().min(1),
+  targetId: z.string().min(1).optional(),
   spec: NetworkLinkSpecSchema.default({}),
 })
 export const UpdateNetworkLinkSchema = CreateNetworkLinkSchema.partial()
