@@ -9,6 +9,7 @@ import {
   threadTurn,
 } from "../../db/schema/org"
 import { logger } from "../../logger"
+import { findMirroredIdeThread } from "../thread-surfaces/chat-surface"
 import { createAgentSession } from "./agent"
 import { bot } from "./bot"
 import { getChatDb } from "./db"
@@ -331,6 +332,20 @@ bot.onSubscribedMessage(async (chatThread, message) => {
   )
 
   try {
+    // Check if this is a reply to a mirrored IDE session thread
+    const mirrorDb = getChatDb()
+    const mirrored = await findMirroredIdeThread(mirrorDb, chatThread.id)
+    if (mirrored) {
+      await recordTurn(
+        mirrored.threadId,
+        "user",
+        message.text ?? "",
+        actor.externalId
+      )
+      await chatThread.post("Noted on the session thread.")
+      return
+    }
+
     const channelId = await ensureChannel(slackChannelId)
     const threadId = await ensureThread(chatThread.id, channelId, actor)
     await recordTurn(threadId, "user", message.text ?? "", actor.externalId)

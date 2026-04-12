@@ -14,11 +14,13 @@ import { channel, thread, threadTurn, webhookEvent } from "../../db/schema/org"
 import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
 import {
-  autoAttachSlackSurface,
+  autoAttachSurface,
   detachSurfaces,
   findThreadBySessionId,
+  humanizeToolName,
   postToSurface,
-} from "../thread-surfaces/slack-surface"
+  startTypingOnSurface,
+} from "../thread-surfaces/chat-surface"
 
 const log = logger.child({ module: "ide-hooks" })
 
@@ -601,6 +603,35 @@ async function handleAgentStop(
       })
       .where(eq(thread.id, threads[0].id))
   }
+
+  // Store assistant turn with response summary (mirrors prompt.submit → user turn)
+  if (payload.responseSummary) {
+    const threadId = threads[0].id
+    const lastTurn = await (db as any)
+      .select({ turnIndex: threadTurn.turnIndex })
+      .from(threadTurn)
+      .where(eq(threadTurn.threadId, threadId))
+      .orderBy(desc(threadTurn.turnIndex))
+      .limit(1)
+
+    const nextIndex = lastTurn.length > 0 ? lastTurn[0].turnIndex + 1 : 0
+
+    await (db as any).insert(threadTurn).values({
+      threadId,
+      turnIndex: nextIndex,
+      role: "assistant",
+      spec: {
+        responseSummary:
+          typeof payload.responseSummary === "string"
+            ? payload.responseSummary.slice(0, 4096)
+            : undefined,
+        toolCallCount: payload.toolCallCount,
+        toolsUsed: payload.toolsUsed,
+        tokenUsage: payload.tokenUsage,
+        timestamp: payload.timestamp,
+      } as any,
+    })
+  }
 }
 
 /**
@@ -744,12 +775,12 @@ export function ideHookController(db: Database) {
             log.warn({ err, eventId }, "dual-write to thread entities failed")
           }
 
-          // Slack surface mirroring (best-effort, non-blocking)
+          // Chat surface mirroring (best-effort, non-blocking)
           try {
             if (body.eventType === "session.start") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
-                await autoAttachSlackSurface(
+                await autoAttachSurface(
                   db,
                   thrd.id,
                   principalId,
@@ -763,6 +794,22 @@ export function ideHookController(db: Database) {
                 const p = payload as Record<string, any>
                 const prompt = typeof p.prompt === "string" ? p.prompt : ""
                 await postToSurface(db, thrd.id, prompt, "user")
+                await startTypingOnSurface(db, thrd.id, "Thinking...")
+              }
+            } else if (body.eventType === "tool.pre") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const toolName = (payload as any).tool_name ?? "tool"
+                await startTypingOnSurface(
+                  db,
+                  thrd.id,
+                  humanizeToolName(toolName)
+                )
+              }
+            } else if (body.eventType === "tool.post") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                await startTypingOnSurface(db, thrd.id, "Thinking...")
               }
             } else if (body.eventType === "agent.stop") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
@@ -793,7 +840,7 @@ export function ideHookController(db: Database) {
               }
             }
           } catch (err) {
-            log.warn({ err, eventId }, "slack surface posting failed")
+            log.warn({ err, eventId }, "chat surface posting failed")
           }
 
           set.status = 202

@@ -11,7 +11,7 @@ import { Elysia, t } from "elysia"
 import type { Database } from "../../db/connection"
 import { threadChannel } from "../../db/schema/org"
 import { logger } from "../../logger"
-import { autoAttachSlackSurface, findThreadBySessionId } from "./slack-surface"
+import { autoAttachSurface, findThreadBySessionId } from "./chat-surface"
 
 const log = logger.child({ module: "thread-surfaces" })
 
@@ -49,7 +49,7 @@ export function threadSurfacesController(db: Database) {
         }
 
         try {
-          const tcId = await autoAttachSlackSurface(
+          const tcId = await autoAttachSurface(
             db,
             threadId,
             principalId,

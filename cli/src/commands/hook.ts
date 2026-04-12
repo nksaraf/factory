@@ -323,6 +323,7 @@ function parseTranscriptStats(
     let model: string | undefined
     let turnCount = 0
     let toolCallCount = 0
+    let lastAssistantText = ""
     const toolNames = new Set<string>()
     const tokenUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
@@ -360,6 +361,9 @@ function parseTranscriptStats(
               toolCallCount++
               if (c.name) toolNames.add(c.name)
             }
+            if (c?.type === "text" && c.text) {
+              lastAssistantText = c.text
+            }
           }
         }
       }
@@ -384,6 +388,9 @@ function parseTranscriptStats(
               toolCallCount++
               if (c.name) toolNames.add(c.name)
             }
+            if (c?.type === "text" && c.text) {
+              lastAssistantText = c.text
+            }
           }
         }
       }
@@ -395,6 +402,9 @@ function parseTranscriptStats(
       toolCallCount,
       toolsUsed: Array.from(toolNames),
       tokenUsage,
+      responseSummary: lastAssistantText
+        ? lastAssistantText.slice(0, 4096)
+        : undefined,
     }
   } catch {
     return {}
