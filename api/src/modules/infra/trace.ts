@@ -527,7 +527,15 @@ export function drizzleGraphReader(db: Database): GraphReader {
       const meta = ENTITY_TABLES[kind]
       if (!meta) return null
       const [row] = await db.select().from(meta.table).where(eq(meta.idCol, id))
-      return (row as EntityRow) ?? null
+      if (!row) return null
+      const r = row as Record<string, unknown>
+      // Normalize entity tables that lack slug/name (ip_address uses address, dns_domain uses fqdn)
+      return {
+        id: r.id as string,
+        slug: (r.slug ?? r.address ?? r.fqdn ?? r.id) as string,
+        name: (r.name ?? r.address ?? r.fqdn ?? r.id) as string,
+        type: (r.type ?? kind) as string,
+      }
     },
   }
 }
