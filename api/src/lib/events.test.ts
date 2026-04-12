@@ -177,6 +177,7 @@ describe("events", () => {
       // A trigger waiting on the canonical topic
       await db.insert(eventSubscription).values({
         id: newId("esub"),
+        name: "test-trigger",
         kind: "trigger",
         status: "active",
         topicFilter: "ops.workbench.ready",

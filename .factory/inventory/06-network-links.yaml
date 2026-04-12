@@ -156,6 +156,50 @@ entities:
     spec:
       description: Management IP assigned to Legacy DC HP DL360 G7
 
+  - kind: network-link
+    slug: assign-192-168-1-1-lepton-squirtle
+    name: "192.168.1.1 → lepton-squirtle"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.1"
+    targetKind: host
+    targetSlug: lepton-squirtle
+    spec:
+      description: Management IP assigned to lepton-squirtle (HPE DL360 Gen10)
+
+  - kind: network-link
+    slug: assign-192-168-1-59-lepton-59
+    name: "192.168.1.59 → lepton-59"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.59"
+    targetKind: host
+    targetSlug: lepton-59
+    spec:
+      description: Management IP assigned to lepton-59 (HPE DL380 Gen10)
+
+  - kind: network-link
+    slug: assign-192-168-1-132-lepton-pikachu
+    name: "192.168.1.132 → lepton-pikachu"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.132"
+    targetKind: host
+    targetSlug: lepton-pikachu
+    spec:
+      description: Management IP assigned to lepton-pikachu (HPE DL380 Gen10+)
+
+  - kind: network-link
+    slug: assign-192-168-1-134-lepton-gen11
+    name: "192.168.1.134 → lepton-gen11"
+    type: host-local
+    sourceKind: ip-address
+    sourceSlug: "192.168.1.134"
+    targetKind: host
+    targetSlug: lepton-gen11
+    spec:
+      description: Management IP assigned to lepton-gen11 (HPE DL380 Gen 11)
+
   # ── Airtel NAT ───────────────────────────────────────────────
   - kind: network-link
     slug: nat-182-71-49-114-to-192-168-1-64
@@ -197,8 +241,8 @@ entities:
     sourceSlug: "182.71.49.117"
     viaKind: host
     viaSlug: gajshield-fw
-    targetKind: ip-address
-    targetSlug: "192.168.1.59"
+    targetKind: host
+    targetSlug: lepton-59
     spec:
       description: "AIRTEL: 182.71.49.117 → 192.168.1.59 (Nikhil/Umang Server lepton-59)"
       enabled: true

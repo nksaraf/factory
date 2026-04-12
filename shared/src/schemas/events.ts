@@ -36,11 +36,21 @@ export const EventDomainSchema = z.enum([
 ])
 export type EventDomain = z.infer<typeof EventDomainSchema>
 
+// ── Event Ref (resolved entity references in spec) ───────────
+
+export const EventRefSchema = z.object({
+  kind: z.string(),
+  id: z.string(),
+  role: z.enum(["subject", "target", "context"]),
+})
+export type EventRef = z.infer<typeof EventRefSchema>
+
 // ── Event Spec (stored in JSONB `spec` column) ────────────────
 
 export const EventSpecSchema = z.object({
   data: z.record(z.unknown()),
   rawPayload: z.record(z.unknown()).optional(),
+  refs: z.array(EventRefSchema).optional(),
 })
 export type EventSpec = z.infer<typeof EventSpecSchema>
 
@@ -87,6 +97,7 @@ export const EmitEventInputSchema = z.object({
   rawEventType: z.string().optional(),
   rawPayload: z.record(z.unknown()).optional(),
   data: z.record(z.unknown()),
+  refs: z.array(EventRefSchema).optional(),
   idempotencyKey: z.string().optional(),
   occurredAt: z.coerce.date().optional(),
   scopeKind: EventScopeKindSchema.optional(),

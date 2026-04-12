@@ -240,6 +240,28 @@ entities:
       role: primary
 
   - kind: ip-address
+    address: "192.168.1.1"
+    subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lepton-squirtle
+    spec:
+      version: v4
+      status: assigned
+      scope: management
+      role: primary
+
+  - kind: ip-address
+    address: "192.168.1.59"
+    subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lepton-59
+    spec:
+      version: v4
+      status: assigned
+      scope: management
+      role: primary
+
+  - kind: ip-address
     address: "192.168.1.64"
     subnetSlug: mgmt-subnet
     spec:
@@ -254,6 +276,28 @@ entities:
       version: v4
       status: assigned
       scope: management
+
+  - kind: ip-address
+    address: "192.168.1.132"
+    subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lepton-pikachu
+    spec:
+      version: v4
+      status: assigned
+      scope: management
+      role: primary
+
+  - kind: ip-address
+    address: "192.168.1.134"
+    subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lepton-gen11
+    spec:
+      version: v4
+      status: assigned
+      scope: management
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.197"

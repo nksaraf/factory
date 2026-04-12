@@ -18,17 +18,9 @@ function workbenchesCollection(ctx: MockCtx) {
   function workbenches(_opts: { slugOrId: string }) {
     return { get: ctx.workbenchesByIdGet }
   }
-  ;(workbenches as { get: ReturnType<typeof mock> }).get =
+  ;(workbenches as unknown as { get: ReturnType<typeof mock> }).get =
     ctx.workbenchesListGet
   return workbenches
-}
-
-function hostsCollection(ctx: MockCtx) {
-  function hosts(_opts: { slugOrId: string }) {
-    return { get: ctx.hostsByIdGet }
-  }
-  ;(hosts as { get: ReturnType<typeof mock> }).get = ctx.hostsListGet
-  return hosts
 }
 
 mock.module("../client.js", () => ({
@@ -45,7 +37,6 @@ mock.module("../client.js", () => ({
               workbenches: workbenchesCollection(ctx),
             },
             infra: {
-              hosts: hostsCollection(ctx),
               access: {
                 resolve: (_opts: { slug: string }) => ({
                   get: ctx.accessResolveGet,
@@ -54,6 +45,22 @@ mock.module("../client.js", () => ({
             },
           },
         },
+      },
+    })
+  },
+  getFactoryRestClient: () => {
+    const ctx = mockClientCtx.api
+    if (!ctx) {
+      throw new Error("entity-finder test: mockClientCtx.api not set")
+    }
+    return Promise.resolve({
+      listEntities: async (_module: string, _entity: string) => {
+        const res = await ctx.hostsListGet()
+        return { data: res?.data?.data ?? [] }
+      },
+      getEntity: async (_module: string, _entity: string, slugOrId: string) => {
+        const res = await ctx.hostsByIdGet({ slugOrId })
+        return { data: res?.data?.data ?? res?.data ?? null }
       },
     })
   },

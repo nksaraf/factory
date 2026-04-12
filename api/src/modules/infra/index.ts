@@ -1102,6 +1102,285 @@ export function infraController(db: Database) {
         }
       )
 
+      // ── DNS: Reverse lookup — domains pointing to an IP ──
+      .get(
+        "/dns-domains/by-ip/:address",
+        async ({ params }) => {
+          // Find the IP entity
+          const [ip] = await db
+            .select({ id: ipAddress.id })
+            .from(ipAddress)
+            .where(eq(ipAddress.address, params.address))
+            .limit(1)
+          if (!ip) {
+            throw new NotFoundError(`IP address '${params.address}' not found`)
+          }
+
+          // Find network links targeting this IP
+          const links = await db
+            .select({
+              sourceId: networkLink.sourceId,
+              spec: networkLink.spec,
+            })
+            .from(networkLink)
+            .where(
+              and(
+                eq(networkLink.type, "dns-resolution"),
+                eq(networkLink.targetKind, "ip-address"),
+                eq(networkLink.targetId, ip.id)
+              )
+            )
+
+          // Fetch the source dns-domain entities
+          const domainIds = links.map((l) => l.sourceId).filter(Boolean)
+          if (domainIds.length === 0) return ok([])
+
+          const domains = await db
+            .select()
+            .from(dnsDomain)
+            .where(or(...domainIds.map((id) => eq(dnsDomain.id, id!))))
+
+          return ok(domains)
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "Find domains that resolve to an IP address",
+          },
+        }
+      )
+
+      // ── DNS: Domains by zone ─────────────────────────────
+      .get(
+        "/dns-domains/by-zone/:zoneEstateSlugOrId",
+        async ({ params }) => {
+          // Resolve slug or id to estate id
+          const [zoneEstate] = await db
+            .select({ id: estate.id })
+            .from(estate)
+            .where(
+              or(
+                eq(estate.id, params.zoneEstateSlugOrId),
+                eq(estate.slug, params.zoneEstateSlugOrId)
+              )
+            )
+            .limit(1)
+          if (!zoneEstate) {
+            throw new NotFoundError(
+              `Zone estate '${params.zoneEstateSlugOrId}' not found`
+            )
+          }
+
+          const domains = await db
+            .select()
+            .from(dnsDomain)
+            .where(sql`(${dnsDomain.spec}->>'zoneEstateId') = ${zoneEstate.id}`)
+
+          return ok(domains)
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "List domains in a DNS zone",
+          },
+        }
+      )
+
+      // ── DNS: Domains by provider ─────────────────────────
+      .get(
+        "/dns-domains/by-provider/:provider",
+        async ({ params }) => {
+          const domains = await db
+            .select()
+            .from(dnsDomain)
+            .where(
+              sql`(${dnsDomain.spec}->>'dnsProvider') = ${params.provider}`
+            )
+
+          return ok(domains)
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "List domains managed by a DNS provider",
+          },
+        }
+      )
+
+      // ── DNS: Domains for a site ──────────────────────────
+      .get(
+        "/dns-domains/by-site/:siteSlugOrId",
+        async ({ params }) => {
+          // dnsDomain.siteId is a direct FK — resolve slug first
+          const domains = await db
+            .select()
+            .from(dnsDomain)
+            .where(
+              or(
+                eq(dnsDomain.siteId, params.siteSlugOrId),
+                sql`${dnsDomain.siteId} IN (
+                  SELECT id FROM ops.site
+                  WHERE slug = ${params.siteSlugOrId}
+                )`
+              )
+            )
+
+          return ok(domains)
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "List domains assigned to a site",
+          },
+        }
+      )
+
+      // ── DNS: Resolve domain to targets ───────────────────
+      .get(
+        "/dns-domains/:slugOrId/resolve",
+        async ({ params }) => {
+          // Find the domain entity
+          const [domain] = await db
+            .select()
+            .from(dnsDomain)
+            .where(
+              or(
+                eq(dnsDomain.id, params.slugOrId),
+                eq(dnsDomain.slug, params.slugOrId),
+                eq(dnsDomain.fqdn, params.slugOrId)
+              )
+            )
+            .limit(1)
+          if (!domain) {
+            throw new NotFoundError(`DNS domain '${params.slugOrId}' not found`)
+          }
+
+          // Find outbound dns-resolution links
+          const links = await db
+            .select()
+            .from(networkLink)
+            .where(
+              and(
+                eq(networkLink.type, "dns-resolution"),
+                eq(networkLink.sourceKind, "dns-domain"),
+                eq(networkLink.sourceId, domain.id)
+              )
+            )
+
+          // Resolve targets
+          const targets = await Promise.all(
+            links.map(async (link) => {
+              if (link.targetKind === "ip-address" && link.targetId) {
+                const [ip] = await db
+                  .select()
+                  .from(ipAddress)
+                  .where(eq(ipAddress.id, link.targetId))
+                  .limit(1)
+                return {
+                  type: (link.spec as any)?.recordType ?? "A",
+                  target: ip ?? null,
+                  targetKind: "ip-address",
+                  link,
+                }
+              }
+              if (link.targetKind === "dns-domain" && link.targetId) {
+                const [targetDom] = await db
+                  .select()
+                  .from(dnsDomain)
+                  .where(eq(dnsDomain.id, link.targetId))
+                  .limit(1)
+                return {
+                  type: "CNAME",
+                  target: targetDom ?? null,
+                  targetKind: "dns-domain",
+                  externalTarget: (link.spec as any)?.externalTarget,
+                  link,
+                }
+              }
+              return {
+                type: (link.spec as any)?.recordType ?? "unknown",
+                target: null,
+                targetKind: link.targetKind,
+                link,
+              }
+            })
+          )
+
+          return ok({ domain, targets })
+        },
+        {
+          detail: {
+            tags: ["infra/dns"],
+            summary: "Resolve a domain to its IP/CNAME targets",
+          },
+        }
+      )
+
+      // ── IPs by entity ────────────────────────────────────
+      .get(
+        "/ip-addresses/by-entity/:kind/:id",
+        async ({ params }) => {
+          const ips = await getEntityIps(db, params.kind, params.id)
+          return ok(ips)
+        },
+        {
+          detail: {
+            tags: ["infra/ip-addresses"],
+            summary: "List IPs assigned to an entity",
+          },
+        }
+      )
+
+      // ── Network links by entity ──────────────────────────
+      .get(
+        "/network-links/by-entity/:kind/:id",
+        async ({ params, query }) => {
+          const typeFilter = query.type
+            ? eq(networkLink.type, query.type as string)
+            : undefined
+          const dirFilter = query.direction as string | undefined
+
+          let condition
+          if (dirFilter === "outbound") {
+            condition = and(
+              eq(networkLink.sourceKind, params.kind),
+              eq(networkLink.sourceId, params.id),
+              typeFilter
+            )
+          } else if (dirFilter === "inbound") {
+            condition = and(
+              eq(networkLink.targetKind, params.kind),
+              eq(networkLink.targetId, params.id),
+              typeFilter
+            )
+          } else {
+            condition = and(
+              or(
+                and(
+                  eq(networkLink.sourceKind, params.kind),
+                  eq(networkLink.sourceId, params.id)
+                ),
+                and(
+                  eq(networkLink.targetKind, params.kind),
+                  eq(networkLink.targetId, params.id)
+                )
+              ),
+              typeFilter
+            )
+          }
+
+          const links = await db.select().from(networkLink).where(condition)
+
+          return ok(links)
+        },
+        {
+          detail: {
+            tags: ["infra/network-links"],
+            summary: "List network links for an entity",
+          },
+        }
+      )
+
       // ── Access: Resolve SSH target ───────────────────────
       .get(
         "/access/resolve/:slug",

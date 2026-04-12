@@ -1,4 +1,4 @@
-import { getFactoryClient } from "../client.js"
+import { getFactoryClient, getFactoryRestClient } from "../client.js"
 
 export type EntityType = "workbench" | "vm" | "host"
 export type Transport = "ssh" | "kubectl" | "none"
@@ -40,9 +40,11 @@ export interface ResolvedEntity {
 
 export class EntityFinder {
   private apiPromise: ReturnType<typeof getFactoryClient>
+  private restPromise: ReturnType<typeof getFactoryRestClient>
 
   constructor() {
     this.apiPromise = getFactoryClient()
+    this.restPromise = getFactoryRestClient()
   }
 
   /**
@@ -113,19 +115,18 @@ export class EntityFinder {
     }
 
     // 2. Try hosts (covers VMs, bare-metal, cloud instances, kube nodes)
+    //    Uses REST client — Eden can't type the hosts path correctly due to
+    //    relation sub-paths (ip-addresses) colliding with top-level routes.
     try {
-      const result = await api.api.v1.factory.infra.hosts.get()
-      const items = (result?.data?.data ?? []).filter(
-        (h) => h.slug === target || h.id === target
-      )
+      const rest = await this.restPromise
+      const result = await rest.listEntities("infra", "hosts")
+      const allHosts = (result?.data ?? []) as Record<string, unknown>[]
+      const items = allHosts.filter((h) => h.slug === target || h.id === target)
       if (items.length === 0) {
         try {
-          const byId = await api.api.v1.factory.infra
-            .hosts({ slugOrId: target })
-            .get()
-          const hostData = byId?.data?.data ?? byId?.data
-          if (hostData && typeof hostData === "object" && "id" in hostData)
-            items.push(hostData as Parameters<typeof items.push>[0])
+          const byId = await rest.getEntity("infra", "hosts", target)
+          if (byId?.data && typeof byId.data === "object" && "id" in byId.data)
+            items.push(byId.data)
         } catch {
           /* not found */
         }
@@ -258,9 +259,12 @@ export class EntityFinder {
     const entities: ResolvedEntity[] = []
 
     // Fetch in parallel: workbenches + hosts
+    const rest = await this.restPromise
     const [workbenches, hosts] = await Promise.allSettled([
       api.api.v1.factory.ops.workbenches.get().then((r) => r?.data?.data ?? []),
-      api.api.v1.factory.infra.hosts.get().then((r) => r?.data?.data ?? []),
+      rest
+        .listEntities("infra", "hosts")
+        .then((r) => (r?.data ?? []) as Record<string, unknown>[]),
     ])
 
     if (workbenches.status === "fulfilled") {

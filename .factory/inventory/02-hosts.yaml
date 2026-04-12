@@ -165,6 +165,30 @@ entities:
       sshPort: 22
       model: HP ProLiant DL360 G7
 
+  # ── Linux bare-metal servers (standalone, not in Proxmox) ──────
+  - kind: host
+    slug: lepton-gen11
+    name: Lepton Gen11
+    type: bare-metal
+    estateSlug: lepton-datacenter
+    spec:
+      hostname: lepton
+      os: linux
+      arch: amd64
+      cpu: 32
+      memoryMb: 131072
+      ipAddress: "192.168.1.134"
+      lifecycle: active
+      accessMethod: ssh
+      accessUser: lepton
+      sshPort: 22
+      model: HPE Proliant DL380 Gen 11
+      serialNumber: 115D3101YS
+      osVersion: Ubuntu 24.04.1 LTS
+      storage: "960 GB (960GB*2)"
+      raid: "RAID-1 + RAID-5"
+      department: Software SM
+
   # ── Storage devices ───────────────────────────────────────────
   - kind: host
     slug: dell-emc-storage-1

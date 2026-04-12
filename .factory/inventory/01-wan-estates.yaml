@@ -49,21 +49,20 @@ entities:
 
   - kind: estate
     slug: dns-cloudflare
-    name: DNS (cloudflare)
-    type: dns-zone
-    parentEstateSlug: lepton-datacenter
+    name: Cloudflare DNS
+    type: cloud-account
     spec:
       providerKind: cloudflare
       dnsProvider: cloudflare
+      credentialsRef: "$secret(cloudflare-api-token)"
       lifecycle: active
       metadata:
         domains: "rio.software,lepton.software,trafficure.com,smartmarket.ai"
 
   - kind: estate
     slug: dns-verio
-    name: DNS (verio)
-    type: dns-zone
-    parentEstateSlug: lepton-datacenter
+    name: Verio DNS
+    type: cloud-account
     spec:
       providerKind: verio
       dnsProvider: verio
@@ -73,12 +72,12 @@ entities:
 
   - kind: estate
     slug: dns-godaddy
-    name: DNS (godaddy)
-    type: dns-zone
-    parentEstateSlug: lepton-datacenter
+    name: GoDaddy DNS
+    type: cloud-account
     spec:
       providerKind: godaddy
       dnsProvider: godaddy
+      credentialsRef: "$secret(godaddy-api-key)"
       lifecycle: active
       metadata:
         domains: "leptonsoftware.com,leptonsoftware.ai,leptonsoftware.co,pathlosssoftware.com,networkaccess.co"

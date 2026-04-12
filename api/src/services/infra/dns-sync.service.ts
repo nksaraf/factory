@@ -141,7 +141,14 @@ export async function syncDnsFromEstate(
 
       // Fetch records via adapter
       const records = await adapter.listRecords(zone.externalId)
-      await syncZoneRecords(db, providerKind, zoneEstateId, records, result)
+      await syncZoneRecords(
+        db,
+        providerKind,
+        zoneEstateId,
+        zone.name,
+        records,
+        result
+      )
     } catch (err: any) {
       result.errors.push(`Zone ${zone.name}: ${err.message}`)
     }
@@ -221,6 +228,7 @@ async function syncZoneRecords(
   db: Database,
   providerKind: string,
   zoneEstateId: string,
+  zoneName: string,
   records: DnsRecordEntry[],
   result: SyncResult
 ) {
@@ -237,6 +245,7 @@ async function syncZoneRecords(
       db,
       providerKind,
       zoneEstateId,
+      zoneName,
       fqdn,
       fqdnRecords,
       result
@@ -254,13 +263,15 @@ async function upsertDnsDomain(
   db: Database,
   providerKind: string,
   zoneEstateId: string,
+  zoneName: string,
   fqdn: string,
   records: DnsRecordEntry[],
   result: SyncResult
 ): Promise<string> {
-  const domainSlug = slugify(fqdn)
+  const domainSlug = slugify(fqdn.replace(/^\*\./, "wildcard-"))
+  const isApex = fqdn === zoneName
   const isWildcard = fqdn.startsWith("*.")
-  const domainType = isWildcard ? "wildcard" : "custom"
+  const domainType = isApex ? "primary" : isWildcard ? "wildcard" : "custom"
 
   // Collect non-resolution records for spec.records[]
   const nonResolutionRecords: DnsRecord[] = records

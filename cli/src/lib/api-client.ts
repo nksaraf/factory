@@ -165,6 +165,17 @@ export class FactoryClient {
       body
     )
   }
+  async deleteEntity(
+    module: string,
+    entity: string,
+    slugOrId: string
+  ): Promise<{ deleted: boolean }> {
+    return this.request(
+      "POST",
+      `/api/v1/factory/${module}/${entity}/${slugOrId}/delete`
+    )
+  }
+
   async entityAction(
     module: string,
     entity: string,

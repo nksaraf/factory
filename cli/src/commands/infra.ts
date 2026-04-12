@@ -494,20 +494,25 @@ export function infraCommand(app: DxBase) {
                 },
               })
               .run(async ({ flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const status = flags.all
                   ? undefined
                   : ((flags.status as string | undefined) ?? "running")
+                const params = new URLSearchParams()
+                params.set("type", "vm")
+                if (flags.estate)
+                  params.set("providerId", flags.estate as string)
+                if (status) params.set("status", status)
+                if (flags.host) params.set("hostId", flags.host as string)
+                if (flags.cluster)
+                  params.set("clusterId", flags.cluster as string)
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.get({
-                    query: {
-                      type: "vm",
-                      providerId: flags.estate as string | undefined,
-                      status,
-                      hostId: flags.host as string | undefined,
-                      clusterId: flags.cluster as string | undefined,
-                    },
-                  })
+                  restCall(() =>
+                    rest.request<{ data: Record<string, unknown>[] }>(
+                      "GET",
+                      `/api/v1/factory/infra/hosts?${params}`
+                    )
+                  )
                 )
 
                 const unwrapped =
@@ -605,9 +610,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
+                  restCall(() => rest.getEntity("infra", "hosts", args.id))
                 )
                 detailView<InfraRow>(flags, result, [
                   ["ID", (r) => styleMuted(String(r.id ?? ""))],
@@ -661,20 +666,22 @@ export function infraCommand(app: DxBase) {
                 clusterId: { type: "string", description: "Realm ID" },
               })
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.post({
-                    name: args.name,
-                    spec: {
-                      type: "vm",
-                      estateId: flags.providerId as string,
-                      cpu: (flags.cpu as number) ?? 2,
-                      memoryMb: (flags.memoryMb as number) ?? 4096,
-                      diskGb: (flags.diskGb as number) ?? 50,
-                      hostId: flags.hostId as string | undefined,
-                      realmId: flags.clusterId as string | undefined,
-                    },
-                  })
+                  restCall(() =>
+                    rest.createEntity("infra", "hosts", {
+                      name: args.name,
+                      spec: {
+                        type: "vm",
+                        estateId: flags.providerId as string,
+                        cpu: (flags.cpu as number) ?? 2,
+                        memoryMb: (flags.memoryMb as number) ?? 4096,
+                        diskGb: (flags.diskGb as number) ?? 50,
+                        hostId: flags.hostId as string | undefined,
+                        realmId: flags.clusterId as string | undefined,
+                      },
+                    })
+                  )
                 )
                 actionResult(
                   flags,
@@ -787,11 +794,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra
-                    .hosts({ slugOrId: args.id })
-                    .delete.post({})
+                  restCall(() => rest.deleteEntity("infra", "hosts", args.id))
                 )
                 actionResult(
                   flags,
@@ -821,15 +826,21 @@ export function infraCommand(app: DxBase) {
                 status: { type: "string", description: "Filter by status" },
               })
               .run(async ({ flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
+                const params = new URLSearchParams()
+                if (flags.providerId)
+                  params.set("providerId", flags.providerId as string)
+                if (flags.datacenterId)
+                  params.set("datacenterId", flags.datacenterId as string)
+                if (flags.status) params.set("status", flags.status as string)
+                const qs = params.toString()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.get({
-                    query: {
-                      providerId: flags.providerId as string | undefined,
-                      datacenterId: flags.datacenterId as string | undefined,
-                      status: flags.status as string | undefined,
-                    },
-                  })
+                  restCall(() =>
+                    rest.request<{ data: Record<string, unknown>[] }>(
+                      "GET",
+                      `/api/v1/factory/infra/hosts${qs ? `?${qs}` : ""}`
+                    )
+                  )
                 )
                 tableOrJson<InfraRow>(
                   flags,
@@ -868,9 +879,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
+                  restCall(() => rest.getEntity("infra", "hosts", args.id))
                 )
                 const row = (result?.data ?? null) as InfraRow | null
                 let ipDisplay = row?.spec?.ipAddress
@@ -878,13 +889,11 @@ export function infraCommand(app: DxBase) {
                   : styleMuted("-")
 
                 if (row?.id) {
-                  const rest = await getRestApi()
                   const ipsResult = await apiCall(flags, () =>
                     restCall(() =>
-                      rest.request<Array<Record<string, unknown>>>(
+                      rest.request<{ data: Array<Record<string, unknown>> }>(
                         "GET",
-                        `/api/v1/factory/infra/hosts/${row.id}/ip-addresses`,
-                        {}
+                        `/api/v1/factory/infra/hosts/${row.id}/ip-addresses`
                       )
                     )
                   )
@@ -962,19 +971,21 @@ export function infraCommand(app: DxBase) {
                 ipAddress: { type: "string", description: "IP address" },
               })
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.post({
-                    name: args.name,
-                    spec: {
-                      estateId: flags.providerId as string,
-                      cpuCores: flags.cpuCores as number,
-                      memoryMb: flags.memoryMb as number,
-                      diskGb: flags.diskGb as number,
-                      datacenterId: flags.datacenterId as string | undefined,
-                      ipAddress: flags.ipAddress as string | undefined,
-                    },
-                  })
+                  restCall(() =>
+                    rest.createEntity("infra", "hosts", {
+                      name: args.name,
+                      spec: {
+                        estateId: flags.providerId as string,
+                        cpuCores: flags.cpuCores as number,
+                        memoryMb: flags.memoryMb as number,
+                        diskGb: flags.diskGb as number,
+                        datacenterId: flags.datacenterId as string | undefined,
+                        ipAddress: flags.ipAddress as string | undefined,
+                      },
+                    })
+                  )
                 )
                 actionResult(
                   flags,
@@ -995,11 +1006,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra
-                    .hosts({ slugOrId: args.id })
-                    .delete.post({})
+                  restCall(() => rest.deleteEntity("infra", "hosts", args.id))
                 )
                 actionResult(
                   flags,
@@ -1025,14 +1034,14 @@ export function infraCommand(app: DxBase) {
                 },
               })
               .run(async ({ flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.get({
-                    query: {
-                      type: "kube-node",
-                      clusterId: flags.clusterId as string,
-                    },
-                  })
+                  restCall(() =>
+                    rest.request<{ data: Record<string, unknown>[] }>(
+                      "GET",
+                      `/api/v1/factory/infra/hosts?type=kube-node&clusterId=${flags.clusterId}`
+                    )
+                  )
                 )
                 tableOrJson<InfraRow>(
                   flags,
@@ -1061,9 +1070,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts({ slugOrId: args.id }).get()
+                  restCall(() => rest.getEntity("infra", "hosts", args.id))
                 )
                 detailView<InfraRow>(flags, result, [
                   ["ID", (r) => styleMuted(String(r.id ?? ""))],
@@ -1109,18 +1118,20 @@ export function infraCommand(app: DxBase) {
                 vmId: { type: "string", description: "VM ID for this node" },
               })
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra.hosts.post({
-                    name: args.name,
-                    spec: {
-                      type: "kube-node",
-                      realmId: flags.clusterId as string,
-                      role: (flags.role as string) ?? "agent",
-                      ipAddress: flags.ipAddress as string,
-                      vmId: flags.vmId as string | undefined,
-                    },
-                  })
+                  restCall(() =>
+                    rest.createEntity("infra", "hosts", {
+                      name: args.name,
+                      spec: {
+                        type: "kube-node",
+                        realmId: flags.clusterId as string,
+                        role: (flags.role as string) ?? "agent",
+                        ipAddress: flags.ipAddress as string,
+                        vmId: flags.vmId as string | undefined,
+                      },
+                    })
+                  )
                 )
                 actionResult(
                   flags,
@@ -1141,11 +1152,9 @@ export function infraCommand(app: DxBase) {
                 },
               ])
               .run(async ({ args, flags }) => {
-                const api = await getInfraApi()
+                const rest = await getRestApi()
                 const result = await apiCall(flags, () =>
-                  api.api.v1.factory.infra
-                    .hosts({ slugOrId: args.id })
-                    .delete.post({})
+                  restCall(() => rest.deleteEntity("infra", "hosts", args.id))
                 )
                 actionResult(
                   flags,

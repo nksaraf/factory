@@ -9,6 +9,7 @@ import { getGitHostAdapter } from "../../adapters/adapter-registry"
 import type { GitHostType } from "../../adapters/git-host-adapter"
 import { NoopGitHostAdapter } from "../../adapters/git-host-adapter-noop"
 import type { Database } from "../../db/connection"
+import { emitExternalEvent } from "../../lib/events"
 import {
   recordWebhookEvent,
   resolveActorPrincipal,
@@ -125,10 +126,12 @@ export function webhookController(db: Database) {
         payload
       )
 
+      const ghDeliveryId = deliveryId ?? crypto.randomUUID()
+
       const eventId = await recordWebhookEvent(db, {
         source: "github",
         providerId: params.providerId,
-        deliveryId: deliveryId ?? crypto.randomUUID(),
+        deliveryId: ghDeliveryId,
         eventType: event ?? "unknown",
         normalizedEventType,
         action,
@@ -136,6 +139,21 @@ export function webhookController(db: Database) {
         actor,
         entity,
         actorId: actorPrincipalId,
+      })
+
+      // Emit canonical event (fire-and-forget)
+      emitExternalEvent(db, {
+        source: "github",
+        eventType: action ? `${event}.${action}` : (event ?? "unknown"),
+        payload: payload as Record<string, unknown>,
+        providerId: params.providerId,
+        deliveryId: ghDeliveryId,
+        actorExternalId: senderIdStr,
+      }).catch((err) => {
+        wlog.warn(
+          { event, action, deliveryId: ghDeliveryId, err },
+          "failed to emit external event for github webhook"
+        )
       })
 
       const provider = await gitHostService.getProvider(params.providerId)

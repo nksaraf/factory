@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
+import { emitExternalEvent } from "../../lib/events"
 import {
   recordWebhookEvent,
   updateWebhookEventStatus,
@@ -66,10 +67,11 @@ export function messagingWebhookController(db: Database) {
       )
 
       // 1. Record webhook event (keep existing behavior)
+      const slackDeliveryIdStr = String(slackDeliveryId)
       const eventId = await recordWebhookEvent(db, {
         source: "slack",
         providerId: params.providerId,
-        deliveryId: String(slackDeliveryId),
+        deliveryId: slackDeliveryIdStr,
         eventType: slackEventType,
         normalizedEventType: normalizeSlackEventType(slackEventType),
         payload: slackPayload,
@@ -77,6 +79,21 @@ export function messagingWebhookController(db: Database) {
         entity: slackChannelId
           ? { externalRef: slackChannelId, kind: "channel" }
           : undefined,
+      })
+
+      // Emit canonical event (fire-and-forget)
+      emitExternalEvent(db, {
+        source: "slack",
+        eventType: slackEventType,
+        payload: slackPayload as Record<string, unknown>,
+        providerId: params.providerId,
+        deliveryId: slackDeliveryIdStr,
+        actorExternalId: slackUserId,
+      }).catch((err) => {
+        wlog.warn(
+          { event: slackEventType, deliveryId: slackDeliveryIdStr, err },
+          "failed to emit external event for slack webhook"
+        )
       })
 
       // 2. Forward to Chat SDK (handles verification, challenges, event routing)

@@ -1,4 +1,4 @@
-import { getFactoryClient } from "../../client.js"
+import { getFactoryClient, getFactoryRestClient } from "../../client.js"
 import { unwrap, usePoll } from "./use-poll.js"
 
 export function useEstates() {
@@ -40,9 +40,9 @@ export function useWorkbenches() {
 export function useHosts() {
   return usePoll(
     async () => {
-      const api = await getFactoryClient()
-      const res = await api.api.v1.factory.infra.hosts.get()
-      return unwrap(res)
+      const rest = await getFactoryRestClient()
+      const res = await rest.listEntities("infra", "hosts")
+      return res?.data ?? []
     },
     [],
     { interval: 15000 }

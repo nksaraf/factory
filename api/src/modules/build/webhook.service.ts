@@ -6,7 +6,6 @@ import type { GitHostAdapter } from "../../adapters/git-host-adapter"
 import type { Database } from "../../db/connection"
 import { webhookEvent } from "../../db/schema/build"
 import { site } from "../../db/schema/ops"
-import { emitEvent } from "../../lib/events"
 import { logger } from "../../logger"
 import * as pipelineRunSvc from "../../services/build/pipeline-run.service"
 import * as previewSvc from "../../services/preview/preview.service"
@@ -106,9 +105,6 @@ export class WebhookService {
       case "push":
         await this.handlePushEvent(payload)
         break
-      case "issue_comment":
-        await this.handleIssueCommentEvent(action, payload)
-        break
       case "repository":
         break
       case "installation":
@@ -191,26 +187,6 @@ export class WebhookService {
           triggerRef: `refs/pull/${prNumber}/head`,
           commitSha: headSha,
           triggerActor: senderLogin,
-        })
-
-        // Emit workflow event for PR opened
-        const prUrl = (pr.html_url as string) ?? ""
-        await emitEvent(this.db, {
-          topic: "build.pr.opened",
-          source: "github",
-          severity: "info",
-          schemaVersion: 1,
-          data: {
-            repoFullName,
-            branchName: headBranch,
-            prNumber: String(prNumber),
-            prUrl,
-          },
-        }).catch((err) => {
-          logger.warn(
-            { repo: repoFullName, pr: prNumber, error: err },
-            "Failed to emit build.pr.opened event"
-          )
         })
 
         // Gate preview creation on site previewConfig
@@ -415,49 +391,6 @@ export class WebhookService {
       triggerRef: ref,
       commitSha,
       triggerActor: senderLogin,
-    })
-  }
-
-  /**
-   * Handle issue_comment events — emit pr.comment workflow events.
-   * GitHub sends issue_comment for PR comments (PRs are issues).
-   */
-  private async handleIssueCommentEvent(
-    action: string | undefined,
-    payload: Record<string, unknown>
-  ): Promise<void> {
-    if (action !== "created") return
-
-    const issue = payload.issue as Record<string, unknown> | undefined
-    const comment = payload.comment as Record<string, unknown> | undefined
-    if (!issue || !comment) return
-
-    // Only handle comments on pull requests (issue has pull_request key)
-    if (!issue.pull_request) return
-
-    const repo = payload.repository as Record<string, unknown> | undefined
-    const repoFullName = (repo?.full_name as string) ?? ""
-    const prNumber = issue.number as number
-    const commentBody = (comment.body as string) ?? ""
-    const author =
-      ((comment.user as Record<string, unknown>)?.login as string) ?? "unknown"
-
-    await emitEvent(this.db, {
-      topic: "build.pr.commented",
-      source: "github",
-      severity: "info",
-      schemaVersion: 1,
-      data: {
-        repoFullName,
-        prNumber: String(prNumber),
-        comment: commentBody,
-        author,
-      },
-    }).catch((err) => {
-      logger.warn(
-        { repo: repoFullName, pr: prNumber, error: err },
-        "Failed to emit build.pr.commented event"
-      )
     })
   }
 }

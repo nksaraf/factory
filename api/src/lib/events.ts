@@ -9,6 +9,7 @@
 import type {
   EmitEventInput,
   EmitExternalEventInput,
+  EventRef,
   EventSpec,
 } from "@smp/factory-shared/schemas/events"
 import { and, eq, gt } from "drizzle-orm"
@@ -18,6 +19,11 @@ import { event, eventOutbox, eventSubscription } from "../db/schema/org"
 import { logger } from "../logger"
 import { matchTopic } from "../modules/events/topic-matcher"
 import { canonicalize } from "./event-canonicalizers"
+import {
+  resolveGitHubEntities,
+  resolveJiraEntities,
+  resolveSlackEntities,
+} from "./event-entity-resolver"
 import { validateEventData } from "./event-schemas"
 import { newId } from "./id"
 import { send } from "./workflow-engine"
@@ -45,6 +51,7 @@ export async function emitEvent(
     rawEventType,
     rawPayload,
     data,
+    refs,
     idempotencyKey,
     occurredAt,
     scopeKind = "org",
@@ -65,6 +72,7 @@ export async function emitEvent(
   const spec: EventSpec = {
     data,
     ...(rawPayload ? { rawPayload } : {}),
+    ...(refs && refs.length > 0 ? { refs } : {}),
   }
 
   const eventValues = {
@@ -155,16 +163,49 @@ export async function emitExternalEvent(
   // Canonicalize
   const canonical = canonicalize({ source, eventType, payload })
 
+  // Resolve entity refs (best-effort, never fails)
+  let refs: EventRef[] = []
+  try {
+    const resolvers: Record<
+      string,
+      (
+        db: Database,
+        providerId: string,
+        payload: Record<string, unknown>
+      ) => Promise<EventRef[]>
+    > = {
+      github: resolveGitHubEntities,
+      slack: resolveSlackEntities,
+      jira: resolveJiraEntities,
+    }
+    const resolver = resolvers[source]
+    if (resolver) {
+      refs = await resolver(db, providerId, payload)
+    }
+  } catch (err) {
+    logger.warn(
+      { source, providerId, err },
+      "emitExternalEvent: entity resolution failed"
+    )
+  }
+
+  // Set entityKind/entityId from the first "subject" ref if not already set
+  const subjectRef = refs.find((r) => r.role === "subject")
+  const resolvedEntityKind =
+    inputEntityKind ?? canonical.entityKind ?? subjectRef?.kind
+  const resolvedEntityId = inputEntityId ?? canonical.entityId ?? subjectRef?.id
+
   return emitEvent(db, {
     topic: canonical.topic,
     source,
     severity: canonical.severity,
     principalId,
-    entityKind: inputEntityKind ?? canonical.entityKind,
-    entityId: inputEntityId ?? canonical.entityId,
+    entityKind: resolvedEntityKind,
+    entityId: resolvedEntityId,
     rawEventType: eventType,
     rawPayload: payload,
     data: canonical.data,
+    refs,
     idempotencyKey: `${source}:${providerId}:${deliveryId}`,
     schemaVersion: 1,
   })

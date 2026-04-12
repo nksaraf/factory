@@ -14,6 +14,7 @@ import { getWorkTrackerAdapter } from "../../../adapters/adapter-registry"
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter"
 import type { Database } from "../../../db/connection"
 import { workTrackerProvider } from "../../../db/schema/build"
+import { emitExternalEvent } from "../../../lib/events"
 import { newId } from "../../../lib/id"
 import {
   recordWebhookEvent,
@@ -122,6 +123,21 @@ export function jiraWebhookTrigger(db: Database) {
         actor: jiraActor,
         entity: jiraEntity,
         actorId: jiraActorPrincipalId,
+      })
+
+      // Emit canonical event for ALL Jira events (fire-and-forget)
+      emitExternalEvent(db, {
+        source: "jira",
+        eventType: jiraEventType,
+        payload: jiraPayload as Record<string, unknown>,
+        providerId: params.providerId,
+        deliveryId: jiraDeliveryId,
+        actorExternalId: jiraAccountId,
+      }).catch((err) => {
+        wlog.warn(
+          { event: jiraEventType, deliveryId: jiraDeliveryId, err },
+          "failed to emit external event for jira webhook"
+        )
       })
 
       // 1. Look up provider

@@ -96,7 +96,8 @@ const slack: Canonicalizer = (raw) => {
 }
 
 const jira: Canonicalizer = (raw) => {
-  switch (raw.eventType) {
+  const eventType = raw.eventType.replace(/^jira:/, "")
+  switch (eventType) {
     case "issue_updated":
       return {
         topic: "ops.work_item.updated",
@@ -113,7 +114,7 @@ const jira: Canonicalizer = (raw) => {
       }
     default:
       return {
-        topic: `ext.jira.${raw.eventType}`,
+        topic: `ext.jira.${eventType}`,
         entityKind: "issue",
         severity: "info",
         data: raw.payload,
