@@ -121,3 +121,18 @@ export const EmitExternalEventInputSchema = z.object({
 export type EmitExternalEventInput = z.infer<
   typeof EmitExternalEventInputSchema
 >
+
+// ── sendNotification input ──────────────────────────────────
+
+export const SendNotificationInputSchema = z.object({
+  to: z.string(),
+  topic: z.string().optional(),
+  severity: EventSeveritySchema.default("info"),
+  title: z.string(),
+  body: z.string().optional(),
+  data: z.record(z.unknown()).optional(),
+  source: z.string().default("api"),
+  channels: z.array(z.string()).optional(),
+  correlationId: z.string().optional(),
+})
+export type SendNotificationInput = z.infer<typeof SendNotificationInputSchema>
