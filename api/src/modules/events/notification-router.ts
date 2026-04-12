@@ -8,7 +8,9 @@ import {
   eventSubscriptionChannel,
 } from "../../db/schema/org"
 import { logger } from "../../logger"
+import { getDeliveryAdapter, providerToRenderFormat } from "./delivery-adapter"
 import { renderEvent } from "./event-renderers"
+import { parseChannelAddress, resolveDeliveryTarget } from "./identity-resolver"
 import { severityGte } from "./scope-resolver"
 import { StormDetector } from "./storm-detector"
 import { matchTopic } from "./topic-matcher"
@@ -184,12 +186,29 @@ export class NotificationRouter {
         }
 
         if (ch.delivery === "realtime") {
-          // Render and mark as delivered
-          const channelType = ch.channelId.split(":")[0] as
-            | "cli"
-            | "web"
-            | "slack"
-            | "email"
+          const address = parseChannelAddress(ch.channelId)
+          if (!address) {
+            logger.warn(
+              { channelId: ch.channelId },
+              "notification-router: invalid channel address"
+            )
+            continue
+          }
+
+          const resolved = await resolveDeliveryTarget(
+            this.db,
+            address,
+            sub.ownerId
+          )
+          if (!resolved) {
+            logger.debug(
+              { channelId: ch.channelId, ownerId: sub.ownerId },
+              "notification-router: could not resolve delivery target"
+            )
+            continue
+          }
+
+          const renderFormat = providerToRenderFormat(resolved.provider)
           const renderOutput = renderEvent(
             {
               ...eventRow,
@@ -202,15 +221,43 @@ export class NotificationRouter {
                   ? eventRow.createdAt
                   : eventRow.createdAt.toISOString(),
             },
-            channelType
+            renderFormat
           )
+
+          const adapter = getDeliveryAdapter(resolved.provider)
+          let deliveryStatus = "delivered"
+          let deliveryError: string | undefined
+
+          if (adapter) {
+            const result = await adapter.deliver(
+              resolved.target,
+              renderOutput,
+              {
+                eventId: eventRow.id,
+                topic: eventRow.topic,
+                severity: eventRow.severity,
+                source: eventRow.source,
+                occurredAt:
+                  typeof eventRow.occurredAt === "string"
+                    ? eventRow.occurredAt
+                    : eventRow.occurredAt.toISOString(),
+              }
+            )
+            if (!result.ok) {
+              deliveryStatus = "failed"
+              deliveryError = result.error
+            }
+          }
 
           await this.db.insert(eventDelivery).values({
             eventId: eventRow.id,
             subscriptionChannelId: ch.id,
-            status: "delivered",
-            deliveredAt: new Date(),
-            spec: { renderOutput },
+            status: deliveryStatus,
+            deliveredAt: deliveryStatus === "delivered" ? new Date() : null,
+            spec: {
+              renderOutput,
+              ...(deliveryError ? { error: deliveryError } : {}),
+            },
           })
           delivered++
         } else {
