@@ -133,8 +133,7 @@ export async function getFactoryClient(
     await ensureLocalDaemon()
   }
 
-  const token =
-    init?.token ?? (await getFactoryApiToken())
+  const token = init?.token ?? (await getFactoryApiToken())
 
   return treaty<FactoryApp>(url, {
     headers: () => ({
@@ -154,8 +153,7 @@ export async function getFactoryRestClient(
 ): Promise<FactoryClient> {
   const cfg = await readConfig()
   const url = (baseUrl ?? resolveFactoryUrl(cfg)).replace(/\/$/, "")
-  const token =
-    init?.token ?? (await getFactoryApiToken())
+  const token = init?.token ?? (await getFactoryApiToken())
   return new FactoryClient(url, token)
 }
 
@@ -173,8 +171,7 @@ export async function getSiteClient(
 
   const url = siteUrl.replace(/\/$/, "")
   // Refresh JWT against this host's auth (`get-session`), not necessarily `factoryUrl`.
-  const token =
-    init?.token ?? (await resolveApiToken(url, cfg.authBasePath))
+  const token = init?.token ?? (await resolveApiToken(url, cfg.authBasePath))
 
   return treaty<FactoryApp>(url, {
     headers: () => ({

@@ -266,7 +266,11 @@ describe("topological ordering", () => {
         api: {
           kind: "Component" as const,
           metadata: { name: "api", namespace: "default" },
-          spec: { type: "service", dependsOn: ["resource:infra-postgres"], ports: [] },
+          spec: {
+            type: "service",
+            dependsOn: ["resource:infra-postgres"],
+            ports: [],
+          },
         },
         "infra-postgres": {
           kind: "Component" as const,

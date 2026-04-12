@@ -71,7 +71,10 @@ if (!org) {
 
 console.log(`\n=== GitHub identity dry run ===`)
 console.log(`Org: ${org}`)
-console.log(`Token user (whoami):`, (await kit.rest.users.getAuthenticated()).data.login)
+console.log(
+  `Token user (whoami):`,
+  (await kit.rest.users.getAuthenticated()).data.login
+)
 
 const members = await kit.paginate(kit.rest.orgs.listMembers, {
   org,
@@ -86,7 +89,10 @@ if (checkLogin) {
   console.log(`\n--- Spot-check: ${checkLogin} ---`)
   console.log(`  In org member list: ${inOrg}`)
   const diag = await profileError(kit, checkLogin)
-  console.log(`  GET /users/${checkLogin}:`, diag.ok ? "ok" : `${diag.status ?? "?"} ${diag.message}`)
+  console.log(
+    `  GET /users/${checkLogin}:`,
+    diag.ok ? "ok" : `${diag.status ?? "?"} ${diag.message}`
+  )
 }
 
 const adapter = new GitHubIdentityProviderAdapter()

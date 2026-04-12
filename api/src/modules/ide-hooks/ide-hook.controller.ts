@@ -10,12 +10,7 @@ import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
-import {
-  channel,
-  thread,
-  threadTurn,
-  webhookEvent,
-} from "../../db/schema/org"
+import { channel, thread, threadTurn, webhookEvent } from "../../db/schema/org"
 import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
 import {

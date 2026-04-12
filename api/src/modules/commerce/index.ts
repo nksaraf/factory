@@ -137,9 +137,51 @@ export function commerceController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const commerceOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "customers", singular: "customer", table: customer, slugColumn: customer.slug, idColumn: customer.id, prefix: "cust", kindAlias: "customer" },
-  { entity: "plans", singular: "plan", table: plan, slugColumn: plan.slug, idColumn: plan.id, prefix: "pln", kindAlias: "plan" },
-  { entity: "subscriptions", singular: "subscription", table: subscription, slugColumn: subscription.id, idColumn: subscription.id, prefix: "csub", kindAlias: "subscription" },
-  { entity: "billable-metrics", singular: "billable metric", table: billableMetric, slugColumn: billableMetric.slug, idColumn: billableMetric.id, prefix: "bmet", kindAlias: "billable-metric" },
+export const commerceOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "customers",
+    singular: "customer",
+    table: customer,
+    slugColumn: customer.slug,
+    idColumn: customer.id,
+    prefix: "cust",
+    kindAlias: "customer",
+  },
+  {
+    entity: "plans",
+    singular: "plan",
+    table: plan,
+    slugColumn: plan.slug,
+    idColumn: plan.id,
+    prefix: "pln",
+    kindAlias: "plan",
+  },
+  {
+    entity: "subscriptions",
+    singular: "subscription",
+    table: subscription,
+    slugColumn: subscription.id,
+    idColumn: subscription.id,
+    prefix: "csub",
+    kindAlias: "subscription",
+  },
+  {
+    entity: "billable-metrics",
+    singular: "billable metric",
+    table: billableMetric,
+    slugColumn: billableMetric.slug,
+    idColumn: billableMetric.id,
+    prefix: "bmet",
+    kindAlias: "billable-metric",
+  },
 ]

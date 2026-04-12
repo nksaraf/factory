@@ -28,7 +28,10 @@ export function loadInventoryFiles(pathOrDir: string): unknown[] {
   const filePaths: string[] = []
 
   if (stat.isDirectory()) {
-    const entries = readdirSync(pathOrDir, { recursive: true, withFileTypes: false }) as string[]
+    const entries = readdirSync(pathOrDir, {
+      recursive: true,
+      withFileTypes: false,
+    }) as string[]
     for (const entry of entries.sort()) {
       if (entry.endsWith(".yaml") || entry.endsWith(".yml")) {
         filePaths.push(join(pathOrDir, entry))

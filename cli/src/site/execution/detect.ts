@@ -52,10 +52,13 @@ export async function detectExecutor(
     return { type: "kubernetes", executor: new KubernetesExecutor() }
   }
 
-  const dockerComposeCli = await shellCapture(["docker", "compose", "version"], {
-    cwd,
-    noSecrets: true,
-  })
+  const dockerComposeCli = await shellCapture(
+    ["docker", "compose", "version"],
+    {
+      cwd,
+      noSecrets: true,
+    }
+  )
   if (dockerComposeCli.exitCode === 0) {
     return {
       type: "docker-compose",

@@ -3,7 +3,9 @@ export type DnsProviderType = "cloudflare" | "namecheap" | "godaddy"
 export interface DnsProviderAdapterConfig {
   apiToken: string
   apiKey?: string
+  apiSecret?: string
   apiUser?: string
+  clientIp?: string
 }
 
 // ── Zone / Record types ────────────────────────────────────

@@ -196,8 +196,42 @@ export function threadsController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const threadsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "channels", singular: "channel", table: channel, slugColumn: channel.id, idColumn: channel.id, prefix: "chan", kindAlias: "channel" },
-  { entity: "threads", singular: "thread", table: thread, slugColumn: thread.id, idColumn: thread.id, prefix: "thrd", kindAlias: "thread" },
-  { entity: "turns", singular: "thread turn", table: threadTurn, slugColumn: threadTurn.id, idColumn: threadTurn.id, prefix: "turn", kindAlias: "thread-turn" },
+export const threadsOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "channels",
+    singular: "channel",
+    table: channel,
+    slugColumn: channel.id,
+    idColumn: channel.id,
+    prefix: "chan",
+    kindAlias: "channel",
+  },
+  {
+    entity: "threads",
+    singular: "thread",
+    table: thread,
+    slugColumn: thread.id,
+    idColumn: thread.id,
+    prefix: "thrd",
+    kindAlias: "thread",
+  },
+  {
+    entity: "turns",
+    singular: "thread turn",
+    table: threadTurn,
+    slugColumn: threadTurn.id,
+    idColumn: threadTurn.id,
+    prefix: "turn",
+    kindAlias: "thread-turn",
+  },
 ]

@@ -12,7 +12,6 @@ version: "1"
 #   target = host it is assigned to
 #   Enables tracer to continue: public IP → (nat) → private IP → (host-local) → host
 entities:
-
   # ── IP → Host assignments (host-local) ───────────────────────
   - kind: network-link
     slug: assign-192-168-1-5-gajshield

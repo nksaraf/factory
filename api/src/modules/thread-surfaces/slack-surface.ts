@@ -40,7 +40,10 @@ function formatStartMessage(
  */
 function extractUserPrompt(raw: string): string {
   // Strip <system_instruction>...</system_instruction> blocks (possibly multi-line)
-  let cleaned = raw.replace(/<system_instruction>[\s\S]*?<\/system_instruction>/g, "")
+  let cleaned = raw.replace(
+    /<system_instruction>[\s\S]*?<\/system_instruction>/g,
+    ""
+  )
   // Strip any remaining XML-style tags that look like system wrappers
   cleaned = cleaned.replace(/<system[_-]?\w*>[\s\S]*?<\/system[_-]?\w*>/g, "")
   // Trim leading/trailing whitespace
@@ -50,7 +53,8 @@ function extractUserPrompt(raw: string): string {
 
 function formatUserMessage(prompt: string): string {
   const userPrompt = extractUserPrompt(prompt)
-  const truncated = userPrompt.length > 500 ? userPrompt.slice(0, 497) + "..." : userPrompt
+  const truncated =
+    userPrompt.length > 500 ? userPrompt.slice(0, 497) + "..." : userPrompt
   return `> ${truncated.replace(/\n/g, "\n> ")}`
 }
 
@@ -211,7 +215,11 @@ export async function postToSurface(
   threadId: string,
   message: string,
   role: "user" | "assistant" | "end",
-  opts?: { source?: string; threadSpec?: Record<string, any>; stats?: Record<string, any> }
+  opts?: {
+    source?: string
+    threadSpec?: Record<string, any>
+    stats?: Record<string, any>
+  }
 ): Promise<void> {
   if (!adapters.slack) return
 

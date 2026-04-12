@@ -14,7 +14,18 @@ import { agentOntologyConfigs } from "../modules/agent"
 import { threadsOntologyConfigs } from "../modules/threads"
 import { documentsOntologyConfigs } from "../modules/documents"
 
-type RegistryEntry = Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "slugRefs" | "kindAlias" | "createSchema">
+type RegistryEntry = Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "slugRefs"
+  | "kindAlias"
+  | "createSchema"
+>
 
 function singularize(entity: string): string {
   if (entity.endsWith("ies")) return entity.slice(0, -3) + "y"

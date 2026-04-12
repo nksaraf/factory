@@ -11,8 +11,8 @@ This document replaces the old “v1→v2 migration handoff.” The ontology mig
 | Term                                                                               | Meaning                                                                                                                                               |
 | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`/api/v1/factory`, `/api/v1/auth`**                                              | **HTTP API versioning** on the wire. Not legacy DB. Eden clients expose this as `api.v1.factory.*`. Do **not** remove or rename for “schema v1” work. |
-| **`api/src/db/schema/org.ts`, `…/software.ts`, …**                                 | **Current** Drizzle table definitions (Postgres schemas `org`, `infra`, `build`, `software`, `commerce`, `ops`).                                        |
-| **Kubernetes `apiVersion: apps/v1`, `cert-manager.io/v1`, Loki `…/loki/api/v1/…`** | **External** APIs. Out of scope for Factory schema cleanup.                                                                                         |
+| **`api/src/db/schema/org.ts`, `…/software.ts`, …**                                 | **Current** Drizzle table definitions (Postgres schemas `org`, `infra`, `build`, `software`, `commerce`, `ops`).                                      |
+| **Kubernetes `apiVersion: apps/v1`, `cert-manager.io/v1`, Loki `…/loki/api/v1/…`** | **External** APIs. Out of scope for Factory schema cleanup.                                                                                           |
 
 ---
 
@@ -39,12 +39,12 @@ This document replaces the old “v1→v2 migration handoff.” The ontology mig
 
 All active table definitions live under `api/src/db/schema/`:
 
-| File                                                         | Role                                                                              |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `ops.ts`                                                     | Operational / fleet-adjacent entities (sites, workbenches, rollouts, previews, …) |
-| `infra.ts`, `org.ts`, `software.ts`, `build.ts`, `commerce.ts` | Domain ontology tables                                                          |
-| `helpers.ts`                                                 | Shared column helpers                                                             |
-| `index.ts`                                                   | Barrel; re-exports namespaces `software`, `org`, `infra`, `ops`, `build`, `commerce` |
+| File                                                           | Role                                                                                 |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `ops.ts`                                                       | Operational / fleet-adjacent entities (sites, workbenches, rollouts, previews, …)    |
+| `infra.ts`, `org.ts`, `software.ts`, `build.ts`, `commerce.ts` | Domain ontology tables                                                               |
+| `helpers.ts`                                                   | Shared column helpers                                                                |
+| `index.ts`                                                     | Barrel; re-exports namespaces `software`, `org`, `infra`, `ops`, `build`, `commerce` |
 
 **Shared Zod** (request/response shapes): `shared/src/schemas/*.ts` — names like `org.ts` / `build.ts` here are the current contract layer (separate from Drizzle file names).
 

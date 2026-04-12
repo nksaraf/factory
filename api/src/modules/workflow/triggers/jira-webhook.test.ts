@@ -49,9 +49,7 @@ function createMockDb(providerRow: Record<string, unknown> | null) {
     }),
     insert: mock(() => ({
       values: mock(() => ({
-        returning: mock().mockResolvedValue([
-          { workflowRunId: "wfr_test123" },
-        ]),
+        returning: mock().mockResolvedValue([{ workflowRunId: "wfr_test123" }]),
       })),
     })),
   } as any

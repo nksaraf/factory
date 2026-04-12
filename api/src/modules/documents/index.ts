@@ -215,6 +215,24 @@ export function documentsController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const documentsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "documents", singular: "document", table: document, slugColumn: document.slug, idColumn: document.id, prefix: "doc", kindAlias: "document" },
+export const documentsOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "documents",
+    singular: "document",
+    table: document,
+    slugColumn: document.slug,
+    idColumn: document.id,
+    prefix: "doc",
+    kindAlias: "document",
+  },
 ]

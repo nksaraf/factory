@@ -121,7 +121,11 @@ export function parseGatewayConfigs(
 
 registerGatewayParser("apisix", {
   imagePatterns: [/^apisix/i],
-  parse(content: string, filePath: string, warnings?: string[]): GatewayTarget[] {
+  parse(
+    content: string,
+    filePath: string,
+    warnings?: string[]
+  ): GatewayTarget[] {
     try {
       const doc = parseYaml(content)
       if (!doc || typeof doc !== "object") return []
@@ -227,7 +231,11 @@ function parseApisixNodes(
 
 registerGatewayParser("traefik", {
   imagePatterns: [/^traefik/i],
-  parse(content: string, filePath: string, warnings?: string[]): GatewayTarget[] {
+  parse(
+    content: string,
+    filePath: string,
+    warnings?: string[]
+  ): GatewayTarget[] {
     try {
       const doc = parseYaml(content)
       if (!doc || typeof doc !== "object") return []

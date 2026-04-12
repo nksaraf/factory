@@ -17,13 +17,13 @@ For **how the app is wired today**, see **`HANDOFF.md`** (assembly, glossary, sc
 
 ## Migration completion summary (verified)
 
-| Area                                                                    | State                                                                                |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Area                                                                    | State                                                                                                           |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Drizzle v1 schema files (`db/schema/org.ts`, `fleet.ts`, …)             | **Removed** — replaced by ontology `org.ts`, `infra.ts`, `software.ts`, `build.ts`, `commerce.ts`, and `ops.ts` |
-| `plugins/v2-switch.plugin.ts`                                           | **Removed**                                                                          |
-| `factory.api.ts` / `factory-core.ts`                                    | Mount **`opsController`** + other ontology `*Controller`; prefix **`/api/v1/factory`** |
-| `modules/fleet/` as a directory                                         | **Absent** — fleet-shaped HTTP surface lives under **ops** controller + `ops` schema |
-| Large v1 `services/*` tree (sandbox, catalog-sync, many infra services) | **Absent** from current `api/src/services/`                                          |
+| `plugins/v2-switch.plugin.ts`                                           | **Removed**                                                                                                     |
+| `factory.api.ts` / `factory-core.ts`                                    | Mount **`opsController`** + other ontology `*Controller`; prefix **`/api/v1/factory`**                          |
+| `modules/fleet/` as a directory                                         | **Absent** — fleet-shaped HTTP surface lives under **ops** controller + `ops` schema                            |
+| Large v1 `services/*` tree (sandbox, catalog-sync, many infra services) | **Absent** from current `api/src/services/`                                                                     |
 
 Legacy **per-file** checklists in older commits listed many `pending` rows; those files either **no longer exist** or **already import** the current `db/schema/*` modules. Do not treat the old tables below as current work queues without re-auditing the path.
 

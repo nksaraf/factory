@@ -260,13 +260,87 @@ export function productController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const productOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "systems", singular: "system", table: system, slugColumn: system.slug, idColumn: system.id, prefix: "sys", kindAlias: "system" },
-  { entity: "components", singular: "component", table: component, slugColumn: component.slug, idColumn: component.id, prefix: "cmp", kindAlias: "component" },
-  { entity: "apis", singular: "api", table: softwareApi, slugColumn: softwareApi.slug, idColumn: softwareApi.id, prefix: "api", kindAlias: "api" },
-  { entity: "artifacts", singular: "artifact", table: artifact, slugColumn: artifact.slug, idColumn: artifact.id, prefix: "art", kindAlias: "artifact" },
-  { entity: "releases", singular: "release", table: release, slugColumn: release.slug, idColumn: release.id, prefix: "rel", kindAlias: "release" },
-  { entity: "templates", singular: "template", table: template, slugColumn: template.slug, idColumn: template.id, prefix: "tmpl", kindAlias: "template" },
-  { entity: "products", singular: "product", table: product, slugColumn: product.slug, idColumn: product.id, prefix: "prod", kindAlias: "product" },
-  { entity: "capabilities", singular: "capability", table: capability, slugColumn: capability.slug, idColumn: capability.id, prefix: "cap", kindAlias: "capability" },
+export const productOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "systems",
+    singular: "system",
+    table: system,
+    slugColumn: system.slug,
+    idColumn: system.id,
+    prefix: "sys",
+    kindAlias: "system",
+  },
+  {
+    entity: "components",
+    singular: "component",
+    table: component,
+    slugColumn: component.slug,
+    idColumn: component.id,
+    prefix: "cmp",
+    kindAlias: "component",
+  },
+  {
+    entity: "apis",
+    singular: "api",
+    table: softwareApi,
+    slugColumn: softwareApi.slug,
+    idColumn: softwareApi.id,
+    prefix: "api",
+    kindAlias: "api",
+  },
+  {
+    entity: "artifacts",
+    singular: "artifact",
+    table: artifact,
+    slugColumn: artifact.slug,
+    idColumn: artifact.id,
+    prefix: "art",
+    kindAlias: "artifact",
+  },
+  {
+    entity: "releases",
+    singular: "release",
+    table: release,
+    slugColumn: release.slug,
+    idColumn: release.id,
+    prefix: "rel",
+    kindAlias: "release",
+  },
+  {
+    entity: "templates",
+    singular: "template",
+    table: template,
+    slugColumn: template.slug,
+    idColumn: template.id,
+    prefix: "tmpl",
+    kindAlias: "template",
+  },
+  {
+    entity: "products",
+    singular: "product",
+    table: product,
+    slugColumn: product.slug,
+    idColumn: product.id,
+    prefix: "prod",
+    kindAlias: "product",
+  },
+  {
+    entity: "capabilities",
+    singular: "capability",
+    table: capability,
+    slugColumn: capability.slug,
+    idColumn: capability.id,
+    prefix: "cap",
+    kindAlias: "capability",
+  },
 ]

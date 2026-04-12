@@ -168,7 +168,9 @@ export function devCommand(app: DxBase) {
               const result = await ctrl.start(component, {
                 env: env && Object.keys(env).length > 0 ? env : undefined,
               })
-              console.log(`Restarted ${result.name} on :${result.port} (PID ${result.pid})`)
+              console.log(
+                `Restarted ${result.name} on :${result.port} (PID ${result.pid})`
+              )
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err)
               console.error(`Error restarting ${component}: ${msg}`)

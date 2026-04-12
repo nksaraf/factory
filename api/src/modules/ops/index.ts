@@ -1016,12 +1016,78 @@ export function opsController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const opsOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "sites", singular: "site", table: site, slugColumn: site.slug, idColumn: site.id, prefix: "site", kindAlias: "site" },
-  { entity: "tenants", singular: "tenant", table: tenant, slugColumn: tenant.slug, idColumn: tenant.id, prefix: "tnt", kindAlias: "tenant" },
-  { entity: "system-deployments", singular: "system deployment", table: systemDeployment, slugColumn: systemDeployment.slug, idColumn: systemDeployment.id, prefix: "sdp", kindAlias: "system-deployment" },
-  { entity: "deployment-sets", singular: "deployment set", table: deploymentSet, slugColumn: deploymentSet.slug, idColumn: deploymentSet.id, prefix: "dset", kindAlias: "deployment-set" },
-  { entity: "workbenches", singular: "workbench", table: workbench, slugColumn: workbench.slug, idColumn: workbench.id, prefix: "wbnch", kindAlias: "workbench" },
-  { entity: "databases", singular: "database", table: opsDatabase, slugColumn: opsDatabase.slug, idColumn: opsDatabase.id, prefix: "db", kindAlias: "database" },
-  { entity: "forwarded-ports", singular: "forwarded port", table: forwardedPort, slugColumn: forwardedPort.id, idColumn: forwardedPort.id, prefix: "fp", kindAlias: "forwarded-port" },
+export const opsOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "sites",
+    singular: "site",
+    table: site,
+    slugColumn: site.slug,
+    idColumn: site.id,
+    prefix: "site",
+    kindAlias: "site",
+  },
+  {
+    entity: "tenants",
+    singular: "tenant",
+    table: tenant,
+    slugColumn: tenant.slug,
+    idColumn: tenant.id,
+    prefix: "tnt",
+    kindAlias: "tenant",
+  },
+  {
+    entity: "system-deployments",
+    singular: "system deployment",
+    table: systemDeployment,
+    slugColumn: systemDeployment.slug,
+    idColumn: systemDeployment.id,
+    prefix: "sdp",
+    kindAlias: "system-deployment",
+  },
+  {
+    entity: "deployment-sets",
+    singular: "deployment set",
+    table: deploymentSet,
+    slugColumn: deploymentSet.slug,
+    idColumn: deploymentSet.id,
+    prefix: "dset",
+    kindAlias: "deployment-set",
+  },
+  {
+    entity: "workbenches",
+    singular: "workbench",
+    table: workbench,
+    slugColumn: workbench.slug,
+    idColumn: workbench.id,
+    prefix: "wbnch",
+    kindAlias: "workbench",
+  },
+  {
+    entity: "databases",
+    singular: "database",
+    table: opsDatabase,
+    slugColumn: opsDatabase.slug,
+    idColumn: opsDatabase.id,
+    prefix: "db",
+    kindAlias: "database",
+  },
+  {
+    entity: "forwarded-ports",
+    singular: "forwarded port",
+    table: forwardedPort,
+    slugColumn: forwardedPort.id,
+    idColumn: forwardedPort.id,
+    prefix: "fp",
+    kindAlias: "forwarded-port",
+  },
 ]

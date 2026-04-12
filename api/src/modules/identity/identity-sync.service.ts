@@ -1,10 +1,6 @@
 import { eq, and, sql } from "drizzle-orm"
 import type { Database } from "../../db/connection"
-import {
-  identityLink,
-  principal,
-  messagingProvider,
-} from "../../db/schema/org"
+import { identityLink, principal, messagingProvider } from "../../db/schema/org"
 import { gitHostProvider, workTrackerProvider } from "../../db/schema/build"
 import { IdentityService } from "./identity.service"
 import { getIdentityProviderAdapter } from "../../adapters/adapter-registry"

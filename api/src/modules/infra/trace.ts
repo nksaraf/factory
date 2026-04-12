@@ -134,7 +134,7 @@ export async function traceFrom(
 
     const via =
       link.viaKind && link.viaId
-        ? (await reader.findEntity(link.viaKind, link.viaId)) ?? undefined
+        ? ((await reader.findEntity(link.viaKind, link.viaId)) ?? undefined)
         : undefined
 
     hops.push({ link, via, entity })

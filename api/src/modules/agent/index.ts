@@ -246,9 +246,51 @@ export function agentController(db: Database) {
 
 import type { OntologyRouteConfig } from "../../lib/crud"
 
-export const agentOntologyConfigs: Pick<OntologyRouteConfig<any>, "entity" | "singular" | "table" | "slugColumn" | "idColumn" | "prefix" | "kindAlias" | "createSchema">[] = [
-  { entity: "agents", singular: "agent", table: agent, slugColumn: agent.slug, idColumn: agent.id, prefix: "agt", kindAlias: "agent" },
-  { entity: "presets", singular: "role preset", table: rolePreset, slugColumn: rolePreset.slug, idColumn: rolePreset.id, prefix: "rpre", kindAlias: "role-preset" },
-  { entity: "jobs", singular: "job", table: job, slugColumn: job.id, idColumn: job.id, prefix: "job", kindAlias: "job" },
-  { entity: "memories", singular: "memory", table: memory, slugColumn: memory.id, idColumn: memory.id, prefix: "mem", kindAlias: "memory" },
+export const agentOntologyConfigs: Pick<
+  OntologyRouteConfig<any>,
+  | "entity"
+  | "singular"
+  | "table"
+  | "slugColumn"
+  | "idColumn"
+  | "prefix"
+  | "kindAlias"
+  | "createSchema"
+>[] = [
+  {
+    entity: "agents",
+    singular: "agent",
+    table: agent,
+    slugColumn: agent.slug,
+    idColumn: agent.id,
+    prefix: "agt",
+    kindAlias: "agent",
+  },
+  {
+    entity: "presets",
+    singular: "role preset",
+    table: rolePreset,
+    slugColumn: rolePreset.slug,
+    idColumn: rolePreset.id,
+    prefix: "rpre",
+    kindAlias: "role-preset",
+  },
+  {
+    entity: "jobs",
+    singular: "job",
+    table: job,
+    slugColumn: job.id,
+    idColumn: job.id,
+    prefix: "job",
+    kindAlias: "job",
+  },
+  {
+    entity: "memories",
+    singular: "memory",
+    table: memory,
+    slugColumn: memory.id,
+    idColumn: memory.id,
+    prefix: "mem",
+    kindAlias: "memory",
+  },
 ]

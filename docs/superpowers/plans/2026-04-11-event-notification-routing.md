@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-04-11-unified-event-system-design.md` (Sections 6.1–6.7)
 
 **Depends on:**
+
 - `docs/superpowers/plans/2026-04-11-unified-event-system-core.md` (event tables, emitEvent, NATS)
 - `docs/superpowers/plans/2026-04-11-unified-event-subscription.md` (unified event_subscription + event_subscription_channel tables, topic matcher)
 
@@ -20,22 +21,22 @@
 
 ## File Map
 
-| Action | File                                                      | Responsibility                                                         |
-| ------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Modify | `api/src/db/schema/org.ts`                                | Add event_delivery, event_aggregate, event_alert tables                |
-| Modify | `api/src/lib/id.ts`                                       | Add `"edlv"`, `"eagg"`, `"ealt"` prefixes                             |
-| Create | `api/src/modules/events/storm-detector.ts`                | Sliding-window counter, aggregate mode switching                       |
-| Create | `api/src/modules/events/storm-detector.test.ts`           | Tests for storm detection thresholds                                   |
-| Create | `api/src/modules/events/event-renderers.ts`               | Per-channel-type renderers (Slack blocks, CLI ANSI, web, email)        |
-| Create | `api/src/modules/events/event-renderers.test.ts`          | Tests for rendering output                                             |
-| Create | `api/src/modules/events/notification-router.ts`           | NATS consumer → match stream subscriptions → dispatch to channels      |
-| Create | `api/src/modules/events/notification-router.test.ts`      | Tests for subscription matching, storm detection, delivery             |
-| Create | `api/src/modules/events/escalation-worker.ts`             | Periodic worker: escalate unacknowledged alerts                        |
-| Create | `api/src/modules/events/batch-delivery-worker.ts`         | Periodic worker: deliver batch/digest notifications                    |
-| Create | `api/src/modules/events/scope-resolver.ts`                | Resolve event scope, check principal access                            |
-| Create | `api/src/modules/events/scope-resolver.test.ts`           | Tests for scope resolution                                             |
-| Modify | `api/src/modules/events/index.ts`                         | Wire notification router + workers into the event module               |
-| Modify | `api/src/test-helpers.ts`                                 | Add truncate for new tables                                            |
+| Action | File                                                 | Responsibility                                                    |
+| ------ | ---------------------------------------------------- | ----------------------------------------------------------------- |
+| Modify | `api/src/db/schema/org.ts`                           | Add event_delivery, event_aggregate, event_alert tables           |
+| Modify | `api/src/lib/id.ts`                                  | Add `"edlv"`, `"eagg"`, `"ealt"` prefixes                         |
+| Create | `api/src/modules/events/storm-detector.ts`           | Sliding-window counter, aggregate mode switching                  |
+| Create | `api/src/modules/events/storm-detector.test.ts`      | Tests for storm detection thresholds                              |
+| Create | `api/src/modules/events/event-renderers.ts`          | Per-channel-type renderers (Slack blocks, CLI ANSI, web, email)   |
+| Create | `api/src/modules/events/event-renderers.test.ts`     | Tests for rendering output                                        |
+| Create | `api/src/modules/events/notification-router.ts`      | NATS consumer → match stream subscriptions → dispatch to channels |
+| Create | `api/src/modules/events/notification-router.test.ts` | Tests for subscription matching, storm detection, delivery        |
+| Create | `api/src/modules/events/escalation-worker.ts`        | Periodic worker: escalate unacknowledged alerts                   |
+| Create | `api/src/modules/events/batch-delivery-worker.ts`    | Periodic worker: deliver batch/digest notifications               |
+| Create | `api/src/modules/events/scope-resolver.ts`           | Resolve event scope, check principal access                       |
+| Create | `api/src/modules/events/scope-resolver.test.ts`      | Tests for scope resolution                                        |
+| Modify | `api/src/modules/events/index.ts`                    | Wire notification router + workers into the event module          |
+| Modify | `api/src/test-helpers.ts`                            | Add truncate for new tables                                       |
 
 ---
 
@@ -140,7 +141,9 @@ export const eventAlert = orgSchema.table(
     acknowledgedBy: text("acknowledged_by"),
     acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-    escalationStep: bigint("escalation_step", { mode: "number" }).notNull().default(0),
+    escalationStep: bigint("escalation_step", { mode: "number" })
+      .notNull()
+      .default(0),
     nextEscalation: timestamp("next_escalation", { withTimezone: true }),
     spec: jsonb("spec").$type<{
       escalationPolicy?: unknown
@@ -326,13 +329,31 @@ export class StormDetector {
     return bucket.count > this.config.thresholdPerMinute
   }
 
-  activeStorms(): Array<{ topicPrefix: string; scopeId: string; count: number; since: number }> {
+  activeStorms(): Array<{
+    topicPrefix: string
+    scopeId: string
+    count: number
+    since: number
+  }> {
     const now = Date.now()
-    const storms: Array<{ topicPrefix: string; scopeId: string; count: number; since: number }> = []
+    const storms: Array<{
+      topicPrefix: string
+      scopeId: string
+      count: number
+      since: number
+    }> = []
     for (const [k, bucket] of this.buckets) {
-      if (now - bucket.firstSeen <= this.config.windowMs && bucket.count > this.config.thresholdPerMinute) {
+      if (
+        now - bucket.firstSeen <= this.config.windowMs &&
+        bucket.count > this.config.thresholdPerMinute
+      ) {
         const [topicPrefix, scopeId] = k.split(":")
-        storms.push({ topicPrefix, scopeId, count: bucket.count, since: bucket.firstSeen })
+        storms.push({
+          topicPrefix,
+          scopeId,
+          count: bucket.count,
+          since: bucket.firstSeen,
+        })
       }
     }
     return storms
@@ -381,45 +402,68 @@ import { canPrincipalSeeEvent, severityGte } from "./scope-resolver"
 
 describe("canPrincipalSeeEvent", () => {
   it("allows org-scoped events for org members", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "org", scopeId: "default" },
-      { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }] }
-    )).toBe(true)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "org", scopeId: "default" },
+        { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }] }
+      )
+    ).toBe(true)
   })
 
   it("allows principal-scoped events for the owning principal", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "principal", scopeId: "prin_alice" },
-      { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }] }
-    )).toBe(true)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "principal", scopeId: "prin_alice" },
+        { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }] }
+      )
+    ).toBe(true)
   })
 
   it("denies principal-scoped events for other principals", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "principal", scopeId: "prin_alice" },
-      { principalId: "prin_bob", scopes: [{ kind: "org", id: "default" }] }
-    )).toBe(false)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "principal", scopeId: "prin_alice" },
+        { principalId: "prin_bob", scopes: [{ kind: "org", id: "default" }] }
+      )
+    ).toBe(false)
   })
 
   it("allows team-scoped events for team members", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "team", scopeId: "team_platform" },
-      { principalId: "prin_alice", scopes: [{ kind: "team", id: "team_platform" }] }
-    )).toBe(true)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "team", scopeId: "team_platform" },
+        {
+          principalId: "prin_alice",
+          scopes: [{ kind: "team", id: "team_platform" }],
+        }
+      )
+    ).toBe(true)
   })
 
   it("denies system-scoped events for non-admins", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "system", scopeId: "internal" },
-      { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }], isAdmin: false }
-    )).toBe(false)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "system", scopeId: "internal" },
+        {
+          principalId: "prin_alice",
+          scopes: [{ kind: "org", id: "default" }],
+          isAdmin: false,
+        }
+      )
+    ).toBe(false)
   })
 
   it("allows system-scoped events for admins", () => {
-    expect(canPrincipalSeeEvent(
-      { scopeKind: "system", scopeId: "internal" },
-      { principalId: "prin_alice", scopes: [{ kind: "org", id: "default" }], isAdmin: true }
-    )).toBe(true)
+    expect(
+      canPrincipalSeeEvent(
+        { scopeKind: "system", scopeId: "internal" },
+        {
+          principalId: "prin_alice",
+          scopes: [{ kind: "org", id: "default" }],
+          isAdmin: true,
+        }
+      )
+    ).toBe(true)
   })
 })
 
@@ -475,7 +519,9 @@ export function canPrincipalSeeEvent(
     case "team":
     case "project":
     case "site":
-      return principal.scopes.some((s) => s.kind === scopeKind && s.id === scopeId)
+      return principal.scopes.some(
+        (s) => s.kind === scopeKind && s.id === scopeId
+      )
     default:
       return principal.scopes.some((s) => s.kind === "org")
   }
@@ -557,7 +603,13 @@ describe("renderEvent", () => {
 describe("renderAggregate", () => {
   it("renders storm aggregate to CLI", () => {
     const output = renderAggregate(
-      { topicPrefix: "ops.component_deployment", eventCount: 42, maxSeverity: "warning", windowStart: "2026-04-11T12:00:00Z", windowEnd: "2026-04-11T12:05:00Z" },
+      {
+        topicPrefix: "ops.component_deployment",
+        eventCount: 42,
+        maxSeverity: "warning",
+        windowStart: "2026-04-11T12:00:00Z",
+        windowEnd: "2026-04-11T12:05:00Z",
+      },
       "cli"
     )
     expect(typeof output).toBe("string")
@@ -569,6 +621,7 @@ describe("renderAggregate", () => {
 - [ ] **Step 2: Implement event renderers**
 
 Create `api/src/modules/events/event-renderers.ts` with:
+
 - Generic renderers for each channel type (cli, web, slack, email)
 - Per-topic overrides (e.g., `ops.component_deployment.drifted` has custom Slack/CLI rendering)
 - Fallback chain: exact topic → topic prefix → generic
@@ -599,6 +652,7 @@ The notification router is the central engine: consumes events from NATS, matche
 - [ ] **Step 1: Write tests for pure matching functions**
 
 Create `api/src/modules/events/notification-router.test.ts` with tests for:
+
 - `matchSubscription()` — topic filter, severity filter, scope filter, JSONB containment
 - `isMuted()` — muted flag, mutedUntil in future/past
 - `isQuietHours()` — overnight ranges, same-day ranges
@@ -608,6 +662,7 @@ Create `api/src/modules/events/notification-router.test.ts` with tests for:
 Create `api/src/modules/events/notification-router.ts`:
 
 Key components:
+
 - `matchSubscription(sub, event)` — pure function, checks topic filter (using `matchTopic`), severity (`severityGte`), scope, and JSONB containment
 - `isMuted(spec)` — checks muted flag and mutedUntil timestamp
 - `isQuietHours(start, end, currentHour)` — handles overnight ranges
@@ -643,6 +698,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Implement the escalation worker**
 
 60-second interval worker that:
+
 1. Queries `eventAlert` where `status IN ('firing', 'escalated')` and `nextEscalation < now()`
 2. For each: increment `escalationStep`, notify next target from escalation policy
 3. Update `nextEscalation` for the next step
@@ -668,6 +724,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] **Step 1: Implement the batch delivery worker**
 
 60-second interval worker that:
+
 1. Finds `eventSubscriptionChannel` with `delivery IN ('batch', 'digest')` that have buffered deliveries
 2. Checks if batch window has elapsed since `lastDeliveredAt`
 3. Aggregates buffered `eventDelivery` rows
@@ -697,6 +754,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 If `api/src/modules/events/index.ts` doesn't exist yet, create it. If it already exists (from WebSocket gateway work), extend it.
 
 Wire:
+
 1. Start `NotificationRouter` with NATS consumer
 2. Start `startEscalationWorker(db)`
 3. Start `startBatchDeliveryWorker(db)`
@@ -725,13 +783,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ## Summary
 
-| Task | What it builds                               | Tests                                               |
-| ---- | -------------------------------------------- | ---------------------------------------------------- |
-| 1    | Drizzle tables: event_delivery, event_aggregate, event_alert | DB migration |
-| 2    | Storm detector (sliding-window counter)      | Threshold, isolation, expiry                         |
-| 3    | Scope resolver (access control)              | Org, team, principal, system scopes; severity        |
-| 4    | Per-channel event renderers                  | CLI, web, Slack output; aggregate rendering          |
-| 5    | Notification router (core matching engine)   | Topic filter, severity, scope, JSONB match, mute, quiet hours |
-| 6    | Escalation worker                            | —                                                    |
-| 7    | Batch/digest delivery worker                 | —                                                    |
-| 8    | Wire everything + REST endpoints             | —                                                    |
+| Task | What it builds                                               | Tests                                                         |
+| ---- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| 1    | Drizzle tables: event_delivery, event_aggregate, event_alert | DB migration                                                  |
+| 2    | Storm detector (sliding-window counter)                      | Threshold, isolation, expiry                                  |
+| 3    | Scope resolver (access control)                              | Org, team, principal, system scopes; severity                 |
+| 4    | Per-channel event renderers                                  | CLI, web, Slack output; aggregate rendering                   |
+| 5    | Notification router (core matching engine)                   | Topic filter, severity, scope, JSONB match, mute, quiet hours |
+| 6    | Escalation worker                                            | —                                                             |
+| 7    | Batch/digest delivery worker                                 | —                                                             |
+| 8    | Wire everything + REST endpoints                             | —                                                             |

@@ -31,7 +31,9 @@ import { ok } from "../../lib/responses"
 // ── Helpers ──────────────────────────────────────────────────
 
 /** Map catalog lifecycle values to software `Lifecycle`. */
-function catalogLifecycleToSoftware(catalogLifecycle: string | undefined): Lifecycle {
+function catalogLifecycleToSoftware(
+  catalogLifecycle: string | undefined
+): Lifecycle {
   switch (catalogLifecycle) {
     case "development":
       return "beta"

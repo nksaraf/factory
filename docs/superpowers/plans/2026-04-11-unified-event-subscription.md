@@ -13,9 +13,11 @@
 **Spec:** `docs/superpowers/specs/2026-04-11-unified-event-system-design.md` (Section 6)
 
 **Depends on:**
+
 - `docs/superpowers/plans/2026-04-11-unified-event-system-core.md` (event table, emitEvent, topic matcher)
 
 **Supersedes:**
+
 - The `notification_sub` / `notification_sub_channel` tables from Plan 4 (notification routing) — replaced by unified `event_subscription` / `event_subscription_channel`
 - The workflow bridge in `api/src/lib/events.ts:175` — matching is unified
 
@@ -25,13 +27,13 @@
 
 **How other systems name this:**
 
-| System | Match Concept | Action Concept | Model |
-|--------|--------------|----------------|-------|
-| AWS EventBridge | Rule (event pattern) | Target (Lambda, SQS) | 1 rule → N targets |
-| Azure Event Grid | Event Subscription | Endpoint (webhook, queue) | subscription = filter + endpoint |
-| NATS JetStream | Consumer (filter subject) | Deliver policy | consumer = filter + delivery |
-| Inngest | Event trigger (`event:`, `if:`) | Function handler | trigger declared on function |
-| Temporal | Signal name | Workflow handler | signal name = subscription |
+| System           | Match Concept                   | Action Concept            | Model                            |
+| ---------------- | ------------------------------- | ------------------------- | -------------------------------- |
+| AWS EventBridge  | Rule (event pattern)            | Target (Lambda, SQS)      | 1 rule → N targets               |
+| Azure Event Grid | Event Subscription              | Endpoint (webhook, queue) | subscription = filter + endpoint |
+| NATS JetStream   | Consumer (filter subject)       | Deliver policy            | consumer = filter + delivery     |
+| Inngest          | Event trigger (`event:`, `if:`) | Function handler          | trigger declared on function     |
+| Temporal         | Signal name                     | Workflow handler          | signal name = subscription       |
 
 **Our unified model** follows Azure Event Grid: subscription = filter + polymorphic action. But we add `kind` to distinguish transient triggers from persistent streams, avoiding the need for separate tables.
 
@@ -82,30 +84,30 @@
 
 ### How it maps
 
-| Use Case | kind | owner_kind | owner_id | topic_filter | expires_at | channels |
-|----------|------|-----------|----------|-------------|-----------|----------|
-| Workflow waits for workbench | `trigger` | `workflow` | `wfrun_123` | `workbench.ready` | +10min | none |
-| Workflow waits for PR | `trigger` | `workflow` | `wfrun_123` | `pr.opened` | +1hr | none |
-| Alice wants deploy alerts | `stream` | `principal` | `prin_alice` | `ops.component_deployment.>` | null | Slack DM (realtime), email (digest) |
-| #ops-alerts channel | `stream` | `system` | `system` | `ops.*.failed` | null | Slack #ops-alerts (realtime) |
-| Team notification | `stream` | `team` | `team_platform` | `infra.>` | null | web (realtime) |
+| Use Case                     | kind      | owner_kind  | owner_id        | topic_filter                 | expires_at | channels                            |
+| ---------------------------- | --------- | ----------- | --------------- | ---------------------------- | ---------- | ----------------------------------- |
+| Workflow waits for workbench | `trigger` | `workflow`  | `wfrun_123`     | `workbench.ready`            | +10min     | none                                |
+| Workflow waits for PR        | `trigger` | `workflow`  | `wfrun_123`     | `pr.opened`                  | +1hr       | none                                |
+| Alice wants deploy alerts    | `stream`  | `principal` | `prin_alice`    | `ops.component_deployment.>` | null       | Slack DM (realtime), email (digest) |
+| #ops-alerts channel          | `stream`  | `system`    | `system`        | `ops.*.failed`               | null       | Slack #ops-alerts (realtime)        |
+| Team notification            | `stream`  | `team`      | `team_platform` | `infra.>`                    | null       | web (realtime)                      |
 
 ---
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|---------------|
-| Modify | `api/src/db/schema/org.ts` | Replace `eventSubscription` table, add `eventSubscriptionChannel` |
-| Modify | `api/src/lib/id.ts` | Add `"esch"` prefix |
-| Modify | `api/src/lib/workflow-events.ts` | Update `waitForEvent` + `emitEvent` to use new schema |
-| Modify | `api/src/lib/events.ts` | Remove bridge, integrate unified matching |
-| Modify | `api/src/lib/workflow-events.test.ts` | Update tests for new column names |
-| Modify | `api/src/lib/events.test.ts` | Update bridge tests → unified matching tests |
-| Create | `shared/src/schemas/event-subscription.ts` | Zod schemas for unified subscription model |
-| Modify | `shared/src/schemas/index.ts` | Export new schemas |
-| Modify | `api/src/modules/workflow/triggers/rest.ts` | Update REST endpoints for new shape |
-| Modify | `api/src/test-helpers.ts` | Update truncate for renamed/new tables |
+| Action | File                                        | Responsibility                                                    |
+| ------ | ------------------------------------------- | ----------------------------------------------------------------- |
+| Modify | `api/src/db/schema/org.ts`                  | Replace `eventSubscription` table, add `eventSubscriptionChannel` |
+| Modify | `api/src/lib/id.ts`                         | Add `"esch"` prefix                                               |
+| Modify | `api/src/lib/workflow-events.ts`            | Update `waitForEvent` + `emitEvent` to use new schema             |
+| Modify | `api/src/lib/events.ts`                     | Remove bridge, integrate unified matching                         |
+| Modify | `api/src/lib/workflow-events.test.ts`       | Update tests for new column names                                 |
+| Modify | `api/src/lib/events.test.ts`                | Update bridge tests → unified matching tests                      |
+| Create | `shared/src/schemas/event-subscription.ts`  | Zod schemas for unified subscription model                        |
+| Modify | `shared/src/schemas/index.ts`               | Export new schemas                                                |
+| Modify | `api/src/modules/workflow/triggers/rest.ts` | Update REST endpoints for new shape                               |
+| Modify | `api/src/test-helpers.ts`                   | Update truncate for renamed/new tables                            |
 
 ---
 
@@ -282,6 +284,7 @@ Run: `cd /Users/nikhilsaraf/conductor/workspaces/factory/colombo/api && pnpm db:
 This will detect the column changes (dropped `workflowRunId`, `eventName`; added `kind`, `status`, `topicFilter`, `ownerKind`, `ownerId`, `minSeverity`, `scopeKind`, `scopeId`, `spec`, `updatedAt`, and `name`; `matchFields` becomes nullable). Plus the new `event_subscription_channel` table.
 
 Answer rename prompts:
+
 - `event_name` → `topic_filter`: **Yes** (this is a rename)
 - `workflow_run_id` → `owner_id`: **Yes** (this is a rename)
 - Any other column renames: use judgment, say **Yes** if it's semantically the same data
@@ -374,9 +377,7 @@ export const EventSubscriptionSpecSchema = z.object({
   timezone: z.string().optional(),
   escalationPolicy: EscalationPolicySchema.optional(),
 })
-export type EventSubscriptionSpec = z.infer<
-  typeof EventSubscriptionSpecSchema
->
+export type EventSubscriptionSpec = z.infer<typeof EventSubscriptionSpecSchema>
 
 // ── Channel Spec ──────────────────────────────────────────
 
@@ -835,9 +836,11 @@ const parts = topic.split(".")
 const strippedTopic = parts.length >= 3 ? parts.slice(1).join(".") : null
 
 const matched = subs.filter((sub) => {
-  if (matchTopic(sub.topicFilter, topic)) { /* proceed with other checks */ }
-  else if (strippedTopic && matchTopic(sub.topicFilter, strippedTopic)) { /* proceed */ }
-  else return false
+  if (matchTopic(sub.topicFilter, topic)) {
+    /* proceed with other checks */
+  } else if (strippedTopic && matchTopic(sub.topicFilter, strippedTopic)) {
+    /* proceed */
+  } else return false
   // ... rest of checks
 })
 ```
@@ -938,9 +941,7 @@ const github: Canonicalizer = (raw) => {
       }
     case "pull_request.closed":
       return {
-        topic: raw.payload.merged
-          ? "build.pr.merged"
-          : "build.pr.closed",
+        topic: raw.payload.merged ? "build.pr.merged" : "build.pr.closed",
         entityKind: "pull_request",
         severity: "info",
         data: raw.payload,
@@ -955,9 +956,10 @@ const github: Canonicalizer = (raw) => {
       }
     case "check_run.completed":
       return {
-        topic: raw.payload.conclusion === "success"
-          ? "build.pipeline.completed"
-          : "build.pipeline.failed",
+        topic:
+          raw.payload.conclusion === "success"
+            ? "build.pipeline.completed"
+            : "build.pipeline.failed",
         entityKind: "pipeline",
         severity: raw.payload.conclusion === "success" ? "info" : "warning",
         data: raw.payload,
@@ -1127,7 +1129,11 @@ await emitEvent(this.db, {
 ```typescript
 // Before:
 import { emitEvent } from "../lib/workflow-events"
-await emitEvent(this.db, "preview.ready", { branchName, previewUrl, previewSlug })
+await emitEvent(this.db, "preview.ready", {
+  branchName,
+  previewUrl,
+  previewSlug,
+})
 
 // After:
 import { emitEvent } from "../lib/events"
@@ -1196,18 +1202,18 @@ const wsEvent = await waitForEvent<{ workbenchId: string; status: string }>(
 )
 
 // Before:
-const prEvent = await waitForEvent<{ prNumber: number; prUrl: string; branchName: string }>(
-  "pr.opened",
-  { repoFullName: input.repoFullName, branchName },
-  3600
-)
+const prEvent = await waitForEvent<{
+  prNumber: number
+  prUrl: string
+  branchName: string
+}>("pr.opened", { repoFullName: input.repoFullName, branchName }, 3600)
 
 // After:
-const prEvent = await waitForEvent<{ prNumber: number; prUrl: string; branchName: string }>(
-  "build.pr.opened",
-  { repoFullName: input.repoFullName, branchName },
-  3600
-)
+const prEvent = await waitForEvent<{
+  prNumber: number
+  prUrl: string
+  branchName: string
+}>("build.pr.opened", { repoFullName: input.repoFullName, branchName }, 3600)
 
 // Before:
 const pvEvent = await waitForEvent<{ previewUrl: string; previewSlug: string }>(
@@ -1224,18 +1230,18 @@ const pvEvent = await waitForEvent<{ previewUrl: string; previewSlug: string }>(
 )
 
 // Before:
-const comment = await waitForEvent<{ comment: string; author: string; prNumber: number }>(
-  "pr.comment",
-  { repoFullName, prNumber: String(prNumber) },
-  86400
-)
+const comment = await waitForEvent<{
+  comment: string
+  author: string
+  prNumber: number
+}>("pr.comment", { repoFullName, prNumber: String(prNumber) }, 86400)
 
 // After:
-const comment = await waitForEvent<{ comment: string; author: string; prNumber: number }>(
-  "build.pr.commented",
-  { repoFullName, prNumber: String(prNumber) },
-  86400
-)
+const comment = await waitForEvent<{
+  comment: string
+  author: string
+  prNumber: number
+}>("build.pr.commented", { repoFullName, prNumber: String(prNumber) }, 86400)
 ```
 
 Now both producers and consumers speak the same domain vocabulary. No bridge, no domain-stripping, no dual-emit.
@@ -1305,17 +1311,17 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ## Summary
 
-| Task | What it does | Breaking changes |
-|------|-------------|-----------------|
-| 1 | Drizzle schema: replace narrow `eventSubscription`, add `eventSubscriptionChannel` | Column renames: `eventName`→`topicFilter`, `workflowRunId`→`ownerId` |
-| 2 | Zod schemas: trigger input, stream input, channel spec, alert status | None |
-| 3 | Update `waitForEvent()` + `emitEvent()` in workflow-events.ts | Internal only — function signatures unchanged |
-| 4 | Update workflow event tests | None |
-| 5 | Remove bridge, add unified `matchSubscriptions()` in events.ts (with domain-stripped fallback) | Bridge eliminated — matching is direct |
-| 6 | Update REST endpoints + verify workflow compilation | Query column names |
-| 7 | Canonical domain topics for external events (build.pr.opened, etc.) | Canonicalizer output changes |
-| 8 | Migrate all producers + god-workflow to domain topics | Producers + consumers speak canonical vocabulary |
-| 9 | Remove domain-stripped fallback (cleanup) | Fallback removed — no longer needed |
+| Task | What it does                                                                                   | Breaking changes                                                     |
+| ---- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 1    | Drizzle schema: replace narrow `eventSubscription`, add `eventSubscriptionChannel`             | Column renames: `eventName`→`topicFilter`, `workflowRunId`→`ownerId` |
+| 2    | Zod schemas: trigger input, stream input, channel spec, alert status                           | None                                                                 |
+| 3    | Update `waitForEvent()` + `emitEvent()` in workflow-events.ts                                  | Internal only — function signatures unchanged                        |
+| 4    | Update workflow event tests                                                                    | None                                                                 |
+| 5    | Remove bridge, add unified `matchSubscriptions()` in events.ts (with domain-stripped fallback) | Bridge eliminated — matching is direct                               |
+| 6    | Update REST endpoints + verify workflow compilation                                            | Query column names                                                   |
+| 7    | Canonical domain topics for external events (build.pr.opened, etc.)                            | Canonicalizer output changes                                         |
+| 8    | Migrate all producers + god-workflow to domain topics                                          | Producers + consumers speak canonical vocabulary                     |
+| 9    | Remove domain-stripped fallback (cleanup)                                                      | Fallback removed — no longer needed                                  |
 
 ## Topic Hierarchy (Final)
 

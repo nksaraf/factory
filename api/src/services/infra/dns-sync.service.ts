@@ -84,7 +84,9 @@ async function resolveAdapter(
   const adapter = getDnsProviderAdapter(providerKind as DnsProviderType, {
     apiToken,
     apiKey: resolved.apiKey as string | undefined,
+    apiSecret: resolved.apiSecret as string | undefined,
     apiUser: resolved.apiUser as string | undefined,
+    clientIp: resolved.clientIp as string | undefined,
   })
 
   return { adapter, providerKind }

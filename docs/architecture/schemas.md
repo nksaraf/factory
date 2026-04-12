@@ -211,15 +211,15 @@ Cross-schema foreign keys that Drizzle cannot infer (e.g. `realm.workbenchId` �
 
 ## Where to Find Things
 
-| Concern                                                             | File                               |
-| ------------------------------------------------------------------- | ---------------------------------- |
-| Column helper builders                                              | `api/src/db/schema/helpers.ts`     |
+| Concern                                                             | File                            |
+| ------------------------------------------------------------------- | ------------------------------- |
+| Column helper builders                                              | `api/src/db/schema/helpers.ts`  |
 | Infrastructure entities (Estate, Host, Realm, Service, Route…)      | `api/src/db/schema/infra.ts`    |
-| Operations entities (Site, Tenant, Workspace, Preview, Deployment…) | `api/src/db/schema/ops.ts`         |
+| Operations entities (Site, Tenant, Workspace, Preview, Deployment…) | `api/src/db/schema/ops.ts`      |
 | Software entities (System, Component, Release, Artifact…)           | `api/src/db/schema/software.ts` |
 | Organisation entities (Principal, Group…)                           | `api/src/db/schema/org.ts`      |
-| Zod spec types for infra                                            | `shared/src/schemas/infra.ts`      |
-| Zod spec types for ops                                              | `shared/src/schemas/ops.ts`        |
+| Zod spec types for infra                                            | `shared/src/schemas/infra.ts`   |
+| Zod spec types for ops                                              | `shared/src/schemas/ops.ts`     |
 
 ## See Also
 

@@ -2,7 +2,8 @@ import { createRequire } from "node:module"
 import { beforeEach, describe, expect, it, mock } from "bun:test"
 
 const require = createRequire(import.meta.url)
-const realCp = require("node:child_process") as typeof import("node:child_process")
+const realCp =
+  require("node:child_process") as typeof import("node:child_process")
 
 const mockExecFile = mock()
 

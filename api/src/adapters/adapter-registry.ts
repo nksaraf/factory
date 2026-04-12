@@ -51,6 +51,8 @@ import { SlackIdentityProviderAdapter } from "./identity-provider-adapter-slack"
 import { JiraIdentityProviderAdapter } from "./identity-provider-adapter-jira"
 import { GoogleIdentityProviderAdapter } from "./identity-provider-adapter-google"
 import { CloudflareDnsProviderAdapter } from "./dns-provider-adapter-cloudflare"
+import { GoDaddyDnsProviderAdapter } from "./dns-provider-adapter-godaddy"
+import { NamecheapDnsProviderAdapter } from "./dns-provider-adapter-namecheap"
 
 // ── VM Provider ──────────────────────────────────────────────
 
@@ -263,6 +265,8 @@ const dnsProviderAdapters: Partial<
   >
 > = {
   cloudflare: (config) => new CloudflareDnsProviderAdapter(config),
+  godaddy: (config) => new GoDaddyDnsProviderAdapter(config),
+  namecheap: (config) => new NamecheapDnsProviderAdapter(config),
 }
 
 export function getDnsProviderAdapter(

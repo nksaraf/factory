@@ -220,7 +220,8 @@ export function setupCommand(app: DxBase) {
                 },
                 {
                   value: "prod",
-                  label: "Production — Kubernetes (k3s) + Helm (requires factory repo)",
+                  label:
+                    "Production — Kubernetes (k3s) + Helm (requires factory repo)",
                 },
               ],
             })

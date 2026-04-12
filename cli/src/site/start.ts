@@ -8,10 +8,7 @@ import { join } from "node:path"
 import { readConfig, resolveFactoryUrl } from "../config.js"
 import { createControllerServer } from "./controller-server.js"
 import { type ControllerMode, SiteController } from "./controller.js"
-import {
-  detectExecutor,
-  formatExecutorTypeLabel,
-} from "./execution/detect.js"
+import { detectExecutor, formatExecutorTypeLabel } from "./execution/detect.js"
 import { FactoryLink } from "./factory-link.js"
 import { HealthMonitor } from "./health.js"
 import { StateStore } from "./state.js"
