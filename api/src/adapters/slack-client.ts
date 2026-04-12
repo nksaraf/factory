@@ -177,6 +177,20 @@ export const slack = {
     return { ts: result.ts as string }
   },
 
+  /** conversations.open — open or resume a DM with a user */
+  async conversationsOpen(
+    token: string,
+    userId: string
+  ): Promise<{ channelId: string }> {
+    const result = await slackApiPostJson("conversations.open", token, {
+      users: userId,
+    })
+    if (!result.ok)
+      throw new Error(`conversations.open failed: ${result.error}`)
+    const ch = result.channel as { id: string }
+    return { channelId: ch.id }
+  },
+
   /** chat.update — update a message */
   async chatUpdate(
     token: string,
