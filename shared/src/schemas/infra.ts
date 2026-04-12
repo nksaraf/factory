@@ -23,6 +23,7 @@ export const EstateTypeSchema = z.enum([
   "dns-zone",
   "wan",
   "cdn",
+  "hypervisor",
 ])
 export type EstateType = z.infer<typeof EstateTypeSchema>
 
