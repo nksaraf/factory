@@ -5,7 +5,7 @@
  * Adapter-agnostic: resolves which Chat SDK adapter to use from `channel.kind`.
  * Works with Slack, Discord, Teams, WhatsApp — any adapter in the Chat SDK.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
 import {
@@ -212,87 +212,38 @@ export async function findThreadBySessionId(
   }
 }
 
-// ── Principal surface lookup ───────────────────────────────
-
-/** Surfaces idle longer than this are considered stale — new conversation gets a new thread. */
-const SURFACE_STALE_MS = 30 * 60 * 1000 // 30 minutes
+// ── Thread surface lookup ──────────────────────────────────
 
 /**
- * Find a principal's most recent connected mirror surface.
- * Used by autoAttachSurface to reuse an existing Slack thread
- * instead of creating a new one per session/compaction/subagent.
- *
- * Returns null if the surface is stale (> 30 min since last activity),
- * which triggers a new Slack thread for the new conversation.
+ * Find a connected mirror surface on THIS thread.
+ * Used by autoAttachSurface to detect compactions — same session_id means
+ * same thread row, so a surface already exists. Different conversations
+ * get different threads and different Slack threads.
  */
-async function findPrincipalSurface(
+async function findThreadSurface(
   db: Database,
-  principalId: string
+  threadId: string
 ): Promise<{ chatSdkThreadId: string; channelRowId: string } | null> {
   const rows = await db
     .select({
       spec: threadChannel.spec,
       channelId: threadChannel.channelId,
-      updatedAt: threadChannel.updatedAt,
     })
     .from(threadChannel)
-    .innerJoin(thread, eq(threadChannel.threadId, thread.id))
     .where(
       and(
-        eq(thread.principalId, principalId),
+        eq(threadChannel.threadId, threadId),
         eq(threadChannel.role, "mirror"),
         eq(threadChannel.status, "connected")
       )
     )
-    .orderBy(desc(threadChannel.updatedAt))
     .limit(1)
 
   if (rows.length === 0) return null
-
-  const age = Date.now() - new Date(rows[0].updatedAt).getTime()
-  if (age > SURFACE_STALE_MS) {
-    log.info(
-      { principalId, ageMinutes: Math.round(age / 60000) },
-      "Existing surface is stale — will create new thread"
-    )
-    return null
-  }
-
   const spec = (rows[0].spec ?? {}) as Record<string, any>
   const chatSdkThreadId = spec.chatSdkThreadId as string | undefined
   if (!chatSdkThreadId) return null
   return { chatSdkThreadId, channelRowId: rows[0].channelId }
-}
-
-/**
- * Detach all connected mirror surfaces for a principal.
- * Called before creating a new conversation thread to clean up stale surfaces.
- */
-async function detachPrincipalSurfaces(
-  db: Database,
-  principalId: string
-): Promise<void> {
-  const detachedAt = new Date().toISOString()
-  await db
-    .update(threadChannel)
-    .set({
-      status: "detached",
-      spec: sql`COALESCE(${threadChannel.spec}, '{}'::jsonb) || ${JSON.stringify({ detachedAt })}::jsonb`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(threadChannel.role, "mirror"),
-        eq(threadChannel.status, "connected"),
-        inArray(
-          threadChannel.threadId,
-          db
-            .select({ id: thread.id })
-            .from(thread)
-            .where(eq(thread.principalId, principalId))
-        )
-      )
-    )
 }
 
 // ── Surface query (shared by postToSurface + startTypingOnSurface) ──
@@ -425,9 +376,12 @@ export async function updateSurfaceStatus(
 /**
  * Auto-attach a chat surface to a thread.
  *
- * Called on session.start. Reuses the principal's existing Slack thread
- * if one is connected (same conversation across compactions/subagents).
- * Only creates a new Slack thread when no connected surface exists.
+ * Called on session.start. Looks up whether THIS thread already has a
+ * connected surface (compaction case — same session_id, same thread row).
+ * If yes, no-op. If not, creates a new Slack thread.
+ *
+ * Each conversation gets its own session_id → its own thread → its own
+ * Slack thread. Multiple conversations for the same principal stay separate.
  *
  * Returns the thread_channel ID, or null if no identity / adapter.
  */
@@ -443,47 +397,40 @@ export async function autoAttachSurface(
     return null
   }
 
+  // If this thread already has a surface, we're done (compaction / duplicate session.start)
+  const existing = await findThreadSurface(db, threadId)
+  if (existing) {
+    log.info(
+      { threadId, chatSdkThreadId: existing.chatSdkThreadId },
+      "Thread already has a surface — skipping"
+    )
+    return null
+  }
+
   const identity = await lookupChatIdentity(db, principalId)
   if (!identity) {
     log.debug({ principalId }, "No chat identity — skipping auto-attach")
     return null
   }
 
-  // Reuse existing Slack thread if the principal already has one connected.
-  // This keeps compactions, subagents, and short-lived sessions in one thread.
-  const existing = await findPrincipalSurface(db, principalId)
+  // New conversation — create a new Slack thread
+  await bot.initialize()
+  const dmThread = await bot.openDM(identity.externalId)
+  const startMsg = formatStatusMessage({
+    source,
+    cwd: payload.cwd,
+    branch: payload.gitBranch ?? payload.branch,
+  })
+  const sent = await dmThread.post(startMsg)
 
-  let chatSdkThreadId: string
-  let channelRowId: string
+  const { slackChannelId } = parseSlackThreadId(dmThread.id)
+  const chatSdkThreadId = `${identity.type}:${slackChannelId}:${sent.id}`
+  const channelRowId = await ensureChannel(slackChannelId)
 
-  if (existing) {
-    chatSdkThreadId = existing.chatSdkThreadId
-    channelRowId = existing.channelRowId
-    log.info(
-      { threadId, principalId, chatSdkThreadId },
-      "Reusing existing surface for new session"
-    )
-  } else {
-    // No active surface — detach any stale ones and create a new Slack thread
-    await detachPrincipalSurfaces(db, principalId)
-    await bot.initialize()
-    const dmThread = await bot.openDM(identity.externalId)
-    const startMsg = formatStatusMessage({
-      source,
-      cwd: payload.cwd,
-      branch: payload.gitBranch ?? payload.branch,
-    })
-    const sent = await dmThread.post(startMsg)
-
-    const { slackChannelId } = parseSlackThreadId(dmThread.id)
-    chatSdkThreadId = `${identity.type}:${slackChannelId}:${sent.id}`
-    channelRowId = await ensureChannel(slackChannelId)
-
-    log.info(
-      { threadId, principalId, chatSdkThreadId },
-      "Created new surface for conversation"
-    )
-  }
+  log.info(
+    { threadId, principalId, chatSdkThreadId },
+    "Created new surface for conversation"
+  )
 
   const surfaceSpec = {
     chatSdkThreadId,
