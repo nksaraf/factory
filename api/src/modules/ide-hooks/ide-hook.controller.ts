@@ -719,7 +719,7 @@ export function ideHookController(db: Database) {
               timestamp: body.timestamp,
               cwd: body.cwd,
               project: body.project,
-              ...((body.payload as Record<string, unknown>) ?? {}),
+              ...(body.payload as Record<string, unknown>),
             },
           })
 
@@ -744,7 +744,7 @@ export function ideHookController(db: Database) {
             timestamp: body.timestamp,
             cwd: body.cwd,
             project: body.project,
-            ...((body.payload as Record<string, unknown>) ?? {}),
+            ...(body.payload as Record<string, unknown>),
           }
 
           // Dual-write to thread entities (best-effort, don't fail the event)

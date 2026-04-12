@@ -302,7 +302,7 @@ bot.onNewMention(async (chatThread, message) => {
       const channelId = await ensureChannel(slackChannelId)
       const threadId = await ensureThread(chatThread.id, channelId, actor)
       await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
-    } catch (_) {
+    } catch {
       // Best-effort
     }
 
@@ -402,7 +402,7 @@ bot.onSubscribedMessage(async (chatThread, message) => {
       const channelId = await ensureChannel(slackChannelId)
       const threadId = await ensureThread(chatThread.id, channelId, actor)
       await recordTurn(threadId, "assistant", `[error] ${errMsg}`)
-    } catch (_) {
+    } catch {
       // Best-effort
     }
 
