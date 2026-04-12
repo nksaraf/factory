@@ -810,6 +810,14 @@ export function ideHookController(db: Database) {
             } else if (body.eventType === "prompt.submit") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
+                // Ensure surface exists (creates on first prompt if session.start was missed)
+                await autoAttachSurface(
+                  db,
+                  thrd.id,
+                  principalId,
+                  body.source,
+                  payload
+                )
                 const p = payload as Record<string, any>
                 const prompt = typeof p.prompt === "string" ? p.prompt : ""
                 await postToSurface(db, thrd.id, prompt, "user")
