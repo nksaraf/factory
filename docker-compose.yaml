@@ -184,7 +184,7 @@ services:
       - ./infra/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
+      test: ["CMD-SHELL", "apisix test 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
