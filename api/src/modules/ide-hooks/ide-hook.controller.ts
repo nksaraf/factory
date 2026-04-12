@@ -6,11 +6,19 @@
  * POST  /ide-hooks/events   — ingest a hook event
  * GET   /ide-hooks/events   — query hook events (with filters)
  */
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, lte, max, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
-import { channel, thread, threadTurn, webhookEvent } from "../../db/schema/org"
+import {
+  channel,
+  document,
+  documentVersion,
+  thread,
+  threadTurn,
+  webhookEvent,
+} from "../../db/schema/org"
+import { newId } from "../../lib/id"
 import { recordWebhookEvent } from "../../lib/webhook-events"
 import { logger } from "../../logger"
 import {
@@ -517,6 +525,107 @@ async function handleToolPost(
  * without needing `dx scan`. Falls back to server-side materialization from
  * webhook events if the transcript stats are missing.
  */
+// ── Plan document upsert ──────────────────────────────────
+
+async function handlePlanDocument(
+  db: Database,
+  threadId: string,
+  sessionId: string,
+  payload: Record<string, any>
+): Promise<void> {
+  const toolInput =
+    typeof payload.tool_input === "string"
+      ? JSON.parse(payload.tool_input)
+      : payload.tool_input
+  const planContent = toolInput?.plan
+  if (!planContent || typeof planContent !== "string") return
+
+  // Extract title from first heading
+  const titleMatch = planContent.match(/^#\s+(?:Plan:\s*)?(.+)/m)
+  const title = titleMatch?.[1]?.trim() ?? "Untitled Plan"
+  const slug = `plan-${sessionId}`
+
+  const contentPath = `plan/${slug}.md`
+  const contentHash = new Bun.CryptoHasher("sha256")
+    .update(planContent)
+    .digest("hex")
+  const sizeBytes = Buffer.byteLength(planContent, "utf-8")
+
+  const { writeDocument } = await import("../documents/storage")
+  await writeDocument(contentPath, planContent)
+
+  // Upsert the document
+  const [existing] = await db
+    .select({ id: document.id })
+    .from(document)
+    .where(eq(document.slug, slug))
+    .limit(1)
+
+  let docId: string
+  if (existing) {
+    docId = existing.id
+    await db
+      .update(document)
+      .set({
+        title,
+        contentPath,
+        contentHash,
+        sizeBytes,
+        threadId,
+        updatedAt: new Date(),
+      } as any)
+      .where(eq(document.id, docId))
+  } else {
+    const id = newId("doc")
+    docId = id
+    await db.insert(document).values({
+      id,
+      slug,
+      title,
+      type: "plan",
+      source: "claude-code",
+      contentPath,
+      contentHash,
+      sizeBytes,
+      threadId,
+    } as any)
+  }
+
+  // Create a new version
+  const [maxRow] = await db
+    .select({ maxVersion: max(documentVersion.version) })
+    .from(documentVersion)
+    .where(eq(documentVersion.documentId, docId))
+  const nextVersion = (maxRow?.maxVersion ?? 0) + 1
+
+  const versionPath = `plan/${slug}/v${nextVersion}.md`
+  await writeDocument(versionPath, planContent)
+
+  await db.insert(documentVersion).values({
+    id: newId("docv"),
+    documentId: docId,
+    version: nextVersion,
+    contentPath: versionPath,
+    contentHash,
+    sizeBytes,
+    source: "claude-code",
+    threadId,
+  } as any)
+
+  // Post link to the Slack surface
+  const factoryUrl = (
+    process.env.FACTORY_URL ??
+    process.env.BETTER_AUTH_BASE_URL ??
+    ""
+  ).replace(/\/$/, "")
+  const viewUrl = `${factoryUrl}/api/v1/factory/documents/${slug}/view`
+  const msg = `:page_facing_up: *Plan: ${title}*${nextVersion > 1 ? ` (v${nextVersion})` : ""}\n<${viewUrl}|View plan>`
+
+  await postToSurface(db, threadId, msg, "assistant")
+
+  log.info({ slug, version: nextVersion, threadId }, "Plan document upserted")
+}
+
 async function handleSessionEnd(
   db: Database,
   payload: Record<string, any>
@@ -847,6 +956,12 @@ export function ideHookController(db: Database) {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
                 await startTypingOnSurface(db, thrd.id, "Thinking...")
+
+                // Plan documents: upsert to document store and post link
+                const toolName = (payload as any).tool_name
+                if (toolName === "ExitPlanMode") {
+                  await handlePlanDocument(db, thrd.id, body.sessionId, payload)
+                }
               }
             } else if (body.eventType === "agent.stop") {
               const thrd = await findThreadBySessionId(db, body.sessionId)

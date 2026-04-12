@@ -181,6 +181,38 @@ export function documentsController(db: Database) {
         set.status = 201
         return { success: true, ...version }
       })
+      // ── View rendered document ────────────────────────────────
+      .get("/documents/:slugOrId/view", async ({ params, set }) => {
+        const doc = await resolveDocument(db, params.slugOrId)
+        if (!doc) {
+          set.status = 404
+          return { error: "Document not found" }
+        }
+
+        const [latestVersion] = await db
+          .select()
+          .from(documentVersion)
+          .where(eq(documentVersion.documentId, doc.id))
+          .orderBy(desc(documentVersion.version))
+          .limit(1)
+
+        const contentPath = latestVersion?.contentPath ?? doc.contentPath
+        if (!contentPath || !(await documentExists(contentPath))) {
+          set.status = 404
+          return { error: "Document content not found" }
+        }
+
+        const buf = await readDocument(contentPath)
+        const markdown = buf.toString("utf-8")
+        const title = (doc.title as string) ?? doc.slug
+        const version = latestVersion?.version ?? null
+        const updatedAt = (doc as any).updatedAt
+          ? new Date((doc as any).updatedAt).toLocaleString()
+          : ""
+
+        set.headers["content-type"] = "text/html; charset=utf-8"
+        return renderMarkdownPage(title, markdown, version, updatedAt)
+      })
       // ── Get latest content ──────────────────────────────────
       .get("/documents/:slugOrId/content", async ({ params, set }) => {
         const doc = await resolveDocument(db, params.slugOrId)
@@ -211,6 +243,54 @@ export function documentsController(db: Database) {
         }
       })
   )
+}
+
+// ── Markdown rendering ─────────────────────────────────────
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
+function renderMarkdownPage(
+  title: string,
+  markdown: string,
+  version: number | null,
+  updatedAt: string
+): string {
+  const versionStr = version ? ` (v${version})` : ""
+  // marked.parse with default options sanitizes output (no raw HTML passthrough).
+  // Content is from our own document store, not user-submitted HTML.
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-dark.min.css">
+  <style>
+    body { background: #0d1117; padding: 2rem; margin: 0; }
+    .container { max-width: 960px; margin: 0 auto; }
+    .meta { color: #8b949e; font-size: 0.85rem; margin-bottom: 1rem; font-family: -apple-system, sans-serif; }
+    .markdown-body { padding: 2rem; background: #161b22; border-radius: 8px; border: 1px solid #30363d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="meta">${escapeHtml(title)}${versionStr}${updatedAt ? ` · updated ${escapeHtml(updatedAt)}` : ""}</div>
+    <div class="markdown-body" id="content"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script>
+    const raw = marked.parse(${JSON.stringify(markdown)});
+    document.getElementById("content").innerHTML = DOMPurify.sanitize(raw);
+  </script>
+</body>
+</html>`
 }
 
 import type { OntologyRouteConfig } from "../../lib/crud"
