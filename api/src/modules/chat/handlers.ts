@@ -74,25 +74,19 @@ export function parseSlackThreadId(threadId: string) {
 }
 
 /**
- * Post a message to a chat thread, working around a bug in @chat-adapter/slack
- * where DM threads get an empty threadTs. In that case, Slack's API rejects
- * `thread_ts: ""` with `thread_not_found`. We detect this and post via the
- * channel (top-level DM message) instead.
+ * Fix DM thread IDs that have empty threadTs.
+ * The Slack adapter sets threadTs="" for DMs; we patch it to the message's ts
+ * so replies are threaded and typing indicators / streaming work.
  */
-async function postToThread(
-  chatThread: {
-    id: string
-    isDM: boolean
-    channel: any
-    post: (msg: any) => Promise<any>
-  },
-  message: any
+function fixDmThreadId(
+  chatThread: { id: string; isDM: boolean },
+  message: { id: string }
 ) {
-  const { slackThreadTs } = parseSlackThreadId(chatThread.id)
-  if (chatThread.isDM && !slackThreadTs) {
-    return chatThread.channel.post(message)
+  if (!chatThread.isDM) return
+  const { slackChannelId, slackThreadTs } = parseSlackThreadId(chatThread.id)
+  if (!slackThreadTs && message.id) {
+    ;(chatThread as any).id = `slack:${slackChannelId}:${message.id}`
   }
-  return chatThread.post(message)
 }
 
 /** Find or create a channel row for a Slack channel. */
@@ -221,6 +215,7 @@ export async function recordTurn(
 // ── Handlers ─────────────────────────────────────────────────────────
 
 bot.onNewMention(async (chatThread, message) => {
+  fixDmThreadId(chatThread, message)
   const { slackChannelId } = parseSlackThreadId(chatThread.id)
   const actor = await resolveActor(message.author.userId)
 
@@ -245,8 +240,7 @@ bot.onNewMention(async (chatThread, message) => {
 
     const query = message.text?.trim()
     if (!query) {
-      await postToThread(
-        chatThread,
+      await chatThread.post(
         "Hey! Mention me with a question about the factory and I'll look it up for you."
       )
       return
@@ -272,7 +266,7 @@ bot.onNewMention(async (chatThread, message) => {
       ],
     })
 
-    await postToThread(chatThread, result.fullStream)
+    await chatThread.post(result.fullStream)
     const replyText = await result.text
 
     await recordTurn(
@@ -298,10 +292,9 @@ bot.onNewMention(async (chatThread, message) => {
       // Best-effort
     }
 
-    await postToThread(
-      chatThread,
-      `Sorry, something went wrong: ${errMsg}`
-    ).catch(() => {})
+    await chatThread
+      .post(`Sorry, something went wrong: ${errMsg}`)
+      .catch(() => {})
   }
 })
 
@@ -309,6 +302,7 @@ bot.onSubscribedMessage(async (chatThread, message) => {
   // Skip bot's own messages
   if (message.author.isMe) return
 
+  fixDmThreadId(chatThread, message)
   const { slackChannelId } = parseSlackThreadId(chatThread.id)
   const actor = await resolveActor(message.author.userId)
 
@@ -358,7 +352,7 @@ bot.onSubscribedMessage(async (chatThread, message) => {
       ],
     })
 
-    await postToThread(chatThread, result.fullStream)
+    await chatThread.post(result.fullStream)
     const replyText = await result.text
 
     await recordTurn(
@@ -384,10 +378,9 @@ bot.onSubscribedMessage(async (chatThread, message) => {
       // Best-effort
     }
 
-    await postToThread(
-      chatThread,
-      `Sorry, something went wrong: ${errMsg}`
-    ).catch(() => {})
+    await chatThread
+      .post(`Sorry, something went wrong: ${errMsg}`)
+      .catch(() => {})
   }
 })
 
@@ -484,8 +477,7 @@ bot.onReaction(async (event) => {
         emoji: event.rawEmoji,
       })
 
-      await postToThread(
-        event.thread,
+      await event.thread.post(
         "Got it — that wasn't what you needed. Can you tell me what was wrong or what you were looking for? I'll try again."
       )
     } else if (category === "retry") {
@@ -526,7 +518,7 @@ bot.onReaction(async (event) => {
         ],
       })
 
-      await postToThread(event.thread, result.fullStream)
+      await event.thread.post(result.fullStream)
       const replyText = await result.text
 
       await recordTurn(
