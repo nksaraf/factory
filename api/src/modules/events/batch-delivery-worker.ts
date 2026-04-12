@@ -7,7 +7,9 @@ import {
   eventSubscriptionChannel,
 } from "../../db/schema/org"
 import { logger } from "../../logger"
+import { providerToRenderFormat } from "./delivery-adapter"
 import { renderEvent } from "./event-renderers"
+import { parseChannelAddress } from "./identity-resolver"
 
 export function startBatchDeliveryWorker(
   db: Database,
@@ -65,11 +67,10 @@ async function processBatchDeliveries(db: Database): Promise<void> {
         .where(inArray(event.id, eventIds))
 
       // Render each event
-      const channelType = ch.channelId.split(":")[0] as
-        | "cli"
-        | "web"
-        | "slack"
-        | "email"
+      const address = parseChannelAddress(ch.channelId)
+      const channelType = address
+        ? providerToRenderFormat(address.provider)
+        : ("web" as const)
       const rendered = events.map((e) =>
         renderEvent(
           {
