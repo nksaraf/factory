@@ -33,8 +33,8 @@ describe("parseHostname", () => {
     })
   })
 
-  it("parses legacy workspace hostname as workbench", () => {
-    expect(parseHostname("dev-nikhil-abc.workspace.dx.dev")).toEqual({
+  it("parses workbench hostname", () => {
+    expect(parseHostname("dev-nikhil-abc.workbench.dx.dev")).toEqual({
       family: "workbench",
       slug: "dev-nikhil-abc",
       fullSubdomain: "dev-nikhil-abc",
@@ -175,7 +175,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "test-slug.workspace.dx.dev" },
+        headers: { Host: "test-slug.workbench.dx.dev" },
       })
       expect(res.status).toBe(200)
       expect(await res.text()).toBe("hello from target")
@@ -186,7 +186,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "nope.workspace.dx.dev" },
+        headers: { Host: "nope.workbench.dx.dev" },
       })
       expect(res.status).toBe(404)
     })
@@ -215,7 +215,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "dead.workspace.dx.dev" },
+        headers: { Host: "dead.workbench.dx.dev" },
       })
       expect(res.status).toBe(502)
     })

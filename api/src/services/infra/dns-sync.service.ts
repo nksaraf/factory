@@ -1,5 +1,5 @@
 /**
- * Cloudflare DNS zone sync — reads zone data from the Cloudflare API
+ * DNS zone sync — reads zone data from a DNS provider via adapter
  * and upserts Factory entities: estates (zones), DnsDomains, IpAddresses,
  * and NetworkLinks (dns-resolution / cdn-forward).
  */
@@ -10,6 +10,12 @@ import type {
 } from "@smp/factory-shared/schemas/infra"
 import { eq, sql } from "drizzle-orm"
 
+import type {
+  DnsProviderAdapter,
+  DnsRecordEntry,
+} from "../../adapters/dns-provider-adapter"
+import type { DnsProviderType } from "../../adapters/dns-provider-adapter"
+import { getDnsProviderAdapter } from "../../adapters/adapter-registry"
 import type { Database } from "../../db/connection"
 import {
   dnsDomain,
@@ -18,31 +24,11 @@ import {
   networkLink,
 } from "../../db/schema/infra"
 import { newId } from "../../lib/id"
+import { PostgresSecretBackend } from "../../lib/secrets/postgres-backend"
+import { createSpecRefResolver } from "../../lib/spec-ref-resolver"
 import { assignIp, ensureIp } from "./ipam.service"
 
-// ── Cloudflare API types ─────────────────────────────────────
-
-interface CfZone {
-  id: string
-  name: string
-  status: string
-}
-
-interface CfDnsRecord {
-  id: string
-  type: string
-  name: string
-  content: string
-  ttl: number
-  priority?: number
-  proxied?: boolean
-}
-
-interface CfApiResponse<T> {
-  success: boolean
-  result: T
-  errors?: Array<{ message: string }>
-}
+// ── Types ───────────────────────────────────────────────────
 
 export interface SyncResult {
   zones: { created: number; updated: number }
@@ -73,46 +59,55 @@ const RESOLUTION_RECORD_TYPES = new Set(["A", "AAAA", "CNAME"])
 
 // ── Core sync ────────────────────────────────────────────────
 
-async function cfFetch<T>(
-  apiToken: string,
-  path: string
-): Promise<CfApiResponse<T>> {
-  const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      "Content-Type": "application/json",
-    },
-  })
-  if (!res.ok) {
-    throw new Error(`Cloudflare API ${path}: ${res.status} ${res.statusText}`)
+/**
+ * Resolve credentials from an estate and build a DNS provider adapter.
+ */
+async function resolveAdapter(
+  db: Database,
+  estateRow: { spec: unknown }
+): Promise<{ adapter: DnsProviderAdapter; providerKind: string }> {
+  const spec = estateRow.spec as Record<string, unknown>
+
+  const resolver = createSpecRefResolver(db, new PostgresSecretBackend(db))
+  const resolved = await resolver.resolve(spec)
+
+  const apiToken =
+    (resolved.credentialsRef as string | undefined) ??
+    (resolved.tokenSecret as string | undefined)
+  if (!apiToken) {
+    throw new Error("No credentialsRef or tokenSecret configured")
   }
-  return res.json() as Promise<CfApiResponse<T>>
+
+  const providerKind = (spec.providerKind ??
+    spec.dnsProvider ??
+    "cloudflare") as string
+  const adapter = getDnsProviderAdapter(providerKind as DnsProviderType, {
+    apiToken,
+    apiKey: resolved.apiKey as string | undefined,
+    apiUser: resolved.apiUser as string | undefined,
+  })
+
+  return { adapter, providerKind }
 }
 
 /**
- * Sync all zones from a Cloudflare account estate.
+ * Sync all zones from a DNS provider estate.
  */
-export async function syncFromCloudflare(
+export async function syncDnsFromEstate(
   db: Database,
-  cloudflareEstateId: string
+  estateId: string
 ): Promise<SyncResult> {
   const [estateRow] = await db
     .select()
     .from(estate)
-    .where(eq(estate.id, cloudflareEstateId))
+    .where(eq(estate.id, estateId))
     .limit(1)
 
   if (!estateRow) {
-    throw new Error(`Estate ${cloudflareEstateId} not found`)
+    throw new Error(`Estate ${estateId} not found`)
   }
 
-  const spec = estateRow.spec as Record<string, unknown>
-  const apiToken = spec.tokenSecret as string | undefined
-  if (!apiToken) {
-    throw new Error(
-      `Estate ${cloudflareEstateId} has no tokenSecret configured`
-    )
-  }
+  const { adapter, providerKind } = await resolveAdapter(db, estateRow)
 
   const result: SyncResult = {
     zones: { created: 0, updated: 0 },
@@ -123,11 +118,10 @@ export async function syncFromCloudflare(
     errors: [],
   }
 
-  // Fetch all zones
-  let zones: CfZone[]
+  // Fetch all zones via adapter
+  let zones: Awaited<ReturnType<DnsProviderAdapter["listZones"]>>
   try {
-    const resp = await cfFetch<CfZone[]>(apiToken, "/zones?per_page=100")
-    zones = resp.result
+    zones = await adapter.listZones()
   } catch (err: any) {
     result.errors.push(`Failed to fetch zones: ${err.message}`)
     return result
@@ -137,11 +131,15 @@ export async function syncFromCloudflare(
     try {
       const zoneEstateId = await upsertZoneEstate(
         db,
-        cloudflareEstateId,
+        estateId,
+        providerKind,
         zone,
         result
       )
-      await syncZoneRecords(db, apiToken, zoneEstateId, zone, result)
+
+      // Fetch records via adapter
+      const records = await adapter.listRecords(zone.externalId)
+      await syncZoneRecords(db, providerKind, zoneEstateId, records, result)
     } catch (err: any) {
       result.errors.push(`Zone ${zone.name}: ${err.message}`)
     }
@@ -159,15 +157,18 @@ export async function syncFromCloudflare(
       })}::jsonb`,
       updatedAt: new Date(),
     })
-    .where(eq(estate.id, cloudflareEstateId))
+    .where(eq(estate.id, estateId))
 
   return result
 }
 
+// ── Zone estate upsert ──────────────────────────────────────
+
 async function upsertZoneEstate(
   db: Database,
   parentEstateId: string,
-  zone: CfZone,
+  providerKind: string,
+  zone: { externalId: string; name: string; status: string },
   result: SyncResult
 ): Promise<string> {
   const zoneSlug = slugify(`${zone.name}-zone`)
@@ -184,7 +185,7 @@ async function upsertZoneEstate(
       .set({
         spec: sql`${estate.spec} || ${JSON.stringify({
           zone: zone.name,
-          externalId: zone.id,
+          externalId: zone.externalId,
           lastSyncAt: new Date().toISOString(),
         })}::jsonb`,
         updatedAt: new Date(),
@@ -202,9 +203,9 @@ async function upsertZoneEstate(
     type: "dns-zone",
     parentEstateId,
     spec: {
-      dnsProvider: "cloudflare",
+      dnsProvider: providerKind,
       zone: zone.name,
-      externalId: zone.id,
+      externalId: zone.externalId,
       lastSyncAt: new Date().toISOString(),
     } as any,
   })
@@ -212,31 +213,27 @@ async function upsertZoneEstate(
   return id
 }
 
+// ── Record sync ─────────────────────────────────────────────
+
 async function syncZoneRecords(
   db: Database,
-  apiToken: string,
+  providerKind: string,
   zoneEstateId: string,
-  zone: CfZone,
+  records: DnsRecordEntry[],
   result: SyncResult
 ) {
-  const resp = await cfFetch<CfDnsRecord[]>(
-    apiToken,
-    `/zones/${zone.id}/dns_records?per_page=5000`
-  )
-  const records = resp.result
-
   // Group records by FQDN
-  const byFqdn = new Map<string, CfDnsRecord[]>()
+  const byFqdn = new Map<string, DnsRecordEntry[]>()
   for (const rec of records) {
-    const fqdn = rec.name
-    const group = byFqdn.get(fqdn) ?? []
+    const group = byFqdn.get(rec.name) ?? []
     group.push(rec)
-    byFqdn.set(fqdn, group)
+    byFqdn.set(rec.name, group)
   }
 
   for (const [fqdn, fqdnRecords] of byFqdn) {
     const domainId = await upsertDnsDomain(
       db,
+      providerKind,
       zoneEstateId,
       fqdn,
       fqdnRecords,
@@ -253,9 +250,10 @@ async function syncZoneRecords(
 
 async function upsertDnsDomain(
   db: Database,
+  providerKind: string,
   zoneEstateId: string,
   fqdn: string,
-  records: CfDnsRecord[],
+  records: DnsRecordEntry[],
   result: SyncResult
 ): Promise<string> {
   const domainSlug = slugify(fqdn)
@@ -271,7 +269,7 @@ async function upsertDnsDomain(
       value: r.content,
       ttl: r.ttl === 1 ? undefined : r.ttl,
       priority: r.priority,
-      externalId: r.id,
+      externalId: r.externalId,
     }))
 
   const [existing] = await db
@@ -285,7 +283,7 @@ async function upsertDnsDomain(
     const updatedSpec: DnsDomainSpec = {
       ...existingSpec,
       zoneEstateId,
-      dnsProvider: "cloudflare",
+      dnsProvider: providerKind,
       records: nonResolutionRecords,
       lastSyncedAt: new Date(),
       syncError: undefined,
@@ -300,10 +298,10 @@ async function upsertDnsDomain(
     return existing.id
   }
 
-  const id = newId("est")
+  const id = newId("dom")
   const spec: DnsDomainSpec = {
     zoneEstateId,
-    dnsProvider: "cloudflare",
+    dnsProvider: providerKind,
     verified: true,
     verifiedAt: new Date(),
     status: "verified",
@@ -325,15 +323,16 @@ async function upsertDnsDomain(
   return id
 }
 
+// ── Resolution links ────────────────────────────────────────
+
 async function createResolutionLink(
   db: Database,
   domainId: string,
   fqdn: string,
-  record: CfDnsRecord,
+  record: DnsRecordEntry,
   result: SyncResult
 ) {
   if (record.type === "A" || record.type === "AAAA") {
-    // Create/ensure IP address entity
     const ipRow = await ensureIp(db, {
       address: record.content,
       spec: {
@@ -352,7 +351,7 @@ async function createResolutionLink(
       recordType: record.type,
       ttl: record.ttl === 1 ? undefined : record.ttl,
       proxied: record.proxied ?? false,
-      externalId: record.id,
+      externalId: record.externalId,
       enabled: true,
       priority: 0,
       middlewares: [],
@@ -385,7 +384,6 @@ async function createResolutionLink(
     }
     result.ipAddresses.created++
   } else if (record.type === "CNAME") {
-    // CNAME target — check if it's an internal domain
     const [targetDomain] = await db
       .select({ id: dnsDomain.id })
       .from(dnsDomain)
@@ -399,7 +397,7 @@ async function createResolutionLink(
       ttl: record.ttl === 1 ? undefined : record.ttl,
       proxied: record.proxied ?? false,
       externalTarget: targetDomain ? undefined : record.content,
-      externalId: record.id,
+      externalId: record.externalId,
       enabled: true,
       priority: 0,
       middlewares: [],

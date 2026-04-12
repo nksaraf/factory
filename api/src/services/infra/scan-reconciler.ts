@@ -406,8 +406,8 @@ export async function reconcileHostScan(
         id: siteId,
         slug: siteSlug,
         name: hostName,
+        type: "production",
         spec: {
-          type: "on-prem" as const,
           status: "active" as const,
         },
         metadata: scanMetadata({ hostSlug }),
@@ -736,7 +736,7 @@ export async function reconcileHostScan(
           },
         })
         await assignIp(tx, ensured.ipAddressId, {
-          assignedToType: "host",
+          assignedToKind: "host",
           assignedToId: existing.id,
         })
         summary.discoveredHosts.hosts.push({
@@ -783,11 +783,11 @@ export async function reconcileHostScan(
         address: ip,
         spec: {
           scope: isRfc1918Ip(ip) ? "private" : "public",
-          primary: true,
+          role: "primary",
         },
       })
       await assignIp(tx, ensured.ipAddressId, {
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: discoveredHostId,
       })
 
@@ -971,11 +971,11 @@ export async function reconcileHostScan(
         address: scanResult.ipAddress,
         spec: {
           scope: isRfc1918Ip(scanResult.ipAddress) ? "private" : "public",
-          primary: true,
+          role: "primary",
         },
       })
       await assignIp(tx, ensured.ipAddressId, {
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: hostEntity.id,
       })
     }

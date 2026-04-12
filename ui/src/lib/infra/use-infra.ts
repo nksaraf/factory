@@ -225,7 +225,7 @@ export function useSubnets(opts?: {
 export function useIpAddresses(opts?: {
   subnetId?: string
   status?: string
-  assignedToType?: string
+  assignedToKind?: string
 }) {
   return useQuery<IpAddress[]>({
     queryKey: ["infra", "ips", opts],

@@ -24,8 +24,9 @@ const OMIT_COLUMNS = new Set([
   "systemFrom",
   "systemTo",
   "changedBy",
-  // FK ID columns resolved to slug refs for network-link dynamic endpoints
+  // FK ID columns resolved to slug refs
   "viaId",
+  "assignedToId",
 ])
 
 /** Spec-level fields that contain secrets — replaced with $secret() placeholder. */
@@ -41,11 +42,7 @@ const SECRET_SPEC_FIELDS = new Set([
 ])
 
 /** Spec-level fields that represent operational/sync state — omitted from export. */
-const OMIT_SPEC_FIELDS = new Set([
-  "syncStatus",
-  "syncError",
-  "lastSyncAt",
-])
+const OMIT_SPEC_FIELDS = new Set(["syncStatus", "syncError", "lastSyncAt"])
 
 /**
  * Redact secrets and strip operational state from a spec object.
@@ -94,7 +91,7 @@ interface ExportKindConfig {
     string,
     {
       slugRefField: string // what to name the output field (e.g. "parentEstateSlug")
-      lookupKind: string   // which kind's id→slug map to use
+      lookupKind: string // which kind's id→slug map to use
     }
   >
   /** Dynamic source/target for network-link */
@@ -106,7 +103,10 @@ const EXPORT_CONFIGS: ExportKindConfig[] = [
   {
     kind: "estate",
     fkToSlugRef: {
-      parentEstateId: { slugRefField: "parentEstateSlug", lookupKind: "estate" },
+      parentEstateId: {
+        slugRefField: "parentEstateSlug",
+        lookupKind: "estate",
+      },
     },
   },
   {
@@ -168,11 +168,18 @@ const EXPORT_CONFIGS: ExportKindConfig[] = [
 ]
 
 /** All kinds we build slug maps for (needed as FK targets). */
-const SLUG_MAP_KINDS = ["estate", "realm", "host", "team", "principal", "ip-address"]
+const SLUG_MAP_KINDS = [
+  "estate",
+  "realm",
+  "host",
+  "team",
+  "principal",
+  "ip-address",
+]
 
 export async function exportInventory(
   db: Database,
-  kindsFilter?: string[],
+  kindsFilter?: string[]
 ): Promise<ExportedKind[]> {
   const targetKinds = kindsFilter?.length
     ? EXPORT_CONFIGS.filter((c) => kindsFilter.includes(c.kind))
@@ -243,10 +250,22 @@ export async function exportInventory(
         out[col] = val
       }
 
+      // ip-address: resolve assignedToId → assignedToSlug
+      if (exportCfg.kind === "ip-address") {
+        const assignedToId = row.assignedToId as string | undefined
+        if (assignedToId) {
+          const ref = idToKindAndSlug.get(assignedToId)
+          if (ref) {
+            out.assignedToKind = ref.kind
+            out.assignedToSlug = ref.slug
+          }
+        }
+      }
+
       // network-link: resolve sourceId/viaId/targetId → slugs
       if (exportCfg.dynamicEndpoints) {
         const sourceId = row.sourceId as string | undefined
-        const viaId   = row.viaId   as string | undefined
+        const viaId = row.viaId as string | undefined
         const targetId = row.targetId as string | undefined
         if (sourceId) {
           const ref = idToKindAndSlug.get(sourceId)
@@ -279,7 +298,11 @@ export async function exportInventory(
     }
 
     if (entities.length > 0) {
-      results.push({ kind: exportCfg.kind, entity: registryCfg.entity, entities })
+      results.push({
+        kind: exportCfg.kind,
+        entity: registryCfg.entity,
+        entities,
+      })
     }
   }
 

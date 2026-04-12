@@ -401,7 +401,8 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
           .values({
             name: "e2e-site",
             slug: "e2e-site",
-            spec: { type: "shared", status: "provisioning" } satisfies SiteSpec,
+            type: "preview",
+            spec: { status: "provisioning" } satisfies SiteSpec,
           })
           .returning()
 

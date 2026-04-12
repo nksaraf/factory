@@ -4,9 +4,7 @@ import type {
   RealmSpec,
   RouteSpec,
 } from "@smp/factory-shared/schemas/infra"
-import type {
-  SiteSpec,
-} from "@smp/factory-shared/schemas/ops"
+import type { SiteSpec } from "@smp/factory-shared/schemas/ops"
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
@@ -82,8 +80,8 @@ describe("Gateway Service", () => {
       .values({
         name: "test-site",
         slug: "test-site",
+        type: "production",
         spec: {
-          type: "shared",
           status: "provisioning",
           product: "test-product",
         } satisfies SiteSpec,
@@ -265,9 +263,7 @@ describe("Gateway Service", () => {
     })
 
     it("verifyDomain validates DNS and creates A/AAAA resolution links", async () => {
-      const txtSpy = spyOn(dns, "resolveTxt").mockResolvedValue([
-        ["token-123"],
-      ])
+      const txtSpy = spyOn(dns, "resolveTxt").mockResolvedValue([["token-123"]])
       const v4Spy = spyOn(dns, "resolve4").mockResolvedValue(["203.0.113.20"])
       const v6Spy = spyOn(dns, "resolve6").mockResolvedValue(["2001:db8::10"])
       const created = await gw.registerDomain(db, {
@@ -401,7 +397,10 @@ describe("Gateway Service", () => {
         createdBy: "test",
       })
 
-      const removed = await gw.removeSystemDeploymentRoutes(db, systemDeploymentId)
+      const removed = await gw.removeSystemDeploymentRoutes(
+        db,
+        systemDeploymentId
+      )
       expect(removed).toBe(2)
 
       const { data } = await gw.listRoutes(db)

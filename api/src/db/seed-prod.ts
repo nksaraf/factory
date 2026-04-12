@@ -745,12 +745,12 @@ async function seedInfra() {
   // --- IP Addresses ---
   const ipEntries: {
     address: string
-    assignedToType: string
+    assignedToKind: string
     assignedToId: string
     subnet: string
   }[] = bareMetalHosts.map((h) => ({
     address: h.ip,
-    assignedToType: "host",
+    assignedToKind: "host",
     assignedToId: id("host", h.key, "host"),
     subnet: "mgmt",
   }))
@@ -765,7 +765,7 @@ async function seedInfra() {
       seenIps.add(v.ip)
       ipEntries.push({
         address: v.ip,
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: id("host", v.key, "host"),
         subnet: v.ip.startsWith("192.168.1.") ? "mgmt" : "vm",
       })
@@ -776,11 +776,12 @@ async function seedInfra() {
     ipEntries.map((e) => ({
       address: e.address,
       subnetId: e.subnet === "mgmt" ? mgmtSubnetId : vmSubnetId,
+      assignedToKind: e.assignedToKind,
+      assignedToId: e.assignedToId,
       spec: {
         version: "v4" as const,
         status: "assigned" as const,
-        assignedToType: e.assignedToType,
-        assignedToId: e.assignedToId,
+        role: "primary" as const,
       },
     }))
   )

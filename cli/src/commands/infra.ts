@@ -28,7 +28,9 @@ interface InfraRow {
   status?: string
   createdAt?: string
   address?: string
-  purpose?: string
+  role?: string
+  assignedToKind?: string
+  assignedToId?: string
   spec?: Record<string, unknown>
 }
 
@@ -1372,7 +1374,7 @@ export function infraCommand(app: DxBase) {
               .flags({
                 subnetId: { type: "string", description: "Filter by subnet" },
                 status: { type: "string", description: "Filter by status" },
-                assignedToType: {
+                assignedToKind: {
                   type: "string",
                   description: "Filter by assigned entity type",
                 },
@@ -1384,7 +1386,7 @@ export function infraCommand(app: DxBase) {
                     rest.listIpAddresses({
                       subnetId: flags.subnetId as string | undefined,
                       status: flags.status as string | undefined,
-                      assignedToType: flags.assignedToType as
+                      assignedToKind: flags.assignedToKind as
                         | string
                         | undefined,
                     })
@@ -1393,19 +1395,21 @@ export function infraCommand(app: DxBase) {
                 tableOrJson<InfraRow>(
                   flags,
                   result,
-                  ["ID", "Address", "Status", "Assigned To", "Hostname"],
+                  ["ID", "Address", "Status", "Assigned To", "DNS Name"],
                   (r) => {
                     let assigned = ""
-                    if (r.spec?.assignedToType && r.spec?.assignedToId) {
-                      const label = r.spec?.assignedName ?? r.spec?.assignedToId
-                      assigned = `${r.spec.assignedToType}:${label}`
+                    const aKind = r.assignedToKind ?? r.spec?.assignedToKind
+                    const aId = r.assignedToId ?? r.spec?.assignedToId
+                    if (aKind && aId) {
+                      const label = r.spec?.assignedName ?? aId
+                      assigned = `${aKind}:${label}`
                     }
                     return [
                       styleMuted(String(r.id ?? "")),
                       styleBold(String(r.spec?.address ?? r.address ?? "")),
                       colorStatus(resolveStatus(r.spec?.status, r.status)),
                       assigned,
-                      String(r.spec?.hostname ?? ""),
+                      String(r.spec?.dnsName ?? ""),
                     ]
                   }
                 )
@@ -1438,12 +1442,12 @@ export function infraCommand(app: DxBase) {
                 tableOrJson<InfraRow>(
                   flags,
                   result,
-                  ["ID", "Address", "Subnet", "Hostname"],
+                  ["ID", "Address", "Subnet", "DNS Name"],
                   (r) => [
                     styleMuted(String(r.id ?? "")),
                     styleBold(String(r.spec?.address ?? r.address ?? "")),
                     String(r.spec?.subnetId ?? ""),
-                    String(r.spec?.hostname ?? ""),
+                    String(r.spec?.dnsName ?? ""),
                   ],
                   undefined,
                   { emptyMessage: "No available IPs." }
@@ -1525,10 +1529,11 @@ export function infraCommand(app: DxBase) {
                   required: true,
                   description: "Entity ID",
                 },
-                hostname: { type: "string", description: "Hostname" },
-                purpose: {
+                dnsName: { type: "string", description: "DNS name" },
+                role: {
                   type: "string",
-                  description: "Purpose (management, storage, application)",
+                  description:
+                    "Role (primary, secondary, vip, vrrp, anycast, loopback, floating, service)",
                 },
               })
               .run(async ({ args, flags }) => {
@@ -1536,10 +1541,10 @@ export function infraCommand(app: DxBase) {
                 const result = await apiCall(flags, () =>
                   restCall(() =>
                     rest.ipAddressAction(args.id, "assign", {
-                      assignedToType: flags.toType as string,
+                      assignedToKind: flags.toType as string,
                       assignedToId: flags.toId as string,
-                      hostname: flags.hostname as string | undefined,
-                      purpose: flags.purpose as string | undefined,
+                      dnsName: flags.dnsName as string | undefined,
+                      role: flags.role as string | undefined,
                     })
                   )
                 )
@@ -1608,14 +1613,16 @@ export function infraCommand(app: DxBase) {
                   [
                     "Assigned To",
                     (r) => {
-                      if (r.spec?.assignedToType && r.spec?.assignedToId) {
-                        return `${r.spec.assignedToType}:${r.spec.assignedName ?? r.spec.assignedToId}`
+                      const aKind = r.assignedToKind ?? r.spec?.assignedToKind
+                      const aId = r.assignedToId ?? r.spec?.assignedToId
+                      if (aKind && aId) {
+                        return `${aKind}:${r.spec?.assignedName ?? aId}`
                       }
                       return ""
                     },
                   ],
-                  ["Hostname", (r) => String(r.spec?.hostname ?? "")],
-                  ["Purpose", (r) => String(r.purpose ?? "")],
+                  ["DNS Name", (r) => String(r.spec?.dnsName ?? "")],
+                  ["Role", (r) => String(r.role ?? r.spec?.role ?? "")],
                 ])
               })
           )

@@ -187,7 +187,7 @@ async function resolveHostIp(
 ): Promise<string | undefined> {
   if (hostId) {
     const ips = await getEntityIps(db, "host", hostId)
-    const primaryIp = ips.find((ip) => ip.spec.primary)?.address
+    const primaryIp = ips.find((ip) => ip.role === "primary")?.address
     if (primaryIp) return primaryIp
     if (ips[0]?.address) return ips[0].address
   }

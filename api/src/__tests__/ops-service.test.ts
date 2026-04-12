@@ -99,7 +99,6 @@ describe("Ops service", () => {
 
   async function createSite(name = "prod-us", overrides?: Partial<SiteSpec>) {
     const spec: SiteSpec = {
-      type: "shared",
       product: "smp",
       status: "provisioning",
       ...overrides,
@@ -109,6 +108,7 @@ describe("Ops service", () => {
       .values({
         name,
         slug: name,
+        type: "production",
         spec,
       })
       .returning()

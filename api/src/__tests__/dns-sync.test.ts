@@ -33,7 +33,7 @@ import type { Database } from "../db/connection"
 import { dnsDomain, estate, networkLink } from "../db/schema/infra"
 import type { GraphReader, TraceHop } from "../modules/infra/trace"
 import { traceFrom } from "../modules/infra/trace"
-import { syncFromCloudflare } from "../services/infra/dns-sync.service"
+import { syncDnsFromEstate } from "../services/infra/dns-sync.service"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 
 // ── Schema validation tests ───────────────────────────────────
@@ -340,21 +340,18 @@ describe("trace: dns-domain → ip-address", () => {
 // ── IpAddressSpec validation ──────────────────────────────────
 
 describe("IpAddressSpec enriched fields", () => {
-  test("validates full spec with scope, purpose, interface, primary", () => {
+  test("validates full spec with scope, role, interface, dnsName", () => {
     const result = IpAddressSpecSchema.safeParse({
       version: "v4",
       status: "assigned",
-      assignedToType: "host",
-      assignedToId: "host_123",
       scope: "private",
-      purpose: "management",
-      hostname: "factory-prod.local",
+      role: "primary",
+      dnsName: "factory-prod.local",
       interface: "eth0",
-      primary: true,
     })
     expect(result.success).toBe(true)
     expect(result.data?.scope).toBe("private")
-    expect(result.data?.primary).toBe(true)
+    expect(result.data?.role).toBe("primary")
   })
 
   test("scope accepts all valid values", () => {
@@ -372,7 +369,7 @@ describe("IpAddressSpec enriched fields", () => {
   })
 })
 
-describe("syncFromCloudflare integration", () => {
+describe("syncDnsFromEstate integration", () => {
   let db: Database
   let client: PGlite
   const originalFetch = globalThis.fetch
@@ -454,7 +451,7 @@ describe("syncFromCloudflare integration", () => {
       return new Response("not-found", { status: 404 })
     }) as typeof fetch
 
-    const result = await syncFromCloudflare(db, "est_cf")
+    const result = await syncDnsFromEstate(db, "est_cf")
     expect(result.errors).toHaveLength(0)
     const domains = await db.select().from(dnsDomain)
     expect(domains).toHaveLength(1)
@@ -521,7 +518,7 @@ describe("syncFromCloudflare integration", () => {
       return new Response("not-found", { status: 404 })
     }) as typeof fetch
 
-    const result = await syncFromCloudflare(db, "est_cf")
+    const result = await syncDnsFromEstate(db, "est_cf")
     expect(result.errors).toHaveLength(0)
     const [domain] = await db
       .select()

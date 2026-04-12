@@ -25,6 +25,11 @@ import type {
   IdentityProviderAdapter,
   IdentityProviderType,
 } from "./identity-provider-adapter"
+import type {
+  DnsProviderAdapter,
+  DnsProviderAdapterConfig,
+  DnsProviderType,
+} from "./dns-provider-adapter"
 import { ProxmoxVmProviderAdapter } from "./vm-provider-adapter-proxmox"
 import { NoopGitHostAdapter } from "./git-host-adapter-noop"
 import { GitHubAdapter } from "./git-host-adapter-github"
@@ -45,6 +50,7 @@ import { GitHubIdentityProviderAdapter } from "./identity-provider-adapter-githu
 import { SlackIdentityProviderAdapter } from "./identity-provider-adapter-slack"
 import { JiraIdentityProviderAdapter } from "./identity-provider-adapter-jira"
 import { GoogleIdentityProviderAdapter } from "./identity-provider-adapter-google"
+import { CloudflareDnsProviderAdapter } from "./dns-provider-adapter-cloudflare"
 
 // ── VM Provider ──────────────────────────────────────────────
 
@@ -246,4 +252,28 @@ export function getIdentityProviderAdapter(
     )
   }
   return factory()
+}
+
+// ── DNS Provider ───────────────────────────────────────────
+
+const dnsProviderAdapters: Partial<
+  Record<
+    DnsProviderType,
+    (config: DnsProviderAdapterConfig) => DnsProviderAdapter
+  >
+> = {
+  cloudflare: (config) => new CloudflareDnsProviderAdapter(config),
+}
+
+export function getDnsProviderAdapter(
+  type: DnsProviderType,
+  config: DnsProviderAdapterConfig
+): DnsProviderAdapter {
+  const factory = dnsProviderAdapters[type]
+  if (!factory) {
+    throw new Error(
+      `No DNS provider adapter for type: ${type}. Supported: ${Object.keys(dnsProviderAdapters).join(", ")}`
+    )
+  }
+  return factory(config)
 }

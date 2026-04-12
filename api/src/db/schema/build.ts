@@ -12,8 +12,7 @@ import type {
   WorkTrackerProviderSpec,
 } from "@smp/factory-shared/schemas/build"
 import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org"
-import { sql } from "drizzle-orm"
-import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
 import {
@@ -44,10 +43,6 @@ export const gitHostProvider = buildSchema.table(
   (t) => [
     uniqueIndex("build_git_host_provider_slug_unique").on(t.slug),
     index("build_git_host_provider_type_idx").on(t.type),
-    check(
-      "build_git_host_provider_type_valid",
-      sql`${t.type} IN ('github', 'gitlab', 'gitea', 'bitbucket')`
-    ),
   ]
 )
 
@@ -151,10 +146,6 @@ export const pipelineRun = buildSchema.table(
     index("build_pipeline_run_webhook_event_idx").on(t.webhookEventId),
     index("build_pipeline_run_status_idx").on(t.status),
     index("build_pipeline_run_commit_idx").on(t.commitSha),
-    check(
-      "build_pipeline_run_status_valid",
-      sql`${t.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`
-    ),
   ]
 )
 
@@ -271,10 +262,6 @@ export const workTrackerProvider = buildSchema.table(
     uniqueIndex("build_work_tracker_provider_slug_unique").on(t.slug),
     index("build_work_tracker_provider_type_idx").on(t.type),
     index("build_work_tracker_provider_team_idx").on(t.teamId),
-    check(
-      "build_work_tracker_provider_type_valid",
-      sql`${t.type} IN ('jira', 'linear')`
-    ),
   ]
 )
 
@@ -366,10 +353,6 @@ export const workItem = buildSchema.table(
     ),
     index("build_work_item_status_idx").on(t.status),
     index("build_work_item_assignee_idx").on(t.assignee),
-    check(
-      "build_work_item_type_valid",
-      sql`${t.type} IN ('epic', 'story', 'task', 'bug')`
-    ),
   ]
 )
 

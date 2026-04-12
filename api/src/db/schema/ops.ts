@@ -51,6 +51,7 @@ export const site = opsSchema.table(
       .$defaultFn(() => newId("site")),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
+    type: text("type").notNull().default("production"),
     spec: specCol<SiteSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
@@ -61,6 +62,7 @@ export const site = opsSchema.table(
     // Partial unique indexes in migration (bitemporal)
     index("ops_site_slug_idx").on(t.slug),
     index("ops_site_name_idx").on(t.name),
+    index("ops_site_type_idx").on(t.type),
   ]
 )
 

@@ -9,6 +9,9 @@ setExamples("scan", [
   "$ dx scan --scanner infra              Infra scan on localhost",
   "$ dx scan web01                        Infra scan on remote host 'web01'",
   "$ dx scan claude-code                  Sync only Claude Code sessions",
+  "$ dx scan cloudflare                   Sync DNS from all Cloudflare accounts",
+  "$ dx scan dns                          Sync DNS from all configured providers",
+  "$ dx scan --scanner dns my-estate      Sync DNS for a specific estate",
   "$ dx scan --dry-run                    Preview without sending",
   "$ dx scan --json                       Machine-readable output",
   "$ dx scan web01 --deep                 Spider-crawl: scan host + all discovered backends",
@@ -46,7 +49,8 @@ export function scanCommand(app: DxBase) {
       },
       scanner: {
         type: "string",
-        description: "Scanner to run: ide, infra, or all (default: all)",
+        description:
+          "Scanner to run: ide, infra, dns (or cloudflare), all. DNS is opt-in (default: all = ide + infra)",
       },
       deep: {
         type: "boolean",
@@ -63,7 +67,8 @@ export function scanCommand(app: DxBase) {
       },
       output: {
         type: "string",
-        description: "Output directory for --export (default: .factory/inventory/)",
+        description:
+          "Output directory for --export (default: .factory/inventory/)",
       },
       kinds: {
         type: "string",

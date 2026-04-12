@@ -26,8 +26,6 @@ function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
   return [
     { suffix: `.tunnel.${domain}`, family: "tunnel" },
     { suffix: `.preview.${domain}`, family: "preview" },
-    // Legacy public hostname; routes are stored as *.workbench.{domain}
-    { suffix: `.workspace.${domain}`, family: "workbench" },
     { suffix: `.workbench.${domain}`, family: "workbench" },
     { suffix: `.sandbox.${domain}`, family: "sandbox" },
   ]

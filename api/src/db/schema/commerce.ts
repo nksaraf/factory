@@ -1,5 +1,4 @@
-import { sql } from "drizzle-orm"
-import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
 import {
@@ -62,10 +61,6 @@ export const plan = commerceSchema.table(
     uniqueIndex("commerce_plan_slug_unique").on(t.slug),
     uniqueIndex("commerce_plan_name_unique").on(t.name),
     index("commerce_plan_type_idx").on(t.type),
-    check(
-      "commerce_plan_type_valid",
-      sql`${t.type} IN ('base', 'add-on', 'suite')`
-    ),
   ]
 )
 

@@ -611,12 +611,11 @@ export interface IpAddress {
   ipAddressId: string
   address: string
   subnetId?: string | null
-  assignedToType?: IpAssignedToType | null
+  assignedToKind?: IpAssignedToType | null
   assignedToId?: string | null
   status: IpAddressStatus
-  hostname?: string | null
-  fqdn?: string | null
-  purpose?: string | null
+  dnsName?: string | null
+  role?: string | null
   createdAt: string
 }
 

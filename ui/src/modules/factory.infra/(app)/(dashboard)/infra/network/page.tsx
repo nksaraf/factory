@@ -109,8 +109,8 @@ function SubnetRow({
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th className="pb-2 pr-4">Address</th>
-                  <th className="pb-2 pr-4">Hostname</th>
-                  <th className="pb-2 pr-4">Purpose</th>
+                  <th className="pb-2 pr-4">DNS Name</th>
+                  <th className="pb-2 pr-4">Role</th>
                   <th className="pb-2 pr-4">Assigned To</th>
                   <th className="pb-2 pr-4">Status</th>
                 </tr>
@@ -121,12 +121,10 @@ function SubnetRow({
                     <td className="py-1.5 pr-4 font-mono text-xs">
                       {ip.address}
                     </td>
+                    <td className="py-1.5 pr-4 text-xs">{ip.dnsName ?? "—"}</td>
+                    <td className="py-1.5 pr-4 text-xs">{ip.role ?? "—"}</td>
                     <td className="py-1.5 pr-4 text-xs">
-                      {ip.hostname ?? "—"}
-                    </td>
-                    <td className="py-1.5 pr-4 text-xs">{ip.purpose ?? "—"}</td>
-                    <td className="py-1.5 pr-4 text-xs">
-                      {ip.assignedToType ? `${ip.assignedToType}` : "—"}
+                      {ip.assignedToKind ? `${ip.assignedToKind}` : "—"}
                     </td>
                     <td className="py-1.5 pr-4">
                       <StatusBadge status={ip.status} />

@@ -8,8 +8,7 @@ import type {
   SystemSpec,
   TemplateSpec,
 } from "@smp/factory-shared/schemas/software"
-import { sql } from "drizzle-orm"
-import { check, index, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
 import {
@@ -80,10 +79,6 @@ export const component = softwareSchema.table(
     index("software_component_system_name_idx").on(t.systemId, t.name),
     index("software_component_type_idx").on(t.type),
     index("software_component_owner_team_idx").on(t.ownerTeamId),
-    check(
-      "software_component_type_valid",
-      sql`${t.type} IN ('service', 'worker', 'task', 'cronjob', 'website', 'library', 'cli', 'agent', 'gateway', 'ml-model', 'database', 'cache', 'queue', 'storage', 'search')`
-    ),
   ]
 )
 
@@ -110,40 +105,25 @@ export const softwareApi = softwareSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    uniqueIndex("software_api_system_slug_unique").on(t.systemId, t.slug),
-    check(
-      "software_api_type_valid",
-      sql`${t.type} IN ('openapi', 'grpc', 'graphql', 'asyncapi', 'webhook')`
-    ),
-  ]
+  (t) => [uniqueIndex("software_api_system_slug_unique").on(t.systemId, t.slug)]
 )
 
 // ─── Artifact ────────────────────────────────────────────────
 
-export const artifact = softwareSchema.table(
-  "artifact",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => newId("art")),
-    slug: text("slug").notNull(),
-    name: text("name").notNull(),
-    type: text("type").notNull(),
-    componentId: text("component_id")
-      .notNull()
-      .references(() => component.id, { onDelete: "cascade" }),
-    spec: specCol<ArtifactSpec>(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    check(
-      "software_artifact_type_valid",
-      sql`${t.type} IN ('container_image', 'binary', 'archive', 'package', 'bundle')`
-    ),
-  ]
-)
+export const artifact = softwareSchema.table("artifact", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => newId("art")),
+  slug: text("slug").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  componentId: text("component_id")
+    .notNull()
+    .references(() => component.id, { onDelete: "cascade" }),
+  spec: specCol<ArtifactSpec>(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+})
 
 // ─── Release ─────────────────────────────────────────────────
 
@@ -210,10 +190,6 @@ export const template = softwareSchema.table(
   (t) => [
     uniqueIndex("software_template_slug_unique").on(t.slug),
     uniqueIndex("software_template_name_unique").on(t.name),
-    check(
-      "software_template_type_valid",
-      sql`${t.type} IN ('component', 'system', 'workbench')`
-    ),
   ]
 )
 
@@ -281,11 +257,5 @@ export const capability = softwareSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    uniqueIndex("software_capability_slug_unique").on(t.slug),
-    check(
-      "software_capability_type_valid",
-      sql`${t.type} IN ('feature', 'integration', 'compute', 'data', 'support')`
-    ),
-  ]
+  (t) => [uniqueIndex("software_capability_slug_unique").on(t.slug)]
 )

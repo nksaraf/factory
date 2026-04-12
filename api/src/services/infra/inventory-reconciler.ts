@@ -14,23 +14,69 @@ import type { InventoryReconciliationSummary } from "@smp/factory-shared/schemas
 // Topological kind order — earlier kinds can be referenced by later ones
 const KIND_ORDER = [
   // Foundations
-  "estate", "team", "principal", "scope", "system", "product", "customer", "plan",
+  "estate",
+  "team",
+  "principal",
+  "scope",
+  "system",
+  "product",
+  "customer",
+  "plan",
   // Depend on foundations
-  "host", "realm", "service", "site", "tenant", "component", "repo",
-  "git-host-provider", "work-tracker-provider", "work-tracker-project",
-  "agent", "role-preset", "channel", "document", "billable-metric",
+  "host",
+  "realm",
+  "service",
+  "site",
+  "tenant",
+  "component",
+  "repo",
+  "git-host-provider",
+  "work-tracker-provider",
+  "work-tracker-project",
+  "agent",
+  "role-preset",
+  "channel",
+  "document",
+  "billable-metric",
   // Depend on previous tier
-  "route", "dns-domain", "secret", "workbench", "system-deployment",
-  "deployment-set", "release", "api", "artifact", "template", "capability",
-  "subscription", "messaging-provider", "config-var",
+  "route",
+  "dns-domain",
+  "secret",
+  "workbench",
+  "system-deployment",
+  "deployment-set",
+  "release",
+  "api",
+  "artifact",
+  "template",
+  "capability",
+  "subscription",
+  "messaging-provider",
+  "config-var",
   // Final tier — ip-address before network-link (NAT links target ip-addresses)
-  "ip-address", "network-link", "tunnel",
-  "component-deployment", "rollout", "preview", "intervention",
-  "database", "forwarded-port", "thread", "thread-turn",
-  "entity-relationship", "job", "memory",
+  "ip-address",
+  "network-link",
+  "tunnel",
+  "component-deployment",
+  "rollout",
+  "preview",
+  "intervention",
+  "database",
+  "forwarded-port",
+  "thread",
+  "thread-turn",
+  "entity-relationship",
+  "job",
+  "memory",
 ]
 
-type EntityDecl = { kind: string; id?: string; slug?: string; address?: string; [key: string]: unknown }
+type EntityDecl = {
+  kind: string
+  id?: string
+  slug?: string
+  address?: string
+  [key: string]: unknown
+}
 
 /** Derive the drizzle table name (used as a stable cache key namespace). */
 function tableName(table: any): string {
@@ -39,7 +85,7 @@ function tableName(table: any): string {
 
 async function _reconcile(
   db: Database,
-  entities: EntityDecl[],
+  entities: EntityDecl[]
 ): Promise<InventoryReconciliationSummary> {
   const summary: InventoryReconciliationSummary = {
     dryRun: false,
@@ -69,18 +115,25 @@ async function _reconcile(
     const cfg = ONTOLOGY_REGISTRY.get(kind)
     if (!cfg) {
       for (const e of kindEntities) {
-        summary.errors.push({ kind, slug: String(e.slug ?? e.id ?? "?"), error: `Unknown kind "${kind}"` })
+        summary.errors.push({
+          kind,
+          slug: String(e.slug ?? e.id ?? "?"),
+          error: `Unknown kind "${kind}"`,
+        })
       }
       continue
     }
 
-    if (!summary.byKind[kind]) summary.byKind[kind] = { created: 0, updated: 0, unchanged: 0 }
+    if (!summary.byKind[kind])
+      summary.byKind[kind] = { created: 0, updated: 0, unchanged: 0 }
     const kindSummary = summary.byKind[kind]
     const ownTableName = tableName(cfg.table)
     const tableHasUpdatedAt = "updatedAt" in getTableColumns(cfg.table)
 
     for (const entity of kindEntities) {
-      const entitySlug = String(entity.slug ?? entity.address ?? entity.id ?? "?")
+      const entitySlug = String(
+        entity.slug ?? entity.address ?? entity.id ?? "?"
+      )
       try {
         // Resolve slug-refs: {field}Slug → {field}Id
         const resolved: Record<string, unknown> = {}
@@ -102,7 +155,11 @@ async function _reconcile(
               refId = (rows[0] as any)?.id ?? null
             }
             if (!refId) {
-              summary.errors.push({ kind, slug: entitySlug, error: `${k}: slug "${refSlug}" not found` })
+              summary.errors.push({
+                kind,
+                slug: entitySlug,
+                error: `${k}: slug "${refSlug}" not found`,
+              })
               slugRefFailed = true
             } else {
               resolved[refCfg.fk] = refId
@@ -116,13 +173,62 @@ async function _reconcile(
         // the entire transaction, breaking all subsequent operations.
         if (slugRefFailed) continue
 
+        // ip-address: resolve assignedToSlug + assignedToKind → assignedToId
+        if (
+          kind === "ip-address" &&
+          entity.assignedToSlug &&
+          entity.assignedToKind
+        ) {
+          const refKind = String(entity.assignedToKind)
+          const refSlug = String(entity.assignedToSlug)
+          const refCfg = ONTOLOGY_REGISTRY.get(refKind)
+          if (refCfg) {
+            const cacheKey = `${tableName(refCfg.table)}:${refSlug}`
+            let refId: string | null = batchIdCache.get(cacheKey) ?? null
+            if (!refId) {
+              const rows = await db
+                .select({ id: refCfg.idColumn })
+                .from(refCfg.table)
+                .where(eq(refCfg.slugColumn, refSlug))
+                .limit(1)
+              refId = (rows[0] as any)?.id ?? null
+            }
+            if (refId) {
+              resolved.assignedToKind = refKind
+              resolved.assignedToId = refId
+            } else {
+              summary.errors.push({
+                kind,
+                slug: entitySlug,
+                error: `assignedToSlug: "${refSlug}" not found in "${refKind}"`,
+              })
+            }
+          }
+          delete resolved.assignedToSlug
+        }
+
         // network-link dynamic slug resolution (source/via/target resolved by kind)
         let dynamicSlugFailed = false
         if (kind === "network-link") {
           const endpoints = [
-            { slugField: "sourceSlug", kindField: "sourceKind", idField: "sourceId", required: true },
-            { slugField: "viaSlug",    kindField: "viaKind",    idField: "viaId",    required: false },
-            { slugField: "targetSlug", kindField: "targetKind", idField: "targetId", required: true },
+            {
+              slugField: "sourceSlug",
+              kindField: "sourceKind",
+              idField: "sourceId",
+              required: true,
+            },
+            {
+              slugField: "viaSlug",
+              kindField: "viaKind",
+              idField: "viaId",
+              required: false,
+            },
+            {
+              slugField: "targetSlug",
+              kindField: "targetKind",
+              idField: "targetId",
+              required: true,
+            },
           ] as const
           for (const { slugField, kindField, idField, required } of endpoints) {
             if (entity[slugField] && entity[kindField]) {
@@ -133,14 +239,19 @@ async function _reconcile(
                 const cacheKey = `${tableName(refCfg.table)}:${refSlug}`
                 let refId: string | null = batchIdCache.get(cacheKey) ?? null
                 if (!refId) {
-                  const rows = await db.select({ id: refCfg.idColumn })
+                  const rows = await db
+                    .select({ id: refCfg.idColumn })
                     .from(refCfg.table)
                     .where(eq(refCfg.slugColumn, refSlug))
                     .limit(1)
                   refId = (rows[0] as any)?.id ?? null
                 }
                 if (!refId && required) {
-                  summary.errors.push({ kind, slug: entitySlug, error: `${slugField}: "${refSlug}" not found in "${refKind}"` })
+                  summary.errors.push({
+                    kind,
+                    slug: entitySlug,
+                    error: `${slugField}: "${refSlug}" not found in "${refKind}"`,
+                  })
                   dynamicSlugFailed = true
                 } else if (refId) {
                   resolved[idField] = refId
@@ -155,7 +266,11 @@ async function _reconcile(
         // Upsert by slug (or address for ip-address)
         const lookupValue = entity.slug ?? entity.address
         if (!lookupValue) {
-          summary.errors.push({ kind, slug: entitySlug, error: "No slug or address for lookup" })
+          summary.errors.push({
+            kind,
+            slug: entitySlug,
+            error: "No slug or address for lookup",
+          })
           continue
         }
 
@@ -177,13 +292,20 @@ async function _reconcile(
           batchIdCache.set(`${ownTableName}:${entitySlug}`, existingId)
           kindSummary.updated++
         } else {
-          const newEntityId = entity.id ?? (cfg.prefix ? newId(cfg.prefix) : crypto.randomUUID())
-          await db.insert(cfg.table).values({ id: newEntityId, ...resolved } as any)
+          const newEntityId =
+            entity.id ?? (cfg.prefix ? newId(cfg.prefix) : crypto.randomUUID())
+          await db
+            .insert(cfg.table)
+            .values({ id: newEntityId, ...resolved } as any)
           batchIdCache.set(`${ownTableName}:${entitySlug}`, String(newEntityId))
           kindSummary.created++
         }
       } catch (err: any) {
-        summary.errors.push({ kind, slug: entitySlug, error: err?.message ?? String(err) })
+        summary.errors.push({
+          kind,
+          slug: entitySlug,
+          error: err?.message ?? String(err),
+        })
       }
     }
   }
@@ -194,7 +316,7 @@ async function _reconcile(
 export async function reconcileInventory(
   db: Database,
   entities: EntityDecl[],
-  dryRun = false,
+  dryRun = false
 ): Promise<InventoryReconciliationSummary> {
   if (dryRun) {
     let summary: InventoryReconciliationSummary | undefined

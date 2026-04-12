@@ -93,8 +93,8 @@ describe("Gateway Services", () => {
       .values({
         name: "test-site",
         slug: `test-site-${Date.now()}`,
+        type: "production",
         spec: {
-          type: "shared",
           status: "provisioning",
           product: "test-product",
         } satisfies SiteSpec,

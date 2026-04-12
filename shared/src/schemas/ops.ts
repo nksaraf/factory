@@ -8,7 +8,15 @@ import { BitemporalSchema, ReconciliationSchema } from "./common"
 
 // ── Site ────────────────────────────────────────────────────
 
-export const SiteTypeSchema = z.enum(["shared", "dedicated", "on-prem", "edge"])
+export const SiteTypeSchema = z.enum([
+  "production",
+  "staging",
+  "preview",
+  "development",
+  "sandbox",
+  "qat",
+  "test",
+])
 export type SiteType = z.infer<typeof SiteTypeSchema>
 
 export const SiteStatusSchema = z.enum([
@@ -28,8 +36,8 @@ export const SitePreviewConfigSchema = z.object({
 export type SitePreviewConfig = z.infer<typeof SitePreviewConfigSchema>
 
 export const SiteSpecSchema = z.object({
-  type: SiteTypeSchema.default("shared"),
-  product: z.string().optional(), // derived from system deployments
+  tenancy: z.enum(["shared", "dedicated"]).optional(),
+  product: z.string().optional(),
   status: SiteStatusSchema.default("provisioning"),
   previewConfig: SitePreviewConfigSchema.optional(),
 })
@@ -40,6 +48,7 @@ export const SiteSchema = z
     id: z.string(),
     slug: z.string(),
     name: z.string(),
+    type: SiteTypeSchema,
     spec: SiteSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -318,15 +327,18 @@ export type DeploymentSet = z.infer<typeof DeploymentSetSchema>
 // ── Workbench ───────────────────────────────────────────────
 
 export const WorkbenchTypeSchema = z.enum([
-  "developer",
-  "agent",
-  "ci",
-  "playground",
+  "worktree",
+  "container",
+  "vm",
+  "namespace",
+  "pod",
+  "bare-process",
+  "function",
+  "sandbox",
+  "edge-worker",
+  "static",
 ])
 export type WorkbenchType = z.infer<typeof WorkbenchTypeSchema>
-
-export const WorkbenchRealmTypeSchema = z.enum(["container", "vm"])
-export type WorkbenchRealmType = z.infer<typeof WorkbenchRealmTypeSchema>
 
 export const WorkbenchHealthSchema = z.enum([
   "unknown",
@@ -345,7 +357,7 @@ export const WorkbenchRepoSchema = z.object({
 export type WorkbenchRepo = z.infer<typeof WorkbenchRepoSchema>
 
 export const WorkbenchSpecSchema = z.object({
-  realmType: WorkbenchRealmTypeSchema.default("container"),
+  realmType: z.string().optional(), // provisioning hint: "container" | "vm"
   devcontainerConfig: z.record(z.unknown()).default({}),
   repos: z.array(WorkbenchRepoSchema).default([]),
   cpu: z.string().optional(),
@@ -727,6 +739,7 @@ export type ConnectionAuditEvent = z.infer<typeof ConnectionAuditEventSchema>
 export const CreateSiteSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
+  type: SiteTypeSchema.default("production"),
   spec: SiteSpecSchema.default({}),
 })
 export const UpdateSiteSchema = CreateSiteSchema.partial()

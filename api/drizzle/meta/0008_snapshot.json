@@ -1,6 +1,6 @@
 {
-  "id": "17611df7-31a6-41b3-8a4a-1462cf4af676",
-  "prevId": "90b66204-4d53-4a2c-accb-5dd08c48090f",
+  "id": "de9d7e01-e151-47a6-a266-984ca4dc7f42",
+  "prevId": "c6e042f6-d751-40e7-9670-b7c4d8431f16",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -223,12 +223,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "build_git_host_provider_type_valid": {
-          "name": "build_git_host_provider_type_valid",
-          "value": "\"build\".\"git_host_provider\".\"type\" IN ('github', 'gitlab', 'gitea', 'bitbucket')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "build.git_repo_sync": {
@@ -679,12 +674,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "build_pipeline_run_status_valid": {
-          "name": "build_pipeline_run_status_valid",
-          "value": "\"build\".\"pipeline_run\".\"status\" IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "build.pipeline_step": {
@@ -1332,12 +1322,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "build_work_item_type_valid": {
-          "name": "build_work_item_type_valid",
-          "value": "\"build\".\"work_item\".\"type\" IN ('epic', 'story', 'task', 'bug')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "build.work_tracker_project": {
@@ -1687,12 +1672,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "build_work_tracker_provider_type_valid": {
-          "name": "build_work_tracker_provider_type_valid",
-          "value": "\"build\".\"work_tracker_provider\".\"type\" IN ('jira', 'linear')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "commerce.billable_metric": {
@@ -2106,12 +2086,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "commerce_plan_type_valid": {
-          "name": "commerce_plan_type_valid",
-          "value": "\"commerce\".\"plan\".\"type\" IN ('base', 'add-on', 'suite')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "commerce.subscription": {
@@ -5598,6 +5573,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'production'"
+        },
         "spec": {
           "name": "spec",
           "type": "jsonb",
@@ -5687,6 +5669,21 @@
           "columns": [
             {
               "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ops_site_type_idx": {
+          "name": "ops_site_type_idx",
+          "columns": [
+            {
+              "expression": "type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6873,16 +6870,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_agent_status_valid": {
-          "name": "org_agent_status_valid",
-          "value": "\"org\".\"agent\".\"status\" IN ('active', 'disabled')"
-        },
-        "org_agent_type_valid": {
-          "name": "org_agent_type_valid",
-          "value": "\"org\".\"agent\".\"type\" IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.channel": {
@@ -7020,16 +7008,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_channel_kind_valid": {
-          "name": "org_channel_kind_valid",
-          "value": "\"org\".\"channel\".\"kind\" IN ('ide', 'conductor-workspace', 'slack', 'terminal', 'github-pr', 'github-issue', 'web-ui')"
-        },
-        "org_channel_status_valid": {
-          "name": "org_channel_status_valid",
-          "value": "\"org\".\"channel\".\"status\" IN ('active', 'archived')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.config_var": {
@@ -7176,12 +7155,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_config_var_scope_type_valid": {
-          "name": "org_config_var_scope_type_valid",
-          "value": "\"org\".\"config_var\".\"scope_type\" IN ('org', 'team', 'project', 'principal', 'system')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.document": {
@@ -7650,12 +7624,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_entity_rel_type_valid": {
-          "name": "org_entity_rel_type_valid",
-          "value": "\"org\".\"entity_relationship\".\"type\" IN ('consumes-api', 'depends-on', 'provides', 'owned-by', 'deployed-alongside', 'triggers', 'tracks', 'maps-to')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.event": {
@@ -8371,12 +8340,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_event_outbox_status_valid": {
-          "name": "org_event_outbox_status_valid",
-          "value": "\"org\".\"event_outbox\".\"status\" IN ('pending', 'published', 'failed')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.event_subscription": {
@@ -8827,12 +8791,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_identity_link_type_valid": {
-          "name": "org_identity_link_type_valid",
-          "value": "\"org\".\"identity_link\".\"type\" IN ('github', 'google', 'slack', 'jira', 'claude', 'cursor')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.job": {
@@ -9083,20 +9042,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_job_status_valid": {
-          "name": "org_job_status_valid",
-          "value": "\"org\".\"job\".\"status\" IN ('pending', 'running', 'completed', 'failed', 'cancelled')"
-        },
-        "org_job_mode_valid": {
-          "name": "org_job_mode_valid",
-          "value": "\"org\".\"job\".\"mode\" IN ('conversational', 'autonomous', 'observation')"
-        },
-        "org_job_trigger_valid": {
-          "name": "org_job_trigger_valid",
-          "value": "\"org\".\"job\".\"trigger\" IN ('mention', 'event', 'schedule', 'delegation', 'manual', 'workflow')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.membership": {
@@ -9368,20 +9314,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_memory_type_valid": {
-          "name": "org_memory_type_valid",
-          "value": "\"org\".\"memory\".\"type\" IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')"
-        },
-        "org_memory_layer_valid": {
-          "name": "org_memory_layer_valid",
-          "value": "\"org\".\"memory\".\"layer\" IN ('session', 'team', 'org')"
-        },
-        "org_memory_status_valid": {
-          "name": "org_memory_status_valid",
-          "value": "\"org\".\"memory\".\"status\" IN ('proposed', 'approved', 'superseded', 'archived')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.messaging_provider": {
@@ -9502,12 +9435,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_messaging_provider_type_valid": {
-          "name": "org_messaging_provider_type_valid",
-          "value": "\"org\".\"messaging_provider\".\"type\" IN ('slack', 'teams', 'google-chat')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.principal": {
@@ -9674,12 +9602,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_principal_type_valid": {
-          "name": "org_principal_type_valid",
-          "value": "\"org\".\"principal\".\"type\" IN ('human', 'agent', 'service-account')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.role_preset": {
@@ -9889,12 +9812,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_scope_type_valid": {
-          "name": "org_scope_type_valid",
-          "value": "\"org\".\"scope\".\"type\" IN ('team', 'resource', 'custom')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.secret": {
@@ -10092,12 +10010,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_secret_scope_type_valid": {
-          "name": "org_secret_scope_type_valid",
-          "value": "\"org\".\"secret\".\"scope_type\" IN ('org', 'team', 'project', 'principal', 'system')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.ssh_key": {
@@ -10205,12 +10118,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_ssh_key_type_valid": {
-          "name": "org_ssh_key_type_valid",
-          "value": "\"org\".\"ssh_key\".\"type\" IN ('ed25519', 'rsa', 'ecdsa')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.team": {
@@ -10393,12 +10301,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_team_type_valid": {
-          "name": "org_team_type_valid",
-          "value": "\"org\".\"team\".\"type\" IN ('team', 'business-unit', 'product-area')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.thread": {
@@ -10745,20 +10648,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_thread_type_valid": {
-          "name": "org_thread_type_valid",
-          "value": "\"org\".\"thread\".\"type\" IN ('ide-session', 'chat', 'terminal', 'review', 'autonomous')"
-        },
-        "org_thread_source_valid": {
-          "name": "org_thread_source_valid",
-          "value": "\"org\".\"thread\".\"source\" IN ('claude-code', 'conductor', 'cursor', 'slack', 'terminal', 'web')"
-        },
-        "org_thread_status_valid": {
-          "name": "org_thread_status_valid",
-          "value": "\"org\".\"thread\".\"status\" IN ('active', 'completed', 'failed', 'abandoned')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.thread_channel": {
@@ -10911,16 +10801,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_thread_channel_role_valid": {
-          "name": "org_thread_channel_role_valid",
-          "value": "\"org\".\"thread_channel\".\"role\" IN ('mirror', 'subscriber', 'active')"
-        },
-        "org_thread_channel_status_valid": {
-          "name": "org_thread_channel_status_valid",
-          "value": "\"org\".\"thread_channel\".\"status\" IN ('connected', 'detached', 'paused')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.thread_participant": {
@@ -11078,12 +10959,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_thread_participant_role_valid": {
-          "name": "org_thread_participant_role_valid",
-          "value": "\"org\".\"thread_participant\".\"role\" IN ('initiator', 'collaborator', 'observer', 'delegator', 'delegate')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.thread_turn": {
@@ -11197,12 +11073,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "org_thread_turn_role_valid": {
-          "name": "org_thread_turn_role_valid",
-          "value": "\"org\".\"thread_turn\".\"role\" IN ('user', 'assistant', 'system', 'tool')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "org.tool_credential": {
@@ -11870,12 +11741,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "software_artifact_type_valid": {
-          "name": "software_artifact_type_valid",
-          "value": "\"software\".\"artifact\".\"type\" IN ('container_image', 'binary', 'archive', 'package', 'bundle')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "software.capability": {
@@ -11989,12 +11855,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "software_capability_type_valid": {
-          "name": "software_capability_type_valid",
-          "value": "\"software\".\"capability\".\"type\" IN ('feature', 'integration', 'compute', 'data', 'support')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "software.component": {
@@ -12218,12 +12079,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "software_component_type_valid": {
-          "name": "software_component_type_valid",
-          "value": "\"software\".\"component\".\"type\" IN ('service', 'worker', 'task', 'cronjob', 'website', 'library', 'cli', 'agent', 'gateway', 'ml-model', 'database', 'cache', 'queue', 'storage', 'search')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "software.product": {
@@ -12686,12 +12542,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "software_api_type_valid": {
-          "name": "software_api_type_valid",
-          "value": "\"software\".\"api\".\"type\" IN ('openapi', 'grpc', 'graphql', 'asyncapi', 'webhook')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "software.system": {
@@ -12948,12 +12799,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "software_template_type_valid": {
-          "name": "software_template_type_valid",
-          "value": "\"software\".\"template\".\"type\" IN ('component', 'system', 'workbench')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

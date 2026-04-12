@@ -103,13 +103,27 @@ function detectSources(): Record<SourceName, SourceInfo> {
 
 // ── Scanner mode ────────────────────────────────────────────
 
-type ScannerMode = "ide" | "infra" | "all"
+type ScannerMode = "ide" | "infra" | "dns" | "all"
+
+const DNS_PROVIDERS = ["cloudflare", "namecheap", "godaddy"] as const
+type DnsProvider = (typeof DNS_PROVIDERS)[number]
+
+function isDnsProvider(s: string): s is DnsProvider {
+  return DNS_PROVIDERS.includes(s as DnsProvider)
+}
 
 function parseScannerMode(flags: DxFlags): ScannerMode {
   const scanner = (flags as any).scanner as string | undefined
   if (!scanner) return "all"
-  if (scanner === "ide" || scanner === "infra" || scanner === "all")
+  if (
+    scanner === "ide" ||
+    scanner === "infra" ||
+    scanner === "dns" ||
+    scanner === "all"
+  )
     return scanner
+  // Allow provider names as scanner aliases (e.g. --scanner cloudflare)
+  if (isDnsProvider(scanner)) return "dns"
   return "all"
 }
 
@@ -906,7 +920,7 @@ function printReconciliationSummary(recon: {
 async function runInventoryExport(
   outputDir: string | undefined,
   kinds: string[] | undefined,
-  jsonOutput: boolean,
+  jsonOutput: boolean
 ): Promise<void> {
   const { stringify: toYaml } = await import("yaml")
   const { mkdirSync, writeFileSync } = await import("node:fs")
@@ -917,7 +931,7 @@ async function runInventoryExport(
   mkdirSync(outDir, { recursive: true })
 
   const rest = await getFactoryRestClient()
-  const response = await rest.inventoryExport(kinds) as any
+  const response = (await rest.inventoryExport(kinds)) as any
   const exportedKinds: { kind: string; entities: Record<string, unknown>[] }[] =
     response?.data ?? []
 
@@ -928,9 +942,18 @@ async function runInventoryExport(
 
   // Write one YAML file per kind, prefixed to preserve topological order
   const kindOrder = [
-    "estate", "team", "principal", "scope",
-    "realm", "host", "service", "ip-address", "dns-domain",
-    "network-link", "route", "secret",
+    "estate",
+    "team",
+    "principal",
+    "scope",
+    "realm",
+    "host",
+    "service",
+    "ip-address",
+    "dns-domain",
+    "network-link",
+    "route",
+    "secret",
   ]
   const sortedKinds = [
     ...kindOrder.filter((k) => exportedKinds.some((e) => e.kind === k)),
@@ -947,11 +970,17 @@ async function runInventoryExport(
     const yamlContent =
       `version: "1"\n\n# ${kind} entities — exported from Factory DB\nentities:\n` +
       group.entities
-        .map((e) => toYaml([e], { indent: 2 }).replace(/^- /, "  - ").replace(/\n  /g, "\n    "))
+        .map((e) =>
+          toYaml([e], { indent: 2 })
+            .replace(/^- /, "  - ")
+            .replace(/\n  /g, "\n    ")
+        )
         .join("")
 
     writeFileSync(join(outDir, filename), yamlContent, "utf8")
-    console.log(`  ${styleBold(filename)}  ${styleMuted(`(${group.entities.length} ${kind}${group.entities.length === 1 ? "" : "s"})`)}`)
+    console.log(
+      `  ${styleBold(filename)}  ${styleMuted(`(${group.entities.length} ${kind}${group.entities.length === 1 ? "" : "s"})`)}`
+    )
     fileIndex++
   }
 
@@ -965,14 +994,17 @@ async function runInventoryExport(
 async function runInventoryScan(
   path: string,
   dryRun: boolean,
-  jsonOutput: boolean,
+  jsonOutput: boolean
 ): Promise<void> {
-  const { loadInventoryFiles } = await import("../lib/infra-scan/inventory-loader.js")
+  const { loadInventoryFiles } =
+    await import("../lib/infra-scan/inventory-loader.js")
   const entities = loadInventoryFiles(path)
 
   const count = entities.length
   if (!jsonOutput) {
-    console.log(`Loaded ${count} ${count === 1 ? "entity" : "entities"} from ${path}`)
+    console.log(
+      `Loaded ${count} ${count === 1 ? "entity" : "entities"} from ${path}`
+    )
     if (dryRun) console.log("Dry run — no changes will be committed\n")
   }
 
@@ -988,7 +1020,10 @@ async function runInventoryScan(
   if (summary.dryRun) console.log("(dry run — rolled back)\n")
 
   let anyOutput = false
-  for (const [kind, s] of Object.entries(summary.byKind ?? {}) as [string, { created: number; updated: number; unchanged: number }][]) {
+  for (const [kind, s] of Object.entries(summary.byKind ?? {}) as [
+    string,
+    { created: number; updated: number; unchanged: number },
+  ][]) {
     if (s.created + s.updated > 0) {
       console.log(
         `  ${kind.padEnd(24)} +${s.created} created  ~${s.updated} updated  ${s.unchanged} unchanged`
@@ -1009,14 +1044,254 @@ async function runInventoryScan(
   process.exit(0)
 }
 
+// ── DNS provider scan ──────────────────────────────────────
+
+interface DnsSyncResult {
+  zones: { created: number; updated: number }
+  domains: { created: number; updated: number }
+  ipAddresses: { created: number }
+  networkLinks: { created: number }
+  records: { stored: number }
+  errors: string[]
+}
+
+function matchesDnsProvider(
+  spec: Record<string, unknown> | undefined,
+  provider?: DnsProvider
+): boolean {
+  if (!spec) return false
+  const kind = (spec.providerKind ?? spec.dnsProvider) as string | undefined
+  if (!kind) return false
+  if (provider) return kind === provider
+  return isDnsProvider(kind)
+}
+
+async function runDnsScan(flags: DxFlags, target?: string): Promise<void> {
+  const dryRun = !!(flags as any)["dry-run"] || !!(flags as any).dryRun
+  const json = !!flags.json
+
+  // If --scanner was a provider name directly (e.g. --scanner cloudflare),
+  // use it as the provider filter and treat target as estate slug
+  const scannerFlag = (flags as any).scanner as string | undefined
+  const providerFilter =
+    scannerFlag && isDnsProvider(scannerFlag)
+      ? scannerFlag
+      : target && isDnsProvider(target)
+        ? target
+        : undefined
+  // If the target was used as a provider filter, clear it for estate matching
+  const estateTarget = target && isDnsProvider(target) ? undefined : target
+
+  const rest = await getFactoryRestClient()
+
+  // Discover DNS provider estates
+  const { data: allEstates } = await rest.listEntities("infra", "estates")
+  let dnsEstates = allEstates.filter((e: any) => {
+    if (e.type !== "cloud-account") return false
+    return matchesDnsProvider(
+      e.spec as Record<string, unknown> | undefined,
+      providerFilter
+    )
+  })
+
+  // Filter to specific estate if target provided
+  if (estateTarget) {
+    dnsEstates = dnsEstates.filter(
+      (e: any) => e.slug === estateTarget || e.id === estateTarget
+    )
+  }
+
+  if (dnsEstates.length === 0) {
+    const providerHint = providerFilter ? ` for ${providerFilter}` : ""
+    if (estateTarget) {
+      exitWithError(
+        flags,
+        `No DNS provider estate found matching "${estateTarget}"${providerHint}. Run 'dx infra estate list' to see available estates.`
+      )
+    } else {
+      exitWithError(
+        flags,
+        `No DNS provider estates found${providerHint}. Create one with 'dx infra estate create <name> --type cloud-account' and set providerKind (e.g. "cloudflare") in its spec with a credentialsRef pointing to a stored secret.`
+      )
+    }
+    return
+  }
+
+  // Group by provider for display
+  const byProvider = new Map<string, any[]>()
+  for (const e of dnsEstates) {
+    const spec = (e as any).spec as Record<string, unknown> | undefined
+    const provider = (spec?.providerKind ??
+      spec?.dnsProvider ??
+      "unknown") as string
+    const group = byProvider.get(provider) ?? []
+    group.push(e)
+    byProvider.set(provider, group)
+  }
+
+  if (!json) {
+    console.log(styleBold("\nDNS Provider Scan\n"))
+    for (const [provider, estates] of byProvider) {
+      console.log(
+        `  ${styleBold(provider)} (${estates.length} account${estates.length > 1 ? "s" : ""})`
+      )
+      for (const e of estates) {
+        const spec = (e as any).spec as Record<string, unknown> | undefined
+        const lastSync = spec?.lastSyncAt
+          ? styleMuted(`last synced ${spec.lastSyncAt}`)
+          : styleMuted("never synced")
+        console.log(
+          `    ${styleBold(String((e as any).slug).padEnd(30))} ${lastSync}`
+        )
+      }
+    }
+    console.log()
+  }
+
+  if (dryRun) {
+    if (json) {
+      console.log(
+        JSON.stringify(
+          {
+            scanner: "dns",
+            dryRun: true,
+            estates: dnsEstates.map((e: any) => ({
+              slug: e.slug,
+              id: e.id,
+              provider:
+                (e.spec as any)?.providerKind ?? (e.spec as any)?.dnsProvider,
+            })),
+          },
+          null,
+          2
+        )
+      )
+    } else {
+      console.log(styleMuted("Dry run — skipping sync.\n"))
+    }
+    return
+  }
+
+  const results: Array<{
+    slug: string
+    id: string
+    provider: string
+    result: DnsSyncResult
+  }> = []
+
+  for (const e of dnsEstates) {
+    const estate = e as any
+    const provider = (estate.spec?.providerKind ??
+      estate.spec?.dnsProvider ??
+      "unknown") as string
+
+    if (!json) {
+      process.stderr.write(
+        `  Syncing ${styleBold(estate.slug)} ${styleMuted(`(${provider})`)}...`
+      )
+    }
+
+    try {
+      const response = (await rest.dnsScan(estate.id)) as any
+      const syncResult: DnsSyncResult = response.data ?? response
+
+      results.push({
+        slug: estate.slug,
+        id: estate.id,
+        provider,
+        result: syncResult,
+      })
+
+      if (!json) {
+        console.log(styleSuccess(" done"))
+        const z = syncResult.zones
+        const d = syncResult.domains
+        const ip = syncResult.ipAddresses
+        const nl = syncResult.networkLinks
+        const r = syncResult.records
+
+        console.log(
+          `    Zones         ${z.created} created, ${z.updated} updated`
+        )
+        console.log(
+          `    Domains       ${d.created} created, ${d.updated} updated`
+        )
+        console.log(`    IP Addresses  ${ip.created} created`)
+        console.log(`    DNS Links     ${nl.created} created`)
+        console.log(`    Records       ${r.stored} stored`)
+
+        if (syncResult.errors.length > 0) {
+          console.log(styleError(`    Errors: ${syncResult.errors.length}`))
+          for (const err of syncResult.errors) {
+            console.log(`      ${styleError(err)}`)
+          }
+        }
+        console.log()
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!json) {
+        console.log(styleError(` failed`))
+        console.log(`    ${styleError(msg)}\n`)
+      }
+      results.push({
+        slug: estate.slug,
+        id: estate.id,
+        provider,
+        result: {
+          zones: { created: 0, updated: 0 },
+          domains: { created: 0, updated: 0 },
+          ipAddresses: { created: 0 },
+          networkLinks: { created: 0 },
+          records: { stored: 0 },
+          errors: [msg],
+        },
+      })
+    }
+  }
+
+  if (json) {
+    const hasErrors = results.some((r) => r.result.errors.length > 0)
+    console.log(
+      JSON.stringify(
+        {
+          scanner: "dns",
+          success: !hasErrors,
+          estates: results,
+        },
+        null,
+        2
+      )
+    )
+  } else {
+    const totalZones = results.reduce(
+      (s, r) => s + r.result.zones.created + r.result.zones.updated,
+      0
+    )
+    const totalDomains = results.reduce(
+      (s, r) => s + r.result.domains.created + r.result.domains.updated,
+      0
+    )
+    const totalErrors = results.reduce((s, r) => s + r.result.errors.length, 0)
+    console.log(
+      styleBold(
+        `DNS: ${totalZones} zones, ${totalDomains} domains, ${totalErrors} errors`
+      )
+    )
+  }
+}
+
 // ── Main entry point ────────────────────────────────────────
 
 export async function runScan(flags: DxFlags, target?: string): Promise<void> {
   if ((flags as any).export) {
     return runInventoryExport(
       (flags as any).output as string | undefined,
-      ((flags as any).kinds as string | undefined)?.split(",").map((k: string) => k.trim()).filter(Boolean),
-      !!flags.json,
+      ((flags as any).kinds as string | undefined)
+        ?.split(",")
+        .map((k: string) => k.trim())
+        .filter(Boolean),
+      !!flags.json
     )
   }
 
@@ -1024,15 +1299,27 @@ export async function runScan(flags: DxFlags, target?: string): Promise<void> {
     return runInventoryScan(
       (flags as any).file as string,
       !!((flags as any)["dry-run"] ?? (flags as any).dryRun),
-      !!flags.json,
+      !!flags.json
     )
   }
 
   const mode = parseScannerMode(flags)
 
+  // DNS provider names as target keywords (e.g. "dx scan cloudflare")
+  if (target && (target === "dns" || isDnsProvider(target))) {
+    await runDnsScan(flags, target === "dns" ? undefined : target)
+    return
+  }
+
   // If target is a known IDE source, force IDE mode regardless of --scanner flag
   if (target && isIdeSource(target)) {
     await runIdeScan(flags, target)
+    return
+  }
+
+  // scanner=dns (or scanner=cloudflare etc.) with optional estate target
+  if (mode === "dns") {
+    await runDnsScan(flags, target)
     return
   }
 

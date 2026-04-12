@@ -339,14 +339,14 @@ export type RevokeSecretBody = z.infer<typeof RevokeSecretBody>
 // ── Infra: IP Address actions ───────────────────────────────
 
 export const AssignIpBody = z.object({
-  assignedToType: z.string().min(1),
+  assignedToKind: z.string().min(1),
   assignedToId: z.string().min(1),
 })
 export type AssignIpBody = z.infer<typeof AssignIpBody>
 
 export const AllocateIpBody = z.object({
   subnetId: z.string().min(1),
-  assignedToType: z.string().optional(),
+  assignedToKind: z.string().optional(),
   assignedToId: z.string().optional(),
   strategy: z.enum(["sequential", "random"]).default("sequential"),
 })

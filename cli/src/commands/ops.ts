@@ -347,7 +347,7 @@ function printImportPlan(plan: ImportPlan) {
     const siteAction =
       stack.site.action === "create" ? styleSuccess("+") : styleMuted("=")
     console.log(
-      `    ${siteAction} site              ${stack.site.slug} (${stack.site.type}, ${stack.site.env})`
+      `    ${siteAction} site              ${stack.site.slug} (${stack.site.type})`
     )
 
     const sysAction =

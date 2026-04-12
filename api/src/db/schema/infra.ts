@@ -275,6 +275,8 @@ export const ipAddress = infraSchema.table(
     subnetId: text("subnet_id").references(() => estate.id, {
       onDelete: "set null",
     }),
+    assignedToKind: text("assigned_to_kind"),
+    assignedToId: text("assigned_to_id"),
     spec: specCol<IpAddressSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -282,6 +284,7 @@ export const ipAddress = infraSchema.table(
   (t) => [
     uniqueIndex("infra_ip_address_unique").on(t.address),
     index("infra_ip_address_subnet_idx").on(t.subnetId),
+    index("infra_ip_address_assigned_idx").on(t.assignedToKind, t.assignedToId),
   ]
 )
 

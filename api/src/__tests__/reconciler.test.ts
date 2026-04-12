@@ -181,7 +181,8 @@ describe("Reconciler", () => {
       .values({
         name: "test-site",
         slug: "test-site",
-        spec: { type: "shared", status: "active" },
+        type: "development",
+        spec: { status: "active" },
       })
       .returning()
     const [sd] = await db
@@ -332,7 +333,9 @@ describe("Reconciler", () => {
   })
 
   it("dispatches docker-compose runtime without touching K8s", async () => {
-    const { cd } = await seedComponentDeployment({ runtimeMode: "docker-compose" })
+    const { cd } = await seedComponentDeployment({
+      runtimeMode: "docker-compose",
+    })
     const reconciler = new Reconciler(db, mockKube)
 
     await reconciler.reconcileWorkload(cd.id)

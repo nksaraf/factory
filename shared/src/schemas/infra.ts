@@ -498,20 +498,30 @@ export const IpAddressStatusSchema = z.enum([
 ])
 export type IpAddressStatus = z.infer<typeof IpAddressStatusSchema>
 
+export const IpAddressRoleSchema = z.enum([
+  "primary",
+  "secondary",
+  "vip",
+  "vrrp",
+  "anycast",
+  "loopback",
+  "floating",
+  "service",
+])
+export type IpAddressRole = z.infer<typeof IpAddressRoleSchema>
+
 export const IpAddressSpecSchema = z.object({
   version: z.enum(["v4", "v6"]).default("v4"),
   status: IpAddressStatusSchema.default("available"),
-  assignedToType: z.string().optional(), // e.g., "host", "realm", "service"
-  assignedToId: z.string().optional(),
-  gateway: z.string().optional(),
-  cidr: z.number().int().optional(),
   scope: z
     .enum(["public", "private", "management", "vpn", "virtual", "loopback"])
     .optional(),
-  purpose: z.string().optional(), // freeform: "web", "ssh", "management", "api"
-  hostname: z.string().optional(), // reverse DNS / FQDN
-  interface: z.string().optional(), // "eth0", "en0", "wan1", "lan2"
-  primary: z.boolean().optional(), // preferred IP for this entity
+  role: IpAddressRoleSchema.optional(),
+  dnsName: z.string().optional(),
+  macAddress: z.string().optional(),
+  gateway: z.string().optional(),
+  cidr: z.number().int().optional(),
+  interface: z.string().optional(),
 })
 export type IpAddressSpec = z.infer<typeof IpAddressSpecSchema>
 
@@ -519,6 +529,8 @@ export const IpAddressSchema = z.object({
   id: z.string(),
   address: z.string(),
   subnetId: z.string().nullable(),
+  assignedToKind: z.string().nullable().optional(),
+  assignedToId: z.string().nullable().optional(),
   spec: IpAddressSpecSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -751,6 +763,8 @@ export const UpdateTunnelSchema = CreateTunnelSchema.partial()
 export const CreateIpAddressSchema = z.object({
   address: z.string().min(1),
   subnetId: z.string().optional(),
+  assignedToKind: z.string().optional(),
+  assignedToId: z.string().optional(),
   spec: IpAddressSpecSchema.default({}),
 })
 export const UpdateIpAddressSchema = CreateIpAddressSchema.partial()
@@ -791,7 +805,13 @@ export type HostScanPort = z.infer<typeof HostScanPortSchema>
 export const HostScanServiceSchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
-  realmType: z.enum(["docker-compose", "systemd", "iis", "windows-service", "process"]),
+  realmType: z.enum([
+    "docker-compose",
+    "systemd",
+    "iis",
+    "windows-service",
+    "process",
+  ]),
   status: z.string(),
   ports: z.array(z.number().int()).default([]),
   image: z.string().optional(),

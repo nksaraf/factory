@@ -11,7 +11,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: Airtel WAN IP
 
   - kind: ip-address
     address: "182.74.24.69"
@@ -20,7 +19,7 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: Airtel Gateway
+      dnsName: airtel-gw
 
   # Airtel NAT pool
   - kind: ip-address
@@ -30,7 +29,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: ADTRAN POC
 
   - kind: ip-address
     address: "182.71.49.115"
@@ -39,7 +37,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: FTP Server
 
   - kind: ip-address
     address: "182.71.49.116"
@@ -48,7 +45,6 @@ entities:
       version: v4
       status: reserved
       scope: public
-      purpose: Free
 
   - kind: ip-address
     address: "182.71.49.117"
@@ -57,7 +53,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: "Nikhil/Umang Server (lepton-59)"
 
   - kind: ip-address
     address: "182.71.49.118"
@@ -66,17 +61,18 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: Neo360 Demo
 
   # ── Tata ILL IPs ─────────────────────────────────────────────
   - kind: ip-address
     address: "14.98.61.194"
     subnetSlug: tata-ill
+    assignedToKind: host
+    assignedToSlug: gajshield-fw
     spec:
       version: v4
       status: assigned
       scope: public
-      purpose: "Tata WAN/Firewall"
+      role: primary
 
   - kind: ip-address
     address: "14.98.61.195"
@@ -85,7 +81,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: Neo360 Dev/Demo
 
   - kind: ip-address
     address: "14.98.61.196"
@@ -94,7 +89,6 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: Relyon Biometric Server
 
   - kind: ip-address
     address: "14.98.61.197"
@@ -103,98 +97,117 @@ entities:
       version: v4
       status: assigned
       scope: public
-      purpose: JIO App SIT/Presales
 
   # ── Private mgmt-subnet IPs ───────────────────────────────────
   - kind: ip-address
     address: "192.168.1.5"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: gajshield-fw
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: Gajshield Firewall
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.3"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: windows-nthchfq
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HP ProLiant DL180 Gen9 — Windows Server 2012 R2"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.11"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lepdomindia
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HP ProLiant DL380 G6 — Windows Server 2012 R2"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.12"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: dell-emc-storage-1
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: Dell EMC Storage 1
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.13"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: dell-emc-storage-2
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: Dell EMC Storage 2
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.14"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: win-4uj6erfk323
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HPE DL360 Gen10 — Windows Server 2019 (Neo360)"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.16"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: dell-emc-storage-3
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: Dell EMC Storage 3
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.25"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: win-j4leo1c57sn
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HPE DL360 Gen10 — Windows Server 2019 (Telecom)"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.26"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: ftp-server
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HP ProLiant DL380 G6 — Windows Server 2016 (FTP)"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.30"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: netgear-storage
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: Netgear Storage
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.31"
@@ -203,25 +216,28 @@ entities:
       version: v4
       status: assigned
       scope: management
-      purpose: Relyon Biometric Server
 
   - kind: ip-address
     address: "192.168.1.40"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: win-m6nplp2fvj7
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HPE DL380 Gen10 — Windows Server 2022 (Server-40)"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.41"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: win-8ou5hbq7gnf
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HPE DL380 Gen10 — Windows Server 2022 (Server-41)"
+      role: primary
 
   - kind: ip-address
     address: "192.168.1.64"
@@ -230,7 +246,6 @@ entities:
       version: v4
       status: assigned
       scope: management
-      purpose: ADTRAN POC
 
   - kind: ip-address
     address: "192.168.1.124"
@@ -239,13 +254,14 @@ entities:
       version: v4
       status: assigned
       scope: management
-      purpose: Neo360 Demo
 
   - kind: ip-address
     address: "192.168.1.197"
     subnetSlug: mgmt-subnet
+    assignedToKind: host
+    assignedToSlug: lep-ggn-dc
     spec:
       version: v4
       status: assigned
       scope: management
-      purpose: "HP ProLiant DL360 G7 — Windows Server 2012 R2 (Legacy DC)"
+      role: primary

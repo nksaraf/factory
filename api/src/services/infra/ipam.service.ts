@@ -5,12 +5,7 @@ import type { NetworkDeviceAdapter } from "../../adapters/network-device-adapter
 import type { Database } from "../../db/connection"
 import { estate, ipAddress } from "../../db/schema/infra"
 
-// hostname/purpose/assignedToType/assignedToId are now in IpAddressSpecSchema
 type IpAddressSpecStored = IpAddressSpec
-
-function toIpSpec(stored: IpAddressSpecStored): IpAddressSpec {
-  return stored
-}
 
 function csvEscape(value: string): string {
   if (/^[=+\-@\t\r]/.test(value)) {
@@ -29,10 +24,10 @@ type IpAddressRow = {
   address: string
   subnetId: string | null
   status: string
-  assignedToType: string | null
+  assignedToKind: string | null
   assignedToId: string | null
-  hostname: string | null
-  purpose: string | null
+  role: string | null
+  dnsName: string | null
   spec: IpAddressSpecStored
 }
 
@@ -43,10 +38,10 @@ function mapIpRow(row: typeof ipAddress.$inferSelect): IpAddressRow {
     address: row.address,
     subnetId: row.subnetId,
     status: spec.status ?? "available",
-    assignedToType: spec.assignedToType ?? null,
-    assignedToId: spec.assignedToId ?? null,
-    hostname: spec.hostname ?? null,
-    purpose: spec.purpose ?? null,
+    assignedToKind: row.assignedToKind ?? null,
+    assignedToId: row.assignedToId ?? null,
+    role: spec.role ?? null,
+    dnsName: spec.dnsName ?? null,
     spec,
   }
 }
@@ -145,7 +140,7 @@ export async function registerIp(
     .values({
       address: data.address,
       subnetId: data.subnetId ?? null,
-      spec: toIpSpec({ status: "available", version: "v4" }),
+      spec: { status: "available", version: "v4" },
     })
     .returning()
   return mapIpRow(row)
@@ -155,10 +150,10 @@ export async function assignIp(
   db: Database,
   ipAddressId: string,
   data: {
-    assignedToType: string
+    assignedToKind: string
     assignedToId: string
-    hostname?: string
-    purpose?: string
+    role?: string
+    dnsName?: string
   }
 ) {
   const [existing] = await db
@@ -171,15 +166,18 @@ export async function assignIp(
   const newSpec: IpAddressSpecStored = {
     ...existingSpec,
     status: "assigned",
-    assignedToType: data.assignedToType,
-    assignedToId: data.assignedToId,
-    hostname: data.hostname ?? existingSpec.hostname ?? undefined,
-    purpose: data.purpose ?? existingSpec.purpose ?? undefined,
+    role: (data.role ?? existingSpec.role) as IpAddressSpec["role"],
+    dnsName: data.dnsName ?? existingSpec.dnsName,
   }
 
   const [row] = await db
     .update(ipAddress)
-    .set({ spec: toIpSpec(newSpec), updatedAt: new Date() })
+    .set({
+      spec: newSpec,
+      assignedToKind: data.assignedToKind,
+      assignedToId: data.assignedToId,
+      updatedAt: new Date(),
+    })
     .where(eq(ipAddress.id, ipAddressId))
     .returning()
   return row ? mapIpRow(row) : null
@@ -196,15 +194,18 @@ export async function releaseIp(db: Database, ipAddressId: string) {
   const newSpec: IpAddressSpecStored = {
     ...existingSpec,
     status: "available",
-    assignedToType: undefined,
-    assignedToId: undefined,
-    hostname: undefined,
-    purpose: undefined,
+    role: undefined,
+    dnsName: undefined,
   }
 
   const [row] = await db
     .update(ipAddress)
-    .set({ spec: toIpSpec(newSpec), updatedAt: new Date() })
+    .set({
+      spec: newSpec,
+      assignedToKind: null,
+      assignedToId: null,
+      updatedAt: new Date(),
+    })
     .where(eq(ipAddress.id, ipAddressId))
     .returning()
   return row ? mapIpRow(row) : null
@@ -243,8 +244,8 @@ export async function getEntityIps(
     .from(ipAddress)
     .where(
       and(
-        sql`${ipAddress.spec}->>'assignedToType' = ${entityType}`,
-        sql`${ipAddress.spec}->>'assignedToId' = ${entityId}`
+        eq(ipAddress.assignedToKind, entityType),
+        eq(ipAddress.assignedToId, entityId)
       )
     )
   return rows.map(mapIpRow)
@@ -262,11 +263,11 @@ export async function ensureIp(
     .values({
       address: data.address,
       subnetId: data.subnetId ?? null,
-      spec: toIpSpec({
+      spec: {
         status: "available",
         version: data.address.includes(":") ? "v6" : "v4",
         ...data.spec,
-      }),
+      },
     })
     .onConflictDoNothing({ target: ipAddress.address })
     .returning()
@@ -297,10 +298,10 @@ export async function allocateNextAvailable(
   db: Database,
   data: {
     subnetId: string
-    assignedToType: string
+    assignedToKind: string
     assignedToId: string
-    hostname?: string
-    purpose?: string
+    role?: string
+    dnsName?: string
     policy?: "sequential" | "random"
   }
 ) {
@@ -336,15 +337,18 @@ export async function allocateNextAvailable(
     const newSpec: IpAddressSpecStored = {
       ...existingSpec,
       status: "assigned",
-      assignedToType: data.assignedToType,
-      assignedToId: data.assignedToId,
-      hostname: data.hostname ?? undefined,
-      purpose: data.purpose ?? undefined,
+      role: (data.role as IpAddressSpec["role"]) ?? undefined,
+      dnsName: data.dnsName ?? undefined,
     }
 
     const [updated] = await tx
       .update(ipAddress)
-      .set({ spec: toIpSpec(newSpec), updatedAt: new Date() })
+      .set({
+        spec: newSpec,
+        assignedToKind: data.assignedToKind,
+        assignedToId: data.assignedToId,
+        updatedAt: new Date(),
+      })
       .where(eq(ipAddress.id, ipId))
       .returning()
 
@@ -360,9 +364,8 @@ export type ConflictResult = {
   existingRecord?: {
     ipAddressId: string
     status: string | null
-    assignedToType: string | null
+    assignedToKind: string | null
     assignedToId: string | null
-    hostname: string | null
   }
 }
 
@@ -389,9 +392,8 @@ export async function checkConflicts(
       existingRecord: {
         ipAddressId: record.id,
         status: spec.status ?? "available",
-        assignedToType: spec.assignedToType ?? null,
-        assignedToId: spec.assignedToId ?? null,
-        hostname: spec.hostname ?? null,
+        assignedToKind: record.assignedToKind ?? null,
+        assignedToId: record.assignedToId ?? null,
       },
     }
   })
@@ -487,8 +489,7 @@ export async function bulkRegister(
   items: Array<{
     address: string
     subnetId?: string
-    hostname?: string
-    purpose?: string
+    dnsName?: string
     status?: string
   }>
 ): Promise<BulkResult> {
@@ -497,11 +498,11 @@ export async function bulkRegister(
   const values = items.map((item) => ({
     address: item.address,
     subnetId: item.subnetId ?? null,
-    spec: toIpSpec({
+    spec: {
       status: (item.status ?? "available") as IpAddressSpec["status"],
-      hostname: item.hostname ?? null,
-      purpose: item.purpose ?? null,
-    } as IpAddressSpecStored),
+      version: item.address.includes(":") ? ("v6" as const) : ("v4" as const),
+      dnsName: item.dnsName ?? undefined,
+    },
   }))
 
   const inserted = await db
@@ -527,10 +528,9 @@ export async function bulkAssign(
   db: Database,
   assignments: Array<{
     address: string
-    assignedToType: string
+    assignedToKind: string
     assignedToId: string
-    hostname?: string
-    purpose?: string
+    role?: string
   }>
 ): Promise<BulkAssignResult> {
   if (!assignments.length) return { assigned: 0, skipped: 0, errors: [] }
@@ -565,15 +565,17 @@ export async function bulkAssign(
       const newSpec: IpAddressSpecStored = {
         ...spec,
         status: "assigned",
-        assignedToType: item.assignedToType,
-        assignedToId: item.assignedToId,
-        hostname: item.hostname ?? undefined,
-        purpose: item.purpose ?? undefined,
+        role: (item.role as IpAddressSpec["role"]) ?? undefined,
       }
 
       await tx
         .update(ipAddress)
-        .set({ spec: toIpSpec(newSpec), updatedAt: new Date() })
+        .set({
+          spec: newSpec,
+          assignedToKind: item.assignedToKind,
+          assignedToId: item.assignedToId,
+          updatedAt: new Date(),
+        })
         .where(eq(ipAddress.id, row.id))
 
       assigned++
@@ -590,10 +592,10 @@ export async function importIps(
   rows: Array<{
     address: string
     subnet_cidr?: string
-    hostname?: string
-    purpose?: string
+    dns_name?: string
+    role?: string
     status?: string
-    assigned_to_type?: string
+    assigned_to_kind?: string
     assigned_to_id?: string
   }>
 ): Promise<{
@@ -642,9 +644,8 @@ export async function importIps(
     .map((r) => ({
       address: r.address,
       subnetId: r.subnet_cidr ? cidrToId.get(r.subnet_cidr) : undefined,
-      hostname: r.hostname,
-      purpose: r.purpose,
-      status: r.assigned_to_type ? "available" : (r.status ?? "available"),
+      dnsName: r.dns_name,
+      status: r.assigned_to_kind ? "available" : (r.status ?? "available"),
     }))
 
   const registerResult = await bulkRegister(db, toRegister)
@@ -653,16 +654,15 @@ export async function importIps(
   const toAssign = rows
     .filter(
       (r) =>
-        r.assigned_to_type &&
+        r.assigned_to_kind &&
         r.assigned_to_id &&
         !conflictAddresses.has(r.address)
     )
     .map((r) => ({
       address: r.address,
-      assignedToType: r.assigned_to_type!,
+      assignedToKind: r.assigned_to_kind!,
       assignedToId: r.assigned_to_id!,
-      hostname: r.hostname,
-      purpose: r.purpose,
+      role: r.role,
     }))
 
   const assignResult = await bulkAssign(db, toAssign)
@@ -703,24 +703,24 @@ export async function exportIps(
   const data = mapped.map((ip) => ({
     address: ip.address,
     subnet_cidr: ip.subnetId ? (idToCidr.get(ip.subnetId) ?? "") : "",
-    hostname: ip.hostname ?? "",
-    purpose: ip.purpose ?? "",
+    dns_name: ip.dnsName ?? "",
+    role: ip.role ?? "",
     status: ip.status ?? "available",
-    assigned_to_type: ip.assignedToType ?? "",
+    assigned_to_kind: ip.assignedToKind ?? "",
     assigned_to_id: ip.assignedToId ?? "",
   }))
 
   if (filters?.format === "csv") {
     const header =
-      "address,subnet_cidr,hostname,purpose,status,assigned_to_type,assigned_to_id"
+      "address,subnet_cidr,dns_name,role,status,assigned_to_kind,assigned_to_id"
     const lines = data.map((r) =>
       [
         r.address,
         r.subnet_cidr,
-        r.hostname,
-        r.purpose,
+        r.dns_name,
+        r.role,
         r.status,
-        r.assigned_to_type,
+        r.assigned_to_kind,
         r.assigned_to_id,
       ]
         .map(csvEscape)
@@ -791,7 +791,7 @@ export async function importFromDevice(
     .map((p) => ({
       address: p.address,
       subnetId: opts?.subnetId,
-      hostname: p.hostname,
+      dnsName: p.hostname,
       status: "available" as const,
     }))
 

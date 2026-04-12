@@ -408,12 +408,13 @@ async function seedFirewall() {
     .values({
       address: "192.168.1.5",
       subnetId: (await resolveEstateId("mgmt-subnet"))!,
+      assignedToKind: "host",
+      assignedToId: fwId,
       spec: {
         version: "v4" as const,
         status: "assigned" as const,
-        assignedToType: "host",
-        assignedToId: fwId,
-        purpose: "Gajshield Firewall",
+        scope: "management" as const,
+        role: "primary" as const,
       },
     })
     .onConflictDoNothing()
@@ -463,12 +464,13 @@ async function seedWindowsServers() {
       WINDOWS_SERVERS.map((srv) => ({
         address: srv.ip,
         subnetId: mgmtSubnetId,
+        assignedToKind: "host",
+        assignedToId: id("host", slugify(srv.hostname), "host"),
         spec: {
           version: "v4" as const,
           status: "assigned" as const,
-          assignedToType: "host",
-          assignedToId: id("host", slugify(srv.hostname), "host"),
-          purpose: `${srv.model} — ${srv.os}`,
+          scope: "management" as const,
+          role: "primary" as const,
         },
       }))
     )
@@ -510,12 +512,13 @@ async function seedStorageDevices() {
       STORAGE_DEVICES.map((dev) => ({
         address: dev.ip,
         subnetId: mgmtSubnetId,
+        assignedToKind: "host",
+        assignedToId: id("host", slugify(dev.name), "host"),
         spec: {
           version: "v4" as const,
           status: "assigned" as const,
-          assignedToType: "host",
-          assignedToId: id("host", slugify(dev.name), "host"),
-          purpose: dev.name,
+          scope: "management" as const,
+          role: "primary" as const,
         },
       }))
     )

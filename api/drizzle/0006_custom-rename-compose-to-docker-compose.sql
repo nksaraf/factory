@@ -1,3 +1,4 @@
+-- Custom SQL migration file, put your code below! --
 -- Rename runtime "compose" → "docker-compose" in system_deployment JSONB specs.
 -- Rename realmType "docker" → "docker-compose" in host scan results stored on hosts.
 

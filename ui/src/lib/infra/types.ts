@@ -116,12 +116,11 @@ export interface IpAddress {
   id: string
   address: string
   subnetId: string | null
-  assignedToType: string | null
+  assignedToKind: string | null
   assignedToId: string | null
   status: string
-  hostname: string | null
-  fqdn: string | null
-  purpose: string | null
+  dnsName: string | null
+  role: string | null
   createdAt: string
 }
 

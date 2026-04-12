@@ -76,16 +76,16 @@ describe("IPAM Service", () => {
 
       const allocated = await ipamSvc.allocateNextAvailable(db, {
         subnetId: sub.subnetId,
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_test_1",
-        hostname: "web-01",
-        purpose: "web server",
+        dnsName: "web-01",
+        role: "primary",
       })
 
       expect(allocated.status).toBe("assigned")
-      expect(allocated.assignedToType).toBe("vm")
+      expect(allocated.assignedToKind).toBe("vm")
       expect(allocated.assignedToId).toBe("vm_test_1")
-      expect(allocated.hostname).toBe("web-01")
+      expect(allocated.dnsName).toBe("web-01")
       expect(allocated.address).toBe("10.0.1.10")
     })
 
@@ -95,12 +95,12 @@ describe("IPAM Service", () => {
 
       const first = await ipamSvc.allocateNextAvailable(db, {
         subnetId: sub.subnetId,
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
       const second = await ipamSvc.allocateNextAvailable(db, {
         subnetId: sub.subnetId,
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_2",
       })
 
@@ -116,7 +116,7 @@ describe("IPAM Service", () => {
       // Allocate the only IP
       await ipamSvc.allocateNextAvailable(db, {
         subnetId: sub.subnetId,
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
 
@@ -124,7 +124,7 @@ describe("IPAM Service", () => {
       await expect(
         ipamSvc.allocateNextAvailable(db, {
           subnetId: sub.subnetId,
-          assignedToType: "vm",
+          assignedToKind: "vm",
           assignedToId: "vm_2",
         })
       ).rejects.toThrow(ipamSvc.NoAvailableIpsError)
@@ -139,7 +139,7 @@ describe("IPAM Service", () => {
         Array.from({ length: 10 }, (_, i) =>
           ipamSvc.allocateNextAvailable(db, {
             subnetId: sub.subnetId,
-            assignedToType: "vm",
+            assignedToKind: "vm",
             assignedToId: `vm_${i}`,
           })
         )
@@ -165,14 +165,14 @@ describe("IPAM Service", () => {
 
       // Manually assign the first IP
       await ipamSvc.assignIp(db, ips[0].ipAddressId, {
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: "host_1",
       })
 
       // allocateNextAvailable should skip the assigned one
       const allocated = await ipamSvc.allocateNextAvailable(db, {
         subnetId: sub.subnetId,
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
 
@@ -269,7 +269,7 @@ describe("IPAM Service", () => {
         subnetId: sub.subnetId,
       })
       await ipamSvc.assignIp(db, ip.ipAddressId, {
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
 
@@ -365,8 +365,8 @@ describe("IPAM Service", () => {
       await seedIps(sub.subnetId, 3)
 
       const result = await ipamSvc.bulkAssign(db, [
-        { address: "10.0.1.10", assignedToType: "vm", assignedToId: "vm_1" },
-        { address: "10.0.1.11", assignedToType: "vm", assignedToId: "vm_2" },
+        { address: "10.0.1.10", assignedToKind: "vm", assignedToId: "vm_1" },
+        { address: "10.0.1.11", assignedToKind: "vm", assignedToId: "vm_2" },
       ])
 
       expect(result.assigned).toBe(2)
@@ -376,7 +376,7 @@ describe("IPAM Service", () => {
 
     it("skips non-existent addresses", async () => {
       const result = await ipamSvc.bulkAssign(db, [
-        { address: "10.0.1.99", assignedToType: "vm", assignedToId: "vm_1" },
+        { address: "10.0.1.99", assignedToKind: "vm", assignedToId: "vm_1" },
       ])
 
       expect(result.assigned).toBe(0)
@@ -388,12 +388,12 @@ describe("IPAM Service", () => {
       const sub = await createTestSubnet()
       const ips = await seedIps(sub.subnetId, 1)
       await ipamSvc.assignIp(db, ips[0].ipAddressId, {
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: "host_1",
       })
 
       const result = await ipamSvc.bulkAssign(db, [
-        { address: "10.0.1.10", assignedToType: "vm", assignedToId: "vm_1" },
+        { address: "10.0.1.10", assignedToKind: "vm", assignedToId: "vm_1" },
       ])
 
       expect(result.assigned).toBe(0)
@@ -418,13 +418,13 @@ describe("IPAM Service", () => {
         {
           address: "10.0.1.20",
           subnet_cidr: "10.0.1.0/24",
-          hostname: "web-01",
+          dns_name: "web-01",
           status: "available",
         },
         {
           address: "10.0.1.21",
           subnet_cidr: "10.0.1.0/24",
-          hostname: "web-02",
+          dns_name: "web-02",
           status: "available",
         },
       ])
@@ -442,8 +442,8 @@ describe("IPAM Service", () => {
       })
 
       const result = await ipamSvc.importIps(db, [
-        { address: "10.0.1.20", hostname: "existing" }, // conflict
-        { address: "10.0.1.21", hostname: "new-one" }, // ok
+        { address: "10.0.1.20", dns_name: "existing" }, // conflict
+        { address: "10.0.1.21", dns_name: "new-one" }, // ok
       ])
 
       expect(result.registered).toBe(1)
@@ -457,9 +457,9 @@ describe("IPAM Service", () => {
         {
           address: "10.0.1.30",
           subnet_cidr: "10.0.1.0/24",
-          hostname: "db-01",
-          purpose: "database",
-          assigned_to_type: "vm",
+          dns_name: "db-01",
+          role: "primary",
+          assigned_to_kind: "vm",
           assigned_to_id: "vm_db_1",
         },
       ])
@@ -470,7 +470,7 @@ describe("IPAM Service", () => {
       // Verify the IP is actually assigned
       const ip = await ipamSvc.lookupIp(db, "10.0.1.30")
       expect(ip!.status).toBe("assigned")
-      expect(ip!.assignedToType).toBe("vm")
+      expect(ip!.assignedToKind).toBe("vm")
     })
 
     it("reports unknown subnet CIDRs", async () => {
@@ -506,7 +506,7 @@ describe("IPAM Service", () => {
       expect(result.csv).toBeDefined()
       const lines = result.csv!.split("\n")
       expect(lines[0]).toBe(
-        "address,subnet_cidr,hostname,purpose,status,assigned_to_type,assigned_to_id"
+        "address,subnet_cidr,dns_name,role,status,assigned_to_kind,assigned_to_id"
       )
       expect(lines).toHaveLength(3) // header + 2 rows
     })
@@ -545,8 +545,8 @@ describe("IPAM Service", () => {
         exported.data.map((r) => ({
           address: r.address,
           subnet_cidr: r.subnet_cidr,
-          hostname: r.hostname || undefined,
-          purpose: r.purpose || undefined,
+          dns_name: r.dns_name || undefined,
+          role: r.role || undefined,
           status: r.status,
         }))
       )
@@ -612,7 +612,7 @@ describe("IPAM Service", () => {
 
       const ip = await ipamSvc.lookupIp(db, "10.0.1.50")
       expect(ip).not.toBeNull()
-      expect(ip!.hostname).toBe("device-a")
+      expect(ip!.dnsName).toBe("device-a")
     })
 
     it("marks existing IPs as conflicts", async () => {
@@ -681,11 +681,11 @@ describe("IPAM Service", () => {
       // Assign 2 of them
       const available = await ipamSvc.listAvailableIps(db, sub.subnetId)
       await ipamSvc.assignIp(db, available[0].ipAddressId, {
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
       await ipamSvc.assignIp(db, available[1].ipAddressId, {
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_2",
       })
 
@@ -745,11 +745,11 @@ describe("IPAM Service", () => {
 
       // Assign 2
       await ipamSvc.assignIp(db, ips[0].ipAddressId, {
-        assignedToType: "vm",
+        assignedToKind: "vm",
         assignedToId: "vm_1",
       })
       await ipamSvc.assignIp(db, ips[1].ipAddressId, {
-        assignedToType: "host",
+        assignedToKind: "host",
         assignedToId: "host_1",
       })
 
@@ -782,7 +782,7 @@ describe("IPAM Service", () => {
       })
       // Update hostname to contain a comma via direct DB update
       const { eq } = await import("drizzle-orm")
-      // hostname is in spec JSONB
+      // dnsName is in spec JSONB
       const [existing] = await db
         .select()
         .from(ipAddress)
@@ -792,7 +792,7 @@ describe("IPAM Service", () => {
         .set({
           spec: {
             ...(existing.spec as Record<string, unknown>),
-            hostname: "web,server",
+            dnsName: "web,server",
           } as unknown as IpAddressSpec,
         })
         .where(eq(ipAddress.address, "10.0.1.10"))
@@ -800,7 +800,7 @@ describe("IPAM Service", () => {
       const result = await ipamSvc.exportIps(db, { format: "csv" })
       const dataLine = result.csv!.split("\n")[1]
 
-      // The hostname field should be quoted
+      // The dnsName field should be quoted
       expect(dataLine).toContain('"web,server"')
     })
 
@@ -812,7 +812,7 @@ describe("IPAM Service", () => {
       })
 
       const { eq } = await import("drizzle-orm")
-      // purpose is in spec JSONB
+      // dnsName is in spec JSONB — test formula injection protection
       const [existing] = await db
         .select()
         .from(ipAddress)
@@ -820,7 +820,7 @@ describe("IPAM Service", () => {
       await db
         .update(ipAddress)
         .set({
-          spec: { ...existing.spec, purpose: "=cmd|calc" } as IpAddressSpec,
+          spec: { ...existing.spec, dnsName: "=cmd|calc" } as IpAddressSpec,
         })
         .where(eq(ipAddress.address, "10.0.1.10"))
 

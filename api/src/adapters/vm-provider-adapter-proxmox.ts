@@ -370,7 +370,7 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
   private async upsertIpAddress(
     db: Database,
     address: string,
-    assignedToType: string,
+    assignedToKind: string,
     assignedToId: string
   ): Promise<void> {
     try {
@@ -383,18 +383,23 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
       const ipSpec = {
         version: "v4" as const,
         status: "assigned" as const,
-        assignedToType,
-        assignedToId,
       }
 
       if (existing) {
         await db
           .update(ipAddress)
-          .set({ spec: ipSpec, updatedAt: new Date() })
+          .set({
+            spec: ipSpec,
+            assignedToKind,
+            assignedToId,
+            updatedAt: new Date(),
+          })
           .where(eq(ipAddress.id, existing.id))
       } else {
         await db.insert(ipAddress).values({
           address,
+          assignedToKind,
+          assignedToId,
           spec: ipSpec,
         })
       }

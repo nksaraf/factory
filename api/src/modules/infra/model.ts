@@ -176,7 +176,7 @@ export const InfraModel = {
   listIpsQuery: t.Object({
     subnetId: t.Optional(t.String()),
     status: t.Optional(t.String()),
-    assignedToType: t.Optional(t.String()),
+    assignedToKind: t.Optional(t.String()),
   }),
   listAvailableIpsQuery: t.Object({
     subnetId: t.Optional(t.String()),
@@ -189,10 +189,10 @@ export const InfraModel = {
     subnetId: t.Optional(t.String()),
   }),
   assignIpBody: t.Object({
-    assignedToType: t.String(),
+    assignedToKind: t.String(),
     assignedToId: t.String(),
-    hostname: t.Optional(t.String()),
-    purpose: t.Optional(t.String()),
+    role: t.Optional(t.String()),
+    dnsName: t.Optional(t.String()),
   }),
   ipamStatsQuery: t.Object({
     subnetId: t.Optional(t.String()),
@@ -201,10 +201,10 @@ export const InfraModel = {
   // Atomic allocation
   allocateIpBody: t.Object({
     subnetId: t.String(),
-    assignedToType: t.String(),
+    assignedToKind: t.String(),
     assignedToId: t.String(),
-    hostname: t.Optional(t.String()),
-    purpose: t.Optional(t.String()),
+    role: t.Optional(t.String()),
+    dnsName: t.Optional(t.String()),
     policy: t.Optional(t.Union([t.Literal("sequential"), t.Literal("random")])),
   }),
 

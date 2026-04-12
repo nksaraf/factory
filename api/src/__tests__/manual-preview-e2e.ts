@@ -324,7 +324,8 @@ async function main() {
     .values({
       name: "manual-site",
       slug: "manual-site",
-      spec: { type: "shared", status: "provisioning" } satisfies SiteSpec,
+      type: "development",
+      spec: { status: "provisioning" } satisfies SiteSpec,
     })
     .returning()
   const [sd] = await db

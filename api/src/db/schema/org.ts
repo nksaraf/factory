@@ -27,7 +27,6 @@ import type {
 import { sql } from "drizzle-orm"
 import {
   bigint,
-  check,
   index,
   integer,
   jsonb,
@@ -74,10 +73,6 @@ export const team = orgSchema.table(
     index("org_team_name_idx").on(t.name),
     index("org_team_parent_team_idx").on(t.parentTeamId),
     index("org_team_type_idx").on(t.type),
-    check(
-      "org_team_type_valid",
-      sql`${t.type} IN ('team', 'business-unit', 'product-area')`
-    ),
   ]
 )
 
@@ -107,10 +102,6 @@ export const principal = orgSchema.table(
     index("org_principal_slug_idx").on(t.slug),
     index("org_principal_type_idx").on(t.type),
     index("org_principal_primary_team_idx").on(t.primaryTeamId),
-    check(
-      "org_principal_type_valid",
-      sql`${t.type} IN ('human', 'agent', 'service-account')`
-    ),
   ]
 )
 
@@ -164,10 +155,6 @@ export const scope = orgSchema.table(
     uniqueIndex("org_scope_slug_unique").on(t.slug),
     index("org_scope_type_idx").on(t.type),
     index("org_scope_team_idx").on(t.teamId),
-    check(
-      "org_scope_type_valid",
-      sql`${t.type} IN ('team', 'resource', 'custom')`
-    ),
   ]
 )
 
@@ -200,10 +187,6 @@ export const identityLink = orgSchema.table(
     ),
     index("org_identity_link_type_idx").on(t.type),
     index("org_identity_link_principal_idx").on(t.principalId),
-    check(
-      "org_identity_link_type_valid",
-      sql`${t.type} IN ('github', 'google', 'slack', 'jira', 'claude', 'cursor')`
-    ),
   ]
 )
 
@@ -236,11 +219,6 @@ export const agent = orgSchema.table(
     index("org_agent_principal_idx").on(t.principalId),
     index("org_agent_reports_to_idx").on(t.reportsToAgentId),
     index("org_agent_status_idx").on(t.status),
-    check("org_agent_status_valid", sql`${t.status} IN ('active', 'disabled')`),
-    check(
-      "org_agent_type_valid",
-      sql`${t.type} IN ('engineering', 'qa', 'product', 'security', 'ops', 'external-mcp')`
-    ),
   ]
 )
 
@@ -303,18 +281,6 @@ export const job = orgSchema.table(
     index("org_job_entity_idx").on(t.entityKind, t.entityId),
     index("org_job_status_idx").on(t.status),
     index("org_job_mode_idx").on(t.mode),
-    check(
-      "org_job_status_valid",
-      sql`${t.status} IN ('pending', 'running', 'completed', 'failed', 'cancelled')`
-    ),
-    check(
-      "org_job_mode_valid",
-      sql`${t.mode} IN ('conversational', 'autonomous', 'observation')`
-    ),
-    check(
-      "org_job_trigger_valid",
-      sql`${t.trigger} IN ('mention', 'event', 'schedule', 'delegation', 'manual', 'workflow')`
-    ),
   ]
 )
 
@@ -347,18 +313,6 @@ export const memory = orgSchema.table(
     index("org_memory_status_idx").on(t.status),
     index("org_memory_source_agent_idx").on(t.sourceAgentId),
     index("org_memory_approved_by_idx").on(t.approvedByPrincipalId),
-    check(
-      "org_memory_type_valid",
-      sql`${t.type} IN ('fact', 'preference', 'decision', 'pattern', 'relationship', 'signal')`
-    ),
-    check(
-      "org_memory_layer_valid",
-      sql`${t.layer} IN ('session', 'team', 'org')`
-    ),
-    check(
-      "org_memory_status_valid",
-      sql`${t.status} IN ('proposed', 'approved', 'superseded', 'archived')`
-    ),
   ]
 )
 
@@ -431,10 +385,6 @@ export const messagingProvider = orgSchema.table(
     uniqueIndex("org_messaging_provider_slug_unique").on(t.slug),
     index("org_messaging_provider_type_idx").on(t.type),
     index("org_messaging_provider_team_idx").on(t.teamId),
-    check(
-      "org_messaging_provider_type_valid",
-      sql`${t.type} IN ('slack', 'teams', 'google-chat')`
-    ),
   ]
 )
 
@@ -459,10 +409,6 @@ export const sshKey = orgSchema.table(
     uniqueIndex("org_ssh_key_fingerprint_unique").on(t.fingerprint),
     index("org_ssh_key_type_idx").on(t.type),
     index("org_ssh_key_principal_idx").on(t.principalId),
-    check(
-      "org_ssh_key_type_valid",
-      sql`${t.type} IN ('ed25519', 'rsa', 'ecdsa')`
-    ),
   ]
 )
 
@@ -494,10 +440,6 @@ export const configVar = orgSchema.table(
     ),
     index("org_config_var_scope_idx").on(t.scopeType, t.scopeId),
     index("org_config_var_env_idx").on(t.environment),
-    check(
-      "org_config_var_scope_type_valid",
-      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`
-    ),
   ]
 )
 
@@ -529,10 +471,6 @@ export const entityRelationship = orgSchema.table(
     index("org_entity_rel_type_idx").on(t.type),
     index("org_entity_rel_source_idx").on(t.sourceKind, t.sourceId),
     index("org_entity_rel_target_idx").on(t.targetKind, t.targetId),
-    check(
-      "org_entity_rel_type_valid",
-      sql`${t.type} IN ('consumes-api', 'depends-on', 'provides', 'owned-by', 'deployed-alongside', 'triggers', 'tracks', 'maps-to')`
-    ),
   ]
 )
 
@@ -572,10 +510,6 @@ export const secret = orgSchema.table(
     index("org_secret_scope_idx").on(t.scopeType, t.scopeId),
     index("org_secret_env_idx").on(t.environment),
     index("org_secret_key_version_idx").on(t.keyVersion),
-    check(
-      "org_secret_scope_type_valid",
-      sql`${t.scopeType} IN ('org', 'team', 'project', 'principal', 'system')`
-    ),
   ]
 )
 
@@ -602,14 +536,6 @@ export const channel = orgSchema.table(
     index("org_channel_kind_idx").on(t.kind),
     index("org_channel_repo_slug_idx").on(t.repoSlug),
     index("org_channel_status_idx").on(t.status),
-    check(
-      "org_channel_kind_valid",
-      sql`${t.kind} IN ('ide', 'conductor-workspace', 'slack', 'terminal', 'github-pr', 'github-issue', 'web-ui')`
-    ),
-    check(
-      "org_channel_status_valid",
-      sql`${t.status} IN ('active', 'archived')`
-    ),
   ]
 )
 
@@ -660,18 +586,6 @@ export const thread = orgSchema.table(
     index("org_thread_started_at_idx").on(t.startedAt),
     index("org_thread_parent_idx").on(t.parentThreadId),
     index("org_thread_spec_gin_idx").using("gin", t.spec),
-    check(
-      "org_thread_type_valid",
-      sql`${t.type} IN ('ide-session', 'chat', 'terminal', 'review', 'autonomous')`
-    ),
-    check(
-      "org_thread_source_valid",
-      sql`${t.source} IN ('claude-code', 'conductor', 'cursor', 'slack', 'terminal', 'web')`
-    ),
-    check(
-      "org_thread_status_valid",
-      sql`${t.status} IN ('active', 'completed', 'failed', 'abandoned')`
-    ),
   ]
 )
 
@@ -699,10 +613,6 @@ export const threadTurn = orgSchema.table(
     ),
     index("org_thread_turn_thread_idx").on(t.threadId),
     index("org_thread_turn_spec_gin_idx").using("gin", t.spec),
-    check(
-      "org_thread_turn_role_valid",
-      sql`${t.role} IN ('user', 'assistant', 'system', 'tool')`
-    ),
   ]
 )
 
@@ -738,10 +648,6 @@ export const threadParticipant = orgSchema.table(
     index("org_thread_participant_thread_idx").on(t.threadId),
     index("org_thread_participant_principal_idx").on(t.principalId),
     index("org_thread_participant_role_idx").on(t.role),
-    check(
-      "org_thread_participant_role_valid",
-      sql`${t.role} IN ('initiator', 'collaborator', 'observer', 'delegator', 'delegate')`
-    ),
   ]
 )
 
@@ -772,14 +678,6 @@ export const threadChannel = orgSchema.table(
     index("org_thread_channel_thread_idx").on(t.threadId),
     index("org_thread_channel_channel_idx").on(t.channelId),
     index("org_thread_channel_status_idx").on(t.status),
-    check(
-      "org_thread_channel_role_valid",
-      sql`${t.role} IN ('mirror', 'subscriber', 'active')`
-    ),
-    check(
-      "org_thread_channel_status_valid",
-      sql`${t.status} IN ('connected', 'detached', 'paused')`
-    ),
   ]
 )
 
@@ -889,13 +787,7 @@ export const eventOutbox = orgSchema.table(
     createdAt: createdAt(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
   },
-  (t) => [
-    index("org_event_outbox_pending_idx").on(t.createdAt),
-    check(
-      "org_event_outbox_status_valid",
-      sql`${t.status} IN ('pending', 'published', 'failed')`
-    ),
-  ]
+  (t) => [index("org_event_outbox_pending_idx").on(t.createdAt)]
 )
 
 // ─── Workflow Run ─────────────────────────────────────────

@@ -1,6 +1,6 @@
 /**
  * NATS-style wildcard topic matching.
- * Topics are dot-separated segments: "ops.workspace.created"
+ * Topics are dot-separated segments: "ops.workbench.created"
  * Wildcards:
  *   * — matches exactly one segment
  *   > — matches one or more segments (must be last token)

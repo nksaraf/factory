@@ -47,7 +47,6 @@ export interface SitePlan {
   slug: string
   name: string
   type: string
-  env: string
   action: "create" | "exists"
 }
 
@@ -142,8 +141,7 @@ export async function buildImportPlan(
         name: opts.siteName
           ? `${opts.siteName} / ${m.projectName}`
           : m.projectName,
-        type: inferSiteType(m.stack),
-        env: inferEnvironment(m.projectName),
+        type: inferEnvironment(m.projectName),
         action: ex.siteExists ? "exists" : "create",
       },
       system: {
@@ -422,14 +420,6 @@ export function inferSystemSlug(stack: DiscoveredStack): string {
     return "tile-server"
 
   return stack.project.name
-}
-
-function inferSiteType(stack: DiscoveredStack): string {
-  const name = stack.project.name.toLowerCase()
-  if (name.includes("dev") || name.includes("staging") || name.includes("stg"))
-    return "shared"
-  if (name.includes("prod")) return "dedicated"
-  return "on-prem"
 }
 
 function inferEnvironment(projectName: string): string {
