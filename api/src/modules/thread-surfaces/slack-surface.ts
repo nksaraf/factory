@@ -26,23 +26,53 @@ function formatStartMessage(
   payload: Record<string, any>
 ): string {
   const cwd = payload.cwd
-    ? ` in \`${payload.cwd.split("/").slice(-2).join("/")}\``
+    ? `\`${payload.cwd.split("/").slice(-2).join("/")}\``
     : ""
   const branch = payload.gitBranch ?? payload.branch
-  const branchStr = branch ? ` (branch: \`${branch}\`)` : ""
-  return `:large_green_circle: *${source}* session started${cwd}${branchStr}`
+  const branchStr = branch ? ` on \`${branch}\`` : ""
+  return `:large_green_circle: *${source}* session — ${cwd}${branchStr}`
+}
+
+/**
+ * Strip system instructions and XML tags from prompts.
+ * IDE clients (Conductor, Claude Code) prepend system prompts to user messages —
+ * we want only the human-authored part.
+ */
+function extractUserPrompt(raw: string): string {
+  // Strip <system_instruction>...</system_instruction> blocks (possibly multi-line)
+  let cleaned = raw.replace(/<system_instruction>[\s\S]*?<\/system_instruction>/g, "")
+  // Strip any remaining XML-style tags that look like system wrappers
+  cleaned = cleaned.replace(/<system[_-]?\w*>[\s\S]*?<\/system[_-]?\w*>/g, "")
+  // Trim leading/trailing whitespace
+  cleaned = cleaned.trim()
+  return cleaned || "(no prompt)"
 }
 
 function formatUserMessage(prompt: string): string {
-  const truncated = prompt.length > 500 ? prompt.slice(0, 497) + "..." : prompt
-  return `:bust_in_silhouette: *User:*\n> ${truncated.replace(/\n/g, "\n> ")}`
+  const userPrompt = extractUserPrompt(prompt)
+  const truncated = userPrompt.length > 500 ? userPrompt.slice(0, 497) + "..." : userPrompt
+  return `> ${truncated.replace(/\n/g, "\n> ")}`
 }
 
-function formatAssistantMessage(summary: string, source?: string): string {
-  const label = source ? `*${source}:*` : "*Assistant:*"
-  const truncated =
-    summary.length > 3000 ? summary.slice(0, 2997) + "..." : summary
-  return `:robot_face: ${label}\n${truncated}`
+function formatAssistantMessage(
+  summary: string,
+  source?: string,
+  stats?: Record<string, any>
+): string {
+  const label = source ?? "Assistant"
+  if (summary) {
+    const truncated =
+      summary.length > 3000 ? summary.slice(0, 2997) + "..." : summary
+    return `*${label}:*\n${truncated}`
+  }
+  // No summary — show stats if available
+  const parts: string[] = []
+  if (stats?.turnCount) parts.push(`${stats.turnCount} turns`)
+  if (stats?.toolCallCount) parts.push(`${stats.toolCallCount} tool calls`)
+  if (stats?.toolsUsed?.length)
+    parts.push(`tools: ${stats.toolsUsed.join(", ")}`)
+  if (parts.length > 0) return `*${label}* responded (${parts.join(", ")})`
+  return `*${label}* responded`
 }
 
 function formatEndMessage(spec: Record<string, any>): string {
@@ -132,9 +162,11 @@ export async function autoAttachSlackSurface(
   const startMsg = formatStartMessage(source, payload)
   const sent = await dmThread.post(startMsg)
 
-  // 5. Parse the Slack thread info from the sent message
-  const chatSdkThreadId = sent.threadId
-  const { slackChannelId } = parseSlackThreadId(chatSdkThreadId)
+  // 5. Build the threaded chatSdkThreadId: slack:<channel>:<messageTs>
+  //    dmThread.id is `slack:<channel>` (no ts), so replies would go flat.
+  //    By appending the sent message's ts, subsequent postMessage calls thread under it.
+  const { slackChannelId } = parseSlackThreadId(dmThread.id)
+  const chatSdkThreadId = `slack:${slackChannelId}:${sent.id}`
 
   // 6. Ensure channel row exists
   const channelRowId = await ensureChannel(slackChannelId)
@@ -179,7 +211,7 @@ export async function postToSurface(
   threadId: string,
   message: string,
   role: "user" | "assistant" | "end",
-  opts?: { source?: string; threadSpec?: Record<string, any> }
+  opts?: { source?: string; threadSpec?: Record<string, any>; stats?: Record<string, any> }
 ): Promise<void> {
   if (!adapters.slack) return
 
@@ -213,7 +245,7 @@ export async function postToSurface(
         formatted = formatUserMessage(message)
         break
       case "assistant":
-        formatted = formatAssistantMessage(message, opts?.source)
+        formatted = formatAssistantMessage(message, opts?.source, opts?.stats)
         break
       case "end":
         formatted = formatEndMessage(opts?.threadSpec ?? {})

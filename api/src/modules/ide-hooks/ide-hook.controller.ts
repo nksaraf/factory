@@ -778,7 +778,14 @@ export function ideHookController(db: Database) {
                   thrd.id,
                   p.responseSummary ?? "",
                   "assistant",
-                  { source: body.source }
+                  {
+                    source: body.source,
+                    stats: {
+                      turnCount: p.turnCount,
+                      toolCallCount: p.toolCallCount,
+                      toolsUsed: p.toolsUsed,
+                    },
+                  }
                 )
               }
             } else if (body.eventType === "session.end") {
