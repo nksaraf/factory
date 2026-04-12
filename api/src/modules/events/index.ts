@@ -13,8 +13,13 @@ import type {
 } from "../../db/schema/org"
 import { logger } from "../../logger"
 import { startBatchDeliveryWorker } from "./batch-delivery-worker"
+import { registerDeliveryAdapter } from "./delivery-adapter"
+import { ChatDeliveryAdapter } from "./delivery-adapter-chat"
+import { EmailDeliveryAdapter } from "./delivery-adapter-email"
+import { WebDeliveryAdapter } from "./delivery-adapter-web"
 import { startEscalationWorker } from "./escalation-worker"
 import { NotificationRouter } from "./notification-router"
+import { sendNotification } from "./send-notification"
 
 export function eventController(db: Database) {
   return (
@@ -214,10 +219,59 @@ export function eventController(db: Database) {
           detail: { tags: ["Events"], summary: "Resolve an alert" },
         }
       )
+
+      // ── Direct notifications ──
+
+      .post(
+        "/notify",
+        async ({ body }) => {
+          const input = body as {
+            to: string
+            title: string
+            body?: string
+            topic?: string
+            severity?: string
+            source?: string
+            data?: Record<string, unknown>
+            channels?: string[]
+            correlationId?: string
+          }
+          const result = await sendNotification(db, {
+            to: input.to,
+            title: input.title,
+            body: input.body,
+            topic: input.topic,
+            severity: (input.severity as any) ?? "info",
+            source: input.source ?? "api",
+            data: input.data,
+            channels: input.channels,
+            correlationId: input.correlationId,
+          })
+          return { data: result }
+        },
+        {
+          detail: {
+            tags: ["Events"],
+            summary: "Send a direct notification to a principal or team",
+          },
+        }
+      )
   )
 }
 
 export function startEventWorkers(db: Database) {
+  // Register delivery adapters
+  registerDeliveryAdapter(new ChatDeliveryAdapter("slack"))
+  registerDeliveryAdapter(new ChatDeliveryAdapter("teams"))
+  registerDeliveryAdapter(new ChatDeliveryAdapter("google-chat"))
+  registerDeliveryAdapter(new EmailDeliveryAdapter())
+  registerDeliveryAdapter(new WebDeliveryAdapter())
+
+  logger.info(
+    { adapters: ["slack", "teams", "google-chat", "email", "web"] },
+    "event-workers: delivery adapters registered"
+  )
+
   const escalation = startEscalationWorker(db)
   const batch = startBatchDeliveryWorker(db)
   const router = new NotificationRouter(db)
