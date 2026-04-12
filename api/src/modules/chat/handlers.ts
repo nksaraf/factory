@@ -73,6 +73,28 @@ export function parseSlackThreadId(threadId: string) {
   return { slackChannelId: parts[1] ?? "", slackThreadTs: parts[2] ?? "" }
 }
 
+/**
+ * Post a message to a chat thread, working around a bug in @chat-adapter/slack
+ * where DM threads get an empty threadTs. In that case, Slack's API rejects
+ * `thread_ts: ""` with `thread_not_found`. We detect this and post via the
+ * channel (top-level DM message) instead.
+ */
+async function postToThread(
+  chatThread: {
+    id: string
+    isDM: boolean
+    channel: any
+    post: (msg: any) => Promise<any>
+  },
+  message: any
+) {
+  const { slackThreadTs } = parseSlackThreadId(chatThread.id)
+  if (chatThread.isDM && !slackThreadTs) {
+    return chatThread.channel.post(message)
+  }
+  return chatThread.post(message)
+}
+
 /** Find or create a channel row for a Slack channel. */
 export async function ensureChannel(slackChannelId: string): Promise<string> {
   const db = getChatDb()
@@ -223,7 +245,8 @@ bot.onNewMention(async (chatThread, message) => {
 
     const query = message.text?.trim()
     if (!query) {
-      await chatThread.post(
+      await postToThread(
+        chatThread,
         "Hey! Mention me with a question about the factory and I'll look it up for you."
       )
       return
@@ -249,7 +272,7 @@ bot.onNewMention(async (chatThread, message) => {
       ],
     })
 
-    await chatThread.post(result.fullStream)
+    await postToThread(chatThread, result.fullStream)
     const replyText = await result.text
 
     await recordTurn(
@@ -275,9 +298,10 @@ bot.onNewMention(async (chatThread, message) => {
       // Best-effort
     }
 
-    await chatThread
-      .post(`Sorry, something went wrong: ${errMsg}`)
-      .catch(() => {})
+    await postToThread(
+      chatThread,
+      `Sorry, something went wrong: ${errMsg}`
+    ).catch(() => {})
   }
 })
 
@@ -334,7 +358,7 @@ bot.onSubscribedMessage(async (chatThread, message) => {
       ],
     })
 
-    await chatThread.post(result.fullStream)
+    await postToThread(chatThread, result.fullStream)
     const replyText = await result.text
 
     await recordTurn(
@@ -360,9 +384,10 @@ bot.onSubscribedMessage(async (chatThread, message) => {
       // Best-effort
     }
 
-    await chatThread
-      .post(`Sorry, something went wrong: ${errMsg}`)
-      .catch(() => {})
+    await postToThread(
+      chatThread,
+      `Sorry, something went wrong: ${errMsg}`
+    ).catch(() => {})
   }
 })
 
@@ -459,7 +484,8 @@ bot.onReaction(async (event) => {
         emoji: event.rawEmoji,
       })
 
-      await event.thread.post(
+      await postToThread(
+        event.thread,
         "Got it — that wasn't what you needed. Can you tell me what was wrong or what you were looking for? I'll try again."
       )
     } else if (category === "retry") {
@@ -500,7 +526,7 @@ bot.onReaction(async (event) => {
         ],
       })
 
-      await event.thread.post(result.fullStream)
+      await postToThread(event.thread, result.fullStream)
       const replyText = await result.text
 
       await recordTurn(
