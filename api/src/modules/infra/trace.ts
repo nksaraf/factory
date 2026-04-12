@@ -549,7 +549,11 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
             LIMIT 1`
       )
 
-      const rows = result as unknown as Array<{
+      // db.execute() may return rows directly (postgres-js) or as { rows: [...] } (drizzle wrapper)
+      const rawRows = Array.isArray(result)
+        ? result
+        : ((result as any).rows ?? [])
+      const rows = rawRows as Array<{
         entity_kind: string
         entity_id: string
         entity_slug: string
