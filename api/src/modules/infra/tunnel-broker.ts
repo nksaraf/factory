@@ -1,6 +1,5 @@
 import {
   ENCODED_PING,
-  FrameType,
   buildGoawayFrame,
   decodeFrame,
   encodeFrame,
