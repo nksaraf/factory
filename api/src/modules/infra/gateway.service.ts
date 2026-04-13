@@ -633,9 +633,22 @@ export async function registerTunnel(
     family === "dev" ? `.dev.${gatewayDomain}` : `.tunnel.${gatewayDomain}`
   const routeType = family === "dev" ? "dev" : "tunnel"
 
+  const baseDomain = `${input.subdomain}${domainSuffix}`
+  const allDomains = [baseDomain]
+  if (input.publishPorts) {
+    for (const port of input.publishPorts) {
+      allDomains.push(`${input.subdomain}-${port}${domainSuffix}`)
+    }
+  }
+
+  // Clean up stale routes from previous tunnel registrations with the same subdomain
+  for (const d of allDomains) {
+    await db.delete(route).where(eq(route.domain, d))
+  }
+
   const tunnelRoute = await createRoute(db, {
     type: input.routeKind ?? routeType,
-    domain: `${input.subdomain}${domainSuffix}`,
+    domain: baseDomain,
     targetService: "tunnel-broker",
     systemDeploymentId: input.systemDeploymentId,
     status: "active",

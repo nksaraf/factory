@@ -136,6 +136,22 @@ export function devCommand(app: DxBase) {
         if (!f.quiet && !flags["dry-run"] && !flags["restart"]) {
           console.log(`\nUse ${styleMuted("dx ps")} to see all services.`)
         }
+
+        if (flags.tunnel) {
+          console.log(
+            `${styleMuted("Tunnel running in foreground. Press Ctrl+C to stop.")}`
+          )
+          await new Promise<void>((resolve) => {
+            process.on("SIGINT", () => {
+              orch.stop()
+              resolve()
+            })
+            process.on("SIGTERM", () => {
+              orch.stop()
+              resolve()
+            })
+          })
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         exitWithError(f, msg)

@@ -63,7 +63,6 @@ import { ComposeExecutor } from "../site/execution/compose.js"
 import { CompositeExecutor } from "../site/execution/composite.js"
 import { NativeExecutor } from "../site/execution/native.js"
 import { killProcessTree } from "../site/execution/native.js"
-import { openTunnel, type TunnelInfo } from "./tunnel-client.js"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -661,57 +660,41 @@ export class DevOrchestrator {
       return
     }
 
-    try {
-      this.tunnelHandle = await openTunnel(
-        {
-          port: exposedPorts[0]!,
-          subdomain: workbenchSlug,
-          routeFamily: "dev",
-          publishPorts: exposedPorts,
-        },
-        {
-          onRegistered: (info: TunnelInfo) => {
-            console.log("")
-            console.log(`  ${styleSuccess("Tunnel active")}`)
-            if (info.portUrls?.length) {
-              for (const pu of info.portUrls) {
-                console.log(
-                  `    :${pu.port} ${styleMuted("→")} ${styleInfo(pu.url)}`
-                )
-              }
-            } else {
-              console.log(`    ${styleInfo(info.url)}`)
-            }
-            console.log("")
-          },
-          onReconnecting: (attempt, delayMs) => {
-            if (!this.opts.quiet) {
-              console.log(
-                `  Tunnel reconnecting (attempt ${attempt}, ${Math.round(delayMs / 1000)}s)...`
-              )
-            }
-          },
-          onReconnected: (info: TunnelInfo) => {
-            if (!this.opts.quiet) {
-              console.log(`  Tunnel reconnected: ${info.url}`)
-            }
-          },
-          onError: (err: Error) => {
-            console.error(`  Tunnel error: ${err.message}`)
-          },
-          onClose: () => {},
-        }
-      )
-      const cleanup = () => {
-        this.tunnelHandle?.close()
-        this.tunnelHandle = undefined
-      }
-      process.on("SIGINT", cleanup)
-      process.on("SIGTERM", cleanup)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error(`  Failed to open tunnel: ${msg}`)
+    // Spawn tunnel as a subprocess — Bun's WebSocket doesn't fire events
+    // reliably when the process has prior child_process.spawn() calls.
+    const { spawn } = await import("node:child_process")
+    const tunnelArgs = [
+      ...process.argv.slice(1, process.argv.indexOf("dev")),
+      "tunnel",
+      String(exposedPorts[0]),
+      "--subdomain",
+      workbenchSlug,
+      "--route-family",
+      "dev",
+      "--publish-ports",
+      exposedPorts.join(","),
+    ]
+    const tunnelProc = spawn(process.argv[0], tunnelArgs, {
+      stdio: "inherit",
+      env: process.env,
+    })
+
+    this.tunnelHandle = {
+      close() {
+        tunnelProc.kill("SIGTERM")
+      },
     }
+
+    tunnelProc.on("exit", () => {
+      this.tunnelHandle = undefined
+    })
+
+    const cleanup = () => {
+      tunnelProc.kill("SIGTERM")
+      this.tunnelHandle = undefined
+    }
+    process.on("SIGINT", cleanup)
+    process.on("SIGTERM", cleanup)
   }
 
   // ------------------------------------------------------------------

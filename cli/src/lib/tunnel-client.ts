@@ -216,7 +216,6 @@ export async function openTunnel(
     })
 
     ws.addEventListener("error", () => {
-      // error fires before close, just notify
       callbacks.onError(new Error("WebSocket error"))
     })
   }
@@ -241,7 +240,7 @@ export async function openTunnel(
     }, delay)
   }
 
-  // Initial connection
+  await new Promise<void>((r) => setTimeout(r, 0))
   connect()
 
   return {

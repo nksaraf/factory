@@ -6,7 +6,10 @@ import { eq, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { workflowRun } from "../db/schema/org"
-import { logger } from "../logger"
+
+function getLogger() {
+  return require("../logger").logger
+}
 
 // ── Workflow DB accessor ─────────────────────────────────
 //
@@ -77,13 +80,13 @@ export async function updateRun(
 
   // Log phase transitions and errors to stdout for observability
   if (updates.phase) {
-    logger.info(
+    getLogger().info(
       { workflowRunId: runId, phase: updates.phase, status: updates.status },
       `workflow phase → ${updates.phase}`
     )
   }
   if (updates.error) {
-    logger.error(
+    getLogger().error(
       { workflowRunId: runId, error: updates.error },
       "workflow failed"
     )
