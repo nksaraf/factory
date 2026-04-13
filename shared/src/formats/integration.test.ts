@@ -220,7 +220,7 @@ describe("docker-compose integration: multi-service", () => {
 
   // ─── Labels → metadata ──────────────────────────────────────
 
-  it("catalog.description label → metadata.description", () => {
+  it("dx.description label → metadata.description", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.components.api.metadata.description).toBe("Main API service")
     expect(system.components.worker.metadata.description).toBe(
@@ -228,24 +228,24 @@ describe("docker-compose integration: multi-service", () => {
     )
   })
 
-  it("catalog.owner label → system owner", () => {
+  it("dx.owner label → system owner", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.spec.owner).toBe("backend")
   })
 
-  it("catalog.tags label → metadata.tags", () => {
+  it("dx.tags label → metadata.tags", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.components.api.metadata.tags).toEqual(["api", "rest"])
   })
 
-  it("catalog.type label overrides inferred type", () => {
+  it("dx.type label overrides inferred type", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.components.worker.spec.type).toBe("worker")
   })
 
   // ─── Labels → API declarations ─────────────────────────────
 
-  it("catalog.api.provides → spec.providesApis", () => {
+  it("dx.api.provides → spec.providesApis", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.components.api.spec.providesApis).toEqual([
       "orders-api",
@@ -254,14 +254,14 @@ describe("docker-compose integration: multi-service", () => {
     expect(system.components.auth.spec.providesApis).toEqual(["auth-api"])
   })
 
-  it("catalog.api.consumes → spec.consumesApis", () => {
+  it("dx.api.consumes → spec.consumesApis", () => {
     const { system } = adapter.parse(rootDir)
     expect(system.components.api.spec.consumesApis).toEqual(["auth-api"])
   })
 
   // ─── Labels → documentation links ──────────────────────────
 
-  it("catalog.docs.* labels → metadata.links", () => {
+  it("dx.docs.* labels → metadata.links", () => {
     const { system } = adapter.parse(rootDir)
     const apiLinks = system.components.api.metadata.links!
     expect(apiLinks).toHaveLength(2)

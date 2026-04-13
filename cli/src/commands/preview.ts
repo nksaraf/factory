@@ -45,7 +45,7 @@ async function getPreviewDomain(): Promise<string> {
     if (parts.length > 2) return parts.slice(1).join(".")
     return host
   } catch {
-    return "dx.dev"
+    return "lepton.software"
   }
 }
 

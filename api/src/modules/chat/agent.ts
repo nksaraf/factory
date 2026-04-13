@@ -1,4 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { DurableAgent } from "@workflow/ai"
 import { ToolLoopAgent, stepCountIs, tool } from "ai"
 import { getTableConfig } from "drizzle-orm/pg-core"
 import type { PgTable } from "drizzle-orm/pg-core"
@@ -332,15 +333,14 @@ function getAgent() {
       const google = createGoogleGenerativeAI({ apiKey })
       const model = google(process.env.LLM_MODEL ?? "gemini-2.5-flash")
 
-      return new ToolLoopAgent({
-        model,
-        instructions: buildSystemPrompt(),
+      return new DurableAgent({
+        model: async () => model as any,
+        system: buildSystemPrompt(),
         tools: {
           executeQuery: executeQueryTool,
           listTables: listTablesTool,
           requestWork: requestWorkTool,
         },
-        stopWhen: stepCountIs(10),
       })
     })().catch((err) => {
       _agentPromise = null // Allow retry on next call
@@ -369,6 +369,7 @@ export async function createAgentSession(
     stream: (opts) =>
       agent.stream({
         ...opts,
+        stopWhen: stepCountIs(10),
         experimental_onToolCallStart: ({ toolCall }: any) => {
           emitAgentEvent(sessionId, "tool.pre", {
             tool_name: toolCall.toolName,

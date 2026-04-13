@@ -23,14 +23,14 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
   // Prevent the onStart hook from auto-starting gateway on port 9090
   process.env.__DX_SKIP_GATEWAY_ONSTART = "1"
-  process.env.DX_GATEWAY_DOMAIN = "dx.dev"
+  process.env.DX_GATEWAY_DOMAIN = "lepton.software"
 
   const BACKEND_PORT = 28000 + Math.floor(Math.random() * 1000)
   const GATEWAY_PORT = 29000 + Math.floor(Math.random() * 1000)
 
   const WORKBENCH_SLUG = "test-proxy"
-  const WORKBENCH_DOMAIN = `${WORKBENCH_SLUG}.workbench.dx.dev`
-  const TERMINAL_DOMAIN = `${WORKBENCH_SLUG}--terminal.workbench.dx.dev`
+  const WORKBENCH_DOMAIN = `${WORKBENCH_SLUG}.dev.lepton.software`
+  const TERMINAL_DOMAIN = `${WORKBENCH_SLUG}--terminal.dev.lepton.software`
 
   // ---------------------------------------------------------------------------
   // Mock backend: HTTP + WebSocket server simulating a workbench service
@@ -115,7 +115,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
       get: async (domain: string) => {
         if (domain === WORKBENCH_DOMAIN || domain === TERMINAL_DOMAIN) {
           return {
-            kind: "workbench",
+            kind: "dev",
             domain,
             targetService: "localhost",
             targetPort: BACKEND_PORT,
@@ -153,16 +153,16 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
 
   describe("parseHostname", () => {
     it("parses workbench domain", () => {
-      const result = parseHostname("my-env.workbench.dx.dev")
+      const result = parseHostname("my-env.dev.lepton.software")
       expect(result).toEqual({
-        family: "workbench",
+        family: "dev",
         slug: "my-env",
         fullSubdomain: "my-env",
       })
     })
 
     it("parses sandbox domain (legacy)", () => {
-      const result = parseHostname("my-env.sandbox.dx.dev")
+      const result = parseHostname("my-env.sandbox.lepton.software")
       expect(result).toEqual({
         family: "sandbox",
         slug: "my-env",
@@ -171,9 +171,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("parses named endpoint (--terminal)", () => {
-      const result = parseHostname("my-env--terminal.workbench.dx.dev")
+      const result = parseHostname("my-env--terminal.dev.lepton.software")
       expect(result).toEqual({
-        family: "workbench",
+        family: "dev",
         slug: "my-env",
         endpointName: "terminal",
         fullSubdomain: "my-env--terminal",
@@ -181,9 +181,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("parses port suffix (-p3000)", () => {
-      const result = parseHostname("my-env-p3000.workbench.dx.dev")
+      const result = parseHostname("my-env-p3000.dev.lepton.software")
       expect(result).toEqual({
-        family: "workbench",
+        family: "dev",
         slug: "my-env",
         port: 3000,
         fullSubdomain: "my-env-p3000",
@@ -195,7 +195,7 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("strips port from host", () => {
-      const result = parseHostname("my-env.workbench.dx.dev:8080")
+      const result = parseHostname("my-env.dev.lepton.software:8080")
       expect(result?.slug).toBe("my-env")
     })
   })
@@ -236,7 +236,9 @@ describe.skipIf(!hasBun)("gateway-proxy integration", () => {
     })
 
     it("returns 404 for unknown route", async () => {
-      const res = await gwFetch("/echo", { host: "unknown.workbench.dx.dev" })
+      const res = await gwFetch("/echo", {
+        host: "unknown.dev.lepton.software",
+      })
       expect(res.status).toBe(404)
     })
   })

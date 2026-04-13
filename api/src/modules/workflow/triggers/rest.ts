@@ -20,7 +20,7 @@ import { newId } from "../../../lib/id"
 import {
   listWorkflowDefinitions,
   getWorkflowDefinition,
-  startWorkflow,
+  start,
 } from "../../../lib/workflow-engine"
 import { createWorkflowRun, updateRun } from "../../../lib/workflow-helpers"
 import { emitEvent } from "../../../lib/workflow-events"
@@ -81,6 +81,8 @@ export function workflowController(db: Database) {
           }
 
           const workflowRunId = newId("wfr")
+
+          // Create business state tracking row
           await createWorkflowRun(db, {
             workflowRunId,
             workflowName,
@@ -88,7 +90,14 @@ export function workflowController(db: Database) {
             input: parsed.data,
           })
 
-          await startWorkflow(def.fn, parsed.data, workflowRunId)
+          // Inject workflow run ID into input for business state tracking
+          const inputWithRunId = {
+            ...(parsed.data as Record<string, unknown>),
+            _workflowRunId: workflowRunId,
+          }
+
+          // Start via Workflow SDK
+          await start(def.fn, [inputWithRunId])
 
           return { success: true, workflowRunId }
         },

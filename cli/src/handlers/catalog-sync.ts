@@ -24,7 +24,7 @@ export async function runCatalogSync(
   if (!catalog.metadata?.name) {
     exitWithError(
       flags,
-      "Catalog has no system name. Add `x-catalog.name` to your docker-compose.yaml."
+      "Catalog has no system name. Add `x-dx: { name: ... }` to your docker-compose.yaml."
     )
     return
   }

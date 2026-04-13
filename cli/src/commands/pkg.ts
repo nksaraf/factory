@@ -6,12 +6,11 @@ import { findPkgRoot } from "../handlers/pkg/detect.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("pkg", [
-  "$ dx pkg list                      List linked packages",
-  "$ dx pkg link ./my-package         Link local package",
-  "$ dx pkg remove ./my-package       Remove a linked package",
-  "$ dx pkg diff                      Show package changes",
-  "$ dx pkg push                      Push package upstream",
+  "$ dx pkg publish my-package        Publish package to registry",
+  "$ dx pkg bump my-package --patch   Bump version",
+  "$ dx pkg versions                  Show local vs latest versions",
   "$ dx pkg auth --key-file key.pem   Set registry auth key",
+  "$ dx pkg doctor                    Run workspace health checks",
 ])
 
 /** Resolve the dx project root (walks up from cwd to find .dx/). */
@@ -29,89 +28,6 @@ export function pkgCommand(app: DxBase) {
     app
       .sub("pkg")
       .meta({ description: "Package development workflow" })
-
-      // ── link ──
-      .command("link", (c) =>
-        c
-          .meta({ description: "Check out an external package for local dev" })
-          .args([
-            {
-              name: "source",
-              type: "string",
-              required: true,
-              description: "Git URL or GitHub shorthand (org/repo)",
-            },
-          ])
-          .flags({
-            path: {
-              type: "string",
-              description: "Subdirectory within a monorepo",
-            },
-            as: {
-              type: "string",
-              description: "Override package name",
-            },
-            ref: {
-              type: "string",
-              description: "Branch or tag to check out",
-            },
-            branch: {
-              type: "string",
-              description: "Working branch name (default: dx/<name>-dev)",
-            },
-          })
-          .run(async ({ args, flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgLink } = await import("../handlers/pkg/link.js")
-              await pkgLink(root(), {
-                source: args.source as string,
-                path: flags.path as string | undefined,
-                as: flags.as as string | undefined,
-                ref: flags.ref as string | undefined,
-                branch: flags.branch as string | undefined,
-                verbose: f.verbose,
-              })
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
-
-      // ── unlink ──
-      .command("unlink", (c) =>
-        c
-          .meta({ description: "Remove local checkout, restore normal deps" })
-          .args([
-            {
-              name: "package",
-              type: "string",
-              required: true,
-              description: "Package to unlink",
-            },
-          ])
-          .flags({
-            force: {
-              type: "boolean",
-              description: "Force removal even with uncommitted changes",
-            },
-          })
-          .run(async ({ args, flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgUnlink } = await import("../handlers/pkg/unlink.js")
-              await pkgUnlink(root(), {
-                package: args.package as string,
-                force: flags.force as boolean | undefined,
-                verbose: f.verbose,
-              })
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
 
       // ── remove ──
       .command("remove", (c) =>
@@ -141,56 +57,6 @@ export function pkgCommand(app: DxBase) {
               await pkgRemove(root(), {
                 package: args.package as string,
                 yes: flags.yes as boolean | undefined,
-                verbose: f.verbose,
-              })
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
-
-      // ── list ──
-      .command("list", (c) =>
-        c
-          .meta({ description: "Show linked and contributed packages" })
-          .run(async ({ flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgList } = await import("../handlers/pkg/list.js")
-              await pkgList(root(), f.json)
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
-
-      // ── diff ──
-      .command("diff", (c) =>
-        c
-          .meta({ description: "Show changes in a linked package" })
-          .args([
-            {
-              name: "package",
-              type: "string",
-              required: true,
-              description: "Package to diff",
-            },
-          ])
-          .flags({
-            stat: {
-              type: "boolean",
-              description: "Show diffstat summary only",
-            },
-          })
-          .run(async ({ args, flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgDiff } = await import("../handlers/pkg/diff.js")
-              await pkgDiff(root(), {
-                package: args.package as string,
-                stat: flags.stat as boolean | undefined,
                 verbose: f.verbose,
               })
             } catch (err) {
@@ -235,90 +101,6 @@ export function pkgCommand(app: DxBase) {
                 package: args.package as string,
                 switch: flags.switch as string | undefined,
                 create: flags.create as string | undefined,
-                verbose: f.verbose,
-              })
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
-
-      // ── push ──
-      .command("push", (c) =>
-        c
-          .meta({
-            description: "Commit, push, and create PR for package changes",
-          })
-          .args([
-            {
-              name: "package",
-              type: "string",
-              required: true,
-              description: "Package to push",
-            },
-          ])
-          .flags({
-            branch: {
-              type: "string",
-              description: "Override working branch",
-            },
-            message: {
-              type: "string",
-              short: "m",
-              description: "Custom commit message",
-            },
-          })
-          .run(async ({ args, flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgPush } = await import("../handlers/pkg/push.js")
-              await pkgPush(root(), {
-                package: args.package as string,
-                branch: flags.branch as string | undefined,
-                message: flags.message as string | undefined,
-                verbose: f.verbose,
-              })
-            } catch (err) {
-              exitWithError(f, err instanceof Error ? err.message : String(err))
-            }
-          })
-      )
-
-      // ── pull ──
-      .command("pull", (c) =>
-        c
-          .meta({
-            description:
-              "Pull upstream changes for a linked or contributed package",
-          })
-          .args([
-            {
-              name: "package",
-              type: "string",
-              required: true,
-              description: "Package to pull updates for",
-            },
-          ])
-          .flags({
-            branch: {
-              type: "string",
-              description: "Override working branch",
-            },
-            dryRun: {
-              type: "boolean",
-              description: "Preview changes without applying",
-            },
-          })
-          .run(async ({ args, flags }) => {
-            const f = toDxFlags(flags)
-            try {
-              await ensurePkgEnv()
-              const { pkgPull } = await import("../handlers/pkg/pull.js")
-              await pkgPull(root(), {
-                package: args.package as string,
-                branch: flags.branch as string | undefined,
-                dryRun: flags.dryRun as boolean | undefined,
                 verbose: f.verbose,
               })
             } catch (err) {

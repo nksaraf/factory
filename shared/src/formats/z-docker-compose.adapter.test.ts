@@ -810,16 +810,16 @@ services:
     build:
       context: .
     labels:
-      catalog.type: service
-      catalog.owner: backend
+      dx.type: service
+      dx.owner: backend
 `
         if (p.endsWith("z-labels.yaml"))
           return `
 services:
   api:
     labels:
-      catalog.description: "Main API"
-      catalog.owner: platform
+      dx.description: "Main API"
+      dx.owner: platform
 `
         return ""
       })
@@ -930,7 +930,7 @@ services:
     environment:
       MB_DB_TYPE: postgres
     labels:
-      catalog.kind: Resource
+      dx.kind: Resource
       dx.dep.postgres.env.MB_DB_HOST: "{host}"
       dx.dep.postgres.env.MB_DB_PORT: "{port}"
       dx.dep.postgres.env.MB_DB_USER: "{POSTGRES_USER}"
@@ -999,7 +999,7 @@ services:
     environment:
       AUTH_DATABASE_URL: "postgres://\${POSTGRES_USER:-postgres}:\${POSTGRES_PASSWORD:-postgres}@postgres:5432/\${POSTGRES_DB:-postgres}"
     labels:
-      catalog.kind: Resource
+      dx.kind: Resource
   postgres:
     image: postgres:16
     ports:
@@ -1164,12 +1164,12 @@ services:
         "/myproject",
         `
 services:
-  my-setup:
   db:
     image: postgres:15
     restart: unless-stopped
     ports:
       - "5432:5432"
+  my-setup:
     image: alpine:latest
     restart: "no"
     command: ["echo", "done"]
@@ -1248,7 +1248,7 @@ services:
       expect(result.system.components["my-worker"].spec.type).toBe("service")
     })
 
-    it("respects explicit catalog.type:init label", () => {
+    it("respects explicit dx.type:init label", () => {
       setupComposeFile(
         "/myproject",
         `
@@ -1257,8 +1257,8 @@ services:
     image: myorg/custom:latest
     restart: always
     labels:
-      catalog.type: init
-      catalog.initFor: main-service
+      dx.type: init
+      dx.initFor: main-service
   main-service:
     image: myorg/main:latest
     restart: unless-stopped

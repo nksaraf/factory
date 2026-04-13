@@ -36,8 +36,8 @@ services:
   api:
     build: ./api
     labels:
-      catalog.type: service
-      catalog.owner: my-team
+      dx.type: service
+      dx.owner: my-team
       dx.dev.command: "npm run dev"
       dx.test: "npm test"
 ```

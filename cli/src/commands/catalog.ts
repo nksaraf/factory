@@ -549,7 +549,7 @@ export function catalogCommand(app: DxBase) {
         return
       }
 
-      // Show system name from x-catalog.name, with worktree context if applicable
+      // Show system name from x-dx.name, with worktree context if applicable
       const worktree = getWorktreeInfo(process.cwd())
       let headerName = cat.metadata.name
       if (worktree) {

@@ -33,7 +33,7 @@ describe("Gateway Services", () => {
     it("finds an active route by domain", async () => {
       await gw.createRoute(db, {
         type: "tunnel",
-        domain: "happy-fox-42.tunnel.dx.dev",
+        domain: "happy-fox-42.tunnel.lepton.software",
         targetService: "tunnel-broker",
         status: "active",
         createdBy: "system",
@@ -41,28 +41,34 @@ describe("Gateway Services", () => {
 
       const found = await gw.lookupRouteByDomain(
         db,
-        "happy-fox-42.tunnel.dx.dev"
+        "happy-fox-42.tunnel.lepton.software"
       )
       expect(found).not.toBeNull()
       expect(found!.type).toBe("tunnel")
-      expect(found!.domain).toBe("happy-fox-42.tunnel.dx.dev")
+      expect(found!.domain).toBe("happy-fox-42.tunnel.lepton.software")
     })
 
     it("returns null for non-existent domain", async () => {
-      const found = await gw.lookupRouteByDomain(db, "nope.tunnel.dx.dev")
+      const found = await gw.lookupRouteByDomain(
+        db,
+        "nope.tunnel.lepton.software"
+      )
       expect(found).toBeNull()
     })
 
     it("returns null for inactive routes", async () => {
       await gw.createRoute(db, {
         type: "tunnel",
-        domain: "stale.tunnel.dx.dev",
+        domain: "stale.tunnel.lepton.software",
         targetService: "tunnel-broker",
         status: "expired",
         createdBy: "system",
       })
 
-      const found = await gw.lookupRouteByDomain(db, "stale.tunnel.dx.dev")
+      const found = await gw.lookupRouteByDomain(
+        db,
+        "stale.tunnel.lepton.software"
+      )
       expect(found).toBeNull()
     })
   })
@@ -124,12 +130,10 @@ describe("Gateway Services", () => {
         })
 
         expect(result.preview.id).toBeTruthy()
-        expect(result.preview.spec.slug ?? result.preview.slug).toBe(
-          "pr-42--fix-auth-bug--myapp"
-        )
+        expect(result.preview.slug).toBe("pr-42--fix-auth-bug--myapp")
         expect(result.preview.phase).toBe("building")
         expect(result.route.domain).toBe(
-          "pr-42--fix-auth-bug--myapp.preview.dx.dev"
+          "pr-42--fix-auth-bug--myapp.preview.lepton.software"
         )
       })
 
@@ -146,9 +150,7 @@ describe("Gateway Services", () => {
           createdBy: "system",
         })
 
-        expect(result.preview.spec.slug ?? result.preview.slug).toBe(
-          "feat-dashboard--myapp"
-        )
+        expect(result.preview.slug).toBe("feat-dashboard--myapp")
         expect(result.preview.prNumber).toBeNull()
       })
     })
@@ -305,12 +307,12 @@ describe("Gateway Services", () => {
         createdBy: "system",
       })
 
-      expect(r.domain).toBe("pr-99--e2e-test--app.preview.dx.dev")
+      expect(r.domain).toBe("pr-99--e2e-test--app.preview.lepton.software")
 
       // 2. Route should be resolvable
       const found = await gw.lookupRouteByDomain(
         db,
-        "pr-99--e2e-test--app.preview.dx.dev"
+        "pr-99--e2e-test--app.preview.lepton.software"
       )
       expect(found).not.toBeNull()
       expect(found!.type).toBe("preview")

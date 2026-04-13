@@ -421,7 +421,7 @@ describe("Infra Controller", () => {
           name: "test-route",
           slug: "test-route",
           type: "tunnel",
-          domain: "app.tunnel.dx.dev",
+          domain: "app.tunnel.lepton.software",
           spec: { targetService: "tunnel-broker" },
         })
       )
@@ -440,7 +440,7 @@ describe("Infra Controller", () => {
           name: "del-route",
           slug: "del-route",
           type: "preview",
-          domain: "pr-1.preview.dx.dev",
+          domain: "pr-1.preview.lepton.software",
           spec: {},
         })
       )
@@ -462,11 +462,11 @@ describe("Infra Controller", () => {
     it("POST creates and GET lists DNS domains", async () => {
       const create = await app.handle(
         post(`${BASE}/dns-domains`, {
-          name: "dx.dev",
+          name: "lepton.software",
           slug: "dx-dev",
           type: "primary",
-          fqdn: "dx.dev",
-          spec: { zone: "dx.dev", provider: "cloudflare" },
+          fqdn: "lepton.software",
+          spec: { zone: "lepton.software", provider: "cloudflare" },
         })
       )
       expect(create.status).toBe(200)

@@ -14,6 +14,28 @@ const DOCKER_DEFAULTS = {
   builder: { gc: { enabled: true, defaultKeepStorage: "20GB" } },
 }
 
+const CACHE_HOST = "docker-cache.internal"
+
+const DOCKER_CACHE_DEFAULTS = {
+  "registry-mirrors": [`http://${CACHE_HOST}:5001`],
+  "insecure-registries": [
+    `${CACHE_HOST}:5001`,
+    `${CACHE_HOST}:5002`,
+    `${CACHE_HOST}:5003`,
+  ],
+}
+
+async function isCacheReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(`http://${CACHE_HOST}:5001/v2/`, {
+      signal: AbortSignal.timeout(2000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 function getDaemonJsonPath(): { path: string; requiresSudo: boolean } {
   if (process.platform === "darwin" || process.platform === "win32") {
     // macOS and Windows (Docker Desktop): user-scope config, no elevation needed
@@ -80,6 +102,35 @@ export const dockerDefaultsProvider: ConfigProvider = {
           return deepMergeJsonConfig(daemonPath, { [key]: value })
         },
       })
+    }
+
+    const cacheAvailable = await isCacheReachable()
+    if (cacheAvailable) {
+      for (const [key, value] of Object.entries(DOCKER_CACHE_DEFAULTS)) {
+        const currentVal = existing[key]
+        const applied = jsonValueMatch(currentVal, value)
+
+        changes.push({
+          id: `docker:${key}`,
+          category: "docker",
+          description: `${key}: ${JSON.stringify(value)} (local cache)`,
+          target: daemonPath,
+          currentValue:
+            currentVal !== undefined ? JSON.stringify(currentVal) : null,
+          proposedValue: JSON.stringify(value),
+          alreadyApplied: applied,
+          requiresSudo,
+          platform: null,
+          apply: async () => {
+            if (requiresSudo) {
+              const merged = { ...readJsonConfig(daemonPath), [key]: value }
+              const content = JSON.stringify(merged, null, 2) + "\n"
+              return sudoWrite(daemonPath, content)
+            }
+            return deepMergeJsonConfig(daemonPath, { [key]: value })
+          },
+        })
+      }
     }
 
     return changes

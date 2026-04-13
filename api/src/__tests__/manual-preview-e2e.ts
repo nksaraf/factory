@@ -351,6 +351,7 @@ async function main() {
   const [prev] = await db
     .insert(preview)
     .values({
+      slug: "pr-42--feat-auth--default",
       siteId: s.id,
       sourceBranch: "feat/auth",
       prNumber: 42,

@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  setSystemTime,
+} from "bun:test"
 import { StormDetector } from "./storm-detector"
 
 describe("StormDetector", () => {
@@ -46,14 +53,15 @@ describe("StormDetector", () => {
   })
 
   it("clears storm state after window expires", () => {
-    vi.useFakeTimers()
+    const now = Date.now()
+    setSystemTime(new Date(now))
     for (let i = 0; i < 6; i++) {
       detector.record("ops.workbench", "default")
     }
     expect(detector.isStorming("ops.workbench", "default")).toBe(true)
-    vi.advanceTimersByTime(61_000)
+    setSystemTime(new Date(now + 61_000))
     detector.tick()
     expect(detector.isStorming("ops.workbench", "default")).toBe(false)
-    vi.useRealTimers()
+    setSystemTime()
   })
 })

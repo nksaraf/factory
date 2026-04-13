@@ -87,7 +87,7 @@ describe.skipIf(!isDockerRunning())("dx add --image", () => {
     const compose = readFile(dir, "compose/redis.yml")
     expect(compose).toContain("image: redis:7-alpine")
     expect(compose).toContain("6379")
-    expect(compose).toContain("catalog.type:")
+    expect(compose).toContain("dx.type:")
 
     // docker-compose.yaml updated
     const rootCompose = readFile(dir, "docker-compose.yaml")
@@ -136,7 +136,7 @@ describe.skipIf(!isDockerRunning())("dx add --image", () => {
 
     const compose = readFile(dir, "compose/my-pg.yml")
     expect(compose).toContain("5432")
-    expect(compose).toContain("catalog.type: database")
+    expect(compose).toContain("dx.type: database")
   })
 
   it("--json returns structured output", () => {

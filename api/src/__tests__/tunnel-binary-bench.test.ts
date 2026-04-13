@@ -30,7 +30,7 @@ const FACTORY_URL = process.env.FACTORY_URL
 const IS_PROD = !!FACTORY_URL
 const GATEWAY_DOMAIN = IS_PROD
   ? "lepton.software"
-  : (process.env.DX_GATEWAY_DOMAIN ?? "dx.dev")
+  : (process.env.DX_GATEWAY_DOMAIN ?? "lepton.software")
 
 // ---------------------------------------------------------------------------
 // Helpers

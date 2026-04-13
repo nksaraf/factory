@@ -7,7 +7,7 @@ import type { StreamManager } from "./tunnel-streams"
 
 const logger = rootLogger.child({ module: "gateway-proxy" })
 
-export type RouteFamily = "tunnel" | "preview" | "sandbox" | "workbench"
+export type RouteFamily = "tunnel" | "preview" | "sandbox" | "dev"
 
 export interface ParsedHost {
   family: RouteFamily
@@ -18,7 +18,7 @@ export interface ParsedHost {
 }
 
 function getGatewayDomain(): string {
-  return process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+  return process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
 }
 
 function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
@@ -26,7 +26,7 @@ function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
   return [
     { suffix: `.tunnel.${domain}`, family: "tunnel" },
     { suffix: `.preview.${domain}`, family: "preview" },
-    { suffix: `.workbench.${domain}`, family: "workbench" },
+    { suffix: `.dev.${domain}`, family: "dev" },
     { suffix: `.sandbox.${domain}`, family: "sandbox" },
   ]
 }
@@ -202,7 +202,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     const suffixMap: Record<RouteFamily, string> = {
       tunnel: `.tunnel.${gwd}`,
       preview: `.preview.${gwd}`,
-      workbench: `.workbench.${gwd}`,
+      dev: `.dev.${gwd}`,
       sandbox: `.sandbox.${gwd}`,
     }
     const domain = parsed.fullSubdomain + suffixMap[parsed.family]
@@ -221,7 +221,7 @@ export function createGatewayServer(opts: GatewayServerOptions) {
     if (
       opts.checkAuth &&
       (route.kind === "sandbox" ||
-        route.kind === "workbench" ||
+        route.kind === "dev" ||
         route.kind === "preview")
     ) {
       const authMode = route.metadata?.authMode ?? "private"
@@ -246,7 +246,9 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       return { parsed, route, tunnelSubdomain: "", sm: null }
     }
 
-    const tunnelSubdomain = isTunnelBacked ? parsed.fullSubdomain : parsed.slug
+    const tunnelSubdomain = isTunnelBacked
+      ? (route.spec?.tunnelSubdomain ?? parsed.fullSubdomain)
+      : parsed.slug
     const sm = opts.getTunnelStreamManager?.(tunnelSubdomain)
     if (!sm) {
       logger.warn({ tunnelSubdomain, domain }, "tunnel not connected")
@@ -275,6 +277,9 @@ export function createGatewayServer(opts: GatewayServerOptions) {
         req.headers.forEach((val, key) => {
           headerObj[key] = val
         })
+        if (route.targetPort) {
+          headerObj["x-dx-target-port"] = String(route.targetPort)
+        }
         const reqUrl = new URL(req.url)
 
         // Initiate WS_UPGRADE through the tunnel to the local server
@@ -305,6 +310,9 @@ export function createGatewayServer(opts: GatewayServerOptions) {
           req.headers.forEach((val, key) => {
             headerObj[key] = val
           })
+          if (route.targetPort) {
+            headerObj["x-dx-target-port"] = String(route.targetPort)
+          }
 
           const reqUrl = new URL(req.url)
           const tunnelRes = await sm.sendHttpRequest(

@@ -83,8 +83,8 @@ describe("dx add — resources", () => {
     // Compose file has correct content
     const redis = readFile(dir, "compose/redis.yml")
     expect(redis).toContain("redis:7-alpine")
-    expect(redis).toContain("catalog.type: cache")
-    expect(redis).toContain("catalog.owner: team")
+    expect(redis).toContain("dx.type: cache")
+    expect(redis).toContain("dx.owner: team")
 
     // docker-compose.yaml updated
     const compose = readFile(dir, "docker-compose.yaml")
@@ -99,7 +99,7 @@ describe("dx add — resources", () => {
 
     const kafka = readFile(dir, "compose/kafka.yml")
     expect(kafka).toContain("apache/kafka")
-    expect(kafka).toContain("catalog.type: queue")
+    expect(kafka).toContain("dx.type: queue")
 
     const compose = readFile(dir, "docker-compose.yaml")
     expect(compose).toContain("compose/kafka.yml")
@@ -182,7 +182,7 @@ describe("dx add — components", () => {
     // Compose file created
     expect(existsSync(path.join(dir, "compose/payment-api.yml"))).toBe(true)
     const compose = readFile(dir, "compose/payment-api.yml")
-    expect(compose).toContain('catalog.type: "service"')
+    expect(compose).toContain('dx.type: "service"')
     expect(compose).toContain("services/payment-api")
 
     // docker-compose.yaml updated

@@ -677,7 +677,7 @@ export function workbenchCommand(app: DxBase) {
                   factoryUrl.includes("127.0.0.1")
                 ) {
                   const wksSlug = (sbxData?.slug as string) ?? name
-                  await addHostEntry(wksSlug, "workbench")
+                  await addHostEntry(wksSlug, "dev")
                 }
               } else {
                 spinner.warn(
@@ -1092,7 +1092,7 @@ export function workbenchCommand(app: DxBase) {
                 factoryUrl.includes("localhost") ||
                 factoryUrl.includes("127.0.0.1")
               ) {
-                await removeHostEntry(args.id, "workbench")
+                await removeHostEntry(args.id, "dev")
               }
             } else {
               console.log(

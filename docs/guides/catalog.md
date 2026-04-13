@@ -19,13 +19,13 @@ services:
   api:
     build: ./services/api
     labels:
-      catalog.type: service
-      catalog.owner: platform-eng
-      catalog.description: "User Authentication API"
-      catalog.tags: "auth,api,core"
-      catalog.lifecycle: production
-      catalog.api.provides: "auth-api"
-      catalog.api.consumes: "user-api"
+      dx.type: service
+      dx.owner: platform-eng
+      dx.description: "User Authentication API"
+      dx.tags: "auth,api,core"
+      dx.lifecycle: production
+      dx.api.provides: "auth-api"
+      dx.api.consumes: "user-api"
 ```
 
 ## Entity Kinds

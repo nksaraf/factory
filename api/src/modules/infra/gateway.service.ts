@@ -556,15 +556,15 @@ export async function createWorkbenchRoutes(
     createdBy: string
   }
 ) {
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
   // Site-scoped workbenches use site ID as subdomain; generic workbenches use "workbench"
-  const routeScope = input.siteId ? input.siteId : "workbench"
+  const routeScope = input.siteId ? input.siteId : "dev"
   const baseDomain = `${input.workbenchSlug}.${routeScope}.${gatewayDomain}`
 
   const routes: any[] = []
 
   const primary = await createRoute(db, {
-    type: "workbench",
+    type: "dev",
     domain: baseDomain,
     realmId: input.realmId,
     targetService: input.workbenchSlug,
@@ -580,7 +580,7 @@ export async function createWorkbenchRoutes(
       const portDomain = `${input.workbenchSlug}-${port}.${routeScope}.${gatewayDomain}`
 
       const portRoute = await createRoute(db, {
-        type: "workbench",
+        type: "dev",
         domain: portDomain,
         realmId: input.realmId,
         targetService: input.workbenchSlug,
@@ -621,18 +621,17 @@ export async function registerTunnel(
     brokerNodeId?: string
     expiresAt?: Date
     createdBy: string
-    routeFamily?: "workbench" | "tunnel"
+    routeFamily?: "dev" | "tunnel"
     systemDeploymentId?: string
     routeKind?: string
+    publishPorts?: number[]
   }
-): Promise<{ tunnel: any; route: any }> {
+): Promise<{ tunnel: any; route: any; portRoutes: any[] }> {
   const family = input.routeFamily ?? "tunnel"
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
   const domainSuffix =
-    family === "workbench"
-      ? `.workbench.${gatewayDomain}`
-      : `.tunnel.${gatewayDomain}`
-  const routeType = family === "workbench" ? "workbench" : "tunnel"
+    family === "dev" ? `.dev.${gatewayDomain}` : `.tunnel.${gatewayDomain}`
+  const routeType = family === "dev" ? "dev" : "tunnel"
 
   const tunnelRoute = await createRoute(db, {
     type: input.routeKind ?? routeType,
@@ -642,6 +641,23 @@ export async function registerTunnel(
     status: "active",
     createdBy: input.createdBy,
   })
+
+  const portRoutes: any[] = []
+  if (input.publishPorts) {
+    for (const port of input.publishPorts) {
+      const portRoute = await createRoute(db, {
+        type: input.routeKind ?? routeType,
+        domain: `${input.subdomain}-${port}${domainSuffix}`,
+        targetService: "tunnel-broker",
+        targetPort: port,
+        systemDeploymentId: input.systemDeploymentId,
+        status: "active",
+        createdBy: input.createdBy,
+        spec: { tunnelSubdomain: input.subdomain },
+      })
+      portRoutes.push(portRoute)
+    }
+  }
 
   // Ensure principal exists; auto-create if missing (local dev / first use)
   let resolvedPrincipalId = input.principalId
@@ -675,6 +691,7 @@ export async function registerTunnel(
         localAddr: input.localAddr,
         brokerNodeId: input.brokerNodeId,
         expiresAt: input.expiresAt?.toISOString(),
+        portRouteIds: portRoutes.map((r) => r.id),
       } as any,
     })
     .returning()
@@ -687,6 +704,7 @@ export async function registerTunnel(
       localAddr: (tunnelRow.spec as any)?.localAddr,
     },
     route: tunnelRoute,
+    portRoutes,
   }
 }
 
@@ -699,8 +717,15 @@ export async function closeTunnel(db: Database, tunnelId: string) {
 
   if (!row) return
 
+  // Delete per-port routes stored during registration
+  const portRouteIds = (row.spec as any)?.portRouteIds as string[] | undefined
+  if (portRouteIds?.length) {
+    for (const routeId of portRouteIds) {
+      await deleteRoute(db, routeId).catch(() => {})
+    }
+  }
+
   await deleteRoute(db, row.routeId)
-  // Cascade should delete tunnel too, but let's be explicit
   await db.delete(tunnel).where(eq(tunnel.id, tunnelId))
 }
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 import { parseChannelAddress, resolveDeliveryTarget } from "./identity-resolver"
 
 describe("parseChannelAddress", () => {
@@ -33,10 +33,10 @@ describe("parseChannelAddress", () => {
 })
 
 describe("resolveDeliveryTarget", () => {
-  const mockDb = { select: vi.fn() } as any
+  const mockDb = { select: mock() } as any
 
   beforeEach(() => {
-    vi.restoreAllMocks()
+    mock.restore()
   })
 
   it("returns target directly for explicit channel IDs", async () => {
@@ -51,9 +51,9 @@ describe("resolveDeliveryTarget", () => {
 
   it("resolves @owner to provider identity via identity_link", async () => {
     const mockChain = {
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([{ externalId: "U_SLACK_123" }]),
+      from: mock().mockReturnThis(),
+      where: mock().mockReturnThis(),
+      limit: mock().mockResolvedValue([{ externalId: "U_SLACK_123" }]),
     }
     mockDb.select.mockReturnValue(mockChain)
 
@@ -67,11 +67,11 @@ describe("resolveDeliveryTarget", () => {
 
   it("resolves @owner for email via principal.spec.email", async () => {
     const mockChain = {
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi
-        .fn()
-        .mockResolvedValue([{ spec: { email: "alice@example.com" } }]),
+      from: mock().mockReturnThis(),
+      where: mock().mockReturnThis(),
+      limit: mock().mockResolvedValue([
+        { spec: { email: "alice@example.com" } },
+      ]),
     }
     mockDb.select.mockReturnValue(mockChain)
 
@@ -94,9 +94,9 @@ describe("resolveDeliveryTarget", () => {
 
   it("returns null when identity not found", async () => {
     const mockChain = {
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([]),
+      from: mock().mockReturnThis(),
+      where: mock().mockReturnThis(),
+      limit: mock().mockResolvedValue([]),
     }
     mockDb.select.mockReturnValue(mockChain)
 

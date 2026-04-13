@@ -22,8 +22,8 @@ interface ResourceLabelOpts {
 function portLabels(port: PortSpec | undefined): Record<string, string> {
   if (!port) return {}
   return {
-    [`catalog.port.${port.number}.name`]: port.name,
-    [`catalog.port.${port.number}.protocol`]: port.protocol,
+    [`dx.port.${port.number}.name`]: port.name,
+    [`dx.port.${port.number}.protocol`]: port.protocol,
   }
 }
 
@@ -32,9 +32,9 @@ export function componentLabels(
 ): Record<string, string> {
   const labels: Record<string, string> = {}
 
-  if (opts.type) labels["catalog.type"] = opts.type
-  labels["catalog.owner"] = opts.owner
-  labels["catalog.description"] = opts.description
+  if (opts.type) labels["dx.type"] = opts.type
+  labels["dx.owner"] = opts.owner
+  labels["dx.description"] = opts.description
   if (opts.runtime) labels["dx.runtime"] = opts.runtime
   Object.assign(labels, portLabels(opts.port))
 
@@ -45,9 +45,9 @@ export function resourceLabels(
   opts: ResourceLabelOpts
 ): Record<string, string> {
   const labels: Record<string, string> = {
-    "catalog.type": opts.type,
-    "catalog.owner": opts.owner,
-    "catalog.description": opts.description,
+    "dx.type": opts.type,
+    "dx.owner": opts.owner,
+    "dx.description": opts.description,
     ...portLabels(opts.port),
   }
   return labels

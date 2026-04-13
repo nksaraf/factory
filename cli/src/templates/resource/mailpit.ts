@@ -18,13 +18,13 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       timeout: 5s
       retries: 5
     labels:
-      catalog.type: gateway
-      catalog.owner: ${owner}
-      catalog.description: "Mailpit email testing"
-      catalog.port.1025.name: smtp
-      catalog.port.1025.protocol: tcp
-      catalog.port.8025.name: http
-      catalog.port.8025.protocol: http
+      dx.type: gateway
+      dx.owner: ${owner}
+      dx.description: "Mailpit email testing"
+      dx.port.1025.name: smtp
+      dx.port.1025.protocol: tcp
+      dx.port.8025.name: http
+      dx.port.8025.protocol: http
 `,
     },
   ]

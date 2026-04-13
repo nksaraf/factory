@@ -32,11 +32,7 @@ export function psCommand(app: DxBase) {
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
 
-        const all = getUnifiedServices(
-          project.rootDir,
-          project.composeFiles,
-          project.catalog
-        )
+        const all = getUnifiedServices(project.rootDir, project.composeFiles)
 
         // Filter to running-only unless --all
         const services = flags.all

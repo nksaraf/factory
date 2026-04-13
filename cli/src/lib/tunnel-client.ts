@@ -46,12 +46,15 @@ export interface TunnelClientOptions {
   port: number
   subdomain?: string
   principalId?: string
+  routeFamily?: "dev" | "tunnel"
+  publishPorts?: number[]
 }
 
 export interface TunnelInfo {
   tunnelId: string
   subdomain: string
   url: string
+  portUrls?: { port: number; url: string }[]
 }
 
 export interface ReconnectConfig {
@@ -148,6 +151,8 @@ export async function openTunnel(
         localAddr: `localhost:${opts.port}`,
         subdomain: opts.subdomain,
         principalId: opts.principalId ?? token ?? "anonymous",
+        routeFamily: opts.routeFamily,
+        publishPorts: opts.publishPorts,
       }
       // Include resume info on reconnect
       if (lastTunnelId && lastReceivedSeq > 0) {
@@ -187,6 +192,7 @@ export async function openTunnel(
             tunnelId: msg.tunnelId,
             subdomain: msg.subdomain,
             url: msg.url,
+            portUrls: msg.portUrls,
           }
           if (wasReconnect) {
             callbacks.onReconnected?.(info)
@@ -416,7 +422,10 @@ function forwardWsUpgrade(
   }
 
   try {
-    const localWs = new WebSocket(`ws://localhost:${localPort}${upgrade.url}`)
+    const targetPort =
+      parseInt(upgrade.headers?.["x-dx-target-port"] ?? "", 10) || localPort
+    if (upgrade.headers) delete upgrade.headers["x-dx-target-port"]
+    const localWs = new WebSocket(`ws://localhost:${targetPort}${upgrade.url}`)
     localWs.binaryType = "arraybuffer"
     activeLocalWs?.set(streamId, localWs)
 
@@ -519,7 +528,10 @@ async function forwardToLocal(
   }
 
   try {
-    const url = `http://localhost:${localPort}${req.url}`
+    const targetPort =
+      parseInt(req.headers["x-dx-target-port"] ?? "", 10) || localPort
+    delete req.headers["x-dx-target-port"]
+    const url = `http://localhost:${targetPort}${req.url}`
 
     // Build request body for methods that support it
     let body: ReadableStream<Uint8Array> | undefined

@@ -849,7 +849,7 @@ export function infraCommand(app: DxBase) {
                   (r) => [
                     styleMuted(String(r.id ?? "")),
                     styleBold(String(r.name ?? "")),
-                    String(r.spec?.cpuCores ?? ""),
+                    String(r.spec?.cpu ?? ""),
                     `${Math.round((Number(r.spec?.memoryMb) || 0) / 1024)}GB`,
                     `${r.spec?.diskGb ?? ""}GB`,
                     String(r.spec?.ipAddress ?? ""),
@@ -917,7 +917,7 @@ export function infraCommand(app: DxBase) {
                 detailView<InfraRow>(flags, result, [
                   ["ID", (r) => styleMuted(String(r.id ?? ""))],
                   ["Name", (r) => styleBold(String(r.name ?? ""))],
-                  ["CPU", (r) => String(r.spec?.cpuCores ?? "")],
+                  ["CPU", (r) => String(r.spec?.cpu ?? "")],
                   [
                     "RAM",
                     (r) =>
@@ -952,7 +952,7 @@ export function infraCommand(app: DxBase) {
                   required: true,
                   description: "Estate ID",
                 },
-                cpuCores: {
+                cpu: {
                   type: "number",
                   required: true,
                   description: "CPU cores",
@@ -978,7 +978,7 @@ export function infraCommand(app: DxBase) {
                       name: args.name,
                       spec: {
                         estateId: flags.providerId as string,
-                        cpuCores: flags.cpuCores as number,
+                        cpu: flags.cpu as number,
                         memoryMb: flags.memoryMb as number,
                         diskGb: flags.diskGb as number,
                         datacenterId: flags.datacenterId as string | undefined,

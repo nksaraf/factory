@@ -5,6 +5,7 @@ import type { DxBase } from "../dx-root.js"
 import {
   resolveMachine,
   buildDockerEnv,
+  buildSshArgs,
   checkLocalDocker,
   needsSync,
   findComposeFile,
@@ -41,7 +42,7 @@ export function dockerCommand(app: DxBase) {
         {
           name: "cmd",
           type: "string",
-          rest: true,
+          variadic: true,
           description: "Docker command and arguments to pass through",
         },
       ])
@@ -138,7 +139,7 @@ export function dockerCommand(app: DxBase) {
             {
               name: "cmd",
               type: "string",
-              rest: true,
+              variadic: true,
               description: "Docker compose arguments",
             },
           ])
@@ -146,6 +147,17 @@ export function dockerCommand(app: DxBase) {
             on: {
               type: "string",
               description: "Target machine slug",
+            },
+            project: {
+              type: "string",
+              short: "p",
+              description: "Compose project name on the target machine",
+            },
+            dir: {
+              type: "string",
+              short: "d",
+              description:
+                "Project directory on the target machine (where compose file lives)",
             },
             sync: {
               type: "boolean",
@@ -164,12 +176,48 @@ export function dockerCommand(app: DxBase) {
               ? (rawCmd as string[])
               : [rawCmd as string]
             const slug = flags.on as string | undefined
+            const projectName = flags.project as string | undefined
+            const projectDir = flags.dir as string | undefined
 
             if (!slug) {
               // No --on, proxy to local docker compose
               checkLocalDocker()
+              const localArgs = ["compose"]
+              if (projectName) localArgs.push("-p", projectName)
+              if (projectDir) localArgs.push("--project-directory", projectDir)
+              if (flags.file) localArgs.push("-f", flags.file as string)
+              localArgs.push(...composeArgs)
               try {
-                execFileSync("docker", ["compose", ...composeArgs], {
+                execFileSync("docker", localArgs, { stdio: "inherit" })
+              } catch (err: any) {
+                if (err.status != null) process.exit(err.status)
+                throw err
+              }
+              return
+            }
+
+            const target = await resolveMachine(slug)
+            console.log(
+              styleMuted(
+                `Targeting ${styleBold(target.name)} (${target.kind}) via ${target.dockerHost}`
+              )
+            )
+
+            // When --dir or --project is given, run docker compose over SSH
+            // directly on the remote machine (the paths are remote paths).
+            if (projectDir || projectName) {
+              const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`
+              const parts = ["docker", "compose"]
+              if (projectName) parts.push("-p", shellEscape(projectName))
+              if (projectDir)
+                parts.push("--project-directory", shellEscape(projectDir))
+              if (flags.file)
+                parts.push("-f", shellEscape(flags.file as string))
+              parts.push(...composeArgs.map(shellEscape))
+              const remoteCmd = parts.join(" ")
+              const sshArgs = buildSshArgs(target)
+              try {
+                execFileSync("ssh", [...sshArgs, remoteCmd], {
                   stdio: "inherit",
                 })
               } catch (err: any) {
@@ -179,22 +227,12 @@ export function dockerCommand(app: DxBase) {
               return
             }
 
-            checkLocalDocker()
-            const target = await resolveMachine(slug)
-            console.log(
-              styleMuted(
-                `Targeting ${styleBold(target.name)} (${target.kind}) via ${target.dockerHost}`
-              )
-            )
+            // Only auto-detect compose files for sync when the user
+            // explicitly pointed at a local file. Otherwise just passthrough
+            // via DOCKER_HOST (the remote already has its own project).
+            const explicitFile = flags.file as string | undefined
+            const composeFile = explicitFile ?? undefined
 
-            // Determine compose file for sync detection
-            const composeFile =
-              (flags.file as string) ?? findComposeFile() ?? undefined
-
-            // Auto-sync: if compose file has build contexts or relative volume mounts,
-            // sync files to remote and run there instead of using DOCKER_HOST
-            // Auto-sync unless explicitly disabled with --no-sync,
-            // or force sync with --sync
             const shouldSync =
               flags.sync === true ||
               (flags.sync !== false &&
@@ -211,11 +249,10 @@ export function dockerCommand(app: DxBase) {
               return
             }
 
-            // Default: DOCKER_HOST mode (local compose files, remote daemon)
+            // DOCKER_HOST mode — local docker CLI, remote daemon
+            checkLocalDocker()
             const dockerComposeArgs = ["compose"]
-            if (flags.file) {
-              dockerComposeArgs.push("-f", flags.file as string)
-            }
+            if (flags.file) dockerComposeArgs.push("-f", flags.file as string)
             dockerComposeArgs.push(...composeArgs)
 
             try {

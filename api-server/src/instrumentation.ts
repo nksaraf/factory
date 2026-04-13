@@ -47,3 +47,5 @@ if (enabled) {
 
   console.log("[otel] Telemetry enabled — exporting to", endpoint)
 }
+
+export {}

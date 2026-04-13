@@ -1,6 +1,8 @@
-import { and, eq, isNull, lt, or, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
+import type { PreviewStrategy } from "@smp/factory-shared/schemas/ops"
 import type { Database } from "../../db/connection"
+import { repo } from "../../db/schema/build"
 import { route } from "../../db/schema/infra"
 import { preview } from "../../db/schema/ops"
 import { createRoute, updateRoute } from "../../modules/infra/gateway.service"
@@ -40,20 +42,28 @@ export async function createPreview(
     siteId: string
     ownerId: string
     createdBy: string
+    strategy?: PreviewStrategy
+    systemId?: string
     authMode?: string
     expiresAt?: Date
     imageRef?: string
   }
 ): Promise<{ preview: any; route: any }> {
   const slug = buildPreviewSlug(input)
+  const strategy = input.strategy ?? "deploy"
 
-  // Determine initial phase based on whether image is already provided
-  const initialPhase = input.imageRef ? "deploying" : "building"
+  const initialPhase =
+    strategy === "dev"
+      ? "provisioning"
+      : input.imageRef
+        ? "deploying"
+        : "pending_image"
 
-  // Create preview record
   const [prev] = await db
     .insert(preview)
     .values({
+      slug,
+      strategy,
       siteId: input.siteId,
       sourceBranch: input.sourceBranch,
       prNumber: input.prNumber ?? null,
@@ -61,22 +71,21 @@ export async function createPreview(
       phase: initialPhase,
       spec: {
         name: input.name,
-        slug,
+        createdBy: input.createdBy,
         commitSha: input.commitSha,
         repo: input.repo,
+        systemId: input.systemId,
         runtimeClass: "warm" as const,
         authMode: (input.authMode ?? "team") as "public" | "team" | "private",
         imageRef: input.imageRef ?? null,
-        createdBy: input.createdBy,
         expiresAt: input.expiresAt,
       },
     })
     .returning()
 
-  // Create route
   const previewRoute = await createRoute(db, {
     type: "preview",
-    domain: `${slug}.preview.${process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"}`,
+    domain: `${slug}.preview.${process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"}`,
     targetService: slug,
     protocol: "http",
     status: "active",
@@ -86,8 +95,6 @@ export async function createPreview(
   return {
     preview: {
       ...prev,
-      // Backward compat: flatten common spec fields
-      slug: prev.spec.slug ?? slug,
       name: input.name,
     },
     route: previewRoute,
@@ -104,11 +111,10 @@ export async function getPreview(db: Database, previewId: string) {
 }
 
 export async function getPreviewBySlug(db: Database, slug: string) {
-  // slug is in spec JSONB — filter server-side
   const [row] = await db
     .select()
     .from(preview)
-    .where(sql`${preview.spec}->>'slug' = ${slug}`)
+    .where(eq(preview.slug, slug))
     .limit(1)
   return row ?? null
 }
@@ -125,15 +131,16 @@ export async function updatePreviewStatus(
     githubDeploymentId?: number
     githubCommentId?: number
     lastAccessedAt?: Date
+    workbenchId?: string | null
+    systemDeploymentId?: string | null
+    realmId?: string | null
   }
 ) {
   const existing = await getPreview(db, previewId)
   if (!existing) return null
 
-  // Map status to phase for the column
   const phase = updates.status ?? existing.phase
 
-  // Merge other updates into spec
   const newSpec = {
     ...existing.spec,
     ...(updates.runtimeClass !== undefined
@@ -157,9 +164,20 @@ export async function updatePreviewStatus(
       : {}),
   }
 
+  const columnUpdates: Record<string, unknown> = {
+    phase,
+    spec: newSpec,
+    updatedAt: new Date(),
+  }
+  if (updates.workbenchId !== undefined)
+    columnUpdates.workbenchId = updates.workbenchId
+  if (updates.systemDeploymentId !== undefined)
+    columnUpdates.systemDeploymentId = updates.systemDeploymentId
+  if (updates.realmId !== undefined) columnUpdates.realmId = updates.realmId
+
   const [row] = await db
     .update(preview)
-    .set({ phase, spec: newSpec, updatedAt: new Date() })
+    .set(columnUpdates)
     .where(eq(preview.id, previewId))
     .returning()
 
@@ -172,10 +190,9 @@ export async function expirePreview(db: Database, previewId: string) {
 
   await updatePreviewStatus(db, previewId, { status: "expired" })
 
-  // Expire related routes (stored in spec.systemDeploymentId or matched by domain)
-  const slug = prev.spec.slug
+  const slug = prev.slug
   if (slug) {
-    const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+    const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
     const previewDomain = `${slug}.preview.${gatewayDomain}`
     const routes = await db
       .select()
@@ -205,7 +222,6 @@ export async function extendPreview(
       : new Date()
   const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000)
 
-  // Update preview spec with new expiry
   const newSpec = { ...prev.spec, expiresAt: newExpiry }
   await db
     .update(preview)
@@ -215,9 +231,6 @@ export async function extendPreview(
   return await getPreview(db, previewId)
 }
 
-/**
- * Periodic cleanup job for preview lifecycle transitions.
- */
 export async function runPreviewCleanup(db: Database): Promise<{
   expired: number
   scaledToWarm: number
@@ -229,7 +242,6 @@ export async function runPreviewCleanup(db: Database): Promise<{
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-  // Fetch all active previews for processing
   const activePreviews = await db
     .select()
     .from(preview)
@@ -242,7 +254,6 @@ export async function runPreviewCleanup(db: Database): Promise<{
   for (const p of activePreviews) {
     const spec = p.spec
 
-    // 1. Expire active previews past expiresAt
     if (spec.expiresAt && new Date(spec.expiresAt) < now) {
       await db
         .update(preview)
@@ -252,12 +263,10 @@ export async function runPreviewCleanup(db: Database): Promise<{
       continue
     }
 
-    // Determine last activity time
     const lastAccess = spec.lastAccessedAt
       ? new Date(spec.lastAccessedAt)
       : p.createdAt
 
-    // 2. Hot → Warm (idle > 2h)
     if (spec.runtimeClass === "hot" && lastAccess < twoHoursAgo) {
       const newSpec = { ...spec, runtimeClass: "warm" as const }
       await db
@@ -268,7 +277,6 @@ export async function runPreviewCleanup(db: Database): Promise<{
       continue
     }
 
-    // 3. Warm → Cold (idle > 24h)
     if (spec.runtimeClass === "warm" && lastAccess < twentyFourHoursAgo) {
       const newSpec = { ...spec, runtimeClass: "cold" as const }
       await db
@@ -279,7 +287,6 @@ export async function runPreviewCleanup(db: Database): Promise<{
     }
   }
 
-  // 4. Hard delete expired previews older than 30 days
   const expiredPreviews = await db
     .select()
     .from(preview)
@@ -305,6 +312,7 @@ export async function listPreviews(
     phase?: string
     sourceBranch?: string
     repo?: string
+    strategy?: string
   }
 ) {
   const conditions = []
@@ -312,7 +320,7 @@ export async function listPreviews(
   if (opts?.phase) conditions.push(eq(preview.phase, opts.phase))
   if (opts?.sourceBranch)
     conditions.push(eq(preview.sourceBranch, opts.sourceBranch))
-  // repo is in spec JSONB — filter after query
+  if (opts?.strategy) conditions.push(eq(preview.strategy, opts.strategy))
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
   const base = db.select().from(preview)
@@ -323,4 +331,16 @@ export async function listPreviews(
   }
 
   return rows
+}
+
+export async function resolveSystemIdFromRepo(
+  db: Database,
+  repoFullName: string
+): Promise<string | null> {
+  const [row] = await db
+    .select({ systemId: repo.systemId })
+    .from(repo)
+    .where(eq(repo.slug, repoFullName))
+    .limit(1)
+  return row?.systemId ?? null
 }

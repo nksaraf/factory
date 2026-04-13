@@ -91,7 +91,9 @@ describe("Workbench Controller", () => {
 
     it("GET /workbenches/:id returns detail", async () => {
       const createRes = await createWorkbench()
-      const { data: created } = (await createRes.json()) as ApiResponse
+      const { data: created } = (await createRes.json()) as ApiResponse<{
+        id: string
+      }>
 
       const res = await app.handle(new Request(`${BASE}/${created.id}`))
       expect(res.status).toBe(200)

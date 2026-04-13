@@ -12,7 +12,7 @@ const mockCreateWorkflowRun = mock().mockResolvedValue({
 })
 
 mock.module("../../../lib/workflow-engine.js", () => ({
-  startWorkflow: mockStartWorkflow,
+  start: mockStartWorkflow,
 }))
 
 mock.module("../../../lib/workflow-helpers.js", () => ({

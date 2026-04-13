@@ -967,6 +967,8 @@ export const eventDelivery = orgSchema.table(
       error?: string
       retryCount?: number
       renderOutput?: unknown
+      directNotification?: boolean
+      recipientPrincipalId?: string
     }>(),
     createdAt: createdAt(),
   },

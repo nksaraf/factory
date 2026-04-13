@@ -111,12 +111,12 @@ describe("Gateway Service", () => {
     it("creates and lists routes", async () => {
       const r = await gw.createRoute(db, {
         type: "ingress",
-        domain: "api.test.dx.dev",
+        domain: "api.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
       })
       expect(r.id).toBeTruthy()
-      expect(r.domain).toBe("api.test.dx.dev")
+      expect(r.domain).toBe("api.test.lepton.software")
 
       const { data, total } = await gw.listRoutes(db)
       expect(data).toHaveLength(1)
@@ -126,7 +126,7 @@ describe("Gateway Service", () => {
     it("gets route by id", async () => {
       const created = await gw.createRoute(db, {
         type: "ingress",
-        domain: "api.test.dx.dev",
+        domain: "api.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
       })
@@ -135,7 +135,7 @@ describe("Gateway Service", () => {
       expect(fetched).not.toBeNull()
       expect(fetched!.id).toBe(created.id)
       expect(fetched!.type).toBe("ingress")
-      expect(fetched!.domain).toBe("api.test.dx.dev")
+      expect(fetched!.domain).toBe("api.test.lepton.software")
       expect(fetched!.spec.targetService).toBe("api-svc")
       expect(fetched!.spec.status).toBe("active")
     })
@@ -148,7 +148,7 @@ describe("Gateway Service", () => {
     it("updates route status", async () => {
       const created = await gw.createRoute(db, {
         type: "ingress",
-        domain: "api.test.dx.dev",
+        domain: "api.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
       })
@@ -162,7 +162,7 @@ describe("Gateway Service", () => {
     it("deletes route", async () => {
       const created = await gw.createRoute(db, {
         type: "ingress",
-        domain: "api.test.dx.dev",
+        domain: "api.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
       })
@@ -176,27 +176,27 @@ describe("Gateway Service", () => {
     it("filters routes by kind", async () => {
       await gw.createRoute(db, {
         type: "ingress",
-        domain: "api.test.dx.dev",
+        domain: "api.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
       })
       await gw.createRoute(db, {
-        type: "workbench",
-        domain: "workbench.test.dx.dev",
+        type: "dev",
+        domain: "workbench.test.lepton.software",
         targetService: "workbench-svc",
         createdBy: "test",
       })
 
-      const { data, total } = await gw.listRoutes(db, { type: "workbench" })
+      const { data, total } = await gw.listRoutes(db, { type: "dev" })
       expect(data).toHaveLength(1)
       expect(total).toBe(1)
-      expect(data[0].type).toBe("workbench")
+      expect(data[0].type).toBe("dev")
     })
 
     it("cleans up expired routes", async () => {
       await gw.createRoute(db, {
         type: "ingress",
-        domain: "expired.test.dx.dev",
+        domain: "expired.test.lepton.software",
         targetService: "api-svc",
         createdBy: "test",
         expiresAt: new Date(Date.now() - 10_000),
@@ -272,12 +272,11 @@ describe("Gateway Service", () => {
         createdBy: "test",
       })
       await gw.updateDomain(db, created.id, { status: "pending" })
-      const rowSpec = created.spec as Record<string, unknown>
       await db
         .update(dnsDomain)
         .set({
           spec: {
-            ...rowSpec,
+            ...(created.spec as any),
             verificationToken: "token-123",
             verified: false,
           },
@@ -358,17 +357,17 @@ describe("Gateway Service", () => {
       expect(routes).toHaveLength(3)
 
       const primary = routes.find(
-        (r) => r.domain === "my-workbench.workbench.dx.dev"
+        (r) => r.domain === "my-workbench.dev.lepton.software"
       )
       expect(primary).toBeTruthy()
 
       const port3000 = routes.find(
-        (r) => r.domain === "my-workbench-3000.workbench.dx.dev"
+        (r) => r.domain === "my-workbench-3000.dev.lepton.software"
       )
       expect(port3000).toBeTruthy()
 
       const port8080 = routes.find(
-        (r) => r.domain === "my-workbench-8080.workbench.dx.dev"
+        (r) => r.domain === "my-workbench-8080.dev.lepton.software"
       )
       expect(port8080).toBeTruthy()
     })
@@ -383,7 +382,7 @@ describe("Gateway Service", () => {
       })
 
       expect(routes).toHaveLength(1)
-      expect(routes[0].domain).toBe(`my-workbench.${s.id}.dx.dev`)
+      expect(routes[0].domain).toBe(`my-workbench.${s.id}.lepton.software`)
     })
 
     it("removes target routes", async () => {
@@ -423,7 +422,7 @@ describe("Gateway Service", () => {
 
       expect(t.subdomain).toBe("test-tunnel")
       expect(t.phase).toBe("connected")
-      expect(r.domain).toBe("test-tunnel.tunnel.dx.dev")
+      expect(r.domain).toBe("test-tunnel.tunnel.lepton.software")
       expect(r.type).toBe("tunnel")
     })
 

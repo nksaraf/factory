@@ -216,14 +216,14 @@ describe("Workbench Resource Generator", () => {
     }
   })
 
-  it("IngressRoute hostname is {slug}.workbench.dx.dev", () => {
+  it("IngressRoute hostname is {slug}.dev.lepton.software", () => {
     const orig = process.env.WORKBENCH_INGRESS_ENABLED
     process.env.WORKBENCH_INGRESS_ENABLED = "true"
     try {
       const resources = generateWorkbenchResources(baseWorkbench)
       const ingress = resources.find((r) => r.kind === "IngressRoute")!
       const route = (ingress.spec as unknown as K8sIngressRouteSpec).routes[0]
-      expect(route.match).toContain("my-workbench.workbench.dx.dev")
+      expect(route.match).toContain("my-workbench.dev.lepton.software")
     } finally {
       if (orig === undefined) delete process.env.WORKBENCH_INGRESS_ENABLED
       else process.env.WORKBENCH_INGRESS_ENABLED = orig

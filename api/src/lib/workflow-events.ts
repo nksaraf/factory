@@ -1,21 +1,25 @@
 /**
  * Event Matching Layer
  *
- * Inngest-style content-based routing on top of DBOS send/recv.
+ * Inngest-style content-based routing on top of Workflow SDK webhooks.
  *
  * Workflows call:   waitForEvent("workbench.ready", { workbenchId: "wb-123" }, 600)
  * External code:    emitEvent(db, "workbench.ready", { workbenchId: "wb-123", status: "active" })
  *
  * Matching uses Postgres JSONB containment (<@): the subscription's matchFields
  * must be a subset of the emitted event data. This is GIN-indexable.
+ *
+ * Under the hood, waitForEvent creates a Workflow SDK webhook and stores its URL
+ * in the event_subscription table. emitEvent finds matching subscriptions and
+ * POSTs to their webhook URLs to resume the suspended workflow.
  */
-import { and, eq, gt, lt, sql } from "drizzle-orm"
+import { and, eq, gt, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { eventSubscription } from "../db/schema/org"
 import { logger } from "../logger"
 import { newId } from "./id"
-import { getWorkflowId, recv, send } from "./workflow-engine"
+import { createWebhook, sleep } from "./workflow-engine"
 import { getWorkflowDb } from "./workflow-helpers"
 
 // ── waitForEvent (workflow side) ──────────────────────────
@@ -23,11 +27,9 @@ import { getWorkflowDb } from "./workflow-helpers"
 /**
  * Suspend the current workflow until a matching event arrives.
  *
- * Registers a subscription in the event_subscription table, then
- * calls DBOS recv() to durably suspend. On match, emitEvent() calls
- * send() which wakes the workflow.
- *
- * Uses getWorkflowDb() internally — no db parameter needed.
+ * Creates a Workflow SDK webhook, registers its URL in the
+ * event_subscription table, then races the webhook against a timeout.
+ * When emitEvent() POSTs to the webhook URL, the workflow resumes.
  *
  * @param eventName  - Event name to wait for (e.g. "workbench.ready")
  * @param match      - Fields to match against emitted event data
@@ -39,38 +41,37 @@ export async function waitForEvent<T>(
   timeoutSec: number
 ): Promise<T | null> {
   const db = getWorkflowDb()
-  const wfId = getWorkflowId()
+  const webhook = createWebhook()
 
   logger.info(
-    { eventName, match, workflowRunId: wfId, timeoutSec },
+    { eventName, match, timeoutSec },
     `waitForEvent: subscribing to ${eventName}`
   )
 
-  // Register subscription
+  const subId = newId("esub")
+
+  // Register subscription with webhook URL as the owner
   await db.insert(eventSubscription).values({
-    id: newId("esub"),
+    id: subId,
     kind: "trigger",
     status: "active",
     topicFilter: eventName,
     matchFields: match,
-    ownerKind: "workflow",
-    ownerId: wfId,
+    ownerKind: "webhook",
+    ownerId: webhook.url,
     expiresAt: new Date(Date.now() + timeoutSec * 1000),
   })
 
-  // Durable suspend — zero CPU, survives crashes
-  const result = await recv<T>(eventName, timeoutSec)
+  // Race: webhook resolves when emitEvent POSTs, or timeout
+  const result = await Promise.race([
+    webhook.then((data) => data as T),
+    sleep(`${timeoutSec}s`).then(() => null),
+  ])
 
-  // Clean up subscription (best-effort, may already be gone on timeout)
+  // Clean up subscription (best-effort)
   await db
     .delete(eventSubscription)
-    .where(
-      and(
-        eq(eventSubscription.ownerId, wfId),
-        eq(eventSubscription.topicFilter, eventName),
-        eq(eventSubscription.kind, "trigger")
-      )
-    )
+    .where(eq(eventSubscription.id, subId))
     .catch(() => {})
 
   return result
@@ -79,18 +80,17 @@ export async function waitForEvent<T>(
 // ── emitEvent (external side) ─────────────────────────────
 
 /**
- * Emit an event. Finds all matching subscriptions and wakes the
- * corresponding workflows via send().
+ * Emit an event. Finds all matching subscriptions and POSTs to their
+ * webhook URLs to wake the corresponding workflows.
  *
  * Called from outside workflows (reconcilers, webhook handlers),
  * so requires an explicit db parameter.
  *
  * Matching uses Postgres JSONB containment: subscription.matchFields <@ data.
- * So { workbenchId: "wb-123" } matches { workbenchId: "wb-123", status: "active", cpu: 4 }.
  *
  * @param db        - Database connection
  * @param eventName - Event name (e.g. "workbench.ready")
- * @param data      - Event payload — must contain all fields that subscriptions match on
+ * @param data      - Event payload
  */
 export async function emitEvent(
   db: Database,
@@ -116,13 +116,17 @@ export async function emitEvent(
     `emitEvent: ${eventName} (${subs.length} match${subs.length === 1 ? "" : "es"})`
   )
 
-  // Wake each matching workflow
+  // POST to each matching webhook URL
   for (const sub of subs) {
     logger.info(
-      { eventName, ownerId: sub.ownerId },
-      "emitEvent: waking workflow"
+      { eventName, webhookUrl: sub.ownerId },
+      "emitEvent: posting to webhook"
     )
-    await send(sub.ownerId, data, eventName)
+    await fetch(sub.ownerId, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
 
     // Mark trigger as fired
     await db
@@ -135,10 +139,10 @@ export async function emitEvent(
 // ── Cleanup ───────────────────────────────────────────────
 
 /**
- * Remove expired subscriptions. Call periodically (e.g. every 5 minutes)
- * from a background task or cron.
+ * Remove expired subscriptions. Call periodically (e.g. every 5 minutes).
  */
 export async function cleanupExpiredSubscriptions(db: Database) {
+  const { lt } = await import("drizzle-orm")
   await db
     .delete(eventSubscription)
     .where(

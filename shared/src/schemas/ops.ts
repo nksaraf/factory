@@ -121,12 +121,18 @@ export type Tenant = z.infer<typeof TenantSchema>
 
 // ── System Deployment ───────────────────────────────────────
 
-export const DeploymentKindSchema = z.enum(["production", "staging", "dev"])
+export const DeploymentKindSchema = z.enum([
+  "production",
+  "staging",
+  "dev",
+  "preview",
+])
 export type DeploymentKind = z.infer<typeof DeploymentKindSchema>
 
 export const DeploymentTriggerSchema = z.enum([
   "manual",
   "pr",
+  "preview",
   "release",
   "agent",
   "ci",
@@ -330,6 +336,8 @@ export const WorkbenchTypeSchema = z.enum([
   "worktree",
   "container",
   "vm",
+  "preview-build",
+  "preview-dev",
   "namespace",
   "pod",
   "bare-process",
@@ -435,26 +443,31 @@ export type WorkbenchSnapshot = z.infer<typeof WorkbenchSnapshotSchema>
 
 // ── Preview ─────────────────────────────────────────────────
 
-export const PreviewStatusSchema = z.enum([
+export const PreviewPhaseSchema = z.enum([
   "pending_image",
   "building",
   "deploying",
+  "provisioning",
+  "starting",
   "active",
   "inactive",
   "expired",
   "failed",
 ])
-export type PreviewStatus = z.infer<typeof PreviewStatusSchema>
+export type PreviewPhase = z.infer<typeof PreviewPhaseSchema>
+
+export const PreviewStrategySchema = z.enum(["deploy", "dev"])
+export type PreviewStrategy = z.infer<typeof PreviewStrategySchema>
 
 export const RuntimeClassSchema = z.enum(["hot", "warm", "cold"])
 export type RuntimeClass = z.infer<typeof RuntimeClassSchema>
 
 export const PreviewSpecSchema = z.object({
-  slug: z.string().optional(),
   name: z.string().optional(),
   createdBy: z.string().optional(),
   commitSha: z.string().optional(),
   repo: z.string().optional(),
+  systemId: z.string().optional(),
   runtimeClass: RuntimeClassSchema.default("warm"),
   authMode: z.enum(["public", "team", "private"]).default("team"),
   imageRef: z.string().nullable().optional(),
@@ -463,18 +476,22 @@ export const PreviewSpecSchema = z.object({
   githubDeploymentId: z.number().int().optional(),
   githubCommentId: z.number().int().optional(),
   lastAccessedAt: z.coerce.date().optional(),
-  systemDeploymentId: z.string().optional(),
 })
 export type PreviewSpec = z.infer<typeof PreviewSpecSchema>
 
 export const PreviewSchema = z
   .object({
     id: z.string(),
+    slug: z.string(),
+    strategy: PreviewStrategySchema.default("deploy"),
     siteId: z.string(),
     ownerId: z.string(),
-    phase: PreviewStatusSchema.default("pending_image"),
+    phase: PreviewPhaseSchema.default("pending_image"),
     sourceBranch: z.string(),
     prNumber: z.number().int().nullable(),
+    workbenchId: z.string().nullable().optional(),
+    systemDeploymentId: z.string().nullable().optional(),
+    realmId: z.string().nullable().optional(),
     spec: PreviewSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -802,12 +819,20 @@ export const UpdateRolloutSchema = CreateRolloutSchema.partial()
 export const CreatePreviewSchema = z.object({
   siteId: z.string().min(1),
   ownerId: z.string().optional(),
+  strategy: PreviewStrategySchema.default("deploy"),
   sourceBranch: z.string().min(1),
   prNumber: z.number().int().optional(),
+  workbenchId: z.string().optional(),
+  systemDeploymentId: z.string().optional(),
+  realmId: z.string().optional(),
   spec: PreviewSpecSchema.default({}),
 })
 export const UpdatePreviewSchema = z.object({
-  phase: PreviewStatusSchema.optional(),
+  phase: PreviewPhaseSchema.optional(),
+  strategy: PreviewStrategySchema.optional(),
+  workbenchId: z.string().nullable().optional(),
+  systemDeploymentId: z.string().nullable().optional(),
+  realmId: z.string().nullable().optional(),
   spec: PreviewSpecSchema.partial().optional(),
 })
 

@@ -2,7 +2,7 @@
  * Echo Workflow — minimal smoke test for the workflow engine.
  *
  * Echoes the input message back. Optionally waits for an event before completing.
- * Use this to verify DBOS init, event matching, and the full CLI/REST pipeline
+ * Use this to verify workflow init, event matching, and the full CLI/REST pipeline
  * without needing real adapters.
  *
  * Usage:
@@ -13,7 +13,7 @@
 
 import { z } from "zod"
 
-import { createWorkflow, getWorkflowId } from "../../../lib/workflow-engine"
+import { registerWorkflow } from "../../../lib/workflow-engine"
 import { waitForEvent } from "../../../lib/workflow-events"
 import { getWorkflowDb, updateRun } from "../../../lib/workflow-helpers"
 
@@ -33,23 +33,25 @@ const echoWorkflowInputSchema = z.object({
 
 export type EchoWorkflowInput = z.infer<typeof echoWorkflowInputSchema>
 
-export const echoWorkflow = createWorkflow({
-  name: "echo-workflow",
-  description: "Smoke test: echoes input back, optionally waits for an event",
-  triggerTypes: ["cli", "manual"],
-  inputSchema: echoWorkflowInputSchema as z.ZodType<EchoWorkflowInput>,
-  fn: async (input: EchoWorkflowInput) => {
-    const db = getWorkflowDb()
-    const wfId = getWorkflowId()
+async function echoWorkflowFn(input: EchoWorkflowInput) {
+  "use workflow"
+  const db = getWorkflowDb()
+  // Workflow run ID comes from the REST trigger that created the workflow_run row
+  // and passed it as part of the start() call. For business state tracking we
+  // use the run ID that was pre-allocated by the trigger.
+  const wfId = (input as unknown as { _workflowRunId?: string })._workflowRunId
 
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "running",
       state: { message: input.message },
     })
+  }
 
-    let receivedEvent: unknown = null
+  let receivedEvent: unknown = null
 
-    if (input.waitForEvent) {
+  if (input.waitForEvent) {
+    if (wfId) {
       await updateRun(db, wfId, {
         phase: "waiting",
         state: {
@@ -57,13 +59,15 @@ export const echoWorkflow = createWorkflow({
           waitMatch: input.waitMatch ?? {},
         },
       })
+    }
 
-      receivedEvent = await waitForEvent(
-        input.waitForEvent,
-        input.waitMatch ?? {},
-        input.waitTimeout
-      )
+    receivedEvent = await waitForEvent(
+      input.waitForEvent,
+      input.waitMatch ?? {},
+      input.waitTimeout
+    )
 
+    if (wfId) {
       if (receivedEvent) {
         await updateRun(db, wfId, { state: { receivedEvent } })
       } else {
@@ -72,20 +76,30 @@ export const echoWorkflow = createWorkflow({
         })
       }
     }
+  }
 
-    const output = {
-      echo: input.message,
-      receivedEvent,
-      timestamp: new Date().toISOString(),
-    }
+  const output = {
+    echo: input.message,
+    receivedEvent,
+    timestamp: new Date().toISOString(),
+  }
 
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "completed",
       status: "succeeded",
       output,
       completedAt: new Date(),
     })
+  }
 
-    return output
-  },
+  return output
+}
+
+export const echoWorkflow = registerWorkflow({
+  name: "echo-workflow",
+  description: "Smoke test: echoes input back, optionally waits for an event",
+  triggerTypes: ["cli", "manual"],
+  inputSchema: echoWorkflowInputSchema as z.ZodType<EchoWorkflowInput>,
+  fn: echoWorkflowFn,
 })

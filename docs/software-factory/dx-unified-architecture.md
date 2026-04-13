@@ -279,8 +279,8 @@ services:
     ports:
       - "8080:8080"
     labels:
-      catalog.type: service
-      catalog.owner: platform-eng
+      dx.type: service
+      dx.owner: platform-eng
       dx.runtime: node
       dx.dev.command: "uvicorn main:app --reload --port 8080"
       dx.dev.sync: "./services/api:/app"
@@ -293,8 +293,8 @@ services:
     build:
       context: ./services/worker
     labels:
-      catalog.type: worker
-      catalog.owner: platform-eng
+      dx.type: worker
+      dx.owner: platform-eng
       dx.runtime: node
 
   frontend:
@@ -303,8 +303,8 @@ services:
     ports:
       - "3000:3000"
     labels:
-      catalog.type: website
-      catalog.owner: platform-eng
+      dx.type: website
+      dx.owner: platform-eng
       dx.runtime: node
       dx.dev.command: "pnpm dev"
 
@@ -928,8 +928,8 @@ services:
     ports:
       - "8080:8080"
     labels:
-      catalog.type: service
-      catalog.owner: platform-eng
+      dx.type: service
+      dx.owner: platform-eng
       dx.runtime: node
       dx.dev.command: "uvicorn main:app --reload --port 8080"
       dx.dev.sync: "./services/api:/app"
@@ -942,8 +942,8 @@ services:
     build:
       context: ./services/worker
     labels:
-      catalog.type: worker
-      catalog.owner: platform-eng
+      dx.type: worker
+      dx.owner: platform-eng
 
   frontend:
     build:
@@ -951,8 +951,8 @@ services:
     ports:
       - "3000:3000"
     labels:
-      catalog.type: website
-      catalog.owner: platform-eng
+      dx.type: website
+      dx.owner: platform-eng
       dx.dev.command: "pnpm dev"
 
   postgres:
@@ -970,8 +970,8 @@ services:
 
 Components vs resources are classified automatically:
 
-- **Component**: service with a `build:` block, or explicit `catalog.kind: Component` label
-- **Resource**: service with just an `image:` (postgres, redis, etc.), or explicit `catalog.kind: Resource` label
+- **Component**: service with a `build:` block, or explicit `dx.kind: Component` label
+- **Resource**: service with just an `image:` (postgres, redis, etc.), or explicit `dx.kind: Resource` label
 - Per-component build/dev/test/lint config is specified via `dx.*` labels on each service
 
 ### 8.3 Tier Overrides: `.dx/tiers/`

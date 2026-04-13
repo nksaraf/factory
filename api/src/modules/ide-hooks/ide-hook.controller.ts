@@ -24,9 +24,10 @@ import { logger } from "../../logger"
 import {
   autoAttachSurface,
   findThreadBySessionId,
-  humanizeToolName,
+  humanizeToolCall,
   postToSurface,
   startTypingOnSurface,
+  updateCardActivity,
   updateSurfaceStatus,
 } from "../thread-surfaces/chat-surface"
 
@@ -271,6 +272,7 @@ function buildThreadSpec(p: Record<string, any>): Record<string, any> {
     title: p.title,
     model: normalizeModel(p.model),
     cwd: p.cwd,
+    hostname: p.hostname,
     gitRemoteUrl: p.gitRemoteUrl,
     repoName: p.repoName,
     durationMinutes: p.durationMinutes,
@@ -381,6 +383,7 @@ async function handleSessionStart(
       cwd: payload.cwd,
       gitRemoteUrl: payload.gitRemoteUrl,
       repoName: payload.repoName,
+      hostname: payload.hostname,
       model: payload.model ? normalizeModel(payload.model) : undefined,
       permissionMode: payload.permissionMode,
       sources: [source],
@@ -452,11 +455,15 @@ async function handlePromptSubmit(
     .where(eq(thread.id, threadId))
     .limit(1)
 
-  if (prompt && !(existingSpec[0]?.spec as any)?.firstPrompt) {
+  if (prompt) {
+    const specPatch: Record<string, any> = { lastPrompt: prompt }
+    if (!(existingSpec[0]?.spec as any)?.firstPrompt) {
+      specPatch.firstPrompt = prompt
+    }
     await (db as any)
       .update(thread)
       .set({
-        spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ firstPrompt: prompt })}::jsonb`,
+        spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify(specPatch)}::jsonb`,
         updatedAt: new Date(),
       })
       .where(eq(thread.id, threadId))
@@ -616,12 +623,34 @@ async function handlePlanDocument(
   const factoryUrl = (
     process.env.FACTORY_URL ??
     process.env.BETTER_AUTH_BASE_URL ??
-    ""
+    "https://factory.lepton.software"
   ).replace(/\/$/, "")
   const viewUrl = `${factoryUrl}/api/v1/factory/documents/${slug}/view`
   const msg = `:page_facing_up: *Plan: ${title}*${nextVersion > 1 ? ` (v${nextVersion})` : ""}\n<${viewUrl}|View plan>`
 
   await postToSurface(db, threadId, msg, "assistant")
+
+  // Store plan link on thread spec so it shows as a button on the status card
+  const existingThread = await db
+    .select({ id: thread.id, spec: thread.spec })
+    .from(thread)
+    .where(eq(thread.id, threadId))
+    .limit(1)
+  if (existingThread.length > 0) {
+    const spec = (existingThread[0].spec ?? {}) as Record<string, any>
+    const links: Array<{ label: string; url: string }> = spec.links ?? []
+    const planLink = { label: `📄 ${title}`, url: viewUrl }
+    const idx = links.findIndex((l) => l.url.includes(slug))
+    if (idx >= 0) links[idx] = planLink
+    else links.push(planLink)
+    await db
+      .update(thread)
+      .set({
+        spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ links })}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(eq(thread.id, threadId))
+  }
 
   log.info({ slug, version: nextVersion, threadId }, "Plan document upserted")
 }
@@ -655,6 +684,7 @@ async function handleSessionEnd(
       patch.model = normalizeModel(payload.model)
     if (payload.tokenUsage && !existingSpec.tokenUsage)
       patch.tokenUsage = payload.tokenUsage
+    if (payload.contextWindow) patch.contextWindow = payload.contextWindow
     if (payload.turnCount && !existingSpec.turnCount)
       patch.turnCount = payload.turnCount
     if (payload.toolCallCount && !existingSpec.toolCallCount)
@@ -716,7 +746,8 @@ async function handleAgentStop(
   // Enrich with transcript stats from the hook but don't finalize — the session might continue
   if (payload.model && !existingSpec.model)
     patch.model = normalizeModel(payload.model)
-  if (payload.tokenUsage) patch.tokenUsage = payload.tokenUsage // Always update: tokens grow each turn
+  if (payload.tokenUsage) patch.tokenUsage = payload.tokenUsage
+  if (payload.contextWindow) patch.contextWindow = payload.contextWindow
   if (payload.turnCount) patch.turnCount = payload.turnCount
   if (payload.toolCallCount) patch.toolCallCount = payload.toolCallCount
   if (payload.toolsUsed?.length) patch.toolsUsed = payload.toolsUsed
@@ -931,26 +962,88 @@ export function ideHookController(db: Database) {
                 const prompt = typeof p.prompt === "string" ? p.prompt : ""
                 await postToSurface(db, thrd.id, prompt, "user")
                 await startTypingOnSurface(db, thrd.id, "Thinking...")
+                // Compute live duration from startedAt
+                const liveDuration = thrd.startedAt
+                  ? Math.round(
+                      (Date.now() - new Date(thrd.startedAt).getTime()) / 60000
+                    )
+                  : thrd.spec.durationMinutes
                 // Update the thread-parent status card with the prompt
                 await updateSurfaceStatus(db, thrd.id, {
-                  source: thrd.source ?? body.source,
+                  source: body.source ?? thrd.source,
                   cwd: thrd.spec.cwd,
                   branch: thrd.branch ?? undefined,
+                  host: thrd.spec.hostname,
+                  title: thrd.spec.firstPrompt,
                   prompt,
+                  model: thrd.spec.model,
+                  mode: thrd.spec.mode,
                   turnCount: thrd.spec.turnCount,
                   toolCallCount: thrd.spec.toolCallCount,
-                  toolsUsed: thrd.spec.toolsUsed,
+                  contextWindow: thrd.spec.contextWindow,
+                  durationMinutes: liveDuration,
+                  links: thrd.spec.links,
+                  generatedTopic: thrd.spec.generatedTopic,
+                  generatedDescription: thrd.spec.generatedDescription,
+                  activeStatus: "Working...",
                 })
               }
             } else if (body.eventType === "tool.pre") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
                 const toolName = (payload as any).tool_name ?? "tool"
-                await startTypingOnSurface(
-                  db,
-                  thrd.id,
-                  humanizeToolName(toolName)
-                )
+                const toolInput = (payload as any).tool_input
+                const parsed =
+                  typeof toolInput === "string"
+                    ? (() => {
+                        try {
+                          return JSON.parse(toolInput)
+                        } catch {
+                          return undefined
+                        }
+                      })()
+                    : toolInput
+                const humanized = humanizeToolCall(toolName, parsed)
+                await startTypingOnSurface(db, thrd.id, humanized)
+
+                const liveDur = thrd.startedAt
+                  ? Math.round(
+                      (Date.now() - new Date(thrd.startedAt).getTime()) / 60000
+                    )
+                  : thrd.spec.durationMinutes
+                await updateCardActivity(db, thrd.id, {
+                  source: body.source ?? thrd.source,
+                  cwd: thrd.spec.cwd,
+                  branch: thrd.branch ?? undefined,
+                  host: thrd.spec.hostname,
+                  title: thrd.spec.firstPrompt,
+                  prompt: thrd.spec.lastPrompt,
+                  model: thrd.spec.model,
+                  mode: thrd.spec.mode,
+                  turnCount: thrd.spec.turnCount,
+                  toolCallCount: thrd.spec.toolCallCount,
+                  contextWindow: thrd.spec.contextWindow,
+                  durationMinutes: liveDur,
+                  links: thrd.spec.links,
+                  generatedTopic: thrd.spec.generatedTopic,
+                  generatedDescription: thrd.spec.generatedDescription,
+                  activeStatus: humanized,
+                })
+
+                // Track mode transitions in thread spec
+                if (
+                  toolName === "EnterPlanMode" ||
+                  toolName === "ExitPlanMode"
+                ) {
+                  const newMode =
+                    toolName === "EnterPlanMode" ? "planning" : "executing"
+                  await (db as any)
+                    .update(thread)
+                    .set({
+                      spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ mode: newMode })}::jsonb`,
+                    })
+                    .where(eq(thread.id, thrd.id))
+                }
               }
             } else if (body.eventType === "tool.post") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
@@ -974,15 +1067,29 @@ export function ideHookController(db: Database) {
                   "assistant",
                   { source: body.source }
                 )
+                // Compute live duration from startedAt
+                const stopDuration = thrd.startedAt
+                  ? Math.round(
+                      (Date.now() - new Date(thrd.startedAt).getTime()) / 60000
+                    )
+                  : thrd.spec.durationMinutes
                 // Update the thread-parent status card with fresh stats
                 await updateSurfaceStatus(db, thrd.id, {
-                  source: thrd.source ?? body.source,
+                  source: body.source ?? thrd.source,
                   cwd: thrd.spec.cwd,
                   branch: thrd.branch ?? undefined,
-                  prompt: thrd.spec.firstPrompt,
+                  host: thrd.spec.hostname,
+                  title: thrd.spec.firstPrompt,
+                  prompt: thrd.spec.lastPrompt,
+                  model: thrd.spec.model ?? p.model,
+                  mode: thrd.spec.mode,
                   turnCount: thrd.spec.turnCount ?? p.turnCount,
                   toolCallCount: thrd.spec.toolCallCount ?? p.toolCallCount,
-                  toolsUsed: thrd.spec.toolsUsed ?? p.toolsUsed,
+                  contextWindow: thrd.spec.contextWindow ?? p.contextWindow,
+                  durationMinutes: stopDuration,
+                  links: thrd.spec.links,
+                  generatedTopic: thrd.spec.generatedTopic,
+                  generatedDescription: thrd.spec.generatedDescription,
                 })
               }
             }

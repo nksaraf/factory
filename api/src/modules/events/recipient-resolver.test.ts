@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, mock } from "bun:test"
 import {
   parseRecipient,
   resolveRecipients,
@@ -63,18 +63,18 @@ describe("getNotificationChannels", () => {
 
 describe("resolveRecipients", () => {
   const mockDb = {
-    select: vi.fn(),
+    select: mock(),
   } as any
 
   beforeEach(() => {
-    vi.restoreAllMocks()
+    mock.restore()
   })
 
   it("resolves principal recipient directly", async () => {
     const mockChain = {
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([
+      from: mock().mockReturnThis(),
+      where: mock().mockReturnThis(),
+      limit: mock().mockResolvedValue([
         {
           id: "prin_alice",
           spec: { notificationPreferences: { defaultChannels: ["slack"] } },
@@ -92,15 +92,15 @@ describe("resolveRecipients", () => {
   it("resolves team to member principals", async () => {
     // First call: team lookup
     const teamChain = {
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([{ id: "team_123" }]),
+      from: mock().mockReturnThis(),
+      where: mock().mockReturnThis(),
+      limit: mock().mockResolvedValue([{ id: "team_123" }]),
     }
     // Second call: membership lookup
     const memberChain = {
-      from: vi.fn().mockReturnThis(),
-      innerJoin: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([
+      from: mock().mockReturnThis(),
+      innerJoin: mock().mockReturnThis(),
+      where: mock().mockResolvedValue([
         {
           principalId: "prin_alice",
           principalSpec: {

@@ -2,6 +2,7 @@ import type {
   PreviewSpec,
   SiteSpec,
   SystemDeploymentSpec,
+  WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import { eq } from "drizzle-orm"
 
@@ -17,6 +18,7 @@ import {
   lookupRouteByDomain,
   updateRoute,
 } from "../modules/infra/gateway.service"
+import * as previewSvc from "../services/preview/preview.service"
 import { generatePreviewResources } from "./preview-resource-generator"
 
 const DEFAULT_PREVIEW_PORT = 8080
@@ -25,30 +27,6 @@ const COMMENT_MARKER = (slug: string) => `<!-- dx-preview:${slug} -->`
 
 type PreviewRow = typeof preview.$inferSelect
 
-// TODO: fix type — these fields are stored in preview.spec but not yet in PreviewSpec schema.
-// Add them to PreviewSpecSchema in shared/src/schemas/ops.ts when the schema is updated.
-type PreviewSpecStored = PreviewSpec & {
-  slug?: string
-  workbenchId?: string
-  systemDeploymentId?: string
-  realmId?: string
-}
-
-/** Helper: read preview.spec JSONB as PreviewSpecStored. */
-function pspec(prev: PreviewRow): PreviewSpecStored {
-  return (prev.spec ?? {}) as PreviewSpecStored
-}
-
-/**
- * Preview reconciler state machine.
- *
- * States:
- *   pending_image  → waiting for CI to deliver imageRef via API
- *   building       → internal build sandbox running (future)
- *   deploying      → create K8s Deployment + Service, create route, mark active
- *   active         → serving at {slug}.preview.dx.dev
- *   failed         → build or deploy error
- */
 export class PreviewReconciler {
   constructor(
     private db: Database,
@@ -60,6 +38,18 @@ export class PreviewReconciler {
     const prev = await this.loadPreview(previewId)
     if (!prev) throw new Error(`Preview not found: ${previewId}`)
 
+    if (prev.strategy === "dev") {
+      await this.reconcileDevStrategy(prev)
+    } else {
+      await this.reconcileDeployStrategy(prev)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Deploy strategy state machine
+  // ---------------------------------------------------------------------------
+
+  private async reconcileDeployStrategy(prev: PreviewRow): Promise<void> {
     switch (prev.phase) {
       case "pending_image":
         await this.handlePendingImage(prev)
@@ -74,32 +64,40 @@ export class PreviewReconciler {
       case "inactive":
       case "expired":
       case "failed":
-        // Terminal/stable states — nothing to reconcile
         break
     }
   }
 
   // ---------------------------------------------------------------------------
-  // State handlers
+  // Dev strategy state machine
   // ---------------------------------------------------------------------------
 
-  /**
-   * Pending image: ensure GitHub knows we're waiting for a build.
-   * Posts/updates PR comment and check run, creates GitHub Deployment.
-   */
+  private async reconcileDevStrategy(prev: PreviewRow): Promise<void> {
+    switch (prev.phase) {
+      case "provisioning":
+        await this.handleProvisioning(prev)
+        break
+      case "starting":
+        await this.handleStarting(prev)
+        break
+      case "active":
+      case "inactive":
+      case "expired":
+      case "failed":
+        break
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Deploy strategy handlers
+  // ---------------------------------------------------------------------------
+
   private async handlePendingImage(prev: PreviewRow): Promise<void> {
-    // Ensure we have a GitHub deployment created
-    if (!pspec(prev).githubDeploymentId) {
+    if (!prev.spec.githubDeploymentId) {
       await this.ensureGitHubDeployment(prev)
     }
-
-    // Ensure check run exists as "queued"
     await this.createOrUpdateCheck(prev, "queued")
-
-    // Ensure PR comment exists in "waiting" state
     await this.upsertPRComment(prev, this.buildPendingComment(prev))
-
-    // Update deployment status to pending
     await this.updateDeploymentStatus(
       prev,
       "pending",
@@ -107,28 +105,33 @@ export class PreviewReconciler {
     )
   }
 
-  /**
-   * Building: internal build via sandbox (kept for future use).
-   * If imageRef is set, a prior build succeeded — transition to deploying.
-   */
   private async handleBuilding(prev: PreviewRow): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (spec.imageRef) {
-      await this.updateStatus(prev.id, "deploying")
+      await this.updatePhase(prev.id, "deploying")
       return
     }
 
-    // No workbench linked yet — nothing we can do this cycle
-    if (!spec.workbenchId) return
+    if (!prev.workbenchId) {
+      const wb = await this.createPreviewWorkbench(
+        prev,
+        "preview-build",
+        "provisioning"
+      )
+      if (!wb) return
+      await this.db
+        .update(preview)
+        .set({ workbenchId: wb.id, updatedAt: new Date() })
+        .where(eq(preview.id, prev.id))
+      prev = (await this.loadPreview(prev.id))!
+    }
 
-    const wks = await this.loadWorkbench(spec.workbenchId)
+    const wks = await this.loadWorkbench(prev.workbenchId!)
     if (!wks) return
     const wksSpec = (wks.spec ?? {}) as Record<string, any>
     if (!wksSpec.podName) return
 
-    // Workbench has a direct realmId FK
     if (!wks.realmId) return
-
     const rt = await this.loadRealm(wks.realmId)
     if (!rt) return
     const rtSpec = (rt.spec ?? {}) as Record<string, any>
@@ -143,7 +146,7 @@ export class PreviewReconciler {
     await this.updateDeploymentStatus(prev, "in_progress", "Building image")
 
     const repo = spec.repo ?? ""
-    const slug = spec.slug ?? prev.id
+    const slug = prev.slug ?? prev.id
     const imageTag = `${repo.split("/").pop() ?? "app"}:preview-${slug}`
     const registryPrefix = process.env.PREVIEW_REGISTRY ?? "registry.dx.dev"
     const fullImageRef = `${registryPrefix}/${imageTag}`
@@ -201,21 +204,15 @@ export class PreviewReconciler {
     }
   }
 
-  /**
-   * Deploying: create K8s Deployment + Service from the built image,
-   * create/update the gateway route, mark active.
-   */
   private async handleDeploying(prev: PreviewRow): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!spec.imageRef) {
       await this.failPreview(prev, "No image to deploy")
       return
     }
 
-    // Preview can reference a realm directly via spec.realmId
-    // or via spec.systemDeploymentId → systemDeployment.realmId
     const realmId =
-      spec.realmId ?? (await this.resolveRealmId(spec.systemDeploymentId))
+      prev.realmId ?? (await this.resolveRealmId(prev.systemDeploymentId))
     if (!realmId) {
       await this.failPreview(prev, "No realm for deployment")
       return
@@ -234,7 +231,6 @@ export class PreviewReconciler {
 
     const kubeconfig = rtSpec.kubeconfigRef
 
-    // Load container port from site preview config, fallback to default
     let port = DEFAULT_PREVIEW_PORT
     if (prev.siteId) {
       const [siteRow] = await this.db
@@ -248,7 +244,25 @@ export class PreviewReconciler {
       }
     }
 
-    // Update GitHub status to deploying
+    if (!prev.systemDeploymentId) {
+      const sd = await this.createPreviewSystemDeployment(
+        prev,
+        realmId,
+        "kubernetes"
+      )
+      if (sd) {
+        await this.db
+          .update(preview)
+          .set({
+            systemDeploymentId: sd.id,
+            realmId,
+            updatedAt: new Date(),
+          })
+          .where(eq(preview.id, prev.id))
+        prev = (await this.loadPreview(prev.id))!
+      }
+    }
+
     await this.createOrUpdateCheck(prev, "in_progress")
     await this.upsertPRComment(prev, this.buildDeployingComment(prev))
     await this.updateDeploymentStatus(
@@ -258,7 +272,7 @@ export class PreviewReconciler {
     )
 
     try {
-      const slug = spec.slug ?? prev.id
+      const slug = prev.slug ?? prev.id
       const resources = generatePreviewResources({
         previewSlug: slug,
         previewId: prev.id,
@@ -270,8 +284,7 @@ export class PreviewReconciler {
         await this.kube.apply(kubeconfig, resource)
       }
 
-      // Create or update gateway route
-      const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+      const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
       const previewDomain = `${slug}.preview.${gatewayDomain}`
       const existingRoute = await lookupRouteByDomain(this.db, previewDomain)
       const previewServiceHost = `preview-${slug}.preview-${slug}.svc.cluster.local`
@@ -288,19 +301,18 @@ export class PreviewReconciler {
           domain: previewDomain,
           targetService: previewServiceHost,
           targetPort: port,
-          systemDeploymentId: spec.systemDeploymentId,
+          systemDeploymentId: prev.systemDeploymentId ?? undefined,
           status: "active",
           createdBy: "reconciler",
         })
       }
 
-      // Mark preview as active
-      await this.updateStatus(prev.id, "active")
-      if (spec.systemDeploymentId) {
+      await this.updatePhase(prev.id, "active")
+      if (prev.systemDeploymentId) {
         const sdExisting = await this.db
           .select()
           .from(systemDeployment)
-          .where(eq(systemDeployment.id, spec.systemDeploymentId))
+          .where(eq(systemDeployment.id, prev.systemDeploymentId))
           .limit(1)
           .then((r) => r[0])
         const sdSpec: SystemDeploymentSpec = {
@@ -310,7 +322,7 @@ export class PreviewReconciler {
         await this.db
           .update(systemDeployment)
           .set({ spec: sdSpec })
-          .where(eq(systemDeployment.id, spec.systemDeploymentId))
+          .where(eq(systemDeployment.id, prev.systemDeploymentId))
       }
 
       logger.info(
@@ -318,7 +330,6 @@ export class PreviewReconciler {
         "Preview deployed and active"
       )
 
-      // Post success to GitHub
       const previewUrl = `https://${previewDomain}`
       await this.onPreviewActive(prev, previewUrl)
     } catch (err) {
@@ -327,18 +338,315 @@ export class PreviewReconciler {
   }
 
   // ---------------------------------------------------------------------------
-  // GitHub integration: PR comments (auto-updating)
+  // Dev strategy handlers
   // ---------------------------------------------------------------------------
 
-  /**
-   * Upsert a PR comment using a hidden marker to find existing comments.
-   * Creates on first call, updates on subsequent calls.
-   */
+  private async handleProvisioning(prev: PreviewRow): Promise<void> {
+    if (!prev.spec.githubDeploymentId) {
+      await this.ensureGitHubDeployment(prev)
+    }
+    await this.createOrUpdateCheck(prev, "in_progress")
+    await this.upsertPRComment(prev, this.buildProvisioningComment(prev))
+
+    if (!prev.workbenchId) {
+      const wb = await this.createPreviewWorkbench(
+        prev,
+        "preview-dev",
+        "provisioning"
+      )
+      if (!wb) {
+        await this.failPreview(prev, "Failed to create dev workbench")
+        return
+      }
+      await this.db
+        .update(preview)
+        .set({ workbenchId: wb.id, updatedAt: new Date() })
+        .where(eq(preview.id, prev.id))
+      prev = (await this.loadPreview(prev.id))!
+    }
+
+    const wks = await this.loadWorkbench(prev.workbenchId!)
+    if (!wks) return
+    if (!wks.realmId) return
+
+    const rt = await this.loadRealm(wks.realmId)
+    if (!rt) return
+    const rtSpec = (rt.spec ?? {}) as Record<string, any>
+    if (!rtSpec.kubeconfigRef) return
+
+    const kubeconfig = rtSpec.kubeconfigRef
+    const wksSpec = (wks.spec ?? {}) as Record<string, any>
+    const ns = `workbench-${wks.slug}`
+
+    try {
+      if (!wksSpec.podName) {
+        logger.info(
+          { previewId: prev.id, workbenchId: wks.id },
+          "Waiting for workbench pod to be ready"
+        )
+        return
+      }
+
+      const repo = prev.spec.repo ?? ""
+      const branch = prev.sourceBranch
+      const cloneResult = await this.kube.execInPod(
+        kubeconfig,
+        ns,
+        wksSpec.podName,
+        "workbench",
+        [
+          "git",
+          "clone",
+          "--branch",
+          branch,
+          "--depth",
+          "1",
+          `https://github.com/${repo}.git`,
+          "/workspaces/project",
+        ],
+        { timeoutMs: 300_000 }
+      )
+
+      if (cloneResult.exitCode !== 0) {
+        await this.failPreview(
+          prev,
+          `Clone failed: ${cloneResult.stderr.slice(0, 500)}`
+        )
+        return
+      }
+
+      await this.db
+        .update(preview)
+        .set({
+          phase: "starting",
+          realmId: wks.realmId,
+          updatedAt: new Date(),
+        })
+        .where(eq(preview.id, prev.id))
+
+      logger.info(
+        { previewId: prev.id, workbenchId: wks.id },
+        "Dev workbench provisioned, starting dx dev"
+      )
+    } catch (err) {
+      await this.failPreview(
+        prev,
+        `Provisioning error: ${String(err).slice(0, 500)}`
+      )
+    }
+  }
+
+  private async handleStarting(prev: PreviewRow): Promise<void> {
+    const wks = prev.workbenchId
+      ? await this.loadWorkbench(prev.workbenchId)
+      : null
+    if (!wks || !wks.realmId) {
+      await this.failPreview(prev, "No workbench for dev preview")
+      return
+    }
+
+    const rt = await this.loadRealm(wks.realmId)
+    if (!rt) {
+      await this.failPreview(prev, "Realm not found for dev preview")
+      return
+    }
+    const rtSpec = (rt.spec ?? {}) as Record<string, any>
+    if (!rtSpec.kubeconfigRef) {
+      await this.failPreview(prev, "No kubeconfig for dev realm")
+      return
+    }
+
+    const kubeconfig = rtSpec.kubeconfigRef
+    const wksSpec = (wks.spec ?? {}) as Record<string, any>
+    if (!wksSpec.podName) return
+
+    const ns = `workbench-${wks.slug}`
+
+    try {
+      if (!prev.systemDeploymentId) {
+        const sd = await this.createPreviewSystemDeployment(
+          prev,
+          wks.realmId,
+          "native"
+        )
+        if (sd) {
+          await this.db
+            .update(preview)
+            .set({ systemDeploymentId: sd.id, updatedAt: new Date() })
+            .where(eq(preview.id, prev.id))
+          prev = (await this.loadPreview(prev.id))!
+        }
+      }
+
+      await this.kube.execInPod(
+        kubeconfig,
+        ns,
+        wksSpec.podName,
+        "workbench",
+        [
+          "sh",
+          "-c",
+          "cd /workspaces/project && nohup dx dev > /tmp/dx-dev.log 2>&1 &",
+        ],
+        { timeoutMs: 30_000 }
+      )
+
+      const slug = prev.slug ?? prev.id
+      const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
+      const previewDomain = `${slug}.preview.${gatewayDomain}`
+      const previewServiceHost = `preview-${slug}.preview-${slug}.svc.cluster.local`
+      const port = DEFAULT_PREVIEW_PORT
+
+      const existingRoute = await lookupRouteByDomain(this.db, previewDomain)
+      if (existingRoute) {
+        await updateRoute(this.db, existingRoute.id, {
+          targetService: previewServiceHost,
+          targetPort: port,
+          status: "active",
+        })
+      } else {
+        await createRoute(this.db, {
+          type: "preview",
+          domain: previewDomain,
+          targetService: previewServiceHost,
+          targetPort: port,
+          systemDeploymentId: prev.systemDeploymentId ?? undefined,
+          status: "active",
+          createdBy: "reconciler",
+        })
+      }
+
+      await this.updatePhase(prev.id, "active")
+
+      if (prev.systemDeploymentId) {
+        const sdExisting = await this.db
+          .select()
+          .from(systemDeployment)
+          .where(eq(systemDeployment.id, prev.systemDeploymentId))
+          .limit(1)
+          .then((r) => r[0])
+        const sdSpec: SystemDeploymentSpec = {
+          ...(sdExisting?.spec ?? ({} as SystemDeploymentSpec)),
+          status: "active",
+        }
+        await this.db
+          .update(systemDeployment)
+          .set({ spec: sdSpec })
+          .where(eq(systemDeployment.id, prev.systemDeploymentId))
+      }
+
+      const previewUrl = `https://${previewDomain}`
+      await this.onPreviewActive(prev, previewUrl)
+
+      logger.info(
+        { previewId: prev.id, domain: previewDomain },
+        "Dev preview active"
+      )
+    } catch (err) {
+      await this.failPreview(
+        prev,
+        `Starting error: ${String(err).slice(0, 500)}`
+      )
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Entity creation helpers
+  // ---------------------------------------------------------------------------
+
+  private async createPreviewWorkbench(
+    prev: PreviewRow,
+    type: string,
+    lifecycle: string
+  ) {
+    try {
+      const slug = `preview-${prev.slug ?? prev.id}`
+      const [wb] = await this.db
+        .insert(workbench)
+        .values({
+          slug,
+          name: `Preview workbench: ${prev.slug ?? prev.id}`,
+          type,
+          siteId: prev.siteId,
+          ownerId: prev.ownerId,
+          spec: {
+            lifecycle,
+            trigger: "preview",
+            sourceBranch: prev.sourceBranch,
+            commitSha: prev.spec.commitSha,
+          } as unknown as WorkbenchSpec,
+        })
+        .returning()
+      return wb
+    } catch (err) {
+      logger.error(
+        { previewId: prev.id, err },
+        "Failed to create preview workbench"
+      )
+      return null
+    }
+  }
+
+  private async createPreviewSystemDeployment(
+    prev: PreviewRow,
+    realmId: string,
+    runtime: string
+  ) {
+    const systemId =
+      prev.spec.systemId ?? (await this.resolveSystemIdFromRepo(prev.spec.repo))
+    if (!systemId) {
+      logger.warn(
+        { previewId: prev.id },
+        "No systemId found for preview, skipping SD creation"
+      )
+      return null
+    }
+
+    try {
+      const slug = `preview-${prev.slug ?? prev.id}`
+      const [sd] = await this.db
+        .insert(systemDeployment)
+        .values({
+          slug,
+          name: `Preview: ${prev.slug ?? prev.id}`,
+          type: "preview",
+          systemId,
+          siteId: prev.siteId,
+          realmId,
+          workbenchId: prev.workbenchId,
+          spec: {
+            status: "provisioning",
+            trigger: "preview",
+            runtime,
+          } as unknown as SystemDeploymentSpec,
+        })
+        .returning()
+      return sd
+    } catch (err) {
+      logger.error(
+        { previewId: prev.id, err },
+        "Failed to create preview system deployment"
+      )
+      return null
+    }
+  }
+
+  private async resolveSystemIdFromRepo(
+    repoFullName?: string
+  ): Promise<string | null> {
+    if (!repoFullName) return null
+    return previewSvc.resolveSystemIdFromRepo(this.db, repoFullName)
+  }
+
+  // ---------------------------------------------------------------------------
+  // GitHub integration: PR comments
+  // ---------------------------------------------------------------------------
+
   private async upsertPRComment(prev: PreviewRow, body: string): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!this.gitHost || !prev.prNumber || !spec.repo) return
 
-    const slug = spec.slug ?? prev.id
+    const slug = prev.slug ?? prev.id
     const marker = COMMENT_MARKER(slug)
     const fullBody = `${marker}\n${body}`
 
@@ -391,11 +699,11 @@ export class PreviewReconciler {
   // ---------------------------------------------------------------------------
 
   private async ensureGitHubDeployment(prev: PreviewRow): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!this.gitHost || !spec.repo) return
 
     try {
-      const slug = spec.slug ?? prev.id
+      const slug = prev.slug ?? prev.id
       const { deploymentId } = await this.gitHost.createDeployment(spec.repo, {
         ref: spec.commitSha ?? "",
         environment: `preview/${slug}`,
@@ -428,7 +736,7 @@ export class PreviewReconciler {
     description: string,
     environmentUrl?: string
   ): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!this.gitHost || !spec.repo || !spec.githubDeploymentId) return
 
     try {
@@ -457,7 +765,7 @@ export class PreviewReconciler {
     prev: PreviewRow,
     status: "queued" | "in_progress"
   ): Promise<string | null> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!this.gitHost || !prev.prNumber || !spec.repo) return null
 
     const commitSha = spec.commitSha ?? ""
@@ -467,8 +775,11 @@ export class PreviewReconciler {
         summary: `Waiting for CI to build and push image for \`${prev.sourceBranch}\``,
       },
       in_progress: {
-        title: "Deploying Preview",
-        summary: `Deploying preview for \`${prev.sourceBranch}\` (\`${commitSha.slice(0, 7)}\`)${spec.imageRef ? `\n\n**Image:** \`${spec.imageRef}\`` : ""}`,
+        title:
+          prev.strategy === "dev"
+            ? "Provisioning Dev Preview"
+            : "Deploying Preview",
+        summary: `${prev.strategy === "dev" ? "Provisioning dev environment" : "Deploying preview"} for \`${prev.sourceBranch}\` (\`${commitSha.slice(0, 7)}\`)${spec.imageRef ? `\n\n**Image:** \`${spec.imageRef}\`` : ""}`,
       },
     }
 
@@ -495,7 +806,7 @@ export class PreviewReconciler {
     previewUrl?: string,
     errorMessage?: string
   ): Promise<void> {
-    const spec = pspec(prev)
+    const spec = prev.spec
     if (!this.gitHost || !spec.repo) return
 
     const commitSha = spec.commitSha ?? ""
@@ -511,7 +822,9 @@ export class PreviewReconciler {
               `Preview deployed successfully.`,
               "",
               `**URL:** ${previewUrl}`,
-              `**Image:** \`${spec.imageRef}\``,
+              prev.strategy === "deploy"
+                ? `**Image:** \`${spec.imageRef}\``
+                : `**Strategy:** dev (source-based)`,
               `**Commit:** \`${commitSha.slice(0, 7)}\``,
               `**Expires:** ${expiresAt}`,
             ].join("\n"),
@@ -555,8 +868,7 @@ export class PreviewReconciler {
       previewUrl
     )
 
-    // Emit workflow event for preview activation
-    const spec = pspec(prev)
+    const spec = prev.spec
     await emitEvent(this.db, {
       topic: "ops.preview.ready",
       source: "reconciler",
@@ -566,7 +878,8 @@ export class PreviewReconciler {
       data: {
         branchName: prev.sourceBranch,
         previewUrl,
-        previewSlug: spec.slug ?? "",
+        previewSlug: prev.slug ?? "",
+        strategy: prev.strategy,
       },
     }).catch((err) => {
       logger.warn(
@@ -577,7 +890,7 @@ export class PreviewReconciler {
   }
 
   private async failPreview(prev: PreviewRow, message: string): Promise<void> {
-    await this.updateStatus(prev.id, "failed", message)
+    await this.updatePhase(prev.id, "failed", message)
     await this.upsertPRComment(prev, this.buildFailedComment(prev, message))
     await this.completeCheck(prev, "failure", undefined, message)
     await this.updateDeploymentStatus(prev, "failure", message)
@@ -589,7 +902,7 @@ export class PreviewReconciler {
   // ---------------------------------------------------------------------------
 
   private buildPendingComment(prev: PreviewRow): string {
-    const spec = pspec(prev)
+    const spec = prev.spec
     const commitSha = spec.commitSha ?? ""
     return [
       `### \u23f3 Preview Deployment \u2014 Waiting for Build`,
@@ -607,7 +920,7 @@ export class PreviewReconciler {
   }
 
   private buildBuildingComment(prev: PreviewRow): string {
-    const commitSha = pspec(prev).commitSha ?? ""
+    const commitSha = prev.spec.commitSha ?? ""
     return [
       `### \ud83d\udd28 Preview Deployment \u2014 Building`,
       "",
@@ -622,7 +935,7 @@ export class PreviewReconciler {
   }
 
   private buildDeployingComment(prev: PreviewRow): string {
-    const spec = pspec(prev)
+    const spec = prev.spec
     const commitSha = spec.commitSha ?? ""
     return [
       `### \ud83d\udd28 Preview Deployment \u2014 Deploying`,
@@ -637,25 +950,44 @@ export class PreviewReconciler {
     ].join("\n")
   }
 
+  private buildProvisioningComment(prev: PreviewRow): string {
+    const commitSha = prev.spec.commitSha ?? ""
+    return [
+      `### \ud83d\udd28 Dev Preview \u2014 Provisioning`,
+      "",
+      `| | |`,
+      `|---|---|`,
+      `| **Status** | \ud83d\udea7 Setting up dev environment |`,
+      `| **Strategy** | \`dev\` (source-based) |`,
+      `| **Branch** | \`${prev.sourceBranch}\` |`,
+      `| **Commit** | \`${commitSha.slice(0, 7)}\` |`,
+      "",
+      `> Powered by [dx.dev](https://dx.dev)`,
+    ].join("\n")
+  }
+
   private buildActiveComment(prev: PreviewRow, previewUrl: string): string {
-    const spec = pspec(prev)
+    const spec = prev.spec
     const commitSha = spec.commitSha ?? ""
-    const slug = spec.slug ?? prev.id
+    const slug = prev.slug ?? prev.id
     const expiresAtDate = spec.expiresAt ? new Date(spec.expiresAt) : null
     const expiresAt = expiresAtDate
       ? `in ${Math.ceil((expiresAtDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000))} days`
       : "never"
 
     return [
-      `### \u2705 Preview Deployment \u2014 Live`,
+      `### \u2705 Preview ${prev.strategy === "dev" ? "(Dev)" : "Deployment"} \u2014 Live`,
       "",
       `| | |`,
       `|---|---|`,
       `| **Preview** | \ud83d\udd17 [${previewUrl.replace("https://", "")}](${previewUrl}) |`,
       `| **Status** | \u2705 Active |`,
+      `| **Strategy** | \`${prev.strategy}\` |`,
       `| **Branch** | \`${prev.sourceBranch}\` |`,
       `| **Commit** | \`${commitSha.slice(0, 7)}\` |`,
-      `| **Image** | \`${spec.imageRef}\` |`,
+      ...(prev.strategy === "deploy" && spec.imageRef
+        ? [`| **Image** | \`${spec.imageRef}\` |`]
+        : []),
       `| **Expires** | ${expiresAt} |`,
       "",
       `<details>`,
@@ -681,13 +1013,13 @@ export class PreviewReconciler {
   }
 
   private buildFailedComment(prev: PreviewRow, errorMessage: string): string {
-    const commitSha = pspec(prev).commitSha ?? ""
+    const commitSha = prev.spec.commitSha ?? ""
     return [
-      `### \u274c Preview Deployment \u2014 Failed`,
+      `### \u274c Preview ${prev.strategy === "dev" ? "(Dev)" : "Deployment"} \u2014 Failed`,
       "",
       `| | |`,
       `|---|---|`,
-      `| **Status** | \u274c Deploy failed |`,
+      `| **Status** | \u274c ${prev.strategy === "dev" ? "Provisioning" : "Deploy"} failed |`,
       `| **Branch** | \`${prev.sourceBranch}\` |`,
       `| **Commit** | \`${commitSha.slice(0, 7)}\` |`,
       "",
@@ -719,22 +1051,22 @@ export class PreviewReconciler {
   // DB helpers
   // ---------------------------------------------------------------------------
 
-  private async updateStatus(
+  private async updatePhase(
     previewId: string,
     phase: string,
     statusMessage?: string
   ): Promise<void> {
     const existing = await this.loadPreview(previewId)
-    const existingSpec: PreviewSpecStored =
-      (existing?.spec as PreviewSpecStored) ?? ({} as PreviewSpecStored)
+    if (!existing) return
+    const specUpdate =
+      statusMessage !== undefined
+        ? { ...existing.spec, statusMessage }
+        : existing.spec
     await this.db
       .update(preview)
       .set({
         phase,
-        spec: {
-          ...existingSpec,
-          ...(statusMessage !== undefined ? { statusMessage } : {}),
-        },
+        spec: specUpdate,
         updatedAt: new Date(),
       })
       .where(eq(preview.id, previewId))
@@ -767,9 +1099,8 @@ export class PreviewReconciler {
     return row ?? null
   }
 
-  /** Resolve realmId from a systemDeployment's realmId FK. */
   private async resolveRealmId(
-    systemDeploymentId?: string
+    systemDeploymentId?: string | null
   ): Promise<string | null> {
     if (!systemDeploymentId) return null
     const [sd] = await this.db

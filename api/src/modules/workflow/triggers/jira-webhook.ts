@@ -21,7 +21,7 @@ import {
   resolveActorPrincipal,
   updateWebhookEventStatus,
 } from "../../../lib/webhook-events"
-import { startWorkflow } from "../../../lib/workflow-engine"
+import { start } from "../../../lib/workflow-engine"
 import { createWorkflowRun } from "../../../lib/workflow-helpers"
 import { logger } from "../../../logger"
 import { type GodWorkflowInput, godWorkflow } from "../workflows/god-workflow"
@@ -323,7 +323,7 @@ export function jiraWebhookTrigger(db: Database) {
         workbenchTtl: (spec?.workbenchTtl as string) ?? "4h",
       }
 
-      // 7. Create workflow run + start DBOS workflow
+      // 7. Create workflow run + start Workflow SDK workflow
       const workflowRunId = newId("wfr")
       await createWorkflowRun(db, {
         workflowRunId,
@@ -333,7 +333,8 @@ export function jiraWebhookTrigger(db: Database) {
         triggerPayload: payload,
       })
 
-      await startWorkflow(godWorkflow, workflowInput, workflowRunId)
+      const inputWithRunId = { ...workflowInput, _workflowRunId: workflowRunId }
+      await start(godWorkflow, [inputWithRunId])
 
       if (eventId)
         await updateWebhookEventStatus(db, eventId, { status: "processed" })

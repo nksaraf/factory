@@ -241,12 +241,12 @@ describe("LokiObservabilityAdapter", () => {
 
   it("maps Pino numeric levels correctly", async () => {
     const levels = [
-      { input: 10, expected: "debug" },
-      { input: 20, expected: "debug" },
-      { input: 30, expected: "info" },
-      { input: 40, expected: "warn" },
-      { input: 50, expected: "error" },
-      { input: 60, expected: "fatal" },
+      { input: 10, expected: "debug" as const },
+      { input: 20, expected: "debug" as const },
+      { input: 30, expected: "info" as const },
+      { input: 40, expected: "warn" as const },
+      { input: 50, expected: "error" as const },
+      { input: 60, expected: "fatal" as const },
     ]
     for (const { input, expected } of levels) {
       fetchSpy.mockResolvedValueOnce(

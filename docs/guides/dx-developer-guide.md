@@ -189,33 +189,33 @@ There is no separate `catalog.yaml`. The catalog is derived from docker-compose 
 
 ### How dx Classifies Services
 
-- **Component**: A service with a `build:` block (it has source code to build). Or explicitly: `catalog.kind: Component`
-- **Resource**: A service with just an `image:` like `postgres:16-alpine` (infrastructure). Or explicitly: `catalog.kind: Resource`
+- **Component**: A service with a `build:` block (it has source code to build). Or explicitly: `dx.kind: Component`
+- **Resource**: A service with just an `image:` like `postgres:16-alpine` (infrastructure). Or explicitly: `dx.kind: Resource`
 
-### Catalog Labels (`catalog.*`)
+### Catalog Labels (`dx.*`)
 
 These describe what a service IS in the software catalog:
 
 ```yaml
 labels:
-  catalog.type: service # service, worker, website, library, database, cache, queue
-  catalog.owner: platform-eng # Team that owns this component
-  catalog.description: "User API"
-  catalog.tags: "auth,api"
-  catalog.lifecycle: production # experimental, development, production, deprecated
+  dx.type: service # service, worker, website, library, database, cache, queue
+  dx.owner: platform-eng # Team that owns this component
+  dx.description: "User API"
+  dx.tags: "auth,api"
+  dx.lifecycle: production # experimental, development, production, deprecated
 
   # Port metadata
-  catalog.port.8080.name: http
-  catalog.port.8080.protocol: http
+  dx.port.8080.name: http
+  dx.port.8080.protocol: http
 
   # API declarations
-  catalog.api.provides: "user-api"
-  catalog.api.consumes: "auth-api"
+  dx.api.provides: "user-api"
+  dx.api.consumes: "auth-api"
 
   # Connection references
-  catalog.connection.auth.module: auth
-  catalog.connection.auth.component: auth-service
-  catalog.connection.auth.env_var: AUTH_URL
+  dx.connection.auth.module: auth
+  dx.connection.auth.component: auth-service
+  dx.connection.auth.env_var: AUTH_URL
 ```
 
 ### Development Labels (`dx.*`)
@@ -283,8 +283,8 @@ services:
     ports:
       - "8080:8080"
     labels:
-      catalog.type: service
-      catalog.owner: platform-eng
+      dx.type: service
+      dx.owner: platform-eng
       dx.runtime: node
       dx.dev.command: "pnpm dev"
       dx.test: "pnpm test"
@@ -298,8 +298,8 @@ services:
     build:
       context: ./services/worker
     labels:
-      catalog.type: worker
-      catalog.owner: platform-eng
+      dx.type: worker
+      dx.owner: platform-eng
 
   postgres:
     image: postgres:16-alpine

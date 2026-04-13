@@ -43,6 +43,8 @@ import {
   workTrackerProjectMapping,
   workTrackerProvider,
 } from "../../db/schema/build"
+import { team } from "../../db/schema/org"
+import { system } from "../../db/schema/software"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
 import { GitHostService } from "./git-host.service"
@@ -65,6 +67,26 @@ export function buildController(db: Database) {
           idColumn: repo.id,
           prefix: "repo",
           kindAlias: "repo",
+          slugRefs: {
+            systemSlug: {
+              fk: "systemId",
+              lookupTable: system,
+              lookupSlugCol: system.slug,
+              lookupIdCol: system.id,
+            },
+            teamSlug: {
+              fk: "teamId",
+              lookupTable: team,
+              lookupSlugCol: team.slug,
+              lookupIdCol: team.id,
+            },
+            gitHostProviderSlug: {
+              fk: "gitHostProviderId",
+              lookupTable: gitHostProvider,
+              lookupSlugCol: gitHostProvider.slug,
+              lookupIdCol: gitHostProvider.id,
+            },
+          },
           createSchema: CreateRepoSchema,
           updateSchema: UpdateRepoSchema,
           deletable: "bitemporal",
@@ -343,6 +365,7 @@ export const buildOntologyConfigs: Pick<
   | "slugColumn"
   | "idColumn"
   | "prefix"
+  | "slugRefs"
   | "kindAlias"
   | "createSchema"
 >[] = [
@@ -354,6 +377,26 @@ export const buildOntologyConfigs: Pick<
     idColumn: repo.id,
     prefix: "repo",
     kindAlias: "repo",
+    slugRefs: {
+      systemSlug: {
+        fk: "systemId",
+        lookupTable: system,
+        lookupSlugCol: system.slug,
+        lookupIdCol: system.id,
+      },
+      teamSlug: {
+        fk: "teamId",
+        lookupTable: team,
+        lookupSlugCol: team.slug,
+        lookupIdCol: team.id,
+      },
+      gitHostProviderSlug: {
+        fk: "gitHostProviderId",
+        lookupTable: gitHostProvider,
+        lookupSlugCol: gitHostProvider.slug,
+        lookupIdCol: gitHostProvider.id,
+      },
+    },
   },
   {
     entity: "git-host-providers",

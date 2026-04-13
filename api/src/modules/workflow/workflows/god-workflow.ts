@@ -12,7 +12,7 @@ import type {
 } from "../../../adapters/git-host-adapter"
 import type { WorkTrackerType } from "../../../adapters/work-tracker-adapter"
 import { slugifyFromLabel } from "../../../lib/slug"
-import { createWorkflow, getWorkflowId } from "../../../lib/workflow-engine"
+import { registerWorkflow } from "../../../lib/workflow-engine"
 import { waitForEvent } from "../../../lib/workflow-events"
 import { getWorkflowDb, updateRun } from "../../../lib/workflow-helpers"
 import { createAgentJob, routeCommentToAgent } from "../steps/agent"
@@ -48,176 +48,198 @@ const godWorkflowInputSchema = z.object({
   /** Optional overrides */
   baseBranch: z.string().default("main"),
   workbenchTtl: z.string().default("4h"),
+
+  /** Internal: workflow run ID for business state tracking */
+  _workflowRunId: z.string().optional(),
 })
 
 export type GodWorkflowInput = z.infer<typeof godWorkflowInputSchema>
 
 // ── Workflow ─────────────────────────────────────────────
 
-export const godWorkflow = createWorkflow({
-  name: "god-workflow",
-  description: "Jira ticket → branch → workbench → agent → PR → preview",
-  triggerTypes: ["jira_webhook", "cli", "manual"],
-  inputSchema: godWorkflowInputSchema as z.ZodType<GodWorkflowInput>,
-  fn: async (input: GodWorkflowInput) => {
-    // DB is resolved from the module-level accessor (not passed in input)
-    // because DBOS serializes workflow inputs and Database is not serializable.
-    const db = getWorkflowDb()
-    const wfId = getWorkflowId()
+async function godWorkflowFn(input: GodWorkflowInput) {
+  "use workflow"
+  const db = getWorkflowDb()
+  const wfId = input._workflowRunId
 
-    // ── Phase 1: Fetch issue details ──
-    const issue = await fetchIssue({
-      issueId: input.issueKey,
-      apiUrl: input.workTracker.apiUrl,
-      credentialsRef: input.workTracker.credentialsRef,
-      trackerType: input.workTracker.type as WorkTrackerType,
-    })
+  // ── Phase 1: Fetch issue details ──
+  const issue = await fetchIssue({
+    issueId: input.issueKey,
+    apiUrl: input.workTracker.apiUrl,
+    credentialsRef: input.workTracker.credentialsRef,
+    trackerType: input.workTracker.type as WorkTrackerType,
+  })
 
-    const branchName = `feat/${input.issueKey}-${slugifyFromLabel(issue.title)}`
+  const branchName = `feat/${input.issueKey}-${slugifyFromLabel(issue.title)}`
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "branch_creating",
       state: { issueTitle: issue.title },
     })
+  }
 
-    // ── Phase 2: Create branch ──
-    await createBranch({
-      repoFullName: input.repoFullName,
-      branchName,
-      fromRef: input.baseBranch,
-      hostType: input.gitHost.type as GitHostType,
-      hostConfig: input.gitHost.config as GitHostAdapterConfig,
-    })
+  // ── Phase 2: Create branch ──
+  await createBranch({
+    repoFullName: input.repoFullName,
+    branchName,
+    fromRef: input.baseBranch,
+    hostType: input.gitHost.type as GitHostType,
+    hostConfig: input.gitHost.config as GitHostAdapterConfig,
+  })
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "workbench_provisioning",
       state: { branchName },
     })
+  }
 
-    // ── Phase 3: Provision workbench, wait for ready ──
-    const workbench = await provisionWorkbench({
-      name: `wb-${input.issueKey}`,
-      trigger: "workflow",
-      type: "agent",
-      ttl: input.workbenchTtl,
-      labels: {
-        workflowRunId: wfId,
-        issueKey: input.issueKey,
-        branchName,
-        repoFullName: input.repoFullName,
-      },
-    })
+  // ── Phase 3: Provision workbench, wait for ready ──
+  const workbench = await provisionWorkbench({
+    name: `wb-${input.issueKey}`,
+    trigger: "workflow",
+    type: "agent",
+    ttl: input.workbenchTtl,
+    labels: {
+      workflowRunId: wfId,
+      issueKey: input.issueKey,
+      branchName,
+      repoFullName: input.repoFullName,
+    },
+  })
+  if (wfId) {
     await updateRun(db, wfId, { state: { workbenchId: workbench.id } })
+  }
 
-    const wsEvent = await waitForEvent<{ workbenchId: string; status: string }>(
-      "ops.workbench.ready",
-      { workbenchId: workbench.id },
-      600
-    )
-    if (!wsEvent)
-      throw new Error("Workbench provisioning timed out after 10 minutes")
+  const wsEvent = await waitForEvent<{ workbenchId: string; status: string }>(
+    "ops.workbench.ready",
+    { workbenchId: workbench.id },
+    600
+  )
+  if (!wsEvent)
+    throw new Error("Workbench provisioning timed out after 10 minutes")
+  if (wfId) {
     await updateRun(db, wfId, { phase: "agent_working" })
+  }
 
-    // ── Phase 4: Start agent, wait for PR ──
-    const job = await createAgentJob({
-      agentId: input.agentId,
-      task: `${issue.title}\n\n${issue.description ?? ""}`,
-      entityKind: "work_item",
-      entityId: input.issueKey,
-      metadata: {
-        workflowRunId: wfId,
-        branchName,
-        repoFullName: input.repoFullName,
-      },
-    })
+  // ── Phase 4: Start agent, wait for PR ──
+  const job = await createAgentJob({
+    agentId: input.agentId,
+    task: `${issue.title}\n\n${issue.description ?? ""}`,
+    entityKind: "work_item",
+    entityId: input.issueKey,
+    metadata: {
+      workflowRunId: wfId,
+      branchName,
+      repoFullName: input.repoFullName,
+    },
+  })
+  if (wfId) {
     await updateRun(db, wfId, { state: { jobId: job.id } })
+  }
 
-    const prEvent = await waitForEvent<{
-      prNumber: number
-      prUrl: string
-      branchName: string
-    }>(
-      "build.pr.opened",
-      { repoFullName: input.repoFullName, branchName },
-      3600
-    )
-    if (!prEvent) throw new Error("Agent did not create PR within 1 hour")
+  const prEvent = await waitForEvent<{
+    prNumber: number
+    prUrl: string
+    branchName: string
+  }>("build.pr.opened", { repoFullName: input.repoFullName, branchName }, 3600)
+  if (!prEvent) throw new Error("Agent did not create PR within 1 hour")
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "preview_deploying",
       state: { prNumber: prEvent.prNumber, prUrl: prEvent.prUrl },
     })
+  }
 
-    // ── Phase 5: Wait for preview ──
-    const pvEvent = await waitForEvent<{
-      previewUrl: string
-      previewSlug: string
-    }>("ops.preview.ready", { branchName }, 600)
-    if (pvEvent) {
+  // ── Phase 5: Wait for preview ──
+  const pvEvent = await waitForEvent<{
+    previewUrl: string
+    previewSlug: string
+  }>("ops.preview.ready", { branchName }, 600)
+  if (pvEvent) {
+    if (wfId) {
       await updateRun(db, wfId, {
         phase: "preview_active",
         state: { previewUrl: pvEvent.previewUrl },
       })
-
-      // Post preview URL as PR comment
-      await postPRComment({
-        repoFullName: input.repoFullName,
-        prNumber: prEvent.prNumber,
-        body: `🔗 **Preview:** ${pvEvent.previewUrl}`,
-        hostType: input.gitHost.type as GitHostType,
-        hostConfig: input.gitHost.config as GitHostAdapterConfig,
-      })
-    } else {
-      await updateRun(db, wfId, { phase: "preview_skipped" })
     }
 
-    // ── Phase 6: Update issue status ──
-    await updateIssueStatus({
-      issueId: input.issueKey,
-      transitionName: "In Review",
-      apiUrl: input.workTracker.apiUrl,
-      credentialsRef: input.workTracker.credentialsRef,
-      trackerType: input.workTracker.type as WorkTrackerType,
+    // Post preview URL as PR comment
+    await postPRComment({
+      repoFullName: input.repoFullName,
+      prNumber: prEvent.prNumber,
+      body: `**Preview:** ${pvEvent.previewUrl}`,
+      hostType: input.gitHost.type as GitHostType,
+      hostConfig: input.gitHost.config as GitHostAdapterConfig,
     })
+  } else if (wfId) {
+    await updateRun(db, wfId, { phase: "preview_skipped" })
+  }
+
+  // ── Phase 6: Update issue status ──
+  await updateIssueStatus({
+    issueId: input.issueKey,
+    transitionName: "In Review",
+    apiUrl: input.workTracker.apiUrl,
+    credentialsRef: input.workTracker.credentialsRef,
+    trackerType: input.workTracker.type as WorkTrackerType,
+  })
+  if (wfId) {
     await updateRun(db, wfId, { phase: "awaiting_review" })
+  }
 
-    // ── Phase 7: Review loop — route PR comments to agent ──
-    while (true) {
-      const comment = await waitForEvent<{
-        comment: string
-        author: string
-        prNumber: number
-      }>(
-        "build.pr.commented",
-        {
-          repoFullName: input.repoFullName,
-          prNumber: String(prEvent.prNumber),
-        },
-        86400 // 24h timeout
-      )
+  // ── Phase 7: Review loop — route PR comments to agent ──
+  while (true) {
+    const comment = await waitForEvent<{
+      comment: string
+      author: string
+      prNumber: number
+    }>(
+      "build.pr.commented",
+      {
+        repoFullName: input.repoFullName,
+        prNumber: String(prEvent.prNumber),
+      },
+      86400 // 24h timeout
+    )
 
-      if (!comment) break // timeout = review complete
+    if (!comment) break // timeout = review complete
 
+    if (wfId) {
       await updateRun(db, wfId, { phase: "agent_iterating" })
-      await routeCommentToAgent({
-        agentId: input.agentId,
-        parentJobId: job.id,
-        comment: comment.comment,
-      })
+    }
+    await routeCommentToAgent({
+      agentId: input.agentId,
+      parentJobId: job.id,
+      comment: comment.comment,
+    })
+    if (wfId) {
       await updateRun(db, wfId, { phase: "awaiting_review" })
     }
+  }
 
-    // ── Done ──
-    const output = {
-      branchName,
-      prUrl: prEvent.prUrl,
-      prNumber: prEvent.prNumber,
-      previewUrl: pvEvent?.previewUrl ?? null,
-    }
+  // ── Done ──
+  const output = {
+    branchName,
+    prUrl: prEvent.prUrl,
+    prNumber: prEvent.prNumber,
+    previewUrl: pvEvent?.previewUrl ?? null,
+  }
+  if (wfId) {
     await updateRun(db, wfId, {
       phase: "completed",
       status: "succeeded",
       output,
       completedAt: new Date(),
     })
+  }
 
-    return output
-  },
+  return output
+}
+
+export const godWorkflow = registerWorkflow({
+  name: "god-workflow",
+  description: "Jira ticket → branch → workbench → agent → PR → preview",
+  triggerTypes: ["jira_webhook", "cli", "manual"],
+  inputSchema: godWorkflowInputSchema as z.ZodType<GodWorkflowInput>,
+  fn: godWorkflowFn,
 })

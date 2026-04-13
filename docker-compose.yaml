@@ -1,13 +1,9 @@
-# docker-compose.catalog.yaml
+# docker-compose.yaml
 #
-# Catalog-enriched version of docker-compose.yaml.
-# Uses catalog.* labels to declare APIs, ownership, documentation,
-# named ports, and component types for the Software Catalog.
-#
-# This is the canonical project definition — docker-compose is the single
-# source of truth, parsed into a CatalogSystem for the Software Catalog.
+# Canonical project definition — docker-compose is the single source of truth.
+# Uses dx.* labels for service metadata (type, owner, ports, APIs, docs).
 
-x-catalog:
+x-dx:
   name: factory-dx
   owner: platform
   description: "Factory DX — developer experience platform and CLI toolchain"
@@ -44,38 +40,44 @@ services:
       PORT: 4100
       FACTORY_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
       FACTORY_AUTH_JWKS_URL: http://infra-auth:3000/api/v1/auth/.well-known/jwks.json
-      DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-dx.dev}
+      DX_GATEWAY_DOMAIN: ${DX_GATEWAY_DOMAIN:-lepton.software}
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      WORKFLOW_TARGET_WORLD: "@workflow/world-postgres"
+      WORKFLOW_POSTGRES_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@infra-postgres:5432/${POSTGRES_DB:-postgres}
+      WORKFLOW_POSTGRES_JOB_PREFIX: "factory_"
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
       LOKI_URL: ${LOKI_URL:-http://infra-loki:3100}
     healthcheck:
-      test:
-        [
+      test: [
           "CMD-SHELL",
-          'node -e "fetch(''http://localhost:4100/api/v1/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+          'node -e
+          "fetch(''http://localhost:4100/api/v1/factory/openapi'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     labels:
-      catalog.description: "Factory API — product, build, fleet, agent management"
-      catalog.owner: platform
-      catalog.tags: "api,rest,elysia"
-      catalog.lifecycle: production
-      catalog.port.4100.name: http
-      catalog.port.4100.protocol: http
-      catalog.port.9090.name: gateway-proxy
-      catalog.port.9090.protocol: http
-      catalog.api.provides: "factory-api"
-      catalog.api.type: openapi
-      catalog.api.consumes: "auth-api"
-      catalog.docs.api: "/api/v1/factory/openapi"
-      catalog.docs.url: "https://docs.internal/factory"
+      dx.description: "Factory API — product, build, fleet, agent management"
+      dx.owner: platform
+      dx.tags: "api,rest,elysia"
+      dx.lifecycle: production
+      dx.port.4100.name: http
+      dx.port.4100.protocol: http
+      dx.port.4100.exposure: public
+      dx.port.9090.name: gateway-proxy
+      dx.port.9090.protocol: http
+      dx.api.provides: "factory-api"
+      dx.api.type: openapi
+      dx.api.consumes: "auth-api"
+      dx.docs.api: "/api/v1/factory/openapi"
+      dx.docs.url: "https://docs.internal/factory"
+      dx.source.repo: nksaraf/factory
+      dx.source.path: api
       dx.dev.command: "pnpm --filter @smp/factory-api-server dev"
       dx.dev.sync: "./api/src,./shared/src"
       dx.runtime: node
@@ -98,11 +100,11 @@ services:
       timeout: 5s
       retries: 5
     labels:
-      catalog.description: "Shared PostgreSQL database"
-      catalog.owner: platform
-      catalog.type: database
-      catalog.port.5432.name: postgres
-      catalog.port.5432.protocol: tcp
+      dx.description: "Shared PostgreSQL database"
+      dx.owner: platform
+      dx.type: database
+      dx.port.5432.name: postgres
+      dx.port.5432.protocol: tcp
 
   infra-postgres-init:
     image: postgres:16-alpine
@@ -127,9 +129,9 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
     restart: "no"
     labels:
-      catalog.description: "One-shot init: creates databases and users for dependent services"
-      catalog.owner: platform
-      catalog.type: init
+      dx.description: "One-shot init: creates databases and users for dependent services"
+      dx.owner: platform
+      dx.type: init
 
   infra-spicedb:
     image: authzed/spicedb:latest
@@ -147,13 +149,13 @@ services:
     healthcheck:
       test: ["NONE"]
     labels:
-      catalog.kind: Resource
-      catalog.description: "SpiceDB — Zanzibar-style authorization (ReBAC)"
-      catalog.owner: platform
-      catalog.type: auth-provider
-      catalog.tags: "authz,spicedb,rebac"
-      catalog.port.50051.name: grpc
-      catalog.port.50051.protocol: grpc
+      dx.kind: Resource
+      dx.description: "SpiceDB — Zanzibar-style authorization (ReBAC)"
+      dx.owner: platform
+      dx.type: auth-provider
+      dx.tags: "authz,spicedb,rebac"
+      dx.port.50051.name: grpc
+      dx.port.50051.protocol: grpc
 
   infra-auth:
     image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
@@ -174,26 +176,34 @@ services:
       AUTH_SPICEDB_TOKEN: ${SPICEDB_PRESHARED_KEY:-dev-key}
       AUTH_SPICEDB_INSECURE: "true"
     healthcheck:
-      test:
-        [
+      test: [
           "CMD-SHELL",
-          'node -e "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
+          'node -e
+          "fetch(''http://localhost:3000/api/v1/auth/reference'').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"',
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     labels:
-      catalog.kind: Resource
-      catalog.description: "Better Auth — authentication, OAuth, organizations, API keys"
-      catalog.owner: platform
-      catalog.type: auth-provider
-      catalog.tags: "auth,oauth,jwt"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
-      catalog.api.provides: "auth-api"
-      catalog.docs.url: "https://www.better-auth.com/docs"
-      catalog.docs.api: "/api/v1/auth/reference"
+      dx.kind: Resource
+      dx.description: "Better Auth — authentication, OAuth, organizations, API keys"
+      dx.owner: platform
+      dx.type: auth-provider
+      dx.tags: "auth,oauth,jwt"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
+      dx.api.provides: "auth-api"
+      dx.docs.url: "https://www.better-auth.com/docs"
+      dx.docs.api: "/api/v1/auth/reference"
+      dx.source.repo: LeptonSoftware/control-plane
+      dx.source.path: services/auth-service
+      dx.source.required: "true"
+    build:
+      context: ./packages/npm/auth-service
+      dockerfile: ./Dockerfile
+      args:
+        GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
 
   infra-gateway:
     image: apache/apisix:3.11.0-debian
@@ -212,12 +222,12 @@ services:
       retries: 3
       start_period: 10s
     labels:
-      catalog.description: "APISIX API Gateway — auth, CORS, OTEL, routing"
-      catalog.owner: platform
-      catalog.type: gateway
-      catalog.tags: "gateway,apisix,routing"
-      catalog.port.9000.name: http
-      catalog.port.9000.protocol: http
+      dx.description: "APISIX API Gateway — auth, CORS, OTEL, routing"
+      dx.owner: platform
+      dx.type: gateway
+      dx.tags: "gateway,apisix,routing"
+      dx.port.9000.name: http
+      dx.port.9000.protocol: http
 
   infra-reverse-proxy:
     image: ${TRAEFIK_IMAGE:-traefik:v3.6.8}
@@ -242,12 +252,12 @@ services:
     volumes:
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
     labels:
-      catalog.description: "Traefik reverse proxy — routes frontend to API gateway"
-      catalog.owner: platform
-      catalog.type: gateway
-      catalog.tags: "traefik,proxy,routing"
-      catalog.port.80.name: http
-      catalog.port.80.protocol: http
+      dx.description: "Traefik reverse proxy — routes frontend to API gateway"
+      dx.owner: platform
+      dx.type: gateway
+      dx.tags: "traefik,proxy,routing"
+      dx.port.80.name: http
+      dx.port.80.protocol: http
 
   infra-api-docs:
     image: nginx:alpine
@@ -260,11 +270,11 @@ services:
       infra-reverse-proxy:
         condition: service_started
     labels:
-      catalog.kind: Resource
-      catalog.description: "API documentation — Scalar UI served via nginx"
-      catalog.owner: platform
-      catalog.type: other
-      catalog.tags: "docs,nginx,scalar"
+      dx.kind: Resource
+      dx.description: "API documentation — Scalar UI served via nginx"
+      dx.owner: platform
+      dx.type: other
+      dx.tags: "docs,nginx,scalar"
 
   # ---------------------------------------------------------------------------
   # PowerSync — Postgres-to-client realtime sync engine
@@ -279,10 +289,10 @@ services:
       timeout: 5s
       retries: 5
     labels:
-      catalog.description: "MongoDB — PowerSync storage backend"
-      catalog.owner: platform
-      catalog.type: database
-      catalog.tags: "mongodb,powersync"
+      dx.description: "MongoDB — PowerSync storage backend"
+      dx.owner: platform
+      dx.type: database
+      dx.tags: "mongodb,powersync"
 
   infra-powersync:
     image: journeyapps/powersync-service:latest
@@ -305,13 +315,13 @@ services:
       retries: 5
       start_period: 15s
     labels:
-      catalog.description: "PowerSync — Postgres-to-client realtime sync engine"
-      catalog.owner: platform
-      catalog.type: sync
-      catalog.tags: "powersync,realtime,sync"
-      catalog.port.8080.name: http
-      catalog.port.8080.protocol: http
-      catalog.docs.url: "https://docs.powersync.com"
+      dx.description: "PowerSync — Postgres-to-client realtime sync engine"
+      dx.owner: platform
+      dx.type: sync
+      dx.tags: "powersync,realtime,sync"
+      dx.port.8080.name: http
+      dx.port.8080.protocol: http
+      dx.docs.url: "https://docs.powersync.com"
 
   # ---------------------------------------------------------------------------
   # NATS — real-time event broker with JetStream persistence
@@ -325,10 +335,10 @@ services:
     volumes:
       - nats-data:/data
     labels:
-      catalog.system: factory-dx
-      catalog.component: infra-nats
-      catalog.type: message-queue
-      catalog.description: "NATS JetStream — real-time event broker"
+      dx.system: factory-dx
+      dx.component: infra-nats
+      dx.type: message-queue
+      dx.description: "NATS JetStream — real-time event broker"
 
   # ---------------------------------------------------------------------------
   # Redis — used for presence WebSocket fan-out across API instances
@@ -345,12 +355,12 @@ services:
       timeout: 5s
       retries: 5
     labels:
-      catalog.description: "Redis — presence WebSocket fan-out and caching"
-      catalog.owner: platform
-      catalog.type: cache
-      catalog.tags: "redis,cache,pubsub"
-      catalog.port.6379.name: redis
-      catalog.port.6379.protocol: tcp
+      dx.description: "Redis — presence WebSocket fan-out and caching"
+      dx.owner: platform
+      dx.type: cache
+      dx.tags: "redis,cache,pubsub"
+      dx.port.6379.name: redis
+      dx.port.6379.protocol: tcp
 
   # ---------------------------------------------------------------------------
   # Loki — log aggregation backend
@@ -371,13 +381,13 @@ services:
       retries: 5
     labels:
       dx.role: infra
-      catalog.description: "Loki — log aggregation backend"
-      catalog.owner: platform
-      catalog.type: observability
-      catalog.tags: "loki,logs,observability"
-      catalog.port.3100.name: http
-      catalog.port.3100.protocol: http
-      catalog.docs.url: "https://grafana.com/docs/loki/latest/"
+      dx.description: "Loki — log aggregation backend"
+      dx.owner: platform
+      dx.type: observability
+      dx.tags: "loki,logs,observability"
+      dx.port.3100.name: http
+      dx.port.3100.protocol: http
+      dx.docs.url: "https://grafana.com/docs/loki/latest/"
 
   # ---------------------------------------------------------------------------
   # OpenTelemetry Collector — exports logs to Loki, traces/metrics to debug
@@ -401,15 +411,15 @@ services:
     healthcheck:
       test: ["NONE"]
     labels:
-      catalog.description: "OpenTelemetry Collector — traces, metrics, and log export"
-      catalog.owner: platform
-      catalog.type: observability
-      catalog.tags: "otel,tracing,observability"
-      catalog.port.4318.name: otlp-http
-      catalog.port.4318.protocol: http
-      catalog.port.4317.name: otlp-grpc
-      catalog.port.4317.protocol: grpc
-      catalog.docs.url: "https://opentelemetry.io/docs/collector/"
+      dx.description: "OpenTelemetry Collector — traces, metrics, and log export"
+      dx.owner: platform
+      dx.type: observability
+      dx.tags: "otel,tracing,observability"
+      dx.port.4318.name: otlp-http
+      dx.port.4318.protocol: http
+      dx.port.4317.name: otlp-grpc
+      dx.port.4317.protocol: grpc
+      dx.docs.url: "https://opentelemetry.io/docs/collector/"
 
   infra-metabase:
     image: metabase/metabase:latest
@@ -434,13 +444,13 @@ services:
       retries: 5
       start_period: 60s
     labels:
-      catalog.description: "Metabase — analytics dashboards and SQL exploration"
-      catalog.owner: platform
-      catalog.type: dashboard
-      catalog.tags: "analytics,dashboards,bi"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
-      catalog.docs.url: "https://www.metabase.com/docs/latest/"
+      dx.description: "Metabase — analytics dashboards and SQL exploration"
+      dx.owner: platform
+      dx.type: dashboard
+      dx.tags: "analytics,dashboards,bi"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
+      dx.docs.url: "https://www.metabase.com/docs/latest/"
       # Connection env templates for hybrid dev (non-URL pattern)
       dx.dep.infra-postgres.env.MB_DB_HOST: "{host}"
       dx.dep.infra-postgres.env.MB_DB_PORT: "{port}"

@@ -26,7 +26,6 @@ import {
 } from "./event-entity-resolver"
 import { validateEventData } from "./event-schemas"
 import { newId } from "./id"
-import { send } from "./workflow-engine"
 import { resolveActorPrincipal } from "./webhook-events"
 
 /**
@@ -218,7 +217,7 @@ export async function emitExternalEvent(
 
 /**
  * Match an event against all active trigger subscriptions.
- * Wakes matching workflows via DBOS send(), marks triggers as fired.
+ * Wakes matching workflows via webhook POST, marks triggers as fired.
  * Stream subscriptions are handled by the NATS notification router.
  */
 async function matchSubscriptions(
@@ -277,13 +276,17 @@ async function matchSubscriptions(
   )
 
   for (const sub of matched) {
-    await send(sub.ownerId, data, topic)
+    await fetch(sub.ownerId, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
     await db
       .update(eventSubscription)
       .set({ status: "fired" })
       .where(eq(eventSubscription.id, sub.id))
     logger.info(
-      { topic, workflowRunId: sub.ownerId },
+      { topic, webhookUrl: sub.ownerId },
       "matchSubscriptions: woke workflow"
     )
   }

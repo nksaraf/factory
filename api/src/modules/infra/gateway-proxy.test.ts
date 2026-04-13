@@ -9,7 +9,7 @@ import {
 
 describe("parseHostname", () => {
   it("parses tunnel hostname", () => {
-    expect(parseHostname("happy-fox-42.tunnel.dx.dev")).toEqual({
+    expect(parseHostname("happy-fox-42.tunnel.lepton.software")).toEqual({
       family: "tunnel",
       slug: "happy-fox-42",
       fullSubdomain: "happy-fox-42",
@@ -17,7 +17,9 @@ describe("parseHostname", () => {
   })
 
   it("parses preview hostname with endpoint suffix", () => {
-    expect(parseHostname("pr-42--fix-auth--myapp.preview.dx.dev")).toEqual({
+    expect(
+      parseHostname("pr-42--fix-auth--myapp.preview.lepton.software")
+    ).toEqual({
       family: "preview",
       slug: "pr-42--fix-auth",
       endpointName: "myapp",
@@ -26,7 +28,7 @@ describe("parseHostname", () => {
   })
 
   it("parses preview hostname (bare)", () => {
-    expect(parseHostname("pr-42-fix-auth.preview.dx.dev")).toEqual({
+    expect(parseHostname("pr-42-fix-auth.preview.lepton.software")).toEqual({
       family: "preview",
       slug: "pr-42-fix-auth",
       fullSubdomain: "pr-42-fix-auth",
@@ -34,15 +36,15 @@ describe("parseHostname", () => {
   })
 
   it("parses workbench hostname", () => {
-    expect(parseHostname("dev-nikhil-abc.workbench.dx.dev")).toEqual({
-      family: "workbench",
+    expect(parseHostname("dev-nikhil-abc.dev.lepton.software")).toEqual({
+      family: "dev",
       slug: "dev-nikhil-abc",
       fullSubdomain: "dev-nikhil-abc",
     })
   })
 
   it("parses sandbox hostname (legacy)", () => {
-    expect(parseHostname("dev-nikhil-abc.sandbox.dx.dev")).toEqual({
+    expect(parseHostname("dev-nikhil-abc.sandbox.lepton.software")).toEqual({
       family: "sandbox",
       slug: "dev-nikhil-abc",
       fullSubdomain: "dev-nikhil-abc",
@@ -50,9 +52,9 @@ describe("parseHostname", () => {
   })
 
   it("returns null for non-gateway hostnames", () => {
-    expect(parseHostname("api.prod.dx.dev")).toBeNull()
+    expect(parseHostname("api.prod.lepton.software")).toBeNull()
     expect(parseHostname("app.example.com")).toBeNull()
-    expect(parseHostname("dx.dev")).toBeNull()
+    expect(parseHostname("lepton.software")).toBeNull()
   })
 
   it("returns null for empty or missing host", () => {
@@ -74,27 +76,27 @@ describe("RouteCache", () => {
     const fakeRoute = {
       routeId: "rte_1",
       kind: "tunnel",
-      domain: "a.tunnel.dx.dev",
+      domain: "a.tunnel.lepton.software",
       targetService: "tunnel-broker",
     }
     mockLookup.mockResolvedValueOnce(fakeRoute)
 
-    const result = await cache.get("a.tunnel.dx.dev")
+    const result = await cache.get("a.tunnel.lepton.software")
     expect(result).toEqual(fakeRoute)
-    expect(mockLookup).toHaveBeenCalledWith("a.tunnel.dx.dev")
+    expect(mockLookup).toHaveBeenCalledWith("a.tunnel.lepton.software")
   })
 
   it("returns cached value on subsequent calls", async () => {
     const fakeRoute = {
       routeId: "rte_1",
       kind: "tunnel",
-      domain: "a.tunnel.dx.dev",
+      domain: "a.tunnel.lepton.software",
       targetService: "tunnel-broker",
     }
     mockLookup.mockResolvedValueOnce(fakeRoute)
 
-    await cache.get("a.tunnel.dx.dev")
-    const result = await cache.get("a.tunnel.dx.dev")
+    await cache.get("a.tunnel.lepton.software")
+    const result = await cache.get("a.tunnel.lepton.software")
     expect(result).toEqual(fakeRoute)
     expect(mockLookup).toHaveBeenCalledTimes(1)
   })
@@ -103,29 +105,29 @@ describe("RouteCache", () => {
     const fakeRoute = {
       routeId: "rte_1",
       kind: "tunnel",
-      domain: "a.tunnel.dx.dev",
+      domain: "a.tunnel.lepton.software",
       targetService: "tunnel-broker",
     }
     mockLookup.mockResolvedValue(fakeRoute)
 
-    await cache.get("a.tunnel.dx.dev")
-    cache.invalidate("a.tunnel.dx.dev")
-    await cache.get("a.tunnel.dx.dev")
+    await cache.get("a.tunnel.lepton.software")
+    cache.invalidate("a.tunnel.lepton.software")
+    await cache.get("a.tunnel.lepton.software")
     expect(mockLookup).toHaveBeenCalledTimes(2)
   })
 
   it("does not cache null results so new routes are discovered immediately", async () => {
     mockLookup.mockResolvedValueOnce(null)
     mockLookup.mockResolvedValueOnce({
-      domain: "missing.tunnel.dx.dev",
+      domain: "missing.tunnel.lepton.software",
       targetService: "svc",
       status: "active",
     })
 
-    const r1 = await cache.get("missing.tunnel.dx.dev")
+    const r1 = await cache.get("missing.tunnel.lepton.software")
     expect(r1).toBeNull()
     // Second call should hit the DB again (miss not cached) and find the newly created route
-    const r2 = await cache.get("missing.tunnel.dx.dev")
+    const r2 = await cache.get("missing.tunnel.lepton.software")
     expect(r2).not.toBeNull()
     expect(r2.targetService).toBe("svc")
     expect(mockLookup).toHaveBeenCalledTimes(2)
@@ -158,11 +160,11 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
 
       const cache = new RouteCache({
         lookup: async (domain) => {
-          if (domain === "test-slug.workbench.dx.dev") {
+          if (domain === "test-slug.dev.lepton.software") {
             return {
               routeId: "rte_1",
-              kind: "workbench",
-              domain: "test-slug.workbench.dx.dev",
+              kind: "dev",
+              domain: "test-slug.dev.lepton.software",
               targetService: "localhost",
               targetPort: targetServer!.port,
               status: "active",
@@ -175,7 +177,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "test-slug.workbench.dx.dev" },
+        headers: { Host: "test-slug.dev.lepton.software" },
       })
       expect(res.status).toBe(200)
       expect(await res.text()).toBe("hello from target")
@@ -186,7 +188,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "nope.workbench.dx.dev" },
+        headers: { Host: "nope.dev.lepton.software" },
       })
       expect(res.status).toBe(404)
     })
@@ -196,7 +198,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "api.prod.dx.dev" },
+        headers: { Host: "api.prod.lepton.software" },
       })
       expect(res.status).toBe(404)
     })
@@ -205,8 +207,8 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       const cache = new RouteCache({
         lookup: async () => ({
           routeId: "rte_1",
-          kind: "workbench",
-          domain: "dead.workbench.dx.dev",
+          kind: "dev",
+          domain: "dead.dev.lepton.software",
           targetService: "localhost",
           targetPort: 1,
           status: "active",
@@ -215,7 +217,7 @@ describe.skipIf(typeof globalThis.Bun === "undefined")(
       gateway = createGatewayServer({ cache, port: 0 })
 
       const res = await fetch(`http://localhost:${gateway.server.port}/`, {
-        headers: { Host: "dead.workbench.dx.dev" },
+        headers: { Host: "dead.dev.lepton.software" },
       })
       expect(res.status).toBe(502)
     })

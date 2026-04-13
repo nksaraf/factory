@@ -433,8 +433,8 @@ function makeIngressRoute(
   const primaryEndpoint = (
     process.env.WORKBENCH_PRIMARY_ENDPOINT || "ide"
   ).toLowerCase()
-  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
-  const host = `${wb.slug}.workbench.${gatewayDomain}`
+  const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
+  const host = `${wb.slug}.dev.${gatewayDomain}`
   const primaryPort = primaryEndpoint === "terminal" ? 8080 : 8081
   return {
     apiVersion: "traefik.io/v1alpha1",
@@ -458,7 +458,7 @@ function makeIngressRoute(
           ],
         },
         {
-          match: `Host(\`${wb.slug}--terminal.workbench.${gatewayDomain}\`)`,
+          match: `Host(\`${wb.slug}--terminal.dev.${gatewayDomain}\`)`,
           kind: "Rule",
           services: [
             {
@@ -468,7 +468,7 @@ function makeIngressRoute(
           ],
         },
         {
-          match: `Host(\`${wb.slug}--ide.workbench.${gatewayDomain}\`)`,
+          match: `Host(\`${wb.slug}--ide.dev.${gatewayDomain}\`)`,
           kind: "Rule",
           services: [
             {

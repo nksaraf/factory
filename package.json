@@ -63,5 +63,14 @@
   "packageManager": "pnpm@9.15.4",
   "dependencies": {
     "lru-cache": "^11.2.7"
+  },
+  "dx": {
+    "sources": {
+      "auth-service": {
+        "source": "LeptonSoftware/control-plane",
+        "path": "services/auth-service",
+        "target": "packages/npm/auth-service"
+      }
+    }
   }
 }

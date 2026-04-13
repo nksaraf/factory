@@ -27,16 +27,53 @@ export class IdentityService {
     externalLogin?: string
     profileData?: Record<string, unknown>
   }) {
-    // Try to find existing principal by authUserId (stored in spec JSONB)
-    const [existing] = await this.db
+    // 1. Email match first — highest confidence, merges across auth providers
+    if (opts.email) {
+      const [byEmail] = await this.db
+        .select()
+        .from(principal)
+        .where(sql`${principal.spec}->>'email' = ${opts.email}`)
+        .limit(1)
+
+      if (byEmail) {
+        const spec = byEmail.spec as Record<string, unknown>
+        if (spec.authUserId !== opts.authUserId) {
+          await this.db
+            .update(principal)
+            .set({
+              spec: sql`${principal.spec} || ${JSON.stringify({ authUserId: opts.authUserId })}::jsonb`,
+              updatedAt: new Date(),
+            })
+            .where(eq(principal.id, byEmail.id))
+        }
+        return byEmail
+      }
+    }
+
+    // 2. authUserId match — covers cases without email
+    const [byAuthId] = await this.db
       .select()
       .from(principal)
       .where(sql`${principal.spec}->>'authUserId' = ${opts.authUserId}`)
       .limit(1)
 
-    if (existing) return existing
+    if (byAuthId) {
+      if (opts.email) {
+        const spec = byAuthId.spec as Record<string, unknown>
+        if (!spec.email) {
+          await this.db
+            .update(principal)
+            .set({
+              spec: sql`${principal.spec} || ${JSON.stringify({ email: opts.email })}::jsonb`,
+              updatedAt: new Date(),
+            })
+            .where(eq(principal.id, byAuthId.id))
+        }
+      }
+      return byAuthId
+    }
 
-    // Create new principal
+    // 3. Create new principal
     const displayName = opts.name || opts.email?.split("@")[0] || "user"
     const slug = await allocateSlug({
       baseLabel: displayName,

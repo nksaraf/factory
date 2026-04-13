@@ -28,11 +28,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       retries: 10
       start_period: 30s
     labels:
-      catalog.type: queue
-      catalog.owner: ${owner}
-      catalog.description: "Temporal workflow engine"
-      catalog.port.7233.name: grpc
-      catalog.port.7233.protocol: grpc
+      dx.type: queue
+      dx.owner: ${owner}
+      dx.description: "Temporal workflow engine"
+      dx.port.7233.name: grpc
+      dx.port.7233.protocol: grpc
 
   infra-temporal-ui:
     image: temporalio/ui:latest
@@ -45,11 +45,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       infra-temporal:
         condition: service_healthy
     labels:
-      catalog.type: queue
-      catalog.owner: ${owner}
-      catalog.description: "Temporal Web UI"
-      catalog.port.8080.name: http
-      catalog.port.8080.protocol: http
+      dx.type: queue
+      dx.owner: ${owner}
+      dx.description: "Temporal Web UI"
+      dx.port.8080.name: http
+      dx.port.8080.protocol: http
 `,
     },
   ]

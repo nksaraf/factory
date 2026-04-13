@@ -10,9 +10,10 @@ import {
   styleSuccess,
   styleWarn,
 } from "../cli-style.js"
-import { DevController, type DevServerInfo } from "../lib/dev-controller.js"
 import { Compose } from "../lib/docker.js"
 import { resolveDxContext } from "../lib/dx-context.js"
+import { SiteManager } from "../lib/site-manager.js"
+import { isProcessRunning } from "../site/execution/native.js"
 import { getAheadBehind, getCurrentBranch } from "../lib/git.js"
 import type { DxFlags } from "../stub.js"
 
@@ -96,18 +97,35 @@ async function tryLoadProject(
  */
 export function getUnifiedServices(
   rootDir: string,
-  composeFiles: string[],
-  catalog?: import("@smp/factory-shared/catalog").CatalogSystem
+  composeFiles: string[]
 ): UnifiedServiceStatus[] {
   // Docker compose services (ps is read-only — only needs project name)
   const compose = new Compose([], basename(rootDir))
   const dockerServices = compose.ps({ all: true })
 
-  // Native dev servers
-  let devServers: DevServerInfo[] = []
-  if (catalog) {
-    const ctrl = new DevController(rootDir, catalog, composeFiles)
-    devServers = ctrl.ps()
+  // Native dev servers from site.json (with liveness verification)
+  let devServers: {
+    name: string
+    port: number | null
+    pid: number | null
+    running: boolean
+  }[] = []
+  const site = SiteManager.load(rootDir)
+  if (site) {
+    const state = site.getState()
+    for (const sd of state.systemDeployments) {
+      for (const cd of sd.componentDeployments) {
+        if (cd.mode !== "native") continue
+        const pid = cd.status.pid ?? null
+        const running = pid !== null && isProcessRunning(pid)
+        devServers.push({
+          name: cd.componentSlug,
+          port: cd.status.port ?? null,
+          pid,
+          running,
+        })
+      }
+    }
   }
 
   const devNames = new Set(
@@ -173,15 +191,7 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
   // --- Unified service statuses ---
   let services: UnifiedServiceStatus[] = []
   if (project) {
-    // Load full catalog for dev server detection
-    let catalog: import("@smp/factory-shared/catalog").CatalogSystem | undefined
-    try {
-      const ctx = await resolveDxContext({ need: "project", cwd })
-      catalog = ctx.project.catalog
-    } catch {
-      // fall through without catalog
-    }
-    services = getUnifiedServices(project.root, project.composeFiles, catalog)
+    services = getUnifiedServices(project.root, project.composeFiles)
   }
 
   // --- Output ---

@@ -1,7 +1,7 @@
 /**
  * Manage /etc/hosts entries for local gateway DNS routing.
  *
- * The gateway proxy expects *.workbench.dx.dev hostnames.
+ * The gateway proxy expects *.dev.lepton.software hostnames.
  * For local routing we add entries pointing to 127.0.0.1.
  *
  * All managed entries are tagged with "# dx-managed" for safe cleanup.
@@ -13,7 +13,7 @@ import { capture } from "./subprocess.js"
 const HOSTS_FILE = "/etc/hosts"
 const MARKER = "# dx-managed"
 
-export type RouteFamily = "sandbox" | "workbench" | "preview" | "tunnel"
+export type RouteFamily = "sandbox" | "dev" | "preview" | "tunnel"
 
 /**
  * Add a host entry: `127.0.0.1 <slug>.<family>.dx.dev  # dx-managed`
@@ -21,7 +21,7 @@ export type RouteFamily = "sandbox" | "workbench" | "preview" | "tunnel"
  */
 export async function addHostEntry(
   slug: string,
-  family: RouteFamily = "workbench"
+  family: RouteFamily = "dev"
 ): Promise<void> {
   const hostname = `${slug}.${family}.dx.dev`
   const line = `127.0.0.1 ${hostname}  ${MARKER}`
@@ -51,7 +51,7 @@ export async function addHostEntry(
  */
 export async function removeHostEntry(
   slug: string,
-  family: RouteFamily = "workbench"
+  family: RouteFamily = "dev"
 ): Promise<void> {
   const hostname = `${slug}.${family}.dx.dev`
 

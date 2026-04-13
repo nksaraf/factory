@@ -7,6 +7,9 @@
  */
 import { and, eq, inArray, sql } from "drizzle-orm"
 
+import { Card, CardText, Divider, LinkButton, Actions } from "chat"
+import type { CardChild, CardElement } from "chat"
+
 import type { Database } from "../../db/connection"
 import {
   channel,
@@ -33,6 +36,76 @@ function getAdapter(channelKind: string): any | null {
 /** Check if any chat adapters are configured. */
 function hasAdapters(): boolean {
   return Object.keys(adapters).length > 0
+}
+
+/** Parse chatSdkThreadId ("slack:C12345:1234567890.123456") into parts. */
+function parseChatSdkThreadId(chatSdkThreadId: string): {
+  adapterName: string
+  channelId: string
+  threadTs: string
+} | null {
+  const parts = chatSdkThreadId.split(":")
+  if (parts.length < 3) return null
+  return {
+    adapterName: parts[0],
+    channelId: parts[1],
+    threadTs: parts.slice(2).join(":"),
+  }
+}
+
+// ── Title generation (Gemini Flash) ──────────────────────────
+
+/**
+ * Generate a short thread title from the initial prompt using Gemini Flash.
+ * Returns null if no API key is configured or generation fails.
+ */
+interface GeneratedTitle {
+  topic: string
+  description: string
+}
+
+async function generateThreadTitle(
+  rawPrompt: string
+): Promise<GeneratedTitle | null> {
+  const apiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.LLM_API_KEY
+  if (!apiKey) {
+    log.warn(
+      "No GOOGLE_GENERATIVE_AI_API_KEY or LLM_API_KEY — skipping title generation"
+    )
+    return null
+  }
+
+  const cleaned = extractUserPrompt(rawPrompt)
+  if (!cleaned || cleaned === "(no prompt)") return null
+
+  try {
+    const { createGoogleGenerativeAI } = await import("@ai-sdk/google")
+    const { generateObject } = await import("ai")
+    const { z } = await import("zod")
+    const google = createGoogleGenerativeAI({ apiKey })
+    const { object } = await generateObject({
+      model: google("gemini-2.5-flash"),
+      prompt: `Summarize this coding task:\n\n${cleaned.slice(0, 1000)}`,
+      schema: z.object({
+        topic: z
+          .string()
+          .describe(
+            "2-3 word topic, e.g. 'Status Card', 'Auth Refactor', 'CLI Migration'"
+          ),
+        description: z
+          .string()
+          .describe("6-10 word description of what the task is about"),
+      }),
+    })
+    const topic = object.topic.replace(/[*_`#]/g, "").slice(0, 30)
+    const description = object.description.replace(/[*_`#]/g, "").slice(0, 80)
+    log.info({ topic, description }, "Generated thread title")
+    return { topic, description }
+  } catch (err) {
+    log.warn({ err }, "Failed to generate thread title")
+    return null
+  }
 }
 
 // ── Tool name mapping ───────────────────────────────────────
@@ -64,50 +137,210 @@ const TOOL_NAME_MAP: Record<string, string> = {
   NotebookEdit: "editing notebook",
 }
 
+/**
+ * Build a human-friendly status string for a tool call.
+ * Includes detail from tool_input when available — file names, commands, patterns.
+ */
+export function humanizeToolCall(
+  toolName: string,
+  toolInput?: Record<string, any>
+): string {
+  const base = TOOL_NAME_MAP[toolName] ?? toolName.toLowerCase()
+  if (!toolInput) return base
+
+  switch (toolName) {
+    case "Read":
+    case "read_file": {
+      const fp = toolInput.file_path ?? toolInput.filePath
+      if (fp) return `reading \`${basename(fp)}\``
+      return base
+    }
+    case "Write":
+    case "write_file": {
+      const fp = toolInput.file_path ?? toolInput.filePath
+      if (fp) return `writing \`${basename(fp)}\``
+      return base
+    }
+    case "Edit":
+    case "edit_file": {
+      const fp = toolInput.file_path ?? toolInput.filePath
+      if (fp) return `editing \`${basename(fp)}\``
+      return base
+    }
+    case "Grep":
+    case "grep": {
+      const pat = toolInput.pattern
+      if (pat) return `searching for \`${truncate(pat, 40)}\``
+      return base
+    }
+    case "Glob":
+    case "glob": {
+      const pat = toolInput.pattern
+      if (pat) return `finding \`${truncate(pat, 40)}\``
+      return base
+    }
+    case "Bash":
+    case "bash": {
+      // Prefer the description field (Claude Code provides it), fall back to command
+      const desc = toolInput.description
+      if (desc) return truncate(desc.toLowerCase(), 60)
+      const cmd = toolInput.command
+      if (cmd) return `running \`${truncate(cmd, 50)}\``
+      return base
+    }
+    case "Agent": {
+      const desc = toolInput.description
+      if (desc) return `agent: ${truncate(desc.toLowerCase(), 50)}`
+      return base
+    }
+    case "WebSearch": {
+      const q = toolInput.query
+      if (q) return `searching "${truncate(q, 40)}"`
+      return base
+    }
+    case "WebFetch": {
+      const url = toolInput.url
+      if (url) return `fetching ${truncate(url, 50)}`
+      return base
+    }
+    default:
+      return base
+  }
+}
+
+/** @deprecated Use humanizeToolCall for richer output */
 export function humanizeToolName(toolName: string): string {
   return TOOL_NAME_MAP[toolName] ?? toolName.toLowerCase()
 }
 
-// ── Message formatting ───────────────────────────────────────
+function basename(filePath: string): string {
+  return filePath.split("/").pop() ?? filePath
+}
 
-/**
- * Build the thread-parent status message. Called at creation and on every update.
- * Shows source, cwd/branch, the first prompt, and live stats.
- */
-function formatStatusMessage(opts: {
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 1) + "…" : s
+}
+
+// ── Status card options ─────────────────────────────────────
+
+export interface StatusCardOpts {
   source: string
   cwd?: string
   branch?: string
+  host?: string
+  title?: string
   prompt?: string
+  model?: string
+  mode?: string
   turnCount?: number
   toolCallCount?: number
-  toolsUsed?: string[]
-}): string {
-  const cwdStr = opts.cwd
-    ? `\`${opts.cwd.split("/").slice(-2).join("/")}\``
-    : ""
-  const branchStr = opts.branch ? ` on \`${opts.branch}\`` : ""
-  let msg = `:large_green_circle: *${opts.source}* session — ${cwdStr}${branchStr}`
+  tokenUsage?: {
+    input?: number
+    output?: number
+    cacheRead?: number
+    cacheWrite?: number
+  }
+  contextWindow?: number
+  durationMinutes?: number
+  links?: Array<{ label: string; url: string }>
+  generatedTopic?: string
+  generatedDescription?: string
+  activeStatus?: string
+}
 
-  if (opts.prompt) {
-    const cleaned = extractUserPrompt(opts.prompt)
-    const truncated =
-      cleaned.length > 200 ? cleaned.slice(0, 197) + "..." : cleaned
-    msg += `\n> ${truncated.replace(/\n/g, "\n> ")}`
+// ── Status card (Block Kit via Chat SDK Card) ───────────────
+
+/**
+ * Build the thread-parent status card. Returns a CardElement that renders
+ * as Slack Block Kit (sections, fields, dividers, action buttons).
+ *
+ * Layout:
+ *   Title:    :claude: First prompt (truncated)
+ *   Subtitle: factory/colombo · feature-branch
+ *   ─────────────────────────────────
+ *   > Latest user prompt
+ *   ─────────────────────────────────
+ *   Turns    Tool Calls    Duration
+ *   182      921           58m
+ *
+ *   Model         Context      Mode
+ *   opus 4.6      149M tokens  executing
+ *   ─────────────────────────────────
+ *   [View Plan ↗] [Preview ↗]
+ */
+function buildStatusCard(opts: StatusCardOpts): CardElement {
+  const children: CardChild[] = []
+
+  // ── Active status indicator (top of card) ──
+  if (opts.activeStatus) {
+    children.push(CardText(`:loading:  *${opts.activeStatus}*`))
+  } else {
+    children.push(CardText(`:large_green_circle:  Agent has responded`))
   }
 
-  const stats: string[] = []
-  if (opts.turnCount) stats.push(`${opts.turnCount} turns`)
-  if (opts.toolCallCount) stats.push(`${opts.toolCallCount} tool calls`)
-  if (opts.toolsUsed?.length) {
-    const humanized = opts.toolsUsed.map(humanizeToolName).slice(0, 5)
-    stats.push(humanized.join(", "))
-  }
-  if (stats.length > 0) {
-    msg += `\n:bar_chart: ${stats.join(" · ")}`
+  // ── Links (preview URLs, plan documents, etc.) ──
+  if (opts.links?.length) {
+    children.push(Divider())
+    children.push(
+      Actions(opts.links.map((l) => LinkButton({ url: l.url, label: l.label })))
+    )
   }
 
-  return msg
+  // ── Card title + subtitle ──
+  const emoji = sourceEmoji(opts.source)
+  let titleText: string
+  if (opts.generatedDescription) {
+    titleText = `${emoji}  ${opts.generatedDescription}`
+  } else if (opts.title) {
+    const cleaned = extractUserPrompt(opts.title)
+    titleText = `${emoji}  ${cleaned.length > 70 ? cleaned.slice(0, 67) + "..." : cleaned}`
+  } else {
+    titleText = `${emoji}  ${opts.source} session`
+  }
+
+  // Subtitle: host · repo · branch · model/mode · context · duration · tools
+  const subtitleParts: string[] = []
+  if (opts.host) subtitleParts.push(`💻 ${opts.host}`)
+  if (opts.cwd)
+    subtitleParts.push(`📂 ${opts.cwd.split("/").slice(-2).join("/")}`)
+  if (opts.branch) subtitleParts.push(`🌿 ${opts.branch}`)
+  const modelParts: string[] = []
+  if (opts.model) modelParts.push(formatModel(opts.model))
+  if (opts.mode) modelParts.push(opts.mode)
+  if (modelParts.length > 0) subtitleParts.push(`🧠 ${modelParts.join(" · ")}`)
+  if (opts.contextWindow && opts.contextWindow > 0)
+    subtitleParts.push(`📊 ${formatTokens(opts.contextWindow)}`)
+  if (opts.durationMinutes)
+    subtitleParts.push(`⏱️ ${formatDuration(opts.durationMinutes)}`)
+  if (opts.toolCallCount)
+    subtitleParts.push(`🔧 ${commaNumber(opts.toolCallCount)}`)
+
+  return Card({
+    title: titleText,
+    subtitle: subtitleParts.join("  ·  ") || undefined,
+    children,
+  })
+}
+
+function commaNumber(n: number): string {
+  return n.toLocaleString("en-US")
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
+function formatModel(model: string): string {
+  return model.replace("claude-", "").replace(/-/g, " ")
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M tokens`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K tokens`
+  return `${n} tokens`
 }
 
 /**
@@ -125,11 +358,24 @@ function extractUserPrompt(raw: string): string {
   return cleaned || "(no prompt)"
 }
 
+// ── Source → emoji mapping ───────────────────────────────────
+
+const SOURCE_EMOJI: Record<string, string> = {
+  "claude-code": ":claude:",
+  cursor: ":cursor:",
+  conductor: ":conductor:",
+}
+
+function sourceEmoji(source?: string): string {
+  if (!source) return ":robot_face:"
+  return SOURCE_EMOJI[source] ?? ":robot_face:"
+}
+
 function formatUserMessage(prompt: string): string {
   const userPrompt = extractUserPrompt(prompt)
   const truncated =
     userPrompt.length > 500 ? userPrompt.slice(0, 497) + "..." : userPrompt
-  return `> ${truncated.replace(/\n/g, "\n> ")}`
+  return `> :bust_in_silhouette: ${truncated.replace(/\n/g, "\n> ")}`
 }
 
 function formatAssistantMessage(
@@ -139,8 +385,7 @@ function formatAssistantMessage(
   if (!summary) return null
   const truncated =
     summary.length > 3000 ? summary.slice(0, 2997) + "..." : summary
-  const label = source ?? "Assistant"
-  return `*${label}:*\n${truncated}`
+  return `${sourceEmoji(source)} ${truncated}`
 }
 
 function formatEndMessage(spec: Record<string, any>): string {
@@ -191,6 +436,7 @@ export async function findThreadBySessionId(
   spec: Record<string, any>
   branch: string | null
   source: string | null
+  startedAt: Date | null
 } | null> {
   const rows = await db
     .select({
@@ -198,6 +444,7 @@ export async function findThreadBySessionId(
       spec: thread.spec,
       branch: thread.branch,
       source: thread.source,
+      startedAt: thread.startedAt,
     })
     .from(thread)
     .where(eq(thread.externalId, sessionId))
@@ -209,6 +456,7 @@ export async function findThreadBySessionId(
     spec: (rows[0].spec ?? {}) as Record<string, any>,
     branch: rows[0].branch,
     source: rows[0].source,
+    startedAt: rows[0].startedAt,
   }
 }
 
@@ -279,6 +527,55 @@ async function getConnectedSurfaces(
 const lastTypingUpdate = new Map<string, number>()
 const TYPING_DEBOUNCE_MS = 2000
 
+// ── Card activity indicator with longer debounce ────────────
+
+const lastCardActivityUpdate = new Map<string, number>()
+const CARD_ACTIVITY_DEBOUNCE_MS = 10_000
+
+/**
+ * Update the card's active status indicator. Debounced to avoid
+ * hammering Slack on every tool call (~10s between card edits).
+ * Pass `null` status to clear the indicator immediately (no debounce).
+ */
+export async function updateCardActivity(
+  db: Database,
+  threadId: string,
+  opts: StatusCardOpts
+): Promise<void> {
+  if (!hasAdapters()) return
+
+  const surfaces = await getConnectedSurfaces(db, threadId)
+  if (surfaces.length === 0) return
+
+  const now = Date.now()
+  const clearing = !opts.activeStatus
+
+  for (const surface of surfaces) {
+    const spec = (surface.spec ?? {}) as Record<string, any>
+    const chatSdkThreadId = spec.chatSdkThreadId as string | undefined
+    if (!chatSdkThreadId) continue
+
+    if (!clearing) {
+      const lastUpdate = lastCardActivityUpdate.get(chatSdkThreadId) ?? 0
+      if (now - lastUpdate < CARD_ACTIVITY_DEBOUNCE_MS) continue
+    }
+    lastCardActivityUpdate.set(chatSdkThreadId, now)
+
+    const parsed = parseChatSdkThreadId(chatSdkThreadId)
+    if (!parsed) continue
+
+    const adapter = getAdapter(surface.channelKind)
+    if (!adapter) continue
+
+    try {
+      const card = buildStatusCard(opts)
+      await adapter.editMessage(chatSdkThreadId, parsed.threadTs, card)
+    } catch (err) {
+      log.warn({ err }, "Failed to update card activity")
+    }
+  }
+}
+
 /**
  * Show typing indicator on all connected surfaces for a thread.
  * On Slack, uses assistant.threads.setStatus for custom status text.
@@ -309,7 +606,17 @@ export async function startTypingOnSurface(
     if (!adapter) continue
 
     try {
-      await adapter.startTyping(chatSdkThreadId, status)
+      // Use Slack's setAssistantStatus for richer status indicator
+      const parsed = parseChatSdkThreadId(chatSdkThreadId)
+      if (parsed && typeof adapter.setAssistantStatus === "function") {
+        await adapter.setAssistantStatus(
+          parsed.channelId,
+          parsed.threadTs,
+          status ?? "Thinking..."
+        )
+      } else {
+        await adapter.startTyping(chatSdkThreadId, status)
+      }
     } catch (err) {
       log.debug(
         { err, threadChannelId: surface.id, chatSdkThreadId },
@@ -329,46 +636,101 @@ export async function startTypingOnSurface(
 export async function updateSurfaceStatus(
   db: Database,
   threadId: string,
-  opts: {
-    source: string
-    cwd?: string
-    branch?: string
-    prompt?: string
-    turnCount?: number
-    toolCallCount?: number
-    toolsUsed?: string[]
-  }
+  opts: StatusCardOpts
 ): Promise<void> {
   if (!hasAdapters()) return
 
   const surfaces = await getConnectedSurfaces(db, threadId)
   if (surfaces.length === 0) return
 
-  const message = formatStatusMessage(opts)
+  // Ensure generated topic + description exist before updating the card.
+  if (!opts.generatedTopic && opts.title) {
+    const generated = await ensureGeneratedTitle(db, threadId, opts.title)
+    if (generated) {
+      opts.generatedTopic = generated.topic
+      opts.generatedDescription = generated.description
+    }
+  }
+
+  const card = buildStatusCard(opts)
 
   for (const surface of surfaces) {
     const spec = (surface.spec ?? {}) as Record<string, any>
     const chatSdkThreadId = spec.chatSdkThreadId as string | undefined
     if (!chatSdkThreadId) continue
 
-    // The thread parent message ID is the last segment of chatSdkThreadId
-    // Format: "slack:C12345:1234567890.123456" → messageId = "1234567890.123456"
-    const parts = chatSdkThreadId.split(":")
-    const statusMessageId = parts.slice(2).join(":")
-    if (!statusMessageId) continue
+    const parsed = parseChatSdkThreadId(chatSdkThreadId)
+    if (!parsed) continue
 
     const adapter = getAdapter(surface.channelKind)
     if (!adapter) continue
 
     try {
-      await adapter.editMessage(chatSdkThreadId, statusMessageId, message)
+      await adapter.editMessage(chatSdkThreadId, parsed.threadTs, card)
     } catch (err) {
       log.debug(
         { err, threadChannelId: surface.id, chatSdkThreadId },
         "Failed to update status message"
       )
     }
+
+    // Set Slack assistant thread title (shown in History view) — use the description
+    if (typeof adapter.setAssistantTitle === "function") {
+      try {
+        const historyTitle =
+          opts.generatedTopic ??
+          (opts.title
+            ? extractUserPrompt(opts.title).slice(0, 60)
+            : `${opts.source} session`)
+        await adapter.setAssistantTitle(
+          parsed.channelId,
+          parsed.threadTs,
+          historyTitle
+        )
+      } catch (err) {
+        log.debug({ err }, "Failed to set assistant title")
+      }
+    }
   }
+}
+
+/**
+ * Ensure a generated title exists for the thread. Idempotent.
+ * Returns { topic, description } or null.
+ */
+async function ensureGeneratedTitle(
+  db: Database,
+  threadId: string,
+  prompt: string
+): Promise<GeneratedTitle | null> {
+  // Re-check DB in case another event already generated one
+  const [row] = await db
+    .select({ spec: thread.spec })
+    .from(thread)
+    .where(eq(thread.id, threadId))
+    .limit(1)
+  const spec = (row?.spec ?? {}) as Record<string, any>
+  if (spec.generatedTopic && spec.generatedDescription) {
+    return {
+      topic: spec.generatedTopic,
+      description: spec.generatedDescription,
+    }
+  }
+
+  const result = await generateThreadTitle(prompt)
+  if (!result) return null
+
+  await db
+    .update(thread)
+    .set({
+      spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({
+        generatedTopic: result.topic,
+        generatedDescription: result.description,
+      })}::jsonb`,
+    })
+    .where(eq(thread.id, threadId))
+
+  return result
 }
 
 // ── Auto-attach surface ─────────────────────────────────────
@@ -416,12 +778,14 @@ export async function autoAttachSurface(
   // New conversation — create a new Slack thread
   await bot.initialize()
   const dmThread = await bot.openDM(identity.externalId)
-  const startMsg = formatStatusMessage({
+  const startCard = buildStatusCard({
     source,
     cwd: payload.cwd,
     branch: payload.gitBranch ?? payload.branch,
+    title: payload.title,
+    model: payload.model,
   })
-  const sent = await dmThread.post(startMsg)
+  const sent = await dmThread.post(startCard)
 
   const { slackChannelId } = parseSlackThreadId(dmThread.id)
   const chatSdkThreadId = `${identity.type}:${slackChannelId}:${sent.id}`

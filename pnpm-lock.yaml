@@ -108,9 +108,6 @@ importers:
       '@corsinvest/cv4pve-api-javascript':
         specifier: ^9.1.0
         version: 9.1.1
-      '@dbos-inc/dbos-sdk':
-        specifier: 4.13.5
-        version: 4.13.5
       '@electric-sql/pglite':
         specifier: 0.3.16
         version: 0.3.16
@@ -141,6 +138,15 @@ importers:
       '@smp/factory-shared':
         specifier: workspace:*
         version: link:../shared
+      '@workflow/ai':
+        specifier: 4.0.1-beta.39
+        version: 4.0.1-beta.39(ai@6.0.142(zod@3.25.76))(workflow@4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3))
+      '@workflow/world-local':
+        specifier: 4.1.0-beta.28
+        version: 4.1.0-beta.28(@opentelemetry/api@1.9.1)
+      '@workflow/world-postgres':
+        specifier: 4.1.0-beta.28
+        version: 4.1.0-beta.28(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)
       ai:
         specifier: ^6.0.101
         version: 6.0.142(zod@3.25.76)
@@ -171,16 +177,25 @@ importers:
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+      workflow:
+        specifier: 4.0.1-beta.39
+        version: 4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@swc/core':
+        specifier: ^1.11.0
+        version: 1.15.21(@swc/helpers@0.5.17)
       '@types/bun':
         specifier: ^1.2.0
         version: 1.3.11
       '@types/pg':
         specifier: 8.20.0
         version: 8.20.0
+      '@workflow/swc-plugin':
+        specifier: ^4.1.0
+        version: 4.1.0(@swc/core@1.15.21(@swc/helpers@0.5.17))
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -232,18 +247,12 @@ importers:
       '@opentelemetry/sdk-node':
         specifier: ^0.205.0
         version: 0.205.0(@opentelemetry/api@1.9.1)
-      '@rio.js/vinxi':
-        specifier: ^0.0.39
-        version: 0.0.39(aniowpxv7xg3xgjaoepz2qjd2u)
       '@smp/factory-api':
         specifier: workspace:*
         version: link:../api
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
-      vinxi:
-        specifier: 0.5.11
-        version: 0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3)
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -1623,11 +1632,6 @@ packages:
   '@date-fns/tz@1.2.0':
     resolution: {integrity: sha512-LBrd7MiJZ9McsOgxqWX7AaxrDjcFVjWH/tIKJd7pnR7McaslGYOP1QmmiBXdJH/H/yLCT+rcQ7FaPBUxRGUtrg==}
 
-  '@dbos-inc/dbos-sdk@4.13.5':
-    resolution: {integrity: sha512-bD4yQdGqiuXEw4to2JlQVfDHxpssXSg3LJlPu/4VRQqIg1ZrjD2rwiQoUK6MboN9eDmIUf6GWwkF4dYOokJPAQ==}
-    engines: {node: '>=20'}
-    hasBin: true
-
   '@deck.gl/aggregation-layers@8.9.35':
     resolution: {integrity: sha512-OjJhHt/ZXLIP3cs8yD2xwa9KACBOjfvJpdMkly704y6SuM0k+qSj81VwkpdOA54DCvAhQQTAYCJ4rvnwmtcPQQ==}
     peerDependencies:
@@ -2951,6 +2955,10 @@ packages:
 
   '@oclif/core@4.0.0':
     resolution: {integrity: sha512-BMWGvJrzn5PnG60gTNFEvaBT0jvGNiJCKN4aJBYP6E7Bq/Y5XPnxPrkj7ZZs/Jsd1oVn6K/JRmF6gWpv72DOew==}
+    engines: {node: '>=18.0.0'}
+
+  '@oclif/core@4.8.1':
+    resolution: {integrity: sha512-07mq0vKCWNsB85ZHeBMlTAiO0KLFqHyAeRK3bD2K8CI1tX3tiwkWw1lZQZkiw8MUBrhxdROhMkYMY4Q0l7JHqA==}
     engines: {node: '>=18.0.0'}
 
   '@oclif/plugin-help@6.2.31':
@@ -7013,25 +7021,6 @@ packages:
       svelte:
         optional: true
 
-  '@trivago/prettier-plugin-sort-imports@6.0.2':
-    resolution: {integrity: sha512-3DgfkukFyC/sE/VuYjaUUWoFfuVjPK55vOFDsxD56XXynFMCZDYFogH2l/hDfOsQAm1myoU/1xByJ3tWqtulXA==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@vue/compiler-sfc': 3.x
-      prettier: 2.x - 3.x
-      prettier-plugin-ember-template-tag: '>= 2.0.0'
-      prettier-plugin-svelte: 3.x
-      svelte: 4.x || 5.x
-    peerDependenciesMeta:
-      '@vue/compiler-sfc':
-        optional: true
-      prettier-plugin-ember-template-tag:
-        optional: true
-      prettier-plugin-svelte:
-        optional: true
-      svelte:
-        optional: true
-
   '@trysound/sax@0.2.0':
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
     engines: {node: '>=10.13.0'}
@@ -7568,6 +7557,10 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
+  '@vercel/queue@0.0.0-alpha.34':
+    resolution: {integrity: sha512-xy5MNbsAoN9W1gtjNkKEg8SHEsnoEj3KbQQH7EaAtqJ0ZfdPo13XLOdqvAR5IO+4X5F0nyPENMVFilzzaSAYiA==}
+    engines: {node: '>=20.0.0'}
+
   '@vinxi/deno-doc@0.1.1':
     resolution: {integrity: sha512-823fyjD9lVawSl2+dlabeqL/k4CjvM7jofMVBudD9DG+djCpObgtG+8Ct81ZpRU8hY9j5KFKT7Gj8VCr9qubqA==}
 
@@ -7696,6 +7689,15 @@ packages:
       ai: ^5
       workflow: 4.0.1-beta.32
 
+  '@workflow/ai@4.0.1-beta.39':
+    resolution: {integrity: sha512-fiXki0Zhy8FtjE92MjOoEbDo1LQj1tz5FY3TtizTlQY7VhMIeZbF8y7AqD8Ni3lkh+bGjSBOibxdP2OcfOVKDA==}
+    peerDependencies:
+      ai: ^5 || ^6
+      workflow: 4.0.1-beta.39
+
+  '@workflow/astro@4.0.0-beta.15':
+    resolution: {integrity: sha512-6u58B4r4C9WkI//ta1RUsOxzuLlvehcNhnqTBzyhBINfrJ7Ben4Q7WU8Bn/t+joi7tFHFRjvS2mpssH6GVr1PQ==}
+
   '@workflow/astro@4.0.0-beta.9':
     resolution: {integrity: sha512-3da6ARys4/eI5eHWo9vc3o74eLW3LynMQDCPq1V+/A9ZL+vN4MW70YbjYlcdrV19UAZqnxVeJN4FYOFJKGTn3Q==}
 
@@ -7707,6 +7709,10 @@ packages:
 
   '@workflow/cli@4.0.1-beta.32':
     resolution: {integrity: sha512-1uq2/dsYFi1KIOH7c9X1gyPBb+m+EDzPEW4PsOjcTi3qhAbr2oeCxXGlJlafW1uwlrh/oxUcfNfMzdTnFPbq+Q==}
+    hasBin: true
+
+  '@workflow/cli@4.0.1-beta.39':
+    resolution: {integrity: sha512-4Im/MCGRhLE5FAztD7yNSIwDtn/RcoHLIKVsTLMZ5p0Ry5oHd/rfzFAD3wwXIN7MafXPReE66iP37VaXkFQ/mw==}
     hasBin: true
 
   '@workflow/core@4.0.1-beta.27':
@@ -7728,8 +7734,14 @@ packages:
   '@workflow/errors@4.0.1-beta.12':
     resolution: {integrity: sha512-GGppXuFxm8hTs+ZsMLWpNqg537/1nvRoVVWKuiKD2mhGcMWQBxLCkFGS09qROcN8qSQWDiAiBhuvIJNzE+Giiw==}
 
+  '@workflow/errors@4.0.1-beta.13':
+    resolution: {integrity: sha512-dPesnv9zPLpMYve52w5ITSxNXnBnc5GdxDRTjmHbRSgntsnTjFCtQuyZzB8/3xnP+VlYig1W6mGq9Ch5prgHjQ==}
+
   '@workflow/errors@4.0.1-beta.9':
     resolution: {integrity: sha512-8zZ8bnXnKDXRE4570XY10HOqNY7xVrt8U/pEStrmDmGwCO1iydUXe6Ul6C8emx01KomTuNhcx8KKRVOyZkG0TQ==}
+
+  '@workflow/errors@4.1.0-beta.14':
+    resolution: {integrity: sha512-vc01pVxxhRZt9lpGkTuW2X+/KHYMOP4Gc42BiIrf/x6bz9oWPInTbfFW+YAPvstE4SF1gpyxMpb5r4yjg6LznA==}
 
   '@workflow/next@4.0.1-beta.31':
     resolution: {integrity: sha512-UN377NDtr+DVEsksAOIWpyb/0xH1q52asHJ8Zi9slldiA6FjRdluCHjjFpq9H2wHuUE9V+vAjLuu5Vs0z6cE+g==}
@@ -7739,11 +7751,25 @@ packages:
       next:
         optional: true
 
+  '@workflow/next@4.0.1-beta.37':
+    resolution: {integrity: sha512-5862FFLvjjmvxIrCrWmE/SPrVHvn459QRuJpitOC6gn1kFntN5CNx3V9PaPDKGPS3eF+B3hhXi6ovn/68xU9hg==}
+    peerDependencies:
+      next: '>13'
+    peerDependenciesMeta:
+      next:
+        optional: true
+
   '@workflow/nitro@4.0.1-beta.30':
     resolution: {integrity: sha512-QJXvniB2Jx7dQ5CRXhaH4A6TVMA6rYlERfqtj0vnRAxckTW4GvZMFqTVD7zqgnBQrauLffVeM3M5IqFjVJhAVw==}
 
+  '@workflow/nitro@4.0.1-beta.36':
+    resolution: {integrity: sha512-9xJbD/Ca3EZNCScl/2l7LM55FFARxo9LBAgbZ+/FrPTfsCZohS7PJg2JZtMkx7gFS92XQMNomfoC+MmdHPUa8w==}
+
   '@workflow/nuxt@4.0.1-beta.19':
     resolution: {integrity: sha512-eUSUj8Q1qNV45OV22Hv1nipmnUZyQcEaKj7DNvEAiw7vaaHVwNJHEqyBpCWXium/GXXaae0bciqy9JY/TmY8cw==}
+
+  '@workflow/nuxt@4.0.1-beta.25':
+    resolution: {integrity: sha512-0K+1WEMDP79IZP+PHDHcwDLVuCjtwem8kuuXZQaH2n+TAzS2994+M6yTilb0tUJLqmE1vcnq5g4TqPtQTCFlzg==}
 
   '@workflow/rollup@4.0.0-beta.6':
     resolution: {integrity: sha512-dlo/1QRGx6tnzivwlel2rUJJviSADzC0vKbZQ1nrqJUTr1nxBqTjnBngv9ZYUfB3PXNOIWG78rmIsEk9+YoKOA==}
@@ -7754,8 +7780,16 @@ packages:
   '@workflow/sveltekit@4.0.0-beta.24':
     resolution: {integrity: sha512-KJzJ3WjwhYjJZ8mLOlyZguqYVe9AjFRF3AVdXmZMgah8DFPOcCFrakO9roItgk/awkfmNHFEcwjXShaHHsrMrA==}
 
+  '@workflow/sveltekit@4.0.0-beta.30':
+    resolution: {integrity: sha512-a/IIFhH9wwzeRmKjHtF3pUhDzR3Z0wyGKOoeV/8x//4Z/dK0rXbc5yd0rAnM+WyxwwL3XiRNStg6/t1n5GQKGA==}
+
   '@workflow/swc-plugin@4.0.1-beta.12':
     resolution: {integrity: sha512-j/RRzjefrNs6lxc1cEZq0vG3XVLXfdOKIDUvMD1o0FTeAULQxGT9o9mHqdndMV1mfcEwNzszMXb51LcNAJGJ6A==}
+    peerDependencies:
+      '@swc/core': 1.15.3
+
+  '@workflow/swc-plugin@4.1.0':
+    resolution: {integrity: sha512-FcWKJwzkRqf0u08/WCyg2n1H3932JQpFk3g6edE7trXKFW06a8o4F22k/xgPFsbxAq8UpywcIN7f46H0/uH5Tw==}
     peerDependencies:
       '@swc/core': 1.15.3
 
@@ -7764,17 +7798,26 @@ packages:
     peerDependencies:
       typescript: '>=5.0.0'
 
+  '@workflow/utils@4.0.1-beta.10':
+    resolution: {integrity: sha512-MLCSuux5TmcORFGfzrHoGrU6WHZaQZoCWyLHa3imtqJonJeN5tQFx3CtEm8wSxYA9DIxlmmbpxs4/ZEYV03bAg==}
+
   '@workflow/utils@4.0.1-beta.7':
     resolution: {integrity: sha512-2Ps8d19k9vULwcH+We2ftnnFHFsGObr107fsT3LPopfMvY5QwiglxsWf7Up5rOq3dsVQCtCKD4etjnfL9DDrxQ==}
 
   '@workflow/utils@4.0.1-beta.9':
     resolution: {integrity: sha512-VSi5iSoCrusLPrUFS/BiKWzn3RGrXh63T+PtxCQRNQ6u0HrV8YBm6j+l1s8QEskghnsT97HNboY0e8k5I/ZnjQ==}
 
+  '@workflow/utils@4.1.0-beta.11':
+    resolution: {integrity: sha512-4fIstKn3jSN7pyJzp8RZ4Rbrohpxa+mc3sKji7wDGnqzD9GnSbm3+WOhGAduvYZubsAHN7HmXrfZ96EPLXtu6g==}
+
   '@workflow/vite@4.0.0-beta.2':
     resolution: {integrity: sha512-EKtfw+ld0jF1sXkHQWIdfmn6f7ZzcPzeByXTYydBmSRoYWT7GPTwvBPhwYXatnu/tq/BJrxNYhg1cUVZ9VkNiw==}
 
   '@workflow/web@4.0.1-beta.17':
     resolution: {integrity: sha512-dRMDdlu6derDe0tWCZZh6iz37pRqaOvHhZAx4ulfRejZ5s1c77nLBmqrNZ4q2TrysyHMBL3dVYyCbXi/UZa/UQ==}
+
+  '@workflow/web@4.0.1-beta.22':
+    resolution: {integrity: sha512-KR3I5v7UWahgcRP8pcy7n2fvL0A8AhKNUsI2OVSRNxiP25QIeuLjGm81gmirc2f5HHceAUCs/ojnD1xHwmUhvQ==}
 
   '@workflow/world-local@4.0.1-beta.18':
     resolution: {integrity: sha512-lxYEv7RhK51A54Q+dga+ahFImU088I1eyVzOJsVEo51ZXj9ggFhZ8nFcoKDn4kZeN+PmQbgRso0TDnvJGGWY+A==}
@@ -7792,8 +7835,28 @@ packages:
       '@opentelemetry/api':
         optional: true
 
+  '@workflow/world-local@4.0.1-beta.26':
+    resolution: {integrity: sha512-LMCi4x8MQ1Dp9mcbZjwOfpBubaeLCuon28HJG22Lihp33BsO6bvwBqi/As84rV5X+0/sXGxhSdKfNxgLOmf/pA==}
+    peerDependencies:
+      '@opentelemetry/api': '1'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+
+  '@workflow/world-local@4.1.0-beta.28':
+    resolution: {integrity: sha512-9kL6PG4oq4KYuRftcincUaf9Rkvsh9UIKI4UsdfufTiea7aYsAVBzWBZIyalsDmSoPy3M76YqmZK8eN9bPjtzw==}
+    peerDependencies:
+      '@opentelemetry/api': '1'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+
   '@workflow/world-postgres@4.1.0-beta.25':
     resolution: {integrity: sha512-9VtCq+mqvmhNw2eK0YcCyjKK8fQTTVDhuKjwjKY4vEaUTIZhHhgNBRF0kj53F3n0nGNT/j0PP6+gsRliKWW8hw==}
+    hasBin: true
+
+  '@workflow/world-postgres@4.1.0-beta.28':
+    resolution: {integrity: sha512-k9cqs07QyMuDvECO3K6/58VSRM3RQpEXJdgHLpW4Y/D6wNID8zYHhd8vfyd5tZUIYOGHLjIYS+iG0brN9oGQow==}
     hasBin: true
 
   '@workflow/world-vercel@4.0.1-beta.20':
@@ -7809,6 +7872,16 @@ packages:
 
   '@workflow/world@4.0.1-beta.11':
     resolution: {integrity: sha512-QIZ4zapISKi+b+yRSkDOQxilmxP2K5DoGUi7vgctLAd1rWxXw0cArNmOXJ5dwFFNcJqH89qt/frzZscK/9Uqsw==}
+    peerDependencies:
+      zod: 4.1.11
+
+  '@workflow/world@4.0.1-beta.13':
+    resolution: {integrity: sha512-2u7/iHFDP4ADPZYBarH7xQsM10aY5sQjPYm2BGefgFA35UV3rxrJcT8OYaxhF4v6iM/q8QCSqvJFp/7xIobrxQ==}
+    peerDependencies:
+      zod: 4.1.11
+
+  '@workflow/world@4.1.0-beta.1':
+    resolution: {integrity: sha512-DM7dI8IHRHeqP9EnCe+z70TGX/TX4losuLc2uBPm8BPk3VNNI/AI7DSybPCD5WJREM4QNgdOeHUsJop1xQ5SiA==}
     peerDependencies:
       zod: 4.1.11
 
@@ -8291,10 +8364,6 @@ packages:
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
-  buffer-writer@2.0.0:
-    resolution: {integrity: sha512-a7ZpuTZU1TRtnwyCNW3I5dc0wWNC3VR9S++Ewyk2HHZdrO3CQJqSpd+95Us590V6AL7JqUAH2IwZ/398PmNFgw==}
-    engines: {node: '>=4'}
-
   buffer-xor@1.0.3:
     resolution: {integrity: sha512-571s0T7nZWK6vB67HI5dyUF7wXiNcfaPPPTl6zYCNApANjIvYJTg7hlud/+cJpdAhS7dVzqMLmfhfHR3rAcOjQ==}
 
@@ -8564,10 +8633,6 @@ packages:
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
-  commander@12.0.0:
-    resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
-    engines: {node: '>=18'}
-
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
@@ -8636,10 +8701,6 @@ packages:
   cookie@1.1.1:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
-
-  copy-anything@3.0.5:
-    resolution: {integrity: sha512-yCEafptTtb4bk7GLEQoM8KVJpxAfdBJYaXyzQEgQQQgYrZiDp8SJmGKlYza6CYjEDNstAdNdKA3UuoULlEbS6w==}
-    engines: {node: '>=12.13'}
 
   core-assert@0.2.1:
     resolution: {integrity: sha512-IG97qShIP+nrJCXMCgkNZgH7jZQ4n8RpPyPeXX++T6avR/KhLhgLiHKoEn5Rc1KjfycSfA9DMa6m+4C4eguHhw==}
@@ -10192,10 +10253,6 @@ packages:
     resolution: {integrity: sha512-mE00Gnza5EEB3Ds0HfMyllZzbBrmLOX3vfWoj9A9PEnTfratQ/BcaJOuMhnkhjXvb2+FkY3VuHqtAGpTPmglFQ==}
     engines: {node: '>=18'}
 
-  is-what@4.1.16:
-    resolution: {integrity: sha512-ZhMwEosbFJkA0YhFnNDgTM4ZxDRsS6HqTo7qsZM08fehyRYIYa0yHu5R6mgo1n/8MgaPBXiPimPD77baVFYg+A==}
-    engines: {node: '>=12.13'}
-
   is-wsl@2.2.0:
     resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
     engines: {node: '>=8'}
@@ -10523,9 +10580,6 @@ packages:
   locate-path@7.2.0:
     resolution: {integrity: sha512-gvVijfZvn7R+2qyPX8mAuKcFGDf6Nc61GdvGafQsHL0sBIxfKzA+usWn4GFC/bk+QdwPUD4kWFJLhElipq+0VA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
-  lodash-es@4.17.23:
-    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
 
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
@@ -11349,9 +11403,6 @@ packages:
   package-manager-detector@1.6.0:
     resolution: {integrity: sha512-61A5ThoTiDG/C8s8UMZwSorAGwMJ0ERVGj2OjoW5pAalsNOg15+iQiPzrLJ4jhZ1HJzmC2PIHT2oEiH3R5fzNA==}
 
-  packet-reader@1.0.0:
-    resolution: {integrity: sha512-HAKu/fG3HpHFO0AA8WE8q2g+gBJaZ9MG7fcKk+IJPLTGAD6Psw4443l+9DGRbOIh3/aXr7Phy0TjilYivJo5XQ==}
-
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
@@ -11366,18 +11417,12 @@ packages:
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
 
-  parse-imports-exports@0.2.4:
-    resolution: {integrity: sha512-4s6vd6dx1AotCx/RCI2m7t7GCh5bDRUtGNvRfHSP2wbBQdMi67pPe7mtzmgwcaQ8VKK/6IB7Glfyu3qdZJPybQ==}
-
   parse-json@5.2.0:
     resolution: {integrity: sha512-ayCKvm/phCGxOkYRSCM82iDwct8/EonSEgCSxWxD7ve6jHggsFl4fZVQBPRNgQoKiuV/odhFrGzQXZwbifC8Rg==}
     engines: {node: '>=8'}
 
   parse-numeric-range@1.3.0:
     resolution: {integrity: sha512-twN+njEipszzlMJd4ONUYgSfZPDxgHhT9Ahed5uTigpQn90FggW4SA/AIPq/6a149fTbE9qBEcSwE3FAEp6wQQ==}
-
-  parse-statements@1.0.11:
-    resolution: {integrity: sha512-HlsyYdMBnbPQ9Jr/VgJ1YF4scnldvJpJxCVx6KgqPL4dxppsWrJHCIIxQXMJrqGnsRkNPATbeMJ8Yxu7JMsYcA==}
 
   parse5-htmlparser2-tree-adapter@7.1.0:
     resolution: {integrity: sha512-ruw5xyKs6lrpo9x9rCZqZZnIUntICjQAd0Wsmp396Ul9lN/h+ifgVV1x1gZHi8euej6wTfpqX8j+BFQxF0NS/g==}
@@ -11500,15 +11545,6 @@ packages:
   pg-types@2.2.0:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
-
-  pg@8.11.3:
-    resolution: {integrity: sha512-+9iuvG8QfaaUrrph+kpF24cXkH1YOOUeArRNYIxq1viYHZagBxrTno7cecY1Fa44tJeZvaoG+Djpkc3JwehN5g==}
-    engines: {node: '>= 8.0.0'}
-    peerDependencies:
-      pg-native: '>=3.0.1'
-    peerDependenciesMeta:
-      pg-native:
-        optional: true
 
   pg@8.20.0:
     resolution: {integrity: sha512-ldhMxz2r8fl/6QkXnBD3CR9/xg694oT6DZQ2s6c/RI28OjtSOpxnPrUCGOBJ46RCUxcWdx3p6kw/xnDHjKvaRA==}
@@ -12768,10 +12804,6 @@ packages:
   supercluster@8.0.1:
     resolution: {integrity: sha512-IiOea5kJ9iqzD2t7QJq/cREyLHTtSmUT6gQsweojg9WH2sYJqZK9SswTu6jrscO6D1G5v5vYZ9ru/eq85lXeZQ==}
 
-  superjson@1.13.3:
-    resolution: {integrity: sha512-mJiVjfd2vokfDxsQPOwJ/PtanO87LhpYY88ubI5dUB1Ab58Txbyje3+jpm+/83R/fevaq/107NNhtYBLuoTrFg==}
-    engines: {node: '>=10'}
-
   supports-color@10.2.2:
     resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
     engines: {node: '>=18'}
@@ -13662,6 +13694,15 @@ packages:
       '@opentelemetry/api':
         optional: true
 
+  workflow@4.0.1-beta.39:
+    resolution: {integrity: sha512-TIWqdqasLc+orNlTneMq0MmT2Vc9ARSN8qQ0FhWMXjTMA7N6qw89MhRCW9lx9iq3pn98ZjabVAODzwQCuE6MXg==}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': '1'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+
   wrap-ansi@6.2.0:
     resolution: {integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==}
     engines: {node: '>=8'}
@@ -13772,11 +13813,6 @@ packages:
   yaml@1.10.3:
     resolution: {integrity: sha512-vIYeF1u3CjlhAFekPPAk2h/Kv4T3mAkMox5OymRiJQB0spDP10LHvt+K7G9Ny6NuuMAb25/6n1qyUjAcGNf/AA==}
     engines: {node: '>= 6'}
-
-  yaml@2.4.1:
-    resolution: {integrity: sha512-pIXzoImaqmfOrL7teGUBt/T7ZDnyeGBWyXQBvOVhLkWLN37GXv8NMLK406UY6dS51JfcQHsmcW5cJ441bHg6Lg==}
-    engines: {node: '>= 14'}
-    hasBin: true
 
   yaml@2.8.3:
     resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
@@ -13907,6 +13943,13 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.21(zod@3.25.76)
       zod: 3.25.76
 
+  '@ai-sdk/anthropic@3.0.63(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.21(zod@4.1.11)
+      zod: 4.1.11
+    optional: true
+
   '@ai-sdk/gateway@2.0.15(zod@4.1.11)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -13928,6 +13971,14 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 3.25.76
 
+  '@ai-sdk/gateway@3.0.84(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.21(zod@4.1.11)
+      '@vercel/oidc': 3.1.0
+      zod: 4.1.11
+    optional: true
+
   '@ai-sdk/gateway@3.0.84(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -13946,6 +13997,13 @@ snapshots:
       '@ai-sdk/provider': 3.0.8
       '@ai-sdk/provider-utils': 4.0.21(zod@3.25.76)
       zod: 3.25.76
+
+  '@ai-sdk/google@3.0.55(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.21(zod@4.1.11)
+      zod: 4.1.11
+    optional: true
 
   '@ai-sdk/google@3.0.55(zod@4.3.6)':
     dependencies:
@@ -13985,6 +14043,14 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.0.6
       zod: 3.25.76
+
+  '@ai-sdk/provider-utils@4.0.21(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 4.1.11
+    optional: true
 
   '@ai-sdk/provider-utils@4.0.21(zod@4.3.6)':
     dependencies:
@@ -15217,19 +15283,6 @@ snapshots:
       indefinitely-typed: 1.1.0
 
   '@date-fns/tz@1.2.0': {}
-
-  '@dbos-inc/dbos-sdk@4.13.5':
-    dependencies:
-      commander: 12.0.0
-      pg: 8.11.3
-      serialize-error: 8.1.0
-      superjson: 1.13.3
-      ws: 8.20.0
-      yaml: 2.4.1
-    transitivePeerDependencies:
-      - bufferutil
-      - pg-native
-      - utf-8-validate
 
   '@deck.gl/aggregation-layers@8.9.35(@deck.gl/core@8.9.35)(@deck.gl/layers@8.9.35(@deck.gl/core@8.9.35)(@loaders.gl/core@3.4.15)(@luma.gl/core@8.5.21))(@luma.gl/core@8.5.21)':
     dependencies:
@@ -16724,11 +16777,52 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@oclif/plugin-help@6.2.31(typescript@5.8.3)':
+  '@oclif/core@4.0.0(typescript@5.9.3)':
     dependencies:
-      '@oclif/core': 4.0.0(typescript@5.8.3)
+      ansi-escapes: 4.3.2
+      ansis: 3.17.0
+      clean-stack: 3.0.1
+      cli-spinners: 2.9.2
+      cosmiconfig: 9.0.1(typescript@5.9.3)
+      debug: 4.4.3(supports-color@8.1.1)
+      ejs: 3.1.10
+      get-package-type: 0.1.0
+      globby: 11.1.0
+      indent-string: 4.0.0
+      is-wsl: 2.2.0
+      minimatch: 9.0.9
+      string-width: 4.2.3
+      supports-color: 8.1.1
+      widest-line: 3.1.0
+      wordwrap: 1.0.0
+      wrap-ansi: 7.0.0
     transitivePeerDependencies:
       - typescript
+
+  '@oclif/core@4.8.1':
+    dependencies:
+      ansi-escapes: 4.3.2
+      ansis: 3.17.0
+      clean-stack: 3.0.1
+      cli-spinners: 2.9.2
+      debug: 4.4.3(supports-color@8.1.1)
+      ejs: 3.1.10
+      get-package-type: 0.1.0
+      indent-string: 4.0.0
+      is-wsl: 2.2.0
+      lilconfig: 3.1.3
+      minimatch: 10.2.4
+      semver: 7.7.4
+      string-width: 4.2.3
+      supports-color: 8.1.1
+      tinyglobby: 0.2.15
+      widest-line: 3.1.0
+      wordwrap: 1.0.0
+      wrap-ansi: 7.0.0
+
+  '@oclif/plugin-help@6.2.31':
+    dependencies:
+      '@oclif/core': 4.8.1
 
   '@octokit/auth-token@6.0.0': {}
 
@@ -21777,137 +21871,6 @@ snapshots:
       - xml2js
       - yaml
 
-  '@rio.js/vinxi@0.0.39(aniowpxv7xg3xgjaoepz2qjd2u)':
-    dependencies:
-      '@babel/plugin-proposal-decorators': 7.24.6(@babel/core@7.29.0)
-      '@babel/plugin-proposal-explicit-resource-management': 7.24.6(@babel/core@7.29.0)
-      '@iconify-icon/react': 2.1.0(react@19.2.0)
-      '@iconify-json/material-symbols': 1.1.68
-      '@iconify/json': 2.2.428
-      '@iconify/tools': 3.0.7
-      '@onlook/babel-plugin-react': 2.1.1
-      '@radix-ui/colors': 3.0.0
-      '@rio.js/env': 0.0.8(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3)
-      '@tailwindcss/vite': 4.2.2(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      '@types/react': 19.2.1
-      '@types/react-dom': 19.2.2(@types/react@19.2.1)
-      '@vinxi/deno-doc': 0.1.1
-      '@vinxi/react': 0.2.3
-      '@vinxi/router': 0.5.10(typescript@5.9.3)(vinxi@0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      '@vinxi/server-functions': 0.5.1(vinxi@0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3))
-      '@vitejs/plugin-react': 4.3.1(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/browser-playwright': 4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(playwright@1.58.2)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
-      '@vitest/coverage-v8': 4.1.1(@vitest/browser@4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1))(vitest@4.1.1)
-      babel-plugin-react-compiler: 19.1.0-rc.2
-      babel-plugin-transform-typescript-metadata: 0.3.2(@babel/core@7.29.0)(@babel/traverse@7.29.0)
-      get-port-please: 3.2.0
-      kleur: 4.1.5
-      path-to-regexp: 6.2.2
-      picocolors: 1.1.1
-      playwright: 1.58.2
-      prettier-plugin-tailwindcss: 0.4.1(@trivago/prettier-plugin-sort-imports@6.0.2(@vue/compiler-sfc@3.5.31)(prettier@3.8.1))(prettier@3.8.1)
-      react: 19.2.0
-      react-compiler-runtime: 19.1.0-rc.2(react@19.2.0)
-      react-dom: 19.2.0(react@19.2.0)
-      resolve: 1.22.10
-      rollup-plugin-visualizer: 6.0.3(rolldown@1.0.0-rc.13)(rollup@4.60.0)
-      start-server-and-test: 2.1.5
-      tinyglobby: 0.2.15
-      unocss: 66.1.4(postcss@8.5.8)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
-      unplugin-fonts: 1.3.1(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vinxi: 0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3)
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      vite-plugin-babel: 1.6.0(@babel/core@7.29.0)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-plugin-comlink: 5.1.0(comlink@4.4.2)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-plugin-inspect: 11.3.3(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-plugin-node-polyfills: 0.22.0(rollup@4.60.0)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-plugin-top-level-await: 1.6.0(@swc/helpers@0.5.17)(rollup@4.60.0)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-plugin-wasm: 3.5.0(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vite-tsconfig-paths: 5.1.4(typescript@5.9.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      vitest: 4.1.1(@opentelemetry/api@1.9.1)(@types/node@25.0.9)(@vitest/browser-playwright@4.1.1)(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@babel/core'
-      - '@babel/traverse'
-      - '@capacitor/preferences'
-      - '@deno/kv'
-      - '@edge-runtime/vm'
-      - '@electric-sql/pglite'
-      - '@ianvs/prettier-plugin-sort-imports'
-      - '@libsql/client'
-      - '@netlify/blobs'
-      - '@nuxt/kit'
-      - '@opentelemetry/api'
-      - '@planetscale/database'
-      - '@prettier/plugin-pug'
-      - '@shopify/prettier-plugin-liquid'
-      - '@shufo/prettier-plugin-blade'
-      - '@swc/helpers'
-      - '@trivago/prettier-plugin-sort-imports'
-      - '@types/node'
-      - '@unocss/webpack'
-      - '@upstash/redis'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - '@vitest/browser'
-      - '@vitest/browser-preview'
-      - '@vitest/browser-webdriverio'
-      - '@vitest/ui'
-      - aws4fetch
-      - bare-abort-controller
-      - bare-buffer
-      - better-sqlite3
-      - bufferutil
-      - comlink
-      - db0
-      - debug
-      - drizzle-orm
-      - encoding
-      - happy-dom
-      - idb-keyval
-      - ioredis
-      - jiti
-      - jsdom
-      - less
-      - lightningcss
-      - msw
-      - mysql2
-      - postcss
-      - prettier
-      - prettier-plugin-astro
-      - prettier-plugin-css-order
-      - prettier-plugin-import-sort
-      - prettier-plugin-jsdoc
-      - prettier-plugin-marko
-      - prettier-plugin-organize-attributes
-      - prettier-plugin-organize-imports
-      - prettier-plugin-style-order
-      - prettier-plugin-svelte
-      - prettier-plugin-twig-melody
-      - react-native-b4a
-      - rolldown
-      - rollup
-      - sass
-      - sass-embedded
-      - sqlite3
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-      - tsx
-      - typescript
-      - uploadthing
-      - utf-8-validate
-      - vue
-      - xml2js
-      - yaml
-
   '@rio.js/workflows@0.0.10(rzpqi7h65lxufboazihbrnks4i)':
     dependencies:
       '@elysiajs/eden': 1.4.8(elysia@1.4.28(@sinclair/typebox@0.34.48)(@types/bun@1.3.11)(exact-mirror@0.2.7(@sinclair/typebox@0.34.48))(file-type@21.3.4)(openapi-types@12.1.3)(typescript@5.8.3))
@@ -22899,23 +22862,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@trivago/prettier-plugin-sort-imports@6.0.2(@vue/compiler-sfc@3.5.31)(prettier@3.8.1)':
-    dependencies:
-      '@babel/generator': 7.29.1
-      '@babel/parser': 7.29.2
-      '@babel/traverse': 7.29.0
-      '@babel/types': 7.29.0
-      javascript-natural-sort: 0.7.1
-      lodash-es: 4.17.23
-      minimatch: 9.0.9
-      parse-imports-exports: 0.2.4
-      prettier: 3.8.1
-    optionalDependencies:
-      '@vue/compiler-sfc': 3.5.31
-    transitivePeerDependencies:
-      - supports-color
-    optional: true
-
   '@trysound/sax@0.2.0': {}
 
   '@turf/along@7.3.4':
@@ -23532,16 +23478,6 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  '@unocss/astro@66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))':
-    dependencies:
-      '@unocss/core': 66.1.4
-      '@unocss/reset': 66.1.4
-      '@unocss/vite': 66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
-    optionalDependencies:
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - vue
-
   '@unocss/cli@66.1.4':
     dependencies:
       '@ampproject/remapping': 2.3.0
@@ -23577,17 +23513,6 @@ snapshots:
       gzip-size: 6.0.0
       sirv: 3.0.2
       vue-flow-layout: 0.1.1(vue@3.5.31(typescript@5.8.3))
-    transitivePeerDependencies:
-      - vue
-
-  '@unocss/inspector@66.1.4(vue@3.5.31(typescript@5.9.3))':
-    dependencies:
-      '@unocss/core': 66.1.4
-      '@unocss/rule-utils': 66.1.4
-      colorette: 2.0.20
-      gzip-size: 6.0.0
-      sirv: 3.0.2
-      vue-flow-layout: 0.1.1(vue@3.5.31(typescript@5.9.3))
     transitivePeerDependencies:
       - vue
 
@@ -23695,21 +23620,6 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  '@unocss/vite@66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))':
-    dependencies:
-      '@ampproject/remapping': 2.3.0
-      '@unocss/config': 66.1.4
-      '@unocss/core': 66.1.4
-      '@unocss/inspector': 66.1.4(vue@3.5.31(typescript@5.9.3))
-      chokidar: 3.6.0
-      magic-string: 0.30.21
-      pathe: 2.0.3
-      tinyglobby: 0.2.15
-      unplugin-utils: 0.2.5
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - vue
-
   '@use-gesture/core@10.3.1': {}
 
   '@use-gesture/react@10.3.1(react@19.2.0)':
@@ -23749,6 +23659,11 @@ snapshots:
   '@vercel/oidc@3.2.0': {}
 
   '@vercel/queue@0.0.0-alpha.33':
+    dependencies:
+      '@vercel/oidc': 3.2.0
+      mixpart: 0.0.5-alpha.1
+
+  '@vercel/queue@0.0.0-alpha.34':
     dependencies:
       '@vercel/oidc': 3.2.0
       mixpart: 0.0.5-alpha.1
@@ -23795,16 +23710,6 @@ snapshots:
       path-to-regexp: 8.3.0
       vinxi: 0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3)
       vite-tsconfig-paths: 4.3.2(typescript@5.8.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-    transitivePeerDependencies:
-      - supports-color
-      - typescript
-      - vite
-
-  '@vinxi/router@0.5.10(typescript@5.9.3)(vinxi@0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))':
-    dependencies:
-      path-to-regexp: 8.3.0
-      vinxi: 0.5.11(@electric-sql/pglite@0.3.16)(@types/node@25.0.9)(@vercel/functions@3.4.3(@aws-sdk/credential-provider-web-identity@3.972.18))(better-sqlite3@12.8.0)(db0@0.3.4(@electric-sql/pglite@0.3.16)(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)))(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7))(encoding@0.1.13)(ioredis@5.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(rolldown@1.0.0-rc.13)(terser@5.46.1)(tsx@4.21.0)(xml2js@0.6.2)(yaml@2.8.3)
-      vite-tsconfig-paths: 4.3.2(typescript@5.9.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -23857,6 +23762,7 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+    optional: true
 
   '@vitest/browser@4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)':
     dependencies:
@@ -23891,6 +23797,7 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+    optional: true
 
   '@vitest/coverage-v8@4.1.1(@vitest/browser@4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1))(vitest@4.1.1)':
     dependencies:
@@ -23907,22 +23814,6 @@ snapshots:
       vitest: 4.1.1(@opentelemetry/api@1.9.1)(@types/node@25.0.9)(@vitest/browser-playwright@4.1.1)(msw@2.12.14(@types/node@25.0.9)(typescript@5.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     optionalDependencies:
       '@vitest/browser': 4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.8.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
-
-  '@vitest/coverage-v8@4.1.1(@vitest/browser@4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1))(vitest@4.1.1)':
-    dependencies:
-      '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.1.1
-      ast-v8-to-istanbul: 1.0.0
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-reports: 3.2.0
-      magicast: 0.5.2
-      obug: 2.1.1
-      std-env: 4.0.0
-      tinyrainbow: 3.1.0
-      vitest: 4.1.1(@opentelemetry/api@1.9.1)(@types/node@25.0.9)(@vitest/browser-playwright@4.1.1)(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-    optionalDependencies:
-      '@vitest/browser': 4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
 
   '@vitest/expect@4.1.1':
     dependencies:
@@ -23950,6 +23841,7 @@ snapshots:
     optionalDependencies:
       msw: 2.12.14(@types/node@25.0.9)(typescript@5.9.3)
       vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+    optional: true
 
   '@vitest/pretty-format@4.1.1':
     dependencies:
@@ -24032,6 +23924,7 @@ snapshots:
       '@vue/compiler-ssr': 3.5.31
       '@vue/shared': 3.5.31
       vue: 3.5.31(typescript@5.9.3)
+    optional: true
 
   '@vue/shared@3.5.31': {}
 
@@ -24068,6 +23961,34 @@ snapshots:
       ai: 6.0.142(zod@4.3.6)
       workflow: 4.0.1-beta.32(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.8.3)
       zod: 4.1.11
+
+  '@workflow/ai@4.0.1-beta.39(ai@6.0.142(zod@3.25.76))(workflow@4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3))':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      ai: 6.0.142(zod@3.25.76)
+      workflow: 4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      zod: 4.1.11
+    optionalDependencies:
+      '@ai-sdk/anthropic': 3.0.63(zod@4.1.11)
+      '@ai-sdk/gateway': 3.0.84(zod@4.1.11)
+      '@ai-sdk/google': 3.0.55(zod@4.1.11)
+      '@ai-sdk/openai': 2.0.72(zod@4.1.11)
+      '@ai-sdk/xai': 2.0.37(zod@4.1.11)
+
+  '@workflow/astro@4.0.0-beta.15(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)':
+    dependencies:
+      '@swc/core': 1.15.3(@swc/helpers@0.5.17)
+      '@workflow/builders': 4.0.1-beta.32(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/rollup': 4.0.0-beta.6(@swc/helpers@0.5.17)
+      '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
+      '@workflow/vite': 4.0.0-beta.2
+      exsolve: 1.0.8
+      pathe: 2.0.3
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@swc/helpers'
+      - aws-crt
+      - supports-color
 
   '@workflow/astro@4.0.0-beta.9(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)':
     dependencies:
@@ -24125,7 +24046,7 @@ snapshots:
   '@workflow/cli@4.0.1-beta.32(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.8.3)':
     dependencies:
       '@oclif/core': 4.0.0(typescript@5.8.3)
-      '@oclif/plugin-help': 6.2.31(typescript@5.8.3)
+      '@oclif/plugin-help': 6.2.31
       '@swc/core': 1.15.3(@swc/helpers@0.5.17)
       '@workflow/builders': 4.0.1-beta.26(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
       '@workflow/core': 4.0.1-beta.27(@opentelemetry/api@1.9.1)
@@ -24135,6 +24056,57 @@ snapshots:
       '@workflow/world': 4.0.1-beta.10(zod@4.1.11)
       '@workflow/world-local': 4.0.1-beta.18(@opentelemetry/api@1.9.1)
       '@workflow/world-vercel': 4.0.1-beta.20
+      boxen: 8.0.1
+      builtin-modules: 5.0.0
+      chalk: 5.6.2
+      chokidar: 4.0.3
+      comment-json: 4.2.5
+      date-fns: 4.1.0
+      easy-table: 1.2.0
+      enhanced-resolve: 5.18.2
+      esbuild: 0.25.12
+      find-up: 7.0.0
+      mixpart: 0.0.4
+      open: 10.2.0
+      ora: 8.2.0
+      terminal-link: 5.0.0
+      tinyglobby: 0.2.14
+      xdg-app-paths: 5.1.0
+      zod: 4.1.11
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@opentelemetry/api'
+      - '@playwright/test'
+      - '@remix-run/react'
+      - '@swc/helpers'
+      - '@tanstack/react-router'
+      - '@types/react'
+      - aws-crt
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - immer
+      - react
+      - react-dom
+      - react-router
+      - react-router-dom
+      - sass
+      - supports-color
+      - typescript
+
+  '@workflow/cli@4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3)':
+    dependencies:
+      '@oclif/core': 4.0.0(typescript@5.9.3)
+      '@oclif/plugin-help': 6.2.31
+      '@swc/core': 1.15.3(@swc/helpers@0.5.17)
+      '@workflow/builders': 4.0.1-beta.32(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/core': 4.0.1-beta.33(@opentelemetry/api@1.9.1)
+      '@workflow/errors': 4.0.1-beta.12
+      '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
+      '@workflow/utils': 4.0.1-beta.9
+      '@workflow/web': 4.0.1-beta.22(@opentelemetry/api@1.9.1)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+      '@workflow/world': 4.0.1-beta.11(zod@4.1.11)
+      '@workflow/world-local': 4.0.1-beta.23(@opentelemetry/api@1.9.1)
+      '@workflow/world-vercel': 4.0.1-beta.24
       boxen: 8.0.1
       builtin-modules: 5.0.0
       chalk: 5.6.2
@@ -24227,9 +24199,19 @@ snapshots:
       '@workflow/utils': 4.0.1-beta.9
       ms: 2.1.3
 
+  '@workflow/errors@4.0.1-beta.13':
+    dependencies:
+      '@workflow/utils': 4.0.1-beta.10
+      ms: 2.1.3
+
   '@workflow/errors@4.0.1-beta.9':
     dependencies:
       '@workflow/utils': 4.0.1-beta.7
+      ms: 2.1.3
+
+  '@workflow/errors@4.1.0-beta.14':
+    dependencies:
+      '@workflow/utils': 4.1.0-beta.11
       ms: 2.1.3
 
   '@workflow/next@4.0.1-beta.31(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))':
@@ -24240,6 +24222,20 @@ snapshots:
       '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
       semver: 7.7.3
       watchpack: 2.4.4
+    optionalDependencies:
+      next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@swc/helpers'
+      - aws-crt
+      - supports-color
+
+  '@workflow/next@4.0.1-beta.37(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))':
+    dependencies:
+      '@swc/core': 1.15.3(@swc/helpers@0.5.17)
+      '@workflow/builders': 4.0.1-beta.32(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/core': 4.0.1-beta.33(@opentelemetry/api@1.9.1)
+      '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
     optionalDependencies:
       next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
     transitivePeerDependencies:
@@ -24264,10 +24260,37 @@ snapshots:
       - aws-crt
       - supports-color
 
+  '@workflow/nitro@4.0.1-beta.36(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)':
+    dependencies:
+      '@swc/core': 1.15.3(@swc/helpers@0.5.17)
+      '@workflow/builders': 4.0.1-beta.32(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/core': 4.0.1-beta.33(@opentelemetry/api@1.9.1)
+      '@workflow/rollup': 4.0.0-beta.6(@swc/helpers@0.5.17)
+      '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
+      '@workflow/vite': 4.0.0-beta.2
+      exsolve: 1.0.7
+      pathe: 2.0.3
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@swc/helpers'
+      - aws-crt
+      - supports-color
+
   '@workflow/nuxt@4.0.1-beta.19(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(magicast@0.5.2)':
     dependencies:
       '@nuxt/kit': 4.2.0(magicast@0.5.2)
       '@workflow/nitro': 4.0.1-beta.30(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@swc/helpers'
+      - aws-crt
+      - magicast
+      - supports-color
+
+  '@workflow/nuxt@4.0.1-beta.25(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(magicast@0.5.2)':
+    dependencies:
+      '@nuxt/kit': 4.2.0(magicast@0.5.2)
+      '@workflow/nitro': 4.0.1-beta.36(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@swc/helpers'
@@ -24301,13 +24324,41 @@ snapshots:
       - aws-crt
       - supports-color
 
+  '@workflow/sveltekit@4.0.0-beta.30(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)':
+    dependencies:
+      '@swc/core': 1.15.3(@swc/helpers@0.5.17)
+      '@workflow/builders': 4.0.1-beta.32(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/rollup': 4.0.0-beta.6(@swc/helpers@0.5.17)
+      '@workflow/swc-plugin': 4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))
+      '@workflow/vite': 4.0.0-beta.2
+      exsolve: 1.0.8
+      fs-extra: 11.3.4
+      pathe: 2.0.3
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@swc/helpers'
+      - aws-crt
+      - supports-color
+
   '@workflow/swc-plugin@4.0.1-beta.12(@swc/core@1.15.3(@swc/helpers@0.5.17))':
     dependencies:
       '@swc/core': 1.15.3(@swc/helpers@0.5.17)
 
+  '@workflow/swc-plugin@4.1.0(@swc/core@1.15.21(@swc/helpers@0.5.17))':
+    dependencies:
+      '@swc/core': 1.15.21(@swc/helpers@0.5.17)
+
   '@workflow/typescript-plugin@4.0.1-beta.4(typescript@5.8.3)':
     dependencies:
       typescript: 5.8.3
+
+  '@workflow/typescript-plugin@4.0.1-beta.4(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
+
+  '@workflow/utils@4.0.1-beta.10':
+    dependencies:
+      ms: 2.1.3
 
   '@workflow/utils@4.0.1-beta.7':
     dependencies:
@@ -24317,9 +24368,34 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  '@workflow/utils@4.1.0-beta.11':
+    dependencies:
+      ms: 2.1.3
+
   '@workflow/vite@4.0.0-beta.2': {}
 
   '@workflow/web@4.0.1-beta.17(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      '@xyflow/react': 12.9.3(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      nuqs: 2.8.9(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@opentelemetry/api'
+      - '@playwright/test'
+      - '@remix-run/react'
+      - '@tanstack/react-router'
+      - '@types/react'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - immer
+      - react
+      - react-dom
+      - react-router
+      - react-router-dom
+      - sass
+
+  '@workflow/web@4.0.1-beta.22(@opentelemetry/api@1.9.1)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@xyflow/react': 12.9.3(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -24366,12 +24442,82 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
 
+  '@workflow/world-local@4.0.1-beta.26(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@vercel/queue': 0.0.0-alpha.33
+      '@workflow/errors': 4.0.1-beta.13
+      '@workflow/utils': 4.0.1-beta.10
+      '@workflow/world': 4.0.1-beta.13(zod@4.1.11)
+      async-sema: 3.1.1
+      ulid: 3.0.1
+      undici: 6.22.0
+      zod: 4.1.11
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+
+  '@workflow/world-local@4.1.0-beta.28(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@vercel/queue': 0.0.0-alpha.34
+      '@workflow/errors': 4.1.0-beta.14
+      '@workflow/utils': 4.1.0-beta.11
+      '@workflow/world': 4.1.0-beta.1(zod@4.1.11)
+      async-sema: 3.1.1
+      ulid: 3.0.1
+      undici: 6.22.0
+      zod: 4.1.11
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+
   '@workflow/world-postgres@4.1.0-beta.25(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)':
     dependencies:
       '@vercel/queue': 0.0.0-alpha.33
       '@workflow/errors': 4.0.1-beta.12
       '@workflow/world': 4.0.1-beta.11(zod@4.1.11)
       '@workflow/world-local': 4.0.1-beta.23(@opentelemetry/api@1.9.1)
+      cbor-x: 1.6.0
+      dotenv: 16.4.5
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)
+      pg-boss: 11.0.7
+      postgres: 3.4.7
+      ulid: 3.0.1
+      zod: 4.1.11
+    transitivePeerDependencies:
+      - '@aws-sdk/client-rds-data'
+      - '@cloudflare/workers-types'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@libsql/client-wasm'
+      - '@neondatabase/serverless'
+      - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
+      - '@planetscale/database'
+      - '@prisma/client'
+      - '@tidbcloud/serverless'
+      - '@types/better-sqlite3'
+      - '@types/pg'
+      - '@types/sql.js'
+      - '@upstash/redis'
+      - '@vercel/postgres'
+      - '@xata.io/client'
+      - better-sqlite3
+      - bun-types
+      - expo-sqlite
+      - gel
+      - knex
+      - kysely
+      - mysql2
+      - pg
+      - pg-native
+      - prisma
+      - sql.js
+      - sqlite3
+
+  '@workflow/world-postgres@4.1.0-beta.28(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)':
+    dependencies:
+      '@vercel/queue': 0.0.0-alpha.33
+      '@workflow/errors': 4.0.1-beta.13
+      '@workflow/world': 4.0.1-beta.13(zod@4.1.11)
+      '@workflow/world-local': 4.0.1-beta.26(@opentelemetry/api@1.9.1)
       cbor-x: 1.6.0
       dotenv: 16.4.5
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.8.0)(bun-types@1.3.11)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.7)
@@ -24431,6 +24577,14 @@ snapshots:
       zod: 4.1.11
 
   '@workflow/world@4.0.1-beta.11(zod@4.1.11)':
+    dependencies:
+      zod: 4.1.11
+
+  '@workflow/world@4.0.1-beta.13(zod@4.1.11)':
+    dependencies:
+      zod: 4.1.11
+
+  '@workflow/world@4.1.0-beta.1(zod@4.1.11)':
     dependencies:
       zod: 4.1.11
 
@@ -24961,8 +25115,6 @@ snapshots:
 
   buffer-from@1.1.2: {}
 
-  buffer-writer@2.0.0: {}
-
   buffer-xor@1.0.3: {}
 
   buffer@5.7.1:
@@ -25260,8 +25412,6 @@ snapshots:
 
   comma-separated-tokens@2.0.3: {}
 
-  commander@12.0.0: {}
-
   commander@12.1.0: {}
 
   commander@14.0.3: {}
@@ -25314,10 +25464,6 @@ snapshots:
 
   cookie@1.1.1: {}
 
-  copy-anything@3.0.5:
-    dependencies:
-      is-what: 4.1.16
-
   core-assert@0.2.1:
     dependencies:
       buf-compare: 1.0.1
@@ -25345,6 +25491,15 @@ snapshots:
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 5.8.3
+
+  cosmiconfig@9.0.1(typescript@5.9.3):
+    dependencies:
+      env-paths: 2.2.1
+      import-fresh: 3.3.1
+      js-yaml: 4.1.1
+      parse-json: 5.2.0
+    optionalDependencies:
+      typescript: 5.9.3
 
   crc-32@1.2.2: {}
 
@@ -26931,8 +27086,6 @@ snapshots:
 
   is-unicode-supported@2.1.0: {}
 
-  is-what@4.1.16: {}
-
   is-wsl@2.2.0:
     dependencies:
       is-docker: 2.2.1
@@ -27218,9 +27371,6 @@ snapshots:
   locate-path@7.2.0:
     dependencies:
       p-locate: 6.0.0
-
-  lodash-es@4.17.23:
-    optional: true
 
   lodash.camelcase@4.3.0: {}
 
@@ -28508,8 +28658,6 @@ snapshots:
 
   package-manager-detector@1.6.0: {}
 
-  packet-reader@1.0.0: {}
-
   pako@1.0.11: {}
 
   parent-module@1.0.1:
@@ -28534,11 +28682,6 @@ snapshots:
       is-decimal: 2.0.1
       is-hexadecimal: 2.0.1
 
-  parse-imports-exports@0.2.4:
-    dependencies:
-      parse-statements: 1.0.11
-    optional: true
-
   parse-json@5.2.0:
     dependencies:
       '@babel/code-frame': 7.29.0
@@ -28547,9 +28690,6 @@ snapshots:
       lines-and-columns: 1.2.4
 
   parse-numeric-range@1.3.0: {}
-
-  parse-statements@1.0.11:
-    optional: true
 
   parse5-htmlparser2-tree-adapter@7.1.0:
     dependencies:
@@ -28650,10 +28790,6 @@ snapshots:
 
   pg-int8@1.0.1: {}
 
-  pg-pool@3.13.0(pg@8.11.3):
-    dependencies:
-      pg: 8.11.3
-
   pg-pool@3.13.0(pg@8.20.0):
     dependencies:
       pg: 8.20.0
@@ -28667,18 +28803,6 @@ snapshots:
       postgres-bytea: 1.0.1
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
-
-  pg@8.11.3:
-    dependencies:
-      buffer-writer: 2.0.0
-      packet-reader: 1.0.0
-      pg-connection-string: 2.12.0
-      pg-pool: 3.13.0(pg@8.11.3)
-      pg-protocol: 1.13.0
-      pg-types: 2.2.0
-      pgpass: 1.0.5
-    optionalDependencies:
-      pg-cloudflare: 1.3.0
 
   pg@8.20.0:
     dependencies:
@@ -28871,12 +28995,6 @@ snapshots:
       prettier: 3.5.3
     optionalDependencies:
       '@trivago/prettier-plugin-sort-imports': 5.2.2(@vue/compiler-sfc@3.5.31)(prettier@3.5.3)
-
-  prettier-plugin-tailwindcss@0.4.1(@trivago/prettier-plugin-sort-imports@6.0.2(@vue/compiler-sfc@3.5.31)(prettier@3.8.1))(prettier@3.8.1):
-    dependencies:
-      prettier: 3.8.1
-    optionalDependencies:
-      '@trivago/prettier-plugin-sort-imports': 6.0.2(@vue/compiler-sfc@3.5.31)(prettier@3.8.1)
 
   prettier@3.5.3: {}
 
@@ -30179,10 +30297,6 @@ snapshots:
     dependencies:
       kdbush: 4.0.2
 
-  superjson@1.13.3:
-    dependencies:
-      copy-anything: 3.0.5
-
   supports-color@10.2.2: {}
 
   supports-color@7.2.0:
@@ -30469,10 +30583,6 @@ snapshots:
     optionalDependencies:
       typescript: 5.8.3
 
-  tsconfck@3.1.6(typescript@5.9.3):
-    optionalDependencies:
-      typescript: 5.9.3
-
   tslib@1.14.1: {}
 
   tslib@2.6.2: {}
@@ -30682,34 +30792,6 @@ snapshots:
       '@unocss/transformer-directives': 66.1.4
       '@unocss/transformer-variant-group': 66.1.4
       '@unocss/vite': 66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.8.3))
-    optionalDependencies:
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - postcss
-      - supports-color
-      - vue
-
-  unocss@66.1.4(postcss@8.5.8)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3)):
-    dependencies:
-      '@unocss/astro': 66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
-      '@unocss/cli': 66.1.4
-      '@unocss/core': 66.1.4
-      '@unocss/postcss': 66.1.4(postcss@8.5.8)
-      '@unocss/preset-attributify': 66.1.4
-      '@unocss/preset-icons': 66.1.4
-      '@unocss/preset-mini': 66.1.4
-      '@unocss/preset-tagify': 66.1.4
-      '@unocss/preset-typography': 66.1.4
-      '@unocss/preset-uno': 66.1.4
-      '@unocss/preset-web-fonts': 66.1.4
-      '@unocss/preset-wind': 66.1.4
-      '@unocss/preset-wind3': 66.1.4
-      '@unocss/preset-wind4': 66.1.4
-      '@unocss/transformer-attributify-jsx': 66.1.4
-      '@unocss/transformer-compile-class': 66.1.4
-      '@unocss/transformer-directives': 66.1.4
-      '@unocss/transformer-variant-group': 66.1.4
-      '@unocss/vite': 66.1.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
     optionalDependencies:
       vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -31054,33 +31136,11 @@ snapshots:
       - supports-color
       - typescript
 
-  vite-tsconfig-paths@4.3.2(typescript@5.9.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
-    dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
-      globrex: 0.1.2
-      tsconfck: 3.1.6(typescript@5.9.3)
-    optionalDependencies:
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - supports-color
-      - typescript
-
   vite-tsconfig-paths@5.1.4(typescript@5.8.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
       globrex: 0.1.2
       tsconfck: 3.1.6(typescript@5.8.3)
-    optionalDependencies:
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - supports-color
-      - typescript
-
-  vite-tsconfig-paths@5.1.4(typescript@5.9.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
-    dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
-      globrex: 0.1.2
-      tsconfck: 3.1.6(typescript@5.9.3)
     optionalDependencies:
       vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -31161,6 +31221,7 @@ snapshots:
       '@vitest/browser-playwright': 4.1.1(msw@2.12.14(@types/node@25.0.9)(typescript@5.9.3))(playwright@1.58.2)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
     transitivePeerDependencies:
       - msw
+    optional: true
 
   vm-browserify@1.1.2: {}
 
@@ -31173,10 +31234,6 @@ snapshots:
   vue-flow-layout@0.1.1(vue@3.5.31(typescript@5.8.3)):
     dependencies:
       vue: 3.5.31(typescript@5.8.3)
-
-  vue-flow-layout@0.1.1(vue@3.5.31(typescript@5.9.3)):
-    dependencies:
-      vue: 3.5.31(typescript@5.9.3)
 
   vue@3.5.31(typescript@5.8.3):
     dependencies:
@@ -31197,6 +31254,7 @@ snapshots:
       '@vue/shared': 3.5.31
     optionalDependencies:
       typescript: 5.9.3
+    optional: true
 
   wait-on@9.0.4(debug@4.4.3):
     dependencies:
@@ -31320,6 +31378,42 @@ snapshots:
       - supports-color
       - typescript
 
+  workflow@4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(magicast@0.5.2)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3):
+    dependencies:
+      '@workflow/astro': 4.0.0-beta.15(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/cli': 4.0.1-beta.39(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      '@workflow/core': 4.0.1-beta.33(@opentelemetry/api@1.9.1)
+      '@workflow/errors': 4.0.1-beta.12
+      '@workflow/next': 4.0.1-beta.37(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
+      '@workflow/nitro': 4.0.1-beta.36(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/nuxt': 4.0.1-beta.25(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)(magicast@0.5.2)
+      '@workflow/rollup': 4.0.0-beta.6(@swc/helpers@0.5.17)
+      '@workflow/sveltekit': 4.0.0-beta.30(@opentelemetry/api@1.9.1)(@swc/helpers@0.5.17)
+      '@workflow/typescript-plugin': 4.0.1-beta.4(typescript@5.9.3)
+      ms: 2.1.3
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@playwright/test'
+      - '@remix-run/react'
+      - '@swc/helpers'
+      - '@tanstack/react-router'
+      - '@types/react'
+      - aws-crt
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - immer
+      - magicast
+      - next
+      - react
+      - react-dom
+      - react-router
+      - react-router-dom
+      - sass
+      - supports-color
+      - typescript
+
   wrap-ansi@6.2.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -31401,8 +31495,6 @@ snapshots:
   yallist@5.0.0: {}
 
   yaml@1.10.3: {}
-
-  yaml@2.4.1: {}
 
   yaml@2.8.3: {}
 

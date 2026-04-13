@@ -651,7 +651,7 @@ export function opsController(db: Database) {
           entity: "previews",
           singular: "preview",
           table: preview,
-          slugColumn: preview.id, // no slug — use id
+          slugColumn: preview.slug,
           idColumn: preview.id,
           prefix: "prev",
           kindAlias: "preview",

@@ -49,6 +49,7 @@ import { runCommand } from "./commands/run.js"
 import { scanCommand } from "./commands/scan.js"
 import { scriptCommand } from "./commands/script.js"
 import { secretCommand } from "./commands/secret.js"
+import { sourceCommand } from "./commands/source.js"
 import { selfUpdateCommand } from "./commands/self-update.js"
 import { setupCommand } from "./commands/setup.js"
 import { siteCommand } from "./commands/site.js"
@@ -147,6 +148,7 @@ export function registerCommands(app: DxBase): DxBase {
       .command(opsCommand(app))
       .command(orgCommand(app))
       .command(pkgCommand(app))
+      .command(sourceCommand(app))
       .command(planCommand(app))
       .command(routeCommand(app))
       .command(runCommand(app))

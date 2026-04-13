@@ -23,22 +23,22 @@ Two label namespaces are recognised:
 | `catalog.*` | Entity metadata: kind, owner, lifecycle, API declarations       |
 | `dx.*`      | Dev tooling hints: port names, healthcheck paths, env expansion |
 
-### catalog.\* labels
+### dx.\* labels (catalog)
 
 ```yaml
 services:
   api:
     labels:
-      catalog.type: component # Component | Resource | System | API
-      catalog.owner: team-platform # slug of owning team
-      catalog.description: "REST API for the factory control plane"
-      catalog.tags: "api,backend,core"
-      catalog.lifecycle: production # experimental | development | production | deprecated
-      catalog.api.provides: "factory-api/v1" # API entity this service exposes
-      catalog.api.consumes: "auth-api/v1" # API entities this service depends on
+      dx.type: component # Component | Resource | System | API
+      dx.owner: team-platform # slug of owning team
+      dx.description: "REST API for the factory control plane"
+      dx.tags: "api,backend,core"
+      dx.lifecycle: production # experimental | development | production | deprecated
+      dx.api.provides: "factory-api/v1" # API entity this service exposes
+      dx.api.consumes: "auth-api/v1" # API entities this service depends on
 ```
 
-### dx.\* labels
+### dx.\* labels (development)
 
 ```yaml
 services:
@@ -51,7 +51,7 @@ services:
 
 ## Classification Rules
 
-When `catalog.type` is absent the adapter infers entity kind from structural signals:
+When `dx.type` is absent the adapter infers entity kind from structural signals:
 
 ```mermaid
 flowchart TD
@@ -79,7 +79,7 @@ The adapter contains an exhaustive pattern table for common images:
 | `elasticsearch`, `opensearch`, `meilisearch`             | `search`      |
 | `traefik`, `nginx`, `envoy`, `haproxy`, `apisix`, `kong` | `gateway`     |
 
-Explicit `catalog.type` labels always take precedence over heuristics.
+Explicit `dx.type` labels always take precedence over heuristics.
 
 ## The CatalogSystem Type
 
@@ -154,7 +154,7 @@ The catalog vocabulary is intentionally aligned with [Backstage](https://backsta
 | Component | `CatalogComponent`                   | Owned, built service    |
 | Resource  | `CatalogResource`                    | Consumed infrastructure |
 | API       | `CatalogPort` + `api.provides` label | Protocol endpoint       |
-| Group     | `catalog.owner` label                | Owning team slug        |
+| Group     | `dx.owner` label                     | Owning team slug        |
 
 This alignment means catalog data can be exported to Backstage or consumed by Backstage plugins without transformation.
 
@@ -174,9 +174,9 @@ All adapters live in `shared/src/formats/` and implement the `CatalogFormatAdapt
 
 `dx catalog doctor` runs the adapter in validation mode and reports:
 
-- Services missing `catalog.owner`
+- Services missing `dx.owner`
 - Components without healthchecks
-- `catalog.api.consumes` references that don't resolve to a known `catalog.api.provides`
+- `dx.api.consumes` references that don't resolve to a known `dx.api.provides`
 - Ports that conflict with well-known port assignments
 
 It exits non-zero on errors, making it suitable for CI pre-flight checks.
@@ -185,7 +185,7 @@ It exits non-zero on errors, making it suitable for CI pre-flight checks.
 
 The `connections` array in `CatalogSystem` captures dependency edges derived from:
 
-1. `catalog.api.consumes` labels (explicit)
+1. `dx.api.consumes` labels (explicit)
 2. `depends_on` keys in the compose file (structural)
 3. Environment variable references to other service names (heuristic)
 

@@ -30,8 +30,8 @@ describe("toJavaPackage", () => {
 describe("componentLabels", () => {
   it("generates basic labels", () => {
     const labels = componentLabels({ owner: "team", description: "My API" })
-    expect(labels["catalog.owner"]).toBe("team")
-    expect(labels["catalog.description"]).toBe("My API")
+    expect(labels["dx.owner"]).toBe("team")
+    expect(labels["dx.description"]).toBe("My API")
   })
 
   it("includes optional type and runtime", () => {
@@ -41,7 +41,7 @@ describe("componentLabels", () => {
       description: "API",
       runtime: "node",
     })
-    expect(labels["catalog.type"]).toBe("service")
+    expect(labels["dx.type"]).toBe("service")
     expect(labels["dx.runtime"]).toBe("node")
   })
 
@@ -51,8 +51,8 @@ describe("componentLabels", () => {
       description: "API",
       port: { number: 3000, name: "http", protocol: "http" },
     })
-    expect(labels["catalog.port.3000.name"]).toBe("http")
-    expect(labels["catalog.port.3000.protocol"]).toBe("http")
+    expect(labels["dx.port.3000.name"]).toBe("http")
+    expect(labels["dx.port.3000.protocol"]).toBe("http")
   })
 })
 
@@ -63,20 +63,15 @@ describe("resourceLabels", () => {
       owner: "team",
       description: "PostgreSQL",
     })
-    expect(labels["catalog.type"]).toBe("database")
-    expect(labels["catalog.owner"]).toBe("team")
+    expect(labels["dx.type"]).toBe("database")
+    expect(labels["dx.owner"]).toBe("team")
   })
 })
 
 describe("labelsToYaml", () => {
   it("formats labels with indentation", () => {
-    const yaml = labelsToYaml(
-      { "catalog.type": "service", "catalog.owner": "team" },
-      6
-    )
-    expect(yaml).toBe(
-      '      catalog.type: "service"\n      catalog.owner: "team"'
-    )
+    const yaml = labelsToYaml({ "dx.type": "service", "dx.owner": "team" }, 6)
+    expect(yaml).toBe('      dx.type: "service"\n      dx.owner: "team"')
   })
 })
 

@@ -104,7 +104,7 @@ export const EmitEventInputSchema = z.object({
   scopeId: z.string().optional(),
   schemaVersion: z.number().optional().default(1),
 })
-export type EmitEventInput = z.infer<typeof EmitEventInputSchema>
+export type EmitEventInput = z.input<typeof EmitEventInputSchema>
 
 // ── emitExternalEvent input ───────────────────────────────────
 

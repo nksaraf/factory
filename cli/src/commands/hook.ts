@@ -293,7 +293,20 @@ function buildClaudePayload(
       } catch {
         /* best-effort */
       }
-      return { ...base, model: input.model, source: input.source, gitBranch }
+      let hostname: string | undefined
+      try {
+        const os = require("node:os")
+        hostname = os.hostname()
+      } catch {
+        /* best-effort */
+      }
+      return {
+        ...base,
+        model: input.model,
+        source: input.source,
+        gitBranch,
+        hostname,
+      }
     }
 
     case "UserPromptSubmit":
@@ -375,6 +388,7 @@ function parseTranscriptStats(
     let turnCount = 0
     let toolCallCount = 0
     let lastAssistantText = ""
+    let contextWindow = 0
     const toolNames = new Set<string>()
     const tokenUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
@@ -405,6 +419,7 @@ function parseTranscriptStats(
           tokenUsage.output += usage.output_tokens ?? 0
           tokenUsage.cacheRead += usage.cache_read_input_tokens ?? 0
           tokenUsage.cacheWrite += usage.cache_creation_input_tokens ?? 0
+          if (usage.input_tokens) contextWindow = usage.input_tokens
         }
         if (Array.isArray(entry.message.content)) {
           for (const c of entry.message.content) {
@@ -432,6 +447,7 @@ function parseTranscriptStats(
           tokenUsage.output += usage.output_tokens ?? 0
           tokenUsage.cacheRead += usage.cache_read_input_tokens ?? 0
           tokenUsage.cacheWrite += usage.cache_creation_input_tokens ?? 0
+          if (usage.input_tokens) contextWindow = usage.input_tokens
         }
         if (Array.isArray(msg.content)) {
           for (const c of msg.content) {
@@ -453,6 +469,7 @@ function parseTranscriptStats(
       toolCallCount,
       toolsUsed: Array.from(toolNames),
       tokenUsage,
+      contextWindow,
       responseSummary: lastAssistantText
         ? lastAssistantText.slice(0, 4096)
         : undefined,

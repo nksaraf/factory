@@ -28,11 +28,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       retries: 10
       start_period: 30s
     labels:
-      catalog.type: queue
-      catalog.owner: ${owner}
-      catalog.description: "Apache Kafka (KRaft)"
-      catalog.port.9092.name: kafka
-      catalog.port.9092.protocol: tcp
+      dx.type: queue
+      dx.owner: ${owner}
+      dx.description: "Apache Kafka (KRaft)"
+      dx.port.9092.name: kafka
+      dx.port.9092.protocol: tcp
 `,
     },
   ]

@@ -406,13 +406,15 @@ describe("generateWorkbenchResources", () => {
     const routes = (ingress!.spec as unknown as K8sIngressRouteSpec).routes
     expect(routes).toHaveLength(3)
     // Primary (defaults to IDE port 8081)
-    expect(routes[0].match).toContain("my-workbench.workbench.dx.dev")
+    expect(routes[0].match).toContain("my-workbench.dev.lepton.software")
     expect(routes[0].services[0].port).toBe(8081)
     // Terminal sub-route
-    expect(routes[1].match).toContain("my-workbench--terminal.workbench.dx.dev")
+    expect(routes[1].match).toContain(
+      "my-workbench--terminal.dev.lepton.software"
+    )
     expect(routes[1].services[0].port).toBe(8080)
     // IDE sub-route
-    expect(routes[2].match).toContain("my-workbench--ide.workbench.dx.dev")
+    expect(routes[2].match).toContain("my-workbench--ide.dev.lepton.software")
     expect(routes[2].services[0].port).toBe(8081)
   })
 

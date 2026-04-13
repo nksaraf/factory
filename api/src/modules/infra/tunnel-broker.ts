@@ -192,8 +192,8 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain()
           const routeFamily =
-            msg.routeFamily === "workbench" || msg.routeFamily === "sandbox"
-              ? ("workbench" as const)
+            msg.routeFamily === "dev" || msg.routeFamily === "sandbox"
+              ? ("dev" as const)
               : ("tunnel" as const)
           logger.info(
             {
@@ -213,6 +213,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
           let tunnelId: string
           let tunnelSubdomain: string
           let tunnelUrl: string
+          let portRoutes: any[] | undefined
 
           if (detached && detached.subdomain === subdomain) {
             // Reclaim the existing tunnel — route is still alive in DB
@@ -220,10 +221,11 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
             detachedTunnels.delete(resumeTunnelId!)
             tunnelId = resumeTunnelId!
             tunnelSubdomain = detached.subdomain
-            const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
+            const gatewayDomain =
+              process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
             const domainSuffix =
-              routeFamily === "workbench"
-                ? `.workbench.${gatewayDomain}`
+              routeFamily === "dev"
+                ? `.dev.${gatewayDomain}`
                 : `.tunnel.${gatewayDomain}`
             tunnelUrl = `https://${tunnelSubdomain}${domainSuffix}`
             // Update heartbeat so the DB knows we're alive
@@ -242,7 +244,16 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
               await gw.closeTunnel(db, resumeTunnelId!).catch(() => {})
             }
             // Fresh registration
-            const { tunnel, route } = await gw.registerTunnel(db, {
+            const publishPorts = Array.isArray(msg.publishPorts)
+              ? (msg.publishPorts as number[]).filter(
+                  (p) => typeof p === "number" && p > 0
+                )
+              : undefined
+            const {
+              tunnel,
+              route,
+              portRoutes: registeredPortRoutes,
+            } = await gw.registerTunnel(db, {
               subdomain,
               principalId: msg.principalId ?? "anonymous",
               localAddr: msg.localAddr ?? "localhost:3000",
@@ -250,10 +261,12 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
               routeFamily,
               systemDeploymentId:
                 msg.systemDeploymentId ?? msg.deploymentTargetId,
+              publishPorts,
             })
             tunnelId = tunnel.tunnelId
             tunnelSubdomain = tunnel.subdomain
             tunnelUrl = `https://${route.domain}`
+            portRoutes = registeredPortRoutes
           }
 
           state.tunnelId = tunnelId
@@ -283,6 +296,10 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
               tunnelId,
               subdomain: tunnelSubdomain,
               url: tunnelUrl,
+              portUrls: portRoutes?.map((r: any) => ({
+                port: r.spec?.targetPort,
+                url: `https://${r.domain}`,
+              })),
             })
           )
 

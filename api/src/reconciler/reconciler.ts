@@ -186,7 +186,8 @@ export class Reconciler {
     const expiredPreviews = await this.db
       .select({
         previewId: preview.id,
-        spec: preview.spec,
+        slug: preview.slug,
+        systemDeploymentId: preview.systemDeploymentId,
       })
       .from(preview)
       .where(eq(preview.phase, "expired"))
@@ -194,18 +195,14 @@ export class Reconciler {
 
     for (const ep of expiredPreviews) {
       try {
-        const epSpec = ep.spec
-        const epSlug = epSpec.slug
-        const epSdId = epSpec.systemDeploymentId
-        if (!epSdId) continue
+        if (!ep.systemDeploymentId) continue
         const [sd] = await this.db
           .select()
           .from(systemDeployment)
-          .where(eq(systemDeployment.id, epSdId))
+          .where(eq(systemDeployment.id, ep.systemDeploymentId))
           .limit(1)
         if (!sd || !sd.realmId) continue
         const sdSpec = sd.spec
-        // Skip if already destroyed
         if (sdSpec.status === "destroyed") continue
 
         const [rt] = await this.db
@@ -216,7 +213,7 @@ export class Reconciler {
         const rtSpec = rt?.spec
         if (!rtSpec?.kubeconfigRef) continue
 
-        const ns = `preview-${epSlug ?? ep.previewId}`
+        const ns = `preview-${ep.slug ?? ep.previewId}`
         await this.kube.remove(rtSpec.kubeconfigRef, "Namespace", "", ns)
         await this.db
           .update(systemDeployment)
@@ -446,8 +443,8 @@ export class Reconciler {
     }
 
     // 10. Create bare domain route (primary endpoint: ide or terminal)
-    const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "dx.dev"
-    const workbenchDomain = `${wks.slug}.workbench.${gatewayDomain}`
+    const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
+    const workbenchDomain = `${wks.slug}.dev.${gatewayDomain}`
     const primaryPort =
       WORKBENCH_PRIMARY_ENDPOINT === "terminal"
         ? (webPort ?? 8080)
@@ -455,7 +452,7 @@ export class Reconciler {
     const existingRoute = await lookupRouteByDomain(this.db, workbenchDomain)
     if (!existingRoute) {
       await createRoute(this.db, {
-        type: "workbench",
+        type: "dev",
         domain: workbenchDomain,
         targetService: runtimeEndpoint,
         targetPort: primaryPort,
@@ -493,7 +490,7 @@ export class Reconciler {
     }
 
     for (const [name, config] of Object.entries(endpoints)) {
-      const endpointDomain = `${wks.slug}--${name}.workbench.${gatewayDomain}`
+      const endpointDomain = `${wks.slug}--${name}.dev.${gatewayDomain}`
       const targetPort =
         name === "terminal"
           ? (webPort ?? 8080)
@@ -506,7 +503,7 @@ export class Reconciler {
       )
       if (!existingEndpointRoute) {
         await createRoute(this.db, {
-          type: "workbench",
+          type: "dev",
           domain: endpointDomain,
           targetService: runtimeEndpoint,
           targetPort,
@@ -534,7 +531,7 @@ export class Reconciler {
 
     const protocol = gatewayDomain === "localhost" ? "http" : "https"
     const webTerminalUrl = `${protocol}://${workbenchDomain}`
-    const webIdeUrl = `${protocol}://${wks.slug}--ide.workbench.${gatewayDomain}`
+    const webIdeUrl = `${protocol}://${wks.slug}--ide.dev.${gatewayDomain}`
 
     // 12. Check pod readiness (single check per reconcile cycle — no blocking poll).
     //     If not ready yet, lifecycle stays "provisioning" and the next reconcile

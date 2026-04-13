@@ -71,6 +71,13 @@
       "when": 1776018755665,
       "tag": "0009_host-port-view",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776033482664,
+      "tag": "0010_petite_mentallo",
+      "breakpoints": true
     }
   ]
 }

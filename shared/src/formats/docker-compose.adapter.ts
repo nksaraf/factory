@@ -288,7 +288,7 @@ const INIT_NAME_SUFFIXES = [
  *   - Name matches an init suffix pattern
  *   - No ports AND has depends_on (portless standalone containers are not init containers)
  *   - Other services depend on this via service_completed_successfully
- * Label `catalog.type: init` is an explicit opt-in override (no restart check needed).
+ * Label `dx.type: init` is an explicit opt-in override (no restart check needed).
  */
 function isInitContainer(
   name: string,
@@ -297,7 +297,7 @@ function isInitContainer(
 ): boolean {
   // Explicit label override
   const labels = svc.labels ?? {}
-  if (labels["catalog.type"] === "init") return true
+  if (labels["dx.type"] === "init") return true
 
   // Must have restart: "no" (or unset which defaults to "no" in compose,
   // but we only match explicit "no" to avoid false positives)
@@ -335,7 +335,7 @@ function resolveInitParent(
 ): string | undefined {
   // 1. Explicit label
   const labels = svc.labels ?? {}
-  if (labels["catalog.initFor"]) return labels["catalog.initFor"]
+  if (labels["dx.initFor"]) return labels["dx.initFor"]
 
   // 2. Same image match — find a non-init service with the same image
   if (svc.image) {
@@ -403,8 +403,8 @@ function classifyService(
 ): "component" | "resource" {
   // Labels can override classification
   const labels = svc.labels ?? {}
-  if (labels["catalog.kind"]) {
-    return labels["catalog.kind"].toLowerCase() === "resource"
+  if (labels["dx.kind"]) {
+    return labels["dx.kind"].toLowerCase() === "resource"
       ? "resource"
       : "component"
   }
@@ -432,25 +432,25 @@ function classifyService(
 
 // ─── Label conventions ───────────────────────────────────────
 //
-// Labels prefixed with `catalog.` are parsed into catalog metadata:
+// All labels use the `dx.` prefix:
 //
-//   catalog.kind: Component|Resource          — override classification
-//   catalog.type: service|worker|database|... — override inferred type
-//   catalog.owner: team-slug                  — set owner
-//   catalog.description: "..."                — description
-//   catalog.tags: "tag1,tag2"                 — comma-separated tags
-//   catalog.lifecycle: production|development  — lifecycle stage
+//   dx.kind: Component|Resource          — override classification
+//   dx.type: service|worker|database|... — override inferred type
+//   dx.owner: team-slug                  — set owner
+//   dx.description: "..."                — description
+//   dx.tags: "tag1,tag2"                 — comma-separated tags
+//   dx.lifecycle: production|development  — lifecycle stage
 //
-//   catalog.port.<container-port>.name: http   — name for a port
-//   catalog.port.<container-port>.protocol: grpc — protocol for a port
+//   dx.port.<container-port>.name: http   — name for a port
+//   dx.port.<container-port>.protocol: grpc — protocol for a port
 //
-//   catalog.api.provides: "my-api"            — APIs this component provides
-//   catalog.api.consumes: "other-api,auth-api" — APIs consumed
-//   catalog.api.type: openapi|grpc|graphql    — API type
+//   dx.api.provides: "my-api"            — APIs this component provides
+//   dx.api.consumes: "other-api,auth-api" — APIs consumed
+//   dx.api.type: openapi|grpc|graphql    — API type
 //
-//   catalog.docs.url: "https://..."           — documentation link
-//   catalog.docs.api: "/api/docs"             — API docs path
-//   catalog.docs.runbook: "https://..."       — runbook link
+//   dx.docs.url: "https://..."           — documentation link
+//   dx.docs.api: "/api/docs"             — API docs path
+//   dx.docs.runbook: "https://..."       — runbook link
 
 interface ParsedLabels {
   catalogKind?: string
@@ -459,7 +459,10 @@ interface ParsedLabels {
   description?: string
   tags?: string[]
   lifecycle?: string
-  portOverrides: Record<number, { name?: string; protocol?: string }>
+  portOverrides: Record<
+    number,
+    { name?: string; protocol?: string; exposure?: string }
+  >
   providesApis?: string[]
   consumesApis?: string[]
   apiType?: string
@@ -471,7 +474,7 @@ interface ParsedLabels {
   testCommand?: string
   lintCommand?: string
   runtime?: string
-  // catalog.connection.* labels
+  // dx.connection.* labels
   connections: Record<
     string,
     {
@@ -483,6 +486,10 @@ interface ParsedLabels {
   >
   // dx.dep.<dep>.env.<var> labels — connection env var templates per dependency
   depEnv: Record<string, Record<string, string>>
+  // dx.source.* labels — source linking metadata
+  sourceRepo?: string
+  sourcePath?: string
+  sourceRequired?: boolean
 }
 
 function parseLabels(labels: Record<string, string>): ParsedLabels {
@@ -495,24 +502,24 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
   }
 
   for (const [key, value] of Object.entries(labels)) {
-    if (key === "catalog.kind") {
+    if (key === "dx.kind") {
       result.catalogKind = value
-    } else if (key === "catalog.type") {
+    } else if (key === "dx.type") {
       result.catalogType = value
-    } else if (key === "catalog.owner") {
+    } else if (key === "dx.owner") {
       result.owner = value
-    } else if (key === "catalog.description") {
+    } else if (key === "dx.description") {
       result.description = value
-    } else if (key === "catalog.tags") {
+    } else if (key === "dx.tags") {
       result.tags = value
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean)
-    } else if (key === "catalog.lifecycle") {
+    } else if (key === "dx.lifecycle") {
       result.lifecycle = value
-    } else if (key.startsWith("catalog.port.")) {
-      // catalog.port.8080.name = "http"
-      const rest = key.slice("catalog.port.".length)
+    } else if (key.startsWith("dx.port.")) {
+      // dx.port.8080.name = "http"
+      const rest = key.slice("dx.port.".length)
       const dotIdx = rest.indexOf(".")
       if (dotIdx > 0) {
         const port = parseInt(rest.slice(0, dotIdx), 10)
@@ -521,33 +528,34 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
           result.portOverrides[port] ??= {}
           if (field === "name") result.portOverrides[port].name = value
           if (field === "protocol") result.portOverrides[port].protocol = value
+          if (field === "exposure") result.portOverrides[port].exposure = value
         }
       }
-    } else if (key === "catalog.api.provides") {
+    } else if (key === "dx.api.provides") {
       result.providesApis = value
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
-    } else if (key === "catalog.api.consumes") {
+    } else if (key === "dx.api.consumes") {
       result.consumesApis = value
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
-    } else if (key === "catalog.api.type") {
+    } else if (key === "dx.api.type") {
       result.apiType = value
-    } else if (key === "catalog.docs.url") {
+    } else if (key === "dx.docs.url") {
       result.links.push({ url: value, title: "Documentation", type: "doc" })
-    } else if (key === "catalog.docs.api") {
+    } else if (key === "dx.docs.api") {
       result.links.push({
         url: value,
         title: "API Documentation",
         type: "api-doc",
       })
-    } else if (key === "catalog.docs.runbook") {
+    } else if (key === "dx.docs.runbook") {
       result.links.push({ url: value, title: "Runbook", type: "runbook" })
-    } else if (key.startsWith("catalog.connection.")) {
-      // catalog.connection.<name>.module = "auth"
-      const rest = key.slice("catalog.connection.".length)
+    } else if (key.startsWith("dx.connection.")) {
+      // dx.connection.<name>.module = "auth"
+      const rest = key.slice("dx.connection.".length)
       const dotIdx = rest.indexOf(".")
       if (dotIdx > 0) {
         const connName = rest.slice(0, dotIdx)
@@ -561,6 +569,12 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
         else if (field === "local_default")
           result.connections[connName].localDefault = value
       }
+    } else if (key === "dx.source.repo") {
+      result.sourceRepo = value
+    } else if (key === "dx.source.path") {
+      result.sourcePath = value
+    } else if (key === "dx.source.required") {
+      result.sourceRequired = value === "true"
     } else if (key === "dx.dev.command") {
       result.devCommand = value
     } else if (key === "dx.dev.sync") {
@@ -586,7 +600,7 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
         result.depEnv[depName][varName] = value
       }
     } else {
-      // Preserve non-catalog/non-dx labels
+      // Preserve non-dx labels
       result.extraLabels[key] = value
     }
   }
@@ -778,7 +792,10 @@ function parsePort(
 
 function parsePorts(
   portStrings: string[],
-  labelOverrides: Record<number, { name?: string; protocol?: string }>
+  labelOverrides: Record<
+    number,
+    { name?: string; protocol?: string; exposure?: string }
+  >
 ): CatalogPort[] {
   const ports: CatalogPort[] = []
   const usedNames = new Set<string>()
@@ -795,6 +812,7 @@ function parsePorts(
     const protocol = (override?.protocol ??
       known?.protocol ??
       "tcp") as CatalogPort["protocol"]
+    const exposure = override?.exposure as CatalogPort["exposure"]
 
     // Ensure unique names
     if (usedNames.has(name)) {
@@ -802,7 +820,9 @@ function parsePorts(
     }
     usedNames.add(name)
 
-    ports.push({ name, port: parsed.host, protocol })
+    const port: CatalogPort = { name, port: parsed.host, protocol }
+    if (exposure) port.exposure = exposure
+    ports.push(port)
   }
 
   return ports
@@ -826,6 +846,10 @@ function serviceToComponent(
       ? { command: devCommand, sync: labels.devSync }
       : undefined
 
+  const annotations: Record<string, string> = {}
+  if (labels.sourceRepo) annotations["dx.dev/source-repo"] = labels.sourceRepo
+  if (labels.sourcePath) annotations["dx.dev/source-path"] = labels.sourcePath
+
   return {
     kind: "Component",
     metadata: {
@@ -835,6 +859,7 @@ function serviceToComponent(
       labels: Object.keys(labels.extraLabels).length
         ? labels.extraLabels
         : undefined,
+      annotations: Object.keys(annotations).length ? annotations : undefined,
       tags: labels.tags,
       links: labels.links.length ? labels.links : undefined,
     },
@@ -899,6 +924,10 @@ function serviceToResource(
       ? labels.catalogType
       : inferredType
 
+  const annotations: Record<string, string> = {}
+  if (labels.sourceRepo) annotations["dx.dev/source-repo"] = labels.sourceRepo
+  if (labels.sourcePath) annotations["dx.dev/source-path"] = labels.sourcePath
+
   return {
     kind: "Resource",
     metadata: {
@@ -908,6 +937,7 @@ function serviceToResource(
       labels: Object.keys(labels.extraLabels).length
         ? labels.extraLabels
         : undefined,
+      annotations: Object.keys(annotations).length ? annotations : undefined,
       tags: labels.tags,
       links: labels.links.length ? labels.links : undefined,
     },
@@ -1352,9 +1382,22 @@ export function discoverComposeFiles(
     const entries = readdirSync(rootDir)
       .filter((f) => COMPOSE_GLOB_RE.test(f))
       .sort()
-    return entries
+    const files = entries
       .map((f) => join(rootDir, f))
       .filter((f) => shouldIncludeComposeFile(f, environment))
+
+    // 4. Append source override file if it exists (optional source links)
+    const sourceOverride = join(
+      rootDir,
+      ".dx",
+      "generated",
+      "compose-source-overrides.yml"
+    )
+    if (existsSync(sourceOverride)) {
+      files.push(sourceOverride)
+    }
+
+    return files
   } catch {
     return []
   }
@@ -1446,7 +1489,7 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
 
     // Merge services and extensions from all compose files (deep merge)
     let mergedRawServices: Record<string, Record<string, unknown>> = {}
-    let xCatalog: Record<string, unknown> | undefined
+    let xDxSystem: Record<string, unknown> | undefined
     let xConnections: Record<string, Record<string, unknown>> | undefined
 
     for (const filePath of composeFiles) {
@@ -1463,13 +1506,12 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
         rawServices
       )
 
-      // x-catalog: first file that has it wins
-      if (
-        !xCatalog &&
-        data["x-catalog"] &&
-        typeof data["x-catalog"] === "object"
-      ) {
-        xCatalog = data["x-catalog"] as Record<string, unknown>
+      // x-dx system metadata: first file that has name/owner/description wins
+      if (!xDxSystem) {
+        const xDx = data["x-dx"] as Record<string, unknown> | undefined
+        if (xDx && typeof xDx === "object" && xDx.name) {
+          xDxSystem = xDx
+        }
       }
       // x-connections: merge across files
       if (data["x-connections"] && typeof data["x-connections"] === "object") {
@@ -1567,7 +1609,7 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       }
     }
 
-    // 3. Connections from catalog.connection.* labels on services
+    // 3. Connections from dx.connection.* labels on services
     for (const [, svc] of Object.entries(services)) {
       const labels = parseLabels(svc.labels ?? {})
       for (const [connName, conn] of Object.entries(labels.connections)) {
@@ -1583,8 +1625,8 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
     }
 
     // Merge: explicit connections override inferred ones by envVar
-    const systemName = xCatalog?.name
-      ? String(xCatalog.name)
+    const systemName = xDxSystem?.name
+      ? String(xDxSystem.name)
       : basename(rootDir)
     const explicitEnvVars = new Set(explicitConnections.map((c) => c.envVar))
     const connections: CatalogConnection[] = [
@@ -1600,11 +1642,11 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
         })),
     ]
 
-    // System-level metadata from x-catalog, falling back to labels
-    let systemOwner = xCatalog?.owner ? String(xCatalog.owner) : undefined
+    // System-level metadata from x-dx, falling back to labels
+    let systemOwner = xDxSystem?.owner ? String(xDxSystem.owner) : undefined
     if (!systemOwner) {
       for (const svc of Object.values(services)) {
-        const ownerLabel = svc.labels?.["catalog.owner"]
+        const ownerLabel = svc.labels?.["dx.owner"]
         if (ownerLabel) {
           systemOwner = ownerLabel
           break
@@ -1612,11 +1654,11 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       }
     }
 
-    // Build system-level annotations from x-catalog
+    // Build system-level annotations from x-dx
     const systemAnnotations: Record<string, string> = {}
-    if (xCatalog?.repo) {
+    if (xDxSystem?.repo) {
       systemAnnotations["backstage.io/source-location"] =
-        `url:${String(xCatalog.repo)}`
+        `url:${String(xDxSystem.repo)}`
     }
 
     const system: CatalogSystem = {
@@ -1624,15 +1666,15 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       metadata: {
         name: systemName,
         namespace: "default",
-        description: xCatalog?.description
-          ? String(xCatalog.description)
+        description: xDxSystem?.description
+          ? String(xDxSystem.description)
           : undefined,
         annotations:
           Object.keys(systemAnnotations).length > 0
             ? systemAnnotations
             : undefined,
-        tags: xCatalog?.tags
-          ? String(xCatalog.tags)
+        tags: xDxSystem?.tags
+          ? String(xDxSystem.tags)
               .split(",")
               .map((t) => t.trim())
               .filter(Boolean)
@@ -1640,9 +1682,9 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
       },
       spec: {
         owner: systemOwner ?? "unknown",
-        domain: xCatalog?.domain ? String(xCatalog.domain) : undefined,
-        lifecycle: xCatalog?.lifecycle
-          ? (String(xCatalog.lifecycle) as CatalogLifecycle)
+        domain: xDxSystem?.domain ? String(xDxSystem.domain) : undefined,
+        lifecycle: xDxSystem?.lifecycle
+          ? (String(xDxSystem.lifecycle) as CatalogLifecycle)
           : undefined,
       },
       components,

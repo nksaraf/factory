@@ -159,8 +159,8 @@ function classifyService(
   svc: Record<string, unknown>
 ): "component" | "resource" {
   const labels = (svc.labels ?? {}) as Record<string, string>
-  if (labels["catalog.kind"]) {
-    return labels["catalog.kind"].toLowerCase() === "resource"
+  if (labels["dx.kind"]) {
+    return labels["dx.kind"].toLowerCase() === "resource"
       ? "resource"
       : "component"
   }
@@ -225,7 +225,7 @@ function diagnoseService(
 
   const present: Record<string, string> = {}
   for (const [k, v] of Object.entries(labels)) {
-    if (k.startsWith("catalog.")) present[k] = String(v)
+    if (k.startsWith("dx.")) present[k] = String(v)
   }
 
   const missing: ServiceDiagnosis["missing"] = []
@@ -241,10 +241,10 @@ function diagnoseService(
   }
 
   // Core labels
-  check("catalog.description", null, "Short description of the service", true)
-  check("catalog.owner", null, "Team or person who owns this service", true)
+  check("dx.description", null, "Short description of the service", true)
+  check("dx.owner", null, "Team or person who owns this service", true)
   check(
-    "catalog.lifecycle",
+    "dx.lifecycle",
     "production",
     "Lifecycle stage (production, development, experimental, deprecated)",
     false
@@ -253,27 +253,27 @@ function diagnoseService(
   if (kind === "resource") {
     const inferredType = image ? inferResourceType(image) : null
     check(
-      "catalog.type",
+      "dx.type",
       inferredType,
       "Resource type (database, cache, queue, gateway, storage, search, other)",
       false
     )
   } else {
     check(
-      "catalog.type",
+      "dx.type",
       "service",
       "Component type (service, worker, library)",
       false
     )
   }
 
-  check("catalog.tags", null, "Comma-separated tags", false)
+  check("dx.tags", null, "Comma-separated tags", false)
 
   // Port labels
   for (const port of containerPorts) {
     const known = KNOWN_PORTS[port]
-    const portNameKey = `catalog.port.${port}.name`
-    const portProtoKey = `catalog.port.${port}.protocol`
+    const portNameKey = `dx.port.${port}.name`
+    const portProtoKey = `dx.port.${port}.protocol`
     if (!present[portNameKey]) {
       missing.push({
         key: portNameKey,
@@ -295,13 +295,13 @@ function diagnoseService(
   // API labels (only for components)
   if (kind === "component") {
     check(
-      "catalog.api.provides",
+      "dx.api.provides",
       null,
       "APIs this service provides (comma-separated)",
       false
     )
     check(
-      "catalog.api.consumes",
+      "dx.api.consumes",
       null,
       "APIs this service consumes (comma-separated)",
       false
@@ -311,7 +311,7 @@ function diagnoseService(
   // Kind override — only suggest if classification might be wrong
   if (kind === "resource" && svc.build) {
     check(
-      "catalog.kind",
+      "dx.kind",
       "Component",
       "Classification override (Component or Resource)",
       false
@@ -357,7 +357,7 @@ function renderDiagnosis(d: ServiceDiagnosis): void {
   }
 
   if (missingRequired.length === 0 && missingOptional.length === 0) {
-    console.log(`  ${styleSuccess("All catalog labels present")}`)
+    console.log(`  ${styleSuccess("All dx labels present")}`)
   }
 }
 
@@ -486,7 +486,7 @@ export async function runCatalogDoctor(
   // Summary
   console.log("")
   if (totalMissing === 0) {
-    console.log(styleSuccess("All services have complete catalog labels."))
+    console.log(styleSuccess("All services have complete dx labels."))
     return
   }
 
@@ -535,7 +535,7 @@ export async function runCatalogDoctor(
       } else {
         const { input, select } = await import("@crustjs/prompts")
 
-        if (m.key === "catalog.lifecycle") {
+        if (m.key === "dx.lifecycle") {
           value = await select({
             message: `${d.name} → ${m.key}`,
             choices: [
@@ -546,7 +546,7 @@ export async function runCatalogDoctor(
             ],
             default: m.inferred ?? "production",
           })
-        } else if (m.key === "catalog.type" && d.kind === "resource") {
+        } else if (m.key === "dx.type" && d.kind === "resource") {
           value = await select({
             message: `${d.name} → ${m.key}`,
             choices: [
@@ -561,7 +561,7 @@ export async function runCatalogDoctor(
             ],
             default: m.inferred ?? "database",
           })
-        } else if (m.key === "catalog.type" && d.kind === "component") {
+        } else if (m.key === "dx.type" && d.kind === "component") {
           value = await select({
             message: `${d.name} → ${m.key}`,
             choices: [
@@ -571,7 +571,7 @@ export async function runCatalogDoctor(
             ],
             default: m.inferred ?? "service",
           })
-        } else if (m.key === "catalog.kind") {
+        } else if (m.key === "dx.kind") {
           value = await select({
             message: `${d.name} → ${m.key}`,
             choices: [

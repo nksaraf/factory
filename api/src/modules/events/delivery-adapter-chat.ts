@@ -1,5 +1,12 @@
+import type { PostableMessage } from "chat"
+
 import { logger } from "../../logger"
 import type { DeliveryAdapter, DeliveryContext } from "./delivery-adapter"
+
+interface SlackBlockMessage {
+  text: string
+  blocks: unknown[]
+}
 
 const log = logger.child({ module: "delivery-chat" })
 
@@ -45,7 +52,10 @@ export class ChatDeliveryAdapter implements DeliveryAdapter {
           : `[${ctx.severity}] ${ctx.topic}`
       }
 
-      await dmThread.post(text, blocks ? { blocks } : undefined)
+      const message: PostableMessage | SlackBlockMessage = blocks
+        ? { text, blocks }
+        : text
+      await dmThread.post(message as PostableMessage)
 
       log.info(
         { provider: this.provider, target, topic: ctx.topic },

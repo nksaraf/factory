@@ -281,6 +281,8 @@ export const preview = opsSchema.table(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => newId("prev")),
+    slug: text("slug").notNull(),
+    strategy: text("strategy").notNull().default("deploy"),
     siteId: text("site_id")
       .notNull()
       .references(() => site.id, { onDelete: "cascade" }),
@@ -290,17 +292,31 @@ export const preview = opsSchema.table(
     phase: text("phase").notNull().default("pending_image"),
     sourceBranch: text("source_branch").notNull(),
     prNumber: integer("pr_number"),
+    workbenchId: text("workbench_id").references(() => workbench.id, {
+      onDelete: "set null",
+    }),
+    systemDeploymentId: text("system_deployment_id").references(
+      () => systemDeployment.id,
+      { onDelete: "set null" }
+    ),
+    realmId: text("realm_id").references(() => realm.id, {
+      onDelete: "set null",
+    }),
     spec: specCol<PreviewSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...reconciliationCols(),
   },
   (t) => [
+    index("ops_preview_slug_idx").on(t.slug),
+    index("ops_preview_strategy_idx").on(t.strategy),
     index("ops_preview_site_idx").on(t.siteId),
     index("ops_preview_owner_idx").on(t.ownerId),
     index("ops_preview_phase_idx").on(t.phase),
     index("ops_preview_branch_idx").on(t.sourceBranch),
     index("ops_preview_pr_idx").on(t.prNumber),
+    index("ops_preview_workbench_idx").on(t.workbenchId),
+    index("ops_preview_sd_idx").on(t.systemDeploymentId),
   ]
 )
 

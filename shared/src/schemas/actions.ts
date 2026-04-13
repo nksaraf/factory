@@ -137,6 +137,8 @@ export const UpdatePreviewStatusBody = z.object({
     "pending_image",
     "building",
     "deploying",
+    "provisioning",
+    "starting",
     "active",
     "inactive",
     "expired",

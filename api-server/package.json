@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run src/bun-entry.ts",
-    "build": "vinxi build",
-    "start": "node .output/server/index.js"
+    "dev": "bun run src/bun-entry.ts"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -19,10 +17,8 @@
     "@opentelemetry/sdk-logs": "0.214.0",
     "@opentelemetry/sdk-metrics": "^2.0.0",
     "@opentelemetry/sdk-node": "^0.205.0",
-    "@rio.js/vinxi": "^0.0.39",
     "@smp/factory-api": "workspace:*",
-    "dotenv": "^17.3.1",
-    "vinxi": "0.5.11"
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

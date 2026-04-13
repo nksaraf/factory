@@ -142,11 +142,11 @@ include:
       retries: 5
       start_period: 10s
     labels:
-      catalog.type: service
-      catalog.owner: ${owner}
-      catalog.description: "${name} API"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      dx.type: service
+      dx.owner: ${owner}
+      dx.description: "${name} API"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
       dx.runtime: node
 `,
   })
@@ -165,11 +165,11 @@ include:
       ${name}-api:
         condition: service_healthy
     labels:
-      catalog.type: website
-      catalog.owner: ${owner}
-      catalog.description: "${name} frontend"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      dx.type: website
+      dx.owner: ${owner}
+      dx.description: "${name} frontend"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
       dx.runtime: node
 `,
   })

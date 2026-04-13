@@ -35,6 +35,7 @@ import { Elysia } from "elysia"
 import { z } from "zod"
 
 import type { Database } from "../../db/connection"
+import { team } from "../../db/schema/org"
 import {
   artifact,
   capability,
@@ -64,6 +65,14 @@ export function productController(db: Database) {
         idColumn: system.id,
         prefix: "sys",
         kindAlias: "system",
+        slugRefs: {
+          ownerTeamSlug: {
+            fk: "ownerTeamId",
+            lookupTable: team,
+            lookupSlugCol: team.slug,
+            lookupIdCol: team.id,
+          },
+        },
         createSchema: CreateSystemSchema,
         updateSchema: UpdateSystemSchema,
         deletable: "bitemporal",
@@ -101,6 +110,20 @@ export function productController(db: Database) {
         idColumn: component.id,
         prefix: "cmp",
         kindAlias: "component",
+        slugRefs: {
+          systemSlug: {
+            fk: "systemId",
+            lookupTable: system,
+            lookupSlugCol: system.slug,
+            lookupIdCol: system.id,
+          },
+          ownerTeamSlug: {
+            fk: "ownerTeamId",
+            lookupTable: team,
+            lookupSlugCol: team.slug,
+            lookupIdCol: team.id,
+          },
+        },
         createSchema: CreateComponentSchema,
         updateSchema: UpdateComponentSchema,
         deletable: "bitemporal",
@@ -268,6 +291,7 @@ export const productOntologyConfigs: Pick<
   | "slugColumn"
   | "idColumn"
   | "prefix"
+  | "slugRefs"
   | "kindAlias"
   | "createSchema"
 >[] = [
@@ -279,6 +303,14 @@ export const productOntologyConfigs: Pick<
     idColumn: system.id,
     prefix: "sys",
     kindAlias: "system",
+    slugRefs: {
+      ownerTeamSlug: {
+        fk: "ownerTeamId",
+        lookupTable: team,
+        lookupSlugCol: team.slug,
+        lookupIdCol: team.id,
+      },
+    },
   },
   {
     entity: "components",
@@ -288,6 +320,20 @@ export const productOntologyConfigs: Pick<
     idColumn: component.id,
     prefix: "cmp",
     kindAlias: "component",
+    slugRefs: {
+      systemSlug: {
+        fk: "systemId",
+        lookupTable: system,
+        lookupSlugCol: system.slug,
+        lookupIdCol: system.id,
+      },
+      ownerTeamSlug: {
+        fk: "ownerTeamId",
+        lookupTable: team,
+        lookupSlugCol: team.slug,
+        lookupIdCol: team.id,
+      },
+    },
   },
   {
     entity: "apis",

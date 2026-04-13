@@ -1,3 +1,5 @@
+preload = ["./workflow-plugin.ts"]
+
 [test]
 # Integration tests run PGlite migrations + truncates; default 5s is too tight.
 timeout = 120000

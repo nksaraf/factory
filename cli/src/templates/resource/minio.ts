@@ -24,13 +24,13 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       timeout: 5s
       retries: 5
     labels:
-      catalog.type: storage
-      catalog.owner: ${owner}
-      catalog.description: "MinIO S3-compatible storage"
-      catalog.port.9000.name: s3
-      catalog.port.9000.protocol: http
-      catalog.port.9001.name: console
-      catalog.port.9001.protocol: http
+      dx.type: storage
+      dx.owner: ${owner}
+      dx.description: "MinIO S3-compatible storage"
+      dx.port.9000.name: s3
+      dx.port.9000.protocol: http
+      dx.port.9001.name: console
+      dx.port.9001.protocol: http
 
 volumes:
   minio-data:

@@ -1,9 +1,9 @@
 /**
  * Tests for workflow event matching layer — emitEvent, cleanupExpiredSubscriptions.
  *
- * Note: waitForEvent requires DBOS runtime (recv/send), so it cannot be tested
- * without DBOS. These tests focus on emitEvent's JSONB containment matching
- * and subscription cleanup.
+ * Note: waitForEvent requires the Workflow SDK runtime (createWebhook/sleep),
+ * so it cannot be tested in isolation. These tests focus on emitEvent's JSONB
+ * containment matching and subscription cleanup.
  */
 import { PGlite } from "@electric-sql/pglite"
 import { eq } from "drizzle-orm"
@@ -22,14 +22,9 @@ import type { Database } from "../db/connection"
 import { eventSubscription } from "../db/schema/org"
 import { cleanupExpiredSubscriptions, emitEvent } from "./workflow-events"
 
-const mockSend = mock()
-const mockRecv = mock()
-
-mock.module("./workflow-engine.js", () => ({
-  send: (...args: unknown[]) => mockSend(...args),
-  recv: mockRecv,
-  getWorkflowId: () => "wfr_test",
-}))
+// Mock global fetch — emitEvent POSTs to webhook URLs
+const mockFetch = mock(() => Promise.resolve(new Response("ok")))
+globalThis.fetch = mockFetch as unknown as typeof fetch
 
 // ── Test setup ──────────────────────────────────────────
 
@@ -60,7 +55,6 @@ beforeAll(async () => {
       updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
     )
   `)
-  // GIN index for containment queries (aligned with org schema)
   await client.query(`
     CREATE INDEX esub_match_gin ON org.event_subscription
     USING gin (COALESCE(match_fields, '{}'::jsonb))
@@ -73,10 +67,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await client.query(`DELETE FROM org.event_subscription`)
-  mockSend.mockReset()
+  mockFetch.mockReset()
+  mockFetch.mockImplementation(() => Promise.resolve(new Response("ok")))
 })
 
-// Helper to insert a subscription
+// Helper to insert a subscription (ownerKind: "webhook", ownerId: webhook URL)
 async function insertSub(opts: {
   id: string
   ownerId: string
@@ -90,7 +85,7 @@ async function insertSub(opts: {
     status: "active",
     topicFilter: opts.topicFilter,
     matchFields: opts.matchFields,
-    ownerKind: "workflow",
+    ownerKind: "webhook",
     ownerId: opts.ownerId,
     expiresAt: opts.expiresAt ?? new Date(Date.now() + 600_000),
   })
@@ -99,10 +94,10 @@ async function insertSub(opts: {
 // ── emitEvent ──────────────────────────────────────────
 
 describe("emitEvent", () => {
-  it("wakes a matching subscription via send()", async () => {
+  it("POSTs to a matching subscription's webhook URL", async () => {
     await insertSub({
       id: "esub_1",
-      ownerId: "wfr_abc",
+      ownerId: "https://workflow.test/webhook/abc",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
     })
@@ -112,54 +107,57 @@ describe("emitEvent", () => {
       status: "active",
     })
 
-    expect(mockSend).toHaveBeenCalledOnce()
-    expect(mockSend).toHaveBeenCalledWith(
-      "wfr_abc",
-      { workbenchId: "wb-123", status: "active" },
-      "workbench.ready"
-    )
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, opts] = mockFetch.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ]
+    expect(url).toBe("https://workflow.test/webhook/abc")
+    expect(JSON.parse(opts.body as string)).toEqual({
+      workbenchId: "wb-123",
+      status: "active",
+    })
   })
 
   it("does not match subscriptions with different event names", async () => {
     await insertSub({
       id: "esub_2",
-      ownerId: "wfr_abc",
+      ownerId: "https://workflow.test/webhook/xyz",
       topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
 
     await emitEvent(db, "workbench.ready", { workbenchId: "wb-123" })
 
-    expect(mockSend).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it("does not match when matchFields are not contained in event data", async () => {
     await insertSub({
       id: "esub_3",
-      ownerId: "wfr_abc",
+      ownerId: "https://workflow.test/webhook/xyz",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-999" },
     })
 
-    // Emit with different workbenchId
     await emitEvent(db, "workbench.ready", {
       workbenchId: "wb-123",
       status: "active",
     })
 
-    expect(mockSend).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it("matches multiple subscriptions for the same event", async () => {
     await insertSub({
       id: "esub_4a",
-      ownerId: "wfr_aaa",
+      ownerId: "https://workflow.test/webhook/aaa",
       topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
     await insertSub({
       id: "esub_4b",
-      ownerId: "wfr_bbb",
+      ownerId: "https://workflow.test/webhook/bbb",
       topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
     })
@@ -170,22 +168,20 @@ describe("emitEvent", () => {
       prNumber: "42",
     })
 
-    expect(mockSend).toHaveBeenCalledTimes(2)
-    const callWorkflowIds = mockSend.mock.calls.map((c: unknown[]) => c[0])
-    expect(callWorkflowIds).toContain("wfr_aaa")
-    expect(callWorkflowIds).toContain("wfr_bbb")
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const calledUrls = mockFetch.mock.calls.map((c: unknown[]) => c[0])
+    expect(calledUrls).toContain("https://workflow.test/webhook/aaa")
+    expect(calledUrls).toContain("https://workflow.test/webhook/bbb")
   })
 
   it("matches using JSONB containment — subset matching", async () => {
-    // Subscription only cares about repoFullName and branchName
     await insertSub({
       id: "esub_5",
-      ownerId: "wfr_subset",
+      ownerId: "https://workflow.test/webhook/subset",
       topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo", branchName: "feat/x" },
     })
 
-    // Event has more fields — should still match (containment)
     await emitEvent(db, "pr.opened", {
       repoFullName: "org/repo",
       branchName: "feat/x",
@@ -193,21 +189,20 @@ describe("emitEvent", () => {
       prUrl: "https://github.com/org/repo/pull/99",
     })
 
-    expect(mockSend).toHaveBeenCalledOnce()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it("skips expired subscriptions", async () => {
     await insertSub({
       id: "esub_expired",
-      ownerId: "wfr_expired",
+      ownerId: "https://workflow.test/webhook/expired",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
-      expiresAt: new Date(Date.now() - 60_000), // expired 1 minute ago
+      expiresAt: new Date(Date.now() - 60_000),
     })
-    // Active sub for the same event
     await insertSub({
       id: "esub_active",
-      ownerId: "wfr_active",
+      ownerId: "https://workflow.test/webhook/active",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
     })
@@ -217,35 +212,31 @@ describe("emitEvent", () => {
       status: "active",
     })
 
-    expect(mockSend).toHaveBeenCalledOnce()
-    expect(mockSend).toHaveBeenCalledWith(
-      "wfr_active",
-      { workbenchId: "wb-123", status: "active" },
-      "workbench.ready"
-    )
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url] = mockFetch.mock.calls[0] as unknown as [string]
+    expect(url).toBe("https://workflow.test/webhook/active")
   })
 
   it("does not match when only partial matchFields are present", async () => {
     await insertSub({
       id: "esub_6",
-      ownerId: "wfr_partial",
+      ownerId: "https://workflow.test/webhook/partial",
       topicFilter: "pr.comment",
       matchFields: { repoFullName: "org/repo", prNumber: "42" },
     })
 
-    // Event only has repoFullName, missing prNumber
     await emitEvent(db, "pr.comment", {
       repoFullName: "org/repo",
       comment: "LGTM",
     })
 
-    expect(mockSend).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it("marks trigger subscription as fired after matching", async () => {
     await insertSub({
       id: "esub_fired",
-      ownerId: "wfr_fired",
+      ownerId: "https://workflow.test/webhook/fired",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-123" },
     })
@@ -268,20 +259,19 @@ describe("emitEvent", () => {
 
 describe("cleanupExpiredSubscriptions", () => {
   it("removes expired subscriptions", async () => {
-    // Insert one expired, one active
     await insertSub({
       id: "esub_exp",
-      ownerId: "wfr_exp",
+      ownerId: "https://workflow.test/webhook/exp",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-old" },
-      expiresAt: new Date(Date.now() - 60_000), // expired 1 minute ago
+      expiresAt: new Date(Date.now() - 60_000),
     })
     await insertSub({
       id: "esub_act",
-      ownerId: "wfr_act",
+      ownerId: "https://workflow.test/webhook/act",
       topicFilter: "workbench.ready",
       matchFields: { workbenchId: "wb-new" },
-      expiresAt: new Date(Date.now() + 600_000), // expires in 10 minutes
+      expiresAt: new Date(Date.now() + 600_000),
     })
 
     await cleanupExpiredSubscriptions(db)
@@ -294,7 +284,7 @@ describe("cleanupExpiredSubscriptions", () => {
   it("does nothing when no subscriptions are expired", async () => {
     await insertSub({
       id: "esub_fresh",
-      ownerId: "wfr_fresh",
+      ownerId: "https://workflow.test/webhook/fresh",
       topicFilter: "pr.opened",
       matchFields: { repoFullName: "org/repo" },
       expiresAt: new Date(Date.now() + 3600_000),

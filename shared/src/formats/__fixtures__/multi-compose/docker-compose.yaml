@@ -18,17 +18,17 @@ services:
       redis:
         condition: service_started
     labels:
-      catalog.description: "Main API service"
-      catalog.owner: backend
-      catalog.tags: "api,rest"
-      catalog.api.provides: "orders-api,webhooks-api"
-      catalog.api.consumes: "auth-api"
-      catalog.docs.api: "/api/docs"
-      catalog.docs.runbook: "https://wiki.internal/runbooks/api"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
-      catalog.port.9090.name: metrics
-      catalog.port.9090.protocol: http
+      dx.description: "Main API service"
+      dx.owner: backend
+      dx.tags: "api,rest"
+      dx.api.provides: "orders-api,webhooks-api"
+      dx.api.consumes: "auth-api"
+      dx.docs.api: "/api/docs"
+      dx.docs.runbook: "https://wiki.internal/runbooks/api"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
+      dx.port.9090.name: metrics
+      dx.port.9090.protocol: http
 
   worker:
     build:
@@ -37,8 +37,8 @@ services:
       DATABASE_URL: postgres://app:app@postgres:5432/app
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     labels:
-      catalog.type: worker
-      catalog.description: "Background job processor"
+      dx.type: worker
+      dx.description: "Background job processor"
 
   auth:
     image: myorg/auth-service:latest
@@ -47,8 +47,8 @@ services:
     environment:
       DATABASE_URL: postgres://auth:auth@postgres:5432/auth
     labels:
-      catalog.api.provides: "auth-api"
-      catalog.docs.url: "https://docs.internal/auth"
+      dx.api.provides: "auth-api"
+      dx.docs.url: "https://docs.internal/auth"
 
   postgres:
     image: postgres:16-alpine
@@ -80,10 +80,10 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     labels:
-      catalog.port.5672.name: amqp
-      catalog.port.5672.protocol: tcp
-      catalog.port.15672.name: management-ui
-      catalog.port.15672.protocol: http
+      dx.port.5672.name: amqp
+      dx.port.5672.protocol: tcp
+      dx.port.15672.name: management-ui
+      dx.port.15672.protocol: http
 
   nginx:
     image: nginx:alpine

@@ -1,4 +1,7 @@
-import type { SendNotificationInput } from "@smp/factory-shared/schemas/events"
+import type {
+  EventSeverity,
+  SendNotificationInput,
+} from "@smp/factory-shared/schemas/events"
 
 import type { Database } from "../../db/connection"
 import { eventDelivery } from "../../db/schema/org"
@@ -26,7 +29,7 @@ export function buildNotificationEvent(input: {
   title: string
   body?: string
   topic?: string
-  severity?: string
+  severity?: EventSeverity
   source?: string
   data?: Record<string, unknown>
   correlationId?: string

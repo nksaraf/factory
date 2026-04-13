@@ -23,11 +23,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       timeout: 3s
       retries: 5
     labels:
-      catalog.type: database
-      catalog.owner: ${owner}
-      catalog.description: "PostgreSQL database"
-      catalog.port.5432.name: postgres
-      catalog.port.5432.protocol: tcp
+      dx.type: database
+      dx.owner: ${owner}
+      dx.description: "PostgreSQL database"
+      dx.port.5432.name: postgres
+      dx.port.5432.protocol: tcp
 
 volumes:
   postgres-data:

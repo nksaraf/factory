@@ -5,8 +5,11 @@ import type { Database } from "../db/connection"
 import { event, eventOutbox } from "../db/schema/org"
 import { createTestContext, truncateAllTables } from "../test-helpers"
 import { emitEvent } from "./events"
+import type { PublishResult } from "./nats"
 
-const publishMock = mock(() => Promise.resolve({ ok: true }))
+const publishMock = mock<() => Promise<PublishResult>>(() =>
+  Promise.resolve({ ok: true })
+)
 
 mock.module("./nats", () => ({
   publishToNats: publishMock,

@@ -20,10 +20,7 @@ import { startProxmoxSyncLoop } from "./lib/proxmox/sync-loop"
 import { PostgresSecretBackend } from "./lib/secrets/postgres-backend"
 import { startTtlCleanupLoop } from "./lib/ttl-cleanup"
 import { startWorkTrackerSyncLoop } from "./lib/work-tracker/sync-loop"
-import {
-  initWorkflowEngine,
-  shutdownWorkflowEngine,
-} from "./lib/workflow-engine"
+import { createWorld } from "@workflow/world-postgres"
 import { setWorkflowDb } from "./lib/workflow-helpers"
 import { logger } from "./logger"
 import { agentController } from "./modules/agent/index"
@@ -35,7 +32,10 @@ import { webhookController } from "./modules/build/webhook.controller"
 import { catalogController } from "./modules/catalog/catalog.controller"
 import { setChatDb } from "./modules/chat/db"
 import { commerceController } from "./modules/commerce/index"
-import { documentsController } from "./modules/documents/index"
+import {
+  documentsController,
+  publicDocumentViewerController,
+} from "./modules/documents/index"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
 import { configVarController } from "./modules/identity/config-var.controller"
@@ -190,6 +190,37 @@ export class FactoryAPI {
     )
   }
 
+  private workflowHandlers() {
+    return new Elysia()
+      .post("/.well-known/workflow/v1/flow", async ({ request }) => {
+        try {
+          const path = "../.well-known/workflow/v1/flow.js"
+          const mod = await import(/* @vite-ignore */ path)
+          return mod.POST(request)
+        } catch {
+          return new Response("Workflow handlers not built", { status: 503 })
+        }
+      })
+      .post("/.well-known/workflow/v1/step", async ({ request }) => {
+        try {
+          const path = "../.well-known/workflow/v1/step.js"
+          const mod = await import(/* @vite-ignore */ path)
+          return mod.POST(request)
+        } catch {
+          return new Response("Workflow handlers not built", { status: 503 })
+        }
+      })
+      .post("/.well-known/workflow/v1/webhook/:token", async ({ request }) => {
+        try {
+          const path = "../.well-known/workflow/v1/webhook.js"
+          const mod = await import(/* @vite-ignore */ path)
+          return mod.POST(request)
+        } catch {
+          return new Response("Workflow handlers not built", { status: 503 })
+        }
+      })
+  }
+
   createApp() {
     const jwksUrl = getJwksUrl(this.settings)
     // All routes are registered unconditionally so the return type captures
@@ -220,6 +251,7 @@ export class FactoryAPI {
           `${request.method} ${url.pathname} failed (${code})`
         )
       })
+      .use(this.workflowHandlers())
       .use(healthController)
       .use(installController)
       .use(presenceController(() => this.redis))
@@ -228,6 +260,7 @@ export class FactoryAPI {
       .use(jiraWebhookTrigger(db))
       .use(previewCiController(db))
       .use(deployCiController(db))
+      .use(publicDocumentViewerController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
       .use(this.mountSiteControllers())
       .use(
@@ -323,16 +356,22 @@ export class FactoryAPI {
       logger.warn({ err }, "role preset seeding failed")
     )
 
-    // Initialize durable workflow engine (DBOS)
+    // Initialize Workflow SDK with Postgres World
     setWorkflowDb(this.db)
     setChatDb(this.db)
     if (url) {
-      initWorkflowEngine(url).catch((err) =>
-        logger.warn(
-          { err },
-          "workflow engine init failed — durable workflows unavailable"
+      const world = createWorld({
+        connectionString: url,
+        jobPrefix: "factory_",
+      })
+      world
+        .start()
+        .catch((err) =>
+          logger.warn(
+            { err },
+            "workflow world init failed — durable workflows unavailable"
+          )
         )
-      )
     }
 
     // Set up Redis for presence fan-out (optional — degrades gracefully)
@@ -364,7 +403,7 @@ export class FactoryAPI {
       this.redis.publisher.disconnect()
       this.redis.subscriber.disconnect()
     }
-    await shutdownWorkflowEngine().catch(() => {})
+    // Workflow SDK world is closed automatically via process exit
     if (this.db) {
       await this.db.$client.end()
     }

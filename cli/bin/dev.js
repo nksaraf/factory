@@ -1,2 +1,2 @@
 #!/usr/bin/env bun
-import "../src/cli.ts"
+import "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/cli/src/cli.ts"

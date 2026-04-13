@@ -115,10 +115,12 @@ export class WebhookService {
     }
   }
 
-  /**
-   * Find a site with preview deployments enabled.
-   * Site uses spec JSONB, no separate previewConfig/clusterId columns.
-   */
+  private async resolveSystemIdFromRepo(
+    repoFullName: string
+  ): Promise<string | null> {
+    return previewSvc.resolveSystemIdFromRepo(this.db, repoFullName)
+  }
+
   private async findPreviewSite(_repoFullName: string): Promise<{
     siteId: string
     previewConfig: {
@@ -235,6 +237,7 @@ export class WebhookService {
           },
           "Creating preview for PR"
         )
+        const systemId = await this.resolveSystemIdFromRepo(repoFullName)
         await previewSvc.createPreview(this.db, {
           name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
           sourceBranch: headBranch,
@@ -245,6 +248,8 @@ export class WebhookService {
           siteId: siteResult.siteId,
           ownerId: senderLogin,
           createdBy: senderLogin,
+          strategy: "deploy",
+          systemId: systemId ?? undefined,
           authMode: siteResult.previewConfig.defaultAuthMode ?? "team",
           expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
         })
@@ -309,6 +314,8 @@ export class WebhookService {
                 { repo: repoFullName, pr: prNumber, branch: headBranch },
                 "Creating preview on synchronize (no existing preview found)"
               )
+              const syncSystemId =
+                await this.resolveSystemIdFromRepo(repoFullName)
               await previewSvc.createPreview(this.db, {
                 name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
                 sourceBranch: headBranch,
@@ -319,6 +326,8 @@ export class WebhookService {
                 siteId: syncSite.siteId,
                 ownerId: senderLogin,
                 createdBy: senderLogin,
+                strategy: "deploy",
+                systemId: syncSystemId ?? undefined,
                 authMode: syncSite.previewConfig.defaultAuthMode ?? "team",
                 expiresAt: new Date(
                   Date.now() + syncTtlDays * 24 * 60 * 60 * 1000

@@ -15,6 +15,25 @@ const NPM_DEFAULTS: Record<string, string> = {
   "prefer-offline": "true",
 }
 
+const NPM_CACHE_HOST = "npm-cache.internal"
+
+const NPM_CACHE_DEFAULTS: Record<string, string> = {
+  registry: `http://${NPM_CACHE_HOST}:4873`,
+  "@lepton:registry": `http://${NPM_CACHE_HOST}:4873`,
+  "@rio.js:registry": `http://${NPM_CACHE_HOST}:4873`,
+}
+
+async function isNpmCacheReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(`http://${NPM_CACHE_HOST}:4873/-/ping`, {
+      signal: AbortSignal.timeout(2000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 function parseNpmrc(content: string): Record<string, string> {
   const result: Record<string, string> = {}
   for (const line of content.split("\n")) {
@@ -38,17 +57,39 @@ export const npmDefaultsProvider: ConfigProvider = {
       ? parseNpmrc(readFileSync(NPMRC_PATH, "utf8"))
       : {}
 
-    return Object.entries(NPM_DEFAULTS).map(([key, value]) => ({
-      id: `npm:${key}`,
-      category: "npm" as const,
-      description: `${key}=${value}`,
-      target: NPMRC_PATH,
-      currentValue: existing[key] ?? null,
-      proposedValue: value,
-      alreadyApplied: existing[key] === value,
-      requiresSudo: false,
-      platform: null,
-      apply: async () => upsertDotfile(NPMRC_PATH, key, value),
-    }))
+    const changes: ConfigChange[] = Object.entries(NPM_DEFAULTS).map(
+      ([key, value]) => ({
+        id: `npm:${key}`,
+        category: "npm" as const,
+        description: `${key}=${value}`,
+        target: NPMRC_PATH,
+        currentValue: existing[key] ?? null,
+        proposedValue: value,
+        alreadyApplied: existing[key] === value,
+        requiresSudo: false,
+        platform: null,
+        apply: async () => upsertDotfile(NPMRC_PATH, key, value),
+      })
+    )
+
+    const cacheAvailable = await isNpmCacheReachable()
+    if (cacheAvailable) {
+      for (const [key, value] of Object.entries(NPM_CACHE_DEFAULTS)) {
+        changes.push({
+          id: `npm:${key}`,
+          category: "npm" as const,
+          description: `${key}=${value} (local cache)`,
+          target: NPMRC_PATH,
+          currentValue: existing[key] ?? null,
+          proposedValue: value,
+          alreadyApplied: existing[key] === value,
+          requiresSudo: false,
+          platform: null,
+          apply: async () => upsertDotfile(NPMRC_PATH, key, value),
+        })
+      }
+    }
+
+    return changes
   },
 }

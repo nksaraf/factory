@@ -24,11 +24,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       retries: 5
       start_period: 15s
     labels:
-      catalog.type: service
-      catalog.owner: ${owner}
-      catalog.description: "Authentication service"
-      catalog.port.3000.name: http
-      catalog.port.3000.protocol: http
+      dx.type: service
+      dx.owner: ${owner}
+      dx.description: "Authentication service"
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
 `,
     },
     {

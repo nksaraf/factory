@@ -33,7 +33,7 @@ const EnvSchema = z.object({
   FACTORY_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
 
   // ── Gateway / Networking ──────────────────────────────────
-  DX_GATEWAY_DOMAIN: z.string().default("dx.dev"),
+  DX_GATEWAY_DOMAIN: z.string().default("lepton.software"),
   DX_FACTORY_WS_URL: z.string().default("wss://factory.dx.dev/ws"),
   SANDBOX_INGRESS_ENABLED: z
     .enum(["true", "false"])

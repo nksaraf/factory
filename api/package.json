@@ -12,7 +12,8 @@
     "./test-helpers": "./src/test-helpers.ts"
   },
   "scripts": {
-    "dev": "bun --watch src/server.ts",
+    "dev": "bun x workflow build && bun --watch src/server.ts",
+    "workflow:build": "bun x workflow build",
     "lint": "oxlint .",
     "typecheck": "tsgo --noEmit",
     "test": "pnpm run test:local",
@@ -32,7 +33,9 @@
     "@chat-adapter/state-memory": "latest",
     "@chat-adapter/state-pg": "4.24.0",
     "@corsinvest/cv4pve-api-javascript": "^9.1.0",
-    "@dbos-inc/dbos-sdk": "4.13.5",
+    "@workflow/world-postgres": "4.1.0-beta.28",
+    "@workflow/world-local": "4.1.0-beta.28",
+    "@workflow/ai": "4.0.1-beta.39",
     "@electric-sql/pglite": "^0.2.17",
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/node": "^1.4.5",
@@ -53,9 +56,12 @@
     "nats": "2.29.3",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
+    "workflow": "4.0.1-beta.39",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@workflow/swc-plugin": "^4.1.0",
+    "@swc/core": "^1.11.0",
     "@types/pg": "^8.18.0",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.10",

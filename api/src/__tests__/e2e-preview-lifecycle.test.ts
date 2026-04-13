@@ -433,6 +433,7 @@ describe.skipIf(!existsSync(KUBECONFIG_PATH))(
         const [prev] = await db
           .insert(preview)
           .values({
+            slug: previewSlug,
             siteId: s.id,
             sourceBranch: "feat/auth",
             prNumber: 42,

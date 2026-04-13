@@ -82,6 +82,29 @@ function slugify(s: string, maxLen = 100): string {
     .slice(0, maxLen)
 }
 
+const PROXY_IMAGE_PATTERNS = [
+  "traefik:",
+  "traefik/",
+  "nginx:",
+  "nginx/",
+  "caddy:",
+  "caddy/",
+  "haproxy:",
+  "haproxy/",
+]
+
+function detectProxyEngine(image?: string, name?: string): string | null {
+  if (image) {
+    for (const pattern of PROXY_IMAGE_PATTERNS) {
+      if (image.startsWith(pattern)) return pattern.replace(/[:/]$/, "")
+    }
+  }
+  if (name === "traefik" || name === "reverse-proxy") return "traefik"
+  if (name === "nginx") return "nginx"
+  if (name === "caddy") return "caddy"
+  return null
+}
+
 function scanMetadata(extra?: Record<string, string>): EntityMetadata {
   return {
     annotations: { discoveredBy: "scan", ...extra },
@@ -807,6 +830,94 @@ export async function reconcileHostScan(
         created: true,
       })
       summary.discoveredHosts.created++
+    }
+
+    // ── 8c¾. Promote proxy-like services on discovered hosts to realms ──
+    // When a discovered host runs a reverse proxy (detected by image/name),
+    // create a reverse-proxy realm so the tracer can recurse through it.
+
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      if (!entry.reachable) continue
+      const ip = entry.ip
+      if (ip === hostIpAddress) continue
+
+      // Find the host entity for this crawled IP
+      const [targetHost] = await tx
+        .select({ id: host.id, slug: host.slug })
+        .from(host)
+        .where(sql`${host.spec}->>'ipAddress' = ${ip}`)
+        .limit(1)
+      if (!targetHost) continue
+
+      // Check resolved services for proxy-like images
+      // Collect all ports this proxy is listening on from crawl data
+      const proxyPorts = new Map<string, Set<number>>() // engine → ports
+      for (const rs of entry.resolvedServices) {
+        const engine = detectProxyEngine(rs.service?.image, rs.service?.name)
+        if (!engine) continue
+        const ports = proxyPorts.get(engine) ?? new Set()
+        ports.add(rs.port)
+        proxyPorts.set(engine, ports)
+      }
+
+      for (const [engine, ports] of proxyPorts) {
+        const proxySlug = slugify(`${targetHost.slug}-${engine}`)
+        if (proxyRealmIdMap.has(proxySlug)) continue
+
+        const [existingProxy] = await tx
+          .select({ id: realm.id })
+          .from(realm)
+          .where(eq(realm.slug, proxySlug))
+          .limit(1)
+
+        const entrypoints = [...ports].map((p) => ({
+          name: `port-${p}`,
+          port: p,
+          protocol: "http" as const,
+        }))
+
+        const proxySpec = {
+          status: "ready" as const,
+          engine,
+          entrypoints,
+        }
+
+        if (existingProxy) {
+          await tx
+            .update(realm)
+            .set({
+              spec: proxySpec,
+              metadata: scanMetadata({
+                hostSlug: targetHost.slug,
+                promotedFrom: "network-crawl",
+              }),
+              updatedAt: new Date(),
+            })
+            .where(eq(realm.id, existingProxy.id))
+          proxyRealmIdMap.set(proxySlug, existingProxy.id)
+          summary.realms.updated++
+        } else {
+          const proxyRealmId = newId("rlm")
+          await tx.insert(realm).values({
+            id: proxyRealmId,
+            slug: proxySlug,
+            name: `${targetHost.slug} ${engine}`,
+            type: "reverse-proxy",
+            spec: proxySpec,
+            metadata: scanMetadata({
+              hostSlug: targetHost.slug,
+              promotedFrom: "network-crawl",
+            }),
+          })
+          await tx.insert(realmHost).values({
+            realmId: proxyRealmId,
+            hostId: targetHost.id,
+            role: "single",
+          })
+          proxyRealmIdMap.set(proxySlug, proxyRealmId)
+          summary.realms.created++
+        }
+      }
     }
 
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────

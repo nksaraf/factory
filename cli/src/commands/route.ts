@@ -1,4 +1,5 @@
 import { getFactoryClient, getFactoryRestClient } from "../client.js"
+import { styleInfo } from "../cli-style.js"
 import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { printTable } from "../output.js"
@@ -40,7 +41,7 @@ export function routeCommand(app: DxBase) {
             kind: {
               type: "string",
               description:
-                "Filter by kind (workbench, tunnel, preview, ingress, custom_domain)",
+                "Filter by kind (dev, tunnel, preview, ingress, custom_domain)",
             },
             site: { type: "string", description: "Filter by site ID" },
             status: {
@@ -126,7 +127,7 @@ export function routeCommand(app: DxBase) {
             port: { type: "number", description: "Target port" },
             kind: {
               type: "string",
-              description: "Route kind (ingress, workbench, etc.)",
+              description: "Route kind (ingress, dev, etc.)",
             },
             site: { type: "string", description: "Site ID" },
             path: { type: "string", description: "Path prefix" },
@@ -215,6 +216,13 @@ export function routeCommand(app: DxBase) {
         c
           .meta({
             description: "Trace network path for a domain or URL",
+          })
+          .flags({
+            verbose: {
+              type: "boolean",
+              alias: "v",
+              description: "Show detailed info (IPs, route rules, entrypoints)",
+            },
           })
           .args([
             {
@@ -326,6 +334,8 @@ export function routeCommand(app: DxBase) {
               return
             }
 
+            const verbose = !!flags.verbose
+
             // Render request context
             const req = data.request
             console.log(
@@ -344,139 +354,368 @@ export function routeCommand(app: DxBase) {
               return
             }
 
-            // Render the trace tree
-            renderTraceTree(data.trace.root, "", true)
+            // Render trace tree directly
+            renderTrace(data.trace.root, verbose, req.port)
             console.log()
           })
       )
   )
 }
 
-/** Extract detail lines for an entity based on its type and available data. */
-function entityDetails(
-  entity: Record<string, unknown>,
+// ---------------------------------------------------------------------------
+// Trace rendering — emoji tree layout with two-level detail
+// ---------------------------------------------------------------------------
+//
+// LOD 1 (default):  entity slug + type emoji, link type + key qualifier
+// LOD 2 (--verbose): + entity spec details, + link match/tls/health details
+// ---------------------------------------------------------------------------
+
+type TraceNodeLike = {
+  entity: Record<string, unknown>
   link?: { type: string; spec: Record<string, unknown> }
-): string[] {
-  const details: string[] = []
-  const spec = (entity.spec ?? {}) as Record<string, unknown>
-  const linkSpec = link?.spec ?? {}
+  weight?: number
+  implicit?: boolean
+  children: TraceNodeLike[]
+}
 
-  // IP address for hosts/VMs
-  if (spec.ipAddress) {
-    details.push(`ip: ${spec.ipAddress}`)
+type EntitySpec = Record<string, unknown>
+type LinkSpec = Record<string, unknown>
+
+const ROUTE_TYPES = new Set([
+  "route",
+  "ingress",
+  "dev",
+  "preview",
+  "tunnel",
+  "custom-domain",
+])
+
+const DNS_DOMAIN_TYPES = new Set(["primary", "alias", "custom"])
+
+/** Collapse internal subtypes to human-friendly display names. */
+function displayType(type: string): string {
+  if (ROUTE_TYPES.has(type)) return "route"
+  if (DNS_DOMAIN_TYPES.has(type)) return "dns-domain"
+  return type
+}
+
+function str(v: unknown): string | undefined {
+  return typeof v === "string" && v ? v : undefined
+}
+
+/** Get emoji prefix for an entity type. */
+function entityEmoji(type: string): string {
+  switch (type) {
+    case "route":
+      return "✉️ "
+    case "dns-domain":
+    case "primary":
+    case "alias":
+    case "custom":
+      return "🌐"
+    case "ip-address":
+      return "📍"
+    case "bare-metal":
+      return "🖥️ "
+    case "vm":
+      return "🖥️ "
+    case "reverse-proxy":
+      return "🔀"
+    case "component":
+    case "component-deployment":
+    case "container":
+      return "📦"
+    case "service":
+      return "⚡"
+    default:
+      return "○ "
   }
+}
 
-  // DNS record info
-  if (entity.fqdn && entity.fqdn !== entity.slug) {
-    details.push(`fqdn: ${entity.fqdn}`)
+// ---------------------------------------------------------------------------
+// LOD 1 — compact: one-line summaries always shown
+// ---------------------------------------------------------------------------
+
+/**
+ * Compact entity summary (key qualifier shown after the type tag).
+ * `parent` provides context — e.g., the IP address node before a host.
+ */
+function entitySummary(
+  entity: Record<string, unknown>,
+  parent: Record<string, unknown>
+): string | undefined {
+  const spec = (entity.spec ?? {}) as EntitySpec
+  const type = displayType(String(entity.type ?? ""))
+  switch (type) {
+    case "dns-domain":
+      return undefined
+    case "ip-address":
+      return str(spec.scope) ? `${spec.scope}` : undefined
+    case "bare-metal":
+    case "vm":
+    case "lxc":
+    case "cloud-instance": {
+      const ip = str(spec.ipAddress)
+      if (ip) return ip
+      const ips = spec.ips as string[] | undefined
+      if (ips?.length) return ips[0]
+      return str(spec.hostname) ?? undefined
+    }
+    case "reverse-proxy": {
+      const eps = spec.entrypoints as
+        | Array<{ name: string; port: number; protocol: string }>
+        | undefined
+      if (!eps?.length) return undefined
+      return eps.map((e) => `${e.name}(:${e.port})`).join(", ")
+    }
+    default:
+      return undefined
   }
+}
 
-  // NAT description
-  if (link?.type === "nat" && linkSpec.description) {
-    details.push(`${linkSpec.description}`)
+/**
+ * Compact link label.
+ * `parent` is the entity this link originates from — needed for dns provider/zone.
+ */
+function linkLabel(
+  node: TraceNodeLike,
+  parent: Record<string, unknown>,
+  currentPort: number
+): string {
+  if (node.implicit) {
+    return `port match :${currentPort}`
   }
+  if (!node.link) return ""
+  const spec = (node.link.spec ?? {}) as LinkSpec
+  const port = spec.egressPort as number | undefined
+  const protocol = str(spec.egressProtocol)
 
-  // Route rule — show matched hosts when coming from a reverse proxy
-  if (link?.type === "proxy") {
-    const match = linkSpec.match as
+  // Base: link-type [protocol] [:port]
+  const parts = [node.link.type]
+  if (protocol) parts.push(protocol)
+  if (port) parts.push(`:${port}`)
+
+  // Contextual qualifier — one compact phrase per link type
+  const extras: string[] = []
+  if (node.link.type === "dns-resolution") {
+    const parentSpec = (parent.spec ?? {}) as EntitySpec
+    const provider = str(parentSpec.dnsProvider) ?? str(spec.provider)
+    const zone =
+      str(parentSpec.zone) ?? str((parent as Record<string, unknown>).fqdn)
+    const recordType = str(spec.recordType)
+    if (provider) extras.push(`(${provider})`)
+    if (zone) extras.push(zone)
+    if (recordType) extras.push(`${recordType} record`)
+  }
+  if (node.link.type === "nat") {
+    const desc = str(spec.description) ?? str(spec.device)
+    if (desc) extras.push(`(${desc})`)
+  }
+  if (node.link.type === "proxy") {
+    const match = spec.match as
       | { hosts?: string[]; pathPrefixes?: string[] }
       | undefined
-    if (match?.hosts && match.hosts.length > 0) {
-      const hosts = match.hosts as string[]
-      if (hosts.length <= 3) {
-        details.push(`rule: Host(${hosts.join(", ")})`)
-      } else {
-        details.push(
-          `rule: Host(${hosts.slice(0, 2).join(", ")} +${hosts.length - 2} more)`
-        )
-      }
+    if (match?.hosts?.length) {
+      const hosts = match.hosts
+      const hostStr =
+        hosts.length <= 2
+          ? hosts.join(", ")
+          : `${hosts.slice(0, 2).join(", ")} +${hosts.length - 2}`
+      extras.push(`Host(${hostStr})`)
     }
-    if (match?.pathPrefixes && (match.pathPrefixes as string[]).length > 0) {
-      details.push(`path: ${(match.pathPrefixes as string[]).join(", ")}`)
+    if (match?.pathPrefixes?.length) {
+      extras.push(`Path(${(match.pathPrefixes as string[]).join(", ")})`)
     }
   }
 
-  // Reverse proxy entrypoints
-  if (entity.type === "reverse-proxy" && spec.entrypoints) {
-    const eps = spec.entrypoints as Array<{
-      name: string
-      port: number
-      protocol: string
-    }>
-    const summary = eps.map((e) => `${e.name}(:${e.port})`).join(", ")
-    details.push(`entrypoints: ${summary}`)
+  const base = parts.join(" ")
+  return extras.length > 0 ? `${base} ${extras.join(", ")}` : base
+}
+
+// ---------------------------------------------------------------------------
+// LOD 2 — verbose: additional detail lines
+// ---------------------------------------------------------------------------
+
+/** Verbose detail lines for an entity. */
+function entityVerbose(entity: Record<string, unknown>): string[] {
+  const details: string[] = []
+  const spec = (entity.spec ?? {}) as EntitySpec
+  const type = displayType(String(entity.type ?? ""))
+
+  switch (type) {
+    case "dns-domain": {
+      if (spec.registrar) details.push(`registrar: ${spec.registrar}`)
+      if (spec.tlsMode) details.push(`tls: ${spec.tlsMode}`)
+      const records = spec.records as
+        | Array<{ type: string; name: string; value: string }>
+        | undefined
+      if (records?.length) {
+        for (const r of records.slice(0, 4)) {
+          details.push(`${r.type} ${r.name} → ${r.value}`)
+        }
+        if (records.length > 4)
+          details.push(`+${records.length - 4} more records`)
+      }
+      break
+    }
+    case "ip-address":
+      if (spec.role) details.push(`role: ${spec.role}`)
+      if (spec.gateway) details.push(`gateway: ${spec.gateway}`)
+      if (spec.interface) details.push(`iface: ${spec.interface}`)
+      if (spec.macAddress) details.push(`mac: ${spec.macAddress}`)
+      break
+    case "bare-metal":
+    case "vm":
+    case "lxc":
+    case "cloud-instance":
+      if (spec.ipAddress) details.push(`ip: ${spec.ipAddress}`)
+      if (spec.os || spec.arch)
+        details.push([spec.os, spec.arch].filter(Boolean).join("/") as string)
+      if (spec.cpu || spec.memoryMb)
+        details.push(
+          [
+            spec.cpu ? `${spec.cpu} cpu` : null,
+            spec.memoryMb ? `${spec.memoryMb}MB` : null,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        )
+      if (spec.lifecycle && spec.lifecycle !== "active")
+        details.push(`lifecycle: ${spec.lifecycle}`)
+      break
+    case "reverse-proxy":
+      if (spec.engine) details.push(`engine: ${spec.engine}`)
+      if (spec.dashboardUrl) details.push(`dashboard: ${spec.dashboardUrl}`)
+      break
+    case "service":
+      if (spec.endpoint) details.push(`endpoint: ${spec.endpoint}`)
+      if (spec.provider) details.push(`provider: ${spec.provider}`)
+      if (spec.version) details.push(`version: ${spec.version}`)
+      break
   }
 
   return details
 }
 
-/** Render a TraceNode tree recursively with tree-drawing characters. */
-function renderTraceTree(
-  node: {
-    entity: Record<string, unknown>
-    link?: { type: string; spec: Record<string, unknown> }
-    weight?: number
-    implicit?: boolean
-    children: Array<{
-      entity: Record<string, unknown>
-      link?: { type: string; spec: Record<string, unknown> }
-      weight?: number
-      implicit?: boolean
-      children: unknown[]
-    }>
-  },
-  indent: string,
-  isRoot: boolean
-) {
-  const e = node.entity
-  const slug = String(e.slug ?? e.id ?? "?")
-  const type = String(e.type ?? "?")
+/** Verbose detail lines for a link. */
+function linkVerbose(
+  link: { type: string; spec: Record<string, unknown> },
+  implicit: boolean
+): string[] {
+  const details: string[] = []
+  const spec = (link.spec ?? {}) as LinkSpec
 
-  // Render this node's entity
-  const implicitTag = node.implicit ? styleMuted(" (implicit)") : ""
-  console.log(
-    `${indent}${styleSuccess(slug)} ${styleMuted(`[${type}]`)}${implicitTag}`
-  )
+  if (implicit) return details
 
-  // Render detail lines for this entity
-  const details = entityDetails(e, node.link ?? undefined)
-  for (const detail of details) {
-    console.log(`${indent}  ${styleMuted(detail)}`)
+  // TLS
+  const tls = spec.tls as
+    | { termination?: string; certResolver?: string }
+    | undefined
+  if (tls?.termination) {
+    const resolver = tls.certResolver ? ` (${tls.certResolver})` : ""
+    details.push(`tls: ${tls.termination}${resolver}`)
   }
 
-  // Render link label above each child
-  for (let i = 0; i < node.children.length; i++) {
-    const child = node.children[i]
-    const isLast = i === node.children.length - 1
-    const connector = node.children.length > 1 ? (isLast ? "└─" : "├─") : "──"
+  // Load balancing
+  const lb = spec.loadBalancing as
+    | { strategy?: string; weight?: number; sticky?: boolean }
+    | undefined
+  if (lb?.strategy && lb.strategy !== "round-robin")
+    details.push(`lb: ${lb.strategy}`)
+  if (lb?.sticky) details.push("sticky sessions")
 
-    if (child.link) {
-      const spec = child.link.spec ?? {}
-      const port = spec.egressPort as number | undefined
-      const protocol = (spec.egressProtocol as string) ?? ""
-      const portStr = port ? `:${port}` : ""
-      const protoStr = protocol ? `${protocol}` : ""
-      const weightStr =
-        child.weight != null && child.weight < 100 ? ` (w:${child.weight})` : ""
-      const label = [child.link.type, protoStr, portStr]
-        .filter(Boolean)
-        .join(" ")
+  // Health check
+  const hc = spec.healthCheck as { path?: string } | undefined
+  if (hc?.path) details.push(`health: ${hc.path}`)
 
-      console.log(
-        `${indent}  ${styleMuted(connector)} ${label}${weightStr} ${styleMuted("──▶")}`
-      )
-    } else if (child.implicit) {
-      console.log(
-        `${indent}  ${styleMuted(connector)} ${styleMuted("(port match)")} ${styleMuted("──▶")}`
-      )
+  // Middlewares
+  const mw = spec.middlewares as Array<{ name: string }> | undefined
+  if (mw?.length)
+    details.push(`middleware: ${mw.map((m) => m.name).join(", ")}`)
+
+  // DNS extras
+  if (link.type === "dns-resolution") {
+    if (spec.ttl) details.push(`ttl: ${spec.ttl}`)
+    if (spec.proxied) details.push("proxied (cdn)")
+  }
+
+  return details
+}
+
+// ---------------------------------------------------------------------------
+// Tree renderer
+// ---------------------------------------------------------------------------
+
+/** Render trace tree recursively with emoji prefixes and indented branches. */
+function renderTrace(
+  root: TraceNodeLike,
+  verbose: boolean,
+  initialPort: number
+) {
+  function render(
+    node: TraceNodeLike,
+    parent: Record<string, unknown>,
+    indent: string,
+    isRoot: boolean,
+    port: number
+  ) {
+    const e = node.entity
+    const rawType = String(e.type ?? "?")
+    const type = displayType(rawType)
+    const emoji = entityEmoji(type)
+    // For routes/dns-domains, show the domain/fqdn instead of the slugified internal name
+    let label: string
+    if (ROUTE_TYPES.has(rawType)) {
+      label = String(e.domain ?? e.name ?? e.slug ?? "?")
+    } else if (DNS_DOMAIN_TYPES.has(rawType)) {
+      label = String(e.fqdn ?? e.name ?? e.slug ?? "?")
+    } else {
+      label = String(e.slug ?? e.id ?? "?")
     }
 
-    const childIndent =
-      node.children.length > 1 && !isLast ? `${indent}  │ ` : `${indent}    `
-    renderTraceTree(
-      child as Parameters<typeof renderTraceTree>[0],
-      childIndent,
-      false
+    // Update port if this link changes it
+    const linkEgressPort = node.link?.spec?.egressPort as number | undefined
+    const currentPort = linkEgressPort ?? port
+
+    // --- Link connector (skip for root) ---
+    if (!isRoot) {
+      const label = linkLabel(node, parent, currentPort)
+      if (label) {
+        console.log(`${indent}│ ${styleInfo(label)}`)
+        if (verbose && node.link) {
+          for (const d of linkVerbose(node.link, !!node.implicit)) {
+            console.log(`${indent}│ ${styleMuted(d)}`)
+          }
+        }
+        console.log(`${indent}|`)
+      }
+    }
+
+    // --- Entity line ---
+    const summary = entitySummary(e, parent)
+    const summaryStr = summary ? `  ${styleMuted(summary)}` : ""
+    console.log(
+      `${indent}${emoji} ${styleSuccess(label)} ${styleMuted(`[${type}]`)}${summaryStr}`
     )
+
+    // Verbose entity details
+    if (verbose) {
+      for (const d of entityVerbose(e)) {
+        console.log(`${indent}  ${styleMuted(d)}`)
+      }
+    }
+
+    // --- Children ---
+    if (node.children.length === 1) {
+      render(node.children[0], e, indent, false, currentPort)
+    } else if (node.children.length > 1) {
+      for (const child of node.children) {
+        console.log(`${indent}├──┐`)
+        render(child, e, indent + "|  ", false, currentPort)
+        console.log(`${indent}|`)
+      }
+    }
   }
+
+  render(root, {}, "", true, initialPort)
 }

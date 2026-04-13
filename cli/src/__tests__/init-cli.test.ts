@@ -121,12 +121,12 @@ describe("dx init — project mode", () => {
     })
 
     const postgres = readFile(dir, "compose/postgres.yml")
-    expect(postgres).toContain("catalog.type")
-    expect(postgres).toContain("catalog.owner")
+    expect(postgres).toContain("dx.type")
+    expect(postgres).toContain("dx.owner")
     expect(postgres).toContain("ops")
 
     const api = readFile(dir, "compose/labeled-api.yml")
-    expect(api).toContain("catalog.type: service")
+    expect(api).toContain("dx.type: service")
     expect(api).toContain("dx.runtime")
   })
 
@@ -207,7 +207,7 @@ describe("dx init — project mode", () => {
 
     // Verify new owner is in generated files
     const compose = readFile(dir, "compose/postgres.yml")
-    expect(compose).toContain("catalog.owner: b")
+    expect(compose).toContain("dx.owner: b")
   })
 
   it("positional argument creates a subdirectory", () => {

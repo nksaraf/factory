@@ -1066,10 +1066,10 @@ infra-nats:
   volumes:
     - nats-data:/data
   labels:
-    catalog.system: factory-dx
-    catalog.component: infra-nats
-    catalog.type: message-queue
-    catalog.description: "NATS JetStream — real-time event broker"
+    dx.system: factory-dx
+    dx.component: infra-nats
+    dx.type: message-queue
+    dx.description: "NATS JetStream — real-time event broker"
 ```
 
 Add `nats-data:` to the `volumes:` section at the bottom of the file.

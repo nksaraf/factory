@@ -316,3 +316,40 @@ export const documentsOntologyConfigs: Pick<
     kindAlias: "document",
   },
 ]
+
+export function publicDocumentViewerController(db: Database) {
+  return new Elysia({ prefix: "/api/v1/factory/documents" }).get(
+    "/:slugOrId/view",
+    async ({ params, set }) => {
+      const doc = await resolveDocument(db, params.slugOrId)
+      if (!doc) {
+        set.status = 404
+        return { error: "Document not found" }
+      }
+
+      const [latestVersion] = await db
+        .select()
+        .from(documentVersion)
+        .where(eq(documentVersion.documentId, doc.id))
+        .orderBy(desc(documentVersion.version))
+        .limit(1)
+
+      const contentPath = latestVersion?.contentPath ?? doc.contentPath
+      if (!contentPath || !(await documentExists(contentPath))) {
+        set.status = 404
+        return { error: "Document content not found" }
+      }
+
+      const buf = await readDocument(contentPath)
+      const markdown = buf.toString("utf-8")
+      const title = (doc.title as string) ?? doc.slug
+      const version = latestVersion?.version ?? null
+      const updatedAt = (doc as any).updatedAt
+        ? new Date((doc as any).updatedAt).toLocaleString()
+        : ""
+
+      set.headers["content-type"] = "text/html; charset=utf-8"
+      return renderMarkdownPage(title, markdown, version, updatedAt)
+    }
+  )
+}

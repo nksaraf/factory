@@ -79,8 +79,8 @@ dx status                # Shows discovered components and resources
 # Add catalog labels to your existing docker-compose.yaml (recommended)
 # This tells dx about your component types, owners, and dev commands:
 #   labels:
-#     catalog.type: service
-#     catalog.owner: my-team
+#     dx.type: service
+#     dx.owner: my-team
 #     dx.dev.command: "npm run dev"
 #     dx.test: "npm test"
 
@@ -160,8 +160,8 @@ services:
     ports:
       - "8080:8080"
     labels:
-      catalog.type: service
-      catalog.owner: my-team
+      dx.type: service
+      dx.owner: my-team
       dx.runtime: node
       dx.dev.command: "npm run dev"
       dx.test: "npm test"

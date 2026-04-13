@@ -70,6 +70,28 @@ export class DependencyGraph {
       }
     }
 
+    // Init container promotion: if component X has initFor: Y, then every
+    // service that depends on Y should also depend on X. This ensures init
+    // containers (e.g. infra-postgres-init) are included in the transitive
+    // dependency graph of anything that needs their parent resource.
+    for (const [initName, comp] of Object.entries(catalog.components)) {
+      const parent = comp.spec.initFor
+      if (!parent) continue
+      // Every service that depends on the parent also needs the init container
+      const dependents = rdeps.get(parent) ?? []
+      for (const dependent of dependents) {
+        if (dependent === initName) continue
+        const d = deps.get(dependent) ?? []
+        if (!d.includes(initName)) {
+          d.push(initName)
+          deps.set(dependent, d)
+          const rev = rdeps.get(initName) ?? []
+          rev.push(dependent)
+          rdeps.set(initName, rev)
+        }
+      }
+    }
+
     // Ensure every node has an entry in deps/rdeps
     for (const node of nodes) {
       if (!deps.has(node)) deps.set(node, [])

@@ -19,11 +19,11 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       timeout: 5s
       retries: 5
     labels:
-      catalog.type: service
-      catalog.owner: ${owner}
-      catalog.description: "API gateway"
-      catalog.port.9080.name: http
-      catalog.port.9080.protocol: http
+      dx.type: service
+      dx.owner: ${owner}
+      dx.description: "API gateway"
+      dx.port.9080.name: http
+      dx.port.9080.protocol: http
 `,
     },
     {

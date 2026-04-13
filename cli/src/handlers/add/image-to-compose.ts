@@ -98,17 +98,17 @@ export function generateComposeFromImage(
 
   // ── Labels ──────────────────────────────────────────────
   lines.push("    labels:")
-  lines.push(`      catalog.type: ${catalogType}`)
-  lines.push(`      catalog.owner: ${owner}`)
-  lines.push(`      catalog.description: "${name}"`)
+  lines.push(`      dx.type: ${catalogType}`)
+  lines.push(`      dx.owner: ${owner}`)
+  lines.push(`      dx.description: "${name}"`)
   for (const port of metadata.exposedPorts) {
     // Use first port's protocol as http for common web ports, tcp otherwise
     const protocol = [80, 443, 3000, 8080, 8443, 9080].includes(port)
       ? "http"
       : "tcp"
     const portName = protocol === "http" ? "http" : `port-${port}`
-    lines.push(`      catalog.port.${port}.name: ${portName}`)
-    lines.push(`      catalog.port.${port}.protocol: ${protocol}`)
+    lines.push(`      dx.port.${port}.name: ${portName}`)
+    lines.push(`      dx.port.${port}.protocol: ${protocol}`)
   }
 
   // ── Top-level volumes ───────────────────────────────────

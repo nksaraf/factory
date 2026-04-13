@@ -10,7 +10,7 @@ import { logger } from "../logger"
 
 // ── Workflow DB accessor ─────────────────────────────────
 //
-// DBOS serializes workflow inputs into the system database.
+// The Workflow SDK serializes step inputs (pass-by-value).
 // Database connections are not serializable, so we use a module-level
 // accessor instead of passing `db` through the workflow input.
 //
@@ -104,7 +104,7 @@ export interface CreateWorkflowRunInput {
 
 /**
  * Insert a new workflow_run row. Called by triggers before starting
- * the DBOS workflow.
+ * the workflow.
  */
 export async function createWorkflowRun(
   db: Database,

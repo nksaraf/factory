@@ -2,10 +2,11 @@
  * Site controller startup — wires together executor, factory link,
  * health monitor, state store, and HTTP server into a running controller.
  */
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
+import { unlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readConfig, resolveFactoryUrl } from "../config.js"
+import { SiteManager } from "../lib/site-manager.js"
 import { createControllerServer } from "./controller-server.js"
 import { type ControllerMode, SiteController } from "./controller.js"
 import { detectExecutor, formatExecutorTypeLabel } from "./execution/detect.js"
@@ -23,24 +24,15 @@ export interface StartOptions {
 }
 
 interface SiteIdentity {
-  siteId?: string
   slug: string
-  realmType?: string
+  type?: string
 }
 
 function loadSiteIdentity(workingDir: string, cliName?: string): SiteIdentity {
-  const siteJsonPath = join(workingDir, ".dx", "site.json")
-  if (existsSync(siteJsonPath)) {
-    try {
-      const raw = JSON.parse(readFileSync(siteJsonPath, "utf8"))
-      return {
-        siteId: raw.siteId,
-        slug: raw.slug ?? raw.siteName ?? cliName ?? "unknown",
-        realmType: raw.realmType,
-      }
-    } catch {
-      // fall through
-    }
+  const site = SiteManager.load(workingDir)
+  if (site) {
+    const state = site.getState()
+    return { slug: state.site.slug, type: state.site.type }
   }
 
   if (cliName) {

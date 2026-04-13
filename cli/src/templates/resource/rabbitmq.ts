@@ -23,13 +23,13 @@ export function generate(opts: ResourceOpts): GeneratedFile[] {
       timeout: 5s
       retries: 5
     labels:
-      catalog.type: queue
-      catalog.owner: ${owner}
-      catalog.description: "RabbitMQ message broker"
-      catalog.port.5672.name: amqp
-      catalog.port.5672.protocol: tcp
-      catalog.port.15672.name: management
-      catalog.port.15672.protocol: http
+      dx.type: queue
+      dx.owner: ${owner}
+      dx.description: "RabbitMQ message broker"
+      dx.port.5672.name: amqp
+      dx.port.5672.protocol: tcp
+      dx.port.15672.name: management
+      dx.port.15672.protocol: http
 
 volumes:
   rabbitmq-data:

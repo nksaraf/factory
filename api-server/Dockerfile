@@ -37,6 +37,9 @@ COPY ./scripts ./scripts
 # Migrations: generate in api (`pnpm --filter @smp/factory-api run db:generate`).
 COPY ./api/drizzle ./drizzle
 
+# Generate Workflow SDK handler bundles (flow.js, step.js, webhook.js)
+RUN cd api && npx workflow build
+
 
 FROM oven/bun:1-alpine AS runner
 
@@ -51,6 +54,8 @@ COPY --from=builder /repo /app
 
 ENV NODE_ENV=production
 ENV PORT=4100
+ENV WORKFLOW_TARGET_WORLD="@workflow/world-postgres"
 EXPOSE 4100 9090
 
-CMD ["bun", "run", "api-server/src/bun-entry.ts"]
+# Run Postgres World migration (idempotent) before starting the server
+CMD ["sh", "-c", "npx workflow-postgres-setup && bun run api-server/src/bun-entry.ts"]

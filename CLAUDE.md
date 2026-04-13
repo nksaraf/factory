@@ -20,6 +20,13 @@ At the end of any session where work was discussed but not completed, prompt the
 
 - **Use `oxfmt` for formatting, not `prettier`.** This project uses oxfmt (Prettier-compatible, 30x faster). Config lives in `.oxfmtrc.json`. Import sorting is built in (no plugin needed).
 
+## Package Structure
+
+- **`api/`** (`@smp/factory-api`) — service library: routes, modules, DB schemas, business logic. Not a runnable server.
+- **`api-server/`** (`@smp/factory-api-server`) — thin runtime entry point: OTel instrumentation + `bun-entry.ts` that imports `@smp/factory-api` and calls `.listen()`.
+- To run the API locally: `cd api-server && pnpm dev` (or `bun run src/bun-entry.ts`). Never run `api/src/server.ts` directly — it's not the entry point.
+- The docker-compose dev command for the API is `pnpm --filter @smp/factory-api-server dev`.
+
 ## Testing
 
 - Never assert broken behavior in tests. Tests should always assert the correct/expected behavior. If the code doesn't match yet, leave the test failing — that's fine. A failing test is a signal to fix the code, not to weaken the test.
@@ -62,3 +69,4 @@ To deploy new version of CLI:
 Bump version (usually patch) in cli/package.json
 Build cross-platform binaries: pnpm build:crust (in cli/)
 Publish: pnpm release:publish (in cli/)
+Use token from "dx secret get NPM_TOKEN"
