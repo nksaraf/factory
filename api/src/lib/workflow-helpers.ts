@@ -7,10 +7,6 @@ import { eq, sql } from "drizzle-orm"
 import type { Database } from "../db/connection"
 import { workflowRun } from "../db/schema/org"
 
-function getLogger() {
-  return require("../logger").logger
-}
-
 // ── Workflow DB accessor ─────────────────────────────────
 //
 // The Workflow SDK serializes step inputs (pass-by-value).
@@ -78,17 +74,23 @@ export async function updateRun(
     .set(setValues)
     .where(eq(workflowRun.workflowRunId, runId))
 
-  // Log phase transitions and errors to stdout for observability
   if (updates.phase) {
-    getLogger().info(
-      { workflowRunId: runId, phase: updates.phase, status: updates.status },
-      `workflow phase → ${updates.phase}`
+    console.log(
+      JSON.stringify({
+        workflowRunId: runId,
+        phase: updates.phase,
+        status: updates.status,
+        msg: `workflow phase → ${updates.phase}`,
+      })
     )
   }
   if (updates.error) {
-    getLogger().error(
-      { workflowRunId: runId, error: updates.error },
-      "workflow failed"
+    console.error(
+      JSON.stringify({
+        workflowRunId: runId,
+        error: updates.error,
+        msg: "workflow failed",
+      })
     )
   }
 }

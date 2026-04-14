@@ -17,7 +17,8 @@ import { and, eq, gt, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { eventSubscription } from "../db/schema/org"
-import { logger } from "../logger"
+const log = (data: Record<string, unknown>, msg: string) =>
+  console.log(JSON.stringify({ ...data, msg }))
 import { newId } from "./id"
 import { createWebhook, sleep } from "./workflow-engine"
 import { getWorkflowDb } from "./workflow-helpers"
@@ -41,9 +42,9 @@ export async function waitForEvent<T>(
   timeoutSec: number
 ): Promise<T | null> {
   const db = getWorkflowDb()
-  const webhook = createWebhook()
+  const webhook = await createWebhook()
 
-  logger.info(
+  log(
     { eventName, match, timeoutSec },
     `waitForEvent: subscribing to ${eventName}`
   )
@@ -64,8 +65,8 @@ export async function waitForEvent<T>(
 
   // Race: webhook resolves when emitEvent POSTs, or timeout
   const result = await Promise.race([
-    webhook.then((data) => data as T),
-    sleep(`${timeoutSec}s`).then(() => null),
+    (webhook as any).then((data: unknown) => data as T),
+    sleep(timeoutSec * 1000).then(() => null),
   ])
 
   // Clean up subscription (best-effort)
@@ -111,28 +112,35 @@ export async function emitEvent(
       )
     )
 
-  logger.info(
+  log(
     { eventName, matchCount: subs.length },
     `emitEvent: ${eventName} (${subs.length} match${subs.length === 1 ? "" : "es"})`
   )
 
   // POST to each matching webhook URL
   for (const sub of subs) {
-    logger.info(
-      { eventName, webhookUrl: sub.ownerId },
-      "emitEvent: posting to webhook"
-    )
-    await fetch(sub.ownerId, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
+    try {
+      log(
+        { eventName, webhookUrl: sub.ownerId },
+        "emitEvent: posting to webhook"
+      )
+      await fetch(sub.ownerId, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
 
-    // Mark trigger as fired
-    await db
-      .update(eventSubscription)
-      .set({ status: "fired" })
-      .where(eq(eventSubscription.id, sub.id))
+      // Mark trigger as fired
+      await db
+        .update(eventSubscription)
+        .set({ status: "fired" })
+        .where(eq(eventSubscription.id, sub.id))
+    } catch (err) {
+      log(
+        { eventName, webhookUrl: sub.ownerId, error: String(err) },
+        "emitEvent: webhook POST failed"
+      )
+    }
   }
 }
 
