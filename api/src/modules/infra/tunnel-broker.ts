@@ -373,7 +373,9 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
       const subdomain = t?.subdomain
       const timer = setTimeout(async () => {
         detachedTunnels.delete(tunnelId)
-        if (subdomain) subdomainToTunnelId.delete(subdomain)
+        if (subdomain && subdomainToTunnelId.get(subdomain) === tunnelId) {
+          subdomainToTunnelId.delete(subdomain)
+        }
         await gw.closeTunnel(db, tunnelId).catch(() => {})
         logger.info(
           { tunnelId, subdomain },
