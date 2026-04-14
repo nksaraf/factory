@@ -58,4 +58,4 @@ ENV WORKFLOW_TARGET_WORLD="@workflow/world-postgres"
 EXPOSE 4100 9090
 
 # Run Postgres World migration (idempotent) before starting the server
-CMD ["sh", "-c", "npx workflow-postgres-setup && bun run api-server/src/bun-entry.ts"]
+CMD ["sh", "-c", "api/node_modules/.bin/workflow-postgres-setup && bun run api-server/src/bun-entry.ts"]
