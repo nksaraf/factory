@@ -15,9 +15,8 @@ import {
   componentDeployment,
   systemDeployment,
   workbench,
-  workbenchSnapshot,
 } from "../db/schema/ops"
-import { component, release, system } from "../db/schema/software"
+import { component, system } from "../db/schema/software"
 import type { KubeClient, KubeResource } from "../lib/kube-client"
 import { emitEvent } from "../lib/events"
 import { logger } from "../logger"
@@ -90,7 +89,7 @@ export class Reconciler {
   constructor(
     private db: Database,
     private kube: KubeClient,
-    gitHost?: GitHostAdapter
+    _gitHost?: GitHostAdapter
   ) {
     registerReconcilerStrategy("kubernetes", () => new KubernetesStrategy(kube))
     registerReconcilerStrategy("docker-compose", () => new ComposeStrategy())
@@ -801,7 +800,7 @@ export class Reconciler {
     if (!snap) return // Already gone
 
     try {
-      const { wks, kubeconfig, ns } = await this.loadWorkbenchContext(
+      const { kubeconfig, ns } = await this.loadWorkbenchContext(
         snap.workbenchId
       )
 
@@ -1089,13 +1088,12 @@ export class Reconciler {
     // Dynamic require to avoid circular dependency: operations/runner → schema/ops → reconciler
     const { createOperationRunner } =
       require("../lib/operations") as typeof import("../lib/operations")
-    const reconciler = this
     return createOperationRunner(db, {
       name: "reconciler",
       intervalMs: opts?.intervalMs ?? 30_000,
-      runOnStartup: false, // reconciler doesn't need a startup run — it runs every 30s
-      async execute(_log) {
-        const result = await reconciler.reconcileAll()
+      runOnStartup: false,
+      execute: async (_log) => {
+        const result = await this.reconcileAll()
         return result as unknown as Record<string, unknown>
       },
     })
