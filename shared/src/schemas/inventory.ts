@@ -31,7 +31,6 @@ import {
   CreateForwardedPortSchema,
   CreateDeploymentSetSchema,
   CreateRolloutSchema,
-  CreatePreviewSchema,
 } from "./ops"
 
 import {
@@ -111,7 +110,6 @@ export const InventoryEntitySchema = z.discriminatedUnion("kind", [
   arm("forwarded-port", CreateForwardedPortSchema),
   arm("deployment-set", CreateDeploymentSetSchema),
   arm("rollout", CreateRolloutSchema),
-  arm("preview", CreatePreviewSchema),
 
   // software
   arm("system", CreateSystemSchema),

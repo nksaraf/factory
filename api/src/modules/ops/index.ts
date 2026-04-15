@@ -3,8 +3,6 @@ import {
   AssignReleaseBody,
   CloneSnapshotBody,
   DatabaseOperationBody,
-  DeliverPreviewImageBody,
-  ExtendPreviewBody,
   ExtendWorkbenchBody,
   ResizeWorkbenchBody,
   RestartComponentDeploymentBody,
@@ -12,7 +10,6 @@ import {
   ScaleComponentDeploymentBody,
   SiteCheckinBody,
   SnapshotWorkbenchBody,
-  UpdatePreviewStatusBody,
   UpdateRolloutStatusBody,
   WorkbenchPingBody,
 } from "@smp/factory-shared/schemas/actions"
@@ -26,7 +23,6 @@ import {
   CreateForwardedPortSchema,
   CreateInstallManifestSchema,
   CreateInterventionSchema,
-  CreatePreviewSchema,
   CreateRolloutSchema,
   CreateSiteManifestSchema,
   CreateSiteSchema,
@@ -39,7 +35,6 @@ import {
   UpdateDatabaseSchema,
   UpdateDeploymentSetSchema,
   UpdateInstallManifestSchema,
-  UpdatePreviewSchema,
   UpdateRolloutSchema,
   UpdateSiteManifestSchema,
   UpdateSiteSchema,
@@ -52,7 +47,6 @@ import type {
   DatabaseOperationSpec,
   InstallManifestSpec,
   InterventionSpec,
-  PreviewSpec,
   RolloutSpec,
   SiteSpec,
   SystemDeploymentSpec,
@@ -64,6 +58,7 @@ import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
 import { realm } from "../../db/schema/infra"
+import { system } from "../../db/schema/software"
 import {
   anonymizationProfile,
   componentDeployment,
@@ -74,7 +69,6 @@ import {
   installManifest,
   intervention,
   opsDatabase,
-  preview,
   rollout,
   site,
   siteManifest,
@@ -223,6 +217,20 @@ export function opsController(db: Database) {
           idColumn: systemDeployment.id,
           prefix: "sdp",
           kindAlias: "system-deployment",
+          slugRefs: {
+            systemSlug: {
+              fk: "systemId",
+              lookupTable: system,
+              lookupSlugCol: system.slug,
+              lookupIdCol: system.id,
+            },
+            siteSlug: {
+              fk: "siteId",
+              lookupTable: site,
+              lookupSlugCol: site.slug,
+              lookupIdCol: site.id,
+            },
+          },
           createSchema: CreateSystemDeploymentSchema,
           updateSchema: UpdateSystemDeploymentSchema,
           deletable: "bitemporal",
@@ -644,104 +652,6 @@ export function opsController(db: Database) {
         })
       )
 
-      // ── Previews ─────────────────────────────────────────────
-      .use(
-        ontologyRoutes(db, {
-          schema: "ops",
-          entity: "previews",
-          singular: "preview",
-          table: preview,
-          slugColumn: preview.slug,
-          idColumn: preview.id,
-          prefix: "prev",
-          kindAlias: "preview",
-          createSchema: CreatePreviewSchema,
-          updateSchema: UpdatePreviewSchema,
-          deletable: true,
-          actions: {
-            "status-update": {
-              bodySchema: UpdatePreviewStatusBody,
-              handler: async ({ db, entity, body }) => {
-                const b = body as UpdatePreviewStatusBody
-                const spec = entity.spec as PreviewSpec
-                const updatedSpec: PreviewSpec =
-                  b.statusMessage !== undefined
-                    ? { ...spec, statusMessage: b.statusMessage }
-                    : spec
-                const [row] = await db
-                  .update(preview)
-                  .set({
-                    phase: b.phase,
-                    spec: updatedSpec,
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(preview.id, entity.id as string))
-                  .returning()
-                return row
-              },
-            },
-            expire: {
-              handler: async ({ db, entity }) => {
-                const spec = entity.spec as PreviewSpec
-                const [row] = await db
-                  .update(preview)
-                  .set({
-                    phase: "expired",
-                    spec: { ...spec, statusMessage: "Manually expired" },
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(preview.id, entity.id as string))
-                  .returning()
-                return row
-              },
-            },
-            image: {
-              bodySchema: DeliverPreviewImageBody,
-              handler: async ({ db, entity, body }) => {
-                const b = body as DeliverPreviewImageBody
-                const spec = entity.spec as PreviewSpec
-                const [row] = await db
-                  .update(preview)
-                  .set({
-                    phase: "deploying",
-                    spec: {
-                      ...spec,
-                      imageRef: b.imageRef,
-                      ...(b.commitSha && { commitSha: b.commitSha }),
-                    },
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(preview.id, entity.id as string))
-                  .returning()
-                return row
-              },
-            },
-            extend: {
-              bodySchema: ExtendPreviewBody,
-              handler: async ({ db, entity, body }) => {
-                const b = body as ExtendPreviewBody
-                const spec = entity.spec as PreviewSpec
-                const currentExpiry = spec.expiresAt
-                  ? new Date(spec.expiresAt as unknown as string)
-                  : new Date()
-                const newExpiry = new Date(
-                  currentExpiry.getTime() + b.minutes * 60_000
-                )
-                const [row] = await db
-                  .update(preview)
-                  .set({
-                    spec: { ...spec, expiresAt: newExpiry },
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(preview.id, entity.id as string))
-                  .returning()
-                return row
-              },
-            },
-          },
-        })
-      )
-
       // ── Interventions ────────────────────────────────────────
       .use(
         ontologyRoutes(db, {
@@ -981,7 +891,7 @@ export function opsController(db: Database) {
             replicas: spec.replicas ?? 1,
             envOverrides: spec.envOverrides ?? {},
             resourceOverrides: spec.resourceOverrides ?? {},
-            status: spec.status ?? "provisioning",
+            status: cd.status?.phase ?? "pending",
           }
         })
 
@@ -1024,6 +934,7 @@ export const opsOntologyConfigs: Pick<
   | "slugColumn"
   | "idColumn"
   | "prefix"
+  | "slugRefs"
   | "kindAlias"
   | "createSchema"
 >[] = [
@@ -1053,6 +964,20 @@ export const opsOntologyConfigs: Pick<
     idColumn: systemDeployment.id,
     prefix: "sdp",
     kindAlias: "system-deployment",
+    slugRefs: {
+      systemSlug: {
+        fk: "systemId",
+        lookupTable: system,
+        lookupSlugCol: system.slug,
+        lookupIdCol: system.id,
+      },
+      siteSlug: {
+        fk: "siteId",
+        lookupTable: site,
+        lookupSlugCol: site.slug,
+        lookupIdCol: site.id,
+      },
+    },
   },
   {
     entity: "deployment-sets",
