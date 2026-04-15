@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite"
-import type { ComponentDeploymentSpec } from "@smp/factory-shared/schemas/ops"
+import type { SiteObservedStatus } from "@smp/factory-shared/schemas/ops"
 import type { ComponentSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
@@ -182,8 +182,9 @@ describe("Reconciler", () => {
         name: "test-site",
         slug: "test-site",
         type: "development",
-        spec: { status: "active" },
-      })
+        spec: {},
+        status: { phase: "active" } satisfies SiteObservedStatus,
+      } as typeof site.$inferInsert)
       .returning()
     const [sd] = await db
       .insert(systemDeployment)
@@ -205,7 +206,6 @@ describe("Reconciler", () => {
           namespace: rtId ? "staging-01" : undefined,
           createdBy: "test",
           trigger: "manual" as const,
-          status: "active" as const,
           deploymentStrategy: "rolling" as const,
           labels: {},
         },
@@ -219,12 +219,11 @@ describe("Reconciler", () => {
         spec: {
           replicas: 2,
           desiredImage,
-          status: deploymentStatus as ComponentDeploymentSpec["status"],
-          driftDetected: false,
           envOverrides: {},
           resourceOverrides: {},
         },
-      })
+        status: { phase: deploymentStatus, driftDetected: false },
+      } as typeof componentDeployment.$inferInsert)
       .returning()
 
     return { sub, sys, comp, sv, sd, cd }
@@ -246,7 +245,7 @@ describe("Reconciler", () => {
       .select()
       .from(componentDeployment)
       .where(eq(componentDeployment.id, cd.id))
-    expect((updated[0].spec as ComponentDeploymentSpec).status).toBe("running")
+    expect(updated[0].status?.phase).toBe("running")
     expect(updated[0].updatedAt).toBeTruthy()
   })
 
@@ -260,9 +259,7 @@ describe("Reconciler", () => {
       .select()
       .from(componentDeployment)
       .where(eq(componentDeployment.id, cd.id))
-    expect((updated[0].spec as ComponentDeploymentSpec).status).toBe(
-      "completed"
-    )
+    expect(updated[0].status?.phase).toBe("running")
   })
 
   it("detects drift when actual image differs", async () => {
@@ -280,12 +277,8 @@ describe("Reconciler", () => {
       .select()
       .from(componentDeployment)
       .where(eq(componentDeployment.id, cd.id))
-    expect((updated[0].spec as ComponentDeploymentSpec).driftDetected).toBe(
-      true
-    )
-    expect((updated[0].spec as ComponentDeploymentSpec).actualImage).toBe(
-      "registry.dx.dev/api:v0.9.0"
-    )
+    expect(updated[0].status?.driftDetected).toBe(true)
+    expect(updated[0].status?.actualImage).toBe("registry.dx.dev/api:v0.9.0")
   })
 
   it("reconcileAll processes active component deployments and skips stopped", async () => {
@@ -348,7 +341,7 @@ describe("Reconciler", () => {
       .select()
       .from(componentDeployment)
       .where(eq(componentDeployment.id, cd.id))
-    expect((updated[0].spec as ComponentDeploymentSpec).status).toBe("running")
+    expect(updated[0].status?.phase).toBe("running")
   })
 })
 

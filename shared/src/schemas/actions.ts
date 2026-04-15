@@ -130,34 +130,16 @@ export const WorkbenchPingBody = z.object({
 })
 export type WorkbenchPingBody = z.infer<typeof WorkbenchPingBody>
 
-// ── Ops: Preview actions ─────────────────────────────────
+// ── Build: Image Delivery ────────────────────────────────
 
-export const UpdatePreviewStatusBody = z.object({
-  phase: z.enum([
-    "pending_image",
-    "building",
-    "deploying",
-    "provisioning",
-    "starting",
-    "active",
-    "inactive",
-    "expired",
-    "failed",
-  ]),
-  statusMessage: z.string().optional(),
-})
-export type UpdatePreviewStatusBody = z.infer<typeof UpdatePreviewStatusBody>
-
-export const DeliverPreviewImageBody = z.object({
+export const DeliverImageBody = z.object({
+  repo: z.string().min(1),
+  commitSha: z.string().min(1),
   imageRef: z.string().min(1),
-  commitSha: z.string().optional(),
+  branch: z.string().optional(),
+  dockerfilePath: z.string().optional(),
 })
-export type DeliverPreviewImageBody = z.infer<typeof DeliverPreviewImageBody>
-
-export const ExtendPreviewBody = z.object({
-  minutes: z.number().int().min(1).max(43200),
-})
-export type ExtendPreviewBody = z.infer<typeof ExtendPreviewBody>
+export type DeliverImageBody = z.infer<typeof DeliverImageBody>
 
 // ── Ops: Database actions ───────────────────────────────
 

@@ -628,28 +628,36 @@ async function handlePlanDocument(
   const viewUrl = `${factoryUrl}/api/v1/factory/documents/${slug}/view`
   const msg = `:page_facing_up: *Plan: ${title}*${nextVersion > 1 ? ` (v${nextVersion})` : ""}\n<${viewUrl}|View plan>`
 
-  await postToSurface(db, threadId, msg, "assistant")
+  try {
+    await postToSurface(db, threadId, msg, "assistant")
+  } catch (err) {
+    log.warn({ err, threadId, slug }, "Failed to post plan link to surface")
+  }
 
   // Store plan link on thread spec so it shows as a button on the status card
-  const existingThread = await db
-    .select({ id: thread.id, spec: thread.spec })
-    .from(thread)
-    .where(eq(thread.id, threadId))
-    .limit(1)
-  if (existingThread.length > 0) {
-    const spec = (existingThread[0].spec ?? {}) as Record<string, any>
-    const links: Array<{ label: string; url: string }> = spec.links ?? []
-    const planLink = { label: `📄 ${title}`, url: viewUrl }
-    const idx = links.findIndex((l) => l.url.includes(slug))
-    if (idx >= 0) links[idx] = planLink
-    else links.push(planLink)
-    await db
-      .update(thread)
-      .set({
-        spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ links })}::jsonb`,
-        updatedAt: new Date(),
-      })
+  try {
+    const existingThread = await db
+      .select({ id: thread.id, spec: thread.spec })
+      .from(thread)
       .where(eq(thread.id, threadId))
+      .limit(1)
+    if (existingThread.length > 0) {
+      const spec = (existingThread[0].spec ?? {}) as Record<string, any>
+      const links: Array<{ label: string; url: string }> = spec.links ?? []
+      const planLink = { label: `📄 ${title}`, url: viewUrl }
+      const idx = links.findIndex((l) => l.url.includes(slug))
+      if (idx >= 0) links[idx] = planLink
+      else links.push(planLink)
+      await db
+        .update(thread)
+        .set({
+          spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ links })}::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(eq(thread.id, threadId))
+    }
+  } catch (err) {
+    log.warn({ err, threadId, slug }, "Failed to store plan link on thread")
   }
 
   log.info({ slug, version: nextVersion, threadId }, "Plan document upserted")

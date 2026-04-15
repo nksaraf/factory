@@ -1,18 +1,18 @@
 import type { RealmSpec } from "@smp/factory-shared/schemas/infra"
 import type {
+  ComponentDeploymentObservedStatus,
   ComponentDeploymentSpec,
   SystemDeploymentSpec,
   WorkbenchSnapshotSpec,
   WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
-import { and, eq, isNull, ne, notInArray, or, sql } from "drizzle-orm"
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../adapters/git-host-adapter"
 import type { Database } from "../db/connection"
 import { realm, route as infraRoute } from "../db/schema/infra"
 import {
   componentDeployment,
-  preview,
   systemDeployment,
   workbench,
   workbenchSnapshot,
@@ -38,7 +38,6 @@ import {
   expireStale,
   updateWorkbenchHealth,
 } from "../modules/ops/workbench.service"
-import { PreviewReconciler } from "./preview-reconciler"
 import {
   type ReconcileContext,
   getReconcilerStrategy,
@@ -88,14 +87,11 @@ function k8sName(id: string): string {
 }
 
 export class Reconciler {
-  private previewReconciler: PreviewReconciler
-
   constructor(
     private db: Database,
     private kube: KubeClient,
     gitHost?: GitHostAdapter
   ) {
-    this.previewReconciler = new PreviewReconciler(db, kube, gitHost)
     registerReconcilerStrategy("kubernetes", () => new KubernetesStrategy(kube))
     registerReconcilerStrategy("docker-compose", () => new ComposeStrategy())
     registerReconcilerStrategy("systemd", () => new SystemdStrategy())
@@ -111,8 +107,8 @@ export class Reconciler {
     // --- Component deployment (workload) reconciliation ---
     const allDeployments = await this.db.select().from(componentDeployment)
     const activeDeployments = allDeployments.filter((cd) => {
-      const status = cd.spec?.status
-      return status !== "completed" && status !== "stopped"
+      const phase = cd.status?.phase
+      return phase !== "stopped" && phase !== "destroying"
     })
 
     let reconciled = 0
@@ -157,79 +153,6 @@ export class Reconciler {
         logger.error(
           { workbenchId: wks.id, err },
           "Failed to reconcile workbench"
-        )
-      }
-    }
-
-    // --- Preview reconciliation ---
-    const activePreviews = await this.db
-      .select({ previewId: preview.id })
-      .from(preview)
-      .where(
-        notInArray(preview.phase, ["active", "inactive", "expired", "failed"])
-      )
-
-    for (const prev of activePreviews) {
-      try {
-        await this.previewReconciler.reconcilePreview(prev.previewId)
-        reconciled++
-      } catch (err) {
-        errors++
-        logger.error(
-          { previewId: prev.previewId, err },
-          "Failed to reconcile preview"
-        )
-      }
-    }
-
-    // --- Expired preview K8s cleanup ---
-    const expiredPreviews = await this.db
-      .select({
-        previewId: preview.id,
-        slug: preview.slug,
-        systemDeploymentId: preview.systemDeploymentId,
-      })
-      .from(preview)
-      .where(eq(preview.phase, "expired"))
-      .limit(10)
-
-    for (const ep of expiredPreviews) {
-      try {
-        if (!ep.systemDeploymentId) continue
-        const [sd] = await this.db
-          .select()
-          .from(systemDeployment)
-          .where(eq(systemDeployment.id, ep.systemDeploymentId))
-          .limit(1)
-        if (!sd || !sd.realmId) continue
-        const sdSpec = sd.spec
-        if (sdSpec.status === "destroyed") continue
-
-        const [rt] = await this.db
-          .select()
-          .from(realm)
-          .where(eq(realm.id, sd.realmId))
-          .limit(1)
-        const rtSpec = rt?.spec
-        if (!rtSpec?.kubeconfigRef) continue
-
-        const ns = `preview-${ep.slug ?? ep.previewId}`
-        await this.kube.remove(rtSpec.kubeconfigRef, "Namespace", "", ns)
-        await this.db
-          .update(systemDeployment)
-          .set({
-            spec: { ...sd.spec, status: "destroyed" as const },
-            updatedAt: new Date(),
-          })
-          .where(eq(systemDeployment.id, sd.id))
-        logger.info(
-          { previewId: ep.previewId, ns },
-          "Cleaned up expired preview K8s resources"
-        )
-      } catch (err) {
-        logger.error(
-          { previewId: ep.previewId, err },
-          "Failed to cleanup expired preview"
         )
       }
     }
@@ -977,6 +900,9 @@ export class Reconciler {
     const cdSpec: ComponentDeploymentSpec =
       cd.spec ?? ({} as ComponentDeploymentSpec)
 
+    if (cdSpec.mode === "linked") return
+    if (!cdSpec.desiredImage) return
+
     // 2. Load component
     const [comp] = await this.db
       .select()
@@ -1065,19 +991,19 @@ export class Reconciler {
     const strategy = getReconcilerStrategy(ctx.target.runtime)
     const result = await strategy.reconcile(ctx, this.db)
 
-    // 7. Update component deployment spec
+    // 7. Update observed status (status column) — spec stays unchanged
     await this.db
       .update(componentDeployment)
       .set({
-        spec: {
-          ...cdSpec,
-          status: result.status as ComponentDeploymentSpec["status"],
+        status: {
+          phase: result.status === "completed" ? "running" : result.status,
           ...(result.actualImage != null
             ? { actualImage: result.actualImage }
             : {}),
           driftDetected: result.driftDetected,
           lastReconciledAt: new Date(),
         },
+        observedGeneration: cd.generation,
         updatedAt: new Date(),
       })
       .where(eq(componentDeployment.id, componentDeploymentId))
@@ -1087,15 +1013,16 @@ export class Reconciler {
     Array<{ workloadId: string; desiredImage: string; actualImage: string }>
   > {
     const all = await this.db.select().from(componentDeployment)
-    const drifted = all.filter((cd) => cd.spec?.driftDetected === true)
+    const drifted = all.filter((cd) => cd.status?.driftDetected === true)
 
     return drifted.map((cd) => {
       const spec: ComponentDeploymentSpec =
         cd.spec ?? ({} as ComponentDeploymentSpec)
+      const status = cd.status ?? ({} as ComponentDeploymentObservedStatus)
       return {
         workloadId: cd.id,
         desiredImage: spec.desiredImage ?? "",
-        actualImage: spec.actualImage ?? "",
+        actualImage: status.actualImage ?? "",
       }
     })
   }

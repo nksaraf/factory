@@ -17,7 +17,7 @@ import {
 import { logger } from "../logger"
 
 const STREAM_NAME = "FACTORY"
-const STREAM_SUBJECTS = ">"
+const STREAM_SUBJECTS = "factory.>"
 
 let nc: NatsConnection | null = null
 let js: JetStreamClient | null = null
@@ -93,7 +93,7 @@ export async function publishToNats(
   if (!conn) return { ok: false, error: "NATS not connected (NATS_URL unset)" }
 
   try {
-    await conn.js.publish(topic, sc.encode(payload))
+    await conn.js.publish(`factory.${topic}`, sc.encode(payload))
     return { ok: true }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

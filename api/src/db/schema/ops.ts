@@ -1,5 +1,6 @@
 import type {
   AnonymizationProfileSpec,
+  ComponentDeploymentObservedStatus,
   ComponentDeploymentSpec,
   ConnectionAuditSpec,
   DatabaseOperationSpec,
@@ -8,16 +9,18 @@ import type {
   InstallManifestSpec,
   InterventionSpec,
   DatabaseSpec as OpsDatabaseSpec,
-  PreviewSpec,
   RolloutSpec,
   SiteManifestSpec,
+  SiteObservedStatus,
   SiteSpec,
+  SystemDeploymentObservedStatus,
   SystemDeploymentSpec,
   TenantSpec,
   WorkbenchSnapshotSpec,
   WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
 import {
+  type AnyPgColumn,
   index,
   integer,
   jsonb,
@@ -52,17 +55,22 @@ export const site = opsSchema.table(
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     type: text("type").notNull().default("production"),
+    parentSiteId: text("parent_site_id").references(
+      (): AnyPgColumn => site.id,
+      { onDelete: "set null" }
+    ),
     spec: specCol<SiteSpec>(),
     metadata: metadataCol(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
+    ...reconciliationCols<SiteObservedStatus>(),
   },
   (t) => [
-    // Partial unique indexes in migration (bitemporal)
     index("ops_site_slug_idx").on(t.slug),
     index("ops_site_name_idx").on(t.name),
     index("ops_site_type_idx").on(t.type),
+    index("ops_site_parent_idx").on(t.parentSiteId),
   ]
 )
 
@@ -125,7 +133,7 @@ export const systemDeployment = opsSchema.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ...bitemporalCols(),
-    ...reconciliationCols(),
+    ...reconciliationCols<SystemDeploymentObservedStatus>(),
   },
   (t) => [
     index("ops_system_deployment_site_slug_idx").on(t.siteId, t.slug),
@@ -194,7 +202,7 @@ export const componentDeployment = opsSchema.table(
     spec: specCol<ComponentDeploymentSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
-    ...reconciliationCols(),
+    ...reconciliationCols<ComponentDeploymentObservedStatus>(),
   },
   (t) => [
     index("ops_component_deployment_sd_dset_component_idx").on(
@@ -271,53 +279,6 @@ export const workbenchSnapshot = opsSchema.table(
     createdAt: createdAt(),
   },
   (t) => [index("ops_workbench_snapshot_workbench_idx").on(t.workbenchId)]
-)
-
-// ─── Preview ─────────────────────────────────────────────────
-
-export const preview = opsSchema.table(
-  "preview",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => newId("prev")),
-    slug: text("slug").notNull(),
-    strategy: text("strategy").notNull().default("deploy"),
-    siteId: text("site_id")
-      .notNull()
-      .references(() => site.id, { onDelete: "cascade" }),
-    ownerId: text("owner_id").references(() => principal.id, {
-      onDelete: "set null",
-    }),
-    phase: text("phase").notNull().default("pending_image"),
-    sourceBranch: text("source_branch").notNull(),
-    prNumber: integer("pr_number"),
-    workbenchId: text("workbench_id").references(() => workbench.id, {
-      onDelete: "set null",
-    }),
-    systemDeploymentId: text("system_deployment_id").references(
-      () => systemDeployment.id,
-      { onDelete: "set null" }
-    ),
-    realmId: text("realm_id").references(() => realm.id, {
-      onDelete: "set null",
-    }),
-    spec: specCol<PreviewSpec>(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-    ...reconciliationCols(),
-  },
-  (t) => [
-    index("ops_preview_slug_idx").on(t.slug),
-    index("ops_preview_strategy_idx").on(t.strategy),
-    index("ops_preview_site_idx").on(t.siteId),
-    index("ops_preview_owner_idx").on(t.ownerId),
-    index("ops_preview_phase_idx").on(t.phase),
-    index("ops_preview_branch_idx").on(t.sourceBranch),
-    index("ops_preview_pr_idx").on(t.prNumber),
-    index("ops_preview_workbench_idx").on(t.workbenchId),
-    index("ops_preview_sd_idx").on(t.systemDeploymentId),
-  ]
 )
 
 // ─── Database ────────────────────────────────────────────────

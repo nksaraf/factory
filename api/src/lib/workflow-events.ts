@@ -10,15 +10,15 @@
  * must be a subset of the emitted event data. This is GIN-indexable.
  *
  * Under the hood, waitForEvent creates a Workflow SDK webhook and stores its URL
- * in the event_subscription table. emitEvent finds matching subscriptions and
- * POSTs to their webhook URLs to resume the suspended workflow.
+ * in the event_subscription table. matchAndNotifySubscriptions finds matching
+ * subscriptions and POSTs to their webhook URLs to resume suspended workflows.
  */
 import { and, eq, gt, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { eventSubscription } from "../db/schema/org"
-const log = (data: Record<string, unknown>, msg: string) =>
-  console.log(JSON.stringify({ ...data, msg }))
+import { logger } from "../logger"
+import { matchTopic } from "../modules/events/topic-matcher"
 import { newId } from "./id"
 import { createWebhook, sleep } from "./workflow-engine"
 import { getWorkflowDb } from "./workflow-helpers"
@@ -30,7 +30,7 @@ import { getWorkflowDb } from "./workflow-helpers"
  *
  * Creates a Workflow SDK webhook, registers its URL in the
  * event_subscription table, then races the webhook against a timeout.
- * When emitEvent() POSTs to the webhook URL, the workflow resumes.
+ * When matchAndNotifySubscriptions() POSTs to the webhook URL, the workflow resumes.
  *
  * @param eventName  - Event name to wait for (e.g. "workbench.ready")
  * @param match      - Fields to match against emitted event data
@@ -44,7 +44,7 @@ export async function waitForEvent<T>(
   const db = getWorkflowDb()
   const webhook = await createWebhook()
 
-  log(
+  logger.info(
     { eventName, match, timeoutSec },
     `waitForEvent: subscribing to ${eventName}`
   )
@@ -78,70 +78,122 @@ export async function waitForEvent<T>(
   return result
 }
 
-// ── emitEvent (external side) ─────────────────────────────
+// ── Severity ordering ────────────────────────────────────
+
+const SEVERITY_ORDER: Record<string, number> = {
+  debug: 0,
+  info: 1,
+  warning: 2,
+  critical: 3,
+}
+
+// ── matchAndNotifySubscriptions (shared) ─────────────────
+
+export interface MatchSubscriptionsOpts {
+  topic: string
+  data: Record<string, unknown>
+  severity?: string
+  scopeKind?: string
+  scopeId?: string
+}
 
 /**
- * Emit an event. Finds all matching subscriptions and POSTs to their
- * webhook URLs to wake the corresponding workflows.
+ * Match an event against all active trigger subscriptions and POST
+ * to their webhook URLs to wake the corresponding workflows.
  *
- * Called from outside workflows (reconcilers, webhook handlers),
- * so requires an explicit db parameter.
+ * This is the single matching path — called by both:
+ * - the canonical emitEvent (events.ts) after writing to org.event
+ * - the REST /workflow/events endpoint for manual testing
  *
- * Matching uses Postgres JSONB containment: subscription.matchFields <@ data.
- *
- * @param db        - Database connection
- * @param eventName - Event name (e.g. "workbench.ready")
- * @param data      - Event payload
+ * Matching supports topic globs, severity filtering, scope filtering,
+ * and JSONB containment for matchFields.
+ */
+export async function matchAndNotifySubscriptions(
+  db: Database,
+  opts: MatchSubscriptionsOpts
+): Promise<void> {
+  const { topic, data, severity = "info", scopeKind, scopeId } = opts
+
+  // Pull all active trigger subs that haven't expired.
+  // We filter topic/severity/scope/fields in JS to support glob matching.
+  const subs = await db
+    .select()
+    .from(eventSubscription)
+    .where(
+      and(
+        eq(eventSubscription.kind, "trigger"),
+        eq(eventSubscription.status, "active"),
+        gt(eventSubscription.expiresAt, new Date())
+      )
+    )
+
+  const matched = subs.filter((sub) => {
+    if (!matchTopic(sub.topicFilter, topic)) return false
+
+    if (sub.minSeverity) {
+      if (
+        (SEVERITY_ORDER[severity] ?? 0) < (SEVERITY_ORDER[sub.minSeverity] ?? 0)
+      )
+        return false
+    }
+
+    if (sub.scopeKind && sub.scopeId) {
+      if (scopeKind !== sub.scopeKind || scopeId !== sub.scopeId) return false
+    }
+
+    if (sub.matchFields) {
+      const fields = sub.matchFields as Record<string, unknown>
+      for (const [key, value] of Object.entries(fields)) {
+        if (data[key] !== value) return false
+      }
+    }
+
+    return true
+  })
+
+  logger.info(
+    { topic, triggerMatches: matched.length },
+    "matchSubscriptions: matched triggers"
+  )
+
+  for (const sub of matched) {
+    try {
+      await fetch(sub.ownerId, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      await db
+        .update(eventSubscription)
+        .set({ status: "fired" })
+        .where(eq(eventSubscription.id, sub.id))
+      logger.info(
+        { topic, webhookUrl: sub.ownerId },
+        "matchSubscriptions: woke workflow"
+      )
+    } catch (err) {
+      logger.warn(
+        { topic, webhookUrl: sub.ownerId, err },
+        "matchSubscriptions: webhook POST failed"
+      )
+    }
+  }
+}
+
+// ── emitEvent (simple path for REST /workflow/events) ────
+
+/**
+ * Simple event emission — matches subscriptions and POSTs to webhooks.
+ * Used by the REST /workflow/events endpoint for manual testing.
+ * The canonical path (events.ts emitEvent) writes to org.event first,
+ * then calls matchAndNotifySubscriptions directly.
  */
 export async function emitEvent(
   db: Database,
   eventName: string,
   data: Record<string, unknown>
 ) {
-  // Find non-expired, active trigger subscriptions where matchFields ⊆ data
-  const subs = await db
-    .select()
-    .from(eventSubscription)
-    .where(
-      and(
-        eq(eventSubscription.topicFilter, eventName),
-        eq(eventSubscription.kind, "trigger"),
-        eq(eventSubscription.status, "active"),
-        sql`COALESCE(${eventSubscription.matchFields}, '{}') <@ ${JSON.stringify(data)}::jsonb`,
-        gt(eventSubscription.expiresAt, new Date())
-      )
-    )
-
-  log(
-    { eventName, matchCount: subs.length },
-    `emitEvent: ${eventName} (${subs.length} match${subs.length === 1 ? "" : "es"})`
-  )
-
-  // POST to each matching webhook URL
-  for (const sub of subs) {
-    try {
-      log(
-        { eventName, webhookUrl: sub.ownerId },
-        "emitEvent: posting to webhook"
-      )
-      await fetch(sub.ownerId, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-
-      // Mark trigger as fired
-      await db
-        .update(eventSubscription)
-        .set({ status: "fired" })
-        .where(eq(eventSubscription.id, sub.id))
-    } catch (err) {
-      log(
-        { eventName, webhookUrl: sub.ownerId, error: String(err) },
-        "emitEvent: webhook POST failed"
-      )
-    }
-  }
+  return matchAndNotifySubscriptions(db, { topic: eventName, data })
 }
 
 // ── Cleanup ───────────────────────────────────────────────

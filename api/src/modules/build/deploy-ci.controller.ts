@@ -56,14 +56,18 @@ export function deployCiController(db: Database) {
         const updatedSpec: ComponentDeploymentSpec = {
           ...spec,
           desiredImage: imageRef,
-          status: "provisioning",
-          statusMessage: `CI image push: ${branch ?? "unknown"}@${commitSha?.slice(0, 8) ?? "unknown"}`,
         }
 
         await db
           .update(componentDeployment)
           .set({
             spec: updatedSpec,
+            status: {
+              phase: "provisioning",
+              driftDetected: false,
+              statusMessage: `CI image push: ${branch ?? "unknown"}@${commitSha?.slice(0, 8) ?? "unknown"}`,
+            },
+            generation: sql`${componentDeployment.generation} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(componentDeployment.id, row.id))

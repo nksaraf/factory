@@ -6,7 +6,7 @@
  * simply omitted. Resolvers never throw.
  */
 import type { EventRef } from "@smp/factory-shared/schemas/events"
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import {
@@ -16,7 +16,7 @@ import {
   workItem,
   workTrackerProject,
 } from "../db/schema/build"
-import { preview } from "../db/schema/ops"
+import { site } from "../db/schema/ops"
 import { channel, threadChannel } from "../db/schema/org"
 import { logger } from "../logger"
 
@@ -80,37 +80,29 @@ export async function resolveGitHubEntities(
     }
   }
 
-  // Resolve preview via prNumber + sourceBranch (for PR events)
+  // Resolve preview-type site via trigger metadata (for PR events)
   const pr = payload.pull_request as Record<string, unknown> | undefined
   if (pr) {
     const prNumber = pr.number as number | undefined
-    const headRef = (pr.head as Record<string, unknown>)?.ref as
-      | string
-      | undefined
 
     if (prNumber != null) {
       try {
-        const previewWhere = headRef
-          ? and(
-              eq(preview.prNumber, prNumber),
-              eq(preview.sourceBranch, headRef)
+        const [s] = await db
+          .select({ id: site.id })
+          .from(site)
+          .where(
+            and(
+              eq(site.type, "preview"),
+              sql`(${site.spec}->'trigger'->>'prNumber')::int = ${prNumber}`
             )
-          : eq(preview.prNumber, prNumber)
-
-        const [p] = await db
-          .select({ id: preview.id })
-          .from(preview)
-          .where(previewWhere)
+          )
           .limit(1)
 
-        if (p) {
-          refs.push({ kind: "preview", id: p.id, role: "target" })
+        if (s) {
+          refs.push({ kind: "site", id: s.id, role: "target" })
         }
       } catch (err) {
-        rlog.warn(
-          { prNumber, sourceBranch: headRef, err },
-          "failed to resolve preview"
-        )
+        rlog.warn({ prNumber, err }, "failed to resolve preview site")
       }
     }
   }

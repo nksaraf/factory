@@ -15,10 +15,12 @@ import { parseConventionsInput } from "@smp/factory-shared/conventions-schema"
 import {
   CreatePullRequestBody,
   CreatePullRequestBodyLegacy,
+  DeliverImageBody,
   MergePullRequestBody,
   MergePullRequestBodyLegacy,
   TriggerBuildBody,
 } from "@smp/factory-shared/schemas/actions"
+import type { ComponentDeploymentSpec } from "@smp/factory-shared/schemas/ops"
 import {
   CreateGitHostProviderSchema,
   CreateRepoSchema,
@@ -29,8 +31,8 @@ import {
   UpdateWorkTrackerProjectSchema,
   UpdateWorkTrackerProviderSchema,
 } from "@smp/factory-shared/schemas/build"
-import { eq } from "drizzle-orm"
-import { Elysia } from "elysia"
+import { eq, sql } from "drizzle-orm"
+import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
 import {
@@ -43,8 +45,10 @@ import {
   workTrackerProjectMapping,
   workTrackerProvider,
 } from "../../db/schema/build"
+import { componentDeployment, systemDeployment } from "../../db/schema/ops"
 import { team } from "../../db/schema/org"
-import { system } from "../../db/schema/software"
+import { component, system } from "../../db/schema/software"
+import { logger } from "../../logger"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
 import { GitHostService } from "./git-host.service"
@@ -110,7 +114,7 @@ export function buildController(db: Database) {
                     repoId: entity.id as string,
                     status: "pending",
                     commitSha: b.commitSha ?? null,
-                    spec: { trigger: "manual", branch: b.branch } as any,
+                    spec: { trigger: "manual", branch: b.branch },
                   })
                   .returning()
                 return run
@@ -349,6 +353,166 @@ export function buildController(db: Database) {
           detail: {
             tags: ["build/conventions"],
             summary: "Validate branch or commit against conventions",
+          },
+        }
+      )
+
+      // ── Image Delivery ─────────────────────────────────────────
+      .post(
+        "/images/deliver",
+        async ({ body }) => {
+          const {
+            repo: repoName,
+            commitSha,
+            imageRef,
+            branch,
+          } = body as DeliverImageBody
+
+          const imageName = imageRef.includes("@")
+            ? imageRef.split("@")[0]
+            : imageRef.lastIndexOf(":") > imageRef.lastIndexOf("/")
+              ? imageRef.slice(0, imageRef.lastIndexOf(":"))
+              : imageRef
+          const components = await db
+            .select()
+            .from(component)
+            .where(sql`${component.spec}->>'imageName' = ${imageName}`)
+
+          if (components.length === 0) {
+            return {
+              success: true,
+              matched: 0,
+              updated: 0,
+              created: 0,
+              componentDeploymentIds: [],
+              message: `No components match image ${imageName}`,
+            }
+          }
+
+          const componentIds = components.map((c) => c.id)
+
+          const componentIdList = sql.join(
+            componentIds.map((id) => sql`${id}`),
+            sql`, `
+          )
+
+          const allCds = await db
+            .select()
+            .from(componentDeployment)
+            .where(
+              sql`${componentDeployment.componentId} IN (${componentIdList})
+                AND (${componentDeployment.spec}->>'mode' IS NULL OR ${componentDeployment.spec}->>'mode' = 'deployed')`
+            )
+
+          const activeCds = allCds.filter((cd) => {
+            const phase = cd.status?.phase ?? "pending"
+            return phase !== "destroying" && phase !== "stopped"
+          })
+
+          const updatedIds: string[] = []
+          const createdIds: string[] = []
+
+          for (const cd of activeCds) {
+            const spec = (cd.spec ?? {}) as ComponentDeploymentSpec
+            const updatedSpec: ComponentDeploymentSpec = {
+              ...spec,
+              desiredImage: imageRef,
+              sourceCommitSha: commitSha,
+              ...(branch ? { sourceBranch: branch } : {}),
+            }
+
+            await db
+              .update(componentDeployment)
+              .set({
+                spec: updatedSpec,
+                status: {
+                  phase: "provisioning",
+                  driftDetected: false,
+                  statusMessage: `Image delivered: ${branch ?? "unknown"}@${commitSha.slice(0, 8)}`,
+                },
+                generation: sql`${componentDeployment.generation} + 1`,
+                updatedAt: new Date(),
+              })
+              .where(eq(componentDeployment.id, cd.id))
+
+            updatedIds.push(cd.id)
+          }
+
+          const coveredComponentIds = new Set(
+            allCds.map((cd) => cd.componentId)
+          )
+          const uncoveredComponents = components.filter(
+            (c) => !coveredComponentIds.has(c.id)
+          )
+
+          if (uncoveredComponents.length > 0) {
+            const activeSds = await db
+              .select()
+              .from(systemDeployment)
+              .where(
+                sql`COALESCE((${systemDeployment.status}->>'phase'), 'active') NOT IN ('destroying', 'destroyed', 'failed')`
+              )
+
+            for (const comp of uncoveredComponents) {
+              const matchingSds = activeSds.filter(
+                (sd) => sd.systemId === comp.systemId
+              )
+              for (const sd of matchingSds) {
+                const rows = await db.execute(sql`
+                  INSERT INTO ops.component_deployment (id, system_deployment_id, component_id, spec, status)
+                  SELECT ${newId("cdp")}, ${sd.id}, ${comp.id},
+                    ${sql`${JSON.stringify({ mode: "deployed", desiredImage: imageRef, sourceCommitSha: commitSha, ...(branch ? { sourceBranch: branch } : {}), replicas: 1 })}::jsonb`},
+                    ${sql`${JSON.stringify({ phase: "provisioning", statusMessage: `Image delivered: ${branch ?? "unknown"}@${commitSha.slice(0, 8)}` })}::jsonb`}
+                  WHERE NOT EXISTS (
+                    SELECT 1 FROM ops.component_deployment
+                    WHERE system_deployment_id = ${sd.id}
+                      AND component_id = ${comp.id}
+                  )
+                  RETURNING id
+                `)
+                const result = rows as {
+                  rows?: Array<{ id: string }>
+                } & Array<{ id: string }>
+                const created = result?.[0] ?? result?.rows?.[0]
+                if (created?.id) createdIds.push(created.id)
+              }
+            }
+          }
+
+          const allIds = [...updatedIds, ...createdIds]
+
+          logger.info(
+            {
+              imageRef,
+              repo: repoName,
+              commitSha: commitSha.slice(0, 8),
+              matched: components.length,
+              updated: updatedIds.length,
+              created: createdIds.length,
+            },
+            "Image delivery: updated component deployments"
+          )
+
+          return {
+            success: true,
+            matched: components.length,
+            updated: updatedIds.length,
+            created: createdIds.length,
+            componentDeploymentIds: allIds,
+          }
+        },
+        {
+          body: t.Object({
+            repo: t.String(),
+            commitSha: t.String(),
+            imageRef: t.String(),
+            branch: t.Optional(t.String()),
+            dockerfilePath: t.Optional(t.String()),
+          }),
+          detail: {
+            tags: ["build/images"],
+            summary:
+              "Notify Factory of a new image build — matches component by imageName, updates existing and creates new deployed CDs",
           },
         }
       )

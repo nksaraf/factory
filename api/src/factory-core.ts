@@ -15,7 +15,6 @@ import type {
 } from "@smp/factory-shared/schemas/infra"
 import type {
   ComponentDeploymentSpec,
-  PreviewSpec,
   SiteSpec,
   SystemDeploymentSpec,
   WorkbenchSpec,

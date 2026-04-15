@@ -12,7 +12,6 @@ import {
   cleanupStaleTunnels,
 } from "../modules/infra/gateway.service"
 import { cleanupExpiredWorkbenches } from "../modules/ops/service"
-import { runPreviewCleanup } from "../services/preview/preview.service"
 import { type OperationRunner, createOperationRunner } from "./operations"
 
 const RETENTION_DAYS = 30
@@ -41,16 +40,6 @@ export function startTtlCleanupLoop(
       if (staleTunnels > 0)
         log.info({ count: staleTunnels }, "cleaned up stale tunnels")
 
-      const previewCleanup = await runPreviewCleanup(db)
-      if (
-        previewCleanup.expired > 0 ||
-        previewCleanup.scaledToWarm > 0 ||
-        previewCleanup.scaledToCold > 0 ||
-        previewCleanup.deleted > 0
-      ) {
-        log.info(previewCleanup, "preview cleanup completed")
-      }
-
       // Retention: clean up old operation_run rows
       const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000)
       const deleted = await db
@@ -63,7 +52,6 @@ export function startTtlCleanupLoop(
         expiredSandboxes: cleaned,
         expiredRoutes,
         staleTunnels,
-        ...previewCleanup,
         retentionCleaned,
       }
     },

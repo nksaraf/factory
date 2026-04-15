@@ -132,10 +132,12 @@ export function startOutboxRelayRunner(
   db: Database,
   opts?: { intervalMs?: number }
 ): OperationRunner {
+  const natsConfigured = !!process.env.NATS_URL
   return createOperationRunner(db, {
     name: "outbox-relay",
-    intervalMs: opts?.intervalMs ?? 1_000,
+    intervalMs: natsConfigured ? (opts?.intervalMs ?? 1_000) : 60_000,
     async execute(log) {
+      if (!natsConfigured) return { skipped: true }
       const published = await processOutbox(db)
       if (published > 0) {
         log.info({ published }, "outbox relay batch published")

@@ -12,12 +12,11 @@ import type {
   EventRef,
   EventSpec,
 } from "@smp/factory-shared/schemas/events"
-import { and, eq, gt } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
-import { event, eventOutbox, eventSubscription } from "../db/schema/org"
+import { event, eventOutbox } from "../db/schema/org"
 import { logger } from "../logger"
-import { matchTopic } from "../modules/events/topic-matcher"
 import { canonicalize } from "./event-canonicalizers"
 import {
   resolveGitHubEntities,
@@ -27,6 +26,7 @@ import {
 import { validateEventData } from "./event-schemas"
 import { newId } from "./id"
 import { resolveActorPrincipal } from "./webhook-events"
+import { matchAndNotifySubscriptions } from "./workflow-events"
 
 /**
  * Emit a canonical event. Writes to org.event + org.event_outbox
@@ -121,14 +121,18 @@ export async function emitEvent(
     "emitEvent: recorded"
   )
 
-  await matchSubscriptions(db, topic, severity, scopeKind, scopeId, data).catch(
-    (err) => {
-      logger.warn(
-        { eventId: id, topic, err },
-        "emitEvent: subscription matching failed"
-      )
-    }
-  )
+  await matchAndNotifySubscriptions(db, {
+    topic,
+    data,
+    severity,
+    scopeKind,
+    scopeId,
+  }).catch((err) => {
+    logger.warn(
+      { eventId: id, topic, err },
+      "emitEvent: subscription matching failed"
+    )
+  })
 
   return id
 }
@@ -213,88 +217,4 @@ export async function emitExternalEvent(
     idempotencyKey: `${source}:${providerId}:${deliveryId}`,
     schemaVersion: 1,
   })
-}
-
-/**
- * Match an event against all active trigger subscriptions.
- * Wakes matching workflows via webhook POST, marks triggers as fired.
- * Stream subscriptions are handled by the NATS notification router.
- */
-async function matchSubscriptions(
-  db: Database,
-  topic: string,
-  severity: string,
-  scopeKind: string,
-  scopeId: string,
-  data: Record<string, unknown>
-): Promise<void> {
-  const subs = await db
-    .select()
-    .from(eventSubscription)
-    .where(
-      and(
-        eq(eventSubscription.kind, "trigger"),
-        eq(eventSubscription.status, "active"),
-        gt(eventSubscription.expiresAt, new Date())
-      )
-    )
-
-  const matched = subs.filter((sub) => {
-    // Topic filter
-    if (!matchTopic(sub.topicFilter, topic)) return false
-
-    // Severity filter
-    if (sub.minSeverity) {
-      const order: Record<string, number> = {
-        debug: 0,
-        info: 1,
-        warning: 2,
-        critical: 3,
-      }
-      if ((order[severity] ?? 0) < (order[sub.minSeverity] ?? 0)) return false
-    }
-
-    // Scope filter
-    if (sub.scopeKind && sub.scopeId) {
-      if (scopeKind !== sub.scopeKind || scopeId !== sub.scopeId) return false
-    }
-
-    // JSONB containment
-    if (sub.matchFields) {
-      const fields = sub.matchFields as Record<string, unknown>
-      for (const [key, value] of Object.entries(fields)) {
-        if (data[key] !== value) return false
-      }
-    }
-
-    return true
-  })
-
-  logger.info(
-    { topic, triggerMatches: matched.length },
-    "matchSubscriptions: matched triggers"
-  )
-
-  for (const sub of matched) {
-    try {
-      await fetch(sub.ownerId, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-      await db
-        .update(eventSubscription)
-        .set({ status: "fired" })
-        .where(eq(eventSubscription.id, sub.id))
-      logger.info(
-        { topic, webhookUrl: sub.ownerId },
-        "matchSubscriptions: woke workflow"
-      )
-    } catch (err) {
-      logger.warn(
-        { topic, webhookUrl: sub.ownerId, err },
-        "matchSubscriptions: webhook POST failed"
-      )
-    }
-  }
 }

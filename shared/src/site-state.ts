@@ -133,6 +133,7 @@ export const workbenchInfoSchema = z.object({
   type: z.string(),
   realmType: z.string().optional(),
   ownerType: z.enum(["user", "agent"]).default("user"),
+  tunnelSubdomain: z.string().optional(),
 })
 export type WorkbenchInfo = z.infer<typeof workbenchInfoSchema>
 

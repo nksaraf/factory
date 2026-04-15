@@ -15,7 +15,9 @@ import type {
   RouteStatus,
 } from "@smp/factory-shared/schemas/infra"
 import type {
+  ComponentDeploymentObservedStatus,
   ComponentDeploymentSpec,
+  SiteObservedStatus,
   SystemDeploymentSpec,
 } from "@smp/factory-shared/schemas/ops"
 import { and, eq, isNull, sql } from "drizzle-orm"
@@ -430,11 +432,10 @@ export async function reconcileHostScan(
         slug: siteSlug,
         name: hostName,
         type: "production",
-        spec: {
-          status: "active" as const,
-        },
+        spec: {},
+        status: { phase: "active" } satisfies SiteObservedStatus,
         metadata: scanMetadata({ hostSlug }),
-      })
+      } as typeof site.$inferInsert)
       summary.site = { created: true, siteId }
     }
 
@@ -469,7 +470,6 @@ export async function reconcileHostScan(
         .limit(1)
 
       const sdpSpec: SystemDeploymentSpec = {
-        status: "active",
         runtime: "docker-compose",
         trigger: "manual",
         deploymentStrategy: "rolling",
@@ -524,20 +524,22 @@ export async function reconcileHostScan(
         .limit(1)
 
       const cdpSpec: ComponentDeploymentSpec = {
-        status: svc.status === "running" ? "running" : "stopped",
+        mode: "deployed",
         replicas: 1,
         envOverrides: {},
         resourceOverrides: {},
+        ...(svc.image ? { desiredImage: svc.image } : {}),
+      }
+      const cdpStatus: ComponentDeploymentObservedStatus = {
+        phase: svc.status === "running" ? "running" : "stopped",
+        ...(svc.image ? { actualImage: svc.image } : {}),
         driftDetected: false,
-        ...(svc.image
-          ? { desiredImage: svc.image, actualImage: svc.image }
-          : {}),
       }
 
       if (existingCdp) {
         await tx
           .update(componentDeployment)
-          .set({ spec: cdpSpec, updatedAt: new Date() })
+          .set({ spec: cdpSpec, status: cdpStatus, updatedAt: new Date() })
           .where(eq(componentDeployment.id, existingCdp.id))
         summary.componentDeployments.updated++
       } else {
@@ -546,7 +548,8 @@ export async function reconcileHostScan(
           systemDeploymentId: sdpId,
           componentId,
           spec: cdpSpec,
-        })
+          status: cdpStatus,
+        } as typeof componentDeployment.$inferInsert)
         summary.componentDeployments.created++
       }
     }

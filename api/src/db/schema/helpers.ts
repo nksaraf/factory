@@ -69,9 +69,11 @@ export const bitemporalCols = () => ({
 // For operational entities with external state (spec/status convergence).
 
 /** Reconciliation column set: status JSONB + generation counter. */
-export const reconciliationCols = () => ({
+export const reconciliationCols = <
+  T extends Record<string, unknown> = Record<string, unknown>,
+>() => ({
   status: jsonb("status")
-    .$type<Record<string, unknown>>()
+    .$type<T>()
     .notNull()
     .default(sql`'{}'`),
   generation: bigint("generation", { mode: "number" }).notNull().default(0),

@@ -4,7 +4,9 @@ import type { RealmSpec } from "@smp/factory-shared/schemas/infra"
 import type {
   InterventionSpec,
   RolloutSpec,
+  SiteObservedStatus,
   SiteSpec,
+  SystemDeploymentObservedStatus,
   SystemDeploymentSpec,
   WorkbenchSpec,
 } from "@smp/factory-shared/schemas/ops"
@@ -100,7 +102,8 @@ describe("Ops service", () => {
   async function createSite(name = "prod-us", overrides?: Partial<SiteSpec>) {
     const spec: SiteSpec = {
       product: "smp",
-      status: "provisioning",
+      updatePolicy: "auto",
+      lifecycle: "persistent",
       ...overrides,
     }
     const [s] = await db
@@ -110,7 +113,8 @@ describe("Ops service", () => {
         slug: name,
         type: "production",
         spec,
-      })
+        status: { phase: "provisioning" } satisfies SiteObservedStatus,
+      } as typeof site.$inferInsert)
       .returning()
     return s
   }
@@ -248,7 +252,7 @@ describe("Ops service", () => {
     it("creates and lists sites", async () => {
       const s = await createSite("prod-us")
       expect(s.name).toBe("prod-us")
-      expect(s.spec.status).toBe("provisioning")
+      expect(s.status?.phase).toBe("provisioning")
 
       const all = await db.select().from(site).where(eq(site.slug, "prod-us"))
       expect(all).toHaveLength(1)
@@ -269,12 +273,14 @@ describe("Ops service", () => {
       await db
         .update(site)
         .set({
-          spec: { ...s.spec, status: "decommissioned" },
+          status: {
+            phase: "decommissioned",
+          } satisfies SiteObservedStatus,
         })
         .where(eq(site.id, s.id))
 
       const [updated] = await db.select().from(site).where(eq(site.id, s.id))
-      expect(updated.spec.status).toBe("decommissioned")
+      expect(updated.status?.phase).toBe("decommissioned")
     })
 
     it("filters sites by product", async () => {
@@ -295,7 +301,6 @@ describe("Ops service", () => {
       const s = await createSite()
       const spec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -325,7 +330,6 @@ describe("Ops service", () => {
       const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
       const spec: SystemDeploymentSpec = {
         trigger: "manual",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -354,7 +358,6 @@ describe("Ops service", () => {
       const s = await createSite()
       const spec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -383,7 +386,6 @@ describe("Ops service", () => {
       const s = await createSite()
       const spec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -403,7 +405,9 @@ describe("Ops service", () => {
       await db
         .update(systemDeployment)
         .set({
-          spec: { ...sd.spec, status: "destroying" },
+          status: {
+            phase: "destroying",
+          } satisfies SystemDeploymentObservedStatus,
         })
         .where(eq(systemDeployment.id, sd.id))
 
@@ -411,7 +415,7 @@ describe("Ops service", () => {
         .select()
         .from(systemDeployment)
         .where(eq(systemDeployment.id, sd.id))
-      expect(updated.spec.status).toBe("destroying")
+      expect(updated.status?.phase).toBe("destroying")
     })
 
     it("filters by type", async () => {
@@ -419,14 +423,12 @@ describe("Ops service", () => {
       const s = await createSite()
       const prodSpec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
       }
       const devSpec: SystemDeploymentSpec = {
         trigger: "manual",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -601,7 +603,6 @@ describe("Ops service", () => {
 
       const sdSpec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",
@@ -646,7 +647,6 @@ describe("Ops service", () => {
       const s = await createSite()
       const sdSpec: SystemDeploymentSpec = {
         trigger: "release",
-        status: "provisioning",
         deploymentStrategy: "rolling",
         labels: {},
         runtime: "kubernetes",

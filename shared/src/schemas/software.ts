@@ -58,11 +58,18 @@ export const INFRASTRUCTURE_TYPES: ComponentType[] = [
 
 // ── System ──────────────────────────────────────────────────
 
+export const SystemDependencySchema = z.object({
+  system: z.string(),
+  components: z.array(z.string()).optional(),
+})
+export type SystemDependency = z.infer<typeof SystemDependencySchema>
+
 export const SystemSpecSchema = z.object({
   namespace: z.string().default("default"),
   lifecycle: LifecycleSchema.default("experimental"),
   description: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  dependencies: z.array(SystemDependencySchema).optional(),
 })
 export type SystemSpec = z.infer<typeof SystemSpecSchema>
 
@@ -82,11 +89,24 @@ export type System = z.infer<typeof SystemSchema>
 
 // ── Component Spec (discriminated by type) ──────────────────
 
+export const ComponentDependencySchema = z.object({
+  component: z.string(),
+  as: z.string().optional(),
+  protocol: z.string().optional(),
+  required: z.boolean().default(true),
+})
+export type ComponentDependency = z.infer<typeof ComponentDependencySchema>
+
 const BaseComponentSpec = z.object({
   description: z.string().optional(),
   statefulness: z
     .enum(["stateless", "stateful-ephemeral", "stateful-persistent"])
     .optional(),
+  sourceRepo: z.string().optional(),
+  sourcePath: z.string().optional(),
+  dockerfilePath: z.string().optional(),
+  imageName: z.string().optional(),
+  consumes: z.array(ComponentDependencySchema).optional(),
 })
 
 export const ServiceComponentSpecSchema = BaseComponentSpec.extend({

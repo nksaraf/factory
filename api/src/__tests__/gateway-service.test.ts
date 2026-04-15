@@ -4,7 +4,10 @@ import type {
   RealmSpec,
   RouteSpec,
 } from "@smp/factory-shared/schemas/infra"
-import type { SiteSpec } from "@smp/factory-shared/schemas/ops"
+import type {
+  SiteObservedStatus,
+  SiteSpec,
+} from "@smp/factory-shared/schemas/ops"
 import type { PrincipalSpec } from "@smp/factory-shared/schemas/org"
 import type { SystemSpec } from "@smp/factory-shared/schemas/software"
 import { eq } from "drizzle-orm"
@@ -82,10 +85,12 @@ describe("Gateway Service", () => {
         slug: "test-site",
         type: "production",
         spec: {
-          status: "provisioning",
           product: "test-product",
+          updatePolicy: "auto",
+          lifecycle: "persistent",
         } satisfies SiteSpec,
-      })
+        status: { phase: "provisioning" } satisfies SiteObservedStatus,
+      } as typeof site.$inferInsert)
       .returning()
     return { estate: sub, realm: rt, site: s }
   }

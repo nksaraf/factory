@@ -42,7 +42,6 @@ import { configVarController } from "./modules/identity/config-var.controller"
 import { identityController } from "./modules/identity/index"
 import { secretController } from "./modules/identity/secret.controller"
 import { infraController } from "./modules/infra/index"
-import { previewCiController } from "./modules/infra/preview-ci.controller"
 import { installController } from "./modules/install/index"
 import {
   messagingController,
@@ -259,7 +258,6 @@ export class FactoryAPI {
       .use(webhookController(db))
       .use(messagingWebhookController(db))
       .use(jiraWebhookTrigger(db))
-      .use(previewCiController(db))
       .use(deployCiController(db))
       .use(publicDocumentViewerController(db))
       .use(this.mountFactoryControllers(db, jwksUrl))
@@ -366,14 +364,8 @@ export class FactoryAPI {
         jobPrefix: "factory_",
       })
       this.workflowWorld = world as any
-      world
-        .start()
-        .catch((err) =>
-          logger.warn(
-            { err },
-            "workflow world init failed — durable workflows unavailable"
-          )
-        )
+      await world.start()
+      logger.info("Workflow SDK Postgres World started")
     }
 
     // Set up Redis for presence fan-out (optional — degrades gracefully)

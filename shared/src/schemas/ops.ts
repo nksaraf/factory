@@ -26,6 +26,8 @@ export const SitePreviewConfigSchema = z.object({
   registry: z.string().optional(),
   defaultAuthMode: z.enum(["public", "team", "private"]).optional(),
   containerPort: z.number().optional(),
+  ttlDays: z.number().int().optional(),
+  maxConcurrent: z.number().int().optional(),
 })
 export type SitePreviewConfig = z.infer<typeof SitePreviewConfigSchema>
 
@@ -82,11 +84,14 @@ export const SiteSchema = z
     slug: z.string(),
     name: z.string(),
     type: SiteTypeSchema,
+    parentSiteId: z.string().nullable().optional(),
     spec: SiteSpecSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
   .merge(BitemporalSchema)
+  .merge(ReconciliationSchema)
+  .extend({ status: SiteObservedStatusSchema.default({}) })
 export type Site = z.infer<typeof SiteSchema>
 
 // ── Tenant ─────────────────────────────────────────────────
@@ -209,6 +214,8 @@ export const SystemDeploymentSpecSchema = z.object({
     ])
     .default("kubernetes"),
   baseEnvironmentId: z.string().optional(),
+  hostSlug: z.string().optional(),
+  workDir: z.string().optional(),
 })
 export type SystemDeploymentSpec = z.infer<typeof SystemDeploymentSpecSchema>
 
@@ -248,6 +255,7 @@ export const SystemDeploymentSchema = z
   })
   .merge(BitemporalSchema)
   .merge(ReconciliationSchema)
+  .extend({ status: SystemDeploymentObservedStatusSchema.default({}) })
 export type SystemDeployment = z.infer<typeof SystemDeploymentSchema>
 
 // ── Component Deployment ────────────────────────────────────
@@ -332,6 +340,7 @@ export const ComponentDeploymentSchema = z
     updatedAt: z.coerce.date(),
   })
   .merge(ReconciliationSchema)
+  .extend({ status: ComponentDeploymentObservedStatusSchema.default({}) })
 export type ComponentDeployment = z.infer<typeof ComponentDeploymentSchema>
 
 export const CreateComponentDeploymentSchema = z.object({
@@ -786,8 +795,8 @@ export const CreateSystemDeploymentSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: DeploymentKindSchema,
-  systemId: z.string(),
-  siteId: z.string(),
+  systemId: z.string().optional(),
+  siteId: z.string().optional(),
   tenantId: z.string().optional(),
   realmId: z.string().optional(),
   workbenchId: z.string().optional(),

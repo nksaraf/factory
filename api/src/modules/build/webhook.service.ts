@@ -1,14 +1,20 @@
-import type { SiteSpec } from "@smp/factory-shared/schemas/ops"
+import type {
+  SiteObservedStatus,
+  SiteSpec,
+  SiteTrigger,
+  SystemDeploymentObservedStatus,
+} from "@smp/factory-shared/schemas/ops"
 import type { WebhookEventSpec } from "@smp/factory-shared/schemas/org"
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 
 import type { GitHostAdapter } from "../../adapters/git-host-adapter"
 import type { Database } from "../../db/connection"
 import { webhookEvent } from "../../db/schema/build"
-import { site } from "../../db/schema/ops"
+import { site, systemDeployment } from "../../db/schema/ops"
+import { system } from "../../db/schema/software"
+import { newId } from "../../lib/id"
 import { logger } from "../../logger"
 import * as pipelineRunSvc from "../../services/build/pipeline-run.service"
-import * as previewSvc from "../../services/preview/preview.service"
 import type { GitHostService } from "./git-host.service"
 
 export class WebhookService {
@@ -115,54 +121,45 @@ export class WebhookService {
     }
   }
 
-  private async resolveSystemIdFromRepo(
-    repoFullName: string
-  ): Promise<string | null> {
-    return previewSvc.resolveSystemIdFromRepo(this.db, repoFullName)
-  }
-
-  private async findPreviewSite(_repoFullName: string): Promise<{
+  private async findPreviewParentSite(): Promise<{
     siteId: string
-    previewConfig: {
-      enabled: boolean
-      defaultAuthMode?: string
-      ttlDays?: number
-      maxConcurrent?: number
-    }
+    previewConfig: SiteSpec["previewConfig"]
   } | null> {
-    // preview config is in site spec JSONB
     const sites = await this.db.select().from(site)
-
-    // TODO: fix type — previewConfig is not yet in SiteSpec (belongs in TenantSpec);
-    // access via intersection until the schema is updated.
-    type SiteSpecWithPreviewConfig = SiteSpec & {
-      previewConfig?: {
-        enabled: boolean
-        defaultAuthMode?: string
-        ttlDays?: number
-        maxConcurrent?: number
-      }
-    }
-    const enabled = sites.find((s) => {
-      const spec = s.spec as SiteSpecWithPreviewConfig
-      return spec?.previewConfig?.enabled === true
-    })
-
+    const enabled = sites.find(
+      (s) => (s.spec as SiteSpec)?.previewConfig?.enabled === true
+    )
     if (!enabled) return null
-
     return {
       siteId: enabled.id,
-      previewConfig: (enabled.spec as SiteSpecWithPreviewConfig).previewConfig!,
+      previewConfig: (enabled.spec as SiteSpec).previewConfig!,
     }
   }
 
-  /**
-   * Handle pull_request webhook events for preview deployments.
-   *
-   * - opened/reopened → create preview (if site has previews enabled)
-   * - synchronize → update preview commit SHA, reset to building
-   * - closed → expire preview
-   */
+  private buildPreviewSiteSlug(prNumber: number, branch: string): string {
+    const safeBranch = branch
+      .replace(/[^a-z0-9-]/gi, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 40)
+    return `preview-pr-${prNumber}-${safeBranch}`
+  }
+
+  private async findPreviewSiteByTrigger(
+    prNumber: number
+  ): Promise<typeof site.$inferSelect | null> {
+    const [s] = await this.db
+      .select()
+      .from(site)
+      .where(
+        and(
+          eq(site.type, "preview"),
+          sql`(${site.spec}->'trigger'->>'prNumber')::int = ${prNumber}`
+        )
+      )
+      .limit(1)
+    return s ?? null
+  }
+
   private async handlePullRequestEvent(
     action: string | undefined,
     payload: Record<string, unknown>
@@ -183,7 +180,6 @@ export class WebhookService {
     switch (action) {
       case "opened":
       case "reopened": {
-        // Always create pipeline run for CI tracking
         await pipelineRunSvc.createPipelineRun(this.db, {
           triggerEvent: "pull_request",
           triggerRef: `refs/pull/${prNumber}/head`,
@@ -191,178 +187,158 @@ export class WebhookService {
           triggerActor: senderLogin,
         })
 
-        // Gate preview creation on site previewConfig
-        const siteResult = await this.findPreviewSite(repoFullName)
-        if (!siteResult) {
+        const parentSite = await this.findPreviewParentSite()
+        if (!parentSite) {
           logger.info(
             { repo: repoFullName, pr: prNumber },
-            "No site with previews enabled, skipping preview creation"
+            "No site with previews enabled, skipping"
           )
           break
         }
 
-        const ttlDays = siteResult.previewConfig.ttlDays ?? 7
+        const slug = this.buildPreviewSiteSlug(prNumber, headBranch)
+        const existing = await this.findPreviewSiteByTrigger(prNumber)
 
-        // Check for existing preview to handle PR reopen without duplicate slug crash
-        const slug = previewSvc.buildPreviewSlug({
-          prNumber,
-          sourceBranch: headBranch,
-          siteName: "default",
-        })
-        const existing = await previewSvc.getPreviewBySlug(this.db, slug)
         if (existing) {
           logger.info(
-            {
-              repo: repoFullName,
-              pr: prNumber,
-              slug,
-              prevPhase: existing.phase,
-            },
-            "Resetting existing preview for reopened PR"
+            { repo: repoFullName, pr: prNumber, slug },
+            "Resetting existing preview site for reopened PR"
           )
-          await previewSvc.updatePreviewStatus(this.db, existing.id, {
-            status: "pending_image",
+          const trigger: SiteTrigger = {
+            ...(existing.spec as SiteSpec).trigger,
+            type: "pull_request",
             commitSha: headSha,
-            imageRef: null,
-          })
+          }
+          await this.db
+            .update(site)
+            .set({
+              spec: { ...(existing.spec as SiteSpec), trigger },
+              status: { phase: "pending_image" },
+              updatedAt: new Date(),
+            })
+            .where(eq(site.id, existing.id))
           break
+        }
+
+        const ttlDays = parentSite.previewConfig?.ttlDays ?? 7
+        const trigger: SiteTrigger = {
+          type: "pull_request",
+          repo: repoFullName,
+          branch: headBranch,
+          prNumber,
+          commitSha: headSha,
+          createdBy: senderLogin,
+        }
+        const siteSpec: SiteSpec = {
+          parentSiteId: parentSite.siteId,
+          lifecycle: "ephemeral",
+          updatePolicy: "auto",
+          authMode: parentSite.previewConfig?.defaultAuthMode ?? "team",
+          ttl: `${ttlDays}d`,
+          trigger,
+          previewConfig: parentSite.previewConfig,
         }
 
         logger.info(
-          {
-            repo: repoFullName,
-            pr: prNumber,
-            branch: headBranch,
-            siteId: siteResult.siteId,
-          },
-          "Creating preview for PR"
+          { repo: repoFullName, pr: prNumber, branch: headBranch },
+          "Creating preview site for PR"
         )
-        const systemId = await this.resolveSystemIdFromRepo(repoFullName)
-        await previewSvc.createPreview(this.db, {
-          name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
-          sourceBranch: headBranch,
-          commitSha: headSha,
-          repo: repoFullName,
-          prNumber,
-          siteName: "default",
-          siteId: siteResult.siteId,
-          ownerId: senderLogin,
-          createdBy: senderLogin,
-          strategy: "deploy",
-          systemId: systemId ?? undefined,
-          authMode: siteResult.previewConfig.defaultAuthMode ?? "team",
-          expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
-        })
+
+        const [newSite] = await this.db
+          .insert(site)
+          .values({
+            slug,
+            name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
+            type: "preview",
+            parentSiteId: parentSite.siteId,
+            spec: siteSpec,
+            status: { phase: "pending_image" } satisfies SiteObservedStatus,
+          } as typeof site.$inferInsert)
+          .returning()
+
+        const [sys] = await this.db.select().from(system).limit(1)
+
+        if (sys) {
+          await this.db.insert(systemDeployment).values({
+            id: newId("sdp"),
+            slug: `${slug}-${sys.slug}`,
+            name: `${newSite.name} — ${sys.name}`,
+            type: "preview",
+            systemId: sys.id,
+            siteId: newSite.id,
+            spec: {
+              trigger: "pr",
+              createdBy: senderLogin,
+              namespace: slug,
+            },
+            status: {
+              phase: "provisioning",
+            } satisfies SystemDeploymentObservedStatus,
+          } as typeof systemDeployment.$inferInsert)
+        }
         break
       }
 
       case "synchronize": {
-        // PR was pushed to — update commit SHA and reset to pending_image
-        const syncPreviews = await previewSvc.listPreviews(this.db, {
-          repo: repoFullName,
-          sourceBranch: headBranch,
-        })
-        const activeSyncPreviews = syncPreviews.filter(
-          (p) =>
-            p.prNumber === prNumber &&
-            p.phase !== "expired" &&
-            p.phase !== "inactive"
-        )
-        if (activeSyncPreviews.length > 0) {
-          for (const p of activeSyncPreviews) {
-            logger.info(
-              { previewId: p.id, newSha: headSha },
-              "Resetting preview for new commit"
-            )
-            await previewSvc.updatePreviewStatus(this.db, p.id, {
-              commitSha: headSha,
-              status: "pending_image",
-              imageRef: null,
-            })
+        const existing = await this.findPreviewSiteByTrigger(prNumber)
+        if (existing) {
+          const trigger: SiteTrigger = {
+            ...(existing.spec as SiteSpec).trigger,
+            type: "pull_request",
+            commitSha: headSha,
           }
+          await this.db
+            .update(site)
+            .set({
+              spec: { ...(existing.spec as SiteSpec), trigger },
+              status: { phase: "pending_image" },
+              updatedAt: new Date(),
+            })
+            .where(eq(site.id, existing.id))
+          logger.info(
+            { siteId: existing.id, newSha: headSha },
+            "Updated preview site for new commit"
+          )
         } else {
-          // No preview exists — bootstrap one (handles missed "opened" events)
-          const syncSite = await this.findPreviewSite(repoFullName)
-          if (syncSite) {
-            const syncSlug = previewSvc.buildPreviewSlug({
-              prNumber,
-              sourceBranch: headBranch,
-              siteName: "default",
-            })
-            const existingSync = await previewSvc.getPreviewBySlug(
-              this.db,
-              syncSlug
-            )
-            if (existingSync) {
-              logger.info(
-                {
-                  repo: repoFullName,
-                  pr: prNumber,
-                  slug: syncSlug,
-                  prevPhase: existingSync.phase,
-                },
-                "Resetting existing preview on synchronize bootstrap"
-              )
-              await previewSvc.updatePreviewStatus(this.db, existingSync.id, {
-                status: "pending_image",
-                commitSha: headSha,
-                imageRef: null,
-              })
-            } else {
-              const syncTtlDays = syncSite.previewConfig.ttlDays ?? 7
-              logger.info(
-                { repo: repoFullName, pr: prNumber, branch: headBranch },
-                "Creating preview on synchronize (no existing preview found)"
-              )
-              const syncSystemId =
-                await this.resolveSystemIdFromRepo(repoFullName)
-              await previewSvc.createPreview(this.db, {
-                name: `PR #${prNumber}: ${(pr.title as string) ?? headBranch}`,
-                sourceBranch: headBranch,
-                commitSha: headSha,
-                repo: repoFullName,
-                prNumber,
-                siteName: "default",
-                siteId: syncSite.siteId,
-                ownerId: senderLogin,
-                createdBy: senderLogin,
-                strategy: "deploy",
-                systemId: syncSystemId ?? undefined,
-                authMode: syncSite.previewConfig.defaultAuthMode ?? "team",
-                expiresAt: new Date(
-                  Date.now() + syncTtlDays * 24 * 60 * 60 * 1000
-                ),
-              })
-            }
-          }
+          await this.handlePullRequestEvent("opened", payload)
         }
         break
       }
 
       case "closed": {
-        // PR closed or merged — expire all previews for this PR
-        const previews = await previewSvc.listPreviews(this.db, {
-          repo: repoFullName,
-          sourceBranch: headBranch,
-        })
-        const activePreviews = previews.filter(
-          (p) =>
-            p.prNumber === prNumber &&
-            p.phase !== "expired" &&
-            p.phase !== "inactive"
-        )
-        for (const p of activePreviews) {
+        const existing = await this.findPreviewSiteByTrigger(prNumber)
+        if (existing) {
+          await this.db
+            .update(site)
+            .set({
+              status: { phase: "decommissioned" },
+              updatedAt: new Date(),
+            })
+            .where(eq(site.id, existing.id))
+
+          const sds = await this.db
+            .select()
+            .from(systemDeployment)
+            .where(eq(systemDeployment.siteId, existing.id))
+          for (const sd of sds) {
+            await this.db
+              .update(systemDeployment)
+              .set({
+                status: { phase: "destroying" },
+                updatedAt: new Date(),
+              })
+              .where(eq(systemDeployment.id, sd.id))
+          }
+
           logger.info(
-            { previewId: p.id, pr: prNumber },
-            "Expiring preview for closed PR"
+            { siteId: existing.id, pr: prNumber },
+            "Decommissioned preview site for closed PR"
           )
-          await previewSvc.expirePreview(this.db, p.id)
         }
         break
       }
 
       default:
-        // Other PR actions (labeled, assigned, etc.) — no-op for now
         break
     }
   }
