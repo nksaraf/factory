@@ -14,18 +14,12 @@ export const SiteTypeSchema = z.enum([
   "preview",
   "development",
   "sandbox",
+  "demo",
+  "feature-branch",
   "qat",
   "test",
 ])
 export type SiteType = z.infer<typeof SiteTypeSchema>
-
-export const SiteStatusSchema = z.enum([
-  "provisioning",
-  "active",
-  "suspended",
-  "decommissioned",
-])
-export type SiteStatus = z.infer<typeof SiteStatusSchema>
 
 export const SitePreviewConfigSchema = z.object({
   enabled: z.boolean().default(false),
@@ -35,13 +29,52 @@ export const SitePreviewConfigSchema = z.object({
 })
 export type SitePreviewConfig = z.infer<typeof SitePreviewConfigSchema>
 
+export const SiteTriggerSchema = z.object({
+  type: z.enum(["manual", "pull_request", "branch_push", "schedule", "cli"]),
+  repo: z.string().optional(),
+  branch: z.string().optional(),
+  prNumber: z.number().int().optional(),
+  commitSha: z.string().optional(),
+  createdBy: z.string().optional(),
+})
+export type SiteTrigger = z.infer<typeof SiteTriggerSchema>
+
 export const SiteSpecSchema = z.object({
   tenancy: z.enum(["shared", "dedicated"]).optional(),
   product: z.string().optional(),
-  status: SiteStatusSchema.default("provisioning"),
   previewConfig: SitePreviewConfigSchema.optional(),
+  parentSiteId: z.string().optional(),
+  updatePolicy: z.enum(["auto", "gated", "pinned"]).default("auto"),
+  lifecycle: z.enum(["persistent", "ephemeral"]).default("persistent"),
+  ttl: z.string().optional(),
+  authMode: z.enum(["public", "team", "private"]).optional(),
+  trigger: SiteTriggerSchema.optional(),
 })
 export type SiteSpec = z.infer<typeof SiteSpecSchema>
+
+export const SitePhaseSchema = z.enum([
+  "provisioning",
+  "pending_image",
+  "deploying",
+  "active",
+  "suspended",
+  "failed",
+  "decommissioned",
+])
+export type SitePhase = z.infer<typeof SitePhaseSchema>
+
+export const SiteObservedStatusSchema = z.object({
+  phase: SitePhaseSchema.default("provisioning"),
+  github: z
+    .object({
+      deploymentId: z.number().int().optional(),
+      commentId: z.number().int().optional(),
+    })
+    .optional(),
+  lastReconciledAt: z.coerce.date().optional(),
+  statusMessage: z.string().optional(),
+})
+export type SiteObservedStatus = z.infer<typeof SiteObservedStatusSchema>
 
 export const SiteSchema = z
   .object({
@@ -158,13 +191,12 @@ export type DeploymentStrategy = z.infer<typeof DeploymentStrategySchema>
 
 export const SystemDeploymentSpecSchema = z.object({
   trigger: DeploymentTriggerSchema.default("manual"),
-  status: DeploymentStatusSchema.default("provisioning"),
   deploymentStrategy: DeploymentStrategySchema.default("rolling"),
-  ttl: z.string().optional(), // e.g., "24h", "7d"
+  ttl: z.string().optional(),
   expiresAt: z.coerce.date().optional(),
   labels: z.record(z.string()).default({}),
   desiredVersion: z.string().optional(),
-  namespace: z.string().optional(), // k8s namespace
+  namespace: z.string().optional(),
   createdBy: z.string().optional(),
   runtime: z
     .enum([
@@ -176,8 +208,28 @@ export const SystemDeploymentSpecSchema = z.object({
       "process",
     ])
     .default("kubernetes"),
+  baseEnvironmentId: z.string().optional(),
 })
 export type SystemDeploymentSpec = z.infer<typeof SystemDeploymentSpecSchema>
+
+export const SystemDeploymentPhaseSchema = z.enum([
+  "provisioning",
+  "active",
+  "suspended",
+  "destroying",
+  "destroyed",
+  "failed",
+])
+export type SystemDeploymentPhase = z.infer<typeof SystemDeploymentPhaseSchema>
+
+export const SystemDeploymentObservedStatusSchema = z.object({
+  phase: SystemDeploymentPhaseSchema.default("provisioning"),
+  lastReconciledAt: z.coerce.date().optional(),
+  statusMessage: z.string().optional(),
+})
+export type SystemDeploymentObservedStatus = z.infer<
+  typeof SystemDeploymentObservedStatusSchema
+>
 
 export const SystemDeploymentSchema = z
   .object({
@@ -200,18 +252,6 @@ export type SystemDeployment = z.infer<typeof SystemDeploymentSchema>
 
 // ── Component Deployment ────────────────────────────────────
 
-export const ComponentDeploymentStatusSchema = z.enum([
-  "provisioning",
-  "running",
-  "degraded",
-  "stopped",
-  "failed",
-  "completed",
-])
-export type ComponentDeploymentStatus = z.infer<
-  typeof ComponentDeploymentStatusSchema
->
-
 export const DataLifecycleSchema = z
   .object({
     backupSchedule: z.string().optional(),
@@ -226,7 +266,13 @@ export const DataLifecycleSchema = z
   .optional()
 export type DataLifecycle = z.infer<typeof DataLifecycleSchema>
 
+export const ComponentDeploymentModeSchema = z.enum(["deployed", "linked"])
+export type ComponentDeploymentMode = z.infer<
+  typeof ComponentDeploymentModeSchema
+>
+
 export const ComponentDeploymentSpecSchema = z.object({
+  mode: ComponentDeploymentModeSchema.default("deployed"),
   replicas: z.number().int().default(1),
   envOverrides: z.record(z.string()).default({}),
   resourceOverrides: z
@@ -236,16 +282,40 @@ export const ComponentDeploymentSpecSchema = z.object({
     })
     .default({}),
   desiredImage: z.string().optional(),
-  actualImage: z.string().optional(),
   trackedImageRef: z.string().optional(),
-  driftDetected: z.boolean().default(false),
-  status: ComponentDeploymentStatusSchema.default("provisioning"),
-  lastReconciledAt: z.coerce.date().optional(),
-  statusMessage: z.string().optional(),
+  sourceBranch: z.string().optional(),
+  sourceCommitSha: z.string().optional(),
+  linkedSystemDeploymentId: z.string().optional(),
   dataLifecycle: DataLifecycleSchema,
 })
 export type ComponentDeploymentSpec = z.infer<
   typeof ComponentDeploymentSpecSchema
+>
+
+export const ComponentDeploymentPhaseSchema = z.enum([
+  "pending",
+  "provisioning",
+  "running",
+  "linked",
+  "degraded",
+  "failed",
+  "stopped",
+  "destroying",
+])
+export type ComponentDeploymentPhase = z.infer<
+  typeof ComponentDeploymentPhaseSchema
+>
+
+export const ComponentDeploymentObservedStatusSchema = z.object({
+  phase: ComponentDeploymentPhaseSchema.default("pending"),
+  actualImage: z.string().optional(),
+  resolvedEndpoint: z.string().optional(),
+  driftDetected: z.boolean().default(false),
+  lastReconciledAt: z.coerce.date().optional(),
+  statusMessage: z.string().optional(),
+})
+export type ComponentDeploymentObservedStatus = z.infer<
+  typeof ComponentDeploymentObservedStatusSchema
 >
 
 export const ComponentDeploymentSchema = z
@@ -440,64 +510,6 @@ export const WorkbenchSnapshotSchema = z.object({
   createdAt: z.coerce.date(),
 })
 export type WorkbenchSnapshot = z.infer<typeof WorkbenchSnapshotSchema>
-
-// ── Preview ─────────────────────────────────────────────────
-
-export const PreviewPhaseSchema = z.enum([
-  "pending_image",
-  "building",
-  "deploying",
-  "provisioning",
-  "starting",
-  "active",
-  "inactive",
-  "expired",
-  "failed",
-])
-export type PreviewPhase = z.infer<typeof PreviewPhaseSchema>
-
-export const PreviewStrategySchema = z.enum(["deploy", "dev"])
-export type PreviewStrategy = z.infer<typeof PreviewStrategySchema>
-
-export const RuntimeClassSchema = z.enum(["hot", "warm", "cold"])
-export type RuntimeClass = z.infer<typeof RuntimeClassSchema>
-
-export const PreviewSpecSchema = z.object({
-  name: z.string().optional(),
-  createdBy: z.string().optional(),
-  commitSha: z.string().optional(),
-  repo: z.string().optional(),
-  systemId: z.string().optional(),
-  runtimeClass: RuntimeClassSchema.default("warm"),
-  authMode: z.enum(["public", "team", "private"]).default("team"),
-  imageRef: z.string().nullable().optional(),
-  expiresAt: z.coerce.date().optional(),
-  statusMessage: z.string().optional(),
-  githubDeploymentId: z.number().int().optional(),
-  githubCommentId: z.number().int().optional(),
-  lastAccessedAt: z.coerce.date().optional(),
-})
-export type PreviewSpec = z.infer<typeof PreviewSpecSchema>
-
-export const PreviewSchema = z
-  .object({
-    id: z.string(),
-    slug: z.string(),
-    strategy: PreviewStrategySchema.default("deploy"),
-    siteId: z.string(),
-    ownerId: z.string(),
-    phase: PreviewPhaseSchema.default("pending_image"),
-    sourceBranch: z.string(),
-    prNumber: z.number().int().nullable(),
-    workbenchId: z.string().nullable().optional(),
-    systemDeploymentId: z.string().nullable().optional(),
-    realmId: z.string().nullable().optional(),
-    spec: PreviewSpecSchema,
-    createdAt: z.coerce.date(),
-    updatedAt: z.coerce.date(),
-  })
-  .merge(ReconciliationSchema)
-export type Preview = z.infer<typeof PreviewSchema>
 
 // ── Database ────────────────────────────────────────────────
 
@@ -813,28 +825,6 @@ export const CreateRolloutSchema = z.object({
   spec: RolloutSpecSchema.default({}),
 })
 export const UpdateRolloutSchema = CreateRolloutSchema.partial()
-
-// ── Preview ─────────────────────────────────────────────────
-
-export const CreatePreviewSchema = z.object({
-  siteId: z.string().min(1),
-  ownerId: z.string().optional(),
-  strategy: PreviewStrategySchema.default("deploy"),
-  sourceBranch: z.string().min(1),
-  prNumber: z.number().int().optional(),
-  workbenchId: z.string().optional(),
-  systemDeploymentId: z.string().optional(),
-  realmId: z.string().optional(),
-  spec: PreviewSpecSchema.default({}),
-})
-export const UpdatePreviewSchema = z.object({
-  phase: PreviewPhaseSchema.optional(),
-  strategy: PreviewStrategySchema.optional(),
-  workbenchId: z.string().nullable().optional(),
-  systemDeploymentId: z.string().nullable().optional(),
-  realmId: z.string().nullable().optional(),
-  spec: PreviewSpecSchema.partial().optional(),
-})
 
 // ── Intervention ────────────────────────────────────────────
 

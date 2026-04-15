@@ -101,6 +101,7 @@ export class FactoryAPI {
     publisher: import("ioredis").Redis
     subscriber: import("ioredis").Redis
   }
+  private workflowWorld?: { stop?(): Promise<void> }
 
   constructor(settings: FactorySettings) {
     this.settings = settings
@@ -364,6 +365,7 @@ export class FactoryAPI {
         connectionString: url,
         jobPrefix: "factory_",
       })
+      this.workflowWorld = world as any
       world
         .start()
         .catch((err) =>
@@ -403,7 +405,9 @@ export class FactoryAPI {
       this.redis.publisher.disconnect()
       this.redis.subscriber.disconnect()
     }
-    // Workflow SDK world is closed automatically via process exit
+    if (this.workflowWorld?.stop) {
+      await this.workflowWorld.stop().catch(() => {})
+    }
     if (this.db) {
       await this.db.$client.end()
     }

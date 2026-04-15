@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { DurableAgent } from "@workflow/ai"
-import { ToolLoopAgent, stepCountIs, tool } from "ai"
+import { stepCountIs, tool } from "ai"
 import { getTableConfig } from "drizzle-orm/pg-core"
 import type { PgTable } from "drizzle-orm/pg-core"
 import pg from "pg"

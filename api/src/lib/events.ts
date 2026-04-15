@@ -276,18 +276,25 @@ async function matchSubscriptions(
   )
 
   for (const sub of matched) {
-    await fetch(sub.ownerId, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    await db
-      .update(eventSubscription)
-      .set({ status: "fired" })
-      .where(eq(eventSubscription.id, sub.id))
-    logger.info(
-      { topic, webhookUrl: sub.ownerId },
-      "matchSubscriptions: woke workflow"
-    )
+    try {
+      await fetch(sub.ownerId, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      await db
+        .update(eventSubscription)
+        .set({ status: "fired" })
+        .where(eq(eventSubscription.id, sub.id))
+      logger.info(
+        { topic, webhookUrl: sub.ownerId },
+        "matchSubscriptions: woke workflow"
+      )
+    } catch (err) {
+      logger.warn(
+        { topic, webhookUrl: sub.ownerId, err },
+        "matchSubscriptions: webhook POST failed"
+      )
+    }
   }
 }

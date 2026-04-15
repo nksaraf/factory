@@ -17,14 +17,14 @@ import type { z } from "zod"
 // ── Lazy SDK re-exports ──────────────────────────────────
 // These are only callable within a running workflow context.
 
-export async function sleep(duration: string) {
+export async function sleep(duration: number | string | Date) {
   const { sleep: sdkSleep } = await import("workflow")
-  return sdkSleep(duration)
+  return sdkSleep(duration as any)
 }
 
-export async function createWebhook() {
+export async function createWebhook(options?: any) {
   const { createWebhook: sdkCreateWebhook } = await import("workflow")
-  return sdkCreateWebhook()
+  return sdkCreateWebhook(options)
 }
 
 export async function getStepMetadata() {

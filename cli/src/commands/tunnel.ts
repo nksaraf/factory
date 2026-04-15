@@ -40,6 +40,14 @@ export function tunnelCommand(app: DxBase) {
           short: "s",
           description: "Request a specific subdomain",
         },
+        "route-family": {
+          type: "string",
+          description: "Route family (dev or tunnel)",
+        },
+        "publish-ports": {
+          type: "string",
+          description: "Comma-separated list of ports to publish",
+        },
       })
       .run(async ({ args, flags }) => {
         const f = toDxFlags(flags)
@@ -49,12 +57,22 @@ export function tunnelCommand(app: DxBase) {
           exitWithError(f, "Usage: dx tunnel <port>")
         }
 
+        const publishPorts = (flags["publish-ports"] as string | undefined)
+          ?.split(",")
+          .map(Number)
+          .filter((n) => n > 0)
+
         console.log(`Opening tunnel for localhost:${port}...`)
 
         const handle = await openTunnel(
           {
             port,
             subdomain: flags.subdomain as string | undefined,
+            routeFamily:
+              (flags["route-family"] as string | undefined) === "dev"
+                ? "dev"
+                : undefined,
+            publishPorts,
           },
           {
             onRegistered(info) {

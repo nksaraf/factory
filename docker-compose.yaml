@@ -15,7 +15,7 @@ services:
   # ─── Components (things we build) ────────────────────────────
 
   infra-factory:
-    image: asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+    image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/factory-service:latest"
     platform: linux/amd64
     build:
       context: ./
@@ -158,7 +158,7 @@ services:
       dx.port.50051.protocol: grpc
 
   infra-auth:
-    image: asia-south2-docker.pkg.dev/rio-platform/docker/auth-service:latest
+    image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/auth-service:latest"
     platform: linux/amd64
     restart: unless-stopped
     ports:
