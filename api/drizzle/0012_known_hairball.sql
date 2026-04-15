@@ -1,0 +1,1 @@
+ALTER TABLE "ops"."site" ADD CONSTRAINT "site_parent_site_id_site_id_fk" FOREIGN KEY ("parent_site_id") REFERENCES "ops"."site"("id") ON DELETE set null ON UPDATE no action;
