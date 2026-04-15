@@ -1,6 +1,4 @@
 import type { PGlite } from "@electric-sql/pglite"
-import type { EstateSpec } from "@smp/factory-shared/schemas/infra"
-import type { RealmSpec } from "@smp/factory-shared/schemas/infra"
 import type {
   InterventionSpec,
   RolloutSpec,
@@ -17,7 +15,6 @@ import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 
 import type { Database } from "../db/connection"
-import { estate, realm } from "../db/schema/infra"
 import {
   componentDeployment,
   intervention,
@@ -65,38 +62,6 @@ describe("Ops service", () => {
       .values({ id, name: id, slug: id, type: "human", spec })
       .returning()
     return p
-  }
-
-  // Helper: create infra prereqs (estate + realm) and a site
-  async function createInfraPrereqs() {
-    const subSpec: EstateSpec = {
-      providerKind: "bare-metal",
-      lifecycle: "active",
-    }
-    const [sub] = await db
-      .insert(estate)
-      .values({
-        name: "test-estate",
-        slug: "test-estate",
-        type: "datacenter",
-        spec: subSpec,
-      })
-      .returning()
-    const rtSpec: RealmSpec = {
-      kubeconfigRef: "/tmp/test.yaml",
-      status: "ready",
-      endpoint: "localhost",
-    }
-    const [rt] = await db
-      .insert(realm)
-      .values({
-        name: "test-realm",
-        slug: "test-realm",
-        type: "k8s-cluster",
-        spec: rtSpec,
-      })
-      .returning()
-    return { estate: sub, realm: rt }
   }
 
   async function createSite(name = "prod-us", overrides?: Partial<SiteSpec>) {
@@ -232,14 +197,6 @@ describe("Ops service", () => {
         },
       ])
 
-      const staging = await db.select().from(release).where(
-        eq(
-          release.spec,
-          // We'll need a proper JSONB query — for now, fetch all and filter
-          release.spec
-        )
-      )
-      // Direct filter approach:
       const all = await db.select().from(release)
       const filtered = all.filter((r) => r.spec.status === "staging")
       expect(filtered).toHaveLength(1)

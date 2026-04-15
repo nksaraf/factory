@@ -623,6 +623,7 @@ Multi-provider identity sync across GitHub, Slack, Jira, Google with cross-provi
 - [ ] Build artifacts → artifact registry integration
 - [ ] Preview auto-sleep (hot→warm→cold tier transitions already in preview service cleanup loop)
 - [ ] Preview auth modes (public, team-only, password-protected — `authMode` column exists)
+- [ ] Site lifecycle hook (`api/src/reconciler/site-lifecycle-hook.ts`) — Phase 4 Step 9: post PR comments and update GitHub deployment status on site phase transitions (provisioning → active → decommissioned). Preview-type sites should create GitHub Deployments via the Checks API and post/update a status comment on the PR. Generic sites should log status transitions. Specs: `SiteObservedStatus.github.deploymentId` and `commentId` fields already exist in the schema.
 - [ ] Docker Compose runtime for previews — deploy preview containers via `docker compose up` on same network as factory API (no k8s needed, simplest path for single-VM deployments)
 - [ ] Migrate full Factory stack into k3s (postgres, spicedb, auth, factory API as k8s Deployments) for multi-node/multi-cluster production
 - [ ] Webhook retry/replay for failed deliveries
