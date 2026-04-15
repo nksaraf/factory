@@ -17,8 +17,9 @@ import { and, eq, gt, sql } from "drizzle-orm"
 
 import type { Database } from "../db/connection"
 import { eventSubscription } from "../db/schema/org"
-import { logger } from "../logger"
 import { matchTopic } from "../modules/events/topic-matcher"
+const log = (data: Record<string, unknown>, msg: string) =>
+  console.log(JSON.stringify({ ...data, msg }))
 import { newId } from "./id"
 import { createWebhook, sleep } from "./workflow-engine"
 import { getWorkflowDb } from "./workflow-helpers"
@@ -44,7 +45,7 @@ export async function waitForEvent<T>(
   const db = getWorkflowDb()
   const webhook = await createWebhook()
 
-  logger.info(
+  log(
     { eventName, match, timeoutSec },
     `waitForEvent: subscribing to ${eventName}`
   )
@@ -151,7 +152,7 @@ export async function matchAndNotifySubscriptions(
     return true
   })
 
-  logger.info(
+  log(
     { topic, triggerMatches: matched.length },
     "matchSubscriptions: matched triggers"
   )
@@ -167,13 +168,13 @@ export async function matchAndNotifySubscriptions(
         .update(eventSubscription)
         .set({ status: "fired" })
         .where(eq(eventSubscription.id, sub.id))
-      logger.info(
+      log(
         { topic, webhookUrl: sub.ownerId },
         "matchSubscriptions: woke workflow"
       )
     } catch (err) {
-      logger.warn(
-        { topic, webhookUrl: sub.ownerId, err },
+      log(
+        { topic, webhookUrl: sub.ownerId, err: String(err) },
         "matchSubscriptions: webhook POST failed"
       )
     }
