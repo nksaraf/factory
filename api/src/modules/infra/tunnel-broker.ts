@@ -191,9 +191,7 @@ export function createTunnelHandlers(opts: TunnelBrokerOptions) {
         if (msg.type === "register" && !state.tunnelId) {
           const subdomain = msg.subdomain || generateSubdomain()
           const routeFamily =
-            msg.routeFamily === "dev" || msg.routeFamily === "sandbox"
-              ? ("dev" as const)
-              : ("tunnel" as const)
+            msg.routeFamily === "dev" ? ("dev" as const) : ("tunnel" as const)
           logger.info(
             {
               subdomain,

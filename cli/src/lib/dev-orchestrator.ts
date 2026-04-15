@@ -660,41 +660,43 @@ export class DevOrchestrator {
       return
     }
 
-    // Spawn tunnel as a subprocess — Bun's WebSocket doesn't fire events
-    // reliably when the process has prior child_process.spawn() calls.
-    const { spawn } = await import("node:child_process")
-    const tunnelArgs = [
-      ...process.argv.slice(1, process.argv.indexOf("dev")),
-      "tunnel",
-      String(exposedPorts[0]),
-      "--subdomain",
-      workbenchSlug,
-      "--route-family",
-      "dev",
-      "--publish-ports",
-      exposedPorts.join(","),
-    ]
-    const tunnelProc = spawn(process.argv[0], tunnelArgs, {
-      stdio: "inherit",
-      env: process.env,
-    })
-
-    this.tunnelHandle = {
-      close() {
-        tunnelProc.kill("SIGTERM")
+    const { openTunnel } = await import("./tunnel-client.js")
+    const handle = await openTunnel(
+      {
+        port: exposedPorts[0],
+        subdomain: workbenchSlug,
+        routeFamily: "dev",
+        publishPorts: exposedPorts,
       },
-    }
+      {
+        onRegistered(info) {
+          console.log(`\n  Tunnel active!`)
+          console.log(`  URL:       ${info.url}`)
+          console.log(`  Subdomain: ${info.subdomain}`)
+          if (info.portUrls?.length) {
+            for (const pu of info.portUrls) {
+              console.log(`  Port ${pu.port}:   ${pu.url}`)
+            }
+          }
+        },
+        onReconnecting(attempt, delayMs) {
+          console.log(
+            `  Tunnel reconnecting (attempt ${attempt}, ${Math.round(delayMs / 1000)}s delay)...`
+          )
+        },
+        onReconnected(info) {
+          console.log(`  Tunnel reconnected! URL: ${info.url}`)
+        },
+        onError(err) {
+          console.error(`  Tunnel error: ${err.message}`)
+        },
+        onClose() {
+          console.log("  Tunnel closed.")
+        },
+      }
+    )
 
-    tunnelProc.on("exit", () => {
-      this.tunnelHandle = undefined
-    })
-
-    const cleanup = () => {
-      tunnelProc.kill("SIGTERM")
-      this.tunnelHandle = undefined
-    }
-    process.on("SIGINT", cleanup)
-    process.on("SIGTERM", cleanup)
+    this.tunnelHandle = handle
   }
 
   // ------------------------------------------------------------------

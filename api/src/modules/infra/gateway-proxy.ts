@@ -7,11 +7,11 @@ import type { StreamManager } from "./tunnel-streams"
 
 const logger = rootLogger.child({ module: "gateway-proxy" })
 
-export type RouteFamily = "tunnel" | "preview" | "sandbox" | "dev"
+export type RouteFamily = "tunnel" | "preview" | "dev"
 
 export interface ParsedHost {
   family: RouteFamily
-  slug: string // base sandbox/preview slug (e.g. "my-env")
+  slug: string // base slug (e.g. "my-env")
   port?: number // from -p{port} suffix (e.g. 3000)
   endpointName?: string // from --{name} suffix (e.g. "terminal")
   fullSubdomain: string // full subdomain for route lookup (e.g. "my-env-p3000" or "my-env--terminal")
@@ -27,7 +27,7 @@ function getFamilySuffixes(): { suffix: string; family: RouteFamily }[] {
     { suffix: `.tunnel.${domain}`, family: "tunnel" },
     { suffix: `.preview.${domain}`, family: "preview" },
     { suffix: `.dev.${domain}`, family: "dev" },
-    { suffix: `.sandbox.${domain}`, family: "sandbox" },
+    { suffix: `.sandbox.${domain}`, family: "dev" },
   ]
 }
 
@@ -203,7 +203,6 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       tunnel: `.tunnel.${gwd}`,
       preview: `.preview.${gwd}`,
       dev: `.dev.${gwd}`,
-      sandbox: `.sandbox.${gwd}`,
     }
     const domain = parsed.fullSubdomain + suffixMap[parsed.family]
 
@@ -217,13 +216,8 @@ export function createGatewayServer(opts: GatewayServerOptions) {
       "gateway route matched"
     )
 
-    // Auth enforcement for sandbox/preview routes
-    if (
-      opts.checkAuth &&
-      (route.kind === "sandbox" ||
-        route.kind === "dev" ||
-        route.kind === "preview")
-    ) {
+    // Auth enforcement for dev/preview routes
+    if (opts.checkAuth && (route.kind === "dev" || route.kind === "preview")) {
       const authMode = route.metadata?.authMode ?? "private"
       if (authMode !== "public") {
         const authResult = await opts.checkAuth(req, {

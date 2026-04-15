@@ -7,8 +7,7 @@
  * `.dx/dev/<name>.log` files rather than container logs.
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
-import { spawn } from "node:child_process"
-import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 import {
@@ -292,16 +291,16 @@ export class NativeExecutor implements Executor {
     }
 
     const cwd = resolved.devCommand ? this.config.rootDir : resolved.absPath
-    const logFd = openSync(logFile, "w")
-    const proc = spawn(cmd[0], cmd.slice(1), {
+    const proc = Bun.spawn(cmd, {
       cwd,
-      detached: true,
-      stdio: ["ignore", logFd, logFd],
+      stdin: "ignore",
+      stdout: Bun.file(logFile),
+      stderr: Bun.file(logFile),
       env: procEnv,
     })
     proc.unref()
 
-    const pid = proc.pid!
+    const pid = proc.pid
 
     // Write status
     this.config.site.updateComponentStatus(this.config.sdSlug, resolved.name, {

@@ -7,14 +7,14 @@ import { listRoutes } from "./gateway.service"
 
 /**
  * Generates Traefik file-provider YAML from factory-hosted routes
- * (routes where siteId is null — tunnels, factory sandboxes, preview envs).
+ * (routes where siteId is null — tunnels, dev environments, preview envs).
  *
  * Traefik watches the output directory and picks up changes automatically.
  */
 
 /**
  * Only these route kinds get per-route Traefik config.
- * High-cardinality kinds (tunnel, preview, sandbox) are routed
+ * High-cardinality kinds (tunnel, preview, dev) are routed
  * through the factory gateway via static wildcard Traefik routers.
  */
 export const KINDS_WITH_TRAEFIK_ROUTES = ["ingress", "custom_domain"] as const
@@ -165,7 +165,7 @@ export async function syncFactoryRoutes(
     byKind.set(r.kind, group)
   }
 
-  // Write a file per kind (sandbox-routes.yml, tunnel-routes.yml, etc.)
+  // Write a file per kind (tunnel-routes.yml, ingress-routes.yml, etc.)
   const kinds = [...KINDS_WITH_TRAEFIK_ROUTES]
   for (const kind of kinds) {
     const routes = byKind.get(kind) ?? []

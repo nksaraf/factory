@@ -43,9 +43,9 @@ describe("parseHostname", () => {
     })
   })
 
-  it("parses sandbox hostname (legacy)", () => {
+  it("parses sandbox hostname as dev", () => {
     expect(parseHostname("dev-nikhil-abc.sandbox.lepton.software")).toEqual({
-      family: "sandbox",
+      family: "dev",
       slug: "dev-nikhil-abc",
       fullSubdomain: "dev-nikhil-abc",
     })
