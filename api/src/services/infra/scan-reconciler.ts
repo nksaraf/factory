@@ -637,13 +637,17 @@ export async function reconcileHostScan(
         let phase: RouteStatus["phase"] = "stale"
         const resolvedTargets: RouteStatus["resolvedTargets"] = []
 
-        // Check if backend was resolved on proxy host (container match)
+        // Check if backend was resolved on proxy host (container match).
+        // componentSlug must match how the reconciler names components:
+        //   `${composeProject}-${composeService}` (see line ~301).
         for (const backend of router.backends) {
           if (backend.container) {
             phase = "resolved"
+            const project = slugify(backend.container.composeProject)
+            const service = slugify(backend.container.composeService)
             resolvedTargets.push({
               systemDeploymentSlug: backend.container.composeProject,
-              componentSlug: backend.container.composeService,
+              componentSlug: `${project}-${service}`,
               address: backend.url,
               port: extractPort(backend.url) ?? 80,
               weight: 100,

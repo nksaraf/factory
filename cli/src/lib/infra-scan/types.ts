@@ -106,6 +106,8 @@ export type ContainerIpEntry = {
   containerName: string
   composeProject: string
   composeService: string
+  /** Host-side port bindings, e.g. [8002] for "0.0.0.0:8002->7777/tcp". */
+  hostPorts?: number[]
 }
 
 export type {

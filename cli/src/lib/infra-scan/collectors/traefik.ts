@@ -143,14 +143,23 @@ export async function collectTraefikRoutes(
   // or by compose service DNS name (e.g. http://data-management:8091).
   const ipLookup = new Map<string, ContainerIpEntry>()
   const serviceNameLookup = new Map<string, ContainerIpEntry[]>()
+  const hostPortLookup = new Map<number, ContainerIpEntry>()
   if (containerIpMap) {
     for (const entry of containerIpMap) {
       ipLookup.set(entry.ip, entry)
       const existing = serviceNameLookup.get(entry.composeService) ?? []
       existing.push(entry)
       serviceNameLookup.set(entry.composeService, existing)
+      for (const hp of entry.hostPorts ?? []) hostPortLookup.set(hp, entry)
     }
   }
+
+  const HOST_ALIASES = new Set([
+    "host.docker.internal",
+    "gateway.docker.internal",
+    "localhost",
+    "127.0.0.1",
+  ])
 
   // Build service lookup: service name → backends
   const serviceMap = new Map<string, ScanBackend[]>()
@@ -169,6 +178,13 @@ export async function collectTraefikRoutes(
           if (!containerEntry) {
             const matches = serviceNameLookup.get(hostname)
             if (matches && matches.length > 0) containerEntry = matches[0]
+          }
+          // 3. Fall back to host-port mapping for localhost / host.docker.internal
+          if (!containerEntry && HOST_ALIASES.has(hostname)) {
+            const port = parseInt(u.port, 10)
+            if (Number.isFinite(port)) {
+              containerEntry = hostPortLookup.get(port) ?? undefined
+            }
           }
           if (containerEntry) {
             backend.container = {
@@ -260,7 +276,8 @@ export async function collectTraefikRoutes(
 export async function collectContainerIpMap(
   sshArgs?: string[]
 ): Promise<ContainerIpEntry[]> {
-  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}'`
+  // Inspect adds a 5th column: host port bindings (space-separated host ports).
+  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range $p, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{.HostPort}} {{end}}{{end}}'`
 
   let args: string[]
   if (sshArgs) {
@@ -282,16 +299,26 @@ export async function collectContainerIpMap(
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim()
     if (!trimmed) continue
-    // Format: /container-name|172.18.0.19|compose-project|compose-service
+    // Format: /container-name|172.18.0.19|compose-project|compose-service|8002 8003
     const parts = trimmed.split("|")
     if (parts.length < 4) continue
-    const containerName = parts[0].replace(/^\//, "") // Remove leading /
+    const containerName = parts[0].replace(/^\//, "")
     const ip = parts[1]
     const composeProject = parts[2]
     const composeService = parts[3]
     if (!ip || !composeProject || !composeService) continue
+    const hostPorts = (parts[4] ?? "")
+      .split(/\s+/)
+      .map((p) => parseInt(p, 10))
+      .filter((p) => Number.isFinite(p) && p > 0)
 
-    entries.push({ ip, containerName, composeProject, composeService })
+    entries.push({
+      ip,
+      containerName,
+      composeProject,
+      composeService,
+      hostPorts: hostPorts.length ? Array.from(new Set(hostPorts)) : undefined,
+    })
   }
 
   return entries

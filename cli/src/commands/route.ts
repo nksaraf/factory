@@ -666,7 +666,15 @@ function renderTrace(
     // For routes/dns-domains, show the domain/fqdn instead of the slugified internal name
     let label: string
     if (ROUTE_TYPES.has(rawType)) {
-      label = String(e.domain ?? e.name ?? e.slug ?? "?")
+      const domain = String(e.domain ?? "")
+      const pathPrefix = String(
+        (e.spec as Record<string, unknown> | undefined)?.pathPrefix ?? ""
+      )
+      if (domain && domain !== "*" && pathPrefix)
+        label = `${domain}${pathPrefix}`
+      else if (pathPrefix) label = pathPrefix
+      else if (domain) label = domain
+      else label = String(e.name ?? e.slug ?? "?")
     } else if (DNS_DOMAIN_TYPES.has(rawType)) {
       label = String(e.fqdn ?? e.name ?? e.slug ?? "?")
     } else {
