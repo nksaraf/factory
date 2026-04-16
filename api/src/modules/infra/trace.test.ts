@@ -300,6 +300,9 @@ function mockReader(opts: {
     async findHostForRealm(realmId) {
       return hostForRealm[realmId] ?? null
     },
+    async findComponentBySlug() {
+      return null
+    },
   }
 }
 
@@ -551,6 +554,9 @@ describe("traceRequest", () => {
         return []
       },
       async findHostForRealm() {
+        return null
+      },
+      async findComponentBySlug() {
         return null
       },
     }

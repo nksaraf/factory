@@ -22,6 +22,7 @@ import {
   service,
 } from "../../db/schema/infra"
 import { componentDeployment } from "../../db/schema/ops"
+import { component } from "../../db/schema/software"
 import { NotFoundError } from "../../lib/errors"
 
 // ── Common types ────────────────────────────────────────────
@@ -121,6 +122,7 @@ export interface RequestGraphReader extends GraphReader {
     request: RequestContext
   ): Promise<MatchedRoute[]>
   findHostForRealm(realmId: string): Promise<EntityRow | null>
+  findComponentBySlug(slug: string): Promise<EntityRow | null>
 }
 
 const MAX_DEPTH = 20
@@ -433,61 +435,88 @@ export async function traceRequest(
     return node
   }
 
-  // At a reverse-proxy realm: look up routes matching the request
+  // At a reverse-proxy realm: look up routes matching the request.
+  // Follow only the single best-matching route (most-specific wins).
   if (startKind === "realm" && entity.type === "reverse-proxy") {
     const routes = await reader.findRoutesOnRealm(startId, request)
-    for (const r of routes) {
-      const routeSpec = r.spec
-      const targetPort =
-        (routeSpec.targetPort as number | undefined) ?? request.port
+    const best = routes[0]
+    if (!best) return node
 
-      const updatedRequest: RequestContext = { ...request, port: targetPort }
+    const routeSpec = best.spec
+    const targetPort =
+      (routeSpec.targetPort as number | undefined) ?? request.port
+    const updatedRequest: RequestContext = { ...request, port: targetPort }
 
-      // Find outbound links from this route
-      const routeLinks = await reader.findLinks("route", r.id, "outbound")
-      if (routeLinks.length > 0) {
-        // Proxy links from the realm for this route's domain — follow them
-        for (const link of routeLinks) {
-          const child = await traceRequest(
-            reader,
-            updatedRequest,
-            link.targetKind,
-            link.targetId,
-            depth + 1,
-            visited
-          )
-          child.link = link
-          node.children.push(child)
-        }
-      } else {
-        // No route-level links — try realm-level outbound links filtered by this route's domain
-        const realmLinks = await reader.findLinks("realm", startId, "outbound")
-        const routeRequest: RequestContext = {
-          ...updatedRequest,
-          domain: r.domain !== "*" ? r.domain : request.domain,
-        }
-        const realmMatched = filterByRequest(realmLinks, routeRequest)
-        for (const link of realmMatched) {
-          const child = await traceRequest(
-            reader,
-            updatedRequest,
-            link.targetKind,
-            link.targetId,
-            depth + 1,
-            visited
-          )
-          child.link = link
-          child.weight =
-            (link.spec?.loadBalancing as { weight?: number } | undefined)
-              ?.weight ?? undefined
-          node.children.push(child)
-        }
-      }
-
-      // For domain traces, only follow the best matching route (not all)
-      // Catch-all routes are already sorted last
-      if (node.children.length > 0) break
+    const routeEntity = (await reader.findEntity("route", best.id)) ?? {
+      id: best.id,
+      slug: best.slug,
+      name: best.name,
+      type: "route",
     }
+    const routeNode: TraceNode = { entity: routeEntity, children: [] }
+
+    // 1. Follow explicit outbound links from the route (if any).
+    const routeLinks = await reader.findLinks("route", best.id, "outbound")
+    for (const link of routeLinks) {
+      const child = await traceRequest(
+        reader,
+        updatedRequest,
+        link.targetKind,
+        link.targetId,
+        depth + 1,
+        visited
+      )
+      child.link = link
+      routeNode.children.push(child)
+    }
+
+    // 2. Otherwise try realm-level outbound links filtered by domain.
+    if (routeNode.children.length === 0) {
+      const realmLinks = await reader.findLinks("realm", startId, "outbound")
+      const routeRequest: RequestContext = {
+        ...updatedRequest,
+        domain: best.domain !== "*" ? best.domain : request.domain,
+      }
+      const realmMatched = filterByRequest(realmLinks, routeRequest)
+      for (const link of realmMatched) {
+        const child = await traceRequest(
+          reader,
+          updatedRequest,
+          link.targetKind,
+          link.targetId,
+          depth + 1,
+          visited
+        )
+        child.link = link
+        child.weight =
+          (link.spec?.loadBalancing as { weight?: number } | undefined)
+            ?.weight ?? undefined
+        routeNode.children.push(child)
+      }
+    }
+
+    // 3. Fall back to the route's resolvedTargets (populated by the scanner
+    //    when the backend is a container on the same host — no explicit link
+    //    exists but we know which component the proxy forwards to).
+    if (routeNode.children.length === 0) {
+      const status = (routeEntity.status ?? {}) as {
+        resolvedTargets?: {
+          componentSlug?: string
+          systemDeploymentSlug?: string
+          port?: number
+        }[]
+      }
+      const seen = new Set<string>()
+      for (const target of status.resolvedTargets ?? []) {
+        const slug = target.componentSlug
+        if (!slug || seen.has(slug)) continue
+        seen.add(slug)
+        const comp = await reader.findComponentBySlug(slug)
+        if (comp) routeNode.children.push({ entity: comp, children: [] })
+      }
+    }
+
+    node.children.push(routeNode)
     return node
   }
 
@@ -504,6 +533,7 @@ const ENTITY_TABLES: Record<string, { table: any; idCol: any }> = {
   "ip-address": { table: ipAddress, idCol: ipAddress.id },
   "dns-domain": { table: dnsDomain, idCol: dnsDomain.id },
   route: { table: routeTable, idCol: routeTable.id },
+  component: { table: component, idCol: component.id },
   "component-deployment": {
     table: componentDeployment,
     idCol: componentDeployment.id,
@@ -597,12 +627,15 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         .from(routeTable)
         .where(eq(routeTable.realmId, realmId))
 
-      // Match routes against request context
+      // Match routes against request context.
+      // Request path defaults to "/" so path-prefix routes can match even when
+      // the user traces a bare domain (e.g. https://trafficure.com).
+      const requestPath = request.path ?? "/"
       const matched: MatchedRoute[] = []
       for (const r of rows) {
         const spec = (r.spec ?? {}) as Record<string, unknown>
         const routeDomain = r.domain
-        const routePath = spec.pathPrefix as string | undefined
+        const routePath = (spec.pathPrefix as string | undefined) ?? ""
         const routePriority = (spec.priority as number | undefined) ?? 0
 
         // Domain matching: exact, wildcard, or catch-all (*)
@@ -617,10 +650,9 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
 
         if (!domainMatch) continue
 
-        // Path matching: if route has pathPrefix, request path must start with it
-        if (routePath && request.path && !request.path.startsWith(routePath)) {
-          continue
-        }
+        // Path matching: request path must start with the route's pathPrefix.
+        // Empty pathPrefix matches anything.
+        if (routePath && !requestPath.startsWith(routePath)) continue
 
         matched.push({
           id: r.id,
@@ -633,11 +665,15 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         })
       }
 
-      // Sort by priority descending, then catch-all (*) last
+      // Sort most-specific first: catch-all domains last, then by priority,
+      // then by longest pathPrefix (so /api/v1/foo beats /api).
       matched.sort((a, b) => {
         if (a.domain === "*" && b.domain !== "*") return 1
         if (a.domain !== "*" && b.domain === "*") return -1
-        return b.priority - a.priority
+        if (b.priority !== a.priority) return b.priority - a.priority
+        const aPath = (a.spec.pathPrefix as string | undefined) ?? ""
+        const bPath = (b.spec.pathPrefix as string | undefined) ?? ""
+        return bPath.length - aPath.length
       })
 
       return matched
@@ -656,6 +692,15 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         .where(eq(realmHost.realmId, realmId))
         .limit(1)
 
+      return (row as EntityRow) ?? null
+    },
+
+    async findComponentBySlug(slug) {
+      const [row] = await db
+        .select()
+        .from(component)
+        .where(eq(component.slug, slug))
+        .limit(1)
       return (row as EntityRow) ?? null
     },
   }

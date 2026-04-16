@@ -138,11 +138,17 @@ export async function collectTraefikRoutes(
     fetchJson<TraefikService[]>(apiUrl, "/api/http/services"),
   ])
 
-  // Build container IP lookup for resolving backends
+  // Build container lookups for resolving backends.
+  // Traefik backend URLs can reference containers by either IP (172.x.x.x)
+  // or by compose service DNS name (e.g. http://data-management:8091).
   const ipLookup = new Map<string, ContainerIpEntry>()
+  const serviceNameLookup = new Map<string, ContainerIpEntry[]>()
   if (containerIpMap) {
     for (const entry of containerIpMap) {
       ipLookup.set(entry.ip, entry)
+      const existing = serviceNameLookup.get(entry.composeService) ?? []
+      existing.push(entry)
+      serviceNameLookup.set(entry.composeService, existing)
     }
   }
 
@@ -154,10 +160,16 @@ export async function collectTraefikRoutes(
       for (const server of svc.loadBalancer.servers) {
         const backend: ScanBackend = { url: server.url, weight: server.weight }
 
-        // Resolve backend IP to container
         try {
           const u = new URL(server.url)
-          const containerEntry = ipLookup.get(u.hostname)
+          const hostname = u.hostname
+          // 1. Try IP lookup (container IPs like 172.x.x.x)
+          let containerEntry = ipLookup.get(hostname)
+          // 2. Fall back to compose service name (Docker DNS)
+          if (!containerEntry) {
+            const matches = serviceNameLookup.get(hostname)
+            if (matches && matches.length > 0) containerEntry = matches[0]
+          }
           if (containerEntry) {
             backend.container = {
               name: containerEntry.containerName,
@@ -165,8 +177,7 @@ export async function collectTraefikRoutes(
               composeService: containerEntry.composeService,
             }
           } else {
-            // Not a container IP — might be another host
-            backend.hostIp = u.hostname
+            backend.hostIp = hostname
           }
         } catch {
           /* invalid URL — skip resolution */
