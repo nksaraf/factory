@@ -127,16 +127,15 @@ async function fetchTraefikApi<T>(apiUrl: string, path: string): Promise<T> {
  */
 export async function collectTraefikRoutes(
   apiUrl: string,
-  containerIpMap?: ContainerIpEntry[]
+  containerIpMap?: ContainerIpEntry[],
+  fetchJson: <T>(apiUrl: string, path: string) => Promise<T> = fetchTraefikApi
 ): Promise<ScanReverseProxy> {
   // Fetch version, entrypoints, routers, and services in parallel
   const [version, entrypoints, routers, services] = await Promise.all([
-    fetchTraefikApi<TraefikVersion>(apiUrl, "/api/version").catch(() => null),
-    fetchTraefikApi<TraefikEntrypoint[]>(apiUrl, "/api/entrypoints").catch(
-      () => []
-    ),
-    fetchTraefikApi<TraefikRouter[]>(apiUrl, "/api/http/routers"),
-    fetchTraefikApi<TraefikService[]>(apiUrl, "/api/http/services"),
+    fetchJson<TraefikVersion>(apiUrl, "/api/version").catch(() => null),
+    fetchJson<TraefikEntrypoint[]>(apiUrl, "/api/entrypoints").catch(() => []),
+    fetchJson<TraefikRouter[]>(apiUrl, "/api/http/routers"),
+    fetchJson<TraefikService[]>(apiUrl, "/api/http/services"),
   ])
 
   // Build container IP lookup for resolving backends
@@ -309,13 +308,14 @@ export function detectTraefikApiUrl(
 
   if (!isTraefik) return null
 
-  // Traefik API defaults to port 8080 inside the container.
-  // Check if any mapped port looks like 8080 or a common API port.
-  // The port list contains host-mapped ports.
+  // Traefik API defaults to container port 8080, but the host-side mapping
+  // can land on any high port (we've seen 8080, 8085, 9081, etc.).
+  // Skip well-known entrypoint ports and prefer admin-ish ranges.
+  const entrypointPorts = new Set([80, 443, 8443])
   const apiPort =
     service.ports.find((p) => p === 8080) ??
     service.ports.find((p) => p === 8085) ??
-    service.ports.find((p) => p > 8000 && p < 9000 && p !== 8443)
+    service.ports.find((p) => p > 8000 && p < 10000 && !entrypointPorts.has(p))
 
   if (apiPort) {
     return `http://${hostAddress}:${apiPort}`

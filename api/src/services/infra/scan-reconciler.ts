@@ -621,13 +621,16 @@ export async function reconcileHostScan(
       const proxyRealmId = proxyRealmIdMap.get(proxy.name)
       if (!proxyRealmId) continue
 
+      const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
       for (const router of proxy.routers) {
         // Catch-all routers (no Host rule) get domain "*" with lower priority
         const domain = router.domains[0] ?? "*"
+        // Scope route slug by proxy so the same domain can exist on multiple
+        // Traefik instances (e.g. edge proxy forwarding to a nested proxy).
         const routeSlug =
           domain === "*"
-            ? slugify(`${hostSlug}-${proxy.engine}-catchall-${router.name}`)
-            : slugify(domain)
+            ? slugify(`${proxySlug}-catchall-${router.name}`)
+            : slugify(`${proxySlug}-${domain}`)
         currentRouterSlugs.add(routeSlug)
 
         // Determine resolution status from crawl data

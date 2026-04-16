@@ -11,6 +11,11 @@ import {
   styleSuccess,
 } from "../../cli-style.js"
 import { type SshOptions, buildSshArgs } from "../ssh-utils.js"
+import {
+  collectContainerIpMap,
+  collectTraefikRoutes,
+  detectTraefikApiUrl,
+} from "./collectors/traefik.js"
 import type { ScanResult, ScanReverseProxy } from "./types.js"
 
 // ── Types ────────────────────────────────────────────────────
@@ -53,6 +58,71 @@ interface PortMapping {
   composeProject: string
   composeService: string
   image: string
+}
+
+/**
+ * Fetch JSON from a URL by running curl on the remote host via SSH.
+ * Used to query Traefik APIs that are only reachable from the host itself.
+ */
+async function sshCurlJson<T>(
+  sshBaseArgs: string[],
+  apiUrl: string,
+  path: string
+): Promise<T> {
+  const url = `${apiUrl.replace(/\/$/, "")}${path}`
+  const proc = Bun.spawn(
+    ["ssh", ...sshBaseArgs, `curl -sf --max-time 10 '${url}'`],
+    { stdout: "pipe", stderr: "pipe", timeout: 15_000 }
+  )
+  const [out, exit] = await Promise.all([
+    new Response(proc.stdout).text(),
+    proc.exited,
+  ])
+  if (exit !== 0 || !out.trim()) {
+    throw new Error(`curl ${url} failed (exit ${exit})`)
+  }
+  return JSON.parse(out) as T
+}
+
+/**
+ * Detect Traefik services in the scan result and query their APIs via SSH curl.
+ * Populates `scanResult.reverseProxies` with discovered routes.
+ */
+async function crawlTraefikViaSsh(
+  scanResult: ScanResult,
+  sshBaseArgs: string[]
+): Promise<void> {
+  const traefikServices = scanResult.services.filter(
+    (svc) => detectTraefikApiUrl(svc, "localhost") !== null
+  )
+  if (traefikServices.length === 0) return
+
+  let containerIpMap: Awaited<ReturnType<typeof collectContainerIpMap>> = []
+  try {
+    containerIpMap = await collectContainerIpMap(sshBaseArgs)
+    if (containerIpMap.length > 0) {
+      scanResult.containerIpMap = containerIpMap
+    }
+  } catch {
+    /* proceed without container IP map */
+  }
+
+  for (const svc of traefikServices) {
+    const apiUrl = detectTraefikApiUrl(svc, "localhost")
+    if (!apiUrl) continue
+    try {
+      const proxy = await collectTraefikRoutes(
+        apiUrl,
+        containerIpMap,
+        (url, p) => sshCurlJson(sshBaseArgs, url, p)
+      )
+      proxy.containerName = svc.name
+      scanResult.reverseProxies = scanResult.reverseProxies ?? []
+      scanResult.reverseProxies.push(proxy)
+    } catch {
+      /* Traefik API unreachable on remote host — skip */
+    }
+  }
 }
 
 /**
@@ -116,6 +186,11 @@ async function scanRemoteHost(
   }
 
   const scanResult = JSON.parse(collectorStdout.slice(jsonStart)) as ScanResult
+
+  // Detect and crawl Traefik instances on this host via SSH curl.
+  // We run curl on the remote host so the Traefik API is reachable via
+  // localhost even when it isn't exposed to the scanner machine.
+  await crawlTraefikViaSsh(scanResult, sshBaseArgs)
 
   // Parse port mappings: "name|image|ports"
   // Container name convention: "{project}-{service}-{number}" or just "{name}"
