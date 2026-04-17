@@ -13,8 +13,12 @@ export function isDockerRunning(): boolean {
 
 export interface ComposeServiceStatus {
   name: string
-  status: string // "running", "healthy", "unhealthy", "exited", "paused", etc.
-  ports: string // formatted "PublishedPort→TargetPort, ..."
+  /** Container lifecycle state: "running", "exited", "created", "restarting", "paused", "dead", "removing". */
+  status: string
+  /** Healthcheck result: "healthy", "unhealthy", "starting", or "" when no healthcheck is configured. */
+  health: string
+  /** Formatted "PublishedPort→TargetPort, ..." */
+  ports: string
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +203,7 @@ export class Compose {
         services.push({
           name: obj.Service || obj.Name || "unknown",
           status: obj.State || obj.Status || "unknown",
+          health: typeof obj.Health === "string" ? obj.Health : "",
           ports: obj.Publishers
             ? [
                 ...new Set(

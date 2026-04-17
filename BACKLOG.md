@@ -1043,3 +1043,9 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] Add non-Cloudflare DNS provider sync adapters (Route53 first, then generic provider abstraction).
 - [ ] Fix `gateway-service` full-suite test fixture mismatch with current `system_deployment` schema (`workbench_id` insert failure) so full test run is green.
 - [ ] Fix `infra-controller` host→realm relation test (`GET /hosts/:id/realms` returning empty) by aligning relation wiring or test setup with current v2 model.
+
+---
+
+## dx CLI follow-ups
+
+- [ ] **Extract shared deps-install dispatcher** — `cli/src/lib/prelude.ts` and `cli/src/commands/sync.ts` both dispatch pnpm/bun/yarn/npm installs via an internal lockfile→command map. Extract to a shared primitive (`cli/src/lib/install-dispatcher.ts`) when a third caller appears or when they diverge. Leaving duplicated for now — premature extraction would lock an API before the second consumer's needs are settled.

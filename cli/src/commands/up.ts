@@ -58,7 +58,15 @@ export function upCommand(app: DxBase) {
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
         if (project.composeFiles.length === 0) {
-          exitWithError(f, "No docker-compose files found.")
+          // Package-only projects (marketing sites, etc.) have no compose
+          // to bring up. Successful no-op is friendlier than a fatal error.
+          if (!f.quiet) {
+            console.log(
+              "  Nothing to bring up — this project has no docker-compose services."
+            )
+            console.log("  Run `dx dev` to start any native dev servers.")
+          }
+          return
         }
 
         // Resolve all ports through PortManager

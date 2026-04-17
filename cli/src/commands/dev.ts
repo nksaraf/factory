@@ -7,7 +7,7 @@ import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { DevOrchestrator } from "../lib/dev-orchestrator.js"
 import { resolveDxContext } from "../lib/dx-context.js"
-import { hooksHealthy, installHooks } from "../lib/hooks.js"
+import { runPrelude } from "../lib/prelude.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 
@@ -71,19 +71,39 @@ export function devCommand(app: DxBase) {
         short: "t",
         description: "Expose dev ports via public tunnel URLs",
       },
+      console: {
+        type: "boolean" as const,
+        description:
+          "Start the local dev console web UI (default: true, use --no-console to disable)",
+      },
+      "expose-console": {
+        type: "boolean" as const,
+        description:
+          "Publish the dev console through the tunnel (off by default; the console is unauthenticated)",
+      },
+      prelude: {
+        type: "boolean" as const,
+        description:
+          "Run cached prelude before dev (default: true, use --no-prelude to skip)",
+      },
+      fresh: {
+        type: "boolean" as const,
+        description: "Invalidate prelude stamps and re-run every step",
+      },
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
 
       try {
-        // Pre-flight: ensure hooks are healthy
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
 
-        if (!hooksHealthy(project.rootDir)) {
-          if (!f.quiet) console.log("  Syncing git hooks...")
-          installHooks(project.rootDir)
-        }
+        // Cached prelude — one-command experience: git clone → cd → dx dev
+        await runPrelude(ctx, {
+          noPrelude: flags.prelude === false,
+          fresh: Boolean(flags.fresh),
+          quiet: Boolean(f.quiet),
+        })
 
         // Pre-flight: run codegen
         const codegen = ctx.package?.toolchain.codegen ?? []
@@ -108,6 +128,21 @@ export function devCommand(app: DxBase) {
         // Orchestrate
         const orch = await DevOrchestrator.create({ quiet: f.quiet })
 
+        // Start the dev console before starting services so the console
+        // port is allocated and available for the tunnel's publishPorts.
+        const consoleEnabled = flags.console !== false
+        if (consoleEnabled && !flags["dry-run"]) {
+          try {
+            const info = await orch.startConsole()
+            if (!f.quiet) {
+              console.log(`  Dev Console: ${info.url}`)
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error(`  Dev Console failed to start: ${msg}`)
+          }
+        }
+
         const conn = await orch.startDevSession({
           components: args.components,
           connectTo: flags["connect-to"] as string | undefined,
@@ -118,6 +153,7 @@ export function devCommand(app: DxBase) {
           restart: !!flags["restart"],
           noBuild: flags.build === false,
           tunnel: !!flags.tunnel,
+          exposeConsole: !!flags["expose-console"],
           quiet: f.quiet,
         })
 
@@ -137,9 +173,10 @@ export function devCommand(app: DxBase) {
           console.log(`\nUse ${styleMuted("dx ps")} to see all services.`)
         }
 
-        if (flags.tunnel) {
+        const keepAlive = flags.tunnel || (consoleEnabled && !flags["dry-run"])
+        if (keepAlive) {
           console.log(
-            `${styleMuted("Tunnel running in foreground. Press Ctrl+C to stop.")}`
+            `${styleMuted("Running in foreground. Press Ctrl+C to stop.")}`
           )
           await new Promise<void>((resolve) => {
             process.on("SIGINT", () => {

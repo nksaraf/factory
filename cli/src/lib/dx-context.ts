@@ -12,7 +12,6 @@
  * Lower tiers imply higher ones: needing the workbench tier (`need: "workbench"`) implies "project" and "host".
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
-import { findComposeRoot } from "@smp/factory-shared/config-loader"
 import type { ConventionsConfig } from "@smp/factory-shared/conventions-schema"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
@@ -39,7 +38,7 @@ import {
   fromCwd as monorepoFromCwd,
 } from "./monorepo-topology.js"
 import { PortManager } from "./port-manager.js"
-import { ProjectContext } from "./project.js"
+import { ProjectContext, findProjectRoot } from "./project.js"
 import {
   type DetectedToolchain,
   detectToolchain,
@@ -299,13 +298,13 @@ export async function resolveDxContext(opts: {
     case "project":
       if (!ctx.project)
         throw new Error(
-          "Not inside a project directory (no docker-compose.yaml found)."
+          "Not inside a project directory (need docker-compose.yaml OR package.json with a `dx` block)."
         )
       break
     case "workbench":
       if (!ctx.project)
         throw new Error(
-          "Not inside a project directory (no docker-compose.yaml found)."
+          "Not inside a project directory (need docker-compose.yaml OR package.json with a `dx` block)."
         )
       if (!ctx.workbench)
         throw new Error("Not inside a workbench checkout (git required).")
@@ -313,7 +312,7 @@ export async function resolveDxContext(opts: {
     case "package":
       if (!ctx.project)
         throw new Error(
-          "Not inside a project directory (no docker-compose.yaml found)."
+          "Not inside a project directory (need docker-compose.yaml OR package.json with a `dx` block)."
         )
       if (!ctx.package) throw new Error("Not inside a package directory.")
       break
@@ -357,12 +356,18 @@ async function resolveHostContext(): Promise<HostContext> {
 }
 
 function resolveProjectContextData(cwd: string): ProjectContextData | null {
-  // Check if we're inside a project (docker-compose root)
-  const rootDir = findComposeRoot(cwd)
-  if (!rootDir) return null
+  // A project root is either a docker-compose root (existing convention) or a
+  // directory with a package.json that declares a `dx` block (package-only
+  // projects such as marketing-* sites).
+  const found = findProjectRoot(cwd)
+  if (!found) return null
+  const { rootDir, mode } = found
 
-  // Use existing ProjectContext as the resolution engine
-  const project = ProjectContext.fromDir(rootDir)
+  // Use existing ProjectContext as the resolution engine.
+  const project =
+    mode === "package"
+      ? ProjectContext.fromPackageJson(rootDir)
+      : ProjectContext.fromDir(rootDir)
 
   // Discover monorepo packages (fails gracefully if not a monorepo)
   let monorepoPackages: MonorepoPackage[] = []
