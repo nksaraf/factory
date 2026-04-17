@@ -468,6 +468,21 @@ function entitySummary(
       if (!eps?.length) return undefined
       return eps.map((e) => `${e.name}(:${e.port})`).join(", ")
     }
+    case "service":
+    case "component":
+    case "component-deployment":
+    case "container": {
+      const ports = spec.ports as
+        | Array<{ name?: string; port: number; protocol?: string }>
+        | undefined
+      if (ports?.length) {
+        return ports
+          .slice(0, 3)
+          .map((p) => `:${p.port}`)
+          .join(", ")
+      }
+      return undefined
+    }
     default:
       return undefined
   }
@@ -510,6 +525,10 @@ function linkLabel(
   if (node.link.type === "nat") {
     const desc = str(spec.description) ?? str(spec.device)
     if (desc) extras.push(`(${desc})`)
+  }
+  if (node.link.type === "forward") {
+    const addr = str(spec.address)
+    if (addr) extras.push(addr)
   }
   if (node.link.type === "proxy") {
     const match = spec.match as

@@ -504,6 +504,7 @@ export async function traceRequest(
           componentSlug?: string
           systemDeploymentSlug?: string
           port?: number
+          address?: string
         }[]
       }
       const seen = new Set<string>()
@@ -512,7 +513,28 @@ export async function traceRequest(
         if (!slug || seen.has(slug)) continue
         seen.add(slug)
         const comp = await reader.findComponentBySlug(slug)
-        if (comp) routeNode.children.push({ entity: comp, children: [] })
+        if (!comp) continue
+        // Synthesize a link so the renderer can show the forwarding port/address.
+        const syntheticLink: LinkRow = {
+          id: `synthetic-${best.id}-${slug}`,
+          slug: `forward-${slug}`,
+          name: `forward to ${slug}`,
+          type: "forward",
+          sourceKind: "route",
+          sourceId: best.id,
+          targetKind: "component",
+          targetId: comp.id,
+          spec: {
+            egressPort: target.port,
+            egressProtocol: "http",
+            address: target.address,
+          },
+        }
+        routeNode.children.push({
+          entity: comp,
+          children: [],
+          link: syntheticLink,
+        })
       }
     }
 
