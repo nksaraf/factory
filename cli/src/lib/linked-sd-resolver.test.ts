@@ -70,7 +70,8 @@ describe("resolveLinkedSystemDeployments", () => {
     }
   })
 
-  test("--connect-to + per-system --connect: per-system wins at its key, connect-to fills rest", () => {
+  test("--connect-to + per-system --connect: per-system wins, --connect-to fills rest", () => {
+    // Plan priority: explicit `--connect <sys>:<target>` beats blanket `--connect-to`.
     const r = resolveLinkedSystemDeployments({
       connects: ["shared-auth:janes-macbook"],
       connectTo: "workshop-staging",
@@ -82,15 +83,10 @@ describe("resolveLinkedSystemDeployments", () => {
     expect(r).toHaveLength(2)
     const auth = r.find((x) => x.systemSlug === "shared-auth")!
     const queues = r.find((x) => x.systemSlug === "shared-queues")!
-    // connect-to blanket runs first → both seeded at workshop-staging.
-    // Explicit --connect for shared-auth comes after but seen-set blocks it.
-    // This preserves "explicit first" for human input flows where users
-    // have --connect before --connect-to. The dev.ts caller puts user
-    // entries first in the list.
+    // shared-auth: explicit --connect wins.
+    expect(auth.linkedRef.site).toBe("janes-macbook")
+    // shared-queues: no explicit entry → --connect-to blanket fills in.
     expect(queues.linkedRef.site).toBe("workshop-staging")
-    // shared-auth should be workshop-staging (seen by connect-to first).
-    // If user wants janes-macbook to win, they should not use --connect-to.
-    expect(auth.linkedRef.site).toBe("workshop-staging")
   })
 
   test("no connect inputs → no linked SDs even if deps declared", () => {

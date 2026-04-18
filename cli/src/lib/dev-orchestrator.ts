@@ -511,7 +511,9 @@ export class DevOrchestrator {
     // from another site's SD" — no local componentDeployments, just a
     // `linkedRef`. Component-level connects are already handled by
     // `applyConnections` above.
-    if (!dryRun && hasConnectionFlags) {
+    //
+    // Dry-run: compute + log the plan, but don't mutate site.json.
+    if (hasConnectionFlags) {
       const connectList = !opts.connect
         ? []
         : Array.isArray(opts.connect)
@@ -522,15 +524,23 @@ export class DevOrchestrator {
         connectTo: opts.connectTo,
         catalog: this.project.catalog,
       })
-      for (const l of linkedSds) {
-        this.site.ensureLinkedSystemDeployment(
-          l.slug,
-          l.systemSlug,
-          l.linkedRef
-        )
-      }
-      if (linkedSds.length > 0) {
-        this.site.save()
+      if (dryRun) {
+        for (const l of linkedSds) {
+          console.log(
+            `  [dry-run] Would link system: ${l.systemSlug} → ${l.linkedRef.site}/${l.linkedRef.systemDeployment}`
+          )
+        }
+      } else {
+        for (const l of linkedSds) {
+          this.site.ensureLinkedSystemDeployment(
+            l.slug,
+            l.systemSlug,
+            l.linkedRef
+          )
+        }
+        if (linkedSds.length > 0) {
+          this.site.save()
+        }
       }
     }
 

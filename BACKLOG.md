@@ -1049,3 +1049,9 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 ## dx CLI follow-ups
 
 - [ ] **Extract shared deps-install dispatcher** — `cli/src/lib/prelude.ts` and `cli/src/commands/sync.ts` both dispatch pnpm/bun/yarn/npm installs via an internal lockfile→command map. Extract to a shared primitive (`cli/src/lib/install-dispatcher.ts`) when a third caller appears or when they diverge. Leaving duplicated for now — premature extraction would lock an API before the second consumer's needs are settled.
+
+- [ ] **Multi-system slice 6: Factory API endpoint discovery** — `cli/src/lib/linked-sd-resolver.ts` currently guesses the remote SD slug as `<site>-<system>`. That's brittle for sites whose SDs don't follow that convention. Replace with `GET /api/v1/sites/:slug/system-deployments/:sd/endpoints` so the authoritative slug + endpoints come from the reconciler's source of truth. Covered by slice 6 in `.claude/plans/vivid-prancing-lake.md`.
+
+- [ ] **Dev-orchestrator integration test for linked SDs** — resolver has 9 unit tests; the `startDevSession` wiring is validated only by a one-off smoke on product-trafficure. Add an integration test that constructs a fake SiteManager + ProjectContext, calls `startDevSession` with `connectTo`, and asserts `site.systemDeployments` has the expected linked SDs. Would catch regressions when slice 6 extends the path.
+
+- [ ] **Enforce slug safety at schema level** — `shared/src/dependency-graph.ts` uses `/` as separator for qualified multi-system IDs. Nothing in `shared/src/schemas/*` currently restricts slug charset (`z.string()` with only length bounds). Add a regex `/^[a-z0-9][a-z0-9-]*$/` to slug fields in `site-state.ts` / `software.ts` so qualified IDs can't collide with literal slug characters.

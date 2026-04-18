@@ -99,10 +99,21 @@ export class SiteManager {
   /**
    * Ensure a system-level linked SD — an SD whose entire contents come from
    * another site's deployment. Used in dev / preview sites to represent
-   * "this external system is consumed from site X". `componentDeployments[]`
-   * stays empty (or may carry explicit local overrides via
-   * `setComponentMode` later). Written verbatim into `.dx/site.json` as the
-   * compositional peer of the focus system's local SD.
+   * "this external system is consumed from site X".
+   *
+   * Semantics (the contract downstream readers rely on):
+   *   - `linkedRef` set      → SD is linked; check it first.
+   *   - `componentDeployments[]` — empty by default (fully remote), or
+   *     non-empty ONLY when the caller added explicit per-component
+   *     overrides (the "link shared-auth but run auth-api locally" case).
+   *   - `runtime` is NOT `"linked"` — we use `linkedRef` presence as the
+   *     signal. `runtime` stays `"docker-compose"` (or whatever the
+   *     focus uses) so existing reconcilers that dispatch on runtime
+   *     don't need a new enum value.
+   *
+   * If an SD with the same slug already exists, we upgrade it with the
+   * linkedRef and preserve its componentDeployments (explicit overrides).
+   * Callers that want a clean slate should delete the SD first.
    */
   ensureLinkedSystemDeployment(
     slug: string,
@@ -114,7 +125,7 @@ export class SiteManager {
       sd = {
         slug,
         systemSlug,
-        runtime: "linked",
+        runtime: "docker-compose",
         composeFiles: [],
         linkedRef,
         componentDeployments: [],
@@ -123,8 +134,8 @@ export class SiteManager {
       }
       this.state.systemDeployments.push(sd)
     } else {
-      // Existing SD: upgrade with linkedRef. Keep its componentDeployments so
-      // any per-component overrides survive.
+      // Existing SD: upgrade with linkedRef, preserve any componentDeployments
+      // (explicit per-component overrides).
       sd.linkedRef = linkedRef
     }
     return sd

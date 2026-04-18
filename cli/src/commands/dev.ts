@@ -126,9 +126,10 @@ export function devCommand(app: DxBase) {
           for (const warn of auto.warnings) console.warn(`  ! ${warn}`)
         }
         // Merge auto-connects into the user's explicit --connect list. User
-        // entries come first so their per-system targets win if the user also
-        // happened to name a system that has a defaultTarget (covered-check
-        // above already prevents dup emission, but belt-and-braces on order).
+        // entries MUST come first — the linked-sd-resolver (slice 5) and the
+        // orchestrator's applyConnections both walk the list in order and
+        // honour "first claim wins" semantics. Swapping this order would
+        // silently invert the user's explicit override.
         const userConnectList = !userConnect
           ? []
           : Array.isArray(userConnect)
