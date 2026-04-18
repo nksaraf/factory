@@ -1,10 +1,41 @@
 import type { CatalogSystem } from "./catalog"
 
+/** Separator used in qualified multi-system node IDs: `<system>/<component>`. */
+export const QUALIFIED_ID_SEP = "/"
+
+/**
+ * Build a qualified node ID from a system slug + component name.
+ * Used by `fromCatalogs` so two systems can both have a `postgres` without
+ * colliding in a single dependency graph.
+ */
+export function qualifyNode(system: string, component: string): string {
+  return `${system}${QUALIFIED_ID_SEP}${component}`
+}
+
+/**
+ * Inverse of `qualifyNode`. Returns null for unqualified IDs (bare strings
+ * from single-catalog graphs), or `{system, component}` for qualified IDs.
+ */
+export function unqualifyNode(
+  id: string
+): { system: string; component: string } | null {
+  const idx = id.indexOf(QUALIFIED_ID_SEP)
+  if (idx <= 0 || idx === id.length - 1) return null
+  return { system: id.slice(0, idx), component: id.slice(idx + 1) }
+}
+
 /**
  * Directed acyclic graph of service dependencies.
  *
  * Built from catalog `spec.dependsOn` fields. Edges point from dependent → dependency
  * (e.g., infra-auth → infra-postgres means "auth depends on postgres").
+ *
+ * Two construction modes:
+ * - **`fromCatalog(single)`**: unqualified node IDs (just component slugs).
+ *   Used by single-system callers (existing dev-orchestrator path).
+ * - **`fromCatalogs([focus, ...externals])`**: qualified IDs `<system>/<component>`.
+ *   Used by multi-system composition so systems with same-named components
+ *   (e.g. two different `postgres`) don't collide.
  *
  * Used by:
  * - `dx dev` — determine what to start and in what order
@@ -93,6 +124,99 @@ export class DependencyGraph {
     }
 
     // Ensure every node has an entry in deps/rdeps
+    for (const node of nodes) {
+      if (!deps.has(node)) deps.set(node, [])
+      if (!rdeps.has(node)) rdeps.set(node, [])
+    }
+
+    return new DependencyGraph(deps, rdeps, nodes)
+  }
+
+  /**
+   * Build a dependency graph from multiple CatalogSystems, using qualified
+   * node IDs (`<system>/<component>`) to avoid collisions when two systems
+   * share a component slug (e.g. both have a `postgres`).
+   *
+   * Edges from each catalog's `spec.dependsOn` are qualified to the LOCAL
+   * system of the declaring component — an unqualified `dependsOn: [postgres]`
+   * inside `shared-auth` resolves to `shared-auth/postgres`, not trafficure's.
+   * This preserves the existing single-system semantics while unblocking
+   * multi-system composition.
+   *
+   * Cross-system edges (component X in system A consumes component Y in
+   * system B) are NOT yet emitted by this function — they require per-component
+   * `consumes[].system` qualifiers on the catalog type, which is a subsequent
+   * slice. For now, external system deps flow through `spec.dependencies` at
+   * the system level and are handled by the auto-connect layer.
+   */
+  static fromCatalogs(catalogs: CatalogSystem[]): DependencyGraph {
+    const deps = new Map<string, string[]>()
+    const rdeps = new Map<string, string[]>()
+    const nodes = new Set<string>()
+
+    // 1. Collect all qualified nodes across every catalog.
+    for (const catalog of catalogs) {
+      const system = catalog.metadata.name
+      for (const name of Object.keys(catalog.components)) {
+        nodes.add(qualifyNode(system, name))
+      }
+      for (const name of Object.keys(catalog.resources)) {
+        nodes.add(qualifyNode(system, name))
+      }
+    }
+
+    // 2. Build adjacency lists. `dependsOn` is qualified to the LOCAL system.
+    for (const catalog of catalogs) {
+      const system = catalog.metadata.name
+
+      const addEdges = (
+        name: string,
+        rawDeps: readonly string[] | undefined
+      ): void => {
+        const qualifiedName = qualifyNode(system, name)
+        const qualifiedDeps = (rawDeps ?? []).map((d) =>
+          // Same-system unqualified ref → qualify to local system.
+          // Already-qualified ref (contains "/") → leave as-is; caller owns it.
+          d.includes(QUALIFIED_ID_SEP) ? d : qualifyNode(system, d)
+        )
+        deps.set(qualifiedName, qualifiedDeps)
+        for (const dep of qualifiedDeps) {
+          nodes.add(dep)
+          const rev = rdeps.get(dep) ?? []
+          rev.push(qualifiedName)
+          rdeps.set(dep, rev)
+        }
+      }
+
+      for (const [name, comp] of Object.entries(catalog.components)) {
+        addEdges(name, comp.spec.dependsOn)
+      }
+      for (const [name, res] of Object.entries(catalog.resources)) {
+        addEdges(name, res.spec.dependsOn)
+      }
+
+      // initFor promotion — per-catalog (matches single-catalog behavior).
+      for (const [initName, comp] of Object.entries(catalog.components)) {
+        const parent = comp.spec.initFor
+        if (!parent) continue
+        const qualifiedParent = qualifyNode(system, parent)
+        const qualifiedInit = qualifyNode(system, initName)
+        const dependents = rdeps.get(qualifiedParent) ?? []
+        for (const dependent of dependents) {
+          if (dependent === qualifiedInit) continue
+          const d = deps.get(dependent) ?? []
+          if (!d.includes(qualifiedInit)) {
+            d.push(qualifiedInit)
+            deps.set(dependent, d)
+            const rev = rdeps.get(qualifiedInit) ?? []
+            rev.push(dependent)
+            rdeps.set(qualifiedInit, rev)
+          }
+        }
+      }
+    }
+
+    // 3. Ensure every node has an entry in deps/rdeps.
     for (const node of nodes) {
       if (!deps.has(node)) deps.set(node, [])
       if (!rdeps.has(node)) rdeps.set(node, [])

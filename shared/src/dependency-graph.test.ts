@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test"
 
 import type { CatalogSystem } from "./catalog"
-import { DependencyGraph } from "./dependency-graph"
+import { DependencyGraph, qualifyNode, unqualifyNode } from "./dependency-graph"
 
 // ── Test fixtures ─────────────────────────────────────────────────
 
@@ -460,5 +460,195 @@ describe("DependencyGraph", () => {
       expect(collapsed.has("c")).toBe(true)
       expect(collapsed.has("c-init")).toBe(false)
     })
+  })
+})
+
+// ── Multi-catalog composition (slice 4) ──────────────────────────
+
+/** Minimal catalog builder for multi-catalog tests. */
+function miniCatalog(
+  name: string,
+  components: Record<string, string[] | undefined> = {},
+  resources: Record<string, string[] | undefined> = {}
+): CatalogSystem {
+  const compSpec = (dependsOn?: string[]) => ({
+    kind: "Component" as const,
+    metadata: { name: "", namespace: "default" },
+    spec: {
+      type: "service",
+      image: "test",
+      ports: [],
+      environment: {},
+      dependsOn,
+    },
+  })
+  const resSpec = (dependsOn?: string[]) => ({
+    kind: "Resource" as const,
+    metadata: { name: "", namespace: "default" },
+    spec: {
+      type: "database",
+      image: "test",
+      ports: [],
+      environment: {},
+      dependsOn,
+    },
+  })
+  return {
+    kind: "System",
+    metadata: { name, namespace: "default" },
+    spec: { owner: "test" },
+    components: Object.fromEntries(
+      Object.entries(components).map(([n, d]) => [n, compSpec(d)])
+    ) as any,
+    resources: Object.fromEntries(
+      Object.entries(resources).map(([n, d]) => [n, resSpec(d)])
+    ) as any,
+    connections: [],
+  }
+}
+
+describe("qualifyNode / unqualifyNode", () => {
+  it("round-trips", () => {
+    const id = qualifyNode("shared-auth", "auth-api")
+    expect(id).toBe("shared-auth/auth-api")
+    expect(unqualifyNode(id)).toEqual({
+      system: "shared-auth",
+      component: "auth-api",
+    })
+  })
+
+  it("returns null for unqualified IDs", () => {
+    expect(unqualifyNode("postgres")).toBeNull()
+  })
+
+  it("returns null for malformed qualified IDs", () => {
+    expect(unqualifyNode("/postgres")).toBeNull()
+    expect(unqualifyNode("system/")).toBeNull()
+  })
+})
+
+describe("DependencyGraph.fromCatalogs (multi-system)", () => {
+  it("unions multiple catalogs with qualified IDs (no collision)", () => {
+    // Both systems have a component named `postgres` — qualified IDs prevent collision.
+    const auth = miniCatalog(
+      "shared-auth",
+      { "auth-api": ["postgres"] },
+      { postgres: [] }
+    )
+    const trafficure = miniCatalog(
+      "trafficure",
+      { api: ["postgres"] },
+      { postgres: [] }
+    )
+    const graph = DependencyGraph.fromCatalogs([auth, trafficure])
+
+    expect(graph.has("shared-auth/postgres")).toBe(true)
+    expect(graph.has("trafficure/postgres")).toBe(true)
+    expect(graph.has("shared-auth/auth-api")).toBe(true)
+    expect(graph.has("trafficure/api")).toBe(true)
+    // Unqualified IDs not present.
+    expect(graph.has("postgres")).toBe(false)
+  })
+
+  it("dependsOn edges are qualified to the LOCAL system", () => {
+    const auth = miniCatalog(
+      "shared-auth",
+      { "auth-api": ["postgres"] },
+      { postgres: [] }
+    )
+    const trafficure = miniCatalog(
+      "trafficure",
+      { api: ["postgres"] },
+      { postgres: [] }
+    )
+    const graph = DependencyGraph.fromCatalogs([auth, trafficure])
+
+    // `auth-api`'s dependsOn: [postgres] resolves WITHIN shared-auth.
+    expect(graph.directDeps("shared-auth/auth-api")).toEqual([
+      "shared-auth/postgres",
+    ])
+    // `trafficure/api`'s dependsOn: [postgres] resolves WITHIN trafficure.
+    expect(graph.directDeps("trafficure/api")).toEqual(["trafficure/postgres"])
+    // Cross-system edges are NOT silently emitted.
+    expect(graph.directDependents("shared-auth/postgres")).toEqual([
+      "shared-auth/auth-api",
+    ])
+  })
+
+  it("already-qualified dependsOn entry passes through unchanged", () => {
+    // Advanced use: catalog author explicitly writes a qualified ref.
+    const trafficure = miniCatalog("trafficure", {
+      api: ["shared-auth/auth-api"],
+    })
+    const auth = miniCatalog("shared-auth", { "auth-api": [] }, {})
+    const graph = DependencyGraph.fromCatalogs([trafficure, auth])
+
+    expect(graph.directDeps("trafficure/api")).toEqual(["shared-auth/auth-api"])
+    expect(graph.directDependents("shared-auth/auth-api")).toContain(
+      "trafficure/api"
+    )
+  })
+
+  it("transitive traversal crosses system boundaries when edges exist", () => {
+    const shared = miniCatalog(
+      "shared-auth",
+      { "auth-api": ["auth-db"] },
+      { "auth-db": [] }
+    )
+    const trafficure = miniCatalog(
+      "trafficure",
+      { api: ["shared-auth/auth-api"] } // explicit cross-system
+    )
+    const graph = DependencyGraph.fromCatalogs([shared, trafficure])
+
+    const transitive = graph.transitiveDeps("trafficure/api")
+    expect(transitive).toContain("shared-auth/auth-api")
+    expect(transitive).toContain("shared-auth/auth-db")
+  })
+
+  it("initFor promotion is scoped per-catalog", () => {
+    // Each catalog has its own init container for a local resource.
+    const a = miniCatalog(
+      "system-a",
+      { "postgres-init": [] },
+      { postgres: [], webapp: ["postgres"] }
+    )
+    a.components["postgres-init"].spec.initFor = "postgres"
+
+    const b = miniCatalog(
+      "system-b",
+      { "postgres-init": [] },
+      { postgres: [], worker: ["postgres"] }
+    )
+    b.components["postgres-init"].spec.initFor = "postgres"
+
+    const graph = DependencyGraph.fromCatalogs([a, b])
+
+    // system-a's webapp should depend on system-a's postgres-init (not b's).
+    expect(graph.directDeps("system-a/webapp")).toContain(
+      "system-a/postgres-init"
+    )
+    expect(graph.directDeps("system-a/webapp")).not.toContain(
+      "system-b/postgres-init"
+    )
+    // Same for b.
+    expect(graph.directDeps("system-b/worker")).toContain(
+      "system-b/postgres-init"
+    )
+  })
+
+  it("single-catalog `fromCatalog` still uses unqualified IDs (backwards compat)", () => {
+    const cat = miniCatalog("test", { api: ["db"] }, { db: [] })
+    const graph = DependencyGraph.fromCatalog(cat)
+
+    expect(graph.has("api")).toBe(true)
+    expect(graph.has("db")).toBe(true)
+    expect(graph.has("test/api")).toBe(false) // no qualification
+    expect(graph.directDeps("api")).toEqual(["db"])
+  })
+
+  it("empty catalog list produces an empty graph", () => {
+    const graph = DependencyGraph.fromCatalogs([])
+    expect(graph.allServices()).toEqual([])
   })
 })
