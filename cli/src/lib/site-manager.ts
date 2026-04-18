@@ -25,6 +25,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs"
+import { hostname } from "node:os"
 import { dirname, join } from "node:path"
 
 const SITE_FILE = join(".dx", "site.json")
@@ -91,6 +92,40 @@ export class SiteManager {
         tunnels: [],
       }
       this.state.systemDeployments.push(sd)
+    }
+    return sd
+  }
+
+  /**
+   * Ensure a system-level linked SD — an SD whose entire contents come from
+   * another site's deployment. Used in dev / preview sites to represent
+   * "this external system is consumed from site X". `componentDeployments[]`
+   * stays empty (or may carry explicit local overrides via
+   * `setComponentMode` later). Written verbatim into `.dx/site.json` as the
+   * compositional peer of the focus system's local SD.
+   */
+  ensureLinkedSystemDeployment(
+    slug: string,
+    systemSlug: string,
+    linkedRef: { site: string; systemDeployment: string }
+  ): LocalSystemDeployment {
+    let sd = this.getSystemDeployment(slug)
+    if (!sd) {
+      sd = {
+        slug,
+        systemSlug,
+        runtime: "linked",
+        composeFiles: [],
+        linkedRef,
+        componentDeployments: [],
+        resolvedEnv: {},
+        tunnels: [],
+      }
+      this.state.systemDeployments.push(sd)
+    } else {
+      // Existing SD: upgrade with linkedRef. Keep its componentDeployments so
+      // any per-component overrides survive.
+      sd.linkedRef = linkedRef
     }
     return sd
   }
@@ -265,6 +300,22 @@ export class SiteManager {
       })),
       catalog,
     }
+  }
+
+  // ── Workbench ───────────────────────────────────────────────
+
+  getTunnelSubdomain(): string {
+    if (this.state.workbench.tunnelSubdomain) {
+      return this.state.workbench.tunnelSubdomain
+    }
+    const base = hostname()
+      .replace(/\.local$/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+    const rand = Math.random().toString(16).slice(2, 6)
+    const subdomain = `${base}-${rand}`
+    this.state.workbench.tunnelSubdomain = subdomain
+    return subdomain
   }
 
   // ── Reads ───────────────────────────────────────────────────

@@ -46,7 +46,11 @@ import {
   cleanupConnectionContext,
 } from "./connection-context-file.js"
 import { Compose, isDockerRunning } from "./docker.js"
-import { type ProjectContextData, resolveDxContext } from "./dx-context.js"
+import {
+  type DxContext,
+  type ProjectContextData,
+  resolveDxContext,
+} from "./dx-context.js"
 import {
   mergeConnectionSources,
   parseConnectFlags,
@@ -58,6 +62,7 @@ import {
   catalogToPortRequests,
   portEnvVars,
 } from "./port-manager.js"
+import { resolveLinkedSystemDeployments } from "./linked-sd-resolver.js"
 import { SiteManager } from "./site-manager.js"
 import { ComposeExecutor } from "../site/execution/compose.js"
 import { CompositeExecutor } from "../site/execution/composite.js"
@@ -78,6 +83,7 @@ export interface DevSessionOpts {
   restart?: boolean
   noBuild?: boolean
   tunnel?: boolean
+  exposeConsole?: boolean
   quiet?: boolean
 }
 
@@ -104,14 +110,24 @@ export interface StartResult {
 export class DevOrchestrator {
   private readonly portManager: PortManager
   private readonly compose: Compose | null
-  private readonly graph: DependencyGraph
-  private readonly executor: CompositeExecutor
+  readonly graph: DependencyGraph
+  readonly executor: CompositeExecutor
   private tunnelHandle?: { close: () => void }
+  private tunnelInfo?: {
+    url: string
+    subdomain: string
+    portUrls?: { port: number; url: string }[]
+  }
+  private tunnelStatus: "disconnected" | "connecting" | "connected" | "error" =
+    "disconnected"
+  private consolePort?: number
+  private consoleServer?: { stop: () => void }
 
   private constructor(
     readonly project: ProjectContextData,
     readonly site: SiteManager,
     readonly sdSlug: string,
+    readonly ctx: DxContext,
     private readonly opts: { quiet?: boolean } = {}
   ) {
     this.portManager = new PortManager(join(project.rootDir, ".dx"))
@@ -177,7 +193,7 @@ export class DevOrchestrator {
       )
     }
 
-    return new DevOrchestrator(project, site, sdSlug, opts)
+    return new DevOrchestrator(project, site, sdSlug, ctx, opts)
   }
 
   // ------------------------------------------------------------------
@@ -488,6 +504,36 @@ export class DevOrchestrator {
       }
     }
 
+    // ── System-level linked SDs (multi-system composition) ────
+    // For each connection entry whose left-slug matches a declared
+    // `x-dx.dependencies[].system`, write a `LinkedSystemDeployment` entry
+    // into `.dx/site.json`. Represents "this external system is consumed
+    // from another site's SD" — no local componentDeployments, just a
+    // `linkedRef`. Component-level connects are already handled by
+    // `applyConnections` above.
+    if (!dryRun && hasConnectionFlags) {
+      const connectList = !opts.connect
+        ? []
+        : Array.isArray(opts.connect)
+          ? opts.connect
+          : [opts.connect]
+      const linkedSds = resolveLinkedSystemDeployments({
+        connects: connectList,
+        connectTo: opts.connectTo,
+        catalog: this.project.catalog,
+      })
+      for (const l of linkedSds) {
+        this.site.ensureLinkedSystemDeployment(
+          l.slug,
+          l.systemSlug,
+          l.linkedRef
+        )
+      }
+      if (linkedSds.length > 0) {
+        this.site.save()
+      }
+    }
+
     // ── Determine dev targets ─────────────────────────────────
     const devableComponents = Object.entries(this.project.catalog.components)
       .filter(([_, comp]) => isDevComponent(comp))
@@ -626,7 +672,10 @@ export class DevOrchestrator {
 
     // ── Open tunnel if requested ──────────────────────────────
     if (opts.tunnel) {
-      await this.openTunnel(workbenchSlug)
+      const tunnelSubdomain = this.site.getTunnelSubdomain()
+      await this.openTunnel(tunnelSubdomain, {
+        exposeConsole: opts.exposeConsole,
+      })
     }
 
     this.site.save()
@@ -637,23 +686,51 @@ export class DevOrchestrator {
   // Tunnel
   // ------------------------------------------------------------------
 
-  private async openTunnel(workbenchSlug: string): Promise<void> {
+  async startTunnel(opts: { exposeConsole?: boolean } = {}): Promise<void> {
+    if (this.tunnelHandle) return
+    const workbenchSlug = this.site.getTunnelSubdomain()
+    await this.openTunnel(workbenchSlug, opts)
+  }
+
+  stopTunnel(): void {
+    this.tunnelHandle?.close()
+    this.tunnelHandle = undefined
+    this.tunnelInfo = undefined
+    this.tunnelStatus = "disconnected"
+  }
+
+  private async openTunnel(
+    workbenchSlug: string,
+    opts: { exposeConsole?: boolean } = {}
+  ): Promise<void> {
     const sd = this.site.getSystemDeployment(this.sdSlug)
     const catalog = this.project.catalog
-    const exposedPorts: number[] = []
+    const declaredPorts: number[] = []
+    const portMap = new Map<number, number>()
+    let defaultLocalPort: number | undefined
+
     for (const cd of sd?.componentDeployments ?? []) {
-      const port = cd.status.port
-      if (!port) continue
+      const actualPort = cd.status.port
+      if (!actualPort) continue
       const entity =
         catalog.components[cd.componentSlug] ??
         catalog.resources[cd.componentSlug]
-      const hasPublicPort = entity?.spec.ports?.some(
-        (p) => p.port === port && p.exposure === "public"
-      )
-      if (hasPublicPort) exposedPorts.push(port)
+      for (const p of entity?.spec.ports ?? []) {
+        if (p.exposure !== "public") continue
+        declaredPorts.push(p.port)
+        if (p.port !== actualPort) {
+          portMap.set(p.port, actualPort)
+        }
+        if (!defaultLocalPort) defaultLocalPort = actualPort
+      }
     }
 
-    if (exposedPorts.length === 0) {
+    if (this.consolePort && opts.exposeConsole) {
+      declaredPorts.push(this.consolePort)
+      if (!defaultLocalPort) defaultLocalPort = this.consolePort
+    }
+
+    if (declaredPorts.length === 0) {
       console.log(
         "  No public ports to tunnel. Mark ports with dx.port.<port>.exposure: public"
       )
@@ -661,15 +738,23 @@ export class DevOrchestrator {
     }
 
     const { openTunnel } = await import("./tunnel-client.js")
+    this.tunnelStatus = "connecting"
     const handle = await openTunnel(
       {
-        port: exposedPorts[0],
+        port: defaultLocalPort!,
         subdomain: workbenchSlug,
         routeFamily: "dev",
-        publishPorts: exposedPorts,
+        publishPorts: declaredPorts,
+        portMap: portMap.size > 0 ? portMap : undefined,
       },
       {
-        onRegistered(info) {
+        onRegistered: (info) => {
+          this.tunnelInfo = {
+            url: info.url,
+            subdomain: info.subdomain,
+            portUrls: info.portUrls,
+          }
+          this.tunnelStatus = "connected"
           console.log(`\n  Tunnel active!`)
           console.log(`  URL:       ${info.url}`)
           console.log(`  Subdomain: ${info.subdomain}`)
@@ -679,24 +764,73 @@ export class DevOrchestrator {
             }
           }
         },
-        onReconnecting(attempt, delayMs) {
+        onReconnecting: (attempt, delayMs) => {
+          this.tunnelStatus = "connecting"
           console.log(
             `  Tunnel reconnecting (attempt ${attempt}, ${Math.round(delayMs / 1000)}s delay)...`
           )
         },
-        onReconnected(info) {
+        onReconnected: (info) => {
+          this.tunnelInfo = {
+            url: info.url,
+            subdomain: info.subdomain,
+            portUrls: info.portUrls,
+          }
+          this.tunnelStatus = "connected"
           console.log(`  Tunnel reconnected! URL: ${info.url}`)
         },
-        onError(err) {
+        onError: (err) => {
+          this.tunnelStatus = "error"
           console.error(`  Tunnel error: ${err.message}`)
         },
-        onClose() {
+        onClose: () => {
+          this.tunnelStatus = "disconnected"
+          this.tunnelInfo = undefined
           console.log("  Tunnel closed.")
         },
       }
     )
 
     this.tunnelHandle = handle
+  }
+
+  getTunnelState(): {
+    status: "disconnected" | "connecting" | "connected" | "error"
+    info?: {
+      url: string
+      subdomain: string
+      portUrls?: { port: number; url: string }[]
+    }
+  } {
+    return { status: this.tunnelStatus, info: this.tunnelInfo }
+  }
+
+  getPortAllocations() {
+    return this.portManager.status()
+  }
+
+  getConsolePort(): number | undefined {
+    return this.consolePort
+  }
+
+  async startConsole(): Promise<{ port: number; url: string }> {
+    const allocated = await this.portManager.resolveMulti([
+      {
+        service: "__dev-console__",
+        ports: [{ name: "main", preferred: 4299 }],
+      },
+    ])
+    const port = allocated["__dev-console__"]?.main
+    if (!port) {
+      throw new Error("Failed to allocate port for dev console")
+    }
+    this.consolePort = port
+
+    const { createDevConsoleServer } = await import("../dev-console/server.js")
+    const server = createDevConsoleServer(this, { port })
+    const info = await server.start()
+    this.consoleServer = server
+    return info
   }
 
   // ------------------------------------------------------------------
@@ -755,6 +889,10 @@ export class DevOrchestrator {
   stop(component?: string): { name: string; pid: number }[] {
     this.tunnelHandle?.close()
     this.tunnelHandle = undefined
+    if (this.consoleServer) {
+      this.consoleServer.stop()
+      this.consoleServer = undefined
+    }
 
     const stopped: { name: string; pid: number }[] = []
     const sd = this.site.getSystemDeployment(this.sdSlug)
@@ -1023,7 +1161,7 @@ export class DevOrchestrator {
     }
 
     if (tunnel) {
-      const workbenchSlug = hostname().replace(/\.local$/, "")
+      const tunnelSubdomain = this.site.getTunnelSubdomain()
       const gatewayDomain = process.env.DX_GATEWAY_DOMAIN ?? "lepton.software"
       const allPorts: { name: string; port: number }[] = []
       for (const name of targets) {
@@ -1043,7 +1181,7 @@ export class DevOrchestrator {
         )
       } else {
         for (const { name, port } of allPorts) {
-          const url = `https://${workbenchSlug}-${port}.dev.${gatewayDomain}`
+          const url = `https://${tunnelSubdomain}-${port}.dev.${gatewayDomain}`
           console.log(
             `     ${name.padEnd(PAD)} :${String(port).padEnd(6)} ${styleMuted("\u2192")} ${styleInfo(url)}`
           )
