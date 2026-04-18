@@ -44,14 +44,25 @@ export interface AutoConnectResult {
 
 export interface AutoConnectInputs {
   catalog: CatalogSystem
-  /** true if user passed --connect-to / --profile / any --connect flag. */
-  hasExplicitConnect: boolean
+  /**
+   * Blanket flag: user passed `--connect-to <site>`. When true, auto-connect
+   * is suppressed entirely — `--connect-to` explicitly says "everything
+   * non-target is remote at THIS site," so defaultTargets are redundant.
+   */
+  hasConnectToFlag: boolean
+  /**
+   * Per-system coverage: systems already covered by an explicit `--connect`
+   * flag or by a profile's `systems:` map. Auto-connect fills in the rest —
+   * a developer can say `--connect shared-auth:my-laptop` and still have
+   * `shared-queues` resolved from its declared defaultTarget.
+   */
+  coveredSystems: ReadonlySet<string>
 }
 
 /**
- * Resolve auto-connects from `catalog.spec.dependencies[]`. Skipped entirely
- * when the user already supplied explicit connection flags — their intent
- * wins over the defaultTarget.
+ * Resolve auto-connects from `catalog.spec.dependencies[]`, filling in only
+ * systems NOT already covered by an explicit `--connect` or profile entry.
+ * `--connect-to <site>` (blanket) bypasses auto-connect entirely.
  */
 export function autoConnectsFromDeps(
   inputs: AutoConnectInputs
@@ -63,12 +74,15 @@ export function autoConnectsFromDeps(
     errors: [],
   }
 
-  if (inputs.hasExplicitConnect) return result
+  if (inputs.hasConnectToFlag) return result
 
   const deps = inputs.catalog.spec.dependencies ?? []
   if (deps.length === 0) return result
 
   for (const dep of deps) {
+    // Per-system merge: an explicit --connect or profile entry for this
+    // system already wins — no need to auto-connect it.
+    if (inputs.coveredSystems.has(dep.system)) continue
     const entry = autoConnectForDep(dep)
     if (entry.autoConnect) result.autoConnects.push(entry.autoConnect)
     if (entry.log) result.logs.push(entry.log)
@@ -77,6 +91,23 @@ export function autoConnectsFromDeps(
   }
 
   return result
+}
+
+/**
+ * Parse `--connect` CLI values (e.g. ["shared-auth:my-laptop", "redis:prod"])
+ * into the set of system slugs they cover. Used by the caller to build
+ * `coveredSystems` for `autoConnectsFromDeps`.
+ */
+export function coveredSystemsFromConnectFlags(
+  connect: string | string[] | undefined
+): Set<string> {
+  const entries = !connect ? [] : Array.isArray(connect) ? connect : [connect]
+  const covered = new Set<string>()
+  for (const entry of entries) {
+    const colon = entry.indexOf(":")
+    if (colon > 0) covered.add(entry.slice(0, colon))
+  }
+  return covered
 }
 
 interface DepEntryResult {
