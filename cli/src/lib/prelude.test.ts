@@ -137,6 +137,45 @@ describe("runPrelude — install dispatch", () => {
     expect(calls.pyInstall).toEqual([{ lockfile: "uv.lock" }])
     expect(calls.mvnResolve).toBe(1)
   })
+
+  test("fresh-clone JS: workspace present but no lockfile → js install still runs", async () => {
+    // No pnpm-lock.yaml, but pnpm-workspace.yaml declares the project.
+    writeFileSync(
+      join(rootDir, "pnpm-workspace.yaml"),
+      'packages:\n  - "apps/*"\n'
+    )
+    writeFileSync(join(rootDir, "package.json"), JSON.stringify({ name: "x" }))
+
+    const { runners, calls } = makeRunners(true)
+    await runPrelude(makeCtx(), { ...SAFE_OPTS, runners })
+
+    // js runner called with the would-be lockfile name so it creates one.
+    expect(calls.jsInstall).toEqual([{ lockfile: "pnpm-lock.yaml" }])
+  })
+
+  test("mvn skipped when poms exist but no root aggregator pom.xml", async () => {
+    // Nested poms only; root has no pom.xml. mvn run at root would fail.
+    mkdirSync(join(rootDir, "services/foo"), { recursive: true })
+    writeFileSync(join(rootDir, "services/foo/pom.xml"), "<project/>\n")
+    writeFileSync(join(rootDir, "pnpm-lock.yaml"), "lockfile: 9.0\n")
+
+    const { runners, calls } = makeRunners(true)
+    await runPrelude(makeCtx(), { ...SAFE_OPTS, runners })
+
+    // js ran, mvn did NOT (nested-pom-only case).
+    expect(calls.jsInstall).toHaveLength(1)
+    expect(calls.mvnResolve).toBe(0)
+  })
+
+  test("mvn runs when root pom.xml is present", async () => {
+    writeFileSync(join(rootDir, "pom.xml"), "<project/>\n")
+    writeFileSync(join(rootDir, "pnpm-lock.yaml"), "lockfile: 9.0\n")
+
+    const { runners, calls } = makeRunners(true)
+    await runPrelude(makeCtx(), { ...SAFE_OPTS, runners })
+
+    expect(calls.mvnResolve).toBe(1)
+  })
 })
 
 describe("runPrelude — stamp invariant", () => {
@@ -295,6 +334,234 @@ describe("composeHealthy — docker compose ps gating", () => {
     expect(
       composeHealthy([{ name: "a", status: "exited", health: "", ports: "" }])
     ).toBe(false)
+  })
+})
+
+describe("runPrelude — infra step fails soft", () => {
+  function makeCtxWithCompose(): DxContextWithProject {
+    return {
+      project: {
+        rootDir,
+        composeFiles: [join(rootDir, "docker-compose.yaml")],
+        catalog: undefined,
+      },
+    } as unknown as DxContextWithProject
+  }
+
+  test("compose.up throws → warning recorded, prelude still returns", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    const composeOps = {
+      isDockerRunning: () => true,
+      ps: () => [],
+      up: () => {
+        throw new Error("stale build context: ./missing/path")
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+    })
+
+    expect(r.ran).not.toContain("infra")
+    const warning = r.warnings.find((w) => w.step === "infra")
+    expect(warning).toBeTruthy()
+    expect(warning?.message).toContain("compose up failed")
+    expect(warning?.hint).toContain("docker compose up")
+  })
+
+  test("docker not running → warning with actionable hint", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    const composeOps = {
+      isDockerRunning: () => false,
+      ps: () => [],
+      up: () => {},
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+    })
+
+    const warning = r.warnings.find((w) => w.step === "infra")
+    expect(warning).toBeTruthy()
+    expect(warning?.message).toContain("docker is not running")
+    expect(warning?.hint).toContain("Docker Desktop")
+  })
+
+  test("healthy compose → skip (no warning)", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    const composeOps = {
+      isDockerRunning: () => true,
+      ps: () => [
+        { name: "postgres", status: "running", health: "healthy", ports: "" },
+      ],
+      up: () => {
+        throw new Error("should not be called")
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+    })
+
+    expect(r.skipped).toContain("infra")
+    expect(r.warnings.find((w) => w.step === "infra")).toBeUndefined()
+  })
+})
+
+describe("runPrelude — connect flags auto-skip infra", () => {
+  function makeCtxWithCompose(): DxContextWithProject {
+    return {
+      project: {
+        rootDir,
+        composeFiles: [join(rootDir, "docker-compose.yaml")],
+        catalog: undefined,
+      },
+    } as unknown as DxContextWithProject
+  }
+
+  test("--connect-to set → infra skipped, no warning, no compose calls", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    let composeCalls = 0
+    const composeOps = {
+      isDockerRunning: () => {
+        composeCalls++
+        return true
+      },
+      ps: () => {
+        composeCalls++
+        return []
+      },
+      up: () => {
+        composeCalls++
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+      connectTo: "workshop-staging",
+    })
+
+    expect(r.skipped).toContain("infra")
+    expect(r.warnings.find((w) => w.step === "infra")).toBeUndefined()
+    expect(composeCalls).toBe(0)
+  })
+
+  test("--profile set → infra skipped", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    const composeOps = {
+      isDockerRunning: () => true,
+      ps: () => [],
+      up: () => {
+        throw new Error("should not be called")
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+      connectProfile: "staging",
+    })
+
+    expect(r.skipped).toContain("infra")
+  })
+
+  test("--connect single entry → infra skipped", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    const composeOps = {
+      isDockerRunning: () => true,
+      ps: () => [],
+      up: () => {
+        throw new Error("should not be called")
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+      connectSpecific: "api:workshop-staging",
+    })
+
+    expect(r.skipped).toContain("infra")
+  })
+
+  test("no connect flags → normal infra path runs", async () => {
+    writeFileSync(join(rootDir, "docker-compose.yaml"), "services: {}\n")
+    let upCalled = false
+    const composeOps = {
+      isDockerRunning: () => true,
+      ps: () => [], // empty → triggers compose up
+      up: () => {
+        upCalled = true
+      },
+    }
+    const { runners } = makeRunners(true)
+
+    const r = await runPrelude(makeCtxWithCompose(), {
+      skipTools: true,
+      skipToolchain: true,
+      skipDeps: true,
+      skipHooks: true,
+      skipEnv: true,
+      skipLinks: true,
+      quiet: true,
+      runners,
+      composeOps,
+    })
+
+    expect(r.ran).toContain("infra")
+    expect(upCalled).toBe(true)
   })
 })
 

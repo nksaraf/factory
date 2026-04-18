@@ -102,6 +102,11 @@ export function devCommand(app: DxBase) {
         await runPrelude(ctx, {
           noPrelude: flags.prelude === false,
           fresh: Boolean(flags.fresh),
+          // When the developer is pointing at remote deps, the infra step
+          // auto-skips — no separate --skip-infra needed.
+          connectTo: flags["connect-to"] as string | undefined,
+          connectProfile: flags.profile as string | undefined,
+          connectSpecific: flags.connect as string | string[] | undefined,
           quiet: Boolean(f.quiet),
         })
 

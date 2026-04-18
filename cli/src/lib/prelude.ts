@@ -44,10 +44,20 @@ export interface PreludeOptions {
   skipEnv?: boolean
   skipLinks?: boolean
   skipInfra?: boolean
+  /**
+   * Developer intent: use remote deps instead of local infra. When any of
+   * these is set, the infra step auto-skips (no local compose up). No
+   * separate `--skip-infra` flag needed; intent is expressed by connection.
+   */
+  connectTo?: string
+  connectProfile?: string
+  connectSpecific?: string | string[]
   /** Pipe child stdio instead of inheriting (used by tests). */
   quiet?: boolean
   /** Injectable command runners — tests substitute fakes. */
   runners?: Runners
+  /** Injectable compose operations — tests substitute fakes. */
+  composeOps?: ComposeOps
 }
 
 export interface PreludeWarning {
@@ -84,6 +94,18 @@ export interface Runners {
   ): boolean
   pyInstall(rootDir: string, lockfile: string, quiet: boolean): boolean
   mvnResolve(rootDir: string, quiet: boolean): boolean
+}
+
+/**
+ * Injectable compose ops — tests substitute fakes to exercise the infra
+ * path without spawning docker. Real implementations delegate to
+ * `isDockerRunning` + `Compose.ps` + `Compose.up` from `./docker.js`.
+ */
+export interface ComposeOps {
+  isDockerRunning(): boolean
+  ps(rootDir: string, composeFiles: string[]): ComposeServiceStatus[]
+  /** Must throw (not return) on failure, mirroring `Compose.up`. */
+  up(rootDir: string, composeFiles: string[]): void
 }
 
 const defaultRunners: Runners = {
@@ -152,6 +174,28 @@ const defaultRunners: Runners = {
   },
 }
 
+const defaultComposeOps: ComposeOps = {
+  isDockerRunning,
+  ps: (rootDir, composeFiles) => {
+    const envPath = join(rootDir, ".dx", "ports.env")
+    const compose = new Compose(
+      composeFiles,
+      basename(rootDir),
+      existsSync(envPath) ? envPath : undefined
+    )
+    return compose.ps()
+  },
+  up: (rootDir, composeFiles) => {
+    const envPath = join(rootDir, ".dx", "ports.env")
+    const compose = new Compose(
+      composeFiles,
+      basename(rootDir),
+      existsSync(envPath) ? envPath : undefined
+    )
+    compose.up({ detach: true })
+  },
+}
+
 function logStep(label: string, detail: string, stream: "ran" | "skip"): void {
   const prefix = stream === "ran" ? "✓" : "·"
   console.log(`  ${prefix} ${label.padEnd(14)} ${detail}`)
@@ -210,7 +254,12 @@ function findLockfiles(rootDir: string): {
   py: string | null
   poms: string[]
 } {
-  const js = JS_LOCKS.find((f) => existsSync(join(rootDir, f))) ?? null
+  let js = JS_LOCKS.find((f) => existsSync(join(rootDir, f))) ?? null
+  // Fresh-clone case: workspace declared but lockfile not yet generated.
+  // Default to pnpm — pnpm install will create pnpm-lock.yaml.
+  if (!js && existsSync(join(rootDir, "pnpm-workspace.yaml"))) {
+    js = "pnpm-lock.yaml"
+  }
   const py = PY_LOCKS.find((f) => existsSync(join(rootDir, f))) ?? null
   const poms = findPoms(rootDir)
   return { js, py, poms }
@@ -435,7 +484,11 @@ export async function runPrelude(
               runners.jsInstall(rootDir, locks.js, quiet, toolchainChanged) &&
               ok
           if (locks.py) ok = runners.pyInstall(rootDir, locks.py, quiet) && ok
-          if (locks.poms.length > 0)
+          // Only run mvn at the root if there's a root pom.xml (an aggregator).
+          // Nested poms without a root are per-service and get resolved by
+          // their own per-package build scripts (turbo run build, etc.).
+          const hasRootPom = existsSync(join(rootDir, "pom.xml"))
+          if (locks.poms.length > 0 && hasRootPom)
             ok = runners.mvnResolve(rootDir, quiet) && ok
           if (ok) {
             // Re-hash inputs since package.json may have been rewritten by
@@ -550,44 +603,73 @@ export async function runPrelude(
       })
     }
 
-    // 6. Infra (docker compose up -d if anything not healthy)
+    // 6. Infra (docker compose up -d if anything not healthy).
+    //    Auto-skipped when the developer is explicitly pointing at remote deps
+    //    via --connect-to / --connect / --profile. Any failure within the
+    //    step becomes a warning — compose being broken or partially set up
+    //    should not abort dev startup; the dev server will surface the real
+    //    downstream consequence with much better context than a prelude
+    //    abort could give.
+    const usingRemoteDeps =
+      Boolean(opts.connectTo) ||
+      Boolean(opts.connectProfile) ||
+      (Array.isArray(opts.connectSpecific)
+        ? opts.connectSpecific.length > 0
+        : Boolean(opts.connectSpecific))
+
+    const compose = opts.composeOps ?? defaultComposeOps
     if (!opts.skipInfra && project.composeFiles.length > 0) {
-      await timed("infra", () => {
-        if (!isDockerRunning()) {
-          result.warnings.push({
-            step: "infra",
-            message: "docker is not running — infra skipped",
-            hint: "start Docker Desktop or the daemon",
-          })
-          return
-        }
-        const envPath = join(rootDir, ".dx", "ports.env")
-        const compose = new Compose(
-          project.composeFiles,
-          basename(rootDir),
-          existsSync(envPath) ? envPath : undefined
-        )
-        let statuses: ComposeServiceStatus[] = []
-        try {
-          statuses = compose.ps()
-        } catch {
-          statuses = []
-        }
-        if (!force && composeHealthy(statuses)) {
+      if (usingRemoteDeps) {
+        await timed("infra", () => {
           result.skipped.push("infra")
-          logStep("infra", `${statuses.length} services healthy`, "skip")
-        } else {
-          const reason =
-            statuses.length === 0
-              ? "no services up"
-              : force
-                ? "forced"
-                : `unhealthy: ${unhealthySummary(statuses)}`
-          compose.up({ detach: true })
-          result.ran.push("infra")
-          logStep("infra", `docker compose up -d — ${reason}`, "ran")
-        }
-      })
+          const label = opts.connectTo
+            ? `--connect-to ${opts.connectTo}`
+            : opts.connectProfile
+              ? `--profile ${opts.connectProfile}`
+              : "--connect"
+          logStep("infra", `using remote deps (${label})`, "skip")
+        })
+      } else {
+        await timed("infra", () => {
+          try {
+            if (!compose.isDockerRunning()) {
+              result.warnings.push({
+                step: "infra",
+                message: "docker is not running — infra skipped",
+                hint: "start Docker Desktop or the daemon",
+              })
+              return
+            }
+            let statuses: ComposeServiceStatus[] = []
+            try {
+              statuses = compose.ps(rootDir, project.composeFiles)
+            } catch {
+              statuses = []
+            }
+            if (!force && composeHealthy(statuses)) {
+              result.skipped.push("infra")
+              logStep("infra", `${statuses.length} services healthy`, "skip")
+              return
+            }
+            const reason =
+              statuses.length === 0
+                ? "no services up"
+                : force
+                  ? "forced"
+                  : `unhealthy: ${unhealthySummary(statuses)}`
+            compose.up(rootDir, project.composeFiles)
+            result.ran.push("infra")
+            logStep("infra", `docker compose up -d — ${reason}`, "ran")
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            result.warnings.push({
+              step: "infra",
+              message: `compose up failed: ${msg}`,
+              hint: "run `docker compose up` to see why; dev servers will start against whatever is already running",
+            })
+          }
+        })
+      }
     }
   } finally {
     lock.release()
