@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process"
 import { styleMuted } from "../cli-style.js"
 import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
+import { autoConnectsFromDeps } from "../lib/auto-connect.js"
 import { DevOrchestrator } from "../lib/dev-orchestrator.js"
 import { resolveDxContext } from "../lib/dx-context.js"
 import { runPrelude } from "../lib/prelude.js"
@@ -98,15 +99,50 @@ export function devCommand(app: DxBase) {
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
 
+        // Auto-connect: when no CLI flags are present, resolve system-level
+        // dependencies from x-dx.dependencies[].defaultTarget. This is the
+        // "bare `dx dev` just works in a multi-system world" UX — the
+        // developer doesn't type --connect-to every time.
+        const explicitConnect = Boolean(
+          flags["connect-to"] ?? flags.profile ?? flags.connect
+        )
+        const auto = autoConnectsFromDeps({
+          catalog: project.catalog,
+          hasExplicitConnect: explicitConnect,
+        })
+        if (auto.errors.length > 0) {
+          for (const err of auto.errors) console.error(`  ! ${err}`)
+          exitWithError(f, "cannot resolve required system dependencies")
+          return
+        }
+        if (!f.quiet) {
+          for (const log of auto.logs) console.log(log)
+          for (const warn of auto.warnings) console.warn(`  ! ${warn}`)
+        }
+        // Merge auto-connects into the user's explicit --connect list (if any).
+        const effectiveConnectSpecific = [
+          ...((): string[] => {
+            const c = flags.connect
+            if (!c) return []
+            return Array.isArray(c) ? c : [c]
+          })(),
+          ...auto.autoConnects,
+        ]
+
         // Cached prelude — one-command experience: git clone → cd → dx dev
         await runPrelude(ctx, {
           noPrelude: flags.prelude === false,
           fresh: Boolean(flags.fresh),
           // When the developer is pointing at remote deps, the infra step
-          // auto-skips — no separate --skip-infra needed.
+          // auto-skips — no separate --skip-infra needed. Auto-connects
+          // count too: if x-dx.dependencies declared a defaultTarget, infra
+          // should skip for the same reason.
           connectTo: flags["connect-to"] as string | undefined,
           connectProfile: flags.profile as string | undefined,
-          connectSpecific: flags.connect as string | string[] | undefined,
+          connectSpecific:
+            effectiveConnectSpecific.length > 0
+              ? effectiveConnectSpecific
+              : undefined,
           quiet: Boolean(f.quiet),
         })
 
