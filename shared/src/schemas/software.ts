@@ -58,9 +58,41 @@ export const INFRASTRUCTURE_TYPES: ComponentType[] = [
 
 // ── System ──────────────────────────────────────────────────
 
+/**
+ * System-level dependency declared in one system's `x-dx.dependencies[]`.
+ *
+ * Drives three different behaviours depending on site type (see
+ * `.claude/plans/vivid-prancing-lake.md` — Site.json is always generated):
+ *
+ * - **Dev site (laptop):** bare `dx dev` resolves the dep via `defaultTarget`
+ *   unless overridden by `--connect-to` / `--connect` / `--profile`. Missing
+ *   `defaultTarget` + `binding: required` + no CLI flag → error.
+ * - **Preview site:** inherited from `parentSiteId` as a linked SD.
+ * - **Prod/staging site:** treated as a consistency check + wiring-graph
+ *   input for cross-SD internal DNS env synthesis. `linked` mode is not
+ *   used in prod; all systems run as peer SDs.
+ */
 export const SystemDependencySchema = z.object({
+  /** Slug of the system this system depends on. */
   system: z.string(),
+  /**
+   * Optional subset of components in the dep system that this system
+   * actually consumes. Used by the dev generator to compute a minimal
+   * endpoint-discovery query (and by `dx check` as a consistency audit).
+   */
   components: z.array(z.string()).optional(),
+  /**
+   * - `required`: dev fails if the dep can't be resolved.
+   * - `optional`: dev proceeds with disabled env (NOTIFICATION_URL="", etc.).
+   * - `dev-only`: wired in dev/staging; excluded from prod deployments.
+   */
+  binding: z.enum(["required", "optional", "dev-only"]).default("required"),
+  /**
+   * Site slug the dep auto-connects to when `dx dev` is invoked with no
+   * explicit --connect flag. Checked into git via compose x-dx; team-wide
+   * default. Different consumer repos can set different defaults.
+   */
+  defaultTarget: z.string().optional(),
 })
 export type SystemDependency = z.infer<typeof SystemDependencySchema>
 
@@ -89,8 +121,18 @@ export type System = z.infer<typeof SystemSchema>
 
 // ── Component Spec (discriminated by type) ──────────────────
 
+/**
+ * Component-level `consumes[]` entry.
+ *
+ * `system` qualifier is new: when present, the reference is to a component
+ * in a different system (e.g. trafficure/api consumes auth-api from
+ * shared-auth). Without `system`, the reference is local to the same
+ * system. Resolution order: local first, then qualified cross-system.
+ */
 export const ComponentDependencySchema = z.object({
   component: z.string(),
+  /** Qualifies `component` to a specific external system. Optional. */
+  system: z.string().optional(),
   as: z.string().optional(),
   protocol: z.string().optional(),
   required: z.boolean().default(true),

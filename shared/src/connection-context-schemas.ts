@@ -28,9 +28,37 @@ export type ConnectionProfileEntry = z.infer<
   typeof connectionProfileEntrySchema
 >
 
+/**
+ * System-level connection entry in a profile. When set, ALL components of
+ * the referenced system are assumed to come from the target SD on that site.
+ * Component-level `connect:` entries still override on a per-component basis
+ * (the "link the system but run auth-api locally against Jane's laptop" case).
+ *
+ * `discover: true` tells dx to query the Factory API for current endpoints of
+ * that SD rather than relying on hardcoded host/port — useful when endpoints
+ * can shift (preview envs, auto-scaled services).
+ */
+export const systemConnectionProfileEntrySchema = z.object({
+  site: z.string(),
+  /** Optional: specific SD slug within the site. Defaults to the first SD matching the system. */
+  systemDeployment: z.string().optional(),
+  /** Auto-discover component endpoints via Factory API. */
+  discover: z.boolean().default(true),
+})
+export type SystemConnectionProfileEntry = z.infer<
+  typeof systemConnectionProfileEntrySchema
+>
+
 export const connectionProfileSchema = z.object({
   description: z.string().optional(),
+  /** Per-component connection targets. Flat keyed by component slug. */
   connect: z.record(connectionProfileEntrySchema).default({}),
+  /**
+   * System-level connection targets. Keyed by system slug. When set, the
+   * whole system is linked to the referenced SD; per-component `connect:`
+   * entries still override for specific components.
+   */
+  systems: z.record(systemConnectionProfileEntrySchema).default({}),
   env: z.record(z.string()).default({}),
 })
 

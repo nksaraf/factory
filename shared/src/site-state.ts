@@ -57,12 +57,34 @@ export type ComponentDeploymentMode = z.infer<
   typeof componentDeploymentModeSchema
 >
 
+/**
+ * Per-component linked reference. Used when one component of an SD is
+ * consumed from another site's SD while the rest of the SD is local.
+ */
 export const linkedRefSchema = z.object({
   site: z.string(),
   systemDeployment: z.string(),
   component: z.string(),
 })
 export type LinkedRef = z.infer<typeof linkedRefSchema>
+
+/**
+ * System-level linked reference. Set on `LocalSystemDeployment.linkedRef`
+ * when the entire SD is consumed from another site (the "one focus + N
+ * remote peers" dev-site / preview-site composition pattern). When set:
+ *   - `componentDeployments[]` is empty by default (the whole system resolves
+ *     remotely), OR contains only explicit local overrides (rare).
+ *   - `resolvedEnv` for the focus SD's components references this linked SD's
+ *     endpoints, discovered via Factory API or the profile.
+ *
+ * Only present in dev and preview sites. Prod sites have no linked SDs —
+ * every system is a peer deployment.
+ */
+export const systemLinkedRefSchema = z.object({
+  site: z.string(),
+  systemDeployment: z.string(),
+})
+export type SystemLinkedRef = z.infer<typeof systemLinkedRefSchema>
 
 export const componentDeploymentStatusSchema = z.object({
   observedGeneration: z.number().optional(),
@@ -114,6 +136,13 @@ export const localSystemDeploymentSchema = z.object({
   composeFiles: z.array(z.string()).default([]),
   connectionTarget: z.string().optional(),
   profileName: z.string().optional(),
+  /**
+   * When set, this SD is fully consumed from another site (see
+   * `systemLinkedRefSchema`). `componentDeployments[]` is empty by default
+   * (or contains explicit local overrides for specific components — the
+   * "link the system but run auth-api locally" case). Dev & preview only.
+   */
+  linkedRef: systemLinkedRefSchema.optional(),
   componentDeployments: z.array(localComponentDeploymentSchema).default([]),
   resolvedEnv: z.record(resolvedEnvEntrySchema).default({}),
   tunnels: z.array(tunnelSpecSchema).default([]),

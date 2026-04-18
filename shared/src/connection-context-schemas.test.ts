@@ -106,3 +106,52 @@ describe("normalizeProfileEntry", () => {
     })
   })
 })
+
+describe("connectionProfileSchema — system-level targets (multi-system)", () => {
+  test("accepts systems: with site + systemDeployment", () => {
+    const result = connectionProfileSchema.parse({
+      systems: {
+        "shared-auth": {
+          site: "workshop-staging",
+          systemDeployment: "workshop-staging-auth",
+          discover: true,
+        },
+      },
+    })
+    expect(result.systems["shared-auth"]).toEqual({
+      site: "workshop-staging",
+      systemDeployment: "workshop-staging-auth",
+      discover: true,
+    })
+  })
+
+  test("defaults discover: true when omitted", () => {
+    const result = connectionProfileSchema.parse({
+      systems: {
+        "shared-queues": { site: "workshop-staging" },
+      },
+    })
+    expect(result.systems["shared-queues"].discover).toBe(true)
+  })
+
+  test("systems: and connect: coexist (system-level + per-component override)", () => {
+    const result = connectionProfileSchema.parse({
+      systems: {
+        "shared-auth": { site: "workshop-staging" },
+      },
+      connect: {
+        "auth-api": { target: "janes-macbook", host: "localhost", port: 4300 },
+      },
+    })
+    expect(result.systems["shared-auth"].site).toBe("workshop-staging")
+    expect(result.connect["auth-api"]).toMatchObject({
+      target: "janes-macbook",
+    })
+  })
+
+  test("empty profile still parses (no systems required)", () => {
+    const result = connectionProfileSchema.parse({})
+    expect(result.systems).toEqual({})
+    expect(result.connect).toEqual({})
+  })
+})
