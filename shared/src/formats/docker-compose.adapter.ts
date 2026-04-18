@@ -11,13 +11,16 @@ import { basename, dirname, join } from "node:path"
 import { parse as parseYaml } from "yaml"
 
 import type {
+  CatalogAPI,
   CatalogComponent,
   CatalogConnection,
   CatalogLifecycle,
   CatalogPort,
   CatalogResource,
   CatalogSystem,
+  CatalogSystemDependency,
 } from "../catalog"
+import { catalogSystemDependencySchema } from "../catalog"
 import type {
   CatalogFormatAdapter,
   CatalogGenerateResult,
@@ -490,6 +493,37 @@ interface ParsedLabels {
   sourceRepo?: string
   sourcePath?: string
   sourceRequired?: boolean
+}
+
+/**
+ * Parse `x-dx.dependencies[]` from docker-compose into CatalogSystemDependency[].
+ * Accepts the shorthand string form (`"shared-auth"` → `{system: "shared-auth"}`)
+ * or the full object form. Zod validates; invalid entries are dropped with a
+ * warning rather than aborting the whole parse (one malformed dep shouldn't
+ * take down catalog ingestion).
+ */
+function parseSystemDependencies(
+  raw: unknown
+): CatalogSystemDependency[] | undefined {
+  if (!raw) return undefined
+  if (!Array.isArray(raw)) return undefined
+  const out: CatalogSystemDependency[] = []
+  for (const entry of raw) {
+    const candidate = typeof entry === "string" ? { system: entry } : entry
+    const parsed = catalogSystemDependencySchema.safeParse(candidate)
+    if (parsed.success) {
+      out.push(parsed.data)
+    } else {
+      // Invalid dep entry — log but don't abort. x-dx.dependencies is
+      // best-effort metadata; a typo shouldn't kill the catalog.
+      console.warn(
+        `x-dx.dependencies entry skipped: ${parsed.error.issues
+          .map((i) => i.message)
+          .join(", ")} (entry: ${JSON.stringify(candidate)})`
+      )
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 function parseLabels(labels: Record<string, string>): ParsedLabels {
@@ -1642,6 +1676,35 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
         })),
     ]
 
+    // Aggregate APIs from dx.api.provides labels across services.
+    // Each unique API name becomes a CatalogAPI entity owned by the providing
+    // component. If multiple services provide the same API name, the first
+    // provider wins (later ones are silently merged).
+    const apis: Record<string, CatalogAPI> = {}
+    for (const [name, svc] of Object.entries(services)) {
+      const labels = parseLabels(svc.labels ?? {})
+      if (!labels.providesApis?.length) continue
+      const apiType = (labels.apiType ??
+        "openapi") as CatalogAPI["spec"]["type"]
+      for (const apiName of labels.providesApis) {
+        if (apis[apiName]) continue
+        apis[apiName] = {
+          kind: "API",
+          metadata: {
+            name: apiName,
+            namespace: "default",
+            description: `API provided by ${name}`,
+          },
+          spec: {
+            type: apiType,
+            lifecycle: (labels.lifecycle ?? "production") as CatalogLifecycle,
+            owner: labels.owner,
+            definition: "",
+          },
+        }
+      }
+    }
+
     // System-level metadata from x-dx, falling back to labels
     let systemOwner = xDxSystem?.owner ? String(xDxSystem.owner) : undefined
     if (!systemOwner) {
@@ -1686,9 +1749,11 @@ export class DockerComposeFormatAdapter implements CatalogFormatAdapter {
         lifecycle: xDxSystem?.lifecycle
           ? (String(xDxSystem.lifecycle) as CatalogLifecycle)
           : undefined,
+        dependencies: parseSystemDependencies(xDxSystem?.dependencies),
       },
       components,
       resources,
+      apis: Object.keys(apis).length > 0 ? apis : undefined,
       connections,
       formatExtensions: {
         "docker-compose": {

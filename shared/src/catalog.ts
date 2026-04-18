@@ -383,6 +383,21 @@ export type CatalogConnection = z.infer<typeof catalogConnectionSchema>
 
 // ─── System (top-level, populated by format parsers) ─────────
 
+/**
+ * Runtime mirror of `shared/src/schemas/software.ts#SystemDependencySchema`.
+ * Kept parallel (not cross-imported) so the catalog layer remains decoupled
+ * from the DB/API canonical schemas.
+ */
+export const catalogSystemDependencySchema = z.object({
+  system: z.string(),
+  components: z.array(z.string()).optional(),
+  binding: z.enum(["required", "optional", "dev-only"]).default("required"),
+  defaultTarget: z.string().optional(),
+})
+export type CatalogSystemDependency = z.infer<
+  typeof catalogSystemDependencySchema
+>
+
 export const catalogSystemSchema = z.object({
   kind: z.literal("System"),
   metadata: catalogMetadataSchema,
@@ -390,6 +405,13 @@ export const catalogSystemSchema = z.object({
     owner: z.string(),
     domain: z.string().optional(),
     lifecycle: catalogLifecycleSchema.optional(),
+    /**
+     * Cross-system dependencies declared in `docker-compose.yaml` →
+     * `x-dx.dependencies[]`. Drives bare-`dx dev` auto-connect via
+     * `defaultTarget` in dev sites; serves as a wiring + consistency
+     * input in prod reconciliation.
+     */
+    dependencies: z.array(catalogSystemDependencySchema).optional(),
   }),
   components: z.record(catalogComponentSchema),
   resources: z.record(catalogResourceSchema),

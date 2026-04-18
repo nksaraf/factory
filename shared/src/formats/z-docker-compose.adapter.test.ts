@@ -487,6 +487,138 @@ services:
     })
   })
 
+  describe("x-dx.dependencies (multi-system)", () => {
+    it("extracts full object form into spec.dependencies", () => {
+      setupComposeFile(
+        "/home/user/trafficure",
+        `
+x-dx:
+  name: trafficure
+  dependencies:
+    - system: shared-auth
+      binding: required
+      defaultTarget: workshop-staging
+    - system: shared-queues
+      binding: required
+      defaultTarget: workshop-staging
+    - system: shared-notifications
+      binding: optional
+services:
+  api:
+    image: example/trafficure-api
+`
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/home/user/trafficure")
+      expect(result.system.spec.dependencies).toEqual([
+        {
+          system: "shared-auth",
+          binding: "required",
+          defaultTarget: "workshop-staging",
+        },
+        {
+          system: "shared-queues",
+          binding: "required",
+          defaultTarget: "workshop-staging",
+        },
+        { system: "shared-notifications", binding: "optional" },
+      ])
+    })
+
+    it("accepts shorthand string entries", () => {
+      setupComposeFile(
+        "/home/user/myproj",
+        `
+x-dx:
+  name: myproj
+  dependencies:
+    - shared-auth
+    - shared-queues
+services:
+  api:
+    image: x
+`
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/home/user/myproj")
+      const deps = result.system.spec.dependencies
+      expect(deps).toHaveLength(2)
+      expect(deps?.[0]).toMatchObject({
+        system: "shared-auth",
+        binding: "required",
+      })
+      expect(deps?.[1]).toMatchObject({
+        system: "shared-queues",
+        binding: "required",
+      })
+    })
+
+    it("preserves `components:` filter when specified", () => {
+      setupComposeFile(
+        "/home/user/myproj",
+        `
+x-dx:
+  name: myproj
+  dependencies:
+    - system: shared-auth
+      components:
+        - auth-api
+services:
+  api:
+    image: x
+`
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/home/user/myproj")
+      expect(result.system.spec.dependencies?.[0]).toMatchObject({
+        system: "shared-auth",
+        components: ["auth-api"],
+      })
+    })
+
+    it("absent x-dx.dependencies → spec.dependencies undefined", () => {
+      setupComposeFile(
+        "/home/user/myproj",
+        `
+x-dx:
+  name: myproj
+services:
+  api:
+    image: x
+`
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/home/user/myproj")
+      expect(result.system.spec.dependencies).toBeUndefined()
+    })
+
+    it("skips malformed entries, keeps valid ones (best-effort)", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {})
+      setupComposeFile(
+        "/home/user/myproj",
+        `
+x-dx:
+  name: myproj
+  dependencies:
+    - system: shared-auth
+      binding: required
+    - system: shared-bogus
+      binding: mandatory
+services:
+  api:
+    image: x
+`
+      )
+      const adapter = new DockerComposeFormatAdapter()
+      const result = adapter.parse("/home/user/myproj")
+      expect(result.system.spec.dependencies).toEqual([
+        { system: "shared-auth", binding: "required" },
+      ])
+      expect(warnSpy).toHaveBeenCalled()
+      warnSpy.mockRestore()
+    })
+  })
+
   describe("system naming", () => {
     it("uses directory basename as system name", () => {
       setupComposeFile(
