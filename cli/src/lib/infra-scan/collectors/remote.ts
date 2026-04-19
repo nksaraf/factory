@@ -91,76 +91,72 @@ export async function collectRemote(
   const result = JSON.parse(stdout.slice(jsonStart)) as ScanResult
   result.scanDurationMs = Date.now() - start
 
-  // Detect reverse proxies and collect routes.
-  // Use "localhost" for API URL detection since we query via SSH curl
+  // Collect container IP map — also provides container command args for
+  // reading Traefik static config (API entrypoint port).
+  let containerIpMap:
+    | Awaited<ReturnType<typeof collectContainerIpMap>>
+    | undefined
+  try {
+    containerIpMap = await collectContainerIpMap(sshBaseArgs)
+    if (containerIpMap.length > 0) {
+      result.containerIpMap = containerIpMap
+    }
+  } catch {
+    // Container IP map collection failed — proceed without
+  }
+
+  // Detect reverse proxies and collect routes via SSH curl
   // (the Traefik API may only bind to localhost on the remote host).
-  const hasProxy = result.services.some(
-    (svc) => detectTraefikApiUrl(svc, "localhost") !== null
-  )
+  const sshCurlJson = async <T>(apiUrl: string, path: string): Promise<T> => {
+    const url = `${apiUrl.replace(/\/$/, "")}${path}`
+    const proc = Bun.spawn(
+      ["ssh", ...sshBaseArgs, `curl -sf --max-time 10 '${url}'`],
+      { stdout: "pipe", stderr: "pipe", timeout: 15_000 }
+    )
+    const [out, exit] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ])
+    if (exit !== 0 || !out.trim()) {
+      throw new Error(`curl ${url} failed (exit ${exit})`)
+    }
+    return JSON.parse(out) as T
+  }
 
-  if (hasProxy) {
-    let containerIpMap = undefined
+  for (const svc of result.services) {
+    // Enrich service with container command args from containerIpMap
+    const containerEntry = containerIpMap?.find(
+      (e) => e.composeService === svc.name
+    )
+    const enriched = { ...svc, cmd: containerEntry?.cmd }
+
+    const detectedUrl = detectTraefikApiUrl(enriched, "localhost")
+    if (!detectedUrl) continue
+
+    // detectTraefikApiUrl returns the container-internal port (e.g. 8080),
+    // but SSH curl runs on the host. Translate via the container→host port map.
+    let apiUrl = detectedUrl
+    if (containerEntry?.portMap) {
+      const containerPort = new URL(detectedUrl).port || "8080"
+      const hostPort = containerEntry.portMap[containerPort]
+      if (hostPort && hostPort !== parseInt(containerPort, 10)) {
+        apiUrl = `http://localhost:${hostPort}`
+      }
+    }
+
     try {
-      containerIpMap = await collectContainerIpMap(sshBaseArgs)
-      if (containerIpMap.length > 0) {
-        result.containerIpMap = containerIpMap
-      }
-    } catch {
-      // Container IP map collection failed — proceed without
-    }
-
-    const sshCurlJson = async <T>(apiUrl: string, path: string): Promise<T> => {
-      const url = `${apiUrl.replace(/\/$/, "")}${path}`
-      const proc = Bun.spawn(
-        ["ssh", ...sshBaseArgs, `curl -sf --max-time 10 '${url}'`],
-        { stdout: "pipe", stderr: "pipe", timeout: 15_000 }
+      const proxy = await collectTraefikRoutes(
+        apiUrl,
+        containerIpMap,
+        sshCurlJson
       )
-      const [out, exit] = await Promise.all([
-        new Response(proc.stdout).text(),
-        proc.exited,
-      ])
-      if (exit !== 0 || !out.trim()) {
-        throw new Error(`curl ${url} failed (exit ${exit})`)
-      }
-      return JSON.parse(out) as T
-    }
-
-    for (const svc of result.services) {
-      const candidateUrl = detectTraefikApiUrl(svc, "localhost")
-      if (!candidateUrl) continue
-
-      // Probe candidate ports to find one with the full API.
-      // Port 8080 often has only the dashboard, not /api/http/routers.
-      const entrypointPorts = new Set([80, 443, 389, 636, 5432, 6432, 8443])
-      const candidatePorts = svc.ports.filter(
-        (p) => p > 8000 && p < 10000 && !entrypointPorts.has(p)
+      proxy.containerName = svc.name
+      result.reverseProxies = result.reverseProxies ?? []
+      result.reverseProxies.push(proxy)
+    } catch (err) {
+      console.error(
+        `    Traefik API error (${apiUrl}): ${err instanceof Error ? err.message : err}`
       )
-      let apiUrl: string | null = null
-      for (const port of candidatePorts) {
-        try {
-          await sshCurlJson(`http://localhost:${port}`, "/api/http/routers")
-          apiUrl = `http://localhost:${port}`
-          break
-        } catch {
-          // this port doesn't serve the full API
-        }
-      }
-      if (!apiUrl) continue
-
-      try {
-        const proxy = await collectTraefikRoutes(
-          apiUrl,
-          containerIpMap,
-          sshCurlJson
-        )
-        proxy.containerName = svc.name
-        result.reverseProxies = result.reverseProxies ?? []
-        result.reverseProxies.push(proxy)
-      } catch (err) {
-        console.error(
-          `    Traefik API error (${apiUrl}): ${err instanceof Error ? err.message : err}`
-        )
-      }
     }
   }
 

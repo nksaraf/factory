@@ -110,6 +110,10 @@ export type ContainerIpEntry = {
   hostPorts?: number[]
   /** Container-side exposed ports (from Config.ExposedPorts), e.g. [3000, 8080]. */
   exposedPorts?: number[]
+  /** Container→host port mappings, e.g. {"8080": 8085} means container:8080 → host:8085. */
+  portMap?: Record<string, number>
+  /** Container command args (from Config.Cmd), used to read Traefik static config. */
+  cmd?: string[]
 }
 
 export type {

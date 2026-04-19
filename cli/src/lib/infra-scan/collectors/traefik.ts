@@ -276,8 +276,9 @@ export async function collectTraefikRoutes(
 export async function collectContainerIpMap(
   sshArgs?: string[]
 ): Promise<ContainerIpEntry[]> {
-  // Columns: name | ip | compose-project | compose-service | host-ports | exposed-ports
-  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range $p, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{.HostPort}} {{end}}{{end}}|{{range $p, $v := .Config.ExposedPorts}}{{$p}} {{end}}'`
+  // Columns: name | ip | compose-project | compose-service | port-map-json | cmd-json
+  // port-map-json captures container→host port bindings as {"8080/tcp":"8085",...}
+  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{json .NetworkSettings.Ports}}|{{json .Config.Cmd}}'`
 
   let args: string[]
   if (sshArgs) {
@@ -299,33 +300,82 @@ export async function collectContainerIpMap(
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim()
     if (!trimmed) continue
-    // Format: /container-name|172.18.0.19|compose-project|compose-service|host-ports|exposed-ports
-    const parts = trimmed.split("|")
-    if (parts.length < 4) continue
-    const containerName = parts[0].replace(/^\//, "")
-    const ip = parts[1]
-    const composeProject = parts[2]
-    const composeService = parts[3]
+    // Split on first 4 pipes only — remaining fields are JSON that may contain pipes
+    const firstPipes: string[] = []
+    let rest = trimmed
+    for (let i = 0; i < 4; i++) {
+      const idx = rest.indexOf("|")
+      if (idx === -1) break
+      firstPipes.push(rest.slice(0, idx))
+      rest = rest.slice(idx + 1)
+    }
+    if (firstPipes.length < 4) continue
+    const containerName = firstPipes[0].replace(/^\//, "")
+    const ip = firstPipes[1]
+    const composeProject = firstPipes[2]
+    const composeService = firstPipes[3]
     if (!ip || !composeProject || !composeService) continue
-    const hostPorts = (parts[4] ?? "")
-      .split(/\s+/)
-      .map((p) => parseInt(p, 10))
-      .filter((p) => Number.isFinite(p) && p > 0)
-    // Exposed ports format: "3000/tcp 8080/tcp" — extract the port numbers
-    const exposedPorts = (parts[5] ?? "")
-      .split(/\s+/)
-      .map((p) => parseInt(p, 10))
-      .filter((p) => Number.isFinite(p) && p > 0)
+
+    // rest = "port-map-json|cmd-json" — split on last unbracketed pipe
+    // Port map JSON: {"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"8085"}],...}
+    let hostPorts: number[] = []
+    let exposedPorts: number[] = []
+    const portMap: Record<string, number> = {}
+    let cmd: string[] | undefined
+
+    // Find the boundary between ports JSON and cmd JSON
+    // Ports JSON starts with { or null, cmd JSON starts with [ or null
+    const cmdIdx = rest.lastIndexOf("|[")
+    const cmdNullIdx = rest.lastIndexOf("|null")
+    const splitIdx = Math.max(cmdIdx, cmdNullIdx)
+
+    const portsRaw = splitIdx > 0 ? rest.slice(0, splitIdx) : rest
+    const cmdRaw = splitIdx > 0 ? rest.slice(splitIdx + 1) : ""
+
+    try {
+      const ports = JSON.parse(portsRaw) as Record<
+        string,
+        Array<{ HostIp: string; HostPort: string }> | null
+      >
+      if (ports) {
+        for (const [containerPort, bindings] of Object.entries(ports)) {
+          const cp = parseInt(containerPort, 10)
+          if (Number.isFinite(cp)) exposedPorts.push(cp)
+          if (bindings) {
+            for (const b of bindings) {
+              const hp = parseInt(b.HostPort, 10)
+              if (Number.isFinite(hp) && hp > 0) {
+                hostPorts.push(hp)
+                portMap[String(cp)] = hp
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // not valid JSON
+    }
+
+    if (cmdRaw && cmdRaw !== "null") {
+      try {
+        cmd = JSON.parse(cmdRaw) as string[]
+      } catch {
+        // not valid JSON
+      }
+    }
+
+    hostPorts = [...new Set(hostPorts)]
+    exposedPorts = [...new Set(exposedPorts)]
 
     entries.push({
       ip,
       containerName,
       composeProject,
       composeService,
-      hostPorts: hostPorts.length ? Array.from(new Set(hostPorts)) : undefined,
-      exposedPorts: exposedPorts.length
-        ? Array.from(new Set(exposedPorts))
-        : undefined,
+      hostPorts: hostPorts.length ? hostPorts : undefined,
+      exposedPorts: exposedPorts.length ? exposedPorts : undefined,
+      portMap: Object.keys(portMap).length ? portMap : undefined,
+      cmd,
     })
   }
 
@@ -337,11 +387,19 @@ export async function collectContainerIpMap(
  * Checks for known Traefik container images and process names.
  * Returns the API URL if detected, null otherwise.
  */
+/**
+ * Read the Traefik API entrypoint port from the container's command args.
+ *
+ * When `--api.insecure=true` is set, Traefik serves the API on the `traefik`
+ * entrypoint. The port defaults to 8080 unless overridden with
+ * `--entrypoints.traefik.address=:XXXX`.
+ */
 export function detectTraefikApiUrl(
   service: {
     name: string
     image?: string
     ports: number[]
+    cmd?: string[]
     metadata?: Record<string, string>
   },
   hostAddress: string = "localhost"
@@ -354,20 +412,27 @@ export function detectTraefikApiUrl(
 
   if (!isTraefik) return null
 
-  // Traefik API defaults to container port 8080, but the host-side mapping
-  // can land on any high port (we've seen 8080, 8085, 9081, etc.).
-  // Skip well-known entrypoint ports.
-  const entrypointPorts = new Set([80, 443, 389, 636, 5432, 6432, 8443])
-  const apiPort =
-    service.ports.find((p) => p === 8080) ??
-    service.ports.find((p) => p === 8085) ??
-    service.ports.find((p) => p > 8000 && p < 10000 && !entrypointPorts.has(p))
+  const cmd = service.cmd ?? []
 
-  if (apiPort) {
-    return `http://${hostAddress}:${apiPort}`
+  // Check if the API is enabled
+  const hasApi =
+    cmd.some((a) => a === "--api.insecure=true") ||
+    cmd.some((a) => a === "--api.dashboard=true")
+
+  if (!hasApi && cmd.length > 0) return null
+
+  // Read the traefik entrypoint port from static config
+  const traefikEp = cmd.find((a) =>
+    a.startsWith("--entrypoints.traefik.address=")
+  )
+  if (traefikEp) {
+    const portMatch = traefikEp.match(/:(\d+)$/)
+    if (portMatch) {
+      return `http://${hostAddress}:${portMatch[1]}`
+    }
   }
 
-  // Fallback: try default 8080
+  // Default: Traefik API entrypoint is 8080
   return `http://${hostAddress}:8080`
 }
 
