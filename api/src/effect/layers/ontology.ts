@@ -10,13 +10,16 @@ import { EntityNotFoundError } from "@smp/factory-shared/effect/errors"
 
 import { Db, type DatabaseError } from "./database"
 import { Ontology, makeEntityAccessor } from "../services/ontology"
-// Lazy import to avoid circular dependency (ontology-registry imports from modules)
-function getRegistry() {
-  return require("../../lib/ontology-registry").getRegistry() as Map<
-    string,
-    { table: any; slugColumn: any; idColumn: any }
-  >
-}
+// Lazy import to avoid circular dependency (ontology-registry imports from modules).
+// Uses dynamic import() wrapped in Effect instead of CJS require().
+const loadRegistry = () =>
+  Effect.promise(async () => {
+    const mod = await import("../../lib/ontology-registry")
+    return mod.ONTOLOGY_REGISTRY as Map<
+      string,
+      { table: any; slugColumn: any; idColumn: any }
+    >
+  })
 
 // Slug-based ontology tables
 import {
@@ -45,40 +48,39 @@ export const OntologyLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* Db
 
-    // Dynamic accessor using getRegistry() for runtime-determined kinds
-    const dynamicGet = (kind: string, slugOrId: string) => {
-      const entry = getRegistry().get(kind)
-      if (!entry) {
-        return Effect.fail(
-          new EntityNotFoundError({ entity: kind, identifier: slugOrId })
-        )
-      }
-      return makeEntityAccessor(
-        db,
-        kind,
-        entry.table,
-        entry.slugColumn,
-        entry.idColumn
-      ).get(slugOrId) as Effect.Effect<
+    // Dynamic accessor using ONTOLOGY_REGISTRY for runtime-determined kinds
+    const dynamicGet = (kind: string, slugOrId: string) =>
+      Effect.flatMap(loadRegistry(), (registry) => {
+        const entry = registry.get(kind)
+        if (!entry) {
+          return Effect.fail(
+            new EntityNotFoundError({ entity: kind, identifier: slugOrId })
+          )
+        }
+        return makeEntityAccessor(
+          db,
+          kind,
+          entry.table,
+          entry.slugColumn,
+          entry.idColumn
+        ).get(slugOrId)
+      }) as Effect.Effect<
         Record<string, unknown>,
         DatabaseError | EntityNotFoundError
       >
-    }
 
-    const dynamicFind = (kind: string, slugOrId: string) => {
-      const entry = getRegistry().get(kind)
-      if (!entry) return Effect.succeed(null)
-      return makeEntityAccessor(
-        db,
-        kind,
-        entry.table,
-        entry.slugColumn,
-        entry.idColumn
-      ).find(slugOrId) as Effect.Effect<
-        Record<string, unknown> | null,
-        DatabaseError
-      >
-    }
+    const dynamicFind = (kind: string, slugOrId: string) =>
+      Effect.flatMap(loadRegistry(), (registry) => {
+        const entry = registry.get(kind)
+        if (!entry) return Effect.succeed(null)
+        return makeEntityAccessor(
+          db,
+          kind,
+          entry.table,
+          entry.slugColumn,
+          entry.idColumn
+        ).find(slugOrId)
+      }) as Effect.Effect<Record<string, unknown> | null, DatabaseError>
 
     return {
       // Infra

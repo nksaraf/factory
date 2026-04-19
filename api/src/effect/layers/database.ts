@@ -236,6 +236,14 @@ export function queryOrNotFound<A>(
 
 // ---------------------------------------------------------------------------
 // Transactions — matches drizzle-orm/effect-postgres pattern
+//
+// KNOWN LIMITATION: Uses Effect.runPromiseExit inside Effect.async because
+// Drizzle 0.45's db.transaction() requires a Promise callback. This creates
+// a nested runtime fiber that cannot be interrupted from the outside.
+// When Drizzle 1.0 ships with effect-postgres, replace this entire function
+// with their native transaction Effect. The sentinel envelope approach below
+// is a deliberate workaround to propagate typed failures and defects across
+// the Promise boundary.
 // ---------------------------------------------------------------------------
 
 /** Sentinel wrapper for typed failures thrown across the transaction boundary. */

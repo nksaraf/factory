@@ -32,10 +32,12 @@ import {
   Db,
   query,
   queryOrNotFound,
-  type DatabaseError,
+  DatabaseError,
+  type DatabaseErrorVariant,
 } from "../layers/database"
 import { classifyDatabaseError } from "../layers/database"
-import { Secrets, type SecretDecryptionError } from "../services/secrets"
+import { type SecretDecryptionError } from "../services/secrets"
+import { SpecResolver } from "../services/spec-resolver"
 import {
   DnsProvider,
   type DnsApiError,
@@ -86,6 +88,8 @@ type SyncError =
   | DnsApiError
   | DnsAuthError
 
+type SyncDeps = Db | SpecResolver
+
 // ---------------------------------------------------------------------------
 // Core sync program
 // ---------------------------------------------------------------------------
@@ -101,10 +105,10 @@ type SyncError =
  */
 export function syncDnsFromEstate(
   estateId: string
-): Effect.Effect<SyncResult, SyncError, Db | Secrets> {
+): Effect.Effect<SyncResult, SyncError, SyncDeps> {
   return Effect.gen(function* () {
     const db = yield* Db
-    const secrets = yield* Secrets
+    const specResolver = yield* SpecResolver
 
     // Verify estate exists
     const estateRow = yield* queryOrNotFound(
@@ -113,32 +117,22 @@ export function syncDnsFromEstate(
       estateId
     )
 
-    // Resolve credentials from estate spec
+    // Resolve $secret() and $var() refs via SpecResolver service
     const spec = estateRow.spec as Record<string, unknown>
-
-    // Resolve $secret() refs in the estate spec
-    const resolved = { ...spec } as Record<string, unknown>
-    for (const [key, value] of Object.entries(spec)) {
-      if (typeof value !== "string") continue
-      const secretMatch = value.match(/^\$secret\(([^)]+)\)$/)
-      if (secretMatch) {
-        const secretValue = yield* secrets.get({
-          key: secretMatch[1],
-          scopeType: "org",
-          scopeId: "default",
-        })
-        resolved[key] = secretValue
-      }
-    }
+    const resolved = yield* specResolver.resolve(spec, {
+      scopeType: "org",
+      scopeId: "default",
+    })
 
     const apiToken =
       (resolved.credentialsRef as string | undefined) ??
       (resolved.tokenSecret as string | undefined)
 
     if (!apiToken) {
-      return yield* classifyDatabaseError(
-        new Error("No credentialsRef or tokenSecret configured")
-      )
+      return yield* new DatabaseError({
+        variant: "query_failed" as DatabaseErrorVariant,
+        message: "No credentialsRef or tokenSecret configured on estate spec",
+      })
     }
 
     const providerKind = (spec.providerKind ??
