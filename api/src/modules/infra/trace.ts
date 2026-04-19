@@ -676,6 +676,10 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         // Empty pathPrefix matches anything.
         if (routePath && !requestPath.startsWith(routePath)) continue
 
+        // Skip Traefik internal services (api@internal, dashboard@internal, etc.)
+        const targetService = spec.targetService as string | undefined
+        if (targetService?.includes("@internal")) continue
+
         matched.push({
           id: r.id,
           slug: r.slug,
