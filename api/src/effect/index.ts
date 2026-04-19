@@ -42,7 +42,7 @@ export { Secrets, SecretDecryptionError } from "./services/secrets"
 export { SecretsLive } from "./layers/secrets"
 
 // Bridge
-export { runEffect } from "./bridge"
+export { runEffect, runWithRuntime } from "./bridge"
 
 // Runtime — full service stack (Db + Config + Secrets + SpecResolver + Ontology)
 export { createAppLayer, type AppLayer } from "./runtime"

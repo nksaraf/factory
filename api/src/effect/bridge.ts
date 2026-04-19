@@ -7,6 +7,7 @@
  */
 
 import { Effect, Exit, Cause, Option, Chunk } from "effect"
+import type { ManagedRuntime } from "effect"
 import type { FactoryError } from "@smp/factory-shared/effect/errors"
 import {
   AppError,
@@ -98,6 +99,40 @@ export async function runEffect<A, E extends { readonly _tag: string }>(
   effect: Effect.Effect<A, E, never>
 ): Promise<A> {
   const exit = await Effect.runPromiseExit(effect)
+
+  if (Exit.isSuccess(exit)) return exit.value
+
+  // Expected (typed) failure
+  const failure = Cause.failureOption(exit.cause)
+  if (Option.isSome(failure)) {
+    throw toAppError(failure.value)
+  }
+
+  // Defects (unexpected errors) — wrap as InternalError
+  const allDefects = Cause.defects(exit.cause)
+  const firstDefect = Chunk.head(allDefects)
+  if (Option.isSome(firstDefect)) {
+    const err = firstDefect.value
+    throw err instanceof AppError
+      ? err
+      : new InternalError(err instanceof Error ? err.message : String(err))
+  }
+
+  throw new InternalError("Unexpected internal error")
+}
+
+/**
+ * Run an Effect using a pre-built ManagedRuntime.
+ *
+ * Use this in controllers that receive the runtime from Elysia's decorate
+ * rather than assembling a layer per request.  Error mapping is identical
+ * to `runEffect`.
+ */
+export async function runWithRuntime<R, A, E extends { readonly _tag: string }>(
+  runtime: ManagedRuntime.ManagedRuntime<R, never>,
+  effect: Effect.Effect<A, E, R>
+): Promise<A> {
+  const exit = await runtime.runPromiseExit(effect)
 
   if (Exit.isSuccess(exit)) return exit.value
 

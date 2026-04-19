@@ -99,7 +99,7 @@ export class FactoryAPI {
   reconciler: Reconciler | null = null
   private effectRuntime:
     | import("effect/ManagedRuntime").ManagedRuntime<
-        import("./effect").Db | import("./effect").FactoryConfig,
+        import("./effect/runtime").AppLayer,
         never
       >
     | null = null
@@ -163,6 +163,7 @@ export class FactoryAPI {
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
       .decorate("db", db)
+      .decorate("effectRuntime", this.effectRuntime)
       .use(errorHandlerPlugin())
       .use(batch1)
       .use(batch2)
