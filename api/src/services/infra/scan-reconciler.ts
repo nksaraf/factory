@@ -617,22 +617,38 @@ export async function reconcileHostScan(
 
     const currentRouterSlugs = new Set<string>()
 
+    // Build IP → host slug map for crawled hosts so we can scope their proxies.
+    const crawledHostSlugs = new Map<string, string>()
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const [h] = await tx
+        .select({ slug: host.slug })
+        .from(host)
+        .where(sql`${host.spec}->>'ipAddress' = ${entry.ip}`)
+        .limit(1)
+      if (h) crawledHostSlugs.set(entry.ip, h.slug)
+    }
+
     // Collect reverse proxies from both the main scan host and crawled hosts.
-    // Crawled hosts have their own reverseProxies populated by crawlTraefikViaSsh
-    // with backend.container already resolved via containerIpMap.
-    const allReverseProxies = [...(scanResult.reverseProxies ?? [])]
+    type RP = NonNullable<typeof scanResult.reverseProxies>[number]
+    type TaggedProxy = { proxy: RP; ownerHostSlug: string }
+    const allProxies: TaggedProxy[] = (scanResult.reverseProxies ?? []).map(
+      (p) => ({ proxy: p, ownerHostSlug: hostSlug })
+    )
     for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
       const crawledScan = entry.scanResult as HostScanResult | undefined
-      if (crawledScan?.reverseProxies) {
-        allReverseProxies.push(...crawledScan.reverseProxies)
+      if (!crawledScan?.reverseProxies) continue
+      const slug = crawledHostSlugs.get(entry.ip)
+      if (!slug) continue
+      for (const p of crawledScan.reverseProxies) {
+        allProxies.push({ proxy: p, ownerHostSlug: slug })
       }
     }
 
-    for (const proxy of allReverseProxies) {
-      const proxyRealmId = proxyRealmIdMap.get(proxy.name)
+    for (const { proxy, ownerHostSlug } of allProxies) {
+      const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
+      const proxyRealmId =
+        proxyRealmIdMap.get(proxySlug) ?? proxyRealmIdMap.get(proxy.name)
       if (!proxyRealmId) continue
-
-      const proxySlug = slugify(`${hostSlug}-${proxy.engine}`)
       for (const router of proxy.routers) {
         // Catch-all routers (no Host rule) get domain "*" with lower priority
         const domain = router.domains[0] ?? "*"
