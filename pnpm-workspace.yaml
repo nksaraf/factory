@@ -2,5 +2,6 @@ packages:
   - "./api"
   - "./api-server"
   - "./cli"
+  - "./ontology"
   - "./shared"
   - "./ui"
