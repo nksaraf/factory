@@ -615,32 +615,203 @@ export async function reconcileHostScan(
     // ── 8c. Upsert Route entities from proxy routers ─────────
     // Each router with domains becomes an ingress Route entity.
 
-    const currentRouterSlugs = new Set<string>()
+    // ── 8c-pre: Discover hosts + promote crawled realms FIRST ──
+    // This must happen before route creation so all proxy realms exist in
+    // proxyRealmIdMap when we process routes from ALL proxies in one pass.
 
-    // Build IP → host slug map for crawled hosts so we can scope their proxies.
+    const hostIpAddress = (hostEntity.spec as HostSpec).ipAddress
     const crawledHostSlugs = new Map<string, string>()
+
     for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
-      const [h] = await tx
-        .select({ slug: host.slug })
+      const ip = entry.ip
+      if (ip === hostIpAddress) continue
+
+      const [existing] = await tx
+        .select({ id: host.id, slug: host.slug })
         .from(host)
-        .where(sql`${host.spec}->>'ipAddress' = ${entry.ip}`)
+        .where(sql`${host.spec}->>'ipAddress' = ${ip}`)
         .limit(1)
-      if (h) crawledHostSlugs.set(entry.ip, h.slug)
+
+      if (existing) {
+        const ensured = await ensureIp(tx, {
+          address: ip,
+          spec: { scope: isRfc1918Ip(ip) ? "private" : "public" },
+        })
+        await assignIp(tx, ensured.ipAddressId, {
+          assignedToKind: "host",
+          assignedToId: existing.id,
+        })
+        crawledHostSlugs.set(ip, existing.slug)
+        summary.discoveredHosts.hosts.push({
+          slug: existing.slug,
+          ip,
+          reachable: entry.reachable,
+          created: false,
+        })
+        summary.discoveredHosts.existing++
+      } else {
+        const discoveredName =
+          entry.hostname || `host-${ip.replace(/\./g, "-")}`
+        const discoveredSlug = slugify(discoveredName)
+        const scanningSpec = hostEntity.spec as HostSpec
+        const discoveredHostId = newId("host")
+        await tx.insert(host).values({
+          id: discoveredHostId,
+          slug: discoveredSlug,
+          name: discoveredName,
+          type: "vm",
+          spec: {
+            hostname: entry.hostname || ip,
+            ipAddress: ip,
+            os: "linux",
+            arch: "amd64",
+            accessMethod: "ssh",
+            accessUser: scanningSpec.accessUser ?? "root",
+            sshPort: 22,
+            lifecycle: entry.reachable ? "active" : "offline",
+          } satisfies HostSpec,
+          metadata: {
+            annotations: {
+              discoveredBy: "network-crawl",
+              discoveredFrom: hostSlug,
+              discoveredAt: new Date().toISOString(),
+            },
+          },
+        })
+        const ensured = await ensureIp(tx, {
+          address: ip,
+          spec: {
+            scope: isRfc1918Ip(ip) ? "private" : "public",
+            role: "primary",
+          },
+        })
+        await assignIp(tx, ensured.ipAddressId, {
+          assignedToKind: "host",
+          assignedToId: discoveredHostId,
+        })
+        crawledHostSlugs.set(ip, discoveredSlug)
+        summary.discoveredHosts.hosts.push({
+          slug: discoveredSlug,
+          ip,
+          reachable: entry.reachable,
+          created: true,
+        })
+        summary.discoveredHosts.created++
+      }
     }
 
-    // Main scan host proxies first — crawled host proxies are added after
-    // step 8c¾ promotes their realms into proxyRealmIdMap.
+    // Promote proxy-like services on discovered hosts to realms
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      if (!entry.reachable) continue
+      const ip = entry.ip
+      if (ip === hostIpAddress) continue
+
+      const targetSlug = crawledHostSlugs.get(ip)
+      if (!targetSlug) continue
+      const [targetHost] = await tx
+        .select({ id: host.id, slug: host.slug })
+        .from(host)
+        .where(eq(host.slug, targetSlug))
+        .limit(1)
+      if (!targetHost) continue
+
+      const proxyPorts = new Map<string, Set<number>>()
+      for (const rs of entry.resolvedServices) {
+        const engine = detectProxyEngine(rs.service?.image, rs.service?.name)
+        if (!engine) continue
+        const ports = proxyPorts.get(engine) ?? new Set()
+        ports.add(rs.port)
+        proxyPorts.set(engine, ports)
+      }
+
+      for (const [engine, ports] of proxyPorts) {
+        const proxySlug = slugify(`${targetHost.slug}-${engine}`)
+        if (proxyRealmIdMap.has(proxySlug)) continue
+
+        const [existingProxy] = await tx
+          .select({ id: realm.id })
+          .from(realm)
+          .where(eq(realm.slug, proxySlug))
+          .limit(1)
+
+        const entrypoints = [...ports].map((p) => ({
+          name: `port-${p}`,
+          port: p,
+          protocol: "http" as const,
+        }))
+        const proxySpec = {
+          status: "ready" as const,
+          engine,
+          entrypoints,
+        }
+
+        if (existingProxy) {
+          await tx
+            .update(realm)
+            .set({
+              spec: proxySpec,
+              metadata: scanMetadata({
+                hostSlug: targetHost.slug,
+                promotedFrom: "network-crawl",
+              }),
+              updatedAt: new Date(),
+            })
+            .where(eq(realm.id, existingProxy.id))
+          proxyRealmIdMap.set(proxySlug, existingProxy.id)
+          summary.realms.updated++
+        } else {
+          const proxyRealmId = newId("rlm")
+          await tx.insert(realm).values({
+            id: proxyRealmId,
+            slug: proxySlug,
+            name: `${targetHost.slug} ${engine}`,
+            type: "reverse-proxy",
+            spec: proxySpec,
+            metadata: scanMetadata({
+              hostSlug: targetHost.slug,
+              promotedFrom: "network-crawl",
+            }),
+          })
+          await tx.insert(realmHost).values({
+            realmId: proxyRealmId,
+            hostId: targetHost.id,
+            role: "single",
+          })
+          proxyRealmIdMap.set(proxySlug, proxyRealmId)
+          summary.realms.created++
+        }
+      }
+    }
+
+    // ── 8c: Unified route creation — ALL proxies in one pass ──
+    // Now that all realms exist (main host + crawled hosts), process
+    // every proxy's routes in a single loop. No second pass needed.
+
     type RP = NonNullable<typeof scanResult.reverseProxies>[number]
     type TaggedProxy = { proxy: RP; ownerHostSlug: string }
     const allProxies: TaggedProxy[] = (scanResult.reverseProxies ?? []).map(
       (p) => ({ proxy: p, ownerHostSlug: hostSlug })
     )
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const crawledScan = entry.scanResult as HostScanResult | undefined
+      if (!crawledScan?.reverseProxies) continue
+      const slug = crawledHostSlugs.get(entry.ip)
+      if (!slug) continue
+      for (const p of crawledScan.reverseProxies) {
+        allProxies.push({ proxy: p, ownerHostSlug: slug })
+      }
+    }
+
+    const currentRouterSlugs = new Set<string>()
+    // Track which hostSlugs we've processed routes for (for scoped stale marking)
+    const processedHostSlugs = new Set<string>()
 
     for (const { proxy, ownerHostSlug } of allProxies) {
       const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
       const proxyRealmId =
         proxyRealmIdMap.get(proxySlug) ?? proxyRealmIdMap.get(proxy.name)
       if (!proxyRealmId) continue
+      processedHostSlugs.add(ownerHostSlug)
       for (const router of proxy.routers) {
         // Catch-all routers (no Host rule) get domain "*" with lower priority
         const domain = router.domains[0] ?? "*"
@@ -727,7 +898,7 @@ export async function reconcileHostScan(
               spec: routeSpec,
               status: routeStatus as unknown as Record<string, unknown>,
               realmId: proxyRealmId,
-              metadata: scanMetadata({ hostSlug }),
+              metadata: scanMetadata({ hostSlug: ownerHostSlug }),
               updatedAt: new Date(),
             })
             .where(eq(route.id, existingRoute.id))
@@ -742,288 +913,38 @@ export async function reconcileHostScan(
             realmId: proxyRealmId,
             spec: routeSpec,
             status: routeStatus as unknown as Record<string, unknown>,
-            metadata: scanMetadata({ hostSlug }),
+            metadata: scanMetadata({ hostSlug: ownerHostSlug }),
           })
           summary.routes.created++
         }
       }
     }
 
-    // Mark stale routes (previously scan-discovered, no longer present)
-    const staleRouteCondition = and(
-      sql`${route.metadata}->'annotations'->>'discoveredBy' = 'scan'`,
-      sql`${route.metadata}->'annotations'->>'hostSlug' = ${hostSlug}`,
-      currentRouterSlugs.size > 0
-        ? sql`${route.slug} NOT IN (${sql.join(
-            [...currentRouterSlugs].map((s) => sql`${s}`),
-            sql`, `
-          )})`
-        : sql`true`
-    )
-
-    const staleRouteRows = await tx
-      .update(route)
-      .set({
-        spec: sql`${route.spec} || '{"status": "expired"}'::jsonb`,
-        status: sql`${route.status} || '{"phase": "stale"}'::jsonb`,
-        updatedAt: new Date(),
-      })
-      .where(staleRouteCondition)
-      .returning({ id: route.id })
-
-    summary.routes.stale = staleRouteRows.length
-
-    // ── 8c½. Register discovered hosts from network crawl ────
-    // Match crawled backend IPs to existing hosts; auto-create unknown ones
-    // so that the network link step (8d) can resolve all targets.
-
-    const hostIpAddress = (hostEntity.spec as HostSpec).ipAddress
-
-    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
-      const ip = entry.ip
-      if (ip === hostIpAddress) continue // skip self
-
-      const [existing] = await tx
-        .select({ id: host.id, slug: host.slug })
-        .from(host)
-        .where(sql`${host.spec}->>'ipAddress' = ${ip}`)
-        .limit(1)
-
-      if (existing) {
-        const ensured = await ensureIp(tx, {
-          address: ip,
-          spec: {
-            scope: isRfc1918Ip(ip) ? "private" : "public",
-          },
-        })
-        await assignIp(tx, ensured.ipAddressId, {
-          assignedToKind: "host",
-          assignedToId: existing.id,
-        })
-        summary.discoveredHosts.hosts.push({
-          slug: existing.slug,
-          ip,
-          reachable: entry.reachable,
-          created: false,
-        })
-        summary.discoveredHosts.existing++
-        continue
-      }
-
-      // Auto-create genuinely unknown host
-      const discoveredName = entry.hostname || `host-${ip.replace(/\./g, "-")}`
-      const discoveredSlug = slugify(discoveredName)
-      const scanningSpec = hostEntity.spec as HostSpec
-      const discoveredHostId = newId("host")
-
-      await tx.insert(host).values({
-        id: discoveredHostId,
-        slug: discoveredSlug,
-        name: discoveredName,
-        type: "vm",
-        spec: {
-          hostname: entry.hostname || ip,
-          ipAddress: ip,
-          os: "linux",
-          arch: "amd64",
-          accessMethod: "ssh",
-          accessUser: scanningSpec.accessUser ?? "root",
-          sshPort: 22,
-          lifecycle: entry.reachable ? "active" : "offline",
-        } satisfies HostSpec,
-        metadata: {
-          annotations: {
-            discoveredBy: "network-crawl",
-            discoveredFrom: hostSlug,
-            discoveredAt: new Date().toISOString(),
-          },
-        },
-      })
-
-      const ensured = await ensureIp(tx, {
-        address: ip,
-        spec: {
-          scope: isRfc1918Ip(ip) ? "private" : "public",
-          role: "primary",
-        },
-      })
-      await assignIp(tx, ensured.ipAddressId, {
-        assignedToKind: "host",
-        assignedToId: discoveredHostId,
-      })
-
-      summary.discoveredHosts.hosts.push({
-        slug: discoveredSlug,
-        ip,
-        reachable: entry.reachable,
-        created: true,
-      })
-      summary.discoveredHosts.created++
-    }
-
-    // ── 8c¾. Promote proxy-like services on discovered hosts to realms ──
-    // When a discovered host runs a reverse proxy (detected by image/name),
-    // create a reverse-proxy realm so the tracer can recurse through it.
-
-    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
-      if (!entry.reachable) continue
-      const ip = entry.ip
-      if (ip === hostIpAddress) continue
-
-      // Find the host entity for this crawled IP
-      const [targetHost] = await tx
-        .select({ id: host.id, slug: host.slug })
-        .from(host)
-        .where(sql`${host.spec}->>'ipAddress' = ${ip}`)
-        .limit(1)
-      if (!targetHost) continue
-
-      // Check resolved services for proxy-like images
-      // Collect all ports this proxy is listening on from crawl data
-      const proxyPorts = new Map<string, Set<number>>() // engine → ports
-      for (const rs of entry.resolvedServices) {
-        const engine = detectProxyEngine(rs.service?.image, rs.service?.name)
-        if (!engine) continue
-        const ports = proxyPorts.get(engine) ?? new Set()
-        ports.add(rs.port)
-        proxyPorts.set(engine, ports)
-      }
-
-      for (const [engine, ports] of proxyPorts) {
-        const proxySlug = slugify(`${targetHost.slug}-${engine}`)
-        if (proxyRealmIdMap.has(proxySlug)) continue
-
-        const [existingProxy] = await tx
-          .select({ id: realm.id })
-          .from(realm)
-          .where(eq(realm.slug, proxySlug))
-          .limit(1)
-
-        const entrypoints = [...ports].map((p) => ({
-          name: `port-${p}`,
-          port: p,
-          protocol: "http" as const,
-        }))
-
-        const proxySpec = {
-          status: "ready" as const,
-          engine,
-          entrypoints,
-        }
-
-        if (existingProxy) {
-          await tx
-            .update(realm)
-            .set({
-              spec: proxySpec,
-              metadata: scanMetadata({
-                hostSlug: targetHost.slug,
-                promotedFrom: "network-crawl",
-              }),
-              updatedAt: new Date(),
-            })
-            .where(eq(realm.id, existingProxy.id))
-          proxyRealmIdMap.set(proxySlug, existingProxy.id)
-          summary.realms.updated++
-        } else {
-          const proxyRealmId = newId("rlm")
-          await tx.insert(realm).values({
-            id: proxyRealmId,
-            slug: proxySlug,
-            name: `${targetHost.slug} ${engine}`,
-            type: "reverse-proxy",
-            spec: proxySpec,
-            metadata: scanMetadata({
-              hostSlug: targetHost.slug,
-              promotedFrom: "network-crawl",
-            }),
-          })
-          await tx.insert(realmHost).values({
-            realmId: proxyRealmId,
-            hostId: targetHost.id,
-            role: "single",
-          })
-          proxyRealmIdMap.set(proxySlug, proxyRealmId)
-          summary.realms.created++
-        }
-      }
-    }
-
-    // ── 8c½+. Process crawled hosts' reverseProxies for routes ──
-    // Now that step 8c¾ has promoted crawled proxy realms into proxyRealmIdMap,
-    // we can create routes for their Traefik routers with resolved backends.
-    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
-      const crawledScan = entry.scanResult as HostScanResult | undefined
-      if (!crawledScan?.reverseProxies) continue
-      const ownerHostSlug = crawledHostSlugs.get(entry.ip)
-      if (!ownerHostSlug) continue
-      for (const p of crawledScan.reverseProxies) {
-        allProxies.push({ proxy: p, ownerHostSlug })
-      }
-    }
-    // Re-run route creation for the newly added crawled proxies
-    let crawledRouteUpdates = 0
-    for (const { proxy, ownerHostSlug } of allProxies) {
-      const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
-      const proxyRealmId =
-        proxyRealmIdMap.get(proxySlug) ?? proxyRealmIdMap.get(proxy.name)
-      if (!proxyRealmId) continue
-      // Skip main-scan proxies — already processed in step 8c
-      if (ownerHostSlug === hostSlug) continue
-
-      for (const router of proxy.routers) {
-        const domain = router.domains[0] ?? "*"
-        const routeSlug =
-          domain === "*"
-            ? slugify(`${proxySlug}-catchall-${router.name}`)
-            : slugify(`${proxySlug}-${domain}`)
-        {
-          // Update resolvedTargets for crawled host routes
-          const resolvedTargets: RouteStatus["resolvedTargets"] = []
-          for (const backend of router.backends) {
-            if (backend.container) {
-              const project = slugify(backend.container.composeProject)
-              const service = slugify(backend.container.composeService)
-              resolvedTargets.push({
-                systemDeploymentSlug: backend.container.composeProject,
-                componentSlug: `${project}-${service}`,
-                address: backend.url,
-                port: extractPort(backend.url) ?? 80,
-                weight: 100,
-                realmType: "docker-compose",
-              })
-            }
-          }
-          if (resolvedTargets.length > 0) {
-            const [existing] = await tx
-              .select({ id: route.id })
-              .from(route)
-              .where(eq(route.slug, routeSlug))
-              .limit(1)
-            if (existing) {
-              await tx
-                .update(route)
-                .set({
-                  status: {
-                    phase: "resolved",
-                    resolvedTargets,
-                    resolvedAt: new Date(),
-                  },
-                  updatedAt: new Date(),
-                })
-                .where(eq(route.id, existing.id))
-              crawledRouteUpdates++
-              summary.routes.updated++
-            }
-          }
-        }
-      }
-    }
-    if (crawledRouteUpdates > 0) {
-      console.log(
-        `[reconciler] Updated ${crawledRouteUpdates} crawled proxy route resolvedTargets`
+    // Mark stale routes for ALL hosts we processed routes for
+    let totalStale = 0
+    for (const slug of processedHostSlugs) {
+      const staleRouteCondition = and(
+        sql`${route.metadata}->'annotations'->>'discoveredBy' = 'scan'`,
+        sql`${route.metadata}->'annotations'->>'hostSlug' = ${slug}`,
+        currentRouterSlugs.size > 0
+          ? sql`${route.slug} NOT IN (${sql.join(
+              [...currentRouterSlugs].map((s) => sql`${s}`),
+              sql`, `
+            )})`
+          : sql`true`
       )
+      const staleRows = await tx
+        .update(route)
+        .set({
+          spec: sql`${route.spec} || '{"status": "expired"}'::jsonb`,
+          status: sql`${route.status} || '{"phase": "stale"}'::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(staleRouteCondition)
+        .returning({ id: route.id })
+      totalStale += staleRows.length
     }
+    summary.routes.stale = totalStale
 
     // ── 8c⅞. Update component specs from crawled host scan data ──
     // The main scan only has service data for the scan host. Crawled hosts
