@@ -921,6 +921,16 @@ export function opsController(db: Database) {
           gateway: null,
         })
       })
+
+      .get("/sites/:slugOrId/state", async ({ params, set }) => {
+        const { getSiteState } = await import("./site-state.service.js")
+        const state = await getSiteState(db, params.slugOrId)
+        if (!state) {
+          set.status = 404
+          return { error: `Site '${params.slugOrId}' not found` }
+        }
+        return state
+      })
   )
 }
 
