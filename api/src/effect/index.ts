@@ -13,14 +13,14 @@ export {
 // Config layer
 export { FactoryConfig, makeConfigLayer } from "./layers/config"
 
-// Ontology — typed entity access derived from ENTITY_MAP
+// Ontology — typed entity access derived from IR + table bindings
 export {
   Ontology,
-  ENTITY_MAP,
   type OntologyService,
   type EntityAccessor,
   makeEntityAccessor,
 } from "./services/ontology"
+export { FACTORY_BINDINGS } from "./factory-bindings"
 export { OntologyLive } from "./layers/ontology"
 
 // Spec resolver — $secret() and $var() resolution

@@ -1,8 +1,9 @@
 /**
  * Ontology service — strongly typed entity access + parent hierarchy.
  *
- * ENTITY_MAP is the single source of truth. Adding a new entity = add one
- * line. Types, accessors, parent chains, and the layer all derive from it.
+ * The ontology IR (from @smp/ontology/factory) defines the entity graph and
+ * link relationships. FACTORY_BINDINGS (from ../factory-bindings) maps each
+ * entity kind to its Drizzle table + columns. Together they replace ENTITY_MAP.
  *
  *   const ontology = yield* Ontology
  *   const est = yield* ontology.estate.get("my-estate")
@@ -18,6 +19,7 @@ import { EntityNotFoundError } from "@smp/factory-shared/effect/errors"
 import { query, type DatabaseError } from "../layers/database"
 import { isPrefixedId } from "../../lib/resolvers"
 import type { Database } from "../../db/connection"
+import { FACTORY_BINDINGS } from "../factory-bindings"
 
 // ---------------------------------------------------------------------------
 // Entity accessor — what each ontology.X returns
@@ -91,127 +93,6 @@ export function makeEntityAccessor<T extends PgTable>(
 }
 
 // ---------------------------------------------------------------------------
-// Parent relationship definition
-// ---------------------------------------------------------------------------
-
-export interface ParentRef {
-  /** The kind of the parent entity (must be a key in ENTITY_MAP) */
-  readonly kind: string
-  /** The FK column on THIS entity that points to the parent's ID */
-  readonly fk: PgColumn
-}
-
-// ---------------------------------------------------------------------------
-// Entity definition helper
-// ---------------------------------------------------------------------------
-
-import {
-  estate,
-  host,
-  realm,
-  service,
-  route,
-  dnsDomain,
-  networkLink,
-} from "../../db/schema/infra"
-import {
-  system,
-  component,
-  softwareApi,
-  template,
-  product,
-  capability,
-} from "../../db/schema/software"
-import { team, principal, agent } from "../../db/schema/org"
-import { site, systemDeployment, workbench } from "../../db/schema/ops"
-import { repo, gitHostProvider } from "../../db/schema/build"
-
-function e<T extends PgTable>(
-  kind: string,
-  table: T,
-  slug: PgColumn,
-  id: PgColumn,
-  parents?: ParentRef[]
-) {
-  return { kind, table, slug, id, parents: parents ?? [] } as const
-}
-
-// ---------------------------------------------------------------------------
-// ENTITY_MAP — THE SINGLE SOURCE OF TRUTH
-//
-// Add one line here to register a new entity. Types, accessors, parent
-// chains, and the layer all derive from this map automatically.
-//
-// Parent relationships define the secret inheritance hierarchy:
-//   component-deployment → system-deployment → site (infra lineage)
-//   component-deployment → component → system (software lineage)
-//   host → estate → estate (recursive) → org
-// ---------------------------------------------------------------------------
-
-export const ENTITY_MAP = {
-  // ── Infra ─────────────────────────────────────────────────
-  estate: e("estate", estate, estate.slug, estate.id, [
-    { kind: "estate", fk: estate.parentEstateId }, // recursive
-  ]),
-  host: e("host", host, host.slug, host.id, [
-    { kind: "estate", fk: host.estateId },
-  ]),
-  realm: e("realm", realm, realm.slug, realm.id, [
-    { kind: "estate", fk: realm.estateId },
-  ]),
-  service: e("service", service, service.slug, service.id, [
-    { kind: "estate", fk: service.estateId },
-  ]),
-  route: e("route", route, route.slug, route.id),
-  dnsDomain: e("dns-domain", dnsDomain, dnsDomain.slug, dnsDomain.id),
-  networkLink: e("network-link", networkLink, networkLink.slug, networkLink.id),
-
-  // ── Software ──────────────────────────────────────────────
-  system: e("system", system, system.slug, system.id), // root of software hierarchy
-  component: e("component", component, component.slug, component.id, [
-    { kind: "system", fk: component.systemId },
-  ]),
-  api: e("api", softwareApi, softwareApi.slug, softwareApi.id, [
-    { kind: "system", fk: softwareApi.systemId },
-  ]),
-  template: e("template", template, template.slug, template.id),
-  product: e("product", product, product.slug, product.id),
-  capability: e("capability", capability, capability.slug, capability.id),
-
-  // ── Org ───────────────────────────────────────────────────
-  team: e("team", team, team.slug, team.id, [
-    { kind: "team", fk: team.parentTeamId }, // recursive
-  ]),
-  principal: e("principal", principal, principal.slug, principal.id),
-  agent: e("agent", agent, agent.slug, agent.id),
-
-  // ── Ops (dual lineage: infra + software) ──────────────────
-  site: e("site", site, site.slug, site.id), // root of ops hierarchy
-  systemDeployment: e(
-    "system-deployment",
-    systemDeployment,
-    systemDeployment.slug,
-    systemDeployment.id,
-    [
-      { kind: "site", fk: systemDeployment.siteId }, // infra lineage
-      { kind: "system", fk: systemDeployment.systemId }, // software lineage
-    ]
-  ),
-  workbench: e("workbench", workbench, workbench.slug, workbench.id, [
-    { kind: "site", fk: workbench.siteId },
-  ]),
-
-  // ── Build ─────────────────────────────────────────────────
-  repo: e("repository", repo, repo.slug, repo.id),
-  gitHostProvider: e(
-    "git-host-provider",
-    gitHostProvider,
-    gitHostProvider.slug,
-    gitHostProvider.id
-  ),
-} as const
-
-// ---------------------------------------------------------------------------
 // Ancestor reference — an entity in the ancestry chain
 // ---------------------------------------------------------------------------
 
@@ -223,13 +104,24 @@ export interface AncestorRef {
 }
 
 // ---------------------------------------------------------------------------
-// Derived types
+// Derived types — OntologyService from FACTORY_BINDINGS
 // ---------------------------------------------------------------------------
 
-type EntityMap = typeof ENTITY_MAP
+type Bindings = typeof FACTORY_BINDINGS
 
+/**
+ * The key mapping from FACTORY_BINDINGS uses hyphenated kind strings as keys
+ * for some entities (e.g., "system-deployment"). To provide camelCase property
+ * accessors on OntologyService, we need to map the binding keys to accessor
+ * names. The binding file uses the camelCase JS-identifier form for most
+ * entities, with the exception of hyphenated keys for multi-word entity kinds.
+ *
+ * Since bindings already use JS-identifier keys (e.g., "system-deployment"),
+ * the service exposes them as-is. Callers use ontology["system-deployment"]
+ * or ontology.estate, etc.
+ */
 export type OntologyService = {
-  readonly [K in keyof EntityMap]: EntityAccessor<EntityMap[K]["table"]>
+  readonly [K in keyof Bindings]: EntityAccessor<Bindings[K]["table"]>
 } & {
   /** Dynamic access by kind string. */
   readonly get: (
@@ -252,11 +144,9 @@ export type OntologyService = {
    * For entities with dual lineage (e.g., systemDeployment has both site
    * and system parents), both lineages are walked breadth-first.
    *
-   * @example
-   * ```ts
-   * const chain = yield* ontology.ancestors("system-deployment", "api-prod")
-   * // [{ kind: "site", ... }, { kind: "system", ... }, ...]
-   * ```
+   * Parent links are derived from the ontology IR: any link with
+   * cardinality === "many-to-one" is treated as a parent link. The FK
+   * column is resolved from the binding's fks record.
    */
   readonly ancestors: (
     kind: string,

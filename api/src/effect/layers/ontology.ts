@@ -1,38 +1,82 @@
 /**
- * Ontology live layer — derives all accessors + parent traversal from ENTITY_MAP.
+ * Ontology live layer — derives all accessors + parent traversal from the
+ * ontology IR (FactoryOntology) and table bindings (FACTORY_BINDINGS).
  */
 
 import { Effect, Layer } from "effect"
 import { eq } from "drizzle-orm"
-import type { PgTable } from "drizzle-orm/pg-core"
+import type { PgTable, PgColumn } from "drizzle-orm/pg-core"
 import { EntityNotFoundError } from "@smp/factory-shared/effect/errors"
 
 import { Db, query, type DatabaseError } from "./database"
 import {
   Ontology,
-  ENTITY_MAP,
   makeEntityAccessor,
   type OntologyService,
   type AncestorRef,
-  type ParentRef,
 } from "../services/ontology"
 import type { Database } from "../../db/connection"
+import { FactoryOntology } from "@smp/ontology/factory"
+import { FACTORY_BINDINGS } from "../factory-bindings"
+import type { TableBinding } from "@smp/ontology/adapters/postgres/bindings"
+import type { EntityIR } from "@smp/ontology"
 
 // ---------------------------------------------------------------------------
-// Parent traversal — walks the ancestry DAG breadth-first
+// Types for the kind index
 // ---------------------------------------------------------------------------
 
-function buildAncestors(
-  db: Database,
-  kindIndex: Map<string, (typeof ENTITY_MAP)[keyof typeof ENTITY_MAP]>
-) {
+interface KindEntry {
+  readonly kind: string
+  readonly binding: TableBinding
+  readonly entity: EntityIR | undefined
+}
+
+// ---------------------------------------------------------------------------
+// Parent traversal — walks the ancestry DAG breadth-first using IR links
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect the "parent" links for an entity: any manyToOne link whose target
+ * has a binding and whose FK column exists in the binding's fks record.
+ */
+function getParentLinks(
+  entityIR: EntityIR | undefined,
+  binding: TableBinding,
+  kindIndex: Map<string, KindEntry>
+): Array<{ linkName: string; targetKind: string; fkColumn: PgColumn }> {
+  if (!entityIR) return []
+
+  const parents: Array<{
+    linkName: string
+    targetKind: string
+    fkColumn: PgColumn
+  }> = []
+
+  for (const [linkName, linkDef] of Object.entries(entityIR.links)) {
+    if (linkDef.cardinality !== "many-to-one") continue
+
+    // The target kind in the IR — resolve it in the kind index
+    const targetKind = linkDef.target
+    if (!kindIndex.has(targetKind)) continue
+
+    // Find the FK column from the binding's fks map
+    const fkColumn = binding.fks?.[linkName]
+    if (!fkColumn) continue
+
+    parents.push({ linkName, targetKind, fkColumn })
+  }
+
+  return parents
+}
+
+function buildAncestors(db: Database, kindIndex: Map<string, KindEntry>) {
   return (
     kind: string,
     slugOrId: string
   ): Effect.Effect<AncestorRef[], DatabaseError | EntityNotFoundError> =>
     Effect.gen(function* () {
-      const def = kindIndex.get(kind)
-      if (!def) {
+      const entry = kindIndex.get(kind)
+      if (!entry) {
         return yield* new EntityNotFoundError({
           entity: kind,
           identifier: slugOrId,
@@ -42,36 +86,45 @@ function buildAncestors(
       // Get the root entity first
       const accessor = makeEntityAccessor(
         db,
-        def.kind,
-        def.table,
-        def.slug,
-        def.id
+        entry.kind,
+        entry.binding.table,
+        entry.binding.slug,
+        entry.binding.id
       )
       const rootEntity = yield* accessor.get(slugOrId)
       const root = rootEntity as Record<string, unknown>
 
       const ancestors: AncestorRef[] = []
-      const visited = new Set<string>() // "kind:id" to prevent cycles
+      const visited = new Set<string>()
 
-      // BFS queue: each item is a parent ref to follow from a resolved entity
+      // BFS queue: each item has the parent links to follow + the resolved entity
       const queue: Array<{
-        parentRefs: readonly ParentRef[]
+        parentLinks: Array<{
+          linkName: string
+          targetKind: string
+          fkColumn: PgColumn
+        }>
         entity: Record<string, unknown>
-      }> = [{ parentRefs: def.parents, entity: root }]
+      }> = [
+        {
+          parentLinks: getParentLinks(entry.entity, entry.binding, kindIndex),
+          entity: root,
+        },
+      ]
 
       while (queue.length > 0) {
-        const { parentRefs, entity } = queue.shift()!
+        const { parentLinks, entity } = queue.shift()!
 
-        for (const parentRef of parentRefs) {
-          const parentDef = kindIndex.get(parentRef.kind)
-          if (!parentDef) continue
+        for (const { targetKind, fkColumn } of parentLinks) {
+          const parentEntry = kindIndex.get(targetKind)
+          if (!parentEntry) continue
 
           // Get the FK value from the child entity
-          const fkColumnName = parentRef.fk.name
+          const fkColumnName = fkColumn.name
           const parentId = entity[fkColumnName] as string | null | undefined
           if (!parentId) continue
 
-          const visitKey = `${parentRef.kind}:${parentId}`
+          const visitKey = `${targetKind}:${parentId}`
           if (visited.has(visitKey)) continue
           visited.add(visitKey)
 
@@ -79,23 +132,28 @@ function buildAncestors(
           const [parentRow] = yield* query(
             db
               .select()
-              .from(parentDef.table as PgTable)
-              .where(eq(parentDef.id, parentId))
+              .from(parentEntry.binding.table as PgTable)
+              .where(eq(parentEntry.binding.id, parentId))
               .limit(1) as unknown as Promise<Record<string, unknown>[]>
           )
 
           if (!parentRow) continue
 
           ancestors.push({
-            kind: parentRef.kind,
+            kind: targetKind,
             id: parentId,
             slug: (parentRow as any).slug ?? parentId,
             entity: parentRow,
           })
 
           // Continue walking this parent's parents
-          if (parentDef.parents.length > 0) {
-            queue.push({ parentRefs: parentDef.parents, entity: parentRow })
+          const nextParentLinks = getParentLinks(
+            parentEntry.entity,
+            parentEntry.binding,
+            kindIndex
+          )
+          if (nextParentLinks.length > 0) {
+            queue.push({ parentLinks: nextParentLinks, entity: parentRow })
           }
         }
       }
@@ -106,7 +164,7 @@ function buildAncestors(
 
 function buildSecretScopeChain(
   db: Database,
-  kindIndex: Map<string, (typeof ENTITY_MAP)[keyof typeof ENTITY_MAP]>,
+  kindIndex: Map<string, KindEntry>,
   ancestorsFn: ReturnType<typeof buildAncestors>
 ) {
   return (
@@ -117,8 +175,8 @@ function buildSecretScopeChain(
     DatabaseError | EntityNotFoundError
   > =>
     Effect.gen(function* () {
-      const def = kindIndex.get(kind)
-      if (!def) {
+      const entry = kindIndex.get(kind)
+      if (!entry) {
         return yield* new EntityNotFoundError({
           entity: kind,
           identifier: slugOrId,
@@ -128,10 +186,10 @@ function buildSecretScopeChain(
       // Get the entity itself
       const accessor = makeEntityAccessor(
         db,
-        def.kind,
-        def.table,
-        def.slug,
-        def.id
+        entry.kind,
+        entry.binding.table,
+        entry.binding.slug,
+        entry.binding.id
       )
       const entity = yield* accessor.get(slugOrId)
       const entityId = (entity as Record<string, unknown>).id as string
@@ -163,45 +221,62 @@ export const OntologyLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* Db
 
-    // Build all typed accessors from the entity map
+    // Build kind index from IR entities + bindings
+    const kindIndex = new Map<string, KindEntry>()
+
+    for (const [bindingKey, binding] of Object.entries(FACTORY_BINDINGS)) {
+      // The binding key IS the kind string (e.g., "estate", "system-deployment")
+      const kind = bindingKey
+      const entityIR = FactoryOntology.entities[kind]
+
+      kindIndex.set(kind, { kind, binding, entity: entityIR })
+    }
+
+    // Build all typed accessors from bindings
     const accessors = {} as Record<string, unknown>
-    for (const [key, def] of Object.entries(ENTITY_MAP)) {
+    for (const [key, binding] of Object.entries(FACTORY_BINDINGS)) {
       accessors[key] = makeEntityAccessor(
         db,
-        def.kind,
-        def.table,
-        def.slug,
-        def.id
+        key,
+        binding.table,
+        binding.slug,
+        binding.id
       )
     }
 
-    // Kind index for dynamic + ancestor lookups
-    const kindIndex = new Map(
-      Object.values(ENTITY_MAP).map((def) => [def.kind, def])
-    )
-
     // Dynamic access
     const dynamicGet = (kind: string, slugOrId: string) => {
-      const def = kindIndex.get(kind)
-      if (!def) {
+      const entry = kindIndex.get(kind)
+      if (!entry) {
         return Effect.fail(
           new EntityNotFoundError({ entity: kind, identifier: slugOrId })
         )
       }
-      return makeEntityAccessor(db, def.kind, def.table, def.slug, def.id).get(
-        slugOrId
-      ) as Effect.Effect<
+      return makeEntityAccessor(
+        db,
+        entry.kind,
+        entry.binding.table,
+        entry.binding.slug,
+        entry.binding.id
+      ).get(slugOrId) as Effect.Effect<
         Record<string, unknown>,
         DatabaseError | EntityNotFoundError
       >
     }
 
     const dynamicFind = (kind: string, slugOrId: string) => {
-      const def = kindIndex.get(kind)
-      if (!def) return Effect.succeed(null)
-      return makeEntityAccessor(db, def.kind, def.table, def.slug, def.id).find(
-        slugOrId
-      ) as Effect.Effect<Record<string, unknown> | null, DatabaseError>
+      const entry = kindIndex.get(kind)
+      if (!entry) return Effect.succeed(null)
+      return makeEntityAccessor(
+        db,
+        entry.kind,
+        entry.binding.table,
+        entry.binding.slug,
+        entry.binding.id
+      ).find(slugOrId) as Effect.Effect<
+        Record<string, unknown> | null,
+        DatabaseError
+      >
     }
 
     // Parent traversal
