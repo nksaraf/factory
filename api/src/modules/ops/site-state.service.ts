@@ -6,6 +6,7 @@ import {
   site,
   systemDeployment,
 } from "../../db/schema/ops"
+import { component } from "../../db/schema/software"
 
 export async function getSiteState(db: Database, slugOrId: string) {
   const [siteRow] = await db
@@ -29,8 +30,12 @@ export async function getSiteState(db: Database, slugOrId: string) {
       const sdSpec = (sd.spec ?? {}) as Record<string, unknown>
 
       const cds = await db
-        .select()
+        .select({
+          cd: componentDeployment,
+          componentSlug: component.slug,
+        })
         .from(componentDeployment)
+        .innerJoin(component, eq(componentDeployment.componentId, component.id))
         .where(eq(componentDeployment.systemDeploymentId, sd.id))
 
       return {
@@ -38,11 +43,11 @@ export async function getSiteState(db: Database, slugOrId: string) {
         systemSlug: sd.name,
         runtime: (sdSpec.runtime as string) ?? "docker-compose",
         composeFiles: (sdSpec.composeFiles as string[]) ?? [],
-        componentDeployments: cds.map((cd) => {
+        componentDeployments: cds.map(({ cd, componentSlug }) => {
           const spec = (cd.spec ?? {}) as Record<string, unknown>
           const status = (cd.status ?? {}) as Record<string, unknown>
           return {
-            componentSlug: cd.componentId,
+            componentSlug,
             mode: (spec.mode as string) ?? "container",
             spec: {
               generation: cd.generation ?? 1,
