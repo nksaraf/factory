@@ -5,7 +5,7 @@
  * component (`auth-api:workshop-staging`) or a whole system
  * (`shared-auth:workshop-staging`). This helper picks out the system-level
  * entries — those whose left slug matches a declared `catalog.spec.dependencies[].system`
- * — and returns the linked SDs the dev-orchestrator should write into
+ * — and returns the linked SDs the site orchestrator should write into
  * `.dx/site.json`.
  *
  * Naming convention for the local linked-SD slug and the remote SD slug is

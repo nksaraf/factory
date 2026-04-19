@@ -113,7 +113,7 @@ export function getUnifiedServices(
   const site = SiteManager.load(rootDir)
   if (site) {
     const state = site.getState()
-    for (const sd of state.systemDeployments) {
+    for (const sd of state.spec.systemDeployments) {
       for (const cd of sd.componentDeployments) {
         if (cd.mode !== "native") continue
         const pid = cd.status.pid ?? null

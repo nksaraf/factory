@@ -1,11 +1,10 @@
 /**
- * DevOrchestrator — interactive site lifecycle management.
+ * SiteOrchestrator — interactive site lifecycle management.
  *
- * Writes desired state to site.json, then reconciles (one-shot).
- * Same entity model and reconcile logic as SiteController, but
+ * Writes desired state (spec) to site.json, then reconciles (one-shot).
+ * Handles both `dx up` (mode:up, all containers) and `dx dev` (mode:dev,
+ * native dev servers). Same reconcile logic as SiteController, but
  * human-driven instead of Factory-driven.
- *
- * Dev is a site. The only difference is the control loop.
  */
 import {
   type DerivedOverride,
@@ -47,7 +46,7 @@ import {
 } from "./connection-context-file.js"
 import { Compose, isDockerRunning } from "./docker.js"
 import {
-  type DxContext,
+  type DxContextWithProject,
   type ProjectContextData,
   resolveDxContext,
 } from "./dx-context.js"
@@ -73,7 +72,7 @@ import { killProcessTree } from "../site/execution/native.js"
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DevSessionOpts {
+export interface SessionOpts {
   components?: string[]
   connectTo?: string
   connect?: string | string[]
@@ -84,6 +83,15 @@ export interface DevSessionOpts {
   noBuild?: boolean
   tunnel?: boolean
   exposeConsole?: boolean
+  quiet?: boolean
+}
+
+export interface UpSessionOpts {
+  targets?: string[]
+  profiles?: string[]
+  noBuild?: boolean
+  detach?: boolean
+  dryRun?: boolean
   quiet?: boolean
 }
 
@@ -104,10 +112,10 @@ export interface StartResult {
 }
 
 // ---------------------------------------------------------------------------
-// DevOrchestrator
+// SiteOrchestrator
 // ---------------------------------------------------------------------------
 
-export class DevOrchestrator {
+export class SiteOrchestrator {
   private readonly portManager: PortManager
   private readonly compose: Compose | null
   readonly graph: DependencyGraph
@@ -127,7 +135,7 @@ export class DevOrchestrator {
     readonly project: ProjectContextData,
     readonly site: SiteManager,
     readonly sdSlug: string,
-    readonly ctx: DxContext,
+    readonly ctx: DxContextWithProject,
     private readonly opts: { quiet?: boolean } = {}
   ) {
     this.portManager = new PortManager(join(project.rootDir, ".dx"))
@@ -156,19 +164,24 @@ export class DevOrchestrator {
   // Factory
   // ------------------------------------------------------------------
 
-  static async create(opts?: { quiet?: boolean }): Promise<DevOrchestrator> {
+  static async create(opts?: {
+    quiet?: boolean
+    mode?: "up" | "dev"
+  }): Promise<SiteOrchestrator> {
+    const mode = opts?.mode ?? "dev"
     const ctx = await resolveDxContext({ need: "project" })
     const project = ctx.project
     const workbenchSlug =
       ctx.workbench?.name ?? hostname().replace(/\.local$/, "")
     const workbenchType = ctx.workbench?.kind ?? "worktree"
 
-    const sdSlug = `${project.name}-dev`
+    const sdSlug = `${project.name}-${mode}`
 
     const existing = SiteManager.load(project.rootDir)
     let site: SiteManager
     if (existing) {
       site = existing
+      site.setMode(mode)
       site.ensureSystemDeployment(
         sdSlug,
         project.name,
@@ -178,12 +191,16 @@ export class DevOrchestrator {
     } else {
       site = SiteManager.init(
         project.rootDir,
-        { slug: `${workbenchSlug}-dev`, type: "development" },
+        {
+          slug: `${workbenchSlug}-${mode}`,
+          type: mode === "up" ? "local" : "development",
+        },
         {
           slug: workbenchSlug,
           type: workbenchType,
           ownerType: "user" as const,
-        }
+        },
+        mode
       )
       site.ensureSystemDeployment(
         sdSlug,
@@ -193,7 +210,7 @@ export class DevOrchestrator {
       )
     }
 
-    return new DevOrchestrator(project, site, sdSlug, ctx, opts)
+    return new SiteOrchestrator(project, site, sdSlug, ctx, opts)
   }
 
   // ------------------------------------------------------------------
@@ -462,9 +479,7 @@ export class DevOrchestrator {
   // Start dev session (main orchestration)
   // ------------------------------------------------------------------
 
-  async startDevSession(
-    opts: DevSessionOpts
-  ): Promise<ConnectionResult | null> {
+  async startDevSession(opts: SessionOpts): Promise<ConnectionResult | null> {
     const dryRun = !!opts.dryRun
 
     // ── --restart shortcut ────────────────────────────────────
@@ -750,6 +765,80 @@ export class DevOrchestrator {
 
     this.site.save()
     return conn
+  }
+
+  // ------------------------------------------------------------------
+  // Start up session (dx up — all containers, prod-like)
+  // ------------------------------------------------------------------
+
+  async startUpSession(opts: UpSessionOpts): Promise<void> {
+    const dryRun = !!opts.dryRun
+
+    // ── Reset intent ─────────────────────────────────────────
+    if (!dryRun) {
+      this.site.resetIntent()
+      this.site.ensureSystemDeployment(
+        this.sdSlug,
+        this.project.name,
+        "docker-compose",
+        this.project.composeFiles
+      )
+    }
+
+    // ── Port resolution ──────────────────────────────────────
+    const { envPath } = dryRun ? { envPath: "" } : await this.resolvePorts()
+
+    // ── All components → container mode ──────────────────────
+    const allComponents = [
+      ...Object.keys(this.project.catalog.components),
+      ...Object.keys(this.project.catalog.resources),
+    ]
+
+    if (dryRun) {
+      console.log(
+        `  [dry-run] Would bring up ${allComponents.length} component(s) as containers`
+      )
+      return
+    }
+
+    for (const name of allComponents) {
+      this.site.setComponentMode(this.sdSlug, name, "container")
+    }
+
+    // ── Compose up ───────────────────────────────────────────
+    if (!this.compose) {
+      if (!opts.quiet) {
+        console.log(
+          "  Nothing to bring up — this project has no docker-compose services."
+        )
+      }
+      this.site.save()
+      return
+    }
+
+    if (!isDockerRunning()) {
+      throw new Error(
+        "Docker is not running. Start Docker to bring up the site."
+      )
+    }
+
+    const upCompose = envPath
+      ? new Compose(
+          this.project.composeFiles,
+          basename(this.project.rootDir),
+          envPath
+        )
+      : this.compose
+
+    upCompose.up({
+      detach: opts.detach !== false,
+      noBuild: !!opts.noBuild,
+      profiles: opts.profiles?.length ? opts.profiles : undefined,
+      services: opts.targets?.length ? opts.targets : undefined,
+    })
+
+    this.site.setPhase("running")
+    this.site.save()
   }
 
   // ------------------------------------------------------------------

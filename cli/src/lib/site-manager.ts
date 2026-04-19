@@ -11,6 +11,9 @@ import type {
   LocalComponentDeployment,
   LocalSystemDeployment,
   SiteInfo,
+  LocalSiteStatus,
+  SiteMode,
+  SiteSpec,
   SiteState,
   WorkbenchInfo,
 } from "@smp/factory-shared"
@@ -30,6 +33,22 @@ import { dirname, join } from "node:path"
 
 const SITE_FILE = join(".dx", "site.json")
 
+function migrateV1(raw: Record<string, unknown>): unknown {
+  return {
+    spec: {
+      site: raw.site,
+      workbench: raw.workbench,
+      mode: "dev",
+      systemDeployments: raw.systemDeployments ?? [],
+    },
+    status: {
+      phase: "pending",
+      conditions: [],
+      updatedAt: (raw.updatedAt as string) ?? new Date().toISOString(),
+    },
+  }
+}
+
 export class SiteManager {
   private state: SiteState
 
@@ -46,7 +65,8 @@ export class SiteManager {
     if (!existsSync(path)) return null
     try {
       const raw = JSON.parse(readFileSync(path, "utf8"))
-      const state = siteStateSchema.parse(raw)
+      const data = raw.site && !raw.spec ? migrateV1(raw) : raw
+      const state = siteStateSchema.parse(data)
       return new SiteManager(rootDir, state)
     } catch {
       return null
@@ -57,13 +77,21 @@ export class SiteManager {
   static init(
     rootDir: string,
     site: SiteInfo,
-    workbench: WorkbenchInfo
+    workbench: WorkbenchInfo,
+    mode: SiteMode = "dev"
   ): SiteManager {
     const state: SiteState = {
-      site,
-      workbench,
-      systemDeployments: [],
-      updatedAt: new Date().toISOString(),
+      spec: {
+        site,
+        workbench,
+        mode,
+        systemDeployments: [],
+      },
+      status: {
+        phase: "pending",
+        conditions: [],
+        updatedAt: new Date().toISOString(),
+      },
     }
     return new SiteManager(rootDir, state)
   }
@@ -71,7 +99,7 @@ export class SiteManager {
   // ── System deployment CRUD ──────────────────────────────────
 
   getSystemDeployment(slug: string): LocalSystemDeployment | undefined {
-    return this.state.systemDeployments.find((sd) => sd.slug === slug)
+    return this.state.spec.systemDeployments.find((sd) => sd.slug === slug)
   }
 
   ensureSystemDeployment(
@@ -91,7 +119,7 @@ export class SiteManager {
         resolvedEnv: {},
         tunnels: [],
       }
-      this.state.systemDeployments.push(sd)
+      this.state.spec.systemDeployments.push(sd)
     }
     return sd
   }
@@ -132,7 +160,7 @@ export class SiteManager {
         resolvedEnv: {},
         tunnels: [],
       }
-      this.state.systemDeployments.push(sd)
+      this.state.spec.systemDeployments.push(sd)
     } else {
       // Existing SD: upgrade with linkedRef, preserve any componentDeployments
       // (explicit per-component overrides).
@@ -159,7 +187,7 @@ export class SiteManager {
       string,
       { status: ComponentDeploymentStatus; mode: ComponentDeploymentMode }
     >()
-    for (const sd of this.state.systemDeployments) {
+    for (const sd of this.state.spec.systemDeployments) {
       for (const cd of sd.componentDeployments) {
         saved.set(`${sd.slug}/${cd.componentSlug}`, {
           status: { ...cd.status },
@@ -167,7 +195,7 @@ export class SiteManager {
         })
       }
     }
-    this.state.systemDeployments = []
+    this.state.spec.systemDeployments = []
     return saved
   }
 
@@ -357,7 +385,7 @@ export class SiteManager {
       systemDeployment: {
         id: sd.slug,
         name: sd.systemSlug,
-        site: this.state.site.slug,
+        site: this.state.spec.site.slug,
         realmType: sd.runtime,
       },
       componentDeployments: sd.componentDeployments.map((cd) => ({
@@ -379,8 +407,8 @@ export class SiteManager {
   // ── Workbench ───────────────────────────────────────────────
 
   getTunnelSubdomain(): string {
-    if (this.state.workbench.tunnelSubdomain) {
-      return this.state.workbench.tunnelSubdomain
+    if (this.state.spec.workbench.tunnelSubdomain) {
+      return this.state.spec.workbench.tunnelSubdomain
     }
     const base = hostname()
       .replace(/\.local$/, "")
@@ -388,7 +416,7 @@ export class SiteManager {
       .replace(/[^a-z0-9-]/g, "-")
     const rand = Math.random().toString(16).slice(2, 6)
     const subdomain = `${base}-${rand}`
-    this.state.workbench.tunnelSubdomain = subdomain
+    this.state.spec.workbench.tunnelSubdomain = subdomain
     return subdomain
   }
 
@@ -398,10 +426,30 @@ export class SiteManager {
     return this.state
   }
 
+  getSpec(): SiteSpec {
+    return this.state.spec
+  }
+
+  getStatus(): LocalSiteStatus {
+    return this.state.status
+  }
+
+  getMode(): SiteMode {
+    return this.state.spec.mode
+  }
+
+  setMode(mode: SiteMode): void {
+    this.state.spec.mode = mode
+  }
+
+  setPhase(phase: LocalSiteStatus["phase"]): void {
+    this.state.status.phase = phase
+  }
+
   // ── Persistence ─────────────────────────────────────────────
 
   save(): void {
-    this.state.updatedAt = new Date().toISOString()
+    this.state.status.updatedAt = new Date().toISOString()
     const path = join(this.rootDir, SITE_FILE)
     const tmpPath = path + ".tmp"
     mkdirSync(dirname(path), { recursive: true })

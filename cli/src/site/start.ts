@@ -32,7 +32,7 @@ function loadSiteIdentity(workingDir: string, cliName?: string): SiteIdentity {
   const site = SiteManager.load(workingDir)
   if (site) {
     const state = site.getState()
-    return { slug: state.site.slug, type: state.site.type }
+    return { slug: state.spec.site.slug, type: state.spec.site.type }
   }
 
   if (cliName) {

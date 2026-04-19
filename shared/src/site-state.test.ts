@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test"
 
 import {
   localSystemDeploymentSchema,
+  localSiteStatusSchema,
+  siteSpecSchema,
   siteStateSchema,
   systemLinkedRefSchema,
 } from "./site-state"
@@ -76,68 +78,113 @@ describe("localSystemDeployment — linkedRef and empty componentDeployments", (
   })
 })
 
-describe("siteState — multi-system composition", () => {
+describe("siteSpec — desired state", () => {
+  test("defaults mode to dev", () => {
+    const parsed = siteSpecSchema.parse({
+      site: { slug: "my-dev", type: "development" },
+      workbench: { slug: "laptop", type: "worktree" },
+    })
+    expect(parsed.mode).toBe("dev")
+    expect(parsed.systemDeployments).toEqual([])
+  })
+
+  test("accepts mode: up", () => {
+    const parsed = siteSpecSchema.parse({
+      site: { slug: "my-prod", type: "production" },
+      workbench: { slug: "server", type: "vm" },
+      mode: "up",
+    })
+    expect(parsed.mode).toBe("up")
+  })
+})
+
+describe("localSiteStatus — observed state", () => {
+  test("defaults phase to pending", () => {
+    const parsed = localSiteStatusSchema.parse({
+      updatedAt: "2026-04-19T00:00:00Z",
+    })
+    expect(parsed.phase).toBe("pending")
+    expect(parsed.conditions).toEqual([])
+  })
+})
+
+describe("siteState — spec/status split", () => {
   test("dev site: one local SD + N linked SDs", () => {
     const parsed = siteStateSchema.parse({
-      site: { slug: "nikhils-trafficure-dev", type: "development" },
-      workbench: { slug: "nikhils-macbook", type: "worktree" },
-      systemDeployments: [
-        {
-          slug: "trafficure",
-          systemSlug: "trafficure",
-          componentDeployments: [
-            { componentSlug: "frontend", mode: "native" },
-            { componentSlug: "api", mode: "container" },
-          ],
-        },
-        {
-          slug: "shared-auth-linked",
-          systemSlug: "shared-auth",
-          linkedRef: {
-            site: "workshop-staging",
-            systemDeployment: "workshop-staging-auth",
+      spec: {
+        site: { slug: "nikhils-trafficure-dev", type: "development" },
+        workbench: { slug: "nikhils-macbook", type: "worktree" },
+        mode: "dev",
+        systemDeployments: [
+          {
+            slug: "trafficure",
+            systemSlug: "trafficure",
+            componentDeployments: [
+              { componentSlug: "frontend", mode: "native" },
+              { componentSlug: "api", mode: "container" },
+            ],
           },
-        },
-        {
-          slug: "shared-queues-linked",
-          systemSlug: "shared-queues",
-          linkedRef: {
-            site: "workshop-staging",
-            systemDeployment: "workshop-staging-queues",
+          {
+            slug: "shared-auth-linked",
+            systemSlug: "shared-auth",
+            linkedRef: {
+              site: "workshop-staging",
+              systemDeployment: "workshop-staging-auth",
+            },
           },
-        },
-      ],
-      updatedAt: "2026-04-18T00:00:00Z",
+          {
+            slug: "shared-queues-linked",
+            systemSlug: "shared-queues",
+            linkedRef: {
+              site: "workshop-staging",
+              systemDeployment: "workshop-staging-queues",
+            },
+          },
+        ],
+      },
+      status: {
+        phase: "running",
+        updatedAt: "2026-04-18T00:00:00Z",
+      },
     })
 
-    expect(parsed.systemDeployments).toHaveLength(3)
-    const linkedCount = parsed.systemDeployments.filter(
+    expect(parsed.spec.systemDeployments).toHaveLength(3)
+    expect(parsed.spec.mode).toBe("dev")
+    expect(parsed.status.phase).toBe("running")
+    const linkedCount = parsed.spec.systemDeployments.filter(
       (sd) => sd.linkedRef !== undefined
     ).length
     expect(linkedCount).toBe(2)
   })
 
-  test("prod site: N peer SDs, no linkedRefs", () => {
+  test("prod site: mode up, N peer SDs, no linkedRefs", () => {
     const parsed = siteStateSchema.parse({
-      site: { slug: "workshop-staging", type: "staging" },
-      workbench: { slug: "staging-host", type: "vm" },
-      systemDeployments: [
-        {
-          slug: "trafficure",
-          systemSlug: "trafficure",
-          componentDeployments: [{ componentSlug: "api", mode: "container" }],
-        },
-        {
-          slug: "shared-auth",
-          systemSlug: "shared-auth",
-          componentDeployments: [
-            { componentSlug: "auth-api", mode: "container" },
-          ],
-        },
-      ],
-      updatedAt: "2026-04-18T00:00:00Z",
+      spec: {
+        site: { slug: "workshop-staging", type: "staging" },
+        workbench: { slug: "staging-host", type: "vm" },
+        mode: "up",
+        systemDeployments: [
+          {
+            slug: "trafficure",
+            systemSlug: "trafficure",
+            componentDeployments: [{ componentSlug: "api", mode: "container" }],
+          },
+          {
+            slug: "shared-auth",
+            systemSlug: "shared-auth",
+            componentDeployments: [
+              { componentSlug: "auth-api", mode: "container" },
+            ],
+          },
+        ],
+      },
+      status: {
+        phase: "running",
+        updatedAt: "2026-04-18T00:00:00Z",
+      },
     })
-    for (const sd of parsed.systemDeployments) {
+    expect(parsed.spec.mode).toBe("up")
+    for (const sd of parsed.spec.systemDeployments) {
       expect(sd.linkedRef).toBeUndefined()
     }
   })

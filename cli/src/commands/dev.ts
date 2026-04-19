@@ -9,7 +9,7 @@ import {
   autoConnectsFromDeps,
   coveredSystemsFromConnectFlags,
 } from "../lib/auto-connect.js"
-import { DevOrchestrator } from "../lib/dev-orchestrator.js"
+import { SiteOrchestrator } from "../lib/site-orchestrator.js"
 import { resolveDxContext } from "../lib/dx-context.js"
 import { runPrelude } from "../lib/prelude.js"
 import { setExamples } from "../plugins/examples-plugin.js"
@@ -177,7 +177,7 @@ export function devCommand(app: DxBase) {
         }
 
         // Orchestrate
-        const orch = await DevOrchestrator.create({ quiet: f.quiet })
+        const orch = await SiteOrchestrator.create({ quiet: f.quiet })
 
         // Start the dev console before starting services so the console
         // port is allocated and available for the tunnel's publishPorts.
@@ -267,7 +267,7 @@ export function devCommand(app: DxBase) {
         })
         .run(async ({ args, flags }) => {
           try {
-            const orch = await DevOrchestrator.create()
+            const orch = await SiteOrchestrator.create()
             const component = args.component
             if (!component) {
               console.error("Usage: dx dev start <component>")
@@ -309,7 +309,7 @@ export function devCommand(app: DxBase) {
         ])
         .run(async ({ args }) => {
           try {
-            const orch = await DevOrchestrator.create()
+            const orch = await SiteOrchestrator.create()
             const stopped = orch.stop(args.component || undefined)
             if (stopped.length === 0) {
               console.log("No dev servers running.")
@@ -338,7 +338,7 @@ export function devCommand(app: DxBase) {
         ])
         .run(async ({ args }) => {
           try {
-            const orch = await DevOrchestrator.create()
+            const orch = await SiteOrchestrator.create()
             const result = await orch.restartComponent(args.component)
             console.log(
               `Restarted ${result.name} on :${result.port} (PID ${result.pid})`
@@ -353,7 +353,7 @@ export function devCommand(app: DxBase) {
     .command("ps", (c) =>
       c.meta({ description: "List running dev servers" }).run(async () => {
         try {
-          const orch = await DevOrchestrator.create()
+          const orch = await SiteOrchestrator.create()
           const services = await orch.getUnifiedServices()
 
           if (services.length === 0) {
@@ -395,7 +395,7 @@ export function devCommand(app: DxBase) {
         })
         .run(async ({ args, flags }) => {
           try {
-            const orch = await DevOrchestrator.create()
+            const orch = await SiteOrchestrator.create()
 
             if (flags.follow) {
               const { join } = await import("node:path")

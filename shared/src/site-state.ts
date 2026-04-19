@@ -149,7 +149,7 @@ export const localSystemDeploymentSchema = z.object({
 })
 export type LocalSystemDeployment = z.infer<typeof localSystemDeploymentSchema>
 
-// ── Site state (root) ───────────────────────────────────────
+// ── Site identity ──────────────────────────────────────────
 
 export const siteInfoSchema = z.object({
   slug: z.string(),
@@ -166,10 +166,41 @@ export const workbenchInfoSchema = z.object({
 })
 export type WorkbenchInfo = z.infer<typeof workbenchInfoSchema>
 
-export const siteStateSchema = z.object({
+// ── Site spec (desired state) ──────────────────────────────
+
+export const siteModeSchema = z.enum(["up", "dev"])
+export type SiteMode = z.infer<typeof siteModeSchema>
+
+export const siteSpecSchema = z.object({
   site: siteInfoSchema,
   workbench: workbenchInfoSchema,
+  mode: siteModeSchema.default("dev"),
   systemDeployments: z.array(localSystemDeploymentSchema).default([]),
+})
+export type SiteSpec = z.infer<typeof siteSpecSchema>
+
+// ── Site status (observed state) ───────────────────────────
+
+export const sitePhaseSchema = z.enum([
+  "pending",
+  "running",
+  "degraded",
+  "stopped",
+  "failed",
+])
+export type SitePhase = z.infer<typeof sitePhaseSchema>
+
+export const localSiteStatusSchema = z.object({
+  phase: sitePhaseSchema.default("pending"),
+  conditions: z.array(conditionSchema).default([]),
   updatedAt: z.string(),
+})
+export type LocalSiteStatus = z.infer<typeof localSiteStatusSchema>
+
+// ── Site state (root) ──────────────────────────────────────
+
+export const siteStateSchema = z.object({
+  spec: siteSpecSchema,
+  status: localSiteStatusSchema,
 })
 export type SiteState = z.infer<typeof siteStateSchema>

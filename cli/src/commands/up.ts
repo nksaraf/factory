@@ -1,5 +1,5 @@
 import { existsSync, unlinkSync } from "node:fs"
-import { basename, join } from "node:path"
+import { join } from "node:path"
 
 import type { DxBase } from "../dx-root.js"
 import {
@@ -11,15 +11,8 @@ import {
   COMPOSE_OVERRIDE_FILE,
   cleanupConnectionContext,
 } from "../lib/connection-context-file.js"
-import { Compose, isDockerRunning } from "../lib/docker.js"
-import { resolveDxContext } from "../lib/dx-context.js"
-import {
-  PortManager,
-  catalogToPortRequests,
-  portEnvVars,
-  printPortTable,
-} from "../lib/port-manager.js"
 import { runPrelude } from "../lib/prelude.js"
+import { SiteOrchestrator } from "../lib/site-orchestrator.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 
@@ -78,8 +71,11 @@ export function upCommand(app: DxBase) {
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
       try {
-        const ctx = await resolveDxContext({ need: "project" })
-        const project = ctx.project
+        const orch = await SiteOrchestrator.create({
+          quiet: f.quiet,
+          mode: "up",
+        })
+        const project = orch.project
 
         // ── Auto-connect (same as dx dev) ────────────────────────
         const userConnect = flags.connect as string | string[] | undefined
@@ -109,7 +105,7 @@ export function upCommand(app: DxBase) {
         const effectiveConnect = [...userConnectList, ...auto.autoConnects]
 
         // ── Cached prelude ───────────────────────────────────────
-        await runPrelude(ctx, {
+        await runPrelude(orch.ctx, {
           noPrelude: flags.prelude === false,
           fresh: Boolean(flags.fresh),
           connectTo: flags["connect-to"] as string | undefined,
@@ -118,52 +114,23 @@ export function upCommand(app: DxBase) {
           quiet: Boolean(f.quiet),
         })
 
-        // ── Compose bring-up ─────────────────────────────────────
-        if (project.composeFiles.length === 0) {
-          if (!f.quiet) {
-            console.log(
-              "  Nothing to bring up — this project has no docker-compose services."
-            )
-            console.log("  Run `dx dev` to start any native dev servers.")
-          }
-          return
-        }
-
-        if (!isDockerRunning()) {
-          exitWithError(f, "Docker does not appear to be running.")
-        }
-
-        // Resolve all ports through PortManager
-        const portManager = new PortManager(join(project.rootDir, ".dx"))
-        const portRequests = catalogToPortRequests(project.catalog)
-        const resolved = await portManager.resolveMulti(portRequests)
-
-        // Build flat env var map and write .dx/ports.env
-        const allEnvVars: Record<string, string> = {}
-        for (const [service, ports] of Object.entries(resolved)) {
-          Object.assign(allEnvVars, portEnvVars(service, ports))
-        }
-        const envPath = join(project.rootDir, ".dx", "ports.env")
-        portManager.writeEnvFile(allEnvVars, envPath)
-
-        // Clean up stale connection override from a previous dx dev --connect-to session
+        // Clean up stale connection override from a previous session
         const overridePath = join(project.rootDir, ".dx", COMPOSE_OVERRIDE_FILE)
         if (existsSync(overridePath)) {
           unlinkSync(overridePath)
         }
         cleanupConnectionContext(project.rootDir)
 
+        // ── Separate targets into profiles and services ──────────
         const knownProfiles = new Set(project.allProfiles)
-        const targets = args.targets ?? []
-
-        // Separate targets into profiles and service names
+        const rawTargets = args.targets ?? []
         const profiles: string[] = []
         const services: string[] = []
 
-        if (targets.length === 0) {
+        if (rawTargets.length === 0) {
           profiles.push(...knownProfiles)
         } else {
-          for (const target of targets) {
+          for (const target of rawTargets) {
             if (knownProfiles.has(target)) {
               profiles.push(target)
             } else {
@@ -172,28 +139,13 @@ export function upCommand(app: DxBase) {
           }
         }
 
-        const composeFiles = [...project.composeFiles]
-        const compose = new Compose(
-          composeFiles,
-          basename(project.rootDir),
-          envPath
-        )
-
-        if (f.verbose) {
-          if (profiles.length > 0) {
-            console.log(`Profiles: ${profiles.join(", ")}`)
-          }
-          if (services.length > 0) {
-            console.log(`Services: ${services.join(", ")}`)
-          }
-          console.log(`Compose files: ${composeFiles.join(", ")}`)
-        }
-
-        compose.up({
-          detach: flags.detach !== false,
-          noBuild: flags.build === false,
+        // ── Bring up via orchestrator ────────────────────────────
+        await orch.startUpSession({
+          targets: services.length > 0 ? services : undefined,
           profiles: profiles.length > 0 ? profiles : undefined,
-          services: services.length > 0 ? services : undefined,
+          noBuild: flags.build === false,
+          detach: flags.detach !== false,
+          quiet: f.quiet,
         })
 
         if (!f.json) {
@@ -204,11 +156,6 @@ export function upCommand(app: DxBase) {
             parts.push(`services: ${services.join(", ")}`)
           const detail = parts.length > 0 ? ` (${parts.join("; ")})` : ""
           console.log(`Stack started${detail}`)
-        }
-
-        // Print port table after services are up
-        if (!f.quiet) {
-          printPortTable(resolved, f.verbose as boolean)
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
