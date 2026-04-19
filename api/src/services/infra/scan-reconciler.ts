@@ -628,21 +628,13 @@ export async function reconcileHostScan(
       if (h) crawledHostSlugs.set(entry.ip, h.slug)
     }
 
-    // Collect reverse proxies from both the main scan host and crawled hosts.
+    // Main scan host proxies first — crawled host proxies are added after
+    // step 8c¾ promotes their realms into proxyRealmIdMap.
     type RP = NonNullable<typeof scanResult.reverseProxies>[number]
     type TaggedProxy = { proxy: RP; ownerHostSlug: string }
     const allProxies: TaggedProxy[] = (scanResult.reverseProxies ?? []).map(
       (p) => ({ proxy: p, ownerHostSlug: hostSlug })
     )
-    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
-      const crawledScan = entry.scanResult as HostScanResult | undefined
-      if (!crawledScan?.reverseProxies) continue
-      const slug = crawledHostSlugs.get(entry.ip)
-      if (!slug) continue
-      for (const p of crawledScan.reverseProxies) {
-        allProxies.push({ proxy: p, ownerHostSlug: slug })
-      }
-    }
 
     for (const { proxy, ownerHostSlug } of allProxies) {
       const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
@@ -953,6 +945,75 @@ export async function reconcileHostScan(
           })
           proxyRealmIdMap.set(proxySlug, proxyRealmId)
           summary.realms.created++
+        }
+      }
+    }
+
+    // ── 8c½+. Process crawled hosts' reverseProxies for routes ──
+    // Now that step 8c¾ has promoted crawled proxy realms into proxyRealmIdMap,
+    // we can create routes for their Traefik routers with resolved backends.
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const crawledScan = entry.scanResult as HostScanResult | undefined
+      if (!crawledScan?.reverseProxies) continue
+      const ownerHostSlug = crawledHostSlugs.get(entry.ip)
+      if (!ownerHostSlug) continue
+      for (const p of crawledScan.reverseProxies) {
+        allProxies.push({ proxy: p, ownerHostSlug })
+      }
+    }
+    // Re-run route creation for the newly added crawled proxies
+    for (const { proxy, ownerHostSlug } of allProxies) {
+      const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
+      const proxyRealmId =
+        proxyRealmIdMap.get(proxySlug) ?? proxyRealmIdMap.get(proxy.name)
+      if (!proxyRealmId) continue
+      // Skip main-scan proxies — already processed in step 8c
+      if (ownerHostSlug === hostSlug) continue
+
+      for (const router of proxy.routers) {
+        const domain = router.domains[0] ?? "*"
+        const routeSlug =
+          domain === "*"
+            ? slugify(`${proxySlug}-catchall-${router.name}`)
+            : slugify(`${proxySlug}-${domain}`)
+        if (currentRouterSlugs.has(routeSlug)) {
+          // Route already exists from step 8c — update resolvedTargets
+          const resolvedTargets: RouteStatus["resolvedTargets"] = []
+          for (const backend of router.backends) {
+            if (backend.container) {
+              const project = slugify(backend.container.composeProject)
+              const service = slugify(backend.container.composeService)
+              resolvedTargets.push({
+                systemDeploymentSlug: backend.container.composeProject,
+                componentSlug: `${project}-${service}`,
+                address: backend.url,
+                port: extractPort(backend.url) ?? 80,
+                weight: 100,
+                realmType: "docker-compose",
+              })
+            }
+          }
+          if (resolvedTargets.length > 0) {
+            const [existing] = await tx
+              .select({ id: route.id })
+              .from(route)
+              .where(eq(route.slug, routeSlug))
+              .limit(1)
+            if (existing) {
+              await tx
+                .update(route)
+                .set({
+                  status: {
+                    phase: "resolved",
+                    resolvedTargets,
+                    resolvedAt: new Date(),
+                  },
+                  updatedAt: new Date(),
+                })
+                .where(eq(route.id, existing.id))
+              summary.routes.updated++
+            }
+          }
         }
       }
     }
