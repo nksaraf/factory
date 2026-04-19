@@ -217,6 +217,12 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
     if (services.length > 0) {
       result.services = services
     }
+    if (project) {
+      const siteManager = SiteManager.load(project.root)
+      if (siteManager) {
+        result.site = siteManager.getState()
+      }
+    }
     result.cwd = cwd
     console.log(JSON.stringify(result, null, 2))
     return
@@ -265,5 +271,59 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
   } else if (project) {
     console.log("")
     console.log(styleMuted("Services:    not running (use dx dev or dx up)"))
+  }
+
+  if (project) {
+    const siteManager = SiteManager.load(project.root)
+    if (siteManager) {
+      const spec = siteManager.getSpec()
+      const status = siteManager.getStatus()
+
+      console.log("")
+      console.log(styleBold("Site:"))
+      console.log(`  ${"Mode:".padEnd(14)}${styleInfo(spec.mode)}`)
+      console.log(`  ${"Phase:".padEnd(14)}${styleServiceStatus(status.phase)}`)
+      console.log(`  ${"Updated:".padEnd(14)}${styleMuted(status.updatedAt)}`)
+
+      for (const sd of spec.systemDeployments) {
+        if (sd.linkedRef) {
+          console.log(
+            `  ${sd.slug.padEnd(14)}${styleMuted(`→ linked (${sd.linkedRef.site})`)}`
+          )
+          continue
+        }
+
+        for (const cd of sd.componentDeployments) {
+          const specMode = cd.mode
+          const pid = cd.status.pid
+          const phase = cd.status.phase ?? "unknown"
+
+          let actual: string
+          if (specMode === "native") {
+            const alive = pid != null && isProcessRunning(pid)
+            actual = alive
+              ? "running"
+              : phase === "running"
+                ? styleError("dead (stale PID)")
+                : phase
+          } else if (specMode === "container") {
+            actual = phase
+          } else {
+            actual = specMode
+          }
+
+          const delta =
+            (specMode === "native" && phase !== "running") ||
+            (specMode === "container" && phase === "stopped")
+              ? styleWarn(" ≠")
+              : ""
+
+          const portStr = cd.status.port ? styleMuted(`:${cd.status.port}`) : ""
+          console.log(
+            `  ${cd.componentSlug.padEnd(14)}${specMode.padEnd(12)}${styleServiceStatus(actual)}${portStr}${delta}`
+          )
+        }
+      }
+    }
   }
 }
