@@ -579,9 +579,9 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
     return
   }
   try {
-    // Trim crawl entries for the API payload — keep reverseProxies (needed by
-    // reconciler for deterministic backend resolution) but drop the bulk of the
-    // scan data (ports, services, realms, composeProjects) which is CLI-only.
+    // Trim crawl entries for the API payload — keep reverseProxies (backend
+    // resolution) and services (component spec updates) but drop the bulk
+    // (ports, realms, composeProjects, collectors) which is CLI-only.
     const apiPayload = { ...finalResult }
     if (apiPayload.networkCrawl) {
       apiPayload.networkCrawl = {
@@ -589,7 +589,9 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
         hostEntries: apiPayload.networkCrawl.hostEntries.map(
           ({ scanResult: sr, ...rest }) => ({
             ...rest,
-            scanResult: sr ? { reverseProxies: sr.reverseProxies } : undefined,
+            scanResult: sr
+              ? { reverseProxies: sr.reverseProxies, services: sr.services }
+              : undefined,
           })
         ),
       }

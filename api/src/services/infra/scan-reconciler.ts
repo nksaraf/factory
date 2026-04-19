@@ -1020,7 +1020,76 @@ export async function reconcileHostScan(
       }
     }
     if (crawledRouteUpdates > 0) {
-      console.log(`[reconciler] Updated ${crawledRouteUpdates} crawled proxy route resolvedTargets`)
+      console.log(
+        `[reconciler] Updated ${crawledRouteUpdates} crawled proxy route resolvedTargets`
+      )
+    }
+
+    // ── 8c⅞. Update component specs from crawled host scan data ──
+    // The main scan only has service data for the scan host. Crawled hosts
+    // have their own services with proper port/image data. Update existing
+    // components with this richer data (ports from TargetPort, images, etc.).
+    let crawledComponentUpdates = 0
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const crawledScan = entry.scanResult as HostScanResult | undefined
+      if (!crawledScan?.services) continue
+      const crawledSlug = crawledHostSlugs.get(entry.ip)
+      if (!crawledSlug) continue
+
+      for (const svc of crawledScan.services) {
+        if (!svc.composeProject) continue
+        const componentSlug = `${slugify(svc.composeProject)}-${slugify(svc.name)}`
+
+        const ports = svc.ports.map((p: number) => ({
+          name: `port-${p}`,
+          port: p,
+          protocol: "tcp" as const,
+        }))
+
+        const spec: Record<string, unknown> = { ports }
+        if (svc.image) spec.image = svc.image
+        if (svc.command) spec.command = svc.command
+
+        const [existing] = await tx
+          .select({ id: component.id, spec: component.spec })
+          .from(component)
+          .where(
+            and(
+              eq(component.slug, componentSlug),
+              isNull(component.validTo),
+              isNull(component.systemTo)
+            )
+          )
+          .limit(1)
+
+        if (existing) {
+          const existingPorts =
+            ((existing.spec as Record<string, unknown>)?.ports as unknown[]) ??
+            []
+          if (ports.length > 0 || existingPorts.length === 0) {
+            await tx
+              .update(component)
+              .set({
+                spec,
+                status: svc.status === "running" ? "active" : "inactive",
+                metadata: scanMetadata({
+                  hostSlug: crawledSlug,
+                  scanRealmType: svc.realmType,
+                  composeProject: svc.composeProject,
+                }),
+                updatedAt: new Date(),
+              })
+              .where(eq(component.id, existing.id))
+            crawledComponentUpdates++
+            summary.components.updated++
+          }
+        }
+      }
+    }
+    if (crawledComponentUpdates > 0) {
+      console.log(
+        `[reconciler] Updated ${crawledComponentUpdates} crawled host component specs`
+      )
     }
 
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────

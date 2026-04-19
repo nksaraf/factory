@@ -173,6 +173,8 @@ for p in projects:
                     for pp in ports_str:
                         pub = pp.get('PublishedPort', 0)
                         if pub > 0: port_nums.append(pub)
+                        target = pp.get('TargetPort', 0)
+                        if target > 0: port_nums.append(target)
                 elif isinstance(ports_str, str) and ports_str:
                     import re
                     for m in re.finditer(r'(?::)(\\d+)->', ports_str):

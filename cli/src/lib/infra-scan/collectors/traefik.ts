@@ -223,7 +223,7 @@ export async function collectTraefikRoutes(
 
   // Parse routers
   const parsedRouters: ScanRouter[] = routers
-    .filter((r) => r.status === "enabled")
+    .filter((r) => r.status === "enabled" && !r.service.includes("@internal"))
     .map((r) => {
       const { domains, pathPrefixes } = parseTraefikRule(r.rule)
 
@@ -276,8 +276,8 @@ export async function collectTraefikRoutes(
 export async function collectContainerIpMap(
   sshArgs?: string[]
 ): Promise<ContainerIpEntry[]> {
-  // Inspect adds a 5th column: host port bindings (space-separated host ports).
-  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range $p, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{.HostPort}} {{end}}{{end}}'`
+  // Columns: name | ip | compose-project | compose-service | host-ports | exposed-ports
+  const inspectCmd = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range $p, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{.HostPort}} {{end}}{{end}}|{{range $p, $v := .Config.ExposedPorts}}{{$p}} {{end}}'`
 
   let args: string[]
   if (sshArgs) {
@@ -299,7 +299,7 @@ export async function collectContainerIpMap(
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim()
     if (!trimmed) continue
-    // Format: /container-name|172.18.0.19|compose-project|compose-service|8002 8003
+    // Format: /container-name|172.18.0.19|compose-project|compose-service|host-ports|exposed-ports
     const parts = trimmed.split("|")
     if (parts.length < 4) continue
     const containerName = parts[0].replace(/^\//, "")
@@ -311,6 +311,11 @@ export async function collectContainerIpMap(
       .split(/\s+/)
       .map((p) => parseInt(p, 10))
       .filter((p) => Number.isFinite(p) && p > 0)
+    // Exposed ports format: "3000/tcp 8080/tcp" — extract the port numbers
+    const exposedPorts = (parts[5] ?? "")
+      .split(/\s+/)
+      .map((p) => parseInt(p, 10))
+      .filter((p) => Number.isFinite(p) && p > 0)
 
     entries.push({
       ip,
@@ -318,6 +323,9 @@ export async function collectContainerIpMap(
       composeProject,
       composeService,
       hostPorts: hostPorts.length ? Array.from(new Set(hostPorts)) : undefined,
+      exposedPorts: exposedPorts.length
+        ? Array.from(new Set(exposedPorts))
+        : undefined,
     })
   }
 

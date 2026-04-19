@@ -108,6 +108,8 @@ export type ContainerIpEntry = {
   composeService: string
   /** Host-side port bindings, e.g. [8002] for "0.0.0.0:8002->7777/tcp". */
   hostPorts?: number[]
+  /** Container-side exposed ports (from Config.ExposedPorts), e.g. [3000, 8080]. */
+  exposedPorts?: number[]
 }
 
 export type {

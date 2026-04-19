@@ -876,6 +876,8 @@ export const ContainerIpEntrySchema = z.object({
   containerName: z.string(),
   composeProject: z.string(),
   composeService: z.string(),
+  hostPorts: z.array(z.number().int()).optional(),
+  exposedPorts: z.array(z.number().int()).optional(),
 })
 
 export const ScanRouterSchema = z.object({
