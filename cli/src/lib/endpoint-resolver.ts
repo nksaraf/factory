@@ -68,9 +68,12 @@ export function resolveEnvMapping(
     } else if (entry.fallback) {
       result[envVar] = entry.fallback
     } else {
-      // Unresolvable: no endpoint, no fallback. Set empty so the app
-      // at least sees the env var exists (vs. undefined).
-      result[envVar] = ""
+      // Unresolvable: no endpoint cache, no fallback. Omit the key entirely
+      // rather than setting "" — most apps handle "env var missing" better
+      // than "env var is empty string" (fetch("") → confusing error).
+      console.warn(
+        `  ! envMapping: ${envVar} → ${entry.component} has no endpoint cache and no fallback — omitted`
+      )
     }
   }
 

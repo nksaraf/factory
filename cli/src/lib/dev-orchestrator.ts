@@ -524,15 +524,21 @@ export class DevOrchestrator {
         connectTo: opts.connectTo,
         catalog: this.project.catalog,
       })
-      // Collect cross-system env overrides from deps' declared `env:` fields.
-      // These go into both the focus SD's resolvedEnv AND into connectionEnv
-      // so dev servers spawn with the right endpoints.
+      // Collect cross-system env from deps' envMapping. These are the BASE
+      // layer — component-level connection env (from applyConnections above)
+      // wins when both set the same key, because per-component is more
+      // specific than per-system.
       const crossSystemEnv: Record<string, string> = {}
       for (const l of linkedSds) {
         Object.assign(crossSystemEnv, l.env)
       }
       if (Object.keys(crossSystemEnv).length > 0) {
-        Object.assign(connectionEnv, crossSystemEnv)
+        // System-level fills gaps only; component-level (already in connectionEnv) wins.
+        for (const [k, v] of Object.entries(crossSystemEnv)) {
+          if (!(k in connectionEnv)) {
+            connectionEnv[k] = v
+          }
+        }
       }
 
       if (dryRun) {

@@ -109,7 +109,7 @@ describe("resolveEnvMapping", () => {
     )
   })
 
-  test("no endpoint, no fallback → empty string", () => {
+  test("no endpoint, no fallback → key omitted (not empty string)", () => {
     const result = resolveEnvMapping({
       envMapping: {
         MISSING_URL: {
@@ -118,7 +118,8 @@ describe("resolveEnvMapping", () => {
         },
       },
     })
-    expect(result.MISSING_URL).toBe("")
+    expect(result.MISSING_URL).toBeUndefined()
+    expect("MISSING_URL" in result).toBe(false)
   })
 
   test("mixed string + object entries in same mapping", () => {
