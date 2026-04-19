@@ -33,16 +33,30 @@ export function statusCommand(app: DxBase) {
           const spec = state.spec
           const status = state.status
 
-          console.log(`Site: ${spec.site.slug} (${spec.site.type})`)
-          console.log(`Mode: ${spec.mode}`)
-          console.log(`Phase: ${status.phase}`)
-          console.log(`Updated: ${status.updatedAt}`)
-          console.log(`Systems: ${spec.systemDeployments.length} deployment(s)`)
-          for (const sd of spec.systemDeployments) {
+          console.log(`Site:     ${spec.site.slug} (${spec.site.type})`)
+          console.log(`Mode:     ${spec.mode}`)
+          console.log(`Phase:    ${status.phase}`)
+          console.log(`Updated:  ${status.updatedAt}`)
+          console.log("")
+          for (const sd of spec.systemDeployments as any[]) {
+            const realmInfo = sd.realm
+              ? ` on ${sd.realm.slug} (${sd.realm.type})`
+              : ""
             const linked = sd.linkedRef ? " (linked)" : ""
-            console.log(
-              `  ${sd.slug}: ${sd.componentDeployments.length} component(s)${linked}`
-            )
+            console.log(`System:   ${sd.systemSlug}${linked}`)
+            if (realmInfo)
+              console.log(`Realm:    ${sd.realm.slug} (${sd.realm.type})`)
+            console.log(`Components:`)
+            for (const cd of sd.componentDeployments) {
+              const phase = cd.status?.phase ?? "unknown"
+              const image = cd.spec?.desiredImage
+                ? cd.spec.desiredImage.split("/").pop()?.substring(0, 40)
+                : ""
+              console.log(
+                `  ${cd.componentSlug.padEnd(28)} ${phase.padEnd(10)} ${image}`
+              )
+            }
+            console.log("")
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)

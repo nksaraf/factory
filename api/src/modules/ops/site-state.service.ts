@@ -14,6 +14,7 @@ import {
   site,
   systemDeployment,
 } from "../../db/schema/ops"
+import { realm } from "../../db/schema/infra"
 import { component } from "../../db/schema/software"
 
 export async function getSiteState(db: Database, slugOrId: string) {
@@ -37,6 +38,10 @@ export async function getSiteState(db: Database, slugOrId: string) {
     sds.map(async (sd) => {
       const sdSpec = (sd.spec ?? {}) as Record<string, unknown>
 
+      const [realmRow] = sd.realmId
+        ? await db.select().from(realm).where(eq(realm.id, sd.realmId)).limit(1)
+        : [null]
+
       const cds = await db
         .select({
           cd: componentDeployment,
@@ -51,6 +56,9 @@ export async function getSiteState(db: Database, slugOrId: string) {
         systemSlug: sd.name,
         runtime: (sdSpec.runtime as string) ?? "docker-compose",
         composeFiles: (sdSpec.composeFiles as string[]) ?? [],
+        realm: realmRow
+          ? { slug: realmRow.slug, type: realmRow.type }
+          : undefined,
         componentDeployments: cds.map(({ cd, componentSlug }) => {
           const spec = (cd.spec ?? {}) as Record<string, unknown>
           const status = (cd.status ?? {}) as Record<string, unknown>
