@@ -138,7 +138,10 @@ export class SiteOrchestrator {
     readonly ctx: DxContextWithProject,
     private readonly opts: { quiet?: boolean } = {}
   ) {
-    this.portManager = new PortManager(join(project.rootDir, ".dx"))
+    this.portManager = new PortManager(
+      join(project.rootDir, ".dx"),
+      project.rootDir
+    )
     this.compose =
       project.composeFiles.length > 0
         ? new Compose(project.composeFiles, basename(project.rootDir))

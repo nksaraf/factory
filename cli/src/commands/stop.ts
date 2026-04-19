@@ -41,6 +41,7 @@ export function stopCommand(app: DxBase) {
         )
         if (!hasRunning) {
           orch.site.setPhase("stopped")
+          orch.site.save()
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

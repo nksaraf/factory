@@ -10,10 +10,57 @@ import { createServer } from "node:net"
 import { dirname, join } from "node:path"
 
 const MAX_PORT_RETRIES = 100
+const HOST_REGISTRY_DIR = join(
+  process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
+  ".dx"
+)
+const HOST_REGISTRY_FILE = join(HOST_REGISTRY_DIR, "host-ports.json")
 
 interface PortReservation {
   port: number
   pinned: boolean
+}
+
+interface HostPortEntry {
+  port: number
+  project: string
+  service: string
+  updatedAt: string
+}
+
+function readHostRegistry(): HostPortEntry[] {
+  if (!existsSync(HOST_REGISTRY_FILE)) return []
+  try {
+    return JSON.parse(readFileSync(HOST_REGISTRY_FILE, "utf-8"))
+  } catch {
+    return []
+  }
+}
+
+function writeHostRegistry(entries: HostPortEntry[]): void {
+  mkdirSync(HOST_REGISTRY_DIR, { recursive: true })
+  writeFileSync(HOST_REGISTRY_FILE, JSON.stringify(entries, null, 2) + "\n")
+}
+
+function hostRegistryPortsExcluding(projectId: string): Set<number> {
+  const entries = readHostRegistry()
+  const ports = new Set<number>()
+  for (const e of entries) {
+    if (e.project !== projectId) ports.add(e.port)
+  }
+  return ports
+}
+
+function updateHostRegistry(
+  projectId: string,
+  allocations: Record<string, number>
+): void {
+  const entries = readHostRegistry().filter((e) => e.project !== projectId)
+  const now = new Date().toISOString()
+  for (const [service, port] of Object.entries(allocations)) {
+    entries.push({ port, project: projectId, service, updatedAt: now })
+  }
+  writeHostRegistry(entries)
 }
 
 export interface PortRequest {
@@ -194,9 +241,14 @@ export function printPortTable(
  */
 export class PortManager {
   private readonly reservationsFile: string
+  private readonly projectId: string
 
-  constructor(private readonly stateDir: string) {
+  constructor(
+    private readonly stateDir: string,
+    projectId?: string
+  ) {
     this.reservationsFile = join(stateDir, "ports.json")
+    this.projectId = projectId ?? stateDir
   }
 
   private read(): Record<string, PortReservation> {
@@ -295,6 +347,11 @@ export class PortManager {
       Object.values(reservations).map((r) => r.port)
     )
 
+    // Exclude ports claimed by other projects on this host
+    for (const p of hostRegistryPortsExcluding(this.projectId)) {
+      allReserved.add(p)
+    }
+
     // Also exclude ports claimed by global SSH forwards
     try {
       const { ForwardState } = await import("./forward-state.js")
@@ -321,6 +378,16 @@ export class PortManager {
     }
 
     this.write(reservations)
+
+    // Update host-level registry so other projects see our allocations
+    const flatAllocations: Record<string, number> = {}
+    for (const [service, ports] of Object.entries(result)) {
+      for (const [name, port] of Object.entries(ports)) {
+        flatAllocations[`${service}/${name}`] = port
+      }
+    }
+    updateHostRegistry(this.projectId, flatAllocations)
+
     return result
   }
 
