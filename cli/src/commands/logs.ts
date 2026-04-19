@@ -5,18 +5,23 @@ import { createInterface } from "node:readline"
 import { isDevComponent } from "@smp/factory-shared"
 
 import { getFactoryClient } from "../client.js"
+import { styleInfo, styleMuted } from "../cli-style.js"
 import type { DxBase } from "../dx-root.js"
 import { streamDockerLogs } from "../lib/docker-logs.js"
 import { Compose } from "../lib/docker.js"
 import { resolveDxContext } from "../lib/dx-context.js"
+import type { LogSource } from "../lib/log-source.js"
 import { formatLogEntry, formatLogEntryJson } from "../lib/log-formatter.js"
+import { SshLogSource } from "../lib/ssh-log-source.js"
+import { resolveUrl } from "../lib/trace-resolver.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 
 setExamples("logs", [
-  "$ dx logs --follow                 Stream live logs",
-  "$ dx logs --level error --since 1h Errors from last hour",
-  '$ dx logs --grep "timeout"         Search logs',
+  "$ dx logs --follow                              Stream live logs",
+  "$ dx logs --level error --since 1h              Errors from last hour",
+  '$ dx logs --grep "timeout"                      Search logs',
+  "$ dx logs https://trafficure.com/admin/airflow  Logs for URL's resolved component",
 ])
 
 export function logsCommand(app: DxBase) {
@@ -27,7 +32,8 @@ export function logsCommand(app: DxBase) {
       {
         name: "module",
         type: "string",
-        description: "Module name (or host for infra logs)",
+        description:
+          "Module name, host, or URL (e.g. https://trafficure.com/admin/airflow)",
       },
       {
         name: "component",
@@ -96,6 +102,20 @@ export function logsCommand(app: DxBase) {
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
+
+      // URL mode: resolve via trace pipeline, then stream from resolved component
+      const target = args.module
+      if (target && target.includes("://")) {
+        try {
+          await streamUrlLogs(target, flags, f)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          console.error(`Error: ${msg}`)
+          process.exit(1)
+        }
+        return
+      }
+
       const isRemote = !!(
         flags.site ||
         flags.workbench ||
@@ -263,6 +283,77 @@ async function streamDevLog(
     }
     poll()
   })
+}
+
+async function streamUrlLogs(
+  url: string,
+  flags: Record<string, unknown>,
+  f: { json?: boolean }
+) {
+  console.log(styleMuted(`Resolving ${url}…`))
+  const resolved = await resolveUrl(url)
+
+  let logSource: LogSource | undefined
+
+  // Detect Traefik internal services before trying to stream
+  const svc = resolved.serviceName ?? resolved.entitySlug
+  if (svc.includes("@internal")) {
+    console.error(
+      `Resolved to Traefik internal service "${svc}" — this is not a real container.\n` +
+        `The trace matched a catch-all route. Try a more specific URL or use:\n` +
+        `  dx logs <compose-service-name> --host ${resolved.hostSlug ?? "<host>"}`
+    )
+    process.exit(1)
+  }
+
+  // Check local site context first
+  const ctx = await resolveDxContext({ need: "project" }).catch(() => null)
+  if (ctx?.project && ctx.project.composeFiles.length > 0) {
+    const compose = new Compose(
+      ctx.project.composeFiles,
+      basename(ctx.project.rootDir)
+    )
+    if (compose.isRunning(svc)) {
+      const { LocalLogSource } = await import("../lib/local-log-source.js")
+      logSource = new LocalLogSource(compose, [svc])
+    }
+  }
+
+  // Fall back to SSH log streaming on the resolved host
+  if (!logSource && resolved.hostEntity && resolved.hostEntity.sshHost) {
+    const project = resolved.composeProject ?? undefined
+    logSource = new SshLogSource(resolved.hostEntity, project, svc)
+  }
+
+  if (!logSource) {
+    console.error(
+      `Could not resolve a log source for ${url} (resolved to ${resolved.entitySlug} on ${resolved.hostSlug ?? "unknown host"})`
+    )
+    process.exit(1)
+  }
+
+  console.log(styleInfo(`Streaming: ${logSource.label}`))
+
+  const ac = new AbortController()
+  process.on("SIGINT", () => ac.abort())
+
+  await logSource.stream(
+    {
+      follow: !!flags.follow,
+      since: flags.since as string | undefined,
+      tail: (flags.tail as number) ?? (flags.follow ? 20 : 100),
+      grep: flags.grep as string | undefined,
+      level: flags.level as string | undefined,
+      signal: ac.signal,
+    },
+    (entry) => {
+      if (f.json) {
+        console.log(formatLogEntryJson(entry))
+      } else {
+        console.log(formatLogEntry(entry))
+      }
+    }
+  )
 }
 
 async function fetchRemoteLogs(

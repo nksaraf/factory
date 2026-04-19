@@ -31,7 +31,7 @@ export interface ResolvedTarget {
   request?: RequestContext
 }
 
-const HOST_TYPES = new Set(["bare-metal", "vm", "lxc", "cloud-instance"])
+export const HOST_TYPES = new Set(["bare-metal", "vm", "lxc", "cloud-instance"])
 const TERMINAL_TYPES = new Set([
   "component",
   "component-deployment",

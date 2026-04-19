@@ -1007,11 +1007,6 @@ export async function reconcileHostScan(
         }
       }
     }
-    if (crawledComponentUpdates > 0) {
-      console.log(
-        `[reconciler] Updated ${crawledComponentUpdates} crawled host component specs`
-      )
-    }
 
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────
     // Create directed links from reverse-proxy realm to backend hosts.

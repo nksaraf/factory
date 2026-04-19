@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 import { EntityFinder, type ResolvedEntity } from "../lib/entity-finder.js"
 import { buildSshArgs } from "../lib/ssh-utils.js"
+import { HOST_TYPES } from "../lib/trace-resolver.js"
 
 export type ProbeResult = {
   ok: boolean
@@ -28,8 +29,6 @@ type Edge = {
   ancestors: TraceNodeLike[]
   child: TraceNodeLike
 }
-
-const HOST_TYPES = new Set(["bare-metal", "vm", "lxc", "cloud-instance"])
 
 const PROBE_TIMEOUT_MS = 6000
 const CONCURRENCY = 8
