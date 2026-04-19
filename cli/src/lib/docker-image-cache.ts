@@ -10,8 +10,9 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { homedir } from "node:os"
 import { spawnSync } from "node:child_process"
+
+import { DX_CACHE_DIR } from "./host-dirs.js"
 
 export interface ImageCacheEntry {
   digest: string
@@ -25,8 +26,7 @@ export interface ImagePullResult {
   failed: string[]
 }
 
-const CACHE_DIR = join(homedir(), ".dx", "cache")
-const CACHE_FILE = join(CACHE_DIR, "docker-pulls.json")
+const CACHE_FILE = join(DX_CACHE_DIR, "docker-pulls.json")
 
 function readCache(): Record<string, ImageCacheEntry> {
   if (!existsSync(CACHE_FILE)) return {}
@@ -38,7 +38,7 @@ function readCache(): Record<string, ImageCacheEntry> {
 }
 
 function writeCache(cache: Record<string, ImageCacheEntry>): void {
-  mkdirSync(CACHE_DIR, { recursive: true })
+  mkdirSync(DX_CACHE_DIR, { recursive: true })
   writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2))
 }
 

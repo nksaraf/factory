@@ -1,7 +1,8 @@
-import { homedir } from "node:os"
 import { join } from "node:path"
 
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
+
+import { DX_DATA_DIR } from "./host-dirs.js"
 
 /** Result row from a query — column name → value. */
 export type Row = Record<string, unknown>
@@ -257,7 +258,7 @@ export function resolveDbTarget(
 
 // ── Backup Storage ────────────────────────────────────────────────────────────
 
-export const DB_BACKUP_DIR = join(homedir(), ".dx", "backups", "db")
+export const DB_BACKUP_DIR = join(DX_DATA_DIR, "backups", "db")
 
 export interface BackupMetadata {
   name: string

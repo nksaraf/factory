@@ -1,6 +1,6 @@
 // cli/src/lib/recipe.ts
 import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { DX_DATA_DIR } from "./host-dirs.js"
 import { join, resolve } from "node:path"
 import { parse as parseYaml } from "yaml"
 
@@ -294,7 +294,7 @@ export function resolveRecipe(name: string): ResolvedRecipe {
   if (projectRecipe) return projectRecipe
 
   // 2. User-global: ~/.config/dx/recipes/<name>/
-  const userDir = resolve(homedir(), ".config", "dx", "recipes", name)
+  const userDir = resolve(DX_DATA_DIR, "recipes", name)
   const userRecipe = loadRecipeFromDir(userDir, "user")
   if (userRecipe) return userRecipe
 
@@ -391,7 +391,7 @@ export function listRecipes(): Array<{
   }
 
   // User-global
-  const userRecipesDir = resolve(homedir(), ".config", "dx", "recipes")
+  const userRecipesDir = resolve(DX_DATA_DIR, "recipes")
   if (existsSync(userRecipesDir)) {
     try {
       const { readdirSync } = require("node:fs") as typeof import("node:fs")

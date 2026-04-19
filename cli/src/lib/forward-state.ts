@@ -13,7 +13,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs"
-import { homedir } from "node:os"
+import { DX_CONFIG_DIR } from "./host-dirs.js"
 import { join } from "node:path"
 
 import { isPortFree } from "./port-manager.js"
@@ -42,7 +42,7 @@ export interface ForwardEntry {
 // ---------------------------------------------------------------------------
 
 function stateDir(): string {
-  return join(homedir(), ".config", "dx")
+  return DX_CONFIG_DIR
 }
 
 function stateFile(): string {

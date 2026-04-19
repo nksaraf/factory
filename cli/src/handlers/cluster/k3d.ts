@@ -2,12 +2,10 @@
  * k3d cluster management — create, delete, list local k3d clusters.
  */
 import { mkdirSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { join } from "node:path"
 
 import { capture, captureOrThrow } from "../../lib/subprocess.js"
-
-const DX_CONFIG_DIR = join(homedir(), ".config", "dx")
+import { DX_CONFIG_DIR } from "../../lib/host-dirs.js"
 
 export interface K3dCreateOptions {
   /** Cluster name (default: "dx-local") */

@@ -1,4 +1,4 @@
-import { homedir } from "node:os"
+import { DX_CONFIG_DIR } from "../../../lib/host-dirs.js"
 import { join } from "node:path"
 import { capture } from "../../../lib/subprocess.js"
 import { ensureFileExists } from "./file-utils.js"
@@ -15,7 +15,7 @@ const GIT_DEFAULTS: Record<string, string> = {
   "merge.conflictstyle": "zdiff3",
 }
 
-const COMMIT_TEMPLATE_PATH = join(homedir(), ".dx", "commit-template.txt")
+const COMMIT_TEMPLATE_PATH = join(DX_CONFIG_DIR, "commit-template.txt")
 
 const COMMIT_TEMPLATE = `
 # <type>(<scope>): <subject>

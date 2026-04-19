@@ -26,11 +26,12 @@ import {
   startGateway,
 } from "../../../api/src/factory-core"
 
+import { DX_CONFIG_DIR, DX_DATA_DIR as DX_DATA_BASE } from "../lib/host-dirs.js"
+
 const API_PORT = 4100
 const GATEWAY_PORT = 9090
-const DX_DATA_DIR = join(homedir(), ".config", "dx", "data")
-const PGLITE_DIR = join(DX_DATA_DIR, "pglite")
-const PID_FILE = join(homedir(), ".config", "dx", "daemon.pid")
+const PGLITE_DIR = join(DX_DATA_BASE, "pglite")
+const PID_FILE = join(DX_CONFIG_DIR, "daemon.pid")
 
 // Find the drizzle migrations folder — resolve relative to the api package
 function findMigrationsDir(): string {

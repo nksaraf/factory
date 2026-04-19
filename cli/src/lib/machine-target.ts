@@ -1,7 +1,7 @@
 // cli/src/lib/machine-target.ts
 import { readFileSync, existsSync } from "node:fs"
 import { resolve } from "node:path"
-import { homedir } from "node:os"
+import { DX_CONFIG_DIR } from "./host-dirs.js"
 import { parse as parseYaml } from "yaml"
 
 import {
@@ -57,7 +57,7 @@ interface LocalMachineEntry {
 }
 
 function resolveByTag(tag: string): Promise<MachineTarget[]> {
-  const machinesPath = resolve(homedir(), ".config", "dx", "machines.json")
+  const machinesPath = resolve(DX_CONFIG_DIR, "machines.json")
   const targets: MachineTarget[] = []
 
   if (existsSync(machinesPath)) {

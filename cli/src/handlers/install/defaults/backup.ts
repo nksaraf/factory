@@ -7,10 +7,11 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs"
-import { homedir } from "node:os"
 import { basename, join } from "node:path"
 
-const BACKUP_DIR = join(homedir(), ".dx", "backups")
+import { DX_DATA_DIR } from "../../../lib/host-dirs.js"
+
+const BACKUP_DIR = join(DX_DATA_DIR, "backups")
 const MANIFEST_PATH = join(BACKUP_DIR, "manifest.json")
 
 /** Ensure the backup directory exists. */

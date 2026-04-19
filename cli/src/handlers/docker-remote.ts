@@ -1,7 +1,8 @@
 import { execFileSync, spawnSync } from "node:child_process"
-import { readFileSync, existsSync } from "node:fs"
-import { resolve, dirname, basename, relative } from "node:path"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
+import { resolve, dirname, basename, relative } from "node:path"
+import { DX_CONFIG_DIR } from "../lib/host-dirs.js"
 import { parse as parseYaml } from "yaml"
 
 import { getFactoryClient } from "../client.js"
@@ -172,7 +173,7 @@ interface LocalMachineEntry {
 }
 
 function resolveFromLocalMachines(slug: string): MachineTarget | null {
-  const machinesPath = resolve(homedir(), ".config", "dx", "machines.json")
+  const machinesPath = resolve(DX_CONFIG_DIR, "machines.json")
   if (!existsSync(machinesPath)) return null
 
   try {
@@ -198,8 +199,7 @@ function resolveFromLocalMachines(slug: string): MachineTarget | null {
  * Save a machine to ~/.config/dx/machines.json
  */
 export function saveLocalMachine(slug: string, entry: LocalMachineEntry): void {
-  const dir = resolve(homedir(), ".config", "dx")
-  const machinesPath = resolve(dir, "machines.json")
+  const machinesPath = resolve(DX_CONFIG_DIR, "machines.json")
 
   let machines: Record<string, LocalMachineEntry> = {}
   if (existsSync(machinesPath)) {
@@ -212,9 +212,7 @@ export function saveLocalMachine(slug: string, entry: LocalMachineEntry): void {
 
   machines[slug] = entry
 
-  // Ensure directory exists
-  spawnSync("mkdir", ["-p", dir])
-  const { writeFileSync } = require("node:fs")
+  mkdirSync(DX_CONFIG_DIR, { recursive: true })
   writeFileSync(machinesPath, JSON.stringify(machines, null, 2) + "\n")
 }
 
@@ -222,7 +220,7 @@ export function saveLocalMachine(slug: string, entry: LocalMachineEntry): void {
  * Remove a machine from ~/.config/dx/machines.json
  */
 export function removeLocalMachine(slug: string): boolean {
-  const machinesPath = resolve(homedir(), ".config", "dx", "machines.json")
+  const machinesPath = resolve(DX_CONFIG_DIR, "machines.json")
   if (!existsSync(machinesPath)) return false
 
   try {

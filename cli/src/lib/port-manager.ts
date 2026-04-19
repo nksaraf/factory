@@ -9,12 +9,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { dirname, join } from "node:path"
 
+import { DX_CONFIG_DIR } from "./host-dirs.js"
+
 const MAX_PORT_RETRIES = 100
-const HOST_REGISTRY_DIR = join(
-  process.env.HOME ?? process.env.USERPROFILE ?? "/tmp",
-  ".dx"
-)
-const HOST_REGISTRY_FILE = join(HOST_REGISTRY_DIR, "host-ports.json")
+const HOST_REGISTRY_FILE = join(DX_CONFIG_DIR, "host-ports.json")
 
 interface PortReservation {
   port: number
@@ -38,7 +36,7 @@ function readHostRegistry(): HostPortEntry[] {
 }
 
 function writeHostRegistry(entries: HostPortEntry[]): void {
-  mkdirSync(HOST_REGISTRY_DIR, { recursive: true })
+  mkdirSync(DX_CONFIG_DIR, { recursive: true })
   writeFileSync(HOST_REGISTRY_FILE, JSON.stringify(entries, null, 2) + "\n")
 }
 

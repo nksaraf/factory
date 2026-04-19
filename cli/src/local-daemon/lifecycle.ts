@@ -6,12 +6,13 @@ import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 
 import { DxError } from "../lib/dx-error.js"
+import { DX_CONFIG_DIR } from "../lib/host-dirs.js"
 import { log } from "../lib/logger.js"
 import { capture } from "../lib/subprocess.js"
 import { ensureLocalCluster } from "./ensure-cluster.js"
 
-const PID_FILE = join(homedir(), ".config", "dx", "daemon.pid")
-const LOG_FILE = join(homedir(), ".config", "dx", "daemon.log")
+const PID_FILE = join(DX_CONFIG_DIR, "daemon.pid")
+const LOG_FILE = join(DX_CONFIG_DIR, "daemon.log")
 const HEALTH_URL = "http://localhost:4100/health"
 const HEALTH_TIMEOUT_MS = 30_000
 const HEALTH_POLL_MS = 300
@@ -59,7 +60,7 @@ export async function startLocalDaemon(kubeconfigPath?: string): Promise<void> {
   // Resolve the server entry point relative to this file
   const serverEntry = resolve(__dirname, "server.ts")
   const { mkdirSync, openSync, closeSync } = await import("node:fs")
-  mkdirSync(join(homedir(), ".config", "dx"), { recursive: true })
+  mkdirSync(DX_CONFIG_DIR, { recursive: true })
 
   // Spawn bun with the server entry point as a detached background process.
   // Requires bun + source files + node_modules on disk (the compiled CLI binary

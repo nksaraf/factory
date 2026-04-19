@@ -12,7 +12,7 @@ import {
   writeFileSync,
   rmSync,
 } from "node:fs"
-import { homedir } from "node:os"
+import { DX_DATA_DIR } from "../../lib/host-dirs.js"
 import { join } from "node:path"
 import { exec, capture } from "../../lib/subprocess.js"
 
@@ -27,7 +27,7 @@ export function normalizeGitUrl(gitUrl: string): string {
 
 /** Return the shared bare-clone directory for a git URL. */
 export function sharedRepoDir(gitUrl: string): string {
-  return join(homedir(), ".dx", "shared-repos", normalizeGitUrl(gitUrl))
+  return join(DX_DATA_DIR, "shared-repos", normalizeGitUrl(gitUrl))
 }
 
 /**
