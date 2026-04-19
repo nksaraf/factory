@@ -976,8 +976,8 @@ export async function reconcileHostScan(
           domain === "*"
             ? slugify(`${proxySlug}-catchall-${router.name}`)
             : slugify(`${proxySlug}-${domain}`)
-        if (currentRouterSlugs.has(routeSlug)) {
-          // Route already exists from step 8c — update resolvedTargets
+        {
+          // Update resolvedTargets for crawled host routes
           const resolvedTargets: RouteStatus["resolvedTargets"] = []
           for (const backend of router.backends) {
             if (backend.container) {

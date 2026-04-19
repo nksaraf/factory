@@ -579,14 +579,18 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
     return
   }
   try {
-    // Strip full scanResult from crawl entries before sending — they're huge and
-    // only needed CLI-side for --deep. The API only needs IP/hostname/reachable/resolvedServices.
+    // Trim crawl entries for the API payload — keep reverseProxies (needed by
+    // reconciler for deterministic backend resolution) but drop the bulk of the
+    // scan data (ports, services, realms, composeProjects) which is CLI-only.
     const apiPayload = { ...finalResult }
     if (apiPayload.networkCrawl) {
       apiPayload.networkCrawl = {
         ...apiPayload.networkCrawl,
         hostEntries: apiPayload.networkCrawl.hostEntries.map(
-          ({ scanResult: _sr, ...rest }) => rest
+          ({ scanResult: sr, ...rest }) => ({
+            ...rest,
+            scanResult: sr ? { reverseProxies: sr.reverseProxies } : undefined,
+          })
         ),
       }
     }
