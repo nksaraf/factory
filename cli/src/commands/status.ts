@@ -38,13 +38,10 @@ export function statusCommand(app: DxBase) {
           console.log(`Phase:    ${status.phase}`)
           console.log(`Updated:  ${status.updatedAt}`)
           console.log("")
-          for (const sd of spec.systemDeployments as any[]) {
-            const realmInfo = sd.realm
-              ? ` on ${sd.realm.slug} (${sd.realm.type})`
-              : ""
+          for (const sd of spec.systemDeployments) {
             const linked = sd.linkedRef ? " (linked)" : ""
             console.log(`System:   ${sd.systemSlug}${linked}`)
-            if (realmInfo)
+            if (sd.realm)
               console.log(`Realm:    ${sd.realm.slug} (${sd.realm.type})`)
             console.log(`Components:`)
             for (const cd of sd.componentDeployments) {
