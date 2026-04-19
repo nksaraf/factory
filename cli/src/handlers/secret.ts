@@ -2,9 +2,10 @@
  * Secret management handler.
  *
  * --local targets ~/.config/dx/secrets.json (no Factory connection needed).
- * Without --local, targets the Factory API (requires auth).
+ * Without --local, targets the Factory API via Effect programs.
  */
 
+import { Effect } from "effect"
 import { styleError, styleInfo, styleSuccess } from "../cli-style.js"
 import {
   localSecretSet,
@@ -12,7 +13,15 @@ import {
   localSecretList,
   localSecretRemove,
 } from "./secret-local-store.js"
-import { getFactoryFetchClient } from "./factory-fetch.js"
+import { runEffect } from "../effect/bridge.js"
+import { makeFactoryApiLayer } from "../effect/layers/factory-api.js"
+import {
+  listSecrets,
+  getSecret,
+  setSecret,
+  removeSecret,
+  rotateSecret,
+} from "../effect/programs/secrets.js"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +54,13 @@ function buildScopeParams(flags: SecretFlags): Record<string, string> {
   return params
 }
 
+/** Build an Effect FactoryApi layer from the existing REST client. */
+async function buildLayer() {
+  const { getFactoryRestClient } = await import("../client.js")
+  const client = await getFactoryRestClient()
+  return makeFactoryApiLayer(client)
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -60,20 +76,19 @@ export async function secretSet(
     return
   }
 
-  const client = await getFactoryFetchClient()
-  const res = await client.fetchApi("/secrets", {
-    method: "POST",
-    body: JSON.stringify({
-      slug: key,
-      value,
-      ...buildScopeParams(flags),
-    }),
-  })
-
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Failed to set secret: ${res.status} ${body}`)
-  }
+  const layer = await buildLayer()
+  const scopeParams = buildScopeParams(flags)
+  await runEffect(
+    Effect.provide(
+      setSecret({
+        slug: key,
+        value,
+        ...scopeParams,
+      }),
+      layer
+    ),
+    "setting secret"
+  )
 
   console.log(styleSuccess(`Set secret: ${key}`))
 }
@@ -96,22 +111,12 @@ export async function secretGet(
     return
   }
 
-  const client = await getFactoryFetchClient()
-  const params = new URLSearchParams(buildScopeParams(flags))
-  const res = await client.fetchApi(
-    `/secrets/${encodeURIComponent(key)}?${params}`
+  const layer = await buildLayer()
+  const data = await runEffect(
+    Effect.provide(getSecret(key, buildScopeParams(flags)), layer),
+    "getting secret"
   )
 
-  if (!res.ok) {
-    if (res.status === 404) {
-      console.log(styleError(`Secret not found: ${key}`))
-      process.exit(1)
-    }
-    const body = await res.text()
-    throw new Error(`Failed to get secret: ${res.status} ${body}`)
-  }
-
-  const data = (await res.json()) as { value: string }
   if (flags.json) {
     console.log(JSON.stringify({ key, value: data.value }))
   } else {
@@ -134,23 +139,11 @@ export async function secretList(flags: SecretFlags): Promise<void> {
     return
   }
 
-  const client = await getFactoryFetchClient()
-  const params = new URLSearchParams(buildScopeParams(flags))
-  const res = await client.fetchApi(`/secrets?${params}`)
-
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Failed to list secrets: ${res.status} ${body}`)
-  }
-
-  const data = (await res.json()) as {
-    secrets: Array<{
-      slug: string
-      scopeType: string
-      environment: string
-      updatedAt: string
-    }>
-  }
+  const layer = await buildLayer()
+  const data = await runEffect(
+    Effect.provide(listSecrets(buildScopeParams(flags)), layer),
+    "listing secrets"
+  )
 
   if (flags.json) {
     console.log(JSON.stringify(data.secrets))
@@ -179,21 +172,11 @@ export async function secretRemove(
     return
   }
 
-  const client = await getFactoryFetchClient()
-  const params = new URLSearchParams(buildScopeParams(flags))
-  const res = await client.fetchApi(
-    `/secrets/${encodeURIComponent(key)}?${params}`,
-    { method: "DELETE" }
+  const layer = await buildLayer()
+  await runEffect(
+    Effect.provide(removeSecret(key, buildScopeParams(flags)), layer),
+    "removing secret"
   )
-
-  if (!res.ok) {
-    if (res.status === 404) {
-      console.log(styleError(`Secret not found: ${key}`))
-      process.exit(1)
-    }
-    const body = await res.text()
-    throw new Error(`Failed to remove secret: ${res.status} ${body}`)
-  }
 
   console.log(styleSuccess(`Removed secret: ${key}`))
 }
@@ -203,27 +186,22 @@ export async function secretRotate(
   flags: SecretFlags & { value?: string }
 ): Promise<void> {
   if (flags.value) {
-    // Setting a new value is just a set operation
     return secretSet(key, flags.value, flags)
   }
 
-  // Re-encrypt with current master key (server-side)
-  const client = await getFactoryFetchClient()
+  const layer = await buildLayer()
   const scopeParams = buildScopeParams(flags)
-  const res = await client.fetchApi("/secrets/rotate", {
-    method: "POST",
-    body: JSON.stringify({
-      slug: key,
-      scopeType: scopeParams.scopeType,
-      ...(scopeParams.scopeId ? { scopeId: scopeParams.scopeId } : {}),
-    }),
-  })
+  const data = await runEffect(
+    Effect.provide(
+      rotateSecret({
+        slug: key,
+        scopeType: scopeParams.scopeType,
+        ...(scopeParams.scopeId ? { scopeId: scopeParams.scopeId } : {}),
+      }),
+      layer
+    ),
+    "rotating secret"
+  )
 
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Failed to rotate secret: ${res.status} ${body}`)
-  }
-
-  const data = (await res.json()) as { rotated: number }
   console.log(styleSuccess(`Rotated ${data.rotated} secret(s) for key: ${key}`))
 }
