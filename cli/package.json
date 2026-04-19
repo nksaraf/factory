@@ -21,15 +21,33 @@
     "build:crust": "crust build --package --name lepton-dx --target linux-x64 --target linux-arm64 --target darwin-x64 --target darwin-arm64 --target windows-x64",
     "build:crust:local": "sh -c 'T=${CRUST_TARGET:-}; if [ -z \"$T\" ]; then case \"$(uname -s)-$(uname -m)\" in Darwin-arm64) T=darwin-arm64 ;; Darwin-x86_64) T=darwin-x64 ;; Linux-aarch64|Linux-arm64) T=linux-arm64 ;; *) T=linux-x64 ;; esac; fi; exec crust build --name dx --target \"$T\" --outfile dist/dx'",
     "release:publish": "crust publish",
-    "release:publish:dry-run": "crust publish --dry-run"
+    "release:publish:dry-run": "crust publish --dry-run",
+    "prepare": "effect-tsgo patch"
   },
   "engines": {
     "bun": ">=1.1.0"
   },
   "dependencies": {
+    "@base-ui-components/react": "1.0.0-rc.0",
+    "@effect/platform": "0.96.0",
+    "@iconify-json/lucide": "1.2.102",
+    "@iconify-json/ph": "1.2.2",
+    "@iconify-json/simple-icons": "1.2.78",
+    "@iconify/tailwind4": "1.2.3",
     "@inkjs/ui": "^2.0.0",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-query": "^5.60.0",
+    "bun-plugin-tailwind": "0.1.2",
+    "clsx": "2.1.1",
+    "effect": "3.21.1",
     "ink": "^6.8.0",
-    "react": "^19.1.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "react-router": "^7.0.0",
+    "remark-gfm": "4.0.1",
+    "tailwind-merge": "3.5.0",
+    "tailwindcss": "^4.0.0"
   },
   "devDependencies": {
     "@crustjs/core": "^0.0.15",
@@ -52,11 +70,14 @@
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.0",
     "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
     "elysia": "^1.4.27",
     "ora": "^8.0.0",
     "pg": "^8.13.0",
     "react-devtools-core": "6.1.5",
     "typescript": "^5.9.3",
-    "yaml": "^2.8.0"
+    "yaml": "^2.8.0",
+    "@typescript/native-preview": "latest",
+    "@effect/tsgo": "0.4.0"
   }
 }

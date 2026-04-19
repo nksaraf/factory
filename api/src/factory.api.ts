@@ -34,6 +34,7 @@ import { setChatDb } from "./modules/chat/db"
 import { commerceController } from "./modules/commerce/index"
 import {
   documentsController,
+  plansController,
   publicDocumentViewerController,
 } from "./modules/documents/index"
 import { healthController } from "./modules/health/index"
@@ -96,6 +97,12 @@ export class FactoryAPI {
   })()
   readonly authzClient: FactoryAuthzClient | null
   reconciler: Reconciler | null = null
+  private effectRuntime:
+    | import("effect/ManagedRuntime").ManagedRuntime<
+        import("./effect").Db | import("./effect").FactoryConfig,
+        never
+      >
+    | null = null
   private redis?: {
     publisher: import("ioredis").Redis
     subscriber: import("ioredis").Redis
@@ -151,6 +158,7 @@ export class FactoryAPI {
       .use(threadsController(db))
       .use(threadSurfacesController(db))
       .use(documentsController(db))
+      .use(plansController(db))
       .use(catalogController(db))
 
     const planeRoutes = new Elysia({ prefix: "/api/v1/factory" })
@@ -388,11 +396,22 @@ export class FactoryAPI {
 
     // IAM registry bootstrap (resource types, scope types, slot mappings) is
     // owned by auth-service's bootstrapIamRegistry() — no client-side bootstrap needed.
+
+    // Effect runtime — provides Db + FactoryConfig to Effect programs
+    const { ManagedRuntime } = await import("effect")
+    const { createAppLayer } = await import("./effect/runtime")
+    this.effectRuntime = ManagedRuntime.make(
+      createAppLayer(this.db, this.settings)
+    )
+    logger.info("Effect runtime initialized")
   }
 
   async close() {
     stopAll()
     await closeNats().catch(() => {})
+    if (this.effectRuntime) {
+      await this.effectRuntime.dispose().catch(() => {})
+    }
     if (this.redis) {
       this.redis.publisher.disconnect()
       this.redis.subscriber.disconnect()

@@ -88,7 +88,9 @@ import {
   ensureIp,
   getEntityIps,
 } from "../../services/infra/ipam.service"
-import { syncDnsFromEstate } from "../../services/infra/dns-sync.service"
+import { syncDnsFromEstate as syncDnsLegacy } from "../../services/infra/dns-sync.service"
+import { syncDnsFromEstate } from "../../effect/programs/dns-sync"
+import { makeDbLayer, runEffect } from "../../effect"
 import { verifyDomain } from "./gateway.service"
 import { drizzleDbReader, resolveRouteTargets } from "./route-resolver"
 import {
@@ -1201,12 +1203,16 @@ export function infraController(db: Database) {
         }
       )
 
-      // ── DNS: Cloudflare sync ──────────────────────────────
+      // ── DNS: Cloudflare sync (Effect) ─────────────────────
       .post(
         "/dns-sync",
         async ({ body }) => {
           const parsed = z.object({ estateId: z.string().min(1) }).parse(body)
-          return ok(await syncDnsFromEstate(db, parsed.estateId))
+          const { Effect } = await import("effect")
+          const result = await runEffect(
+            Effect.provide(syncDnsFromEstate(parsed.estateId), makeDbLayer(db))
+          )
+          return ok(result)
         },
         {
           detail: {

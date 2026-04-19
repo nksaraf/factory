@@ -6,19 +6,25 @@
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts",
+    "./effect": "./src/effect/index.ts",
+    "./effect/*": "./src/effect/*.ts",
     "./formats/*": "./src/formats/*.ts"
   },
   "scripts": {
     "test": "bun test --path-ignore-patterns='**/z-*.test.ts' && bun test ./src/formats/z-*.test.ts",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "prepare": "effect-tsgo patch"
   },
   "dependencies": {
+    "effect": "3.21.1",
     "yaml": "^2.8.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
     "@types/node": "^22.10.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "@typescript/native-preview": "latest",
+    "@effect/tsgo": "0.4.0"
   }
 }
