@@ -1,0 +1,3 @@
+ALTER TABLE "org"."document_version" ADD COLUMN "source_turn_id" text;--> statement-breakpoint
+ALTER TABLE "org"."document_version" ADD CONSTRAINT "document_version_source_turn_id_thread_turn_id_fk" FOREIGN KEY ("source_turn_id") REFERENCES "org"."thread_turn"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "org_docver_source_turn_idx" ON "org"."document_version" USING btree ("source_turn_id");
