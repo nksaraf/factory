@@ -187,6 +187,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@effect/tsgo':
+        specifier: 0.4.0
+        version: 0.4.0
       '@swc/core':
         specifier: ^1.11.0
         version: 1.15.21(@swc/helpers@0.5.17)
@@ -196,6 +199,9 @@ importers:
       '@types/pg':
         specifier: 8.20.0
         version: 8.20.0
+      '@typescript/native-preview':
+        specifier: latest
+        version: 7.0.0-dev.20260404.1
       '@workflow/swc-plugin':
         specifier: ^4.1.0
         version: 4.1.0(@swc/core@1.15.21(@swc/helpers@0.5.17))
@@ -342,6 +348,9 @@ importers:
       '@crustjs/style':
         specifier: ^0.0.1
         version: 0.0.1(typescript@5.9.3)
+      '@effect/tsgo':
+        specifier: 0.4.0
+        version: 0.4.0
       '@elysiajs/eden':
         specifier: ^1.4.0
         version: 1.4.8(elysia@1.4.28(@sinclair/typebox@0.34.48)(@types/bun@1.3.11)(exact-mirror@0.2.7(@sinclair/typebox@0.34.48))(file-type@21.3.4)(openapi-types@12.1.3)(typescript@5.9.3))
@@ -387,6 +396,9 @@ importers:
       '@types/react-dom':
         specifier: 19.2.2
         version: 19.2.2(@types/react@19.2.1)
+      '@typescript/native-preview':
+        specifier: latest
+        version: 7.0.0-dev.20260404.1
       elysia:
         specifier: ^1.4.27
         version: 1.4.28(@sinclair/typebox@0.34.48)(@types/bun@1.3.11)(exact-mirror@0.2.7(@sinclair/typebox@0.34.48))(file-type@21.3.4)(openapi-types@12.1.3)(typescript@5.9.3)
@@ -418,12 +430,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@effect/tsgo':
+        specifier: 0.4.0
+        version: 0.4.0
       '@types/bun':
         specifier: ^1.2.0
         version: 1.3.11
       '@types/node':
         specifier: 25.0.9
         version: 25.0.9
+      '@typescript/native-preview':
+        specifier: latest
+        version: 7.0.0-dev.20260404.1
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
@@ -1824,6 +1842,45 @@ packages:
     resolution: {integrity: sha512-U7PLhkVzg7zzrgFvyWATOzD6reL87KG/fcdOxgLWBQ/J5CCU6qdPAVG+0o6o+IxcsLoqGwxs+rFxaFzrdtDV1A==}
     peerDependencies:
       effect: ^3.21.0
+
+  '@effect/tsgo-darwin-arm64@0.4.0':
+    resolution: {integrity: sha512-O7dg5zdT0x8/QRF1LTsTKO89QwKOd1WTar1qqZV3SbEGMJeld4klQXMU4Uzpa8JMybDFlyhU2aBEiKxwllKhIQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@effect/tsgo-darwin-x64@0.4.0':
+    resolution: {integrity: sha512-gS1wqbJFbeVFad9qNe8O75Lcth5bxaDI4DbXXK9vBD4BeX9MhY9kv78/Ror89xMtQqiyaOfUf3WbCwHs0TQQHw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@effect/tsgo-linux-arm64@0.4.0':
+    resolution: {integrity: sha512-H8TK5KvZVosevH0V8zi6vHZWXchHQg87Y5OVGqPB2pnJ3zx0x9JflVENg+yWbovP7tKkd+EB14Nn+L98Mm7hlA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@effect/tsgo-linux-arm@0.4.0':
+    resolution: {integrity: sha512-4i8R0CR0cJigpH8FiaGB90auu8fZ5cH4lK1v4U/Ji0CYlQzCOQ9ytXaAxvFN3vVdkfKT1QEaisoSrwv01TkDkQ==}
+    cpu: [arm]
+    os: [linux]
+
+  '@effect/tsgo-linux-x64@0.4.0':
+    resolution: {integrity: sha512-+JW566Kitimkr/1t4aeVYqKu3EMufMNgfGo+HH31yFD04IGBXwfqOjLVrHrp8wzh0s3NNABHkQmT1G5TnkMRlw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@effect/tsgo-win32-arm64@0.4.0':
+    resolution: {integrity: sha512-KuGpUb2/hKtTSGfBksydVaN94DUSGUUxG7hQUaPvEo87WtHYBnLl7xqpdlKzKxvmim3gv2i7uzkbL6ef65+lqw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@effect/tsgo-win32-x64@0.4.0':
+    resolution: {integrity: sha512-pI5MMLiKR9fFmuPtqG+gyudrmqfnrPR7Cf+ENHzn+XXgkARA9UmLW9VC0GN1h3SH1oQiQp3Qw814LQ1qRizPkA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@effect/tsgo@0.4.0':
+    resolution: {integrity: sha512-RhB8EW97Bu1OW1fOZnMJsX9Et1IDvByMSPE/fnY+/a5+VDEUniM+Q4PMPVYOdcRRSKHrPeEVzQLSSjcaBPIqCQ==}
+    hasBin: true
 
   '@electric-sql/pglite@0.3.16':
     resolution: {integrity: sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA==}
@@ -15748,6 +15805,37 @@ snapshots:
       msgpackr: 1.11.9
       multipasta: 0.2.7
 
+  '@effect/tsgo-darwin-arm64@0.4.0':
+    optional: true
+
+  '@effect/tsgo-darwin-x64@0.4.0':
+    optional: true
+
+  '@effect/tsgo-linux-arm64@0.4.0':
+    optional: true
+
+  '@effect/tsgo-linux-arm@0.4.0':
+    optional: true
+
+  '@effect/tsgo-linux-x64@0.4.0':
+    optional: true
+
+  '@effect/tsgo-win32-arm64@0.4.0':
+    optional: true
+
+  '@effect/tsgo-win32-x64@0.4.0':
+    optional: true
+
+  '@effect/tsgo@0.4.0':
+    optionalDependencies:
+      '@effect/tsgo-darwin-arm64': 0.4.0
+      '@effect/tsgo-darwin-x64': 0.4.0
+      '@effect/tsgo-linux-arm': 0.4.0
+      '@effect/tsgo-linux-arm64': 0.4.0
+      '@effect/tsgo-linux-x64': 0.4.0
+      '@effect/tsgo-win32-arm64': 0.4.0
+      '@effect/tsgo-win32-x64': 0.4.0
+
   '@electric-sql/pglite@0.3.16': {}
 
   '@elysiajs/cors@1.4.1(elysia@1.4.28(@sinclair/typebox@0.34.48)(@types/bun@1.3.11)(exact-mirror@0.2.7(@sinclair/typebox@0.34.48))(file-type@21.3.4)(openapi-types@12.1.3)(typescript@5.9.3))':
@@ -24769,7 +24857,7 @@ snapshots:
     dependencies:
       '@xyflow/react': 12.9.3(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      nuqs: 2.8.9(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+      nuqs: 2.8.9(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
     transitivePeerDependencies:
       - '@babel/core'
       - '@opentelemetry/api'
@@ -24790,7 +24878,7 @@ snapshots:
     dependencies:
       '@xyflow/react': 12.9.3(@types/react@19.2.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       next: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      nuqs: 2.8.9(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+      nuqs: 2.8.9(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
     transitivePeerDependencies:
       - '@babel/core'
       - '@opentelemetry/api'
@@ -28899,7 +28987,7 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
-  nuqs@2.8.9(next@16.0.10(@opentelemetry/api@1.9.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0):
+  nuqs@2.8.9(next@16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.47.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-router@7.11.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0):
     dependencies:
       '@standard-schema/spec': 1.0.0
       react: 19.2.0
