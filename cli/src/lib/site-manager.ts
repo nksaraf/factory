@@ -141,6 +141,69 @@ export class SiteManager {
     return sd
   }
 
+  /**
+   * Reset intent: clear all system deployments, preserving runtime status
+   * (PIDs, ports, phases) for components that get re-added by the caller.
+   *
+   * Returns a status map keyed by `<sdSlug>/<componentSlug>` so the caller
+   * can restore statuses after rebuilding the SD list from current intent.
+   *
+   * This is the foundation of "site.json regenerates intent every call" —
+   * yesterday's flags don't leak into today's dx dev.
+   */
+  resetIntent(): Map<
+    string,
+    { status: ComponentDeploymentStatus; mode: ComponentDeploymentMode }
+  > {
+    const saved = new Map<
+      string,
+      { status: ComponentDeploymentStatus; mode: ComponentDeploymentMode }
+    >()
+    for (const sd of this.state.systemDeployments) {
+      for (const cd of sd.componentDeployments) {
+        saved.set(`${sd.slug}/${cd.componentSlug}`, {
+          status: { ...cd.status },
+          mode: cd.mode,
+        })
+      }
+    }
+    this.state.systemDeployments = []
+    return saved
+  }
+
+  /**
+   * Restore runtime status for a component that was re-added after
+   * `resetIntent()`. Only restores if the component existed before the reset
+   * and its runtime state (pid/port) is still valid.
+   */
+  restoreStatus(
+    sdSlug: string,
+    componentSlug: string,
+    saved: Map<
+      string,
+      { status: ComponentDeploymentStatus; mode: ComponentDeploymentMode }
+    >
+  ): void {
+    const key = `${sdSlug}/${componentSlug}`
+    const prior = saved.get(key)
+    if (!prior) return
+    const sd = this.getSystemDeployment(sdSlug)
+    if (!sd) return
+    const cd = sd.componentDeployments.find(
+      (c) => c.componentSlug === componentSlug
+    )
+    if (!cd) return
+    // Only restore runtime status fields — intent fields (mode, spec) are
+    // already set by the caller to reflect current intent.
+    if (prior.status.pid) cd.status.pid = prior.status.pid
+    if (prior.status.port) cd.status.port = prior.status.port
+    if (prior.status.phase) cd.status.phase = prior.status.phase
+    if (prior.status.actualImage)
+      cd.status.actualImage = prior.status.actualImage
+    if (prior.status.containerId)
+      cd.status.containerId = prior.status.containerId
+  }
+
   // ── Component deployment within a system deployment ─────────
 
   setComponentDeployment(sdSlug: string, cd: LocalComponentDeployment): void {

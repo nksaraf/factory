@@ -473,6 +473,11 @@ export class DevOrchestrator {
       return null
     }
 
+    // ── Reset intent — site.json regenerates from scratch every call ──
+    // Yesterday's --connect-to staging doesn't leak into today's bare dx dev.
+    // Runtime status (PIDs, ports) preserved for components that survive.
+    const savedStatuses = dryRun ? new Map() : this.site.resetIntent()
+
     // ── Port resolution ───────────────────────────────────────
     const { envPath, allEnvVars } = dryRun
       ? { envPath: "", allEnvVars: {} }
@@ -728,6 +733,18 @@ export class DevOrchestrator {
       await this.openTunnel(tunnelSubdomain, {
         exposeConsole: opts.exposeConsole,
       })
+    }
+
+    // ── Restore runtime status from prior run ──────────────────
+    // PIDs/ports/phases that survived resetIntent(). Only applied to
+    // components that were re-added by the intent rebuild above.
+    if (savedStatuses.size > 0) {
+      for (const target of targets) {
+        this.site.restoreStatus(this.sdSlug, target, savedStatuses)
+      }
+      for (const dep of localDockerDeps) {
+        this.site.restoreStatus(this.sdSlug, dep, savedStatuses)
+      }
     }
 
     this.site.save()
