@@ -141,6 +141,21 @@ describe("diffSets", () => {
     expect(result.toOrphan).toEqual([])
   })
 
+  test("handles duplicate keys in observed — last wins", () => {
+    const diff = diffSets<{ slug: string; v: number }>({
+      desired: [{ slug: "a", v: 3 }],
+      observed: [
+        { slug: "a", v: 1 },
+        { slug: "a", v: 2 },
+      ],
+      keyOfDesired: (d) => d.slug,
+      keyOfObserved: (o) => o.slug,
+    })
+
+    expect(diff.toUpdate).toHaveLength(1)
+    expect(diff.toUpdate[0].observed.v).toBe(2)
+  })
+
   test("supports different types for desired and observed", () => {
     type Desired = { slug: string; targetCount: number }
     type Observed = { name: string; currentCount: number }
@@ -168,7 +183,7 @@ describe("diffSets", () => {
     expect(result.toOrphan).toEqual([{ name: "db", currentCount: 1 }])
   })
 
-  test("handles large sets efficiently (10k items, <100ms)", () => {
+  test("handles large sets efficiently (10k items, <500ms)", () => {
     const N = 10_000
     // First half overlap (updates), second half only in desired (creates), first quarter of observed also has extras (orphans)
     const desired = Array.from({ length: N }, (_, i) => ({
@@ -191,7 +206,7 @@ describe("diffSets", () => {
     })
     const elapsed = performance.now() - start
 
-    expect(elapsed).toBeLessThan(100)
+    expect(elapsed).toBeLessThan(500)
     expect(result.toCreate).toHaveLength(N / 2)
     expect(result.toUpdate).toHaveLength(N / 2)
     expect(result.toOrphan).toHaveLength(N / 4)

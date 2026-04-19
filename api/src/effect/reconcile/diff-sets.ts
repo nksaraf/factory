@@ -15,6 +15,17 @@ export interface DiffSetsOptions<D, O> {
   readonly isEqual?: (d: D, o: O) => boolean
 }
 
+/**
+ * Compute a three-way set diff between desired and observed arrays.
+ *
+ * Returns items to create (in desired but not observed), update (in both),
+ * and orphan (in observed but not desired), keyed by caller-supplied functions.
+ *
+ * Without `isEqual`, every key-matched pair lands in `toUpdate` — the caller
+ * is responsible for defining what "equal" means for their domain.
+ *
+ * Duplicate keys in either array use last-occurrence-wins (Map semantics).
+ */
 export function diffSets<D, O = D>(
   options: DiffSetsOptions<D, O>
 ): SetDiff<D, O> {
