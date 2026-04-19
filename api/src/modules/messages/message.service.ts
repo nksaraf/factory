@@ -29,9 +29,9 @@ export async function ingestMessages(
   for (const msg of messages) {
     const msgId = msg.id.startsWith("msg_") ? msg.id : newId("msg")
     const startedAt =
-      msg.startedAt instanceof Date
-        ? msg.startedAt
-        : new Date(msg.startedAt as unknown as string)
+      startedAt instanceof Date
+        ? startedAt
+        : new Date(startedAt as unknown as string)
     const completedAt = msg.completedAt
       ? msg.completedAt instanceof Date
         ? msg.completedAt
@@ -121,7 +121,7 @@ export async function ingestMessages(
           .update(exchange)
           .set({
             status: "interrupted",
-            endedAt: msg.startedAt,
+            endedAt: startedAt,
             updatedAt: new Date(),
           })
           .where(
@@ -134,7 +134,7 @@ export async function ingestMessages(
           threadId,
           triggerMessageId: msgId,
           status: "running",
-          startedAt: msg.startedAt,
+          startedAt: startedAt,
           spec: {} as any,
         })
         exchangeCount++
@@ -160,7 +160,7 @@ export async function ingestMessages(
           .set({
             terminalMessageId: msgId,
             status: "completed",
-            endedAt: msg.startedAt,
+            endedAt: startedAt,
             spec: await computeExchangeStats(db, threadId, openExchanges[0].id),
             updatedAt: new Date(),
           })
