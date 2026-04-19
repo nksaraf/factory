@@ -538,6 +538,40 @@ export async function traceRequest(
       }
     }
 
+    // 4. Last resort: use the route's targetService/targetPort spec fields
+    //    to search for a matching component by name fragment. This covers
+    //    cases where the reconciler didn't populate resolvedTargets (e.g.,
+    //    backends using host.docker.internal without host-port mappings).
+    if (routeNode.children.length === 0 && routeSpec.targetService) {
+      const svcName = (routeSpec.targetService as string)
+        .replace(/@.*$/, "")
+        .replace(/-service$/, "")
+      if (svcName) {
+        const comp = await reader.findComponentBySlug(svcName)
+        if (comp) {
+          const syntheticLink: LinkRow = {
+            id: `synthetic-${best.id}-${svcName}`,
+            slug: `forward-${svcName}`,
+            name: `forward to ${svcName}`,
+            type: "forward",
+            sourceKind: "route",
+            sourceId: best.id,
+            targetKind: "component",
+            targetId: comp.id,
+            spec: {
+              egressPort: routeSpec.targetPort ?? request.port,
+              egressProtocol: "http",
+            },
+          }
+          routeNode.children.push({
+            entity: comp,
+            children: [],
+            link: syntheticLink,
+          })
+        }
+      }
+    }
+
     node.children.push(routeNode)
     return node
   }
@@ -722,12 +756,21 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
     },
 
     async findComponentBySlug(slug) {
-      const [row] = await db
+      // Exact match first
+      const [exact] = await db
         .select()
         .from(component)
         .where(eq(component.slug, slug))
         .limit(1)
-      return (row as EntityRow) ?? null
+      if (exact) return exact as EntityRow
+
+      // Suffix match: "trafficure-app" matches "traffic-platform-trafficure-app"
+      const [suffix] = await db
+        .select()
+        .from(component)
+        .where(sql`${component.slug} LIKE '%' || '-' || ${slug}`)
+        .limit(1)
+      return (suffix as EntityRow) ?? null
     },
   }
 }
