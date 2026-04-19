@@ -683,6 +683,12 @@ export class SiteOrchestrator {
       }
     }
 
+    // ── Kill orphaned native processes ─────────────────────────
+    this.cleanupOrphanedProcesses(
+      savedStatuses,
+      new Set([...targets, ...localDockerDeps])
+    )
+
     // ── Start local Docker deps ───────────────────────────────
     if (localDockerDeps.length > 0 && this.compose) {
       if (!isDockerRunning()) {
@@ -775,8 +781,16 @@ export class SiteOrchestrator {
     const dryRun = !!opts.dryRun
 
     // ── Reset intent ─────────────────────────────────────────
+    let savedStatuses = new Map<
+      string,
+      {
+        status: import("@smp/factory-shared").ComponentDeploymentStatus
+        mode: import("@smp/factory-shared").ComponentDeploymentMode
+      }
+    >()
     if (!dryRun) {
-      this.site.resetIntent()
+      savedStatuses = this.site.resetIntent()
+      this.cleanupOrphanedProcesses(savedStatuses, new Set())
       this.site.ensureSystemDeployment(
         this.sdSlug,
         this.project.name,
@@ -1223,6 +1237,37 @@ export class SiteOrchestrator {
       }
     }
     if (!quiet) console.log("")
+  }
+
+  // ------------------------------------------------------------------
+  // Orphaned process cleanup
+  // ------------------------------------------------------------------
+
+  private cleanupOrphanedProcesses(
+    savedStatuses: Map<
+      string,
+      {
+        status: import("@smp/factory-shared").ComponentDeploymentStatus
+        mode: import("@smp/factory-shared").ComponentDeploymentMode
+      }
+    >,
+    currentComponents: Set<string>
+  ): void {
+    for (const [key, { status, mode }] of savedStatuses) {
+      const componentSlug = key.split("/")[1]
+      if (
+        mode === "native" &&
+        status.pid != null &&
+        !currentComponents.has(componentSlug)
+      ) {
+        killProcessTree(status.pid)
+        if (!this.opts.quiet) {
+          console.log(
+            `  ${styleWarn("Killed orphaned process")} ${styleBold(componentSlug)} (pid ${status.pid})`
+          )
+        }
+      }
+    }
   }
 
   // ------------------------------------------------------------------
