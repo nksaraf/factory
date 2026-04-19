@@ -108,13 +108,30 @@ async function crawlTraefikViaSsh(
   }
 
   for (const svc of traefikServices) {
-    const apiUrl = detectTraefikApiUrl(svc, "localhost")
-    if (!apiUrl) continue
+    // Enrich service with container command args for config-based API detection
+    const containerEntry = containerIpMap.find(
+      (e) => e.composeService === svc.name
+    )
+    const enriched = { ...svc, cmd: containerEntry?.cmd }
+
+    const detectedUrl = detectTraefikApiUrl(enriched, "localhost")
+    if (!detectedUrl) continue
+
+    // Translate container port to host port (SSH curl runs on the host)
+    let apiUrl = detectedUrl
+    if (containerEntry?.portMap) {
+      const containerPort = new URL(detectedUrl).port || "8080"
+      const hostPort = containerEntry.portMap[containerPort]
+      if (hostPort && hostPort !== parseInt(containerPort, 10)) {
+        apiUrl = `http://localhost:${hostPort}`
+      }
+    }
+
     try {
       const proxy = await collectTraefikRoutes(
         apiUrl,
         containerIpMap,
-        (url, p) => sshCurlJson(sshBaseArgs, url, p)
+        <T>(url: string, p: string) => sshCurlJson<T>(sshBaseArgs, url, p)
       )
       proxy.containerName = svc.name
       scanResult.reverseProxies = scanResult.reverseProxies ?? []
