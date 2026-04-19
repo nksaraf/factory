@@ -45,15 +45,15 @@ jobs:
             }
           - {
               image: "fedora:40",
-              prereq: "dnf install -y curl ca-certificates tar",
+              prereq: "dnf install -y ca-certificates tar",
             }
           - {
               image: "rockylinux:9",
-              prereq: "dnf install -y curl ca-certificates tar",
+              prereq: "dnf install -y ca-certificates tar",
             }
           - {
               image: "amazonlinux:2023",
-              prereq: "dnf install -y curl ca-certificates tar",
+              prereq: "dnf install -y ca-certificates tar",
             }
           - {
               image: "alpine:latest",
@@ -75,7 +75,7 @@ jobs:
       - name: Verify dx executes
         shell: sh
         run: |
-          which dx
+          command -v dx
           dx --help 2>&1 | head -5 || true
 
   macos:
