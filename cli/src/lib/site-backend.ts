@@ -77,52 +77,73 @@ export class LocalSiteBackend implements SiteBackend {
   }
 }
 
-// ── Remote backend (stub — implemented in step 4) ──────────
+// ── Remote backend (Factory API) ───────────────────────────
+
+import { siteStateSchema } from "@smp/factory-shared"
+import type { FactoryClient } from "./api-client.js"
 
 export class RemoteSiteBackend implements SiteBackend {
   readonly kind = "remote" as const
+  private cached: SiteState | null = null
 
-  constructor(readonly siteSlug: string) {}
+  constructor(
+    readonly siteSlug: string,
+    private readonly client: FactoryClient
+  ) {}
+
+  private async fetchState(): Promise<SiteState> {
+    if (this.cached) return this.cached
+    const raw = await this.client.request<unknown>(
+      "GET",
+      `/api/v1/factory/ops/sites/${this.siteSlug}/state`
+    )
+    this.cached = siteStateSchema.parse(raw)
+    return this.cached
+  }
 
   async getState(): Promise<SiteState> {
-    throw new Error(
-      `Remote site operations not yet implemented. Site: ${this.siteSlug}`
-    )
+    return this.fetchState()
   }
 
   async getSpec(): Promise<SiteSpec> {
-    throw new Error(
-      `Remote site operations not yet implemented. Site: ${this.siteSlug}`
-    )
+    const state = await this.fetchState()
+    return state.spec
   }
 
   async getStatus(): Promise<LocalSiteStatus> {
-    throw new Error(
-      `Remote site operations not yet implemented. Site: ${this.siteSlug}`
-    )
+    const state = await this.fetchState()
+    return state.status
   }
 
   async getSystemDeployments(): Promise<LocalSystemDeployment[]> {
-    throw new Error(
-      `Remote site operations not yet implemented. Site: ${this.siteSlug}`
-    )
+    const state = await this.fetchState()
+    return state.spec.systemDeployments
   }
 
-  async getComponentStatus(): Promise<ComponentDeploymentStatus | null> {
-    throw new Error(
-      `Remote site operations not yet implemented. Site: ${this.siteSlug}`
+  async getComponentStatus(
+    sdSlug: string,
+    componentSlug: string
+  ): Promise<ComponentDeploymentStatus | null> {
+    const state = await this.fetchState()
+    const sd = state.spec.systemDeployments.find((s) => s.slug === sdSlug)
+    if (!sd) return null
+    const cd = sd.componentDeployments.find(
+      (c) => c.componentSlug === componentSlug
     )
+    return cd?.status ?? null
   }
 }
 
 // ── Resolver ───────────────────────────────────────────────
 
-export function resolveSiteBackend(opts: {
+export async function resolveSiteBackend(opts: {
   siteSlug?: string
   rootDir?: string
-}): SiteBackend {
+}): Promise<SiteBackend> {
   if (opts.siteSlug) {
-    return new RemoteSiteBackend(opts.siteSlug)
+    const { getFactoryRestClient } = await import("../client.js")
+    const client = await getFactoryRestClient()
+    return new RemoteSiteBackend(opts.siteSlug, client)
   }
 
   if (!opts.rootDir) {

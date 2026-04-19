@@ -1,7 +1,6 @@
 import type { DxBase } from "../dx-root.js"
 import { runContextStatus } from "../handlers/context-status.js"
 import { resolveSiteBackend } from "../lib/site-backend.js"
-import { resolveDxContext } from "../lib/dx-context.js"
 import { exitWithError } from "../lib/cli-exit.js"
 
 import { toDxFlags } from "./dx-flags.js"
@@ -29,7 +28,7 @@ export function statusCommand(app: DxBase) {
 
       if (siteSlug) {
         try {
-          const backend = resolveSiteBackend({ siteSlug })
+          const backend = await resolveSiteBackend({ siteSlug })
           const state = await backend.getState()
           const spec = state.spec
           const status = state.status

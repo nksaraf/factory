@@ -38,7 +38,7 @@ export function psCommand(app: DxBase) {
 
       if (siteSlug) {
         try {
-          const backend = resolveSiteBackend({ siteSlug })
+          const backend = await resolveSiteBackend({ siteSlug })
           const sds = await backend.getSystemDeployments()
           const services: UnifiedServiceStatus[] = []
           for (const sd of sds) {
