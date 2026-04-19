@@ -61,3 +61,10 @@ export const Addressable = defineTrait("addressable", {
     },
   },
 })
+
+export const Junction = defineTrait("junction", {
+  description:
+    "A junction entity that connects two other entities in a many-to-many " +
+    "relationship. Has exactly two required many-to-one links (source and target). " +
+    "The ontology runtime provides convenience traversal through junction entities.",
+})

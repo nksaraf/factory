@@ -30,7 +30,8 @@ describe("FactoryOntology", () => {
     const org = FactoryOntology.namespaces.org
     expect(org.entityKinds).toContain("team")
     expect(org.entityKinds).toContain("principal")
-    expect(org.entityKinds).toHaveLength(2)
+    expect(org.entityKinds).toContain("membership")
+    expect(org.entityKinds).toContain("thread-participant")
   })
 
   test("infra namespace has estate, host, realm", () => {
@@ -38,14 +39,14 @@ describe("FactoryOntology", () => {
     expect(infra.entityKinds).toContain("estate")
     expect(infra.entityKinds).toContain("host")
     expect(infra.entityKinds).toContain("realm")
-    expect(infra.entityKinds).toHaveLength(3)
+    expect(infra.entityKinds).toContain("realm-host")
   })
 
   test("software namespace has system and component", () => {
     const sw = FactoryOntology.namespaces.software
     expect(sw.entityKinds).toContain("system")
     expect(sw.entityKinds).toContain("component")
-    expect(sw.entityKinds).toHaveLength(2)
+    expect(sw.entityKinds).toContain("product-system")
   })
 
   test("ops namespace has site, systemDeployment, componentDeployment, workbench", () => {
@@ -208,7 +209,7 @@ describe("serialization", () => {
 
     const parsed = JSON.parse(json)
     expect(parsed.$schema).toBe("https://ontology.dev/ir/v1")
-    expect(Object.keys(parsed.entities)).toHaveLength(11)
+    expect(Object.keys(parsed.entities)).toHaveLength(15)
     expect(Object.keys(parsed.namespaces)).toHaveLength(4)
   })
 

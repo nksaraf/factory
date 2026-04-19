@@ -7,6 +7,7 @@ import {
   Bitemporal,
   TeamOwned,
   Addressable,
+  Junction,
 } from "../schema/index"
 
 // ---------------------------------------------------------------------------
@@ -30,9 +31,9 @@ export const Team = defineEntity("team", {
       inverse: "children",
       description: "Recursive parent for team hierarchy",
     }),
-    members: link.oneToMany("principal", {
-      targetFk: "primaryTeamId",
-      description: "Team members via primary team assignment",
+    memberships: link.oneToMany("membership", {
+      targetFk: "teamId",
+      description: "Team memberships — traverse to reach principals",
     }),
   },
 })
@@ -130,6 +131,10 @@ export const Host = defineEntity("host", {
       fk: "estateId",
       inverse: "hosts",
     }),
+    realmHosts: link.oneToMany("realm-host", {
+      targetFk: "hostId",
+      description: "Realm-host assignments — traverse to reach realms",
+    }),
   },
 })
 
@@ -157,6 +162,10 @@ export const Realm = defineEntity("realm", {
       fk: "parentRealmId",
       inverse: "children",
       description: "Recursive parent for realm hierarchy",
+    }),
+    realmHosts: link.oneToMany("realm-host", {
+      targetFk: "realmId",
+      description: "Realm-host assignments — traverse to reach hosts",
     }),
   },
 })
@@ -368,6 +377,113 @@ export const Workbench = defineEntity("workbench", {
 })
 
 // ---------------------------------------------------------------------------
+// Junction entities — many-to-many relationships as first-class entities
+// ---------------------------------------------------------------------------
+
+export const Membership = defineEntity("membership", {
+  namespace: "org",
+  prefix: "ptm",
+  plural: "memberships",
+  description: "Links a principal to a team with a role",
+  traits: [Junction],
+  spec: z.object({
+    role: z.enum(["member", "lead", "admin"]).default("member"),
+  }),
+  links: {
+    principal: link.manyToOne("principal", {
+      fk: "principalId",
+      inverse: "memberships",
+      required: true,
+      cascade: "delete",
+    }),
+    team: link.manyToOne("team", {
+      fk: "teamId",
+      inverse: "memberships",
+      required: true,
+      cascade: "delete",
+    }),
+  },
+})
+
+export const RealmHost = defineEntity("realm-host", {
+  namespace: "infra",
+  prefix: "rlmh",
+  plural: "realmHosts",
+  description:
+    "Links a realm to a host with a role (control-plane, worker, etc.)",
+  traits: [Junction],
+  softDelete: false,
+  spec: z.object({
+    role: z.enum(["single", "control-plane", "worker"]).default("single"),
+  }),
+  links: {
+    realm: link.manyToOne("realm", {
+      fk: "realmId",
+      inverse: "realmHosts",
+      required: true,
+      cascade: "delete",
+    }),
+    host: link.manyToOne("host", {
+      fk: "hostId",
+      inverse: "realmHosts",
+      required: true,
+      cascade: "delete",
+    }),
+  },
+})
+
+export const ProductSystem = defineEntity("product-system", {
+  namespace: "software",
+  prefix: "psys",
+  plural: "productSystems",
+  description: "Links a product to a system it contains",
+  traits: [Junction],
+  spec: z.object({}),
+  links: {
+    product: link.manyToOne("product", {
+      fk: "productId",
+      inverse: "productSystems",
+      required: true,
+      cascade: "delete",
+    }),
+    system: link.manyToOne("system", {
+      fk: "systemId",
+      inverse: "productSystems",
+      required: true,
+      cascade: "delete",
+    }),
+  },
+})
+
+export const ThreadParticipant = defineEntity("thread-participant", {
+  namespace: "org",
+  prefix: "tprt",
+  plural: "threadParticipants",
+  description:
+    "Links a principal to a thread with a role and join/leave lifecycle",
+  traits: [Junction],
+  spec: z.object({
+    role: z.string(),
+    joinedAt: z.string().optional(),
+    leftAt: z.string().optional(),
+  }),
+  links: {
+    thread: link.manyToOne("thread", {
+      fk: "threadId",
+      inverse: "participants",
+      required: true,
+      cascade: "delete",
+    }),
+    principal: link.manyToOne("principal", {
+      fk: "principalId",
+      inverse: "threadParticipations",
+      required: true,
+      cascade: "delete",
+    }),
+  },
+})
+
+// ---------------------------------------------------------------------------
 // Compiled ontology
 // ---------------------------------------------------------------------------
 
@@ -384,6 +500,11 @@ export const FactoryOntology = compileOntology(
     SystemDeployment,
     ComponentDeployment,
     Workbench,
+    // Junctions
+    Membership,
+    RealmHost,
+    ProductSystem,
+    ThreadParticipant,
   ],
-  { traits: [Reconcilable, Bitemporal, TeamOwned, Addressable] }
+  { traits: [Reconcilable, Bitemporal, TeamOwned, Addressable, Junction] }
 )

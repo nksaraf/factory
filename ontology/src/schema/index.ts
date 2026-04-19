@@ -27,6 +27,7 @@ export {
   TeamOwned,
   Lifecycled,
   Addressable,
+  Junction,
 } from "./trait"
 export { link } from "./link"
 export {
