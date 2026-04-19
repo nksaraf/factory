@@ -29,31 +29,10 @@ export function downCommand(app: DxBase) {
     .run(async ({ flags }) => {
       const f = toDxFlags(flags)
       try {
-        if (!isDockerRunning()) {
-          exitWithError(f, "Docker does not appear to be running.")
-        }
-
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
-        if (project.composeFiles.length === 0) {
-          exitWithError(f, "No docker-compose files found.")
-        }
 
-        const allProfiles = project.allProfiles
-        const envPath = join(project.rootDir, ".dx", "ports.env")
-        const compose = new Compose(
-          project.composeFiles,
-          basename(project.rootDir),
-          existsSync(envPath) ? envPath : undefined
-        )
-
-        if (f.verbose) {
-          if (allProfiles.length > 0) {
-            console.log(`Profiles: ${allProfiles.join(", ")}`)
-          }
-          console.log(`Compose files: ${project.composeFiles.join(", ")}`)
-        }
-
+        // Kill native dev servers first (works even without Docker)
         const site = SiteManager.load(project.rootDir)
         if (site) {
           for (const sd of site.getSpec().systemDeployments) {
@@ -74,10 +53,28 @@ export function downCommand(app: DxBase) {
           }
         }
 
-        compose.down({
-          profiles: allProfiles.length > 0 ? allProfiles : undefined,
-          volumes: !!flags.volumes,
-        })
+        // Compose down (only if Docker is running and compose files exist)
+        if (project.composeFiles.length > 0 && isDockerRunning()) {
+          const allProfiles = project.allProfiles
+          const envPath = join(project.rootDir, ".dx", "ports.env")
+          const compose = new Compose(
+            project.composeFiles,
+            basename(project.rootDir),
+            existsSync(envPath) ? envPath : undefined
+          )
+
+          if (f.verbose) {
+            if (allProfiles.length > 0) {
+              console.log(`Profiles: ${allProfiles.join(", ")}`)
+            }
+            console.log(`Compose files: ${project.composeFiles.join(", ")}`)
+          }
+
+          compose.down({
+            profiles: allProfiles.length > 0 ? allProfiles : undefined,
+            volumes: !!flags.volumes,
+          })
+        }
 
         if (site) {
           site.setPhase("stopped")

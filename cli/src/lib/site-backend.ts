@@ -96,7 +96,7 @@ export class RemoteSiteBackend implements SiteBackend {
     try {
       const raw = await this.client.request<unknown>(
         "GET",
-        `/api/v1/factory/ops/sites/${this.siteSlug}/state`
+        `/api/v1/factory/ops/site-state/${this.siteSlug}`
       )
       this.cached = siteStateSchema.parse(raw)
       return this.cached

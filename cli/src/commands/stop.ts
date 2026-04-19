@@ -34,8 +34,14 @@ export function stopCommand(app: DxBase) {
         for (const s of stopped) {
           console.log(`Stopped ${s.name} (PID ${s.pid})`)
         }
-        orch.site.setPhase("stopped")
-        orch.site.save()
+
+        const sd = orch.site.getSystemDeployment(orch.sdSlug)
+        const hasRunning = sd?.componentDeployments.some(
+          (cd) => cd.mode === "native" && cd.status.phase === "running"
+        )
+        if (!hasRunning) {
+          orch.site.setPhase("stopped")
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         exitWithError(f, msg)
