@@ -563,8 +563,8 @@ async function checkLocal(): Promise<DoctorResult> {
   // 9. PGlite data directory
   const fs = await import("node:fs")
   const path = await import("node:path")
-  const os = await import("node:os")
-  const pgliteDir = path.join(os.homedir(), ".config", "dx", "data", "pglite")
+  const { DX_DATA_DIR } = await import("../lib/host-dirs.js")
+  const pgliteDir = path.join(DX_DATA_DIR, "pglite")
   if (fs.existsSync(pgliteDir)) {
     checks.push({ name: "PGlite data exists", passed: true, detail: pgliteDir })
   } else {

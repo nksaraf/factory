@@ -1,8 +1,13 @@
 /**
  * Daemon process management — start, stop, health-check the local factory.
  */
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { join, resolve } from "node:path"
 
 import { DxError } from "../lib/dx-error.js"

@@ -3,14 +3,13 @@
  *
  * Entry point: `bun cli/src/local-daemon/server.ts`
  *
- * - PGlite with persistent data dir (~/.config/dx/data/pglite)
+ * - PGlite with persistent data dir (DX_DATA_DIR/pglite)
  * - Only infra controllers (sandbox, cluster, gateway, preview, health)
  * - Reconciler + KubeClientImpl for real k8s provisioning
  * - Gateway proxy on port 9090
  * - No auth middleware
  */
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 
 // Import directly from api source to avoid pnpm symlink module duplication
