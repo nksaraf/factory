@@ -24,7 +24,10 @@ describe("DeduplicatingQueue", () => {
   it("deduplicates by key — second offer returns false", async () => {
     const result = await runScoped(
       Effect.gen(function* () {
-        const q = yield* makeDeduplicatingQueue<{ key: string }>(10, (p) => p.key)
+        const q = yield* makeDeduplicatingQueue<{ key: string }>(
+          10,
+          (p) => p.key
+        )
         const first = yield* q.offer({ key: "dup" })
         const second = yield* q.offer({ key: "dup" })
         const sz = yield* q.size
@@ -39,7 +42,10 @@ describe("DeduplicatingQueue", () => {
   it("allows re-enqueue after complete", async () => {
     const result = await runScoped(
       Effect.gen(function* () {
-        const q = yield* makeDeduplicatingQueue<{ key: string }>(10, (p) => p.key)
+        const q = yield* makeDeduplicatingQueue<{ key: string }>(
+          10,
+          (p) => p.key
+        )
         yield* q.offer({ key: "x" })
         yield* q.take
         yield* q.complete("x")
@@ -53,7 +59,10 @@ describe("DeduplicatingQueue", () => {
   it("tracks size correctly", async () => {
     const result = await runScoped(
       Effect.gen(function* () {
-        const q = yield* makeDeduplicatingQueue<{ key: string }>(10, (p) => p.key)
+        const q = yield* makeDeduplicatingQueue<{ key: string }>(
+          10,
+          (p) => p.key
+        )
         yield* q.offer({ key: "a" })
         yield* q.offer({ key: "b" })
         const sizeAfterTwo = yield* q.size

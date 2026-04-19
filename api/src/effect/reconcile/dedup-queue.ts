@@ -9,7 +9,7 @@ export interface DeduplicatingQueue<P> {
 
 export function makeDeduplicatingQueue<P>(
   capacity: number,
-  keyOf: (p: P) => string,
+  keyOf: (p: P) => string
 ): Effect.Effect<DeduplicatingQueue<P>, never, Scope.Scope> {
   return Effect.gen(function* () {
     const queue = yield* Queue.bounded<P>(capacity)
