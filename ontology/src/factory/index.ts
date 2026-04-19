@@ -223,6 +223,7 @@ export const Component = defineEntity("component", {
     system: link.manyToOne("system", {
       fk: "systemId",
       inverse: "components",
+      required: true,
     }),
   },
 })
