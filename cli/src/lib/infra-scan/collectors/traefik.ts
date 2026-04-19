@@ -361,9 +361,7 @@ export function detectTraefikApiUrl(
   const apiPort =
     service.ports.find((p) => p === 8080) ??
     service.ports.find((p) => p === 8085) ??
-    service.ports.find(
-      (p) => p > 8000 && p < 10000 && !entrypointPorts.has(p)
-    )
+    service.ports.find((p) => p > 8000 && p < 10000 && !entrypointPorts.has(p))
 
   if (apiPort) {
     return `http://${hostAddress}:${apiPort}`
