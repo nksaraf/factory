@@ -312,11 +312,10 @@ export async function runContextStatus(flags: DxFlags): Promise<void> {
             actual = specMode
           }
 
-          const delta =
-            (specMode === "native" && phase !== "running") ||
-            (specMode === "container" && phase === "stopped")
-              ? styleWarn(" ≠")
-              : ""
+          const isDead =
+            specMode === "native" && pid != null && !isProcessRunning(pid)
+          const isFailed = phase === "failed" || phase === "stopped"
+          const delta = isDead || isFailed ? styleWarn(" ≠") : ""
 
           const portStr = cd.status.port ? styleMuted(`:${cd.status.port}`) : ""
           console.log(

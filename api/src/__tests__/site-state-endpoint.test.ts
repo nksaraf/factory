@@ -132,4 +132,75 @@ describe("getSiteState", () => {
     expect(result!.status.phase).toBe("running")
     expect(result!.status.updatedAt).toBeDefined()
   })
+
+  it("handles system deployment with zero component deployments", async () => {
+    const [sys] = await db
+      .insert(system)
+      .values({
+        slug: "empty-sys",
+        name: "Empty",
+        type: "system",
+        spec: { namespace: "default", lifecycle: "ga", tags: [] },
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(site)
+      .values({
+        slug: "empty-site",
+        name: "Empty Site",
+        type: "staging",
+        spec: {
+          product: "test",
+          updatePolicy: "auto",
+          lifecycle: "persistent",
+        },
+        status: { phase: "pending" },
+      } as typeof site.$inferInsert)
+      .returning()
+
+    await db.insert(systemDeployment).values({
+      slug: "empty-sd",
+      name: "empty-sd",
+      type: "primary",
+      systemId: sys.id,
+      siteId: s.id,
+      spec: {},
+    } as typeof systemDeployment.$inferInsert)
+
+    const result = await getSiteState(db, "empty-site")
+    expect(result).not.toBeNull()
+    const parsed = siteStateSchema.parse(result)
+    expect(parsed.spec.systemDeployments).toHaveLength(1)
+    expect(parsed.spec.systemDeployments[0].componentDeployments).toEqual([])
+  })
+
+  it("aggregates multiple system deployments", async () => {
+    const { site: s, system: sys } = await seedSite()
+
+    const [sys2] = await db
+      .insert(system)
+      .values({
+        slug: "auth",
+        name: "Auth",
+        type: "system",
+        spec: { namespace: "default", lifecycle: "ga", tags: [] },
+      })
+      .returning()
+
+    await db.insert(systemDeployment).values({
+      slug: "auth-sd",
+      name: "auth",
+      type: "primary",
+      systemId: sys2.id,
+      siteId: s.id,
+      spec: {},
+    } as typeof systemDeployment.$inferInsert)
+
+    const result = await getSiteState(db, "workshop-staging")
+    expect(result).not.toBeNull()
+    expect(result!.spec.systemDeployments).toHaveLength(2)
+    const slugs = result!.spec.systemDeployments.map((sd) => sd.slug).sort()
+    expect(slugs).toEqual(["auth-sd", "trafficure"])
+  })
 })
