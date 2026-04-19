@@ -962,6 +962,7 @@ export async function reconcileHostScan(
       }
     }
     // Re-run route creation for the newly added crawled proxies
+    let crawledRouteUpdates = 0
     for (const { proxy, ownerHostSlug } of allProxies) {
       const proxySlug = slugify(`${ownerHostSlug}-${proxy.engine}`)
       const proxyRealmId =
@@ -1011,11 +1012,15 @@ export async function reconcileHostScan(
                   updatedAt: new Date(),
                 })
                 .where(eq(route.id, existing.id))
+              crawledRouteUpdates++
               summary.routes.updated++
             }
           }
         }
       }
+    }
+    if (crawledRouteUpdates > 0) {
+      console.log(`[reconciler] Updated ${crawledRouteUpdates} crawled proxy route resolvedTargets`)
     }
 
     // ── 8d. Upsert NetworkLink entities for proxy edges ──────
