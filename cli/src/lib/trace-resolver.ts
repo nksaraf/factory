@@ -94,11 +94,12 @@ export async function resolveUrl(url: string): Promise<ResolvedTarget> {
     const finder = new EntityFinder()
     try {
       hostEntity = (await finder.resolve(hostSlug)) ?? undefined
-    } catch {}
+    } catch (err) {
+      process.stderr.write(
+        `warning: could not resolve host "${hostSlug}": ${err instanceof Error ? err.message : err}\n`
+      )
+    }
 
-    // If the host has no jump host configured, check if there's a parent host
-    // in the trace tree that can serve as a bastion (e.g. lepton-59 for VMs
-    // on private subnets behind it).
     if (hostEntity && !hostEntity.jumpHost) {
       const parentHost = findHostAncestor(
         terminal.ancestors.filter((a) => a !== hostNode)
@@ -114,7 +115,9 @@ export async function resolveUrl(url: string): Promise<ResolvedTarget> {
             hostEntity.jumpUser = parentEntity.sshUser
             hostEntity.jumpPort = parentEntity.sshPort
           }
-        } catch {}
+        } catch {
+          // bastion resolution is best-effort
+        }
       }
     }
   }

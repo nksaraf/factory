@@ -165,8 +165,13 @@ async function inspectFromSlug(slug: string, flags: Record<string, unknown>) {
         },
       ],
     ])
-  } catch {
-    console.error(`No entity found for: ${slug}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes("404")) {
+      console.error(`No entity found for: ${slug}`)
+    } else {
+      console.error(`Failed to look up "${slug}": ${msg}`)
+    }
     process.exit(1)
   }
 }
