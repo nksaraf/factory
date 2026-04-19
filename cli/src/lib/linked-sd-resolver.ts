@@ -14,6 +14,11 @@
  * lookup; the local slug stays this shape for UI stability.
  */
 import type { CatalogSystem } from "@smp/factory-shared/catalog"
+import {
+  type EndpointMap,
+  normalizeEnvMapping,
+  resolveEnvMapping,
+} from "./endpoint-resolver.js"
 
 export interface LinkedSystemDeploymentResolution {
   /** Local SD slug in `.dx/site.json` (suffixed with `-linked` to differentiate). */
@@ -37,6 +42,13 @@ export interface ResolveLinkedSDsInputs {
   connectTo?: string
   /** The focus system's catalog — used to identify known dependency systems. */
   catalog: CatalogSystem
+  /**
+   * Per-system endpoint maps. Keyed by system slug. When present, enables
+   * template interpolation in envMapping entries (component → host:port).
+   * Today: not yet populated (Factory API endpoint discovery is future work).
+   * The resolver falls back to envMapping fallback values when absent.
+   */
+  endpointsBySystem?: Record<string, EndpointMap>
 }
 
 /**
@@ -70,12 +82,18 @@ export function resolveLinkedSystemDeployments(
   // slot. Then the --connect-to blanket fills in whatever remains. This
   // matches mergeConnectionSources() ordering elsewhere where later args
   // lose to earlier claims.
-  // Build a lookup for dep env by system slug.
-  const depEnvBySystem = new Map<string, Record<string, string>>()
-  for (const dep of declaredDeps) {
-    if (dep.env && Object.keys(dep.env).length > 0) {
-      depEnvBySystem.set(dep.system, dep.env)
-    }
+  // Build per-system envMapping from each dep's env + envMapping fields.
+  const depsBySlug = new Map(declaredDeps.map((d) => [d.system, d]))
+
+  const resolveDepEnv = (slug: string): Record<string, string> => {
+    const dep = depsBySlug.get(slug)
+    if (!dep) return {}
+    const mapping = normalizeEnvMapping(dep)
+    if (Object.keys(mapping).length === 0) return {}
+    return resolveEnvMapping({
+      envMapping: mapping,
+      endpoints: inputs.endpointsBySystem?.[slug],
+    })
   }
 
   for (const entry of inputs.connects) {
@@ -86,7 +104,7 @@ export function resolveLinkedSystemDeployments(
     if (!knownSystems.has(slug)) continue // component-level entry, not ours
     if (seen.has(slug)) continue
     seen.add(slug)
-    resolutions.push(makeResolution(slug, site, depEnvBySystem.get(slug)))
+    resolutions.push(makeResolution(slug, site, resolveDepEnv(slug)))
   }
 
   if (inputs.connectTo) {
@@ -94,11 +112,7 @@ export function resolveLinkedSystemDeployments(
       if (seen.has(dep.system)) continue
       seen.add(dep.system)
       resolutions.push(
-        makeResolution(
-          dep.system,
-          inputs.connectTo,
-          depEnvBySystem.get(dep.system)
-        )
+        makeResolution(dep.system, inputs.connectTo, resolveDepEnv(dep.system))
       )
     }
   }

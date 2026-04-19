@@ -388,23 +388,52 @@ export type CatalogConnection = z.infer<typeof catalogConnectionSchema>
  * Kept parallel (not cross-imported) so the catalog layer remains decoupled
  * from the DB/API canonical schemas.
  */
+/**
+ * One entry in `envMapping`. Describes how a consumer env var maps to a
+ * dependency system's component endpoint.
+ *
+ * **String form** (shorthand): a literal fallback value, injected as-is.
+ *   `AUTH_LEGACY_KEY: "sk_live_abc123"`
+ *
+ * **Object form** (full): maps to a component + named port, with a template
+ *   for URL construction and an optional fallback for when no endpoint
+ *   cache / Factory API is available.
+ *   `AUTH_SERVICE_URL: { component: auth-api, port: http, template: "http://{host}:{port}", fallback: "http://..." }`
+ *
+ * Resolution priority (per entry):
+ *   1. Override from docker-compose.override.yaml (personal, gitignored)
+ *   2. Endpoint cache (auto-populated from Factory API, per-machine)
+ *   3. Template interpolation with resolved {host}:{port}
+ *   4. Fallback value (team default, git-tracked)
+ */
+export const envMappingEntrySchema = z.union([
+  z.string(),
+  z.object({
+    component: z.string(),
+    port: z.string().optional(),
+    template: z.string().default("http://{host}:{port}"),
+    fallback: z.string().optional(),
+  }),
+])
+export type EnvMappingEntry = z.infer<typeof envMappingEntrySchema>
+
 export const catalogSystemDependencySchema = z.object({
   system: z.string(),
   components: z.array(z.string()).optional(),
   binding: z.enum(["required", "optional", "dev-only"]).default("required"),
   defaultTarget: z.string().optional(),
   /**
-   * Env vars to inject into the focus SD's resolvedEnv when this system dep
-   * is connected (via defaultTarget, --connect, or --target). These are the
-   * concrete endpoint values the focus system's components need to talk to
-   * this external system — e.g. `AUTH_SERVICE_URL: "http://host:port"`.
+   * Maps consumer env vars to this dependency's component endpoints.
    *
-   * Today: declared inline in compose `x-dx.dependencies[].env`. Potentially
-   * stale if the remote site's endpoints change.
+   * Each key is an env var name the consumer expects. Each value is either:
+   * - A string (fallback-only: inject this literal value)
+   * - An object mapping to a specific component + port with a URL template
    *
-   * Future: auto-populated from Factory API endpoint discovery (slice 6b),
-   * replacing or merging with the inline values. The wiring path is the same.
+   * Resolution: endpoint cache → template interpolation → fallback → empty.
+   * See `envMappingEntrySchema` for the per-entry priority chain.
    */
+  envMapping: z.record(envMappingEntrySchema).optional(),
+  /** @deprecated Use `envMapping` instead. Kept for back-compat; converted to envMapping internally. */
   env: z.record(z.string()).optional(),
 })
 export type CatalogSystemDependency = z.infer<
