@@ -175,7 +175,7 @@ export class SiteOrchestrator {
       ctx.workbench?.name ?? hostname().replace(/\.local$/, "")
     const workbenchType = ctx.workbench?.kind ?? "worktree"
 
-    const sdSlug = `${project.name}-${mode}`
+    const sdSlug = project.name
 
     const existing = SiteManager.load(project.rootDir)
     let site: SiteManager
@@ -192,8 +192,8 @@ export class SiteOrchestrator {
       site = SiteManager.init(
         project.rootDir,
         {
-          slug: `${workbenchSlug}-${mode}`,
-          type: mode === "up" ? "local" : "development",
+          slug: `${workbenchSlug}-${project.name}`,
+          type: "local",
         },
         {
           slug: workbenchSlug,
