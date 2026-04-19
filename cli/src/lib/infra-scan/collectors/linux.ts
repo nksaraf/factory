@@ -166,11 +166,12 @@ for p in projects:
                 c = json.loads(line)
                 svc_name = c.get('Service', c.get('Name', ''))
                 svc_status = c.get('State', 'unknown')
-                # Parse ports
-                ports_str = c.get('Ports', '') or c.get('Publishers', '')
+                # Parse ports — prefer Publishers (structured) over Ports (string)
+                publishers = c.get('Publishers', [])
+                ports_str = c.get('Ports', '')
                 port_nums = []
-                if isinstance(ports_str, list):
-                    for pp in ports_str:
+                if isinstance(publishers, list) and publishers:
+                    for pp in publishers:
                         pub = pp.get('PublishedPort', 0)
                         if pub > 0: port_nums.append(pub)
                         target = pp.get('TargetPort', 0)

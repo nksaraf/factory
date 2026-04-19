@@ -356,12 +356,14 @@ export function detectTraefikApiUrl(
 
   // Traefik API defaults to container port 8080, but the host-side mapping
   // can land on any high port (we've seen 8080, 8085, 9081, etc.).
-  // Skip well-known entrypoint ports and prefer admin-ish ranges.
-  const entrypointPorts = new Set([80, 443, 8443])
+  // Skip well-known entrypoint ports.
+  const entrypointPorts = new Set([80, 443, 389, 636, 5432, 6432, 8443])
   const apiPort =
     service.ports.find((p) => p === 8080) ??
     service.ports.find((p) => p === 8085) ??
-    service.ports.find((p) => p > 8000 && p < 10000 && !entrypointPorts.has(p))
+    service.ports.find(
+      (p) => p > 8000 && p < 10000 && !entrypointPorts.has(p)
+    )
 
   if (apiPort) {
     return `http://${hostAddress}:${apiPort}`

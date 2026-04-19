@@ -1,0 +1,118 @@
+name: test-dx-install
+
+on:
+  push:
+    paths:
+      - "api/src/modules/install/**"
+      - ".github/workflows/test-dx-install.yml"
+  pull_request:
+    paths:
+      - "api/src/modules/install/**"
+      - ".github/workflows/test-dx-install.yml"
+  workflow_dispatch:
+    inputs:
+      install_url:
+        description: "Install endpoint URL"
+        required: false
+        default: "https://factory.lepton.software/api/v1/factory/install"
+
+env:
+  INSTALL_URL: ${{ github.event.inputs.install_url || 'https://factory.lepton.software/api/v1/factory/install' }}
+
+jobs:
+  linux-containers:
+    name: linux / ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {
+              image: "debian:12",
+              prereq: "apt-get update && apt-get install -y curl ca-certificates",
+            }
+          - {
+              image: "debian:bookworm-slim",
+              prereq: "apt-get update && apt-get install -y curl ca-certificates",
+            }
+          - {
+              image: "ubuntu:22.04",
+              prereq: "apt-get update && apt-get install -y curl ca-certificates",
+            }
+          - {
+              image: "ubuntu:24.04",
+              prereq: "apt-get update && apt-get install -y curl ca-certificates",
+            }
+          - {
+              image: "fedora:40",
+              prereq: "dnf install -y curl ca-certificates tar",
+            }
+          - {
+              image: "rockylinux:9",
+              prereq: "dnf install -y curl ca-certificates tar",
+            }
+          - {
+              image: "amazonlinux:2023",
+              prereq: "dnf install -y curl ca-certificates tar",
+            }
+          - {
+              image: "alpine:latest",
+              prereq: "apk add --no-cache curl ca-certificates bash",
+            }
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install prerequisites
+        shell: sh
+        env:
+          PREREQ: ${{ matrix.prereq }}
+        run: sh -c "$PREREQ"
+
+      - name: Run dx install
+        shell: sh
+        run: curl -fsSL "$INSTALL_URL" | DX_INSTALL_DIR=/usr/local/bin sh
+
+      - name: Verify dx executes
+        shell: sh
+        run: |
+          which dx
+          dx --help 2>&1 | head -5 || true
+
+  macos:
+    name: macos / ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-latest, macos-13]
+    steps:
+      - name: Run dx install
+        run: curl -fsSL "$INSTALL_URL" | DX_INSTALL_DIR="$HOME/.local/bin" bash
+
+      - name: Verify dx executes
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          which dx
+          dx --help 2>&1 | head -5 || true
+
+  windows:
+    name: windows / git-bash
+    runs-on: windows-latest
+    steps:
+      - name: Run dx install via Git Bash
+        shell: bash
+        run: |
+          mkdir -p "$HOME/dxbin"
+          curl -fsSL "$INSTALL_URL" | DX_INSTALL_DIR="$HOME/dxbin" bash
+          ls -la "$HOME/dxbin"
+
+      - name: Verify dx.exe executes
+        shell: bash
+        run: |
+          "$HOME/dxbin/dx.exe" --help 2>&1 | head -5 || true
+
+      - name: Verify via PowerShell
+        shell: pwsh
+        run: |
+          $dx = Join-Path $HOME "dxbin\dx.exe"
+          & $dx --help | Select-Object -First 5

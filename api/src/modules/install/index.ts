@@ -6,7 +6,6 @@ const installScript = `#!/bin/sh
 set -e
 
 PACKAGE_NAME="lepton-dx"
-INSTALL_DIR="\${DX_INSTALL_DIR:-/usr/local/bin}"
 BINARY_NAME="dx"
 
 detect_platform() {
@@ -14,9 +13,10 @@ detect_platform() {
   ARCH="$(uname -m)"
 
   case "$OS" in
-    Linux)  OS="linux" ;;
-    Darwin) OS="darwin" ;;
-    *)      echo "Error: unsupported OS: $OS" >&2; exit 1 ;;
+    Linux)                OS="linux" ;;
+    Darwin)               OS="darwin" ;;
+    MINGW*|MSYS*|CYGWIN*) OS="windows"; BINARY_NAME="dx.exe" ;;
+    *)                    echo "Error: unsupported OS: $OS" >&2; exit 1 ;;
   esac
 
   case "$ARCH" in
@@ -25,7 +25,47 @@ detect_platform() {
     *)               echo "Error: unsupported architecture: $ARCH" >&2; exit 1 ;;
   esac
 
+  IS_MUSL=0
+  if [ "$OS" = "linux" ] && ([ -f /lib/ld-musl-x86_64.so.1 ] || [ -f /lib/ld-musl-aarch64.so.1 ]); then
+    if ! [ -f /lib64/ld-linux-x86-64.so.2 ] && ! [ -f /lib/ld-linux-aarch64.so.1 ]; then
+      IS_MUSL=1
+    fi
+  fi
+
   PLATFORM="\${OS}-\${ARCH}"
+
+  if [ -z "\${DX_INSTALL_DIR:-}" ]; then
+    case "$OS" in
+      windows) INSTALL_DIR="\${LOCALAPPDATA:-$HOME/AppData/Local}/dx/bin" ;;
+      *)       INSTALL_DIR="/usr/local/bin" ;;
+    esac
+  else
+    INSTALL_DIR="$DX_INSTALL_DIR"
+  fi
+}
+
+ensure_musl_compat() {
+  [ "$IS_MUSL" = "1" ] || return 0
+
+  if [ -f /lib64/ld-linux-x86-64.so.2 ] || [ -f /lib/ld-linux-aarch64.so.1 ]; then
+    return 0
+  fi
+
+  if ! command -v apk >/dev/null 2>&1; then
+    echo "Error: musl libc detected but apk not available." >&2
+    echo "dx binaries are glibc-linked. Install a glibc compatibility layer manually." >&2
+    exit 1
+  fi
+
+  echo "Alpine/musl detected — installing glibc compat (gcompat libstdc++ libgcc ca-certificates)..."
+  if [ "$(id -u)" = "0" ]; then
+    apk add --no-cache gcompat libstdc++ libgcc ca-certificates >/dev/null
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo apk add --no-cache gcompat libstdc++ libgcc ca-certificates >/dev/null
+  else
+    echo "Error: need root to run 'apk add gcompat libstdc++ libgcc'." >&2
+    exit 1
+  fi
 }
 
 resolve_version() {
@@ -48,6 +88,7 @@ install() {
     linux-arm64)  BINARY_FILE="lepton-dx-bun-linux-arm64" ;;
     darwin-x64)   BINARY_FILE="lepton-dx-bun-darwin-x64" ;;
     darwin-arm64) BINARY_FILE="lepton-dx-bun-darwin-arm64" ;;
+    windows-x64)  BINARY_FILE="lepton-dx-bun-windows-x64-baseline.exe" ;;
     *)            echo "Error: no binary for \${PLATFORM}" >&2; exit 1 ;;
   esac
 
@@ -69,7 +110,9 @@ install() {
     mkdir -p "$INSTALL_DIR" 2>/dev/null || sudo mkdir -p "$INSTALL_DIR"
   fi
 
-  if [ -w "$INSTALL_DIR" ]; then
+  if [ "$OS" = "windows" ]; then
+    cp "$SRC" "\${INSTALL_DIR}/\${BINARY_NAME}"
+  elif [ -w "$INSTALL_DIR" ]; then
     cp "$SRC" "\${INSTALL_DIR}/\${BINARY_NAME}"
     chmod +x "\${INSTALL_DIR}/\${BINARY_NAME}"
   else
@@ -88,6 +131,7 @@ install() {
 }
 
 detect_platform
+ensure_musl_compat
 resolve_version
 install
 `
