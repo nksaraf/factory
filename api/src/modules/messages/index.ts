@@ -16,6 +16,19 @@ import { ingestMessages } from "./message.service"
 
 const log = logger.child({ module: "messages" })
 
+async function resolveThreadId(
+  db: Database,
+  threadIdOrExternalId: string
+): Promise<string | null> {
+  if (threadIdOrExternalId.startsWith("thrd_")) return threadIdOrExternalId
+  const rows = await db
+    .select({ id: thread.id })
+    .from(thread)
+    .where(eq(thread.externalId, threadIdOrExternalId))
+    .limit(1)
+  return rows[0]?.id ?? null
+}
+
 export function messagesController(db: Database) {
   return new Elysia({ prefix: "/messages" })
 
@@ -103,11 +116,16 @@ export function messagesController(db: Database) {
 
     .get(
       "/threads/:threadId/messages",
-      async ({ params, query }) => {
+      async ({ params, query, set }) => {
+        const tid = await resolveThreadId(db, params.threadId)
+        if (!tid) {
+          set.status = 404
+          return { error: "Thread not found" }
+        }
         const rows = await db
           .select()
           .from(message)
-          .where(eq(message.threadId, params.threadId))
+          .where(eq(message.threadId, tid))
           .orderBy(asc(message.startedAt))
           .limit(query.limit ?? 1000)
 
@@ -125,11 +143,16 @@ export function messagesController(db: Database) {
 
     .get(
       "/threads/:threadId/exchanges",
-      async ({ params }) => {
+      async ({ params, set }) => {
+        const tid = await resolveThreadId(db, params.threadId)
+        if (!tid) {
+          set.status = 404
+          return { error: "Thread not found" }
+        }
         const rows = await db
           .select()
           .from(exchange)
-          .where(eq(exchange.threadId, params.threadId))
+          .where(eq(exchange.threadId, tid))
           .orderBy(asc(exchange.startedAt))
 
         return { exchanges: rows, count: rows.length }
@@ -145,12 +168,16 @@ export function messagesController(db: Database) {
 
     .get(
       "/threads/:threadId/tool-calls",
-      async ({ params, query }) => {
-        const conditions = [eq(toolCall.threadId, params.threadId)]
+      async ({ params, query, set }) => {
+        const tid = await resolveThreadId(db, params.threadId)
+        if (!tid) {
+          set.status = 404
+          return { error: "Thread not found" }
+        }
         const rows = await db
           .select()
           .from(toolCall)
-          .where(eq(toolCall.threadId, params.threadId))
+          .where(eq(toolCall.threadId, tid))
           .orderBy(asc(toolCall.startedAt))
           .limit(query.limit ?? 1000)
 
@@ -169,10 +196,15 @@ export function messagesController(db: Database) {
     .get(
       "/threads/:threadId/transcript",
       async ({ params, query, set }) => {
+        const tid = await resolveThreadId(db, params.threadId)
+        if (!tid) {
+          set.status = 404
+          return { error: "Thread not found" }
+        }
         const rows = await db
           .select()
           .from(message)
-          .where(eq(message.threadId, params.threadId))
+          .where(eq(message.threadId, tid))
           .orderBy(asc(message.startedAt))
 
         if (rows.length === 0) {
