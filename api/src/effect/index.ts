@@ -46,3 +46,16 @@ export { runEffect, runWithRuntime } from "./bridge"
 
 // Runtime — full service stack (Db + Config + Secrets + SpecResolver + Ontology)
 export { createAppLayer, type AppLayer } from "./runtime"
+
+// Reconciliation framework
+export {
+  diffSets,
+  reconcileSet,
+  Reconciler,
+  createReconcilerRuntime,
+  type DiffSetsResult,
+  type ReconcileSetResult,
+  type ReconcilerDef,
+  type ReconcilerRuntime,
+  type ReconcilerStatus,
+} from "./reconcile/index"
