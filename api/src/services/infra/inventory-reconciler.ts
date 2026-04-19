@@ -5,7 +5,7 @@
  * Processes entities in dependency order, resolves slug-refs against DB and
  * current-batch context, then upserts each entity.
  */
-import { eq, getTableColumns } from "drizzle-orm"
+import { and, eq, getTableColumns } from "drizzle-orm"
 import type { Database } from "../../db/connection"
 import { newId } from "../../lib/id"
 import { ONTOLOGY_REGISTRY } from "../../lib/ontology-registry"
@@ -20,6 +20,7 @@ const KIND_ORDER = [
   "scope",
   "system",
   "product",
+  "product-system",
   "customer",
   "plan",
   // Depend on foundations
@@ -261,6 +262,42 @@ async function _reconcile(
             }
           }
           if (dynamicSlugFailed) continue
+        }
+
+        // product-system: junction table, upsert by (productId, systemId) composite
+        if (kind === "product-system") {
+          const productId = resolved.productId as string | undefined
+          const systemId = resolved.systemId as string | undefined
+          if (!productId || !systemId) {
+            summary.errors.push({
+              kind,
+              slug: entitySlug,
+              error: "product-system requires productSlug and systemSlug",
+            })
+            continue
+          }
+          const existing = await db
+            .select({ id: cfg.idColumn })
+            .from(cfg.table)
+            .where(
+              and(
+                eq((cfg.table as any).productId, productId),
+                eq((cfg.table as any).systemId, systemId)
+              )
+            )
+            .limit(1)
+          if (existing.length > 0) {
+            kindSummary.unchanged++
+          } else {
+            const newEntityId =
+              entity.id ??
+              (cfg.prefix ? newId(cfg.prefix) : crypto.randomUUID())
+            await db
+              .insert(cfg.table)
+              .values({ id: newEntityId, productId, systemId } as any)
+            kindSummary.created++
+          }
+          continue
         }
 
         // Upsert by slug (or address for ip-address)

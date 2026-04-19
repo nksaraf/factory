@@ -76,13 +76,14 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const normalized = status.toLowerCase().replace(/-/g, "_") as StatusValue
+  const raw = typeof status === "string" ? status : "unknown"
+  const normalized = raw.toLowerCase().replace(/-/g, "_") as StatusValue
   const dotColor = DOT_COLORS[normalized] ?? "bg-zinc-500"
 
   return (
     <span className={cn(statusVariants({ status: normalized }), className)}>
       <span className={cn("inline-block h-1.5 w-1.5 rounded-full", dotColor)} />
-      {status.replace(/_/g, " ")}
+      {raw.replace(/_/g, " ")}
     </span>
   )
 }

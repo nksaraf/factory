@@ -25,6 +25,16 @@
         "path": "/(root)/(app)/infra/"
       },
       {
+        "id": "factory.infra.route.estates",
+        "displayName": "Estates",
+        "path": "/(root)/(app)/infra/estates/"
+      },
+      {
+        "id": "factory.infra.route.realms",
+        "displayName": "Realms",
+        "path": "/(root)/(app)/infra/realms/"
+      },
+      {
         "id": "factory.infra.route.providers",
         "displayName": "Providers",
         "path": "/(root)/(app)/infra/providers/"
@@ -48,6 +58,11 @@
         "id": "factory.infra.route.hosts",
         "displayName": "Hosts & VMs",
         "path": "/(root)/(app)/infra/hosts/"
+      },
+      {
+        "id": "factory.infra.route.host-detail",
+        "displayName": "Host Detail",
+        "path": "/(root)/(app)/infra/hosts/:id/"
       },
       {
         "id": "factory.infra.route.network",
@@ -81,6 +96,14 @@
     ],
     "sidebarItems": [
       {
+        "id": "factory.infra.sidebar.estates",
+        "displayName": "Estates",
+        "icon": "icon-[ph--buildings-duotone]",
+        "href": "/infra/estates",
+        "group": "factory.infra.sidebar.group",
+        "order": 0
+      },
+      {
         "id": "factory.infra.sidebar.providers",
         "displayName": "Providers",
         "icon": "icon-[ph--cloud-duotone]",
@@ -103,6 +126,14 @@
         "href": "/infra/hosts",
         "group": "factory.infra.sidebar.group",
         "order": 3
+      },
+      {
+        "id": "factory.infra.sidebar.realms",
+        "displayName": "Realms",
+        "icon": "icon-[ph--circles-three-duotone]",
+        "href": "/infra/realms",
+        "group": "factory.infra.sidebar.group",
+        "order": 4
       },
       {
         "id": "factory.infra.sidebar.network",

@@ -4,7 +4,7 @@
 # Uses dx.* labels for service metadata (type, owner, ports, APIs, docs).
 
 x-dx:
-  name: factory-dx
+  name: factory-core
   owner: platform
   description: "Factory DX — developer experience platform and CLI toolchain"
   lifecycle: production
@@ -14,7 +14,7 @@ x-dx:
 services:
   # ─── Components (things we build) ────────────────────────────
 
-  infra-factory:
+  svc-api:
     image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/factory-service:latest"
     platform: linux/amd64
     build:
@@ -50,6 +50,7 @@ services:
       WORKFLOW_POSTGRES_JOB_PREFIX: "factory_"
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://infra-otel-collector:4318
+      NATS_URL: nats://infra-nats:4222
       LOKI_URL: ${LOKI_URL:-http://infra-loki:3100}
     healthcheck:
       test: [
@@ -81,6 +82,7 @@ services:
       dx.dev.command: "pnpm --filter @smp/factory-api-server dev"
       dx.dev.sync: "./api/src,./shared/src"
       dx.runtime: node
+      dx.previous-slugs: "infra-factory"
 
   # ─── Resources (infrastructure) ──────────────────────────────
 
@@ -106,7 +108,7 @@ services:
       dx.port.5432.name: postgres
       dx.port.5432.protocol: tcp
 
-  infra-postgres-init:
+  init-postgres-bootstrap:
     image: postgres:16-alpine
     depends_on:
       infra-postgres:
@@ -132,6 +134,7 @@ services:
       dx.description: "One-shot init: creates databases and users for dependent services"
       dx.owner: platform
       dx.type: init
+      dx.previous-slugs: "infra-postgres-init"
 
   infra-spicedb:
     image: authzed/spicedb:latest
@@ -140,7 +143,7 @@ services:
     ports:
       - "${INFRA_SPICEDB_PORT:-50051}:50051"
     depends_on:
-      infra-postgres-init:
+      init-postgres-bootstrap:
         condition: service_completed_successfully
     environment:
       SPICEDB_GRPC_PRESHARED_KEY: ${SPICEDB_PRESHARED_KEY:-dev-key}
@@ -299,7 +302,7 @@ services:
     ports:
       - "${INFRA_POWERSYNC_PORT:-8090}:8080"
     depends_on:
-      infra-postgres-init:
+      init-postgres-bootstrap:
         condition: service_completed_successfully
       infra-powersync-mongo:
         condition: service_healthy
@@ -427,7 +430,7 @@ services:
     ports:
       - "${INFRA_METABASE_PORT:-3000}:3000"
     depends_on:
-      infra-postgres-init:
+      init-postgres-bootstrap:
         condition: service_completed_successfully
     environment:
       # Metabase app DB — isolated database for dashboards/config

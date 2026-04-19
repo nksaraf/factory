@@ -3,9 +3,7 @@ import { useClusters } from "@/lib/infra"
 import { useState } from "react"
 import { Link } from "react-router"
 
-import { Input } from "@rio.js/ui/input"
-
-import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
+import { DashboardPage, EmptyState, StatusBadge } from "@/components/factory"
 
 export default function OpsSitesPage() {
   const { data: sites, isLoading } = useOpsSites()
@@ -20,17 +18,22 @@ export default function OpsSitesPage() {
       s.product.toLowerCase().includes(search.toLowerCase())
   )
 
+  const toolbar = (
+    <input
+      placeholder="Search sites..."
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      className="max-w-sm text-base px-3 py-2 rounded-md border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+    />
+  )
+
   return (
-    <div className="space-y-6 p-6">
-      <PlaneHeader plane="ops" title="Sites" description="All deployed sites" />
-
-      <Input
-        placeholder="Search sites..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
-
+    <DashboardPage
+      plane="ops"
+      title="Sites"
+      description="All deployed sites"
+      toolbar={toolbar}
+    >
       {isLoading && (
         <p className="text-sm text-muted-foreground">Loading sites...</p>
       )}
@@ -43,7 +46,7 @@ export default function OpsSitesPage() {
         />
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 content-start">
         {filtered.map((site) => (
           <Link
             key={site.id}
@@ -51,7 +54,7 @@ export default function OpsSitesPage() {
             className="block rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
           >
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-medium">{site.name}</h3>
+              <h3 className="font-medium text-base">{site.name}</h3>
               <StatusBadge status={site.status} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{site.product}</p>
@@ -63,14 +66,9 @@ export default function OpsSitesPage() {
                 <span>Manifest v{site.currentManifestVersion}</span>
               )}
             </div>
-            {site.lastCheckinAt && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Last check-in: {new Date(site.lastCheckinAt).toLocaleString()}
-              </p>
-            )}
           </Link>
         ))}
       </div>
-    </div>
+    </DashboardPage>
   )
 }

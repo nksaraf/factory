@@ -21,7 +21,6 @@ import { CommandController } from "@rio.js/uikit/components/command-provider"
 import { fsRoutes } from "@rio.js/vinxi/fs-routes"
 import { createClient as createWorkflowsClient } from "@rio.js/workflows/lib/client"
 
-import { FactorySidebar } from "./components/factory/factory-sidebar"
 import { FactoryPowerSyncProvider } from "./lib/powersync/provider"
 import { rio } from "./lib/rio"
 
@@ -60,6 +59,9 @@ async function boot() {
     "factory.auth": () => import("./modules/factory.auth"),
     "factory.ops": () => import("./modules/factory.ops"),
     "factory.infra": () => import("./modules/factory.infra"),
+    "factory.build": () => import("./modules/factory.build"),
+    "factory.org": () => import("./modules/factory.org"),
+    "factory.threads": () => import("./modules/factory.threads"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
 
@@ -67,9 +69,11 @@ async function boot() {
 
   console.log(rio.env)
   const authService = createAuthClient({
-    baseURL: import.meta.env.DEV
-      ? "http://localhost:8180"
-      : "https://dev.trafficure.rio.software",
+    baseURL:
+      rio.env.PUBLIC_AUTH_URL ??
+      (import.meta.env.DEV
+        ? "http://localhost:8180"
+        : "https://dev.trafficure.rio.software"),
     basePath: "/api/v1/auth",
     bearer: true,
   })
@@ -83,6 +87,9 @@ async function boot() {
     "factory.auth",
     "factory.ops",
     "factory.infra",
+    "factory.build",
+    "factory.org",
+    "factory.threads",
     "factory.game-viz"
   )
 
@@ -165,7 +172,6 @@ async function boot() {
                 <TooltipProvider>
                   <Toaster />
                   <RouterProvider router={router} />
-                  <FactorySidebar />
                   <CommandController />
                   {/* {DevtoolsPanel && <DevtoolsPanel rio={rio} router={router} />} */}
                 </TooltipProvider>

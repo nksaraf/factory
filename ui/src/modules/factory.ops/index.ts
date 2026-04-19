@@ -16,6 +16,18 @@ export const extension = {
     "factory.ops.route.site-detail": lazy(
       () => import("./(app)/(dashboard)/ops/sites/[slug]/page")
     ),
+    "factory.ops.route.site-layout": lazy(
+      () => import("./(app)/(dashboard)/ops/sites/[slug]/layout")
+    ),
+    "factory.ops.route.site-systems": lazy(
+      () => import("./(app)/(dashboard)/ops/sites/[slug]/systems/page")
+    ),
+    "factory.ops.route.site-components": lazy(
+      () => import("./(app)/(dashboard)/ops/sites/[slug]/components/page")
+    ),
+    "factory.ops.route.site-deployments": lazy(
+      () => import("./(app)/(dashboard)/ops/sites/[slug]/deployments/page")
+    ),
     "factory.ops.route.targets": lazy(
       () => import("./(app)/(dashboard)/ops/targets/page")
     ),

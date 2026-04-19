@@ -6,11 +6,19 @@ import { printTable } from "../output.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 import {
+  formatProbeBadge,
+  probeEdgeId,
+  probeEndToEnd,
+  probeTrace,
+  type ProbeResult,
+} from "./route-probe.js"
+import {
   actionResult,
   apiCall,
   colorStatus,
   resolveStatus,
   styleBold,
+  styleError,
   styleMuted,
   styleSuccess,
   styleWarn,
@@ -223,6 +231,12 @@ export function routeCommand(app: DxBase) {
               alias: "v",
               description: "Show detailed info (IPs, route rules, entrypoints)",
             },
+            probe: {
+              type: "boolean",
+              alias: "p",
+              description:
+                "Run per-segment probes from each vantage host (SSH) and annotate edges with timing/health",
+            },
           })
           .args([
             {
@@ -328,19 +342,58 @@ export function routeCommand(app: DxBase) {
             }
 
             const data = result.data
+            const verbose = !!flags.verbose
+            const doProbe = !!flags.probe
 
-            if (f.json) {
-              console.log(JSON.stringify({ success: true, data }, null, 2))
-              return
+            // Run probes up-front when requested — results are attached to
+            // edges during render.
+            let probes: Map<string, ProbeResult> | undefined
+            let e2e: ProbeResult | undefined
+            if (doProbe && data.trace) {
+              console.log(
+                styleMuted("Probing each hop from its source vantage (SSH)…")
+              )
+              ;[probes, e2e] = await Promise.all([
+                probeTrace(data.trace.root),
+                target.includes("://")
+                  ? probeEndToEnd(target)
+                  : Promise.resolve(undefined as unknown as ProbeResult),
+              ])
             }
 
-            const verbose = !!flags.verbose
+            if (f.json) {
+              const payload = probes
+                ? {
+                    ...data,
+                    probes: Object.fromEntries(probes),
+                  }
+                : data
+              console.log(
+                JSON.stringify({ success: true, data: payload }, null, 2)
+              )
+              return
+            }
 
             // Render request context
             const req = data.request
             console.log(
-              `\n${styleBold("Trace:")} ${req.protocol}://${req.domain ?? "?"}:${req.port}${req.path ?? ""}\n`
+              `\n${styleBold("Trace:")} ${req.protocol}://${req.domain ?? "?"}:${req.port}${req.path ?? ""}`
             )
+            if (e2e) {
+              const parts: string[] = []
+              if (e2e.dnsMs !== undefined) parts.push(`dns=${e2e.dnsMs}ms`)
+              if (e2e.connectMs !== undefined)
+                parts.push(`tcp=${e2e.connectMs}ms`)
+              if (e2e.tlsMs !== undefined) parts.push(`tls=${e2e.tlsMs}ms`)
+              if (e2e.ttfbMs !== undefined) parts.push(`ttfb=${e2e.ttfbMs}ms`)
+              if (e2e.totalMs !== undefined)
+                parts.push(`total=${e2e.totalMs}ms`)
+              const label = e2e.ok
+                ? styleSuccess("✓ end-to-end")
+                : styleError(`✗ end-to-end (${e2e.error ?? "failed"})`)
+              console.log(`${label} ${styleMuted(parts.join(" "))}`)
+            }
+            console.log()
 
             if (!data.trace) {
               console.log(styleWarn("No trace path found for this request."))
@@ -355,7 +408,7 @@ export function routeCommand(app: DxBase) {
             }
 
             // Render trace tree directly
-            renderTrace(data.trace.root, verbose, req.port)
+            renderTrace(data.trace.root, verbose, req.port, probes)
             console.log()
           })
       )
@@ -488,6 +541,39 @@ function entitySummary(
   }
 }
 
+/** Human-readable "N ago" for a timestamp. Returns undefined if missing/invalid. */
+function timeAgo(iso: string | undefined): string | undefined {
+  if (!iso) return undefined
+  const then = Date.parse(iso)
+  if (!Number.isFinite(then)) return undefined
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60_000))
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 48) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  return `${days}d ago`
+}
+
+const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
+
+/** Badge suffix for a route entity based on its status (phase + resolvedAt). */
+function routeHealthBadge(entity: Record<string, unknown>): string | undefined {
+  const status = (entity.status ?? {}) as {
+    phase?: string
+    resolvedAt?: string
+  }
+  if (status.phase === "stale") return styleWarn("⚠ stale")
+  if (status.phase === "error") return styleError("⚠ unresolved")
+  if (status.resolvedAt) {
+    const then = Date.parse(status.resolvedAt)
+    if (Number.isFinite(then) && Date.now() - then > STALE_THRESHOLD_MS) {
+      const ago = timeAgo(status.resolvedAt)
+      if (ago) return styleMuted(`resolved ${ago}`)
+    }
+  }
+  return undefined
+}
+
 /**
  * Compact link label.
  * `parent` is the entity this link originates from — needed for dns provider/zone.
@@ -529,6 +615,8 @@ function linkLabel(
   if (node.link.type === "forward") {
     const addr = str(spec.address)
     if (addr) extras.push(addr)
+    const weight = node.weight
+    if (typeof weight === "number") extras.push(`weight ${weight}`)
   }
   if (node.link.type === "proxy") {
     const match = spec.match as
@@ -669,15 +757,17 @@ function linkVerbose(
 function renderTrace(
   root: TraceNodeLike,
   verbose: boolean,
-  initialPort: number
+  initialPort: number,
+  probes?: Map<string, ProbeResult>
 ) {
   function render(
     node: TraceNodeLike,
-    parent: Record<string, unknown>,
+    parent: TraceNodeLike | undefined,
     indent: string,
     isRoot: boolean,
     port: number
   ) {
+    const parentEntity = parent?.entity ?? {}
     const e = node.entity
     const rawType = String(e.type ?? "?")
     const type = displayType(rawType)
@@ -706,9 +796,23 @@ function renderTrace(
 
     // --- Link connector (skip for root) ---
     if (!isRoot) {
-      const label = linkLabel(node, parent, currentPort)
+      const label = linkLabel(node, parentEntity, currentPort)
       if (label) {
-        console.log(`${indent}│ ${styleInfo(label)}`)
+        const probe =
+          probes && parent ? probes.get(probeEdgeId(parent, node)) : undefined
+        const badge = formatProbeBadge(probe, verbose)
+        const badgeStr = badge
+          ? "  " +
+            (probe?.ok
+              ? styleSuccess(badge.line)
+              : probe?.skipped
+                ? styleMuted(badge.line)
+                : styleError(badge.line))
+          : ""
+        console.log(`${indent}│ ${styleInfo(label)}${badgeStr}`)
+        if (badge?.detail) {
+          console.log(`${indent}│ ${styleMuted(badge.detail)}`)
+        }
         if (verbose && node.link) {
           for (const d of linkVerbose(node.link, !!node.implicit)) {
             console.log(`${indent}│ ${styleMuted(d)}`)
@@ -719,11 +823,30 @@ function renderTrace(
     }
 
     // --- Entity line ---
-    const summary = entitySummary(e, parent)
+    const summary = entitySummary(e, parentEntity)
     const summaryStr = summary ? `  ${styleMuted(summary)}` : ""
+    const healthBadge = ROUTE_TYPES.has(rawType)
+      ? routeHealthBadge(e)
+      : undefined
+    const healthStr = healthBadge ? `  ${healthBadge}` : ""
     console.log(
-      `${indent}${emoji} ${styleSuccess(label)} ${styleMuted(`[${type}]`)}${summaryStr}`
+      `${indent}${emoji} ${styleSuccess(label)} ${styleMuted(`[${type}]`)}${summaryStr}${healthStr}`
     )
+
+    // Middleware chain (routes only) — one line below the route entity
+    if (ROUTE_TYPES.has(rawType)) {
+      const mws = (e.spec as Record<string, unknown> | undefined)
+        ?.middlewares as Array<{ name?: string }> | undefined
+      if (mws?.length) {
+        const names = mws
+          .map((m) => m.name)
+          .filter(Boolean)
+          .join(", ")
+        if (names) {
+          console.log(`${indent}  ${styleMuted(`middlewares: ${names}`)}`)
+        }
+      }
+    }
 
     // Verbose entity details
     if (verbose) {
@@ -734,15 +857,15 @@ function renderTrace(
 
     // --- Children ---
     if (node.children.length === 1) {
-      render(node.children[0], e, indent, false, currentPort)
+      render(node.children[0], node, indent, false, currentPort)
     } else if (node.children.length > 1) {
       for (const child of node.children) {
         console.log(`${indent}├──┐`)
-        render(child, e, indent + "|  ", false, currentPort)
+        render(child, node, indent + "|  ", false, currentPort)
         console.log(`${indent}|`)
       }
     }
   }
 
-  render(root, {}, "", true, initialPort)
+  render(root, undefined, "", true, initialPort)
 }

@@ -49,6 +49,7 @@ export interface Host {
   name: string
   slug: string
   hostname: string | null
+  hostType: string
   providerId: string
   datacenterId: string | null
   ipAddress: string | null

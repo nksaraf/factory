@@ -48,6 +48,7 @@ export interface TunnelClientOptions {
   principalId?: string
   routeFamily?: "dev" | "tunnel"
   publishPorts?: number[]
+  portMap?: Map<number, number>
 }
 
 export interface TunnelInfo {
@@ -175,7 +176,8 @@ export async function openTunnel(
           opts.port,
           activeLocalWs,
           pendingBodies,
-          wsQueues
+          wsQueues,
+          opts.portMap
         )
         return
       }
@@ -295,7 +297,8 @@ export function handleBinaryFrame(
   localPort: number,
   activeLocalWs?: Map<number, WebSocket>,
   pendingBodies?: PendingBodies,
-  wsConnectQueues?: WsConnectQueues
+  wsConnectQueues?: WsConnectQueues,
+  portMap?: Map<number, number>
 ): void {
   let frame
   try {
@@ -311,7 +314,14 @@ export function handleBinaryFrame(
     }
 
     case FrameType.HTTP_REQ: {
-      forwardToLocal(frame.streamId, frame, ws, localPort, pendingBodies)
+      forwardToLocal(
+        frame.streamId,
+        frame,
+        ws,
+        localPort,
+        pendingBodies,
+        portMap
+      )
       break
     }
 
@@ -354,7 +364,8 @@ export function handleBinaryFrame(
         ws,
         localPort,
         activeLocalWs,
-        wsConnectQueues
+        wsConnectQueues,
+        portMap
       )
       break
     }
@@ -410,7 +421,8 @@ function forwardWsUpgrade(
   tunnelWs: WebSocket,
   localPort: number,
   activeLocalWs?: Map<number, WebSocket>,
-  wsConnectQueues?: WsConnectQueues
+  wsConnectQueues?: WsConnectQueues,
+  portMap?: Map<number, number>
 ): void {
   let upgrade: WsUpgradePayload
   try {
@@ -421,8 +433,9 @@ function forwardWsUpgrade(
   }
 
   try {
-    const targetPort =
+    const declaredPort =
       parseInt(upgrade.headers?.["x-dx-target-port"] ?? "", 10) || localPort
+    const targetPort = portMap?.get(declaredPort) ?? declaredPort
     if (upgrade.headers) delete upgrade.headers["x-dx-target-port"]
     const localWs = new WebSocket(`ws://localhost:${targetPort}${upgrade.url}`)
     localWs.binaryType = "arraybuffer"
@@ -516,7 +529,8 @@ async function forwardToLocal(
   frame: Frame,
   ws: WebSocket,
   localPort: number,
-  pendingBodies?: PendingBodies
+  pendingBodies?: PendingBodies,
+  portMap?: Map<number, number>
 ): Promise<void> {
   let req: HttpRequestPayload
   try {
@@ -527,8 +541,9 @@ async function forwardToLocal(
   }
 
   try {
-    const targetPort =
+    const declaredPort =
       parseInt(req.headers["x-dx-target-port"] ?? "", 10) || localPort
+    const targetPort = portMap?.get(declaredPort) ?? declaredPort
     delete req.headers["x-dx-target-port"]
     const url = `http://localhost:${targetPort}${req.url}`
 

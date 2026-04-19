@@ -12,8 +12,36 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["bun", "node"]
+    "types": ["bun", "node"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "asyncFunction": "warning",
+          "cryptoRandomUUID": "warning",
+          "cryptoRandomUUIDInEffect": "warning",
+          "extendsNativeError": "warning",
+          "globalConsole": "warning",
+          "globalConsoleInEffect": "warning",
+          "globalDate": "warning",
+          "globalDateInEffect": "warning",
+          "globalFetch": "warning",
+          "globalFetchInEffect": "warning",
+          "globalRandom": "warning",
+          "globalRandomInEffect": "warning",
+          "globalTimers": "warning",
+          "globalTimersInEffect": "warning",
+          "instanceOfSchema": "warning",
+          "newPromise": "warning",
+          "nodeBuiltinImport": "warning",
+          "preferSchemaOverJson": "warning",
+          "processEnv": "warning",
+          "processEnvInEffect": "warning"
+        }
+      }
+    ]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.bench.ts"]
+  "exclude": ["src/**/*.bench.ts"],
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/tsgo/refs/heads/main/schema.json"
 }

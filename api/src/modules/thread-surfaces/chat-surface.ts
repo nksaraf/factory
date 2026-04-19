@@ -145,6 +145,15 @@ export function humanizeToolCall(
   toolName: string,
   toolInput?: Record<string, any>
 ): string {
+  // Cursor synthesizes MCP tool names as `mcp:{server}:{tool}`. Render as
+  // "{server}: {tool}" so Slack shows something readable.
+  if (toolName.startsWith("mcp:")) {
+    const parts = toolName.split(":")
+    const server = parts[1] ?? "mcp"
+    const tool = parts.slice(2).join(":") || "unknown"
+    return `${server}: ${tool}`
+  }
+
   const base = TOOL_NAME_MAP[toolName] ?? toolName.toLowerCase()
   if (!toolInput) return base
 

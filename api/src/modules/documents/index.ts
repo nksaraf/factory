@@ -16,7 +16,7 @@ import {
   CreateDocumentVersionSchema,
   UpdateDocumentSchema,
 } from "@smp/factory-shared/schemas/org"
-import { desc, eq, max } from "drizzle-orm"
+import { and, desc, eq, max } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
@@ -316,6 +316,87 @@ export const documentsOntologyConfigs: Pick<
     kindAlias: "document",
   },
 ]
+
+function factoryBaseUrl(): string {
+  return (
+    process.env.FACTORY_URL ??
+    process.env.BETTER_AUTH_BASE_URL ??
+    "https://factory.lepton.software"
+  ).replace(/\/$/, "")
+}
+
+/**
+ * Plans index: one entry per document where type='plan', joined to its
+ * latest version for sourceTurnId + version number. Mounted inside the
+ * authenticated factory plane at GET /api/v1/factory/plans.
+ */
+export function plansController(db: Database) {
+  return new Elysia({ prefix: "/plans" }).get("/", async ({ query }) => {
+    const q = (query ?? {}) as Record<string, string | undefined>
+    const limit = Math.min(
+      Math.max(Number.parseInt(q.limit ?? "100", 10) || 100, 1),
+      500
+    )
+    const offset = Math.max(Number.parseInt(q.offset ?? "0", 10) || 0, 0)
+
+    const latestVersionSub = db
+      .select({
+        documentId: documentVersion.documentId,
+        maxVersion: max(documentVersion.version).as("max_version"),
+      })
+      .from(documentVersion)
+      .groupBy(documentVersion.documentId)
+      .as("latest")
+
+    const rows = await db
+      .select({
+        slug: document.slug,
+        title: document.title,
+        source: document.source,
+        threadId: document.threadId,
+        updatedAt: document.updatedAt,
+        createdAt: document.createdAt,
+        spec: document.spec,
+        latestVersion: latestVersionSub.maxVersion,
+        sourceTurnId: documentVersion.sourceTurnId,
+      })
+      .from(document)
+      .leftJoin(latestVersionSub, eq(latestVersionSub.documentId, document.id))
+      .leftJoin(
+        documentVersion,
+        and(
+          eq(documentVersion.documentId, document.id),
+          eq(documentVersion.version, latestVersionSub.maxVersion)
+        )
+      )
+      .where(eq(document.type, "plan"))
+      .orderBy(desc(document.updatedAt))
+      .limit(limit)
+      .offset(offset)
+
+    const base = factoryBaseUrl()
+    return {
+      plans: rows.map((r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return {
+          slug: r.slug,
+          title: r.title,
+          source: r.source,
+          latestVersion: r.latestVersion ?? null,
+          threadId: r.threadId,
+          sourceTurnId: r.sourceTurnId,
+          editCount: (spec.editCount as number | undefined) ?? 0,
+          stub: (spec.stub as boolean | undefined) ?? false,
+          updatedAt: r.updatedAt,
+          createdAt: r.createdAt,
+          viewUrl: `${base}/api/v1/factory/documents/${encodeURIComponent(r.slug)}/view`,
+        }
+      }),
+      limit,
+      offset,
+    }
+  })
+}
 
 export function publicDocumentViewerController(db: Database) {
   return new Elysia({ prefix: "/api/v1/factory/documents" }).get(

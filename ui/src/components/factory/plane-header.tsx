@@ -35,9 +35,9 @@ export function PlaneHeader({
   return (
     <div className={cn("flex items-start justify-between", className)}>
       <div className="flex items-center gap-3">
-        <Icon icon={config.icon} className={cn("h-6 w-6", config.color)} />
+        <span className={cn(config.icon, "text-4xl shrink-0", config.color)} />
         <div>
-          <h1 className="text-xl font-semibold">{title}</h1>
+          <h1 className="text-2xl font-semibold">{title}</h1>
           {description && (
             <p className="mt-0.5 text-sm text-muted-foreground">
               {description}

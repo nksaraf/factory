@@ -92,26 +92,32 @@ async function readStdinJson(): Promise<Record<string, unknown>> {
 
 // ── Cursor ────────────────────────────────────────────────────
 
+/**
+ * Canonical event vocabulary. Cursor's fine-grained events (shell/MCP/file
+ * operations, tabs) are folded into the unified `tool.pre`/`tool.post` space
+ * so the same controller handlers work for both Cursor and Claude Code.
+ * Tool source is reconstructed from `tool_name` downstream if needed.
+ */
 const CURSOR_EVENT_MAP: Record<string, string> = {
   sessionStart: "session.start",
   sessionEnd: "session.end",
   beforeSubmitPrompt: "prompt.submit",
   preToolUse: "tool.pre",
   postToolUse: "tool.post",
-  postToolUseFailure: "tool.fail",
-  beforeShellExecution: "shell.pre",
-  afterShellExecution: "shell.post",
-  beforeMCPExecution: "mcp.pre",
-  afterMCPExecution: "mcp.post",
-  beforeReadFile: "file.read",
-  afterFileEdit: "file.edit",
+  postToolUseFailure: "tool.post_failure",
+  beforeShellExecution: "tool.pre",
+  afterShellExecution: "tool.post",
+  beforeMCPExecution: "tool.pre",
+  afterMCPExecution: "tool.post",
+  beforeReadFile: "tool.pre",
+  afterFileEdit: "tool.post",
   beforeTabFileRead: "tab.read",
   afterTabFileEdit: "tab.edit",
   subagentStart: "subagent.start",
   subagentStop: "subagent.stop",
   afterAgentResponse: "agent.response",
   afterAgentThought: "agent.thought",
-  preCompact: "context.compact",
+  preCompact: "context.pre_compact",
   stop: "agent.stop",
 }
 
@@ -166,36 +172,72 @@ function buildCursorPayload(
 
     case "preToolUse":
     case "postToolUse":
-    case "postToolUseFailure":
       return {
         ...base,
         tool_name: input.tool_name ?? input.toolName,
         tool_input: input.tool_input ?? input.toolInput ?? input.input,
         tool_output: input.tool_output ?? input.toolOutput ?? input.output,
+      }
+
+    case "postToolUseFailure":
+      return {
+        ...base,
+        tool_name: input.tool_name ?? input.toolName,
+        tool_input: input.tool_input ?? input.toolInput ?? input.input,
         error: input.error,
       }
 
     case "beforeShellExecution":
+      return {
+        ...base,
+        tool_name: "Bash",
+        tool_input: { command: input.command },
+      }
+
     case "afterShellExecution":
       return {
         ...base,
-        command: input.command,
-        output: input.output,
-        exitCode: input.exitCode ?? input.exit_code,
+        tool_name: "Bash",
+        tool_input: { command: input.command },
+        tool_output: {
+          output: input.output,
+          exitCode: input.exitCode ?? input.exit_code,
+        },
       }
 
     case "beforeMCPExecution":
-    case "afterMCPExecution":
+    case "afterMCPExecution": {
+      const server = input.server ?? input.serverName
+      const name = input.tool_name ?? input.toolName
+      const qualified = server ? `mcp:${server}:${name ?? "unknown"}` : name
+      const isPost = hookEvent === "afterMCPExecution"
       return {
         ...base,
-        tool_name: input.tool_name ?? input.toolName,
-        server: input.server ?? input.serverName,
-        input: input.input ?? input.tool_input,
-        output: input.output ?? input.tool_output,
+        tool_name: qualified,
+        tool_input: input.input ?? input.tool_input,
+        ...(isPost ? { tool_output: input.output ?? input.tool_output } : {}),
       }
+    }
 
-    case "beforeReadFile":
-    case "afterFileEdit":
+    case "beforeReadFile": {
+      const filePath = input.filePath ?? input.file_path ?? input.path
+      return {
+        ...base,
+        tool_name: "Read",
+        tool_input: { file_path: filePath },
+      }
+    }
+
+    case "afterFileEdit": {
+      const filePath = input.filePath ?? input.file_path ?? input.path
+      return {
+        ...base,
+        tool_name: "Edit",
+        tool_input: { file_path: filePath },
+        tool_output: { changes: input.changes ?? input.diff },
+      }
+    }
+
     case "beforeTabFileRead":
     case "afterTabFileEdit":
       return {
@@ -206,7 +248,19 @@ function buildCursorPayload(
 
     case "afterAgentResponse":
     case "afterAgentThought":
-      return { ...base, content: input.content ?? input.text ?? input.message }
+      return {
+        ...base,
+        content: input.content ?? input.text ?? input.message,
+      }
+
+    case "subagentStart":
+    case "subagentStop":
+      return {
+        ...base,
+        agent_id: input.agent_id ?? input.agentId,
+        agent_type: input.agent_type ?? input.agentType,
+        description: input.description,
+      }
 
     case "stop":
       return { ...base, stop_reason: input.stop_reason ?? input.stopReason }

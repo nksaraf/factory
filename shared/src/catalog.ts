@@ -270,6 +270,9 @@ export const catalogComponentSchema = z.object({
     // ── Init container relationship ──
     /** For init containers (type: "init"): the service this container initializes. */
     initFor: z.string().optional(),
+
+    /** Prior slugs for rename migration (append-only history). */
+    previousSlugs: z.array(z.string()).optional(),
   }),
 })
 export type CatalogComponent = z.infer<typeof catalogComponentSchema>
@@ -350,6 +353,9 @@ export const catalogResourceSchema = z.object({
 
     // ── Gateway routing targets (parsed from mounted config files) ──
     gatewayTargets: z.array(gatewayTargetSchema).optional(),
+
+    /** Prior slugs for rename migration (append-only history). */
+    previousSlugs: z.array(z.string()).optional(),
   }),
 })
 export type CatalogResource = z.infer<typeof catalogResourceSchema>
@@ -483,4 +489,5 @@ export interface CatalogSyncResult {
   apisUpserted: number
   created: { components: string[]; apis: string[] }
   updated: { components: string[]; apis: string[] }
+  renamed: { components: string[] }
 }

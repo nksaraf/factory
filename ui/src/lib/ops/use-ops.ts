@@ -26,6 +26,19 @@ import {
 // Row transformers (PowerSync snake_case → domain camelCase)
 // ---------------------------------------------------------------------------
 
+function extractStatus(v: unknown): string {
+  if (typeof v === "string") return v
+  if (typeof v === "object" && v !== null)
+    return ((v as Record<string, unknown>).phase as string) ?? "unknown"
+  return "unknown"
+}
+
+function specVal(r: Record<string, unknown>, key: string): unknown {
+  if (r[key] !== undefined) return r[key]
+  const spec = r.spec as Record<string, unknown> | undefined
+  return spec?.[key]
+}
+
 const toDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget => ({
   id: r.id as string,
   name: r.name as string,
@@ -42,7 +55,7 @@ const toDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget => ({
   ttl: (r.ttl as string) ?? null,
   expiresAt: (r.expires_at ?? r.expiresAt ?? null) as string | null,
   tierPolicies: parseJson(r.tier_policies ?? r.tierPolicies),
-  status: r.status as string,
+  status: extractStatus(r.status),
   labels: parseJson(r.labels),
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
   destroyedAt: (r.destroyed_at ?? r.destroyedAt ?? null) as string | null,
@@ -62,7 +75,7 @@ const toWorkload = (r: Record<string, unknown>): Workload => ({
   replicas: (r.replicas as number) ?? 1,
   envOverrides: parseJson(r.env_overrides ?? r.envOverrides),
   resourceOverrides: parseJson(r.resource_overrides ?? r.resourceOverrides),
-  status: r.status as string,
+  status: extractStatus(r.status),
   desiredImage: (r.desired_image ?? r.desiredImage) as string,
   desiredArtifactUri: (r.desired_artifact_uri ??
     r.desiredArtifactUri ??
@@ -112,7 +125,7 @@ const apiToSandbox = (r: Record<string, unknown>): Sandbox =>
 const toRelease = (r: Record<string, unknown>): Release => ({
   id: r.id as string,
   version: r.version as string,
-  status: r.status as string,
+  status: extractStatus(r.status),
   createdBy: (r.created_by ?? r.createdBy) as string,
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
 })
@@ -125,7 +138,7 @@ const toRollout = (r: Record<string, unknown>): Rollout => ({
   releaseId: (r.release_id ?? r.releaseId) as string,
   deploymentTargetId: (r.deployment_target_id ??
     r.deploymentTargetId) as string,
-  status: r.status as string,
+  status: extractStatus(r.status),
   startedAt: (r.started_at ?? r.startedAt) as string,
   completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,
 })
@@ -133,21 +146,30 @@ const toRollout = (r: Record<string, unknown>): Rollout => ({
 const apiToRollout = (r: Record<string, unknown>): Rollout =>
   toRollout({ ...r, id: r.rolloutId ?? r.id })
 
-const toSite = (r: Record<string, unknown>): OpsSite => ({
-  id: r.id as string,
-  name: r.name as string,
-  slug: r.slug as string,
-  product: r.product as string,
-  clusterId: (r.cluster_id ?? r.clusterId) as string,
-  status: r.status as string,
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  lastCheckinAt: (r.last_checkin_at ?? r.lastCheckinAt ?? null) as
-    | string
-    | null,
-  currentManifestVersion: (r.current_manifest_version ??
-    r.currentManifestVersion ??
-    null) as number | null,
-})
+const toSite = (r: Record<string, unknown>): OpsSite => {
+  const status = r.status
+  const statusStr =
+    typeof status === "string"
+      ? status
+      : typeof status === "object" && status !== null
+        ? (((status as Record<string, unknown>).phase as string) ?? "unknown")
+        : "unknown"
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    slug: r.slug as string,
+    product: (r.product ?? r.type ?? "") as string,
+    clusterId: (r.cluster_id ?? r.clusterId ?? null) as string,
+    status: statusStr,
+    createdAt: (r.created_at ?? r.createdAt ?? "") as string,
+    lastCheckinAt: (r.last_checkin_at ?? r.lastCheckinAt ?? null) as
+      | string
+      | null,
+    currentManifestVersion: (r.current_manifest_version ??
+      r.currentManifestVersion ??
+      null) as number | null,
+  }
+}
 
 const apiToSite = (r: Record<string, unknown>): OpsSite =>
   toSite({ ...r, id: r.siteId ?? r.id })
@@ -295,7 +317,7 @@ const toReleaseBundle = (r: Record<string, unknown>): ReleaseBundle => ({
     | string
     | null,
   storagePath: (r.storage_path ?? r.storagePath ?? null) as string | null,
-  status: r.status as string,
+  status: extractStatus(r.status),
   createdBy: (r.created_by ?? r.createdBy) as string,
   createdAt: (r.created_at ?? r.createdAt ?? "") as string,
   completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,

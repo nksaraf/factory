@@ -22,6 +22,110 @@ interface SuccessResponse<T> {
 
 const POLL_INTERVAL = 60_000
 
+function extractStatus(v: unknown): string {
+  if (typeof v === "string") return v
+  if (typeof v === "object" && v !== null)
+    return ((v as Record<string, unknown>).phase as string) ?? "unknown"
+  return "unknown"
+}
+
+function flattenHost(r: Record<string, unknown>): Host {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  const statusObj = (r.status ?? {}) as Record<string, unknown>
+  const lastScan = (statusObj.lastScan ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? spec.hostname ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    hostname: (spec.hostname ?? r.hostname ?? null) as string | null,
+    hostType: (r.type ?? "unknown") as string,
+    providerId: (r.providerId ?? r.provider_id ?? "") as string,
+    datacenterId: (r.datacenterId ?? r.datacenter_id ?? null) as string | null,
+    ipAddress: (spec.ipAddress ?? r.ipAddress ?? r.ip_address ?? null) as
+      | string
+      | null,
+    ipmiAddress: (spec.ipmiAddress ?? r.ipmiAddress ?? null) as string | null,
+    status: (spec.lifecycle as string) ?? extractStatus(r.status),
+    osType: (spec.os ?? r.osType ?? r.os_type ?? "") as string,
+    accessMethod: (spec.accessMethod ?? r.accessMethod ?? "") as string,
+    cpuCores: (spec.cpu ??
+      spec.cpuCores ??
+      r.cpuCores ??
+      r.cpu_cores ??
+      0) as number,
+    memoryMb: (spec.memoryMb ?? r.memoryMb ?? r.memory_mb ?? 0) as number,
+    diskGb: (spec.diskGb ?? r.diskGb ?? r.disk_gb ?? 0) as number,
+    rackLocation: (spec.rackLocation ?? r.rackLocation ?? null) as
+      | string
+      | null,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
+function flattenProvider(r: Record<string, unknown>): Provider {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    providerType: (spec.providerType ??
+      r.providerType ??
+      r.type ??
+      "") as string,
+    url: (spec.url ?? r.url ?? null) as string | null,
+    status: extractStatus(r.status),
+    providerKind: (spec.providerKind ??
+      r.providerKind ??
+      r.type ??
+      "") as string,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
+function flattenCluster(r: Record<string, unknown>): Cluster {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    providerId: (r.providerId ?? r.provider_id ?? "") as string,
+    status: extractStatus(r.status),
+    kubeconfigRef: (spec.kubeconfigRef ?? r.kubeconfigRef ?? null) as
+      | string
+      | null,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
+function flattenVM(r: Record<string, unknown>): VM {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? spec.hostname ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    providerId: (r.providerId ?? r.provider_id ?? "") as string,
+    datacenterId: (r.datacenterId ?? r.datacenter_id ?? null) as string | null,
+    hostId: (r.hostId ?? r.host_id ?? null) as string | null,
+    clusterId: (r.clusterId ?? r.cluster_id ?? null) as string | null,
+    proxmoxClusterId: (r.proxmoxClusterId ?? r.proxmox_cluster_id ?? null) as
+      | string
+      | null,
+    proxmoxVmid: (spec.proxmoxVmid ?? r.proxmoxVmid ?? null) as number | null,
+    vmType: (spec.vmType ?? r.vmType ?? r.type ?? "") as string,
+    status: extractStatus(r.status),
+    osType: (spec.os ?? r.osType ?? r.os_type ?? "") as string,
+    accessMethod: (spec.accessMethod ?? r.accessMethod ?? "") as string,
+    accessUser: (spec.accessUser ?? r.accessUser ?? null) as string | null,
+    cpu: (spec.cpu ?? r.cpu ?? 0) as number,
+    memoryMb: (spec.memoryMb ?? r.memoryMb ?? r.memory_mb ?? 0) as number,
+    diskGb: (spec.diskGb ?? r.diskGb ?? r.disk_gb ?? 0) as number,
+    ipAddress: (spec.ipAddress ?? r.ipAddress ?? r.ip_address ?? null) as
+      | string
+      | null,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
 function buildQs(params: Record<string, string | undefined>): string {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
@@ -37,10 +141,10 @@ export function useProviders(opts?: { status?: string }) {
   return useQuery<Provider[]>({
     queryKey: ["infra", "providers", opts],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Provider[]>>(
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
         `/providers${buildQs(opts ?? {})}`
       )
-      return res.data
+      return res.data.map(flattenProvider)
     },
     refetchInterval: POLL_INTERVAL,
   })
@@ -50,10 +154,10 @@ export function useProvider(id: string | undefined) {
   return useQuery<Provider | null>({
     queryKey: ["infra", "provider", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Provider>>(
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>>>(
         `/providers/${id}`
       )
-      return res.data
+      return flattenProvider(res.data)
     },
     enabled: !!id,
     refetchInterval: POLL_INTERVAL,
@@ -66,10 +170,10 @@ export function useClusters(opts?: { providerId?: string; status?: string }) {
   return useQuery<Cluster[]>({
     queryKey: ["infra", "clusters", opts],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Cluster[]>>(
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
         `/clusters${buildQs(opts ?? {})}`
       )
-      return res.data
+      return res.data.map(flattenCluster)
     },
     refetchInterval: POLL_INTERVAL,
   })
@@ -79,8 +183,10 @@ export function useCluster(id: string | undefined) {
   return useQuery<Cluster | null>({
     queryKey: ["infra", "cluster", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Cluster>>(`/clusters/${id}`)
-      return res.data
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>>>(
+        `/clusters/${id}`
+      )
+      return flattenCluster(res.data)
     },
     enabled: !!id,
     refetchInterval: POLL_INTERVAL,
@@ -131,10 +237,11 @@ export function useHosts(opts?: {
   return useQuery<Host[]>({
     queryKey: ["infra", "hosts", opts],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Host[]>>(
-        `/hosts${buildQs(opts ?? {})}`
+      const qs = buildQs({ ...opts, limit: "500" })
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
+        `/hosts${qs}`
       )
-      return res.data
+      return res.data.map(flattenHost)
     },
     refetchInterval: POLL_INTERVAL,
   })
@@ -144,8 +251,10 @@ export function useHost(id: string | undefined) {
   return useQuery<Host | null>({
     queryKey: ["infra", "host", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Host>>(`/hosts/${id}`)
-      return res.data
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>>>(
+        `/hosts/${id}`
+      )
+      return flattenHost(res.data)
     },
     enabled: !!id,
     refetchInterval: POLL_INTERVAL,
@@ -165,10 +274,10 @@ export function useVMs(opts?: {
   return useQuery<VM[]>({
     queryKey: ["infra", "vms", opts],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<VM[]>>(
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
         `/vms${buildQs(opts ?? {})}`
       )
-      return res.data
+      return res.data.map(flattenVM)
     },
     refetchInterval: POLL_INTERVAL,
   })
@@ -178,8 +287,10 @@ export function useVM(id: string | undefined) {
   return useQuery<VM | null>({
     queryKey: ["infra", "vm", id],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<VM>>(`/vms/${id}`)
-      return res.data
+      const res = await infraFetch<SuccessResponse<Record<string, unknown>>>(
+        `/vms/${id}`
+      )
+      return flattenVM(res.data)
     },
     enabled: !!id,
     refetchInterval: POLL_INTERVAL,
@@ -249,6 +360,92 @@ export function useProxmoxClusters(opts?: { providerId?: string }) {
         `/proxmox-clusters${buildQs(opts ?? {})}`
       )
       return res.data
+    },
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+// --- Estates ---
+
+export interface Estate {
+  id: string
+  name: string
+  slug: string
+  type: string
+  status: string
+  spec: Record<string, unknown>
+  createdAt: string
+}
+
+function flattenEstate(r: Record<string, unknown>): Estate {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    type: (r.type ?? "unknown") as string,
+    status: (spec.lifecycle as string) ?? extractStatus(r.status),
+    spec: spec,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
+export function useEstates() {
+  return useQuery<Estate[]>({
+    queryKey: ["infra", "estates"],
+    queryFn: async () => {
+      const res =
+        await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
+          "/estates?limit=500"
+        )
+      return res.data.map(flattenEstate)
+    },
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+// --- Realms ---
+
+export interface Realm {
+  id: string
+  name: string
+  slug: string
+  type: string
+  hostId: string | null
+  hostName: string | null
+  status: string
+  spec: Record<string, unknown>
+  serviceCount: number
+  createdAt: string
+}
+
+function flattenRealm(r: Record<string, unknown>): Realm {
+  const spec = (r.spec ?? {}) as Record<string, unknown>
+  const statusObj = (r.status ?? {}) as Record<string, unknown>
+  const lastScan = (statusObj.lastScan ?? {}) as Record<string, unknown>
+  return {
+    id: r.id as string,
+    name: (r.name ?? r.slug ?? "") as string,
+    slug: (r.slug ?? "") as string,
+    type: (r.type ?? "unknown") as string,
+    hostId: (r.hostId ?? r.host_id ?? null) as string | null,
+    hostName: null,
+    status: (spec.status as string) ?? extractStatus(r.status),
+    spec: spec,
+    serviceCount: (lastScan.serviceCount as number) ?? 0,
+    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
+  }
+}
+
+export function useRealms() {
+  return useQuery<Realm[]>({
+    queryKey: ["infra", "realms"],
+    queryFn: async () => {
+      const res =
+        await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
+          "/realms?limit=500"
+        )
+      return res.data.map(flattenRealm)
     },
     refetchInterval: POLL_INTERVAL,
   })

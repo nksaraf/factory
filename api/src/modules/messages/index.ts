@@ -24,21 +24,35 @@ export function messagesController(db: Database) {
       async ({ body, set }) => {
         const { threadId, messages: msgs, principalId } = body
 
-        const existing = await db
+        // Look up thread by ID or externalId (sessionId)
+        let resolvedThreadId = threadId
+        const byId = await db
           .select({ id: thread.id })
           .from(thread)
           .where(eq(thread.id, threadId))
           .limit(1)
 
-        if (existing.length === 0) {
-          set.status = 404
-          return { error: `Thread ${threadId} not found` }
+        if (byId.length === 0) {
+          const byExternal = await db
+            .select({ id: thread.id })
+            .from(thread)
+            .where(eq(thread.externalId, threadId))
+            .limit(1)
+
+          if (byExternal.length === 0) {
+            set.status = 404
+            return { error: `Thread ${threadId} not found` }
+          }
+          resolvedThreadId = byExternal[0].id
         }
 
         try {
-          const result = await ingestMessages(db, threadId, msgs as any, {
-            principalId,
-          })
+          const result = await ingestMessages(
+            db,
+            resolvedThreadId,
+            msgs as any,
+            { principalId }
+          )
           set.status = 202
           return {
             success: true,

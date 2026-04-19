@@ -35,6 +35,27 @@
         "path": "/(root)/(app)/ops/sites/:slug/"
       },
       {
+        "id": "factory.ops.route.site-layout",
+        "displayName": "Site Layout",
+        "path": "/(root)/(app)/ops/sites/:slug/",
+        "layout": true
+      },
+      {
+        "id": "factory.ops.route.site-systems",
+        "displayName": "Site Systems",
+        "path": "/(root)/(app)/ops/sites/:slug/systems/"
+      },
+      {
+        "id": "factory.ops.route.site-components",
+        "displayName": "Site Components",
+        "path": "/(root)/(app)/ops/sites/:slug/components/"
+      },
+      {
+        "id": "factory.ops.route.site-deployments",
+        "displayName": "Site Deployments",
+        "path": "/(root)/(app)/ops/sites/:slug/deployments/"
+      },
+      {
         "id": "factory.ops.route.targets",
         "displayName": "Deployment Targets",
         "path": "/(root)/(app)/ops/targets/"

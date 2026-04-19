@@ -41,6 +41,7 @@ import {
   capability,
   component,
   product,
+  productSystem,
   release,
   softwareApi,
   system,
@@ -274,6 +275,20 @@ export function productController(db: Database) {
         idColumn: capability.id,
         prefix: "cap",
         kindAlias: "capability",
+        slugRefs: {
+          productSlug: {
+            fk: "productId",
+            lookupTable: product,
+            lookupSlugCol: product.slug,
+            lookupIdCol: product.id,
+          },
+          ownerTeamSlug: {
+            fk: "ownerTeamId",
+            lookupTable: team,
+            lookupSlugCol: team.slug,
+            lookupIdCol: team.id,
+          },
+        },
         createSchema: CreateCapabilitySchema,
         updateSchema: UpdateCapabilitySchema,
         deletable: true,
@@ -388,5 +403,44 @@ export const productOntologyConfigs: Pick<
     idColumn: capability.id,
     prefix: "cap",
     kindAlias: "capability",
+    slugRefs: {
+      productSlug: {
+        fk: "productId",
+        lookupTable: product,
+        lookupSlugCol: product.slug,
+        lookupIdCol: product.id,
+      },
+      ownerTeamSlug: {
+        fk: "ownerTeamId",
+        lookupTable: team,
+        lookupSlugCol: team.slug,
+        lookupIdCol: team.id,
+      },
+    },
+  },
+  {
+    // Junction table — has no slug of its own; reconciler special-cases this
+    // kind and upserts by (productId, systemId) composite unique.
+    entity: "product-systems",
+    singular: "product-system",
+    table: productSystem,
+    slugColumn: productSystem.id,
+    idColumn: productSystem.id,
+    prefix: "psys",
+    kindAlias: "product-system",
+    slugRefs: {
+      productSlug: {
+        fk: "productId",
+        lookupTable: product,
+        lookupSlugCol: product.slug,
+        lookupIdCol: product.id,
+      },
+      systemSlug: {
+        fk: "systemId",
+        lookupTable: system,
+        lookupSlugCol: system.slug,
+        lookupIdCol: system.id,
+      },
+    },
   },
 ]

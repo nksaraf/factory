@@ -833,6 +833,15 @@ These commands are registered but return "Not yet implemented":
 - [ ] networkLink cascade delete: remove links when source/target entities are deleted
 - [ ] `traceFrom` branching support: walk all links at each hop (tree trace) instead of only first link; add ORDER BY priority/createdAt for deterministic single-path trace
 - [ ] Multi-target weighted load balancing in Traefik YAML generation (traefik-sync currently uses only first resolved target)
+- [ ] **Unify reconciler multi-pass into per-host atomic reconciliation** — main-host routes created in step 8c can conflict with crawled-host route updates in the second pass (step 8c½+). Refactor so each host's scan data (services, reverseProxies, routes) is reconciled as one atomic unit, eliminating ordering dependencies between passes. Currently airflow `resolvedTargets` is intermittently cleared between passes.
+- [x] `dx route trace --probe` — per-segment vantage-point probes via SSH (cURL/nc timing from each hop's source host)
+- [x] `dx route trace` always-on health signals — stale badges, middleware chain, backend weight on forward links
+- [x] Filter Traefik `@internal` services at scan time (collector) and trace time (route matcher)
+- [x] Traefik API detection from container static config (`--api.insecure=true` + `--entrypoints.traefik.address`) with container→host port map translation
+- [x] Crawled host `reverseProxies` + `services` preserved in API scan payload (were stripped before)
+- [x] Reconciler second pass: update `resolvedTargets` and component specs from crawled host scan data
+- [x] Linux collector: capture `TargetPort` (not just `PublishedPort`), prefer `Publishers` list over `Ports` string
+- [x] `collectContainerIpMap`: capture `ExposedPorts`, full `NetworkSettings.Ports` JSON, and `Config.Cmd`
 
 ---
 
@@ -984,6 +993,35 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 
 ## UI
 
+### Factory Web App — Unified Platform UI
+
+- [~] `factory.threads` module — thread viewer with plan drawer, context panel, turn cards (implemented, needs unified app embedding)
+- [~] `factory.build` module — repos, systems, components list pages (implemented, missing detail pages)
+- [~] `factory.infra` — estates + realms pages (implemented), host detail page (implemented)
+- [~] Data transformer fixes — all ops/infra hooks now extract `spec.*` fields and `status.phase` from ontology API responses
+- [~] `DashboardPage` shared layout component — standardizes header/toolbar/scroll pattern across all list pages
+- [ ] System detail page (`/build/systems/:slug`) — tabbed: Overview, Components, Deployments, Versions, Dependency Graph
+- [ ] System dependency graph tab — React Flow visualization of component-to-component dependencies with different edge types (dependency vs connection), auto-layout. Reference: `dx catalog tree` output
+- [ ] Component detail page (`/build/components/:slug`) — show parent system, deployments, versions, API surface
+- [ ] Repo detail page (`/build/repos/:slug`) — show systems it contains, branches, last sync, pipeline runs
+- [ ] Site detail page improvements — wire deployment targets to real data, add env tab from site controller API
+- [ ] Unified app embedding — build Vinxi app with `nitro: { preset: "bun" }`, import handler in CLI's dev console server, replace static HTML serving
+- [ ] IDE channel slug naming — derive from git repo origin + branch (e.g. `github.com/user/repo:branch`) instead of folder directory path, for cross-machine uniqueness
+- [ ] Cross-entity linking — every detail page links outward: sites→systems→components→repos, hosts→sites, clusters→sites, realms→hosts
+- [ ] Sortable columns + copy-on-hover — generalize the hosts page pattern (SortHeader, CopyCell components) into shared components for all table views
+- [ ] Mobile responsive — thread list collapses, context panel becomes bottom sheet, PWA manifest
+- [ ] Message/Exchange/ToolCall API endpoints — `GET /threads/:id/messages`, `GET /threads/:id/exchanges`, `GET /threads/:id/tool-calls` for the new interaction model
+
+### Data Model — Message-First Interaction Model
+
+- [x] `message`, `exchange`, `tool_call` tables + migration (org schema)
+- [x] `sourceMessageId` + `sourceToolCallId` FK columns on `document_version`
+- [x] Zod spec types for Message, Exchange, ToolCall in shared schemas
+- [ ] Ingestion adapter — write messages + tool_calls on IDE hook ingestion (alongside existing thread_turn writes)
+- [ ] Exchange derivation — classifier that watches message stream and materializes exchange rows
+- [ ] `thread_turn` backward-compat view — SQL view over message content blocks
+- [ ] Shared ingestion library — unified `classifyPlanPath`, artifact extractors usable by both CLI hooks and API scanner
+
 - [ ] Scout prompt input — file actions not implemented (`ui/src/modules/smart-market.scouts/.../scout-prompt-input.tsx`)
 
 ---
@@ -1043,6 +1081,27 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] Add non-Cloudflare DNS provider sync adapters (Route53 first, then generic provider abstraction).
 - [ ] Fix `gateway-service` full-suite test fixture mismatch with current `system_deployment` schema (`workbench_id` insert failure) so full test run is green.
 - [ ] Fix `infra-controller` host→realm relation test (`GET /hosts/:id/realms` returning empty) by aligning relation wiring or test setup with current v2 model.
+
+---
+
+## DX Observability Commands
+
+### Implemented (this session)
+
+- [x] `dx logs <url>` — resolve URL via trace pipeline, SSH to host, stream container logs
+- [x] `dx inspect <url|slug>` — show component details (host, ports, image, URL, compose project)
+- [x] `dx health <url|slug>` — end-to-end timing (DNS/TCP/TLS/TTFB), TLS cert expiry, optional per-hop probes
+- [x] `trace-resolver.ts` — shared URL→component resolution via trace API
+- [x] `LogSource` interface with `SshLogSource` (SSH docker logs) and `LocalLogSource` (local docker compose) implementations
+- [x] `@internal` service detection in `dx logs` — warns user with actionable message
+
+### Follow-ups
+
+- [ ] `dx inspect` — populate `Service` and `Compose` fields from component metadata (currently show "—" for crawled-host components)
+- [ ] `dx logs <service-name>` outside site context — require `--host` flag, resolve service on that host
+- [ ] `dx logs` Loki backend — swap `SshLogSource` for a `LokiLogSource` when centralized logging is available
+- [ ] `dx health --verbose` per-hop probes for service-slug targets (currently only URL targets get per-hop)
+- [ ] `dx dns <domain>` — quick DNS record dump (A, CNAME, TXT, MX) with provider info from catalog
 
 ---
 

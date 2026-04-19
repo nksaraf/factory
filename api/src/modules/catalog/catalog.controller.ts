@@ -19,7 +19,7 @@ import type {
 } from "@smp/factory-shared/catalog"
 import { catalogSystemSchema } from "@smp/factory-shared/catalog"
 import type { Lifecycle } from "@smp/factory-shared/schemas/common"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
@@ -166,7 +166,7 @@ async function upsertComponent(
   )
   const now = new Date()
 
-  const [existing] = await tx
+  let [existing] = await tx
     .select()
     .from(component)
     .where(
@@ -181,10 +181,36 @@ async function upsertComponent(
     )
     .limit(1)
 
+  // Rename migration: if no row matches current slug, look up by previousSlugs.
+  const previousSlugs =
+    "previousSlugs" in entry.spec ? entry.spec.previousSlugs : undefined
+  let renamed = false
+  if (!existing && previousSlugs && previousSlugs.length > 0) {
+    const [prior] = await tx
+      .select()
+      .from(component)
+      .where(
+        and(
+          eq(component.systemId, systemId),
+          inArray(component.slug, previousSlugs),
+          currentRow({
+            validTo: component.validTo,
+            systemTo: component.systemTo,
+          })
+        )
+      )
+      .limit(1)
+    if (prior) {
+      existing = prior
+      renamed = true
+    }
+  }
+
   if (existing) {
     const [updated] = await tx
       .update(component)
       .set({
+        slug,
         name,
         type,
         lifecycle,
@@ -198,7 +224,7 @@ async function upsertComponent(
       })
       .where(eq(component.id, existing.id))
       .returning()
-    return { row: updated!, created: false }
+    return { row: updated!, created: false, renamed }
   }
 
   const [inserted] = await tx
@@ -217,7 +243,7 @@ async function upsertComponent(
       },
     })
     .returning()
-  return { row: inserted!, created: true }
+  return { row: inserted!, created: true, renamed: false }
 }
 
 async function upsertApi(
@@ -286,6 +312,7 @@ export function catalogController(db: Database) {
         // Upsert components
         const createdComponents: string[] = []
         const updatedComponents: string[] = []
+        const renamedComponents: string[] = []
 
         for (const [slug, comp] of Object.entries(catalog.components)) {
           const r = await upsertComponent(
@@ -296,6 +323,7 @@ export function catalogController(db: Database) {
             comp
           )
           ;(r.created ? createdComponents : updatedComponents).push(slug)
+          if (r.renamed) renamedComponents.push(slug)
         }
 
         // Upsert resources as components (infra types)
@@ -308,6 +336,7 @@ export function catalogController(db: Database) {
             res
           )
           ;(r.created ? createdComponents : updatedComponents).push(slug)
+          if (r.renamed) renamedComponents.push(slug)
         }
 
         // Upsert APIs
@@ -335,6 +364,9 @@ export function catalogController(db: Database) {
           updated: {
             components: updatedComponents,
             apis: updatedApis,
+          },
+          renamed: {
+            components: renamedComponents,
           },
         }
       })

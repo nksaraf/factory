@@ -493,6 +493,8 @@ interface ParsedLabels {
   sourceRepo?: string
   sourcePath?: string
   sourceRequired?: boolean
+  // dx.previous-slugs — rename history
+  previousSlugs?: string[]
 }
 
 /**
@@ -609,6 +611,11 @@ function parseLabels(labels: Record<string, string>): ParsedLabels {
       result.sourcePath = value
     } else if (key === "dx.source.required") {
       result.sourceRequired = value === "true"
+    } else if (key === "dx.previous-slugs") {
+      result.previousSlugs = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     } else if (key === "dx.dev.command") {
       result.devCommand = value
     } else if (key === "dx.dev.sync") {
@@ -920,6 +927,7 @@ function serviceToComponent(
       runtime: labels.runtime as "node" | "python" | "java" | undefined,
       profiles: svc.profiles,
       depEnv: buildDepEnv(svc, labels),
+      previousSlugs: labels.previousSlugs,
     },
   }
 }
@@ -995,6 +1003,7 @@ function serviceToResource(
             : undefined,
       profiles: svc.profiles,
       depEnv: buildDepEnv(svc, labels),
+      previousSlugs: labels.previousSlugs,
     },
   }
 }

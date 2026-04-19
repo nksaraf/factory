@@ -11,6 +11,12 @@ export const extension = {
     "factory.infra.route.home": lazy(
       () => import("./(app)/(dashboard)/infra/page")
     ),
+    "factory.infra.route.estates": lazy(
+      () => import("./(app)/(dashboard)/infra/estates/page")
+    ),
+    "factory.infra.route.realms": lazy(
+      () => import("./(app)/(dashboard)/infra/realms/page")
+    ),
     "factory.infra.route.providers": lazy(
       () => import("./(app)/(dashboard)/infra/providers/page")
     ),
@@ -25,6 +31,9 @@ export const extension = {
     ),
     "factory.infra.route.hosts": lazy(
       () => import("./(app)/(dashboard)/infra/hosts/page")
+    ),
+    "factory.infra.route.host-detail": lazy(
+      () => import("./(app)/(dashboard)/infra/hosts/[id]/page")
     ),
     "factory.infra.route.network": lazy(
       () => import("./(app)/(dashboard)/infra/network/page")

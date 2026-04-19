@@ -790,6 +790,135 @@ export const ThreadTurnSchema = z.object({
 })
 export type ThreadTurn = z.infer<typeof ThreadTurnSchema>
 
+// ── Message ───────────────────────────────────────────────
+
+export const MessageRoleSchema = z.enum(["user", "assistant", "system", "tool"])
+export type MessageRole = z.infer<typeof MessageRoleSchema>
+
+export const MessageSpecSchema = z.object({
+  sourceMessageId: z.string().optional(),
+  model: z.string().optional(),
+  stopReason: z.string().optional(),
+  usage: z
+    .object({
+      inputTokens: z.number().default(0),
+      outputTokens: z.number().default(0),
+      cacheReadTokens: z.number().default(0),
+      cacheWriteTokens: z.number().default(0),
+    })
+    .optional(),
+})
+export type MessageSpec = z.infer<typeof MessageSpecSchema>
+
+export const MessageSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  parentId: z.string().nullable(),
+  role: MessageRoleSchema,
+  source: z.string(),
+  content: z.array(z.record(z.unknown())),
+  startedAt: z.coerce.date(),
+  completedAt: z.coerce.date().nullable(),
+  spec: MessageSpecSchema,
+  createdAt: z.coerce.date(),
+})
+export type Message = z.infer<typeof MessageSchema>
+
+export const CreateMessageSchema = z.object({
+  threadId: z.string(),
+  parentId: z.string().optional(),
+  role: MessageRoleSchema,
+  source: z.string(),
+  content: z.array(z.record(z.unknown())),
+  startedAt: z.coerce.date().default(() => new Date()),
+  completedAt: z.coerce.date().optional(),
+  spec: MessageSpecSchema.default({}),
+})
+
+// ── Exchange ──────────────────────────────────────────────
+
+export const ExchangeStatusSchema = z.enum([
+  "running",
+  "completed",
+  "interrupted",
+  "errored",
+])
+export type ExchangeStatus = z.infer<typeof ExchangeStatusSchema>
+
+export const ExchangeSpecSchema = z.object({
+  summary: z.string().optional(),
+  stats: z
+    .object({
+      toolCallCount: z.number().default(0),
+      filesWritten: z.number().default(0),
+      filesRead: z.number().default(0),
+      planEdits: z.number().default(0),
+      tokensIn: z.number().default(0),
+      tokensOut: z.number().default(0),
+    })
+    .optional(),
+  artifacts: z
+    .array(
+      z.object({
+        type: z.string(),
+        slug: z.string().optional(),
+        path: z.string().optional(),
+        version: z.number().optional(),
+        count: z.number().optional(),
+      })
+    )
+    .optional(),
+})
+export type ExchangeSpec = z.infer<typeof ExchangeSpecSchema>
+
+export const ExchangeSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  triggerMessageId: z.string(),
+  terminalMessageId: z.string().nullable(),
+  status: ExchangeStatusSchema,
+  startedAt: z.coerce.date(),
+  endedAt: z.coerce.date().nullable(),
+  spec: ExchangeSpecSchema,
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+export type Exchange = z.infer<typeof ExchangeSchema>
+
+// ── Tool Call ─────────────────────────────────────────────
+
+export const ToolCallStatusSchema = z.enum([
+  "pending",
+  "running",
+  "completed",
+  "errored",
+])
+export type ToolCallStatus = z.infer<typeof ToolCallStatusSchema>
+
+export const ToolCallSpecSchema = z.object({
+  filePath: z.string().optional(),
+  duration: z.number().optional(),
+})
+export type ToolCallSpec = z.infer<typeof ToolCallSpecSchema>
+
+export const ToolCallSchema = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  messageId: z.string(),
+  exchangeId: z.string().nullable(),
+  name: z.string(),
+  input: z.record(z.unknown()).nullable(),
+  result: z.record(z.unknown()).nullable(),
+  resultMessageId: z.string().nullable(),
+  status: ToolCallStatusSchema,
+  isError: z.boolean().nullable(),
+  startedAt: z.coerce.date(),
+  endedAt: z.coerce.date().nullable(),
+  spec: ToolCallSpecSchema,
+  createdAt: z.coerce.date(),
+})
+export type ToolCall = z.infer<typeof ToolCallSchema>
+
 // ── Thread Participant ─────────────────────────────────────
 
 export const ThreadParticipantRoleSchema = z.enum([

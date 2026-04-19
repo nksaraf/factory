@@ -35,6 +35,7 @@ factory/
 
 ## Deep Dives
 
+- [Ontology Framework](/architecture/ontology-framework) — Prescriptive patterns for entities, actions, connectors, reconcilers, and worlds
 - [Schema Design](/architecture/schemas) — Zod-first, JSONB, bitemporal patterns
 - [Catalog System](/architecture/catalog-system) — How compose labels become catalog entries
 - [Reconciler](/architecture/reconciler) — Spec/status convergence loop

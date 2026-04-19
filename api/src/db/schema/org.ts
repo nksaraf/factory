@@ -6,10 +6,12 @@ import type {
   DocumentSpec,
   DocumentVersionSpec,
   EntityRelationshipSpec,
+  ExchangeSpec,
   IdentityLinkSpec,
   JobSpec,
   MembershipSpec,
   MemorySpec,
+  MessageSpec,
   MessagingProviderSpec,
   OrgSecretSpec,
   PrincipalSpec,
@@ -20,6 +22,7 @@ import type {
   ThreadChannelSpec,
   ThreadSpec,
   ThreadTurnSpec,
+  ToolCallSpec,
   ToolCredentialSpec,
   ToolUsageSpec,
   WebhookEventSpec,
@@ -27,6 +30,7 @@ import type {
 import { sql } from "drizzle-orm"
 import {
   bigint,
+  boolean,
   index,
   integer,
   jsonb,
@@ -681,6 +685,120 @@ export const threadChannel = orgSchema.table(
   ]
 )
 
+// ─── Message ─────────────────────────────────────────────
+// Source of truth for thread interactions. One row per wire-level message.
+// Content blocks stored as JSONB array (verbatim from source).
+
+export const message = orgSchema.table(
+  "message",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("msg")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    parentId: text("parent_id"),
+    role: text("role").notNull(),
+    source: text("source").notNull(),
+    content: jsonb("content").notNull().$type<Record<string, unknown>[]>(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    spec: specCol<MessageSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_message_thread_idx").on(t.threadId),
+    index("org_message_thread_started_idx").on(t.threadId, t.startedAt),
+    index("org_message_parent_idx").on(t.parentId),
+    index("org_message_role_idx").on(t.role),
+    index("org_message_source_idx").on(t.source),
+    index("org_message_spec_gin_idx").using("gin", t.spec),
+    index("org_message_content_gin_idx").using("gin", t.content),
+  ]
+)
+
+// ─── Exchange ────────────────────────────────────────────
+// Semantic span: user question → everything the agent did → final response.
+// Derived and materialized for fast rendering of exchange summary cards.
+
+export const exchange = orgSchema.table(
+  "exchange",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("exch")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    triggerMessageId: text("trigger_message_id")
+      .notNull()
+      .references(() => message.id, { onDelete: "cascade" }),
+    terminalMessageId: text("terminal_message_id").references(
+      () => message.id,
+      {
+        onDelete: "set null",
+      }
+    ),
+    status: text("status").notNull().default("running"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    spec: specCol<ExchangeSpec>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("org_exchange_thread_idx").on(t.threadId),
+    index("org_exchange_thread_started_idx").on(t.threadId, t.startedAt),
+    index("org_exchange_status_idx").on(t.status),
+    index("org_exchange_trigger_idx").on(t.triggerMessageId),
+    index("org_exchange_spec_gin_idx").using("gin", t.spec),
+  ]
+)
+
+// ─── Tool Call ───────────────────────────────────────────
+// Projection of tool_use content blocks for queryability and FK targets.
+// id = tool_use_id from the source content block.
+
+export const toolCall = orgSchema.table(
+  "tool_call",
+  {
+    id: text("id").primaryKey(),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => message.id, { onDelete: "cascade" }),
+    exchangeId: text("exchange_id").references(() => exchange.id, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    input: jsonb("input").$type<Record<string, unknown>>(),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    resultMessageId: text("result_message_id").references(() => message.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("pending"),
+    isError: boolean("is_error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    spec: specCol<ToolCallSpec>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_tool_call_thread_idx").on(t.threadId),
+    index("org_tool_call_message_idx").on(t.messageId),
+    index("org_tool_call_exchange_idx").on(t.exchangeId),
+    index("org_tool_call_name_idx").on(t.name),
+    index("org_tool_call_name_thread_idx").on(t.name, t.threadId),
+    index("org_tool_call_status_idx").on(t.status),
+    index("org_tool_call_result_msg_idx").on(t.resultMessageId),
+    index("org_tool_call_input_gin_idx").using("gin", t.input),
+    index("org_tool_call_spec_gin_idx").using("gin", t.spec),
+  ]
+)
+
 // ─── Webhook Event ────────────────────────────────────────
 // Universal webhook event log for all external integrations.
 
@@ -1102,11 +1220,26 @@ export const documentVersion = orgSchema.table(
     threadId: text("thread_id").references(() => thread.id, {
       onDelete: "set null",
     }),
+    sourceTurnId: text("source_turn_id").references(() => threadTurn.id, {
+      onDelete: "set null",
+    }),
+    sourceMessageId: text("source_message_id").references(() => message.id, {
+      onDelete: "set null",
+    }),
+    sourceToolCallId: text("source_tool_call_id").references(
+      () => toolCall.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     spec: specCol<DocumentVersionSpec>(),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("org_docver_doc_version_unique").on(t.documentId, t.version),
     index("org_docver_document_idx").on(t.documentId),
+    index("org_docver_source_turn_idx").on(t.sourceTurnId),
+    index("org_docver_source_message_idx").on(t.sourceMessageId),
+    index("org_docver_source_tool_call_idx").on(t.sourceToolCallId),
   ]
 )
