@@ -13,20 +13,21 @@ export {
 // Config layer
 export { FactoryConfig, makeConfigLayer } from "./layers/config"
 
-// Ontology
+// Ontology — typed entity access derived from ENTITY_MAP
 export {
   Ontology,
+  ENTITY_MAP,
   type OntologyService,
   type EntityAccessor,
   makeEntityAccessor,
 } from "./services/ontology"
 export { OntologyLive } from "./layers/ontology"
 
-// Spec resolver
+// Spec resolver — $secret() and $var() resolution
 export { SpecResolver, type ResolveScope } from "./services/spec-resolver"
 export { SpecResolverLive } from "./layers/spec-resolver"
 
-// DNS
+// DNS provider
 export {
   DnsProvider,
   DnsApiError,
@@ -43,5 +44,5 @@ export { SecretsLive } from "./layers/secrets"
 // Bridge
 export { runEffect } from "./bridge"
 
-// Runtime
+// Runtime — full service stack (Db + Config + Secrets + SpecResolver + Ontology)
 export { createAppLayer, type AppLayer } from "./runtime"

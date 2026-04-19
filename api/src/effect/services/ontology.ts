@@ -1,18 +1,11 @@
 /**
- * Ontology service — strongly typed entity access by kind.
+ * Ontology service — strongly typed entity access derived from a single
+ * entity map. Adding a new entity = add one line to ENTITY_MAP.
  *
- * Provides domain-typed accessors derived from the Drizzle schema:
+ *   const est = yield* ontology.estate.get("my-estate")
+ *   const teams = yield* ontology.team.list()
  *
- *   const est = yield* ontology.estate.get("my-estate")   // typed as InferSelectModel<typeof estate>
- *   const teams = yield* ontology.team.list()              // typed as InferSelectModel<typeof team>[]
- *
- * Each accessor provides:
- *   - `get(slugOrId)` — returns typed row or EntityNotFoundError
- *   - `find(slugOrId)` — returns typed row or null
- *   - `list(opts?)` — returns typed rows with optional filter/limit
- *
- * Also provides dynamic `get(kind, slugOrId)` for runtime-determined kinds
- * (e.g., inventory reconciler, CLI commands) using ONTOLOGY_REGISTRY.
+ * Types, accessors, and layer all derive from ENTITY_MAP.
  */
 
 import { Context, Effect } from "effect"
@@ -25,31 +18,24 @@ import { isPrefixedId } from "../../lib/resolvers"
 import type { Database } from "../../db/connection"
 
 // ---------------------------------------------------------------------------
-// Entity accessor — the typed interface each `ontology.estate` etc. returns
+// Entity accessor — what each ontology.X returns
 // ---------------------------------------------------------------------------
 
 export interface EntityAccessor<T extends PgTable> {
-  /** Get by slug or ID. Fails with EntityNotFoundError if not found. */
   readonly get: (
     slugOrId: string
   ) => Effect.Effect<InferSelectModel<T>, DatabaseError | EntityNotFoundError>
 
-  /** Get by slug or ID, returns null if not found (no error). */
   readonly find: (
     slugOrId: string
   ) => Effect.Effect<InferSelectModel<T> | null, DatabaseError>
 
-  /** List with optional filter. */
   readonly list: (opts?: {
     filter?: SQL
     limit?: number
     offset?: number
   }) => Effect.Effect<InferSelectModel<T>[], DatabaseError>
 }
-
-// ---------------------------------------------------------------------------
-// Accessor factory — builds a typed accessor from a Drizzle table
-// ---------------------------------------------------------------------------
 
 export function makeEntityAccessor<T extends PgTable>(
   db: Database,
@@ -88,9 +74,7 @@ export function makeEntityAccessor<T extends PgTable>(
             )
           : Effect.succeed(row)
       ),
-
     find: resolve,
-
     list: (opts) =>
       query(
         (() => {
@@ -105,7 +89,10 @@ export function makeEntityAccessor<T extends PgTable>(
 }
 
 // ---------------------------------------------------------------------------
-// Import all slug-based ontology tables
+// ENTITY_MAP — THE SINGLE SOURCE OF TRUTH
+//
+// Add one line here to register a new entity. Types, accessors, and
+// the layer all derive from this map automatically.
 // ---------------------------------------------------------------------------
 
 import {
@@ -129,43 +116,69 @@ import { team, principal, agent } from "../../db/schema/org"
 import { site, systemDeployment, workbench } from "../../db/schema/ops"
 import { repo, gitHostProvider } from "../../db/schema/build"
 
-// ---------------------------------------------------------------------------
-// Full typed service interface
-// ---------------------------------------------------------------------------
+function e<T extends PgTable>(
+  kind: string,
+  table: T,
+  slug: PgColumn,
+  id: PgColumn
+) {
+  return { kind, table, slug, id } as const
+}
 
-export interface OntologyService {
+export const ENTITY_MAP = {
   // Infra
-  readonly estate: EntityAccessor<typeof estate>
-  readonly host: EntityAccessor<typeof host>
-  readonly realm: EntityAccessor<typeof realm>
-  readonly service: EntityAccessor<typeof service>
-  readonly route: EntityAccessor<typeof route>
-  readonly dnsDomain: EntityAccessor<typeof dnsDomain>
-  readonly networkLink: EntityAccessor<typeof networkLink>
+  estate: e("estate", estate, estate.slug, estate.id),
+  host: e("host", host, host.slug, host.id),
+  realm: e("realm", realm, realm.slug, realm.id),
+  service: e("service", service, service.slug, service.id),
+  route: e("route", route, route.slug, route.id),
+  dnsDomain: e("dns-domain", dnsDomain, dnsDomain.slug, dnsDomain.id),
+  networkLink: e("network-link", networkLink, networkLink.slug, networkLink.id),
 
   // Software
-  readonly system: EntityAccessor<typeof system>
-  readonly component: EntityAccessor<typeof component>
-  readonly api: EntityAccessor<typeof softwareApi>
-  readonly template: EntityAccessor<typeof template>
-  readonly product: EntityAccessor<typeof product>
-  readonly capability: EntityAccessor<typeof capability>
+  system: e("system", system, system.slug, system.id),
+  component: e("component", component, component.slug, component.id),
+  api: e("api", softwareApi, softwareApi.slug, softwareApi.id),
+  template: e("template", template, template.slug, template.id),
+  product: e("product", product, product.slug, product.id),
+  capability: e("capability", capability, capability.slug, capability.id),
 
   // Org
-  readonly team: EntityAccessor<typeof team>
-  readonly principal: EntityAccessor<typeof principal>
-  readonly agent: EntityAccessor<typeof agent>
+  team: e("team", team, team.slug, team.id),
+  principal: e("principal", principal, principal.slug, principal.id),
+  agent: e("agent", agent, agent.slug, agent.id),
 
   // Ops
-  readonly site: EntityAccessor<typeof site>
-  readonly systemDeployment: EntityAccessor<typeof systemDeployment>
-  readonly workbench: EntityAccessor<typeof workbench>
+  site: e("site", site, site.slug, site.id),
+  systemDeployment: e(
+    "system-deployment",
+    systemDeployment,
+    systemDeployment.slug,
+    systemDeployment.id
+  ),
+  workbench: e("workbench", workbench, workbench.slug, workbench.id),
 
   // Build
-  readonly repo: EntityAccessor<typeof repo>
-  readonly gitHostProvider: EntityAccessor<typeof gitHostProvider>
+  repo: e("repository", repo, repo.slug, repo.id),
+  gitHostProvider: e(
+    "git-host-provider",
+    gitHostProvider,
+    gitHostProvider.slug,
+    gitHostProvider.id
+  ),
+} as const
 
-  // Dynamic — for runtime-determined kinds (inventory reconciler, CLI)
+// ---------------------------------------------------------------------------
+// Derived types — no manual interface declaration needed
+// ---------------------------------------------------------------------------
+
+type EntityMap = typeof ENTITY_MAP
+
+/** The full typed ontology service — derived from ENTITY_MAP. */
+export type OntologyService = {
+  readonly [K in keyof EntityMap]: EntityAccessor<EntityMap[K]["table"]>
+} & {
+  /** Dynamic access by kind string (for runtime-determined entity types). */
   readonly get: (
     kind: string,
     slugOrId: string

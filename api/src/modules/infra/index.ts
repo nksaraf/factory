@@ -89,12 +89,8 @@ import {
   getEntityIps,
 } from "../../services/infra/ipam.service"
 import { syncDnsFromEstate } from "../../effect/programs/dns-sync"
-import {
-  makeDbLayer,
-  SecretsLive,
-  SpecResolverLive,
-  runEffect,
-} from "../../effect"
+import { runEffect } from "../../effect"
+import { createAppLayer } from "../../effect/runtime"
 import { verifyDomain } from "./gateway.service"
 import { drizzleDbReader, resolveRouteTargets } from "./route-resolver"
 import {
@@ -1212,14 +1208,12 @@ export function infraController(db: Database) {
         "/dns-sync",
         async ({ body }) => {
           const parsed = z.object({ estateId: z.string().min(1) }).parse(body)
-          const { Effect, Layer } = await import("effect")
-          const dbLayer = makeDbLayer(db)
-          const appLayer = Layer.provideMerge(
-            Layer.provideMerge(SpecResolverLive, SecretsLive),
-            dbLayer
-          )
+          const { Effect } = await import("effect")
           const result = await runEffect(
-            Effect.provide(syncDnsFromEstate(parsed.estateId), appLayer)
+            Effect.provide(
+              syncDnsFromEstate(parsed.estateId),
+              createAppLayer(db)
+            )
           )
           return ok(result)
         },
