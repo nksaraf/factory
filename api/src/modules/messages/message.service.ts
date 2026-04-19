@@ -28,6 +28,15 @@ export async function ingestMessages(
 
   for (const msg of messages) {
     const msgId = msg.id.startsWith("msg_") ? msg.id : newId("msg")
+    const startedAt =
+      msg.startedAt instanceof Date
+        ? msg.startedAt
+        : new Date(msg.startedAt as unknown as string)
+    const completedAt = msg.completedAt
+      ? msg.completedAt instanceof Date
+        ? msg.completedAt
+        : new Date(msg.completedAt as unknown as string)
+      : null
 
     await db
       .insert(message)
@@ -38,8 +47,8 @@ export async function ingestMessages(
         role: msg.role,
         source: msg.source,
         content: msg.content as any,
-        startedAt: msg.startedAt,
-        completedAt: msg.completedAt ?? null,
+        startedAt,
+        completedAt,
         spec: {
           sourceMessageId: msg.id,
           model: msg.model,
@@ -66,7 +75,7 @@ export async function ingestMessages(
               name: b.name as string,
               input: b.input as Record<string, unknown>,
               status: "pending",
-              startedAt: msg.startedAt,
+              startedAt,
               spec: {} as any,
             })
             .onConflictDoNothing()
@@ -90,7 +99,7 @@ export async function ingestMessages(
               resultMessageId: msgId,
               status: b.is_error ? "errored" : "completed",
               isError: (b.is_error as boolean) ?? false,
-              endedAt: msg.startedAt,
+              endedAt: startedAt,
             })
             .where(eq(toolCall.id, toolUseId))
         }
