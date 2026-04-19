@@ -143,7 +143,7 @@ export const localSystemDeploymentSchema = z.object({
    * "link the system but run auth-api locally" case). Dev & preview only.
    */
   linkedRef: systemLinkedRefSchema.optional(),
-  realm: z.object({ slug: z.string(), type: z.string() }).optional(),
+  realm: z.object({ slug: z.string(), type: z.string() }).nullish(),
   componentDeployments: z.array(localComponentDeploymentSchema).default([]),
   resolvedEnv: z.record(resolvedEnvEntrySchema).default({}),
   tunnels: z.array(tunnelSpecSchema).default([]),

@@ -56,9 +56,7 @@ export async function getSiteState(db: Database, slugOrId: string) {
         systemSlug: sd.name,
         runtime: (sdSpec.runtime as string) ?? "docker-compose",
         composeFiles: (sdSpec.composeFiles as string[]) ?? [],
-        realm: realmRow
-          ? { slug: realmRow.slug, type: realmRow.type }
-          : undefined,
+        realm: realmRow ? { slug: realmRow.slug, type: realmRow.type } : null,
         componentDeployments: cds.map(({ cd, componentSlug }) => {
           const spec = (cd.spec ?? {}) as Record<string, unknown>
           const status = (cd.status ?? {}) as Record<string, unknown>
