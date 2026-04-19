@@ -13,7 +13,20 @@ export {
 // Config layer
 export { FactoryConfig, makeConfigLayer } from "./layers/config"
 
-// DNS layer
+// Ontology
+export {
+  Ontology,
+  type OntologyService,
+  type EntityAccessor,
+  makeEntityAccessor,
+} from "./services/ontology"
+export { OntologyLive } from "./layers/ontology"
+
+// Spec resolver
+export { SpecResolver, type ResolveScope } from "./services/spec-resolver"
+export { SpecResolverLive } from "./layers/spec-resolver"
+
+// DNS
 export {
   DnsProvider,
   DnsApiError,
