@@ -93,12 +93,25 @@ export class RemoteSiteBackend implements SiteBackend {
 
   private async fetchState(): Promise<SiteState> {
     if (this.cached) return this.cached
-    const raw = await this.client.request<unknown>(
-      "GET",
-      `/api/v1/factory/ops/sites/${this.siteSlug}/state`
-    )
-    this.cached = siteStateSchema.parse(raw)
-    return this.cached
+    try {
+      const raw = await this.client.request<unknown>(
+        "GET",
+        `/api/v1/factory/ops/sites/${this.siteSlug}/state`
+      )
+      this.cached = siteStateSchema.parse(raw)
+      return this.cached
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes("404")) {
+        throw new Error(
+          `Site "${this.siteSlug}" not found, or the Factory API does not support the /state endpoint yet. ` +
+            `Ensure the site exists and the API is updated.`
+        )
+      }
+      throw new Error(
+        `Failed to fetch state for site "${this.siteSlug}": ${msg}`
+      )
+    }
   }
 
   async getState(): Promise<SiteState> {

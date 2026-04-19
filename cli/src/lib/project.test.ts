@@ -174,7 +174,7 @@ describe("ProjectContext.fromPackageJson", () => {
     expect(names[0]).not.toBe("")
   })
 
-  test("no scripts.dev → no component synthesized (dev-orchestrator will surface)", () => {
+  test("no scripts.dev → no component synthesized (orchestrator will surface)", () => {
     writeJson(join(rootDir, "package.json"), {
       name: "foo",
       dx: { tier: "marketing" },
