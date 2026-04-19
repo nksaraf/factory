@@ -195,12 +195,12 @@ export class SiteManager {
     if (!cd) return
     // Only restore runtime status fields — intent fields (mode, spec) are
     // already set by the caller to reflect current intent.
-    if (prior.status.pid) cd.status.pid = prior.status.pid
-    if (prior.status.port) cd.status.port = prior.status.port
-    if (prior.status.phase) cd.status.phase = prior.status.phase
-    if (prior.status.actualImage)
+    if (prior.status.pid != null) cd.status.pid = prior.status.pid
+    if (prior.status.port != null) cd.status.port = prior.status.port
+    if (prior.status.phase != null) cd.status.phase = prior.status.phase
+    if (prior.status.actualImage != null)
       cd.status.actualImage = prior.status.actualImage
-    if (prior.status.containerId)
+    if (prior.status.containerId != null)
       cd.status.containerId = prior.status.containerId
   }
 

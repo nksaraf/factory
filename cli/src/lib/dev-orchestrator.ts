@@ -655,6 +655,19 @@ export class DevOrchestrator {
       this.site.setComponentMode(this.sdSlug, dep, "container")
     }
 
+    // ── Restore runtime status from prior run ──────────────────
+    // MUST run BEFORE executor deploys — so readLivePid() finds the
+    // restored PID, confirms the process is alive, and skips re-spawn.
+    // Running this AFTER executor would overwrite fresh PIDs with stale ones.
+    if (savedStatuses.size > 0) {
+      for (const target of targets) {
+        this.site.restoreStatus(this.sdSlug, target, savedStatuses)
+      }
+      for (const dep of localDockerDeps) {
+        this.site.restoreStatus(this.sdSlug, dep, savedStatuses)
+      }
+    }
+
     // ── Start local Docker deps ───────────────────────────────
     if (localDockerDeps.length > 0 && this.compose) {
       if (!isDockerRunning()) {
@@ -733,18 +746,6 @@ export class DevOrchestrator {
       await this.openTunnel(tunnelSubdomain, {
         exposeConsole: opts.exposeConsole,
       })
-    }
-
-    // ── Restore runtime status from prior run ──────────────────
-    // PIDs/ports/phases that survived resetIntent(). Only applied to
-    // components that were re-added by the intent rebuild above.
-    if (savedStatuses.size > 0) {
-      for (const target of targets) {
-        this.site.restoreStatus(this.sdSlug, target, savedStatuses)
-      }
-      for (const dep of localDockerDeps) {
-        this.site.restoreStatus(this.sdSlug, dep, savedStatuses)
-      }
     }
 
     this.site.save()

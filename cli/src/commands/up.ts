@@ -2,6 +2,10 @@ import { existsSync, unlinkSync } from "node:fs"
 import { basename, join } from "node:path"
 
 import type { DxBase } from "../dx-root.js"
+import {
+  autoConnectsFromDeps,
+  coveredSystemsFromConnectFlags,
+} from "../lib/auto-connect.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import {
   COMPOSE_OVERRIDE_FILE,
@@ -15,20 +19,25 @@ import {
   portEnvVars,
   printPortTable,
 } from "../lib/port-manager.js"
+import { runPrelude } from "../lib/prelude.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 
 setExamples("up", [
-  "$ dx up                  Bring up all services",
+  "$ dx up                  Bring up the site (all containers, prod-like)",
   "$ dx up infra            Bring up a profile",
   "$ dx up postgres redis   Bring up specific services",
   "$ dx up --no-build       Skip building local services",
+  "$ dx up --connect-to staging   Connect deps to staging site",
 ])
 
 export function upCommand(app: DxBase) {
   return app
     .sub("up")
-    .meta({ description: "Bring up the docker compose stack" })
+    .meta({
+      description:
+        "Bring up the site — all services as containers (prod-like). Run dx dev to overlay native dev servers.",
+    })
     .args([
       {
         name: "targets",
@@ -47,19 +56,70 @@ export function upCommand(app: DxBase) {
         type: "boolean",
         description: "Run in detached mode (default: true)",
       },
+      "connect-to": {
+        type: "string" as const,
+        description: "Connect all system deps to a site (blanket)",
+      },
+      connect: {
+        type: "string" as const,
+        short: "c",
+        description: "Per-system connection: system:site (repeatable)",
+      },
+      prelude: {
+        type: "boolean" as const,
+        description:
+          "Run cached prelude (default: true, use --no-prelude to skip)",
+      },
+      fresh: {
+        type: "boolean" as const,
+        description: "Invalidate prelude stamps and re-run every step",
+      },
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
       try {
-        if (!isDockerRunning()) {
-          exitWithError(f, "Docker does not appear to be running.")
-        }
-
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
+
+        // ── Auto-connect (same as dx dev) ────────────────────────
+        const userConnect = flags.connect as string | string[] | undefined
+        const coveredSystems = coveredSystemsFromConnectFlags(userConnect)
+        const auto = autoConnectsFromDeps({
+          catalog: project.catalog,
+          hasConnectToFlag: Boolean(flags["connect-to"]),
+          coveredSystems,
+        })
+        if (auto.errors.length > 0) {
+          for (const err of auto.errors) console.error(`  ! ${err}`)
+          exitWithError(
+            f,
+            `cannot resolve ${auto.errors.length} required system ${auto.errors.length === 1 ? "dependency" : "dependencies"}`
+          )
+          return
+        }
+        if (!f.quiet) {
+          for (const log of auto.logs) console.log(log)
+          for (const warn of auto.warnings) console.warn(`  ! ${warn}`)
+        }
+        const userConnectList = !userConnect
+          ? []
+          : Array.isArray(userConnect)
+            ? userConnect
+            : [userConnect]
+        const effectiveConnect = [...userConnectList, ...auto.autoConnects]
+
+        // ── Cached prelude ───────────────────────────────────────
+        await runPrelude(ctx, {
+          noPrelude: flags.prelude === false,
+          fresh: Boolean(flags.fresh),
+          connectTo: flags["connect-to"] as string | undefined,
+          connectSpecific:
+            effectiveConnect.length > 0 ? effectiveConnect : undefined,
+          quiet: Boolean(f.quiet),
+        })
+
+        // ── Compose bring-up ─────────────────────────────────────
         if (project.composeFiles.length === 0) {
-          // Package-only projects (marketing sites, etc.) have no compose
-          // to bring up. Successful no-op is friendlier than a fatal error.
           if (!f.quiet) {
             console.log(
               "  Nothing to bring up — this project has no docker-compose services."
@@ -67,6 +127,10 @@ export function upCommand(app: DxBase) {
             console.log("  Run `dx dev` to start any native dev servers.")
           }
           return
+        }
+
+        if (!isDockerRunning()) {
+          exitWithError(f, "Docker does not appear to be running.")
         }
 
         // Resolve all ports through PortManager
