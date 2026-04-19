@@ -13,9 +13,35 @@
  * On Stop/SessionEnd, parses the local transcript JSONL to extract token usage,
  * model, and turn count — so the server gets rich metadata without needing `dx scan`.
  */
-import { readFileSync } from "node:fs"
+import { readFileSync, appendFileSync, mkdirSync, statSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 import { sendHookEvent } from "./lib/send-event"
+
+const HOOK_STATE_DIR = join(homedir(), ".claude", "hook-state")
+
+/**
+ * Deterministic per-session, per-event-type delivery IDs so scan-backfill and
+ * live hooks produce the same IDs and deduplicate at the ingest layer. Format
+ * matches scan output: cc-{eventType-with-dashes}-{sessionId}-{n}.
+ *
+ * Concurrency: Claude Code fans out hook subprocesses in parallel. A
+ * read-modify-write JSON counter races. Instead, maintain a marker file per
+ * (session, eventType): appendFileSync of a single byte is atomic on POSIX, so
+ * the post-append size uniquely identifies this invocation's slot (n = size - 1).
+ */
+function nextDeliveryId(sessionId: string, eventType: string): string {
+  try {
+    mkdirSync(HOOK_STATE_DIR, { recursive: true })
+    const marker = join(HOOK_STATE_DIR, `${sessionId}.${eventType}`)
+    appendFileSync(marker, ".")
+    const n = statSync(marker).size - 1
+    return `cc-${eventType.replace(/\./g, "-")}-${sessionId}-${n}`
+  } catch {
+    return `cc-${eventType.replace(/\./g, "-")}-${sessionId}-${crypto.randomUUID()}`
+  }
+}
 
 const EVENT_TYPE_MAP: Record<string, string> = {
   SessionStart: "session.start",
@@ -54,7 +80,7 @@ async function main() {
 
   await sendHookEvent({
     source: "claude-code",
-    deliveryId: crypto.randomUUID(),
+    deliveryId: nextDeliveryId(sessionId, eventType),
     eventType,
     sessionId,
     timestamp: new Date().toISOString(),

@@ -155,7 +155,7 @@ const CURSOR_HOOK_EVENTS = [
 ] as const
 
 function detectCursor(): ConfigChange {
-  const hooksDir = join(homedir(), ".cursor", "hooks")
+  const hooksDir = join(homedir(), ".cursor")
   const hooksPath = join(hooksDir, "hooks.json")
 
   let alreadyApplied = false
@@ -219,9 +219,13 @@ function detectCursor(): ConfigChange {
                 isOurHookCommand(entry.command)
               )
           )
-          ;(hooks[event] as Array<Record<string, unknown>>).push({ command })
+          ;(hooks[event] as Array<Record<string, unknown>>).push({
+            type: "command",
+            command,
+          })
         }
 
+        config.version = 1
         config.hooks = hooks
         mkdirSync(hooksDir, { recursive: true })
         writeFileSync(hooksPath, JSON.stringify(config, null, 2) + "\n")

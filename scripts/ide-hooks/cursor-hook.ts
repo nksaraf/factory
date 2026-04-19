@@ -2,10 +2,11 @@
 /**
  * Cursor hook script — handles ALL Cursor hook events.
  *
- * Usage in .cursor/hooks/hooks.json:
+ * Usage in ~/.cursor/hooks.json:
  *   {
+ *     "version": 1,
  *     "hooks": {
- *       "sessionStart": [{ "command": "bun run /path/to/cursor-hook.ts sessionStart" }],
+ *       "sessionStart": [{ "type": "command", "command": "bun run /path/to/cursor-hook.ts sessionStart" }],
  *       ...
  *     }
  *   }

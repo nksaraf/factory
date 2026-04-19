@@ -10,12 +10,8 @@ import {
   type IngestEvent,
   type IngestOptions,
   type IngestResult,
-  type ToolCall,
-  type ToolResult,
   classifyToolError,
   extractTextFromContent,
-  extractToolCalls,
-  extractToolResults,
   fixLocalTimestamp,
   getClaudeCodeProjectsDir,
   normalizeModel,
@@ -31,7 +27,13 @@ import {
   extractPlansFromTranscript,
   groupPlanSnapshots,
 } from "./plan-extractor.js"
-import { sendBatch, uploadDocument, uploadDocumentVersion } from "./send.js"
+import {
+  sendBatch,
+  sendMessages,
+  uploadDocument,
+  uploadDocumentVersion,
+} from "./send.js"
+import { parseClaudeCodeSession } from "@smp/factory-shared/adapters/claude-code.adapter"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ type JournalEntry = {
     role?: string
     content?: unknown
     model?: string
+    stop_reason?: string
     usage?: {
       input_tokens?: number
       output_tokens?: number
@@ -78,33 +81,6 @@ type ToolError = {
   errorClass: string
 }
 
-type Turn = {
-  index: number
-  userText: string
-  assistantText: string
-  model?: string
-  tokenUsage: {
-    input: number
-    output: number
-    cacheRead: number
-    cacheWrite: number
-  }
-  toolCalls: Array<{ name: string; input?: string }>
-  toolErrors: ToolError[]
-  timestamp: string
-}
-
-type SubagentInvocation = {
-  toolUseId: string
-  index: number
-  description: string
-  subagentType: string
-  prompt: string
-  resultText: string
-  resultLen: number
-  timestamp: string
-}
-
 // ── File discovery ───────────────────────────────────────────
 
 function findJsonlFiles(projectsDir: string, since?: Date): string[] {
@@ -129,7 +105,14 @@ function findJsonlFiles(projectsDir: string, since?: Date): string[] {
   return files
 }
 
-// ── Session parsing ──────────────────────────────────────────
+// ── Session parsing (hook-compatible replay) ────────────────
+//
+// Walks the JSONL transcript and emits the same fine-grained events that
+// the live hook script would have sent: session.start, prompt.submit,
+// tool.pre, tool.post, agent.stop, subagent.start/stop, session.end.
+//
+// Delivery IDs are deterministic so re-running scan is idempotent:
+//   cc-{eventType}-{sessionId}-{sequenceIndex}
 
 function parseSession(
   filePath: string
@@ -151,34 +134,88 @@ function parseSession(
   let gitBranch: string | undefined
   let version: string | undefined
   let project: string | undefined
+  let model: string | undefined
 
-  type RawEntry = {
-    type: "user-prompt" | "user-tool-result" | "assistant"
-    text: string
-    model?: string
-    usage?: NonNullable<JournalEntry["message"]>["usage"]
-    toolCalls: ToolCall[]
-    toolResults: ToolResult[]
-    timestamp: string
+  // Counters for deterministic delivery IDs per event type
+  const seq: Record<string, number> = {}
+  function nextDeliveryId(eventType: string): string {
+    const n = seq[eventType] ?? 0
+    seq[eventType] = n + 1
+    return `cc-${eventType.replace(/\./g, "-")}-${sessionId}-${n}`
   }
 
-  const timeline: RawEntry[] = []
+  // Accumulate token usage for session.end summary
+  const totalTokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+  let turnCount = 0
+  let toolCallCount = 0
+  const toolNames = new Set<string>()
+  const toolErrors: ToolError[] = []
   const toolUseIdToName = new Map<string, string>()
-  const agentToolUses = new Map<
-    string,
-    {
-      description: string
-      subagentType: string
-      prompt: string
-      timestamp: string
-    }
-  >()
-  const subagentInvocations: SubagentInvocation[] = []
 
+  // Track seen tool_use IDs to avoid duplicate tool.pre from progress entries
+  const emittedToolPre = new Set<string>()
+
+  // Build events by walking the transcript
+  const events: IngestEvent[] = []
+  let firstTimestamp: string | undefined
+  let lastTimestamp: string | undefined
+
+  function makeEvent(
+    eventType: string,
+    timestamp: string,
+    payload: Record<string, unknown>
+  ): IngestEvent {
+    const ts = fixLocalTimestamp(timestamp) ?? timestamp
+    if (!firstTimestamp) firstTimestamp = ts
+    lastTimestamp = ts
+    return {
+      source: "claude-code",
+      deliveryId: nextDeliveryId(eventType),
+      eventType,
+      sessionId,
+      timestamp: ts,
+      cwd,
+      project,
+      payload: { sessionId, ...payload },
+    }
+  }
+
+  // First pass: extract metadata
   for (const entry of entries) {
     if (!cwd && entry.cwd) cwd = entry.cwd
     if (!gitBranch && entry.gitBranch) gitBranch = entry.gitBranch
     if (!version && entry.version) version = entry.version
+  }
+
+  const repoCtx = cwd ? resolveRepoContext(cwd) : {}
+  if (cwd) {
+    project = repoCtx.repoSlug ?? cwd.split("/").slice(-2).join("/")
+  }
+
+  // Second pass: emit events
+  let sessionStartEmitted = false
+
+  for (const entry of entries) {
+    const ts = entry.timestamp ?? ""
+
+    // Emit session.start on first meaningful entry
+    if (
+      !sessionStartEmitted &&
+      (entry.type === "user" || entry.type === "assistant")
+    ) {
+      sessionStartEmitted = true
+      events.push(
+        makeEvent("session.start", ts, {
+          model: entry.message?.model,
+          source: "startup",
+          cwd,
+          gitBranch,
+          gitRemoteUrl: repoCtx.gitRemoteUrl,
+          repoSlug: repoCtx.repoSlug,
+          repoName: repoCtx.repoName,
+        })
+      )
+    }
 
     if (entry.type === "user" && entry.message) {
       const content = entry.message.content
@@ -186,306 +223,212 @@ function parseSession(
         Array.isArray(content) &&
         content.some((c: any) => c?.type === "tool_result")
 
-      if (isToolResult) {
-        if (Array.isArray(content)) {
-          for (const c of content as any[]) {
-            if (c?.type === "tool_result" && agentToolUses.has(c.tool_use_id)) {
-              const info = agentToolUses.get(c.tool_use_id)!
-              const resultText =
-                typeof c.content === "string"
-                  ? c.content
-                  : Array.isArray(c.content)
-                    ? (c.content as any[])
-                        .map((b: any) => b.text ?? "")
-                        .join("")
-                    : ""
-              subagentInvocations.push({
-                toolUseId: c.tool_use_id,
-                index: subagentInvocations.length,
-                description: info.description,
-                subagentType: info.subagentType,
-                prompt: info.prompt,
-                resultText,
-                resultLen: resultText.length,
-                timestamp: info.timestamp,
+      if (isToolResult && Array.isArray(content)) {
+        // tool.post events for each tool_result
+        for (const c of content as any[]) {
+          if (c?.type !== "tool_result") continue
+          const toolName = toolUseIdToName.get(c.tool_use_id) ?? "unknown"
+          const output =
+            typeof c.content === "string"
+              ? c.content
+              : Array.isArray(c.content)
+                ? (c.content as any[]).map((b: any) => b.text ?? "").join("")
+                : ""
+          const isError = c.is_error === true
+
+          if (isError) {
+            events.push(
+              makeEvent("tool.post_failure", ts, {
+                tool_name: toolName,
+                tool_input: undefined,
+                error: truncText(output),
               })
-            }
+            )
+            toolErrors.push({
+              toolName,
+              error: output,
+              errorClass: classifyToolError(output),
+            })
+          } else {
+            events.push(
+              makeEvent("tool.post", ts, {
+                tool_name: toolName,
+                tool_input: undefined,
+                tool_output: truncText(output),
+              })
+            )
           }
         }
-        timeline.push({
-          type: "user-tool-result",
-          text: "",
-          toolCalls: [],
-          toolResults: extractToolResults(content),
-          timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-        })
       } else {
-        const text =
+        // prompt.submit — real user prompt
+        const promptText =
           typeof content === "string"
             ? content
             : extractTextFromContent(content)
-        timeline.push({
-          type: "user-prompt",
-          text,
-          toolCalls: [],
-          toolResults: [],
-          timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-        })
+        const clean = stripSystemTags(promptText)
+        if (clean) {
+          turnCount++
+          events.push(
+            makeEvent("prompt.submit", ts, {
+              prompt: truncText(clean),
+            })
+          )
+        }
       }
     } else if (entry.type === "assistant" && entry.message) {
-      const content = entry.message.content
-      const calls = extractToolCalls(content)
-      if (Array.isArray(content)) {
-        for (const c of content) {
+      const msg = entry.message
+      if (!model && msg.model) model = msg.model
+
+      // Accumulate usage
+      if (msg.usage) {
+        totalTokens.input += msg.usage.input_tokens ?? 0
+        totalTokens.output += msg.usage.output_tokens ?? 0
+        totalTokens.cacheRead += msg.usage.cache_read_input_tokens ?? 0
+        totalTokens.cacheWrite += msg.usage.cache_creation_input_tokens ?? 0
+      }
+
+      // Emit tool.pre for each tool_use in this message
+      if (Array.isArray(msg.content)) {
+        for (const c of msg.content as any[]) {
           if (c?.type === "tool_use" && c.id && c.name) {
             toolUseIdToName.set(c.id, c.name)
-            if (c.name === "Agent") {
-              agentToolUses.set(c.id, {
-                description: c.input?.description ?? "",
-                subagentType: c.input?.subagent_type ?? "general-purpose",
-                prompt: c.input?.prompt ?? "",
-                timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-              })
+            toolCallCount++
+            toolNames.add(c.name)
+
+            if (!emittedToolPre.has(c.id)) {
+              emittedToolPre.add(c.id)
+
+              // Subagent start
+              if (c.name === "Agent") {
+                events.push(
+                  makeEvent("subagent.start", ts, {
+                    agent_id: c.id,
+                    agent_type: c.input?.subagent_type ?? "general-purpose",
+                    description: c.input?.description,
+                  })
+                )
+              }
+
+              events.push(
+                makeEvent("tool.pre", ts, {
+                  tool_name: c.name,
+                  tool_input:
+                    typeof c.input === "string"
+                      ? c.input.slice(0, 2048)
+                      : JSON.stringify(c.input ?? "").slice(0, 2048),
+                })
+              )
             }
           }
         }
       }
-      timeline.push({
-        type: "assistant",
-        text: extractTextFromContent(content),
-        model: entry.message.model,
-        usage: entry.message.usage,
-        toolCalls: calls,
-        toolResults: [],
-        timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-      })
+
+      // Emit agent.stop when the assistant message has stop_reason
+      if (msg.stop_reason) {
+        const responseText = extractTextFromContent(msg.content)
+        events.push(
+          makeEvent("agent.stop", ts, {
+            stop_reason: msg.stop_reason,
+            model: normalizeModel(msg.model),
+            tokenUsage: { ...totalTokens },
+            turnCount,
+            toolCallCount,
+            toolsUsed: [...toolNames],
+            responseSummary: truncSummary(responseText),
+          })
+        )
+      }
     } else if (
       entry.type === "progress" &&
       entry.data?.type === "assistant" &&
       entry.data?.message
     ) {
       const msg = entry.data.message
+      if (!model && msg.model) model = msg.model
+
+      if (msg.usage) {
+        totalTokens.input += msg.usage.input_tokens ?? 0
+        totalTokens.output += msg.usage.output_tokens ?? 0
+        totalTokens.cacheRead += msg.usage.cache_read_input_tokens ?? 0
+        totalTokens.cacheWrite += msg.usage.cache_creation_input_tokens ?? 0
+      }
+
       if (Array.isArray(msg.content)) {
         for (const c of msg.content as any[]) {
           if (c?.type === "tool_use" && c.id && c.name) {
             toolUseIdToName.set(c.id, c.name)
-            if (c.name === "Agent") {
-              agentToolUses.set(c.id, {
-                description: c.input?.description ?? "",
-                subagentType: c.input?.subagent_type ?? "general-purpose",
-                prompt: c.input?.prompt ?? "",
-                timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-              })
+
+            if (!emittedToolPre.has(c.id)) {
+              emittedToolPre.add(c.id)
+              toolCallCount++
+              toolNames.add(c.name)
+
+              if (c.name === "Agent") {
+                events.push(
+                  makeEvent("subagent.start", ts, {
+                    agent_id: c.id,
+                    agent_type: c.input?.subagent_type ?? "general-purpose",
+                    description: c.input?.description,
+                  })
+                )
+              }
+
+              events.push(
+                makeEvent("tool.pre", ts, {
+                  tool_name: c.name,
+                  tool_input:
+                    typeof c.input === "string"
+                      ? c.input.slice(0, 2048)
+                      : JSON.stringify(c.input ?? "").slice(0, 2048),
+                })
+              )
             }
           }
         }
       }
-      timeline.push({
-        type: "assistant",
-        text: extractTextFromContent(msg.content),
-        model: msg.model,
-        usage: msg.usage,
-        toolCalls: extractToolCalls(msg.content),
-        toolResults: [],
-        timestamp: fixLocalTimestamp(entry.timestamp) ?? "",
-      })
     }
   }
 
-  // Resolve repo context
-  const repoCtx = cwd ? resolveRepoContext(cwd) : {}
-  if (cwd) {
-    project = repoCtx.repoSlug ?? cwd.split("/").slice(-2).join("/")
-  }
+  if (events.length === 0) return null
 
-  // Group into turns
-  const turns: Turn[] = []
-  let currentTurnStart = -1
-
-  for (let i = 0; i <= timeline.length; i++) {
-    const isNewPrompt =
-      i < timeline.length && timeline[i].type === "user-prompt"
-    const isEnd = i === timeline.length
-
-    if ((isNewPrompt || isEnd) && currentTurnStart >= 0) {
-      const promptEntry = timeline[currentTurnStart]
-      const turnEntries = timeline.slice(currentTurnStart + 1, i)
-
-      const totalUsage = {
-        input: 0,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-      }
-      const allToolCalls: Turn["toolCalls"] = []
-      const allToolErrors: ToolError[] = []
-      let model: string | undefined
-      let assistantText = ""
-
-      for (const e of turnEntries) {
-        if (e.type === "assistant") {
-          if (e.usage) {
-            totalUsage.input += e.usage.input_tokens ?? 0
-            totalUsage.output += e.usage.output_tokens ?? 0
-            totalUsage.cacheRead += e.usage.cache_read_input_tokens ?? 0
-            totalUsage.cacheWrite += e.usage.cache_creation_input_tokens ?? 0
-          }
-          allToolCalls.push(...e.toolCalls)
-          if (!model && e.model) model = e.model
-          if (e.text) assistantText += (assistantText ? "\n" : "") + e.text
-        } else if (e.type === "user-tool-result") {
-          for (const tr of e.toolResults) {
-            if (tr.isError && tr.error) {
-              const toolName = toolUseIdToName.get(tr.toolUseId) ?? "unknown"
-              allToolErrors.push({
-                toolName,
-                error: tr.error,
-                errorClass: classifyToolError(tr.error),
-              })
-            }
-          }
-        }
-      }
-
-      const cleanPrompt = stripSystemTags(promptEntry.text)
-      if (!cleanPrompt && !assistantText && allToolCalls.length === 0) continue
-
-      turns.push({
-        index: turns.length,
-        userText: cleanPrompt,
-        assistantText,
-        model,
-        tokenUsage: totalUsage,
-        toolCalls: allToolCalls,
-        toolErrors: allToolErrors,
-        timestamp: promptEntry.timestamp,
-      })
-    }
-
-    if (isNewPrompt) currentTurnStart = i
-  }
-
-  if (turns.length === 0) return null
-
-  // Build events
-  const events: IngestEvent[] = []
-
-  const allToolNames = [
-    ...new Set(turns.flatMap((t) => t.toolCalls.map((tc) => tc.name))),
-  ]
-  const allErrors = turns.flatMap((t) => t.toolErrors)
-  const totalTokens = turns.reduce(
-    (acc, t) => ({
-      input: acc.input + t.tokenUsage.input,
-      output: acc.output + t.tokenUsage.output,
-      cacheRead: acc.cacheRead + t.tokenUsage.cacheRead,
-      cacheWrite: acc.cacheWrite + t.tokenUsage.cacheWrite,
-    }),
-    { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
-  )
-
-  const errorsByTool: Record<string, number> = {}
-  const errorsByClass: Record<string, number> = {}
-  for (const err of allErrors) {
-    errorsByTool[err.toolName] = (errorsByTool[err.toolName] ?? 0) + 1
-    errorsByClass[err.errorClass] = (errorsByClass[err.errorClass] ?? 0) + 1
-  }
-
-  const startedAt = turns[0].timestamp
-  const endedAt = turns[turns.length - 1].timestamp
+  // Emit session.end with aggregated stats
+  const startedAt = firstTimestamp ?? ""
+  const endedAt = lastTimestamp ?? ""
   const durationMs =
     startedAt && endedAt
       ? new Date(endedAt).getTime() - new Date(startedAt).getTime()
       : 0
 
-  // Session summary
-  events.push({
-    source: "claude-code",
+  const errorsByTool: Record<string, number> = {}
+  const errorsByClass: Record<string, number> = {}
+  for (const err of toolErrors) {
+    errorsByTool[err.toolName] = (errorsByTool[err.toolName] ?? 0) + 1
+    errorsByClass[err.errorClass] = (errorsByClass[err.errorClass] ?? 0) + 1
+  }
 
-    deliveryId: `cc-session-${sessionId}`,
-    eventType: "thread.summary",
-    sessionId,
-    timestamp: startedAt || new Date().toISOString(),
-    cwd,
-    project,
-    payload: {
-      sessionId,
-      model: normalizeModel(turns.find((t) => t.model)?.model),
-      project: project ?? cwd,
-      gitBranch,
-      gitRemoteUrl: repoCtx.gitRemoteUrl,
-      repoSlug: repoCtx.repoSlug,
-      repoName: repoCtx.repoName,
-      cwd,
-      startedAt,
-      endedAt,
-      durationMinutes: Math.round(durationMs / 60000),
-      turnCount: turns.length,
+  events.push(
+    makeEvent("session.end", endedAt || new Date().toISOString(), {
+      model: normalizeModel(model),
       tokenUsage: totalTokens,
-      toolsUsed: allToolNames,
-      toolCallCount: turns.reduce((sum, t) => sum + t.toolCalls.length, 0),
-      toolErrorCount: allErrors.length,
+      turnCount,
+      toolCallCount,
+      toolsUsed: [...toolNames],
+      toolErrorCount: toolErrors.length,
       toolErrorsByTool:
         Object.keys(errorsByTool).length > 0 ? errorsByTool : undefined,
       toolErrorsByClass:
         Object.keys(errorsByClass).length > 0 ? errorsByClass : undefined,
+      durationMinutes: Math.round(durationMs / 60000),
+      startedAt,
+      endedAt,
+      cwd,
+      gitBranch,
+      gitRemoteUrl: repoCtx.gitRemoteUrl,
+      repoSlug: repoCtx.repoSlug,
+      repoName: repoCtx.repoName,
       version,
-    },
-  })
-
-  // Turn events
-  for (const turn of turns) {
-    events.push({
-      source: "claude-code",
-
-      deliveryId: `cc-turn-${sessionId}-${turn.index}`,
-      eventType: "thread_turn.completed",
-      sessionId,
-      timestamp: turn.timestamp || startedAt,
-      cwd,
-      project,
-      payload: {
-        sessionId,
-        turnIndex: turn.index,
-        prompt: truncText(turn.userText),
-        responseSummary: truncSummary(turn.assistantText),
-        model: normalizeModel(turn.model),
-        tokenUsage: turn.tokenUsage,
-        toolCalls: turn.toolCalls.slice(0, 50),
-        toolErrors: turn.toolErrors.length > 0 ? turn.toolErrors : undefined,
-        timestamp: turn.timestamp,
-      },
     })
-  }
-
-  // Subagent invocation events
-  for (const sub of subagentInvocations) {
-    events.push({
-      source: "claude-code",
-
-      deliveryId: `cc-subagent-${sessionId}-${sub.index}`,
-      eventType: "thread.subagent_summary",
-      sessionId,
-      timestamp: sub.timestamp || startedAt,
-      cwd,
-      project,
-      payload: {
-        parentSessionId: sessionId,
-        subagentIndex: sub.index,
-        subagentType: sub.subagentType,
-        description: sub.description,
-        prompt: truncText(sub.prompt),
-        resultSummary: truncSummary(sub.resultText),
-        resultLength: sub.resultLen,
-        timestamp: sub.timestamp,
-        cwd,
-        gitBranch,
-        gitRemoteUrl: repoCtx.gitRemoteUrl,
-        repoSlug: repoCtx.repoSlug,
-        repoName: repoCtx.repoName,
-      },
-    })
-  }
+  )
 
   return { events, sessionId }
 }
@@ -563,6 +506,16 @@ export function countSessions(): number {
   return findJsonlFiles(dir).length
 }
 
+function flattenThreadMessages(
+  thread: ReturnType<typeof parseClaudeCodeSession>
+): Record<string, unknown>[] {
+  const msgs: Record<string, unknown>[] = thread.messages as any[]
+  for (const child of thread.childThreads) {
+    msgs.push(...flattenThreadMessages(child))
+  }
+  return msgs
+}
+
 export async function ingestClaudeCode(
   opts: IngestOptions
 ): Promise<IngestResult> {
@@ -628,6 +581,31 @@ export async function ingestClaudeCode(
       `  Plans: ${planResult.uploaded} uploaded, ${planResult.duplicates} duplicates, ${planResult.errors} errors`
     )
   }
+
+  // Message-path: parse sessions via adapter and send to /messages/ingest
+  // This populates org.message + org.tool_call + org.exchange (lossless)
+  console.error(`  Ingesting messages via IR adapter...`)
+  let msgInserted = 0
+  let msgErrors = 0
+  for (const file of files) {
+    try {
+      const sessionId = basename(file, ".jsonl")
+      const irThread = parseClaudeCodeSession(file, sessionId)
+      const allMessages = flattenThreadMessages(irThread)
+      if (allMessages.length > 0) {
+        const result = await sendMessages(
+          irThread.id,
+          allMessages as unknown as Record<string, unknown>[],
+          opts
+        )
+        msgInserted += result.inserted
+      }
+    } catch (err) {
+      msgErrors++
+      if (opts.verbose) console.error(`  [msg-err] ${basename(file)}: ${err}`)
+    }
+  }
+  console.error(`  Messages: ${msgInserted} inserted, ${msgErrors} errors`)
 
   return sendBatch(allEvents, opts)
 }

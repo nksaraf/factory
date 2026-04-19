@@ -227,6 +227,68 @@ export async function uploadDocumentVersion(opts: {
   return { success: true, id: data?.id, version: data?.version }
 }
 
+export async function sendMessages(
+  threadId: string,
+  messages: Record<string, unknown>[],
+  opts: { dryRun: boolean; verbose: boolean }
+): Promise<{ inserted: number; toolCalls: number; exchanges: number }> {
+  if (opts.dryRun) {
+    console.log(
+      JSON.stringify(
+        { action: "ingest-messages", threadId, messageCount: messages.length },
+        null,
+        2
+      )
+    )
+    return { inserted: messages.length, toolCalls: 0, exchanges: 0 }
+  }
+
+  const auth = await ensureAuth()
+
+  // Batch in chunks of 100 to avoid payload size issues
+  let totalInserted = 0
+  let totalToolCalls = 0
+  let totalExchanges = 0
+
+  for (let i = 0; i < messages.length; i += 100) {
+    const batch = messages.slice(i, i + 100)
+
+    const res = await fetch(`${auth.url}/api/v1/factory/messages/ingest`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: JSON.stringify({ threadId, messages: batch }),
+      signal: AbortSignal.timeout(30000),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(
+        `Message ingest failed: ${res.status} ${text.slice(0, 200)}`
+      )
+    }
+
+    const data = (await res.json()) as any
+    totalInserted += data.inserted ?? 0
+    totalToolCalls += data.toolCalls ?? 0
+    totalExchanges += data.exchanges ?? 0
+
+    if (opts.verbose) {
+      console.error(
+        `  [batch ${Math.floor(i / 100) + 1}] ${data.inserted} msgs, ${data.toolCalls} tools, ${data.exchanges} exchanges`
+      )
+    }
+  }
+
+  return {
+    inserted: totalInserted,
+    toolCalls: totalToolCalls,
+    exchanges: totalExchanges,
+  }
+}
+
 export async function sendBatch(
   events: IngestEvent[],
   opts: { dryRun: boolean; verbose: boolean }

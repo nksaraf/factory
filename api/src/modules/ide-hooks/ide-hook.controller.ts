@@ -469,24 +469,133 @@ async function handlePromptSubmit(
       .where(eq(thread.id, threadId))
   }
 
-  // Get next turn index
-  const lastTurn = await (db as any)
-    .select({ turnIndex: threadTurn.turnIndex })
-    .from(threadTurn)
-    .where(eq(threadTurn.threadId, threadId))
-    .orderBy(desc(threadTurn.turnIndex))
-    .limit(1)
+  await insertThreadTurn(db, threadId, "user", {
+    prompt,
+    timestamp: payload.timestamp,
+  })
+}
 
-  const nextIndex = lastTurn.length > 0 ? lastTurn[0].turnIndex + 1 : 0
+/**
+ * Atomic turn insert. Computes next turn_index inside the INSERT via
+ * COALESCE(MAX(turn_index), -1) + 1, then uses ON CONFLICT DO NOTHING against
+ * the (thread_id, turn_index) unique constraint to absorb concurrent-insert
+ * races. Returns the index actually written (or null if conflicted).
+ */
+async function insertThreadTurn(
+  db: Database,
+  threadId: string,
+  role: string,
+  spec: Record<string, unknown>
+): Promise<{ id: string; turnIndex: number } | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const turnId = newId("turn")
+    const rows = await db.execute(sql`
+      INSERT INTO org.thread_turn (id, thread_id, turn_index, role, spec)
+      VALUES (
+        ${turnId},
+        ${threadId},
+        (SELECT COALESCE(MAX(turn_index), -1) + 1 FROM org.thread_turn WHERE thread_id = ${threadId}),
+        ${role},
+        ${JSON.stringify(spec)}::jsonb
+      )
+      ON CONFLICT (thread_id, turn_index) DO NOTHING
+      RETURNING id, turn_index
+    `)
+    const row = (rows as any).rows?.[0]
+    if (row && typeof row.turn_index === "number") {
+      return { id: row.id as string, turnIndex: row.turn_index }
+    }
+  }
+  log.warn({ threadId, role }, "insertThreadTurn: lost race 3 times, skipping")
+  return null
+}
 
-  await (db as any).insert(threadTurn).values({
-    threadId,
-    turnIndex: nextIndex,
-    role: "user",
-    spec: {
-      prompt,
-      timestamp: payload.timestamp,
-    } as any,
+/** Insert a turn from a tool.post_failure event (tool error). */
+async function handleToolPostFailure(
+  db: Database,
+  source: string,
+  payload: Record<string, any>,
+  principalId: string
+): Promise<void> {
+  const threadId = await ensureThread(db, source, payload, principalId)
+  if (!threadId) return
+
+  await insertThreadTurn(db, threadId, "tool", {
+    toolName: payload.tool_name,
+    toolInput:
+      typeof payload.tool_input === "string"
+        ? payload.tool_input.slice(0, 2048)
+        : JSON.stringify(payload.tool_input ?? "").slice(0, 2048),
+    error:
+      typeof payload.error === "string"
+        ? payload.error.slice(0, 2048)
+        : JSON.stringify(payload.error ?? "").slice(0, 2048),
+    failed: true,
+    timestamp: payload.timestamp,
+  })
+}
+
+/** Insert an assistant turn from agent.response (Cursor live, CC synthesized). */
+async function handleAgentResponse(
+  db: Database,
+  source: string,
+  payload: Record<string, any>,
+  principalId: string
+): Promise<void> {
+  const threadId = await ensureThread(db, source, payload, principalId)
+  if (!threadId) return
+
+  const content =
+    typeof payload.content === "string"
+      ? payload.content.slice(0, 4096)
+      : undefined
+  if (!content) return
+
+  await insertThreadTurn(db, threadId, "assistant", {
+    responseSummary: content,
+    timestamp: payload.timestamp,
+  })
+}
+
+/** Insert a thinking turn from agent.thought (not posted to Slack). */
+async function handleAgentThought(
+  db: Database,
+  source: string,
+  payload: Record<string, any>,
+  principalId: string
+): Promise<void> {
+  const threadId = await ensureThread(db, source, payload, principalId)
+  if (!threadId) return
+
+  const content =
+    typeof payload.content === "string"
+      ? payload.content.slice(0, 4096)
+      : undefined
+  if (!content) return
+
+  await insertThreadTurn(db, threadId, "thinking", {
+    content,
+    timestamp: payload.timestamp,
+  })
+}
+
+/** Record subagent start/stop as a turn; lets us trace nested work. */
+async function handleSubagent(
+  db: Database,
+  source: string,
+  payload: Record<string, any>,
+  principalId: string,
+  phase: "start" | "stop"
+): Promise<void> {
+  const threadId = await ensureThread(db, source, payload, principalId)
+  if (!threadId) return
+
+  await insertThreadTurn(db, threadId, "subagent", {
+    phase,
+    agentId: payload.agent_id,
+    agentType: payload.agent_type,
+    description: payload.description,
+    timestamp: payload.timestamp,
   })
 }
 
@@ -500,28 +609,22 @@ async function handleToolPost(
   const threadId = await ensureThread(db, source, payload, principalId)
   if (!threadId) return
 
-  const lastTurn = await (db as any)
-    .select({ turnIndex: threadTurn.turnIndex })
-    .from(threadTurn)
-    .where(eq(threadTurn.threadId, threadId))
-    .orderBy(desc(threadTurn.turnIndex))
-    .limit(1)
-
-  const nextIndex = lastTurn.length > 0 ? lastTurn[0].turnIndex + 1 : 0
-
-  await (db as any).insert(threadTurn).values({
-    threadId,
-    turnIndex: nextIndex,
-    role: "tool",
-    spec: {
-      toolName: payload.tool_name,
-      toolInput:
-        typeof payload.tool_input === "string"
-          ? payload.tool_input.slice(0, 2048)
-          : JSON.stringify(payload.tool_input ?? "").slice(0, 2048),
-      timestamp: payload.timestamp,
-    } as any,
+  const turn = await insertThreadTurn(db, threadId, "tool", {
+    toolName: payload.tool_name,
+    toolInput:
+      typeof payload.tool_input === "string"
+        ? payload.tool_input.slice(0, 2048)
+        : JSON.stringify(payload.tool_input ?? "").slice(0, 2048),
+    timestamp: payload.timestamp,
   })
+
+  if (turn && (payload.tool_name === "Write" || payload.tool_name === "Edit")) {
+    try {
+      await maybeHandlePlanFileWrite(db, threadId, source, payload, turn.id)
+    } catch (err) {
+      log.warn({ err, threadId }, "maybeHandlePlanFileWrite failed")
+    }
+  }
 }
 
 /**
@@ -533,6 +636,414 @@ async function handleToolPost(
  * webhook events if the transcript stats are missing.
  */
 // ── Plan document upsert ──────────────────────────────────
+
+type PlanPathClass = {
+  slug: string
+  basename: string
+  source: "claude-code" | "superpowers" | "context-plan"
+}
+
+/**
+ * Resolve the Factory public base URL used for `viewUrl` links.
+ */
+function factoryBaseUrl(): string {
+  return (
+    process.env.FACTORY_URL ??
+    process.env.BETTER_AUTH_BASE_URL ??
+    "https://factory.lepton.software"
+  ).replace(/\/$/, "")
+}
+
+function planViewUrl(slug: string): string {
+  return `${factoryBaseUrl()}/api/v1/factory/documents/${encodeURIComponent(slug)}/view`
+}
+
+/**
+ * Translate a qualified plan slug into a unique, filesystem-safe path.
+ * Colon segments become directories so `superpowers:factory:foo` and
+ * `superpowers_factory_foo` never collide on disk. Any residual unsafe
+ * char becomes `_`.
+ */
+function planContentRoot(slug: string): string {
+  const parts = slug
+    .split(":")
+    .map((p) => p.replace(/[^a-zA-Z0-9_-]/g, "_"))
+    .filter((p) => p.length > 0)
+  return `plan/${parts.join("/")}`
+}
+
+/**
+ * Match a plan file path to a known plan-authoring directory.
+ * Returns a qualified slug + source, or null if not a plan.
+ *
+ * Patterns (leading slash optional, handles absolute and relative paths):
+ *   .../.claude/plans/<name>.md            → claude-code:<name>
+ *   .../docs/superpowers/plans/<name>.md   → superpowers:<project>:<name>
+ *   .../.context/plans/<name>.md           → context-plan:<project>:<name>
+ *
+ * `<project>` is the directory segment immediately before the matched
+ * plan directory root (e.g. `factory/docs/superpowers/plans/x.md` → `factory`),
+ * so repo-scoped plans with the same filename don't collide across repos.
+ */
+function classifyPlanPath(filePath: string): PlanPathClass | null {
+  if (!filePath.endsWith(".md")) return null
+
+  const mClaude = filePath.match(/(?:^|\/)\.claude\/plans\/([^/]+)\.md$/)
+  if (mClaude) {
+    return {
+      slug: `claude-code:${mClaude[1]}`,
+      basename: mClaude[1],
+      source: "claude-code",
+    }
+  }
+
+  const mSuper = filePath.match(
+    /(?:^|\/)([^/]+)\/docs\/superpowers\/plans\/([^/]+)\.md$/
+  )
+  if (mSuper) {
+    return {
+      slug: `superpowers:${mSuper[1]}:${mSuper[2]}`,
+      basename: mSuper[2],
+      source: "superpowers",
+    }
+  }
+
+  const mCtx = filePath.match(/(?:^|\/)([^/]+)\/\.context\/plans\/([^/]+)\.md$/)
+  if (mCtx) {
+    return {
+      slug: `context-plan:${mCtx[1]}:${mCtx[2]}`,
+      basename: mCtx[2],
+      source: "context-plan",
+    }
+  }
+
+  return null
+}
+
+const TITLE_MAX_LENGTH = 200
+
+function extractPlanTitle(content: string): string {
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("# ")) {
+      const title = trimmed
+        .replace(/^#+\s*/, "")
+        .replace(/^Plan:\s*/i, "")
+        .trim()
+      return title.length > TITLE_MAX_LENGTH
+        ? title.slice(0, TITLE_MAX_LENGTH - 1) + "…"
+        : title
+    }
+  }
+  return "Untitled Plan"
+}
+
+/**
+ * Upsert a plan document row (by slug) and return its id.
+ * Uses ON CONFLICT to be safe under concurrent writes for the same slug.
+ */
+async function upsertPlanDocumentRow(
+  db: Database,
+  opts: {
+    slug: string
+    title: string
+    contentPath: string
+    contentHash: string | null
+    sizeBytes: number | null
+    threadId: string
+    source: string
+  }
+): Promise<string> {
+  const id = newId("doc")
+  const { slug, title, contentPath, contentHash, sizeBytes, threadId, source } =
+    opts
+  const rows = await db.execute(sql`
+    INSERT INTO org.document (id, slug, title, type, source, content_path, content_hash, size_bytes, thread_id)
+    VALUES (${id}, ${slug}, ${title}, 'plan', ${source}, ${contentPath}, ${contentHash}, ${sizeBytes}, ${threadId})
+    ON CONFLICT (slug) DO UPDATE SET
+      title         = EXCLUDED.title,
+      content_path  = EXCLUDED.content_path,
+      content_hash  = COALESCE(EXCLUDED.content_hash, org.document.content_hash),
+      size_bytes    = COALESCE(EXCLUDED.size_bytes, org.document.size_bytes),
+      thread_id     = EXCLUDED.thread_id,
+      updated_at    = NOW()
+    RETURNING id
+  `)
+  return (rows as any).rows?.[0]?.id as string
+}
+
+/**
+ * Upsert a plan document + new version. Hash-deduped: if the latest version
+ * for this slug already matches `contentHash`, this is a no-op and returns
+ * { created: false }. Otherwise inserts a new version.
+ *
+ * Concurrency-safe: the version insert is done inside a retry loop with
+ * `ON CONFLICT (document_id, version) DO NOTHING`, so two concurrent writes
+ * of the same plan file never duplicate-key crash — the loser retries with
+ * the next max version.
+ */
+async function upsertPlanDocument(
+  db: Database,
+  opts: {
+    slug: string
+    title: string
+    content: string
+    contentHash: string
+    threadId: string
+    sourceTurnId: string | null
+    source: string
+  }
+): Promise<{
+  created: boolean
+  docId: string
+  version: number
+  viewUrl: string
+}> {
+  const { slug, title, content, contentHash, threadId, sourceTurnId, source } =
+    opts
+  const sizeBytes = Buffer.byteLength(content, "utf-8")
+  const contentRoot = planContentRoot(slug)
+  const contentPath = `${contentRoot}.md`
+
+  const { writeDocument } = await import("../documents/storage")
+
+  const docId = await upsertPlanDocumentRow(db, {
+    slug,
+    title,
+    contentPath,
+    contentHash,
+    sizeBytes,
+    threadId,
+    source,
+  })
+
+  // Hash-dedupe: if latest version matches this content, no-op.
+  const [latest] = await db
+    .select({
+      version: documentVersion.version,
+      contentHash: documentVersion.contentHash,
+    })
+    .from(documentVersion)
+    .where(eq(documentVersion.documentId, docId))
+    .orderBy(desc(documentVersion.version))
+    .limit(1)
+
+  if (latest && latest.contentHash === contentHash) {
+    return {
+      created: false,
+      docId,
+      version: latest.version,
+      viewUrl: planViewUrl(slug),
+    }
+  }
+
+  await writeDocument(contentPath, content)
+
+  // Retry loop handles concurrent inserts racing for the same (docId, version).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [maxRow] = await db
+      .select({ maxVersion: max(documentVersion.version) })
+      .from(documentVersion)
+      .where(eq(documentVersion.documentId, docId))
+    const nextVersion = (maxRow?.maxVersion ?? 0) + 1
+    const versionPath = `${contentRoot}/v${nextVersion}.md`
+    await writeDocument(versionPath, content)
+
+    const rows = await db.execute(sql`
+      INSERT INTO org.document_version
+        (id, document_id, version, content_path, content_hash, size_bytes, source, thread_id, source_turn_id)
+      VALUES (
+        ${newId("docv")}, ${docId}, ${nextVersion}, ${versionPath},
+        ${contentHash}, ${sizeBytes}, ${source}, ${threadId}, ${sourceTurnId}
+      )
+      ON CONFLICT (document_id, version) DO NOTHING
+      RETURNING version
+    `)
+    const wrote = (rows as any).rows?.[0]?.version
+    if (typeof wrote === "number") {
+      return {
+        created: true,
+        docId,
+        version: wrote,
+        viewUrl: planViewUrl(slug),
+      }
+    }
+  }
+
+  // Lost the race 3x — treat as not-created but return best-known state.
+  log.warn({ slug, docId }, "plan: version insert lost race 3 times, skipping")
+  return {
+    created: false,
+    docId,
+    version: latest?.version ?? 0,
+    viewUrl: planViewUrl(slug),
+  }
+}
+
+type PlanLink = { slug?: string; label: string; url: string }
+
+async function linkPlanOnThreadSpec(
+  db: Database,
+  threadId: string,
+  slug: string,
+  title: string,
+  viewUrl: string
+): Promise<void> {
+  const existingThread = await db
+    .select({ id: thread.id, spec: thread.spec })
+    .from(thread)
+    .where(eq(thread.id, threadId))
+    .limit(1)
+  if (existingThread.length === 0) return
+  const spec = (existingThread[0].spec ?? {}) as Record<string, any>
+  const links: PlanLink[] = spec.links ?? []
+  const planLink: PlanLink = { slug, label: `📄 ${title}`, url: viewUrl }
+  // Match by explicit slug field first; fall back to URL-substring for entries
+  // written before this code added the slug field.
+  const idx = links.findIndex(
+    (l) => l.slug === slug || l.url.includes(encodeURIComponent(slug))
+  )
+  if (idx >= 0) links[idx] = planLink
+  else links.push(planLink)
+  await db
+    .update(thread)
+    .set({
+      spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ links })}::jsonb`,
+      updatedAt: new Date(),
+    })
+    .where(eq(thread.id, threadId))
+}
+
+/**
+ * Best-effort: ensure a plan document row exists for this slug so it appears
+ * in the plans index even if we only saw an Edit (no full content).
+ * Increments `spec.editCount`. Does NOT create a version (no content available).
+ */
+async function ensurePlanStubOnEdit(
+  db: Database,
+  cls: PlanPathClass,
+  threadId: string
+): Promise<void> {
+  const contentPath = `${planContentRoot(cls.slug)}.md`
+  const [existing] = await db
+    .select({ id: document.id, spec: document.spec })
+    .from(document)
+    .where(eq(document.slug, cls.slug))
+    .limit(1)
+
+  if (existing) {
+    const spec = (existing.spec ?? {}) as Record<string, any>
+    const editCount = ((spec.editCount as number) ?? 0) + 1
+    await db
+      .update(document)
+      .set({
+        spec: sql`COALESCE(${document.spec}, '{}'::jsonb) || ${JSON.stringify({ editCount })}::jsonb`,
+        updatedAt: new Date(),
+      } as any)
+      .where(eq(document.id, existing.id))
+    log.debug({ slug: cls.slug, editCount, threadId }, "plan: edit recorded")
+    return
+  }
+
+  // No prior Write captured. Create a stub so the plan still shows up in the
+  // index; the next Write (or ExitPlanMode) fills in content + version.
+  const id = newId("doc")
+  await db.execute(sql`
+    INSERT INTO org.document
+      (id, slug, title, type, source, content_path, thread_id, spec)
+    VALUES (
+      ${id}, ${cls.slug}, ${cls.basename}, 'plan', ${cls.source},
+      ${contentPath}, ${threadId},
+      ${JSON.stringify({ editCount: 1, stub: true })}::jsonb
+    )
+    ON CONFLICT (slug) DO UPDATE SET
+      spec = COALESCE(org.document.spec, '{}'::jsonb)
+           || jsonb_build_object('editCount', COALESCE((org.document.spec->>'editCount')::int, 0) + 1),
+      updated_at = NOW()
+  `)
+  log.info(
+    { slug: cls.slug, source: cls.source, threadId },
+    "plan: stub created from edit (no prior write seen)"
+  )
+}
+
+/**
+ * Handle a Write/Edit to a known plan-authoring directory.
+ * - Write: upsert the plan document + new version, tagged with sourceTurnId.
+ * - Edit: bump editCount; create stub doc if none exists yet (best-effort).
+ */
+async function maybeHandlePlanFileWrite(
+  db: Database,
+  threadId: string,
+  _source: string,
+  payload: Record<string, any>,
+  turnId: string
+): Promise<void> {
+  const toolInput =
+    typeof payload.tool_input === "string"
+      ? (() => {
+          try {
+            return JSON.parse(payload.tool_input)
+          } catch {
+            return null
+          }
+        })()
+      : payload.tool_input
+  if (!toolInput || typeof toolInput.file_path !== "string") return
+
+  const cls = classifyPlanPath(toolInput.file_path)
+  if (!cls) return
+
+  if (payload.tool_name === "Write") {
+    const content = toolInput.content
+    if (typeof content !== "string" || content.length === 0) return
+
+    const contentHash = new Bun.CryptoHasher("sha256")
+      .update(content)
+      .digest("hex")
+    const title = extractPlanTitle(content)
+
+    const result = await upsertPlanDocument(db, {
+      slug: cls.slug,
+      title,
+      content,
+      contentHash,
+      threadId,
+      sourceTurnId: turnId,
+      source: cls.source,
+    })
+
+    if (!result.created) {
+      log.debug(
+        { slug: cls.slug, version: result.version },
+        "plan: no-op write (same content hash)"
+      )
+      return
+    }
+
+    const msg = `:page_facing_up: *Plan: ${title}*${result.version > 1 ? ` (v${result.version})` : ""}\n<${result.viewUrl}|View plan>`
+    try {
+      await postToSurface(db, threadId, msg, "assistant")
+    } catch (err) {
+      log.warn({ err, threadId, slug: cls.slug }, "Failed to post plan link")
+    }
+    try {
+      await linkPlanOnThreadSpec(db, threadId, cls.slug, title, result.viewUrl)
+    } catch (err) {
+      log.warn({ err, threadId, slug: cls.slug }, "Failed to store plan link")
+    }
+
+    log.info(
+      { slug: cls.slug, version: result.version, source: cls.source, threadId },
+      "plan: captured from file write"
+    )
+    return
+  }
+
+  if (payload.tool_name === "Edit") {
+    await ensurePlanStubOnEdit(db, cls, threadId)
+  }
+}
 
 async function handlePlanDocument(
   db: Database,
@@ -547,120 +1058,93 @@ async function handlePlanDocument(
   const planContent = toolInput?.plan
   if (!planContent || typeof planContent !== "string") return
 
-  // Extract title from first heading
-  const titleMatch = planContent.match(/^#\s+(?:Plan:\s*)?(.+)/m)
-  const title = titleMatch?.[1]?.trim() ?? "Untitled Plan"
-  const slug = `plan-${sessionId}`
-
-  const contentPath = `plan/${slug}.md`
+  const title = extractPlanTitle(planContent)
   const contentHash = new Bun.CryptoHasher("sha256")
     .update(planContent)
     .digest("hex")
-  const sizeBytes = Buffer.byteLength(planContent, "utf-8")
 
-  const { writeDocument } = await import("../documents/storage")
-  await writeDocument(contentPath, planContent)
-
-  // Upsert the document
-  const [existing] = await db
-    .select({ id: document.id })
-    .from(document)
-    .where(eq(document.slug, slug))
+  // Hash-dedupe: if any existing plan doc already has this exact content as its
+  // latest version (likely authored via the file-write path above), link to it
+  // instead of creating a second plan-${sessionId} document.
+  const existingByHash = await db
+    .select({
+      docSlug: document.slug,
+      docTitle: document.title,
+      version: documentVersion.version,
+    })
+    .from(documentVersion)
+    .innerJoin(document, eq(documentVersion.documentId, document.id))
+    .where(
+      and(
+        eq(document.type, "plan"),
+        eq(documentVersion.contentHash, contentHash)
+      )
+    )
+    .orderBy(desc(documentVersion.version))
     .limit(1)
 
-  let docId: string
-  if (existing) {
-    docId = existing.id
-    await db
-      .update(document)
-      .set({
-        title,
-        contentPath,
-        contentHash,
-        sizeBytes,
+  if (existingByHash.length > 0) {
+    const existingSlug = existingByHash[0].docSlug
+    const existingTitle = existingByHash[0].docTitle ?? title
+    const existingVersion = existingByHash[0].version
+    const viewUrl = planViewUrl(existingSlug)
+    const msg = `:page_facing_up: *Plan: ${existingTitle}*${existingVersion > 1 ? ` (v${existingVersion})` : ""}\n<${viewUrl}|View plan>`
+    try {
+      await postToSurface(db, threadId, msg, "assistant")
+    } catch (err) {
+      log.warn(
+        { err, threadId, slug: existingSlug },
+        "Failed to re-post plan link to surface (dedupe)"
+      )
+    }
+    try {
+      await linkPlanOnThreadSpec(
+        db,
         threadId,
-        updatedAt: new Date(),
-      } as any)
-      .where(eq(document.id, docId))
-  } else {
-    const id = newId("doc")
-    docId = id
-    await db.insert(document).values({
-      id,
-      slug,
-      title,
-      type: "plan",
-      source: "claude-code",
-      contentPath,
-      contentHash,
-      sizeBytes,
-      threadId,
-    } as any)
+        existingSlug,
+        existingTitle,
+        viewUrl
+      )
+    } catch (err) {
+      log.warn(
+        { err, threadId, slug: existingSlug },
+        "Failed to store plan link on thread (dedupe)"
+      )
+    }
+    log.info(
+      { slug: existingSlug, version: existingVersion, threadId },
+      "ExitPlanMode: linked to existing plan (hash dedupe)"
+    )
+    return
   }
 
-  // Create a new version
-  const [maxRow] = await db
-    .select({ maxVersion: max(documentVersion.version) })
-    .from(documentVersion)
-    .where(eq(documentVersion.documentId, docId))
-  const nextVersion = (maxRow?.maxVersion ?? 0) + 1
-
-  const versionPath = `plan/${slug}/v${nextVersion}.md`
-  await writeDocument(versionPath, planContent)
-
-  await db.insert(documentVersion).values({
-    id: newId("docv"),
-    documentId: docId,
-    version: nextVersion,
-    contentPath: versionPath,
+  const slug = `plan-${sessionId}`
+  const result = await upsertPlanDocument(db, {
+    slug,
+    title,
+    content: planContent,
     contentHash,
-    sizeBytes,
-    source: "claude-code",
     threadId,
-  } as any)
+    sourceTurnId: null,
+    source: "claude-code",
+  })
 
-  // Post link to the Slack surface
-  const factoryUrl = (
-    process.env.FACTORY_URL ??
-    process.env.BETTER_AUTH_BASE_URL ??
-    "https://factory.lepton.software"
-  ).replace(/\/$/, "")
-  const viewUrl = `${factoryUrl}/api/v1/factory/documents/${slug}/view`
-  const msg = `:page_facing_up: *Plan: ${title}*${nextVersion > 1 ? ` (v${nextVersion})` : ""}\n<${viewUrl}|View plan>`
-
+  const msg = `:page_facing_up: *Plan: ${title}*${result.version > 1 ? ` (v${result.version})` : ""}\n<${result.viewUrl}|View plan>`
   try {
     await postToSurface(db, threadId, msg, "assistant")
   } catch (err) {
     log.warn({ err, threadId, slug }, "Failed to post plan link to surface")
   }
-
-  // Store plan link on thread spec so it shows as a button on the status card
   try {
-    const existingThread = await db
-      .select({ id: thread.id, spec: thread.spec })
-      .from(thread)
-      .where(eq(thread.id, threadId))
-      .limit(1)
-    if (existingThread.length > 0) {
-      const spec = (existingThread[0].spec ?? {}) as Record<string, any>
-      const links: Array<{ label: string; url: string }> = spec.links ?? []
-      const planLink = { label: `📄 ${title}`, url: viewUrl }
-      const idx = links.findIndex((l) => l.url.includes(slug))
-      if (idx >= 0) links[idx] = planLink
-      else links.push(planLink)
-      await db
-        .update(thread)
-        .set({
-          spec: sql`COALESCE(${thread.spec}, '{}'::jsonb) || ${JSON.stringify({ links })}::jsonb`,
-          updatedAt: new Date(),
-        })
-        .where(eq(thread.id, threadId))
-    }
+    await linkPlanOnThreadSpec(db, threadId, slug, title, result.viewUrl)
   } catch (err) {
     log.warn({ err, threadId, slug }, "Failed to store plan link on thread")
   }
 
-  log.info({ slug, version: nextVersion, threadId }, "Plan document upserted")
+  log.info(
+    { slug, version: result.version, threadId },
+    "Plan document upserted"
+  )
 }
 
 async function handleSessionEnd(
@@ -773,30 +1257,15 @@ async function handleAgentStop(
 
   // Store assistant turn with response summary (mirrors prompt.submit → user turn)
   if (payload.responseSummary) {
-    const threadId = threads[0].id
-    const lastTurn = await (db as any)
-      .select({ turnIndex: threadTurn.turnIndex })
-      .from(threadTurn)
-      .where(eq(threadTurn.threadId, threadId))
-      .orderBy(desc(threadTurn.turnIndex))
-      .limit(1)
-
-    const nextIndex = lastTurn.length > 0 ? lastTurn[0].turnIndex + 1 : 0
-
-    await (db as any).insert(threadTurn).values({
-      threadId,
-      turnIndex: nextIndex,
-      role: "assistant",
-      spec: {
-        responseSummary:
-          typeof payload.responseSummary === "string"
-            ? payload.responseSummary.slice(0, 4096)
-            : undefined,
-        toolCallCount: payload.toolCallCount,
-        toolsUsed: payload.toolsUsed,
-        tokenUsage: payload.tokenUsage,
-        timestamp: payload.timestamp,
-      } as any,
+    await insertThreadTurn(db, threads[0].id, "assistant", {
+      responseSummary:
+        typeof payload.responseSummary === "string"
+          ? payload.responseSummary.slice(0, 4096)
+          : undefined,
+      toolCallCount: payload.toolCallCount,
+      toolsUsed: payload.toolsUsed,
+      tokenUsage: payload.tokenUsage,
+      timestamp: payload.timestamp,
     })
   }
 }
@@ -933,6 +1402,28 @@ export function ideHookController(db: Database) {
               await handlePromptSubmit(db, body.source, payload, principalId)
             } else if (body.eventType === "tool.post") {
               await handleToolPost(db, body.source, payload, principalId)
+            } else if (body.eventType === "tool.post_failure") {
+              await handleToolPostFailure(db, body.source, payload, principalId)
+            } else if (body.eventType === "agent.response") {
+              await handleAgentResponse(db, body.source, payload, principalId)
+            } else if (body.eventType === "agent.thought") {
+              await handleAgentThought(db, body.source, payload, principalId)
+            } else if (body.eventType === "subagent.start") {
+              await handleSubagent(
+                db,
+                body.source,
+                payload,
+                principalId,
+                "start"
+              )
+            } else if (body.eventType === "subagent.stop") {
+              await handleSubagent(
+                db,
+                body.source,
+                payload,
+                principalId,
+                "stop"
+              )
             } else if (body.eventType === "agent.stop") {
               await handleAgentStop(db, payload)
             } else if (body.eventType === "session.end") {
@@ -1064,17 +1555,63 @@ export function ideHookController(db: Database) {
                   await handlePlanDocument(db, thrd.id, body.sessionId, payload)
                 }
               }
+            } else if (body.eventType === "agent.response") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const content =
+                  typeof (payload as any).content === "string"
+                    ? (payload as any).content
+                    : ""
+                if (content) {
+                  await postToSurface(db, thrd.id, content, "assistant", {
+                    source: body.source,
+                  })
+                }
+              }
+            } else if (body.eventType === "tool.post_failure") {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const p = payload as Record<string, any>
+                const toolName = p.tool_name ?? "tool"
+                const errMsg =
+                  typeof p.error === "string"
+                    ? p.error
+                    : JSON.stringify(p.error ?? "").slice(0, 500)
+                await startTypingOnSurface(
+                  db,
+                  thrd.id,
+                  `:warning: ${toolName} failed: ${errMsg.slice(0, 200)}`
+                )
+              }
+            } else if (
+              body.eventType === "subagent.start" ||
+              body.eventType === "subagent.stop"
+            ) {
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                const p = payload as Record<string, any>
+                const label =
+                  body.eventType === "subagent.start"
+                    ? `Spawning subagent${p.agent_type ? `: ${p.agent_type}` : ""}${p.description ? ` — ${String(p.description).slice(0, 80)}` : ""}`
+                    : `Subagent done${p.agent_type ? `: ${p.agent_type}` : ""}`
+                await startTypingOnSurface(db, thrd.id, label)
+              }
             } else if (body.eventType === "agent.stop") {
               const thrd = await findThreadBySessionId(db, body.sessionId)
               if (thrd) {
                 const p = payload as Record<string, any>
-                await postToSurface(
-                  db,
-                  thrd.id,
-                  p.responseSummary ?? "",
-                  "assistant",
-                  { source: body.source }
-                )
+                // For claude-code, agent.stop carries responseSummary (from
+                // transcript parsing). For cursor, the assistant text arrives
+                // earlier via agent.response — don't re-post here.
+                if (body.source === "claude-code" && p.responseSummary) {
+                  await postToSurface(
+                    db,
+                    thrd.id,
+                    p.responseSummary,
+                    "assistant",
+                    { source: body.source }
+                  )
+                }
                 // Compute live duration from startedAt
                 const stopDuration = thrd.startedAt
                   ? Math.round(
@@ -1099,6 +1636,31 @@ export function ideHookController(db: Database) {
                   generatedTopic: thrd.spec.generatedTopic,
                   generatedDescription: thrd.spec.generatedDescription,
                 })
+              }
+            } else if (body.eventType === "thread_turn.completed") {
+              // Conductor ingests whole turns (prompt + response) as one event.
+              // Mirror both sides to Slack.
+              const thrd = await findThreadBySessionId(db, body.sessionId)
+              if (thrd) {
+                await autoAttachSurface(
+                  db,
+                  thrd.id,
+                  principalId,
+                  body.source,
+                  payload
+                )
+                const p = payload as Record<string, any>
+                const prompt = typeof p.prompt === "string" ? p.prompt : ""
+                const response =
+                  typeof p.responseSummary === "string" ? p.responseSummary : ""
+                if (prompt) {
+                  await postToSurface(db, thrd.id, prompt, "user")
+                }
+                if (response) {
+                  await postToSurface(db, thrd.id, response, "assistant", {
+                    source: body.source,
+                  })
+                }
               }
             }
             // session.end: intentionally no surface action.

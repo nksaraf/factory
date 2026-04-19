@@ -116,7 +116,7 @@ const CURSOR_HOOK_EVENTS = [
 ]
 
 function setupCursor() {
-  const hooksDir = join(homedir(), ".cursor", "hooks")
+  const hooksDir = join(homedir(), ".cursor")
   const hooksPath = join(hooksDir, "hooks.json")
   let config: Record<string, unknown> = {}
 
@@ -142,9 +142,13 @@ function setupCursor() {
       (entry) =>
         !(typeof entry.command === "string" && isOurHookCommand(entry.command))
     )
-    ;(hooks[event] as Array<Record<string, unknown>>).push({ command })
+    ;(hooks[event] as Array<Record<string, unknown>>).push({
+      type: "command",
+      command,
+    })
   }
 
+  config.version = 1
   config.hooks = hooks
 
   mkdirSync(hooksDir, { recursive: true })

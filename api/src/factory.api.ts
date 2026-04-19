@@ -39,6 +39,7 @@ import {
 } from "./modules/documents/index"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
+import { messagesController } from "./modules/messages/index"
 import { configVarController } from "./modules/identity/config-var.controller"
 import { identityController } from "./modules/identity/index"
 import { secretController } from "./modules/identity/secret.controller"
@@ -157,6 +158,7 @@ export class FactoryAPI {
       .use(ideHookController(db))
       .use(threadsController(db))
       .use(threadSurfacesController(db))
+      .use(messagesController(db))
       .use(documentsController(db))
       .use(plansController(db))
       .use(catalogController(db))
