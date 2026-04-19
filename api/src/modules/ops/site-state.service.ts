@@ -1,3 +1,11 @@
+const VALID_MODES = new Set(["native", "container", "service", "linked"])
+
+function mapMode(raw: string): string {
+  if (VALID_MODES.has(raw)) return raw
+  if (raw === "deployed") return "container"
+  return "container"
+}
+
 import { eq } from "drizzle-orm"
 
 import type { Database } from "../../db/connection"
@@ -48,7 +56,7 @@ export async function getSiteState(db: Database, slugOrId: string) {
           const status = (cd.status ?? {}) as Record<string, unknown>
           return {
             componentSlug,
-            mode: (spec.mode as string) ?? "container",
+            mode: mapMode((spec.mode as string) ?? "container"),
             spec: {
               generation: cd.generation ?? 1,
               desiredImage: spec.desiredImage as string | undefined,
