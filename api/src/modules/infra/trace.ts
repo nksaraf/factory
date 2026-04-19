@@ -764,13 +764,15 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         .limit(1)
       if (exact) return exact as EntityRow
 
-      // Suffix match: "trafficure-app" matches "traffic-platform-trafficure-app"
-      const [suffix] = await db
+      // Contains match: "airflow" matches "traffic-airflow-airflow-webserver"
+      // Prefer shorter slugs (closer match) by ordering by length.
+      const [contains] = await db
         .select()
         .from(component)
-        .where(sql`${component.slug} LIKE '%' || '-' || ${slug}`)
+        .where(sql`${component.slug} LIKE '%' || ${slug} || '%'`)
+        .orderBy(sql`length(${component.slug})`)
         .limit(1)
-      return (suffix as EntityRow) ?? null
+      return (contains as EntityRow) ?? null
     },
   }
 }
