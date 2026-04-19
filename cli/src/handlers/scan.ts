@@ -272,10 +272,10 @@ async function runInfraScan(flags: DxFlags, target?: string): Promise<void> {
       return
     }
 
-    if (entity.type !== "host") {
+    if (entity.type !== "host" && entity.type !== "vm") {
       exitWithError(
         flags,
-        `Target "${target}" resolved to a ${entity.type}, not a host. Only hosts can be infra-scanned.`
+        `Target "${target}" resolved to a ${entity.type}, not a host or VM. Only hosts and VMs can be infra-scanned.`
       )
       return
     }
