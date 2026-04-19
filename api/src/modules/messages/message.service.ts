@@ -28,10 +28,11 @@ export async function ingestMessages(
 
   for (const msg of messages) {
     const msgId = msg.id.startsWith("msg_") ? msg.id : newId("msg")
+    const rawStartedAt = (msg as any).startedAt
     const startedAt =
-      startedAt instanceof Date
-        ? startedAt
-        : new Date(startedAt as unknown as string)
+      rawStartedAt instanceof Date
+        ? rawStartedAt
+        : new Date(rawStartedAt as string)
     const completedAt = msg.completedAt
       ? msg.completedAt instanceof Date
         ? msg.completedAt
