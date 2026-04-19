@@ -22,6 +22,12 @@ export interface LinkedSystemDeploymentResolution {
   systemSlug: string
   /** Where the linked SD points (site + remote SD). */
   linkedRef: { site: string; systemDeployment: string }
+  /**
+   * Env vars to inject into the focus SD's resolvedEnv — the concrete
+   * endpoint values the focus's components need. Sourced from the dep's
+   * `env:` field in `x-dx.dependencies[]`.
+   */
+  env: Record<string, string>
 }
 
 export interface ResolveLinkedSDsInputs {
@@ -64,6 +70,14 @@ export function resolveLinkedSystemDeployments(
   // slot. Then the --connect-to blanket fills in whatever remains. This
   // matches mergeConnectionSources() ordering elsewhere where later args
   // lose to earlier claims.
+  // Build a lookup for dep env by system slug.
+  const depEnvBySystem = new Map<string, Record<string, string>>()
+  for (const dep of declaredDeps) {
+    if (dep.env && Object.keys(dep.env).length > 0) {
+      depEnvBySystem.set(dep.system, dep.env)
+    }
+  }
+
   for (const entry of inputs.connects) {
     const colon = entry.indexOf(":")
     if (colon <= 0) continue
@@ -72,14 +86,20 @@ export function resolveLinkedSystemDeployments(
     if (!knownSystems.has(slug)) continue // component-level entry, not ours
     if (seen.has(slug)) continue
     seen.add(slug)
-    resolutions.push(makeResolution(slug, site))
+    resolutions.push(makeResolution(slug, site, depEnvBySystem.get(slug)))
   }
 
   if (inputs.connectTo) {
     for (const dep of declaredDeps) {
       if (seen.has(dep.system)) continue
       seen.add(dep.system)
-      resolutions.push(makeResolution(dep.system, inputs.connectTo))
+      resolutions.push(
+        makeResolution(
+          dep.system,
+          inputs.connectTo,
+          depEnvBySystem.get(dep.system)
+        )
+      )
     }
   }
 
@@ -88,11 +108,13 @@ export function resolveLinkedSystemDeployments(
 
 function makeResolution(
   systemSlug: string,
-  targetSite: string
+  targetSite: string,
+  env?: Record<string, string>
 ): LinkedSystemDeploymentResolution {
   return {
     slug: `${systemSlug}-linked`,
     systemSlug,
+    env: env ?? {},
     linkedRef: {
       site: targetSite,
       // Remote SD naming: conventional guess `<site>-<system>`. Slice 6

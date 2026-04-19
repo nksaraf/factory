@@ -393,6 +393,19 @@ export const catalogSystemDependencySchema = z.object({
   components: z.array(z.string()).optional(),
   binding: z.enum(["required", "optional", "dev-only"]).default("required"),
   defaultTarget: z.string().optional(),
+  /**
+   * Env vars to inject into the focus SD's resolvedEnv when this system dep
+   * is connected (via defaultTarget, --connect, or --target). These are the
+   * concrete endpoint values the focus system's components need to talk to
+   * this external system — e.g. `AUTH_SERVICE_URL: "http://host:port"`.
+   *
+   * Today: declared inline in compose `x-dx.dependencies[].env`. Potentially
+   * stale if the remote site's endpoints change.
+   *
+   * Future: auto-populated from Factory API endpoint discovery (slice 6b),
+   * replacing or merging with the inline values. The wiring path is the same.
+   */
+  env: z.record(z.string()).optional(),
 })
 export type CatalogSystemDependency = z.infer<
   typeof catalogSystemDependencySchema

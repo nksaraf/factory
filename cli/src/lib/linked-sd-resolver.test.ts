@@ -35,10 +35,31 @@ describe("resolveLinkedSystemDeployments", () => {
     expect(r[0]).toEqual({
       slug: "shared-auth-linked",
       systemSlug: "shared-auth",
+      env: {},
       linkedRef: {
         site: "workshop-staging",
         systemDeployment: "workshop-staging-shared-auth",
       },
+    })
+  })
+
+  test("dep env flows through to resolution", () => {
+    const r = resolveLinkedSystemDeployments({
+      connects: ["shared-auth:workshop-staging"],
+      catalog: makeCatalog([
+        {
+          system: "shared-auth",
+          binding: "required",
+          env: {
+            AUTH_SERVICE_URL: "http://192.168.2.88:4300",
+            AUTH_DB_URL: "postgresql://auth:pass@192.168.2.88:5432/auth",
+          },
+        },
+      ]),
+    })
+    expect(r[0].env).toEqual({
+      AUTH_SERVICE_URL: "http://192.168.2.88:4300",
+      AUTH_DB_URL: "postgresql://auth:pass@192.168.2.88:5432/auth",
     })
   })
 

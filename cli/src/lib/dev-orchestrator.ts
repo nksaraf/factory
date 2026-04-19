@@ -524,11 +524,29 @@ export class DevOrchestrator {
         connectTo: opts.connectTo,
         catalog: this.project.catalog,
       })
+      // Collect cross-system env overrides from deps' declared `env:` fields.
+      // These go into both the focus SD's resolvedEnv AND into connectionEnv
+      // so dev servers spawn with the right endpoints.
+      const crossSystemEnv: Record<string, string> = {}
+      for (const l of linkedSds) {
+        Object.assign(crossSystemEnv, l.env)
+      }
+      if (Object.keys(crossSystemEnv).length > 0) {
+        Object.assign(connectionEnv, crossSystemEnv)
+      }
+
       if (dryRun) {
         for (const l of linkedSds) {
+          const envCount = Object.keys(l.env).length
+          const envSuffix = envCount > 0 ? ` (${envCount} env vars)` : ""
           console.log(
-            `  [dry-run] Would link system: ${l.systemSlug} → ${l.linkedRef.site}/${l.linkedRef.systemDeployment}`
+            `  [dry-run] Would link system: ${l.systemSlug} → ${l.linkedRef.site}/${l.linkedRef.systemDeployment}${envSuffix}`
           )
+        }
+        if (Object.keys(crossSystemEnv).length > 0) {
+          for (const [k, v] of Object.entries(crossSystemEnv)) {
+            console.log(`  [dry-run] env: ${k}=${v}`)
+          }
         }
       } else {
         for (const l of linkedSds) {
@@ -537,6 +555,24 @@ export class DevOrchestrator {
             l.systemSlug,
             l.linkedRef
           )
+        }
+        // Merge cross-system env into the focus SD's resolvedEnv. These are
+        // the endpoint values the focus's dev servers need to talk to linked
+        // external systems. Source tagged as "connection" + system dep detail.
+        if (Object.keys(crossSystemEnv).length > 0) {
+          const focusSdSlug = this.sdSlug
+          if (focusSdSlug) {
+            const focusSd = this.site.getSystemDeployment(focusSdSlug)
+            if (focusSd) {
+              for (const [key, value] of Object.entries(crossSystemEnv)) {
+                focusSd.resolvedEnv[key] = {
+                  value,
+                  source: "connection",
+                  sourceDetail: "x-dx.dependencies env",
+                }
+              }
+            }
+          }
         }
         if (linkedSds.length > 0) {
           this.site.save()
