@@ -762,35 +762,7 @@ export function drizzleRequestGraphReader(db: Database): RequestGraphReader {
         .from(component)
         .where(eq(component.slug, slug))
         .limit(1)
-      if (exact) return exact as EntityRow
-
-      // Contains match: "airflow" matches "traffic-airflow-airflow-webserver"
-      // Prefer components whose type suggests a runnable service (not infra
-      // like redis/postgres), then by name relevance (contains "-webserver",
-      // "-app", "-api" etc.).
-      const candidates = await db
-        .select()
-        .from(component)
-        .where(sql`${component.slug} LIKE '%' || ${slug} || '%'`)
-        .limit(10)
-
-      if (candidates.length === 0) return null
-      if (candidates.length === 1) return candidates[0] as EntityRow
-
-      const INFRA_TYPES = /\b(redis|postgres|mongo|nats|zookeeper|kafka)\b/i
-      const APP_SUFFIXES =
-        /-(webserver|app|api|server|web|ui|frontend|backend)$/
-      const scored = candidates.map((c) => {
-        const s = (c as EntityRow).slug
-        let score = 0
-        if (INFRA_TYPES.test(s)) score -= 100
-        if (APP_SUFFIXES.test(s)) score += 50
-        if (s.endsWith(`-${slug}`)) score += 30
-        if (s.includes(`-${slug}-`)) score += 20
-        return { row: c, score }
-      })
-      scored.sort((a, b) => b.score - a.score)
-      return scored[0].row as EntityRow
+      return (exact as EntityRow) ?? null
     },
   }
 }

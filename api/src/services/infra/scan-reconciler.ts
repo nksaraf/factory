@@ -617,7 +617,18 @@ export async function reconcileHostScan(
 
     const currentRouterSlugs = new Set<string>()
 
-    for (const proxy of scanResult.reverseProxies ?? []) {
+    // Collect reverse proxies from both the main scan host and crawled hosts.
+    // Crawled hosts have their own reverseProxies populated by crawlTraefikViaSsh
+    // with backend.container already resolved via containerIpMap.
+    const allReverseProxies = [...(scanResult.reverseProxies ?? [])]
+    for (const entry of scanResult.networkCrawl?.hostEntries ?? []) {
+      const crawledScan = entry.scanResult as HostScanResult | undefined
+      if (crawledScan?.reverseProxies) {
+        allReverseProxies.push(...crawledScan.reverseProxies)
+      }
+    }
+
+    for (const proxy of allReverseProxies) {
       const proxyRealmId = proxyRealmIdMap.get(proxy.name)
       if (!proxyRealmId) continue
 
