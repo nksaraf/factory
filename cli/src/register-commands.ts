@@ -24,12 +24,14 @@ import { execCommand } from "./commands/exec.js"
 import { factoryCommand } from "./commands/factory.js"
 // ─── New commands (dx CLI redesign) ─────────────────────────
 import { formatCommand } from "./commands/format.js"
+import { healthCommand } from "./commands/health.js"
 import { forwardCommand } from "./commands/forward.js"
 import { generateCommand } from "./commands/generate.js"
 import { gitHookCommand } from "./commands/git-hook.js"
 import { gitCommand } from "./commands/git.js"
 import { hookCommand } from "./commands/hook.js"
 import { infraCommand } from "./commands/infra.js"
+import { inspectCommand } from "./commands/inspect.js"
 import { initCommand } from "./commands/init.js"
 import { kubeCommand } from "./commands/kube.js"
 import { lintCommand } from "./commands/lint.js"
@@ -44,6 +46,7 @@ import { planCommand } from "./commands/plan.js"
 import { previewCommand } from "./commands/preview.js"
 import { psCommand } from "./commands/ps.js"
 import { releaseCommand } from "./commands/release.js"
+import { restartCommand } from "./commands/restart.js"
 import { routeCommand } from "./commands/route.js"
 import { runCommand } from "./commands/run.js"
 import { scanCommand } from "./commands/scan.js"
@@ -55,6 +58,7 @@ import { setupCommand } from "./commands/setup.js"
 import { siteCommand } from "./commands/site.js"
 import { sshCommand } from "./commands/ssh.js"
 import { statusCommand } from "./commands/status.js"
+import { stopCommand } from "./commands/stop.js"
 import { syncCommand } from "./commands/sync.js"
 import { tenantCommand } from "./commands/tenant.js"
 import { testCommand } from "./commands/test.js"
@@ -92,9 +96,13 @@ export function registerCommands(app: DxBase): DxBase {
       .command(devCommand(app))
       .command(upCommand(app))
       .command(downCommand(app))
+      .command(stopCommand(app))
+      .command(restartCommand(app))
       .command(psCommand(app))
       .command(statusCommand(app))
       .command(logsCommand(app))
+      .command(inspectCommand(app))
+      .command(healthCommand(app))
 
       // ── Quality ─────────────────────────────────────────
       .command(checkCommand(app))

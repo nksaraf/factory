@@ -5,7 +5,9 @@ import type { DxBase } from "../dx-root.js"
 import { exitWithError } from "../lib/cli-exit.js"
 import { Compose, isDockerRunning } from "../lib/docker.js"
 import { resolveDxContext } from "../lib/dx-context.js"
+import { SiteManager } from "../lib/site-manager.js"
 import { setExamples } from "../plugins/examples-plugin.js"
+import { killProcessTree } from "../site/execution/native.js"
 import { toDxFlags } from "./dx-flags.js"
 
 setExamples("down", [
@@ -52,14 +54,39 @@ export function downCommand(app: DxBase) {
           console.log(`Compose files: ${project.composeFiles.join(", ")}`)
         }
 
+        const site = SiteManager.load(project.rootDir)
+        if (site) {
+          for (const sd of site.getSpec().systemDeployments) {
+            for (const cd of sd.componentDeployments) {
+              if (cd.mode === "native" && cd.status.pid != null) {
+                try {
+                  killProcessTree(cd.status.pid)
+                  if (!f.quiet) {
+                    console.log(
+                      `Stopped ${cd.componentSlug} (PID ${cd.status.pid})`
+                    )
+                  }
+                } catch {
+                  /* already gone */
+                }
+              }
+            }
+          }
+        }
+
         compose.down({
           profiles: allProfiles.length > 0 ? allProfiles : undefined,
           volumes: !!flags.volumes,
         })
 
+        if (site) {
+          site.setPhase("stopped")
+          site.save()
+        }
+
         if (!f.json) {
           const volMsg = flags.volumes ? " (volumes removed)" : ""
-          console.log(`Stack stopped${volMsg}`)
+          console.log(`Site stopped${volMsg}`)
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
