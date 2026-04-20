@@ -519,9 +519,14 @@ export const CreateCapabilitySchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   type: CapabilityTypeSchema,
-  productId: z.string(),
+  productId: z.string().optional(),
   ownerTeamId: z.string().optional(),
   spec: CapabilitySpecSchema.default({}),
+})
+
+export const CreateProductSystemSchema = z.object({
+  productId: z.string().optional(),
+  systemId: z.string().optional(),
 })
 export const UpdateCapabilitySchema = CreateCapabilitySchema.partial()
 

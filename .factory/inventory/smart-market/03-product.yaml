@@ -9,10 +9,6 @@ entities:
       brand: SmartMarket
       website: https://smartmarket.ai
 
-  - kind: product-system
-    productSlug: smart-market
-    systemSlug: smart-market-platform
-
   - kind: capability
     slug: smart-market-core
     name: Core Platform

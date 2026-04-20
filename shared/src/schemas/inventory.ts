@@ -41,6 +41,7 @@ import {
   CreateReleaseSchema,
   CreateTemplateSchema,
   CreateProductSchema,
+  CreateProductSystemSchema,
   CreateCapabilitySchema,
 } from "./software"
 
@@ -119,6 +120,7 @@ export const InventoryEntitySchema = z.discriminatedUnion("kind", [
   arm("release", CreateReleaseSchema),
   arm("template", CreateTemplateSchema),
   arm("product", CreateProductSchema),
+  arm("product-system", CreateProductSystemSchema),
   arm("capability", CreateCapabilitySchema),
 
   // org
