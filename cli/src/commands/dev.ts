@@ -101,11 +101,32 @@ export function devCommand(app: DxBase) {
       try {
         const ctx = await resolveDxContext({ need: "project" })
         const project = ctx.project
+        const workingDir = project.rootDir
 
-        // Auto-connect: resolve system-level dependencies from
-        // `x-dx.dependencies[].defaultTarget` for systems the developer
-        // hasn't named via `--connect`. `--connect-to <site>` (blanket)
-        // bypasses auto-connect entirely.
+        // ── Check for running agent ─────────────────────────────
+        const {
+          getRunningAgent,
+          spawnAgentDaemon,
+          waitForHealthy,
+          attachToAgent,
+          stopAgent,
+        } = await import("../site/agent-lifecycle.js")
+
+        const existing = await getRunningAgent(workingDir)
+        if (existing) {
+          if (!f.quiet) {
+            console.log(
+              `Site agent already running (PID ${existing.pid}, port ${existing.port})`
+            )
+            console.log(`Attaching to log stream... (Ctrl+C to detach)`)
+          }
+          await attachToAgent(existing.port, { quiet: f.quiet })
+          return
+        }
+
+        // ── Setup phase (runs in foreground — user sees output) ──
+
+        // Auto-connect
         const userConnect = flags.connect as string | string[] | undefined
         const coveredSystems = coveredSystemsFromConnectFlags(userConnect)
         const auto = autoConnectsFromDeps({
@@ -125,11 +146,6 @@ export function devCommand(app: DxBase) {
           for (const log of auto.logs) console.log(log)
           for (const warn of auto.warnings) console.warn(`  ! ${warn}`)
         }
-        // Merge auto-connects into the user's explicit --connect list. User
-        // entries MUST come first — the linked-sd-resolver (slice 5) and the
-        // orchestrator's applyConnections both walk the list in order and
-        // honour "first claim wins" semantics. Swapping this order would
-        // silently invert the user's explicit override.
         const userConnectList = !userConnect
           ? []
           : Array.isArray(userConnect)
@@ -144,9 +160,7 @@ export function devCommand(app: DxBase) {
             ? effectiveConnectSpecific
             : undefined
 
-        // Cached prelude — one-command experience: git clone → cd → dx dev.
-        // When the developer is pointing at remote deps (explicit or
-        // auto-connected via defaultTarget), the infra step auto-skips.
+        // Cached prelude (interactive — must run in foreground)
         await runPrelude(ctx, {
           noPrelude: flags.prelude === false,
           fresh: Boolean(flags.fresh),
@@ -156,7 +170,7 @@ export function devCommand(app: DxBase) {
           quiet: Boolean(f.quiet),
         })
 
-        // Pre-flight: run codegen
+        // Pre-flight: run codegen (interactive — must run in foreground)
         const codegen = ctx.package?.toolchain.codegen ?? []
         if (codegen.length > 0 && !f.quiet) {
           if (flags["dry-run"]) {
@@ -176,74 +190,53 @@ export function devCommand(app: DxBase) {
           }
         }
 
-        // Orchestrate
-        const orch = await SiteOrchestrator.create({ quiet: f.quiet })
-
-        // Start the dev console before starting services so the console
-        // port is allocated and available for the tunnel's publishPorts.
-        const consoleEnabled = flags.console !== false
-        if (consoleEnabled && !flags["dry-run"]) {
-          try {
-            const info = await orch.startConsole()
-            if (!f.quiet) {
-              console.log(`  Dev Console: ${info.url}`)
-            }
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err)
-            console.error(`  Dev Console failed to start: ${msg}`)
-          }
+        if (flags["dry-run"]) {
+          console.log("[dry-run] Would start site agent daemon")
+          return
         }
 
-        const conn = await orch.startDevSession({
+        // ── Spawn daemon ────────────────────────────────────────
+        const port = 4299 // same port the console used to use
+        if (!f.quiet) {
+          console.log(`  Starting site agent daemon...`)
+        }
+
+        spawnAgentDaemon({
+          mode: "dev",
+          workingDir,
+          port,
           components: args.components,
           connectTo: flags["connect-to"] as string | undefined,
-          // Pass the MERGED connect list — user's explicit --connect entries
-          // plus any defaultTarget auto-connects — so the orchestrator can
-          // wire env vars (DATABASE_URL, AUTH_URL, etc.) for auto-connected
-          // systems, not just the explicit ones.
           connect: connectFlagForSession,
           profile: flags.profile as string | undefined,
-          env: flags.env as string | string[] | undefined,
-          dryRun: !!flags["dry-run"],
-          restart: !!flags["restart"],
+          env: flags.env as string[] | undefined,
           noBuild: flags.build === false,
           tunnel: !!flags.tunnel,
           exposeConsole: !!flags["expose-console"],
-          quiet: f.quiet,
         })
 
-        if (conn) {
-          printConnectionBanner(
-            conn.ctx,
-            conn.profileName,
-            conn.derivedOverrides,
-            conn.remoteDeps
+        // ── Wait for health ─────────────────────────────────────
+        const healthy = await waitForHealthy(port, 60_000)
+        if (!healthy) {
+          const { agentLogPath } = await import("../site/agent-lifecycle.js")
+          const logPath = agentLogPath(workingDir)
+          exitWithError(
+            f,
+            `Site agent did not become healthy within 60s. Check logs: ${logPath}`
           )
-          if (conn.ctx.remoteDeps.length > 0) {
-            await orch.checkRemoteHealth(conn.ctx, !!f.quiet)
-          }
+          return
         }
 
-        if (!f.quiet && !flags["dry-run"] && !flags["restart"]) {
-          console.log(`\nUse ${styleMuted("dx ps")} to see all services.`)
-        }
-
-        const keepAlive = flags.tunnel || (consoleEnabled && !flags["dry-run"])
-        if (keepAlive) {
+        if (!f.quiet) {
+          console.log(`  Site agent running (port ${port})`)
+          console.log(`  Dev Console: http://localhost:${port}`)
           console.log(
-            `${styleMuted("Running in foreground. Press Ctrl+C to stop.")}`
+            `${styleMuted("Attaching to agent logs. Press Ctrl+C to detach.")}`
           )
-          await new Promise<void>((resolve) => {
-            process.on("SIGINT", () => {
-              orch.stop()
-              resolve()
-            })
-            process.on("SIGTERM", () => {
-              orch.stop()
-              resolve()
-            })
-          })
         }
+
+        // ── Attach to log stream ────────────────────────────────
+        await attachToAgent(port, { quiet: f.quiet })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         exitWithError(f, msg)
@@ -299,24 +292,46 @@ export function devCommand(app: DxBase) {
     )
     .command("stop", (c) =>
       c
-        .meta({ description: "Stop native dev server(s)" })
+        .meta({ description: "Stop the site agent and all dev servers" })
         .args([
           {
             name: "component",
             type: "string" as const,
-            description: "Component name (stops all if omitted)",
+            description: "Component name (stops agent if omitted)",
           },
         ])
         .run(async ({ args }) => {
           try {
-            const orch = await SiteOrchestrator.create()
-            const stopped = orch.stop(args.component || undefined)
-            if (stopped.length === 0) {
-              console.log("No dev servers running.")
-            } else {
-              for (const s of stopped) {
-                console.log(`Stopped ${s.name} (PID ${s.pid})`)
+            if (args.component) {
+              // Stop a single component via the agent API
+              const { getRunningAgent } =
+                await import("../site/agent-lifecycle.js")
+              const ctx = await resolveDxContext({ need: "project" })
+              const state = await getRunningAgent(ctx.project.rootDir)
+              if (!state) {
+                console.log("No site agent running.")
+                return
               }
+              const res = await fetch(
+                `http://localhost:${state.port}/api/v1/site/services/${args.component}/stop`,
+                { method: "POST" }
+              )
+              if (!res.ok) {
+                console.error(`Failed to stop ${args.component}`)
+              } else {
+                console.log(`Stopped ${args.component}`)
+              }
+              return
+            }
+
+            // Stop the entire agent
+            const ctx = await resolveDxContext({ need: "project" })
+            const { stopAgent } = await import("../site/agent-lifecycle.js")
+            const stopped = await stopAgent(ctx.project.rootDir)
+            if (stopped) {
+              console.log("Site agent stopped.")
+            } else {
+              console.log("No site agent running.")
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
