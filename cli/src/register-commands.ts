@@ -1,4 +1,5 @@
 // ─── Active commands ────────────────────────────────────────
+import { __agentCommand } from "./commands/__agent.js"
 import { addCommand } from "./commands/add.js"
 import { agentCommand } from "./commands/agent.js"
 import { alertCommand } from "./commands/alert.js"
@@ -170,6 +171,7 @@ export function registerCommands(app: DxBase): DxBase {
       .command(workflowCommand(app))
 
       // ── Internal (not shown in help) ────────────────────
+      .command(__agentCommand(app))
       .command(gitHookCommand(app))
       .command(hookCommand(app))
   )
