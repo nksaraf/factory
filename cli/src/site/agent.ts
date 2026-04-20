@@ -335,6 +335,10 @@ export class SiteAgent {
         return cd?.mode === "native" || existsSync(logPath)
       })()
 
+    const composeFiles = this.orchestrator?.project.composeFiles ?? []
+    const projectName = this.orchestrator?.project.name ?? ""
+    const rootDir = this.orchestrator?.project.rootDir ?? this.config.workingDir
+
     const stream = new ReadableStream({
       start(controller) {
         const send = (line: string) => {
@@ -385,12 +389,6 @@ export class SiteAgent {
           tick()
         } else {
           // Docker compose log streaming
-          const composeFiles =
-            (this as any).orchestrator?.project.composeFiles ?? []
-          const projectName = (this as any).orchestrator?.project.name ?? ""
-          const rootDir =
-            (this as any).orchestrator?.project.rootDir ??
-            (this as any).config.workingDir
           const args = ["compose"]
           for (const f of composeFiles) {
             args.push("-f", f)

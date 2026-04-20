@@ -1,5 +1,3 @@
-import type { DerivedOverride } from "@smp/factory-shared/compose-env-propagation"
-import type { ResolvedConnectionContext } from "@smp/factory-shared/connection-context-schemas"
 import { spawnSync } from "node:child_process"
 
 import { styleMuted } from "../cli-style.js"
@@ -437,70 +435,4 @@ export function devCommand(app: DxBase) {
           }
         })
     )
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-function printConnectionBanner(
-  ctx: ResolvedConnectionContext,
-  target: string,
-  derivedOverrides: DerivedOverride[],
-  stoppedServices: string[]
-): void {
-  const label = target.toUpperCase()
-  const lines: string[] = []
-
-  lines.push(`  \u26A0  CONNECTING TO ${label}`)
-  lines.push("")
-
-  if (stoppedServices.length > 0) {
-    lines.push("  Stopped (remote) containers:")
-    for (const dep of stoppedServices) {
-      lines.push(`    ${dep} \u2192 ${target}`)
-    }
-    lines.push("")
-  }
-
-  const reconfigured = derivedOverrides.filter(
-    (d) => Object.keys(d.overrides).length > 0
-  )
-  if (reconfigured.length > 0) {
-    lines.push("  Reconfigured Docker services:")
-    for (const d of reconfigured) {
-      const vars = Object.keys(d.overrides).join(", ")
-      lines.push(`    ${d.service} \u2192 ${vars}`)
-    }
-    lines.push("")
-  }
-
-  if (ctx.localDeps.length > 0) {
-    lines.push("  Local dependencies:")
-    for (const dep of ctx.localDeps) {
-      lines.push(`    ${dep} \u2192 local Docker container`)
-    }
-    lines.push("")
-  }
-
-  const connectionVars = Object.entries(ctx.envVars).filter(
-    ([, v]) => v.source === "connection" || v.source === "tier"
-  )
-  if (connectionVars.length > 0) {
-    lines.push("  Resolved env vars:")
-    for (const [key, entry] of connectionVars) {
-      const display = entry.value.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@")
-      lines.push(`    ${key}=${display}`)
-    }
-    lines.push("")
-  }
-
-  const maxLen = Math.max(...lines.map((l) => l.length), 60)
-  const border = "\u2550".repeat(maxLen + 2)
-
-  console.log("")
-  console.log(`  \u2554${border}\u2557`)
-  for (const line of lines) {
-    console.log(`  \u2551 ${line.padEnd(maxLen)} \u2551`)
-  }
-  console.log(`  \u255A${border}\u255D`)
-  console.log("")
 }

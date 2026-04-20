@@ -489,7 +489,7 @@ export function siteCommand(app: DxBase) {
               )
             } else if (args.component) {
               const res = await fetch(
-                `${url}/api/v1/site/components/${args.component}/deploy`,
+                `${url}/api/v1/site/services/${args.component}/deploy`,
                 {
                   method: "POST",
                 }
@@ -537,7 +537,7 @@ export function siteCommand(app: DxBase) {
             if (flags.since) params.set("since", String(flags.since))
             const qs = params.toString() ? `?${params}` : ""
             const res = await fetch(
-              `${url}/api/v1/site/components/${args.component}/logs${qs}`
+              `${url}/api/v1/site/services/${args.component}/logs${qs}`
             )
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
@@ -588,7 +588,7 @@ export function siteCommand(app: DxBase) {
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
             const url = await getSiteApiUrl()
-            const res = await fetch(`${url}/api/v1/site/health`)
+            const res = await fetch(`${url}/api/v1/site/health-all`)
             if (!res.ok) exitWithError(f, `Site API error: ${res.status}`)
             const data = await res.json()
             if (toDxFlags(flags).json) {
