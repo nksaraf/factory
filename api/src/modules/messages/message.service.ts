@@ -4,6 +4,7 @@
  * - exchange materialization (groups user→assistant spans into org.exchange)
  * - event emission (publishes to NATS via outbox for real-time subscribers)
  */
+import { createHash } from "node:crypto"
 import { eq, sql, and, desc } from "drizzle-orm"
 import type { Database } from "../../db/connection"
 import { message, exchange, toolCall, thread } from "../../db/schema/org"
@@ -27,7 +28,12 @@ export async function ingestMessages(
   let exchangeCount = 0
 
   for (const msg of messages) {
-    const msgId = msg.id.startsWith("msg_") ? msg.id : newId("msg")
+    const msgId =
+      "msg_" +
+      createHash("sha256")
+        .update(`${threadId}:${msg.source}:${msg.id}:${msg.sequence}`)
+        .digest("hex")
+        .slice(0, 24)
     const rawStart = (msg as any).startedAt
     const startedAt =
       rawStart instanceof Date ? rawStart : new Date(rawStart as string)
