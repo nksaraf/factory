@@ -13,6 +13,10 @@ import type { Database } from "../../db/connection"
 import { message, exchange, toolCall, thread } from "../../db/schema/org"
 import { logger } from "../../logger"
 import { ingestMessages } from "./message.service"
+import type {
+  IRMessage,
+  IRThread,
+} from "@smp/factory-shared/schemas/message-ir"
 
 const log = logger.child({ module: "messages" })
 
@@ -201,6 +205,13 @@ export function messagesController(db: Database) {
           set.status = 404
           return { error: "Thread not found" }
         }
+
+        const [thrd] = await db
+          .select()
+          .from(thread)
+          .where(eq(thread.id, tid))
+          .limit(1)
+
         const rows = await db
           .select()
           .from(message)
@@ -215,12 +226,49 @@ export function messagesController(db: Database) {
         const format = query.format ?? "json"
 
         if (format === "json") {
-          return { messages: rows }
+          return { messages: rows, thread: thrd }
         }
 
-        // For claude-code format, reconstruct JSONL on-the-fly
-        // This requires the adapter — imported dynamically to avoid
-        // pulling node:fs into the API bundle
+        if (format === "claude-code") {
+          const irMessages: IRMessage[] = rows.map((row, i) => ({
+            id: (row.spec as any)?.sourceMessageId ?? row.id,
+            sequence: i,
+            threadId: tid,
+            parentId: row.parentId,
+            role: row.role as "user" | "assistant" | "system",
+            source: row.source,
+            content: row.content as Record<string, unknown>[],
+            startedAt: row.startedAt,
+            completedAt: row.completedAt ?? undefined,
+            model: (row.spec as any)?.model,
+            stopReason: (row.spec as any)?.stopReason,
+            usage: (row.spec as any)?.usage,
+            meta: (row.spec as any)?.meta,
+            sourceEntryIds: [(row.spec as any)?.sourceMessageId ?? row.id],
+          }))
+
+          const irThread: IRThread = {
+            id: tid,
+            parentThreadId: null,
+            parentToolUseId: null,
+            sessionId: thrd?.externalId ?? params.threadId,
+            cwd: (thrd?.spec as any)?.cwd,
+            gitBranch: thrd?.branch ?? undefined,
+            model: (thrd?.spec as any)?.model,
+            messages: irMessages,
+            childThreads: [],
+          }
+
+          const { claudeCodeAdapter } =
+            await import("@smp/factory-shared/adapters/claude-code.adapter")
+          const result = claudeCodeAdapter.reconstructTranscript(irThread)
+
+          set.headers["content-type"] = "application/x-ndjson"
+          set.headers["content-disposition"] =
+            `attachment; filename="${thrd?.externalId ?? params.threadId}.jsonl"`
+          return result.text
+        }
+
         set.headers["content-type"] = "application/x-ndjson"
         const lines = rows.map((row) => JSON.stringify(row))
         return lines.join("\n") + "\n"
@@ -232,7 +280,8 @@ export function messagesController(db: Database) {
         }),
         detail: {
           tags: ["Messages"],
-          summary: "Export thread transcript",
+          summary:
+            "Export thread transcript (format: json, claude-code, ndjson)",
         },
       }
     )
