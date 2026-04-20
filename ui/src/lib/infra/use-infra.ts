@@ -464,17 +464,40 @@ export function useInfraAssets() {
   })
 }
 
+export interface OntologyHost {
+  id: string
+  slug: string
+  name: string
+  type: string
+  estateId: string | null
+  spec: Record<string, unknown>
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export function useHostRaw(slugOrId: string | undefined) {
+  return useQuery<OntologyHost | null>({
+    queryKey: ["infra", "host-raw", slugOrId],
+    queryFn: async () => {
+      const res = await infraFetch<SuccessResponse<OntologyHost>>(
+        `/hosts/${slugOrId}`
+      )
+      return res.data
+    },
+    enabled: !!slugOrId,
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
 // ── Ontology hooks (new entities) ───────────────────
 
-import type {
-  DnsDomain,
-  Route,
-  Secret,
-  Service,
-  Tunnel,
-} from "./types"
+import type { DnsDomain, Route, Secret, Service, Tunnel } from "./types"
 
-function ontologyList<T>(entity: string, opts?: Record<string, string | undefined>) {
+function ontologyList<T>(
+  entity: string,
+  opts?: Record<string, string | undefined>
+) {
   const qs = buildQs({ ...opts, limit: "500" })
   return useQuery<T[]>({
     queryKey: ["infra", entity, opts],

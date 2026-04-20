@@ -2,7 +2,7 @@ import { useParams } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
 
-import { useHost } from "@/lib/infra"
+import { useHostRaw as useHost } from "@/lib/infra"
 import { HostLayout } from "../host-layout"
 
 export default function HostTerminalTab() {
