@@ -1433,10 +1433,9 @@ export class SiteOrchestrator {
       }>("GET", `/api/v1/factory/ops/site-live/${targetSite}`)
 
       const hostIp = raw.host?.ip ?? targetSite
-      const result: Record<string, EndpointMap> = {}
+      const flatEndpoints: EndpointMap = {}
 
       for (const sd of raw.spec.systemDeployments) {
-        const endpoints: EndpointMap = {}
         for (const cd of sd.componentDeployments) {
           if (!cd.ports?.length) continue
           const allPorts = cd.ports.map((p) => p.port).sort((a, b) => b - a)
@@ -1445,17 +1444,23 @@ export class SiteOrchestrator {
           for (const p of cd.ports) {
             namedPorts[p.name.replace(/^port-/, "")] = p.port
           }
-          endpoints[cd.componentSlug] = {
-            host: hostIp,
-            port: publishedPort,
-            ports: namedPorts,
+          const ep = { host: hostIp, port: publishedPort, ports: namedPorts }
+          flatEndpoints[cd.componentSlug] = ep
+          const dash = cd.componentSlug.indexOf("-")
+          if (dash > 0) {
+            flatEndpoints[cd.componentSlug.slice(dash + 1)] = ep
           }
         }
-        if (Object.keys(endpoints).length > 0) {
-          result[sd.systemSlug] = endpoints
-        }
       }
-      return Object.keys(result).length > 0 ? result : undefined
+
+      if (Object.keys(flatEndpoints).length === 0) return undefined
+      // Key by every declared dep system so the resolver finds it
+      const deps = this.project.catalog.spec.dependencies ?? []
+      const result: Record<string, EndpointMap> = {}
+      for (const dep of deps) {
+        result[dep.system] = flatEndpoints
+      }
+      return result
     } catch {
       return undefined
     }
