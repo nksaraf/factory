@@ -62,8 +62,9 @@ export async function curlRequest(req: CurlRequest): Promise<CurlResponse> {
   const timeout = req.timeoutSeconds ?? 30
 
   // -i includes response headers in stdout, which we parse for status + headers
+  // -sS: silent progress, but still surface errors on stderr (plain -s hides them)
   const args = [
-    "-s",
+    "-sS",
     "-i",
     "--max-time",
     String(timeout),
@@ -93,7 +94,13 @@ export async function curlRequest(req: CurlRequest): Promise<CurlResponse> {
     const { stdout } = await execFileAsync("curl", args)
     return parseResponse(stdout)
   } catch (err: any) {
-    const detail = err.stderr?.trim() || err.message
+    const stderr = err.stderr?.trim()
+    const exitCode = err.code
+    const parts = [
+      stderr || null,
+      exitCode != null ? `exit ${exitCode}` : null,
+    ].filter(Boolean)
+    const detail = parts.length > 0 ? parts.join(" — ") : err.message
     throw new Error(`curl request to ${req.url} failed: ${detail}`)
   }
 }

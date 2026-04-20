@@ -20,7 +20,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [service-data, service-graph, service-ai]
       description: Core market intelligence platform — data + graph + AI services
 
@@ -31,7 +31,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [app-web]
       dependsOn: [smart-market-core]
 
@@ -42,7 +42,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       dependsOn: [smart-market-core]
 
   - kind: capability
@@ -52,7 +52,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [service-ml-engine]
       dependsOn: [smart-market-core]
 
@@ -63,7 +63,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [service-data-query]
       dependsOn: [smart-market-core]
 
@@ -74,7 +74,7 @@ entities:
     productSlug: smart-market
     ownerTeamSlug: smartmarket
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [frontend-slack-bot]
       dependsOn: [smart-market-core]
 

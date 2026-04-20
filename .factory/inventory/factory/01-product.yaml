@@ -20,7 +20,7 @@ entities:
     productSlug: factory
     ownerTeamSlug: platform
     spec:
-      lifecycle: stable
+      lifecycle: production
       requiresComponents: [infra-factory, infra-postgres]
       description: Core factory platform — catalog, inventory, sites, deployments
 
@@ -31,6 +31,6 @@ entities:
     productSlug: factory
     ownerTeamSlug: platform
     spec:
-      lifecycle: stable
+      lifecycle: production
       dependsOn: [factory-core]
       description: Developer CLI for local dev, catalog sync, site deploys
