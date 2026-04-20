@@ -1,18 +1,11 @@
-import { existsSync, unlinkSync } from "node:fs"
-import { join } from "node:path"
-
 import type { DxBase } from "../dx-root.js"
 import {
   autoConnectsFromDeps,
   coveredSystemsFromConnectFlags,
 } from "../lib/auto-connect.js"
 import { exitWithError } from "../lib/cli-exit.js"
-import {
-  COMPOSE_OVERRIDE_FILE,
-  cleanupConnectionContext,
-} from "../lib/connection-context-file.js"
+import { resolveDxContext } from "../lib/dx-context.js"
 import { runPrelude } from "../lib/prelude.js"
-import { SiteOrchestrator } from "../lib/site-orchestrator.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
 
@@ -67,15 +60,38 @@ export function upCommand(app: DxBase) {
         type: "boolean" as const,
         description: "Invalidate prelude stamps and re-run every step",
       },
+      attach: {
+        type: "boolean" as const,
+        description: "Attach to agent logs after starting (default: false)",
+      },
     })
     .run(async ({ args, flags }) => {
       const f = toDxFlags(flags)
       try {
-        const orch = await SiteOrchestrator.create({
-          quiet: f.quiet,
-          mode: "up",
-        })
-        const project = orch.project
+        const ctx = await resolveDxContext({ need: "project" })
+        const project = ctx.project
+        const workingDir = project.rootDir
+
+        // ── Check for running agent ─────────────────────────────
+        const {
+          getRunningAgent,
+          spawnAgentDaemon,
+          waitForHealthy,
+          attachToAgent,
+        } = await import("../site/agent-lifecycle.js")
+
+        const existing = await getRunningAgent(workingDir)
+        if (existing) {
+          if (!f.quiet) {
+            console.log(
+              `Site agent already running (PID ${existing.pid}, port ${existing.port})`
+            )
+          }
+          if (flags.attach) {
+            await attachToAgent(existing.port, { quiet: f.quiet })
+          }
+          return
+        }
 
         // ── Auto-connect (same as dx dev) ────────────────────────
         const userConnect = flags.connect as string | string[] | undefined
@@ -105,7 +121,7 @@ export function upCommand(app: DxBase) {
         const effectiveConnect = [...userConnectList, ...auto.autoConnects]
 
         // ── Cached prelude ───────────────────────────────────────
-        await runPrelude(orch.ctx, {
+        await runPrelude(ctx, {
           noPrelude: flags.prelude === false,
           fresh: Boolean(flags.fresh),
           connectTo: flags["connect-to"] as string | undefined,
@@ -114,48 +130,64 @@ export function upCommand(app: DxBase) {
           quiet: Boolean(f.quiet),
         })
 
-        // Clean up stale connection override from a previous session
-        const overridePath = join(project.rootDir, ".dx", COMPOSE_OVERRIDE_FILE)
-        if (existsSync(overridePath)) {
-          unlinkSync(overridePath)
-        }
-        cleanupConnectionContext(project.rootDir)
-
         // ── Separate targets into profiles and services ──────────
         const knownProfiles = new Set(project.allProfiles)
         const rawTargets = args.targets ?? []
-        const profiles: string[] = []
+        const resolvedProfiles: string[] = []
         const services: string[] = []
 
         if (rawTargets.length === 0) {
-          profiles.push(...knownProfiles)
+          resolvedProfiles.push(...knownProfiles)
         } else {
           for (const target of rawTargets) {
             if (knownProfiles.has(target)) {
-              profiles.push(target)
+              resolvedProfiles.push(target)
             } else {
               services.push(target)
             }
           }
         }
 
-        // ── Bring up via orchestrator ────────────────────────────
-        await orch.startUpSession({
+        // ── Spawn daemon ────────────────────────────────────────
+        const port = 4299
+        if (!f.quiet) {
+          console.log(`  Starting site agent daemon...`)
+        }
+
+        spawnAgentDaemon({
+          mode: "up",
+          workingDir,
+          port,
           targets: services.length > 0 ? services : undefined,
-          profiles: profiles.length > 0 ? profiles : undefined,
+          profiles: resolvedProfiles.length > 0 ? resolvedProfiles : undefined,
           noBuild: flags.build === false,
-          detach: flags.detach !== false,
-          quiet: f.quiet,
+          connectTo: flags["connect-to"] as string | undefined,
+          connect: effectiveConnect.length > 0 ? effectiveConnect : undefined,
         })
 
-        if (!f.json) {
+        // ── Wait for health ─────────────────────────────────────
+        const healthy = await waitForHealthy(port, 60_000)
+        if (!healthy) {
+          const { agentLogPath } = await import("../site/agent-lifecycle.js")
+          exitWithError(
+            f,
+            `Site agent did not become healthy within 60s. Check logs: ${agentLogPath(workingDir)}`
+          )
+          return
+        }
+
+        if (!f.json && !f.quiet) {
           const parts: string[] = []
-          if (profiles.length > 0)
-            parts.push(`profiles: ${profiles.join(", ")}`)
+          if (resolvedProfiles.length > 0)
+            parts.push(`profiles: ${resolvedProfiles.join(", ")}`)
           if (services.length > 0)
             parts.push(`services: ${services.join(", ")}`)
           const detail = parts.length > 0 ? ` (${parts.join("; ")})` : ""
-          console.log(`Stack started${detail}`)
+          console.log(`Stack started${detail} via site agent (port ${port})`)
+        }
+
+        if (flags.attach) {
+          await attachToAgent(port, { quiet: f.quiet })
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
