@@ -739,35 +739,152 @@ export function createAgentServer(agent: SiteAgent, config: AgentServerConfig) {
       return { data: { stopping: true } }
     })
 
-  // ── Backward compat: mount same routes at /api/dev/ ──────────────
-  // The React SPA currently calls /api/dev/*. Mount aliases so the
-  // existing UI works without changes during migration.
+  // ── Backward compat: proxy /api/dev/* → /api/v1/site/* ───────────
+  // The React SPA currently calls /api/dev/*. This proxy layer
+  // rewrites requests so the existing UI works during migration.
 
   const devCompat = new Elysia({ prefix: "/api/dev" })
-    .get("/health", () => ({
-      data: { status: "ok", mode: agent.mode },
-    }))
+    .get("/health", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/health`))
+        .then((r) => r.json())
+    )
     .get("/session", () =>
       app
-        .handle(new Request("http://localhost/api/v1/site/session"))
-        .then((r: Response) => r.json())
+        .handle(new Request(`http://l/api/v1/site/session`))
+        .then((r) => r.json())
     )
-
-  // NOTE: For full backward compat, the dev-compat layer uses a
-  // proxy approach — see Step 3 for the actual implementation.
+    .get("/services", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/services`))
+        .then((r) => r.json())
+    )
+    .get("/services/:name", ({ params }) =>
+      app
+        .handle(new Request(`http://l/api/v1/site/services/${params.name}`))
+        .then((r) => r.json())
+    )
+    .get("/services/:name/logs", ({ params, query }) => {
+      const qs = query.tail ? `?tail=${query.tail}` : ""
+      return app
+        .handle(
+          new Request(`http://l/api/v1/site/services/${params.name}/logs${qs}`)
+        )
+        .then((r) => r.json())
+    })
+    .get("/services/:name/logs/stream", ({ params }) =>
+      app.handle(
+        new Request(`http://l/api/v1/site/services/${params.name}/logs/stream`)
+      )
+    )
+    .get("/catalog", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/catalog`))
+        .then((r) => r.json())
+    )
+    .get("/env", () =>
+      app.handle(new Request(`http://l/api/v1/site/env`)).then((r) => r.json())
+    )
+    .get("/ports", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/ports`))
+        .then((r) => r.json())
+    )
+    .get("/graph", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/graph`))
+        .then((r) => r.json())
+    )
+    .post("/tunnel/start", ({ body }) =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/tunnel/start`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        )
+        .then((r) => r.json())
+    )
+    .post("/tunnel/stop", () =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/tunnel/stop`, { method: "POST" })
+        )
+        .then((r) => r.json())
+    )
+    .get("/whoami", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/whoami`))
+        .then((r) => r.json())
+    )
+    .get("/location", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/location`))
+        .then((r) => r.json())
+    )
+    .get("/threads/channels", () =>
+      app
+        .handle(new Request(`http://l/api/v1/site/threads/channels`))
+        .then((r) => r.json())
+    )
+    .get("/threads/channels/:id/threads", ({ params }) =>
+      app
+        .handle(
+          new Request(
+            `http://l/api/v1/site/threads/channels/${params.id}/threads`
+          )
+        )
+        .then((r) => r.json())
+    )
+    .get("/threads/threads/:id", ({ params }) =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/threads/threads/${params.id}`)
+        )
+        .then((r) => r.json())
+    )
+    .get("/threads/threads/:id/turns", ({ params }) =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/threads/threads/${params.id}/turns`)
+        )
+        .then((r) => r.json())
+    )
+    .get("/threads/threads/:id/plans", ({ params }) =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/threads/threads/${params.id}/plans`)
+        )
+        .then((r) => r.json())
+    )
+    .get("/plans/:slug", ({ params }) =>
+      app
+        .handle(new Request(`http://l/api/v1/site/plans/${params.slug}`))
+        .then((r) => r.json())
+    )
+    .get("/plans/:slug/versions", ({ params }) =>
+      app
+        .handle(
+          new Request(`http://l/api/v1/site/plans/${params.slug}/versions`)
+        )
+        .then((r) => r.json())
+    )
 
   let server: ReturnType<typeof Bun.serve> | null = null
 
   return {
     app,
     async start() {
-      // Dynamic import to handle both compiled and dev modes
       let indexHtml: any
       try {
         indexHtml = (await import("../dev-console/ui/index.html")).default
       } catch {
         indexHtml = undefined
       }
+
+      // Compose both Elysia apps
+      const combinedApp = new Elysia().use(app).use(devCompat)
 
       server = Bun.serve({
         port: config.port,
@@ -784,7 +901,7 @@ export function createAgentServer(agent: SiteAgent, config: AgentServerConfig) {
               "/threads/:threadId": indexHtml,
             }
           : {},
-        fetch: app.fetch,
+        fetch: combinedApp.fetch,
         development:
           process.env.NODE_ENV !== "production" ? { hmr: true } : false,
       })
