@@ -255,7 +255,7 @@ export function siteCommand(app: DxBase) {
 
       .command("start", (c) =>
         c
-          .meta({ description: "Start site controller" })
+          .meta({ description: "Start site agent in controller mode" })
           .flags({
             name: {
               type: "string",
@@ -271,7 +271,7 @@ export function siteCommand(app: DxBase) {
             },
             port: {
               type: "number",
-              description: "Controller API port (default: 4590)",
+              description: "Agent API port (default: 4590)",
             },
             interval: {
               type: "number",
@@ -281,24 +281,67 @@ export function siteCommand(app: DxBase) {
               type: "string",
               description: "Working directory (default: cwd)",
             },
+            attach: {
+              type: "boolean",
+              description: "Attach to agent logs after starting",
+            },
           })
           .run(async ({ flags }) => {
-            const { startSiteController } = await import("../site/start.js")
-            await startSiteController({
+            const f = toDxFlags(flags)
+            const workingDir =
+              (flags.dir as string | undefined) ?? process.cwd()
+            const port = (flags.port as number | undefined) ?? 4590
+
+            const {
+              getRunningAgent,
+              spawnAgentDaemon,
+              waitForHealthy,
+              attachToAgent,
+            } = await import("../site/agent-lifecycle.js")
+
+            const existing = await getRunningAgent(workingDir)
+            if (existing) {
+              console.log(
+                `Site agent already running (PID ${existing.pid}, port ${existing.port})`
+              )
+              if (flags.attach) {
+                await attachToAgent(existing.port)
+              }
+              return
+            }
+
+            console.log("Starting site agent in controller mode...")
+
+            spawnAgentDaemon({
+              mode: "controller",
+              workingDir,
+              port,
               siteName: flags.name as string | undefined,
               standalone: flags.standalone as boolean | undefined,
               airGapped: flags["air-gapped"] as boolean | undefined,
-              port: (flags.port as number | undefined) ?? 4590,
               reconcileIntervalMs:
                 ((flags.interval as number | undefined) ?? 30) * 1000,
-              workingDir: (flags.dir as string | undefined) ?? process.cwd(),
             })
+
+            const healthy = await waitForHealthy(port, 30_000)
+            if (!healthy) {
+              exitWithError(f, "Site agent did not become healthy within 30s")
+              return
+            }
+
+            console.log(
+              `Site agent running (PID file in .dx/agent.json, port ${port})`
+            )
+
+            if (flags.attach) {
+              await attachToAgent(port)
+            }
           })
       )
 
       .command("stop", (c) =>
         c
-          .meta({ description: "Stop site controller" })
+          .meta({ description: "Stop site agent" })
           .flags({
             dir: {
               type: "string",
@@ -307,30 +350,32 @@ export function siteCommand(app: DxBase) {
           })
           .run(async ({ flags }) => {
             const f = toDxFlags(flags)
-            const { existsSync, readFileSync } = await import("node:fs")
-            const { join } = await import("node:path")
-            const dir = (flags.dir as string | undefined) ?? process.cwd()
-            const pidFile = join(dir, ".dx", "controller.pid")
+            const workingDir =
+              (flags.dir as string | undefined) ?? process.cwd()
 
-            if (!existsSync(pidFile)) {
-              exitWithError(f, `No controller PID file found at ${pidFile}`)
-              return
-            }
+            const { stopAgent } = await import("../site/agent-lifecycle.js")
+            const stopped = await stopAgent(workingDir)
 
-            const pid = Number(readFileSync(pidFile, "utf8").trim())
-            if (Number.isNaN(pid)) {
-              exitWithError(f, `Invalid PID in ${pidFile}`)
-              return
-            }
-
-            try {
-              process.kill(pid, "SIGTERM")
-              console.log(`Sent SIGTERM to site controller (PID ${pid}).`)
-            } catch (err) {
-              exitWithError(
-                f,
-                `Failed to stop controller (PID ${pid}): ${err instanceof Error ? err.message : err}`
-              )
+            if (stopped) {
+              console.log("Site agent stopped.")
+            } else {
+              // Fall back to legacy controller.pid for backward compat
+              const { existsSync, readFileSync } = await import("node:fs")
+              const { join } = await import("node:path")
+              const pidFile = join(workingDir, ".dx", "controller.pid")
+              if (existsSync(pidFile)) {
+                const pid = Number(readFileSync(pidFile, "utf8").trim())
+                if (!Number.isNaN(pid)) {
+                  try {
+                    process.kill(pid, "SIGTERM")
+                    console.log(
+                      `Sent SIGTERM to legacy controller (PID ${pid}).`
+                    )
+                    return
+                  } catch {}
+                }
+              }
+              exitWithError(f, "No site agent or controller running.")
             }
           })
       )
@@ -688,6 +733,14 @@ export function siteCommand(app: DxBase) {
 }
 
 async function getSiteApiUrl(): Promise<string> {
+  // Prefer a running local agent
+  const { getRunningAgent } = await import("../site/agent-lifecycle.js")
+  const agent = await getRunningAgent(process.cwd())
+  if (agent) {
+    return `http://localhost:${agent.port}`
+  }
+
+  // Fall back to config-based resolution
   const config = await readConfig()
   const siteUrl = resolveSiteUrl(config)
   return siteUrl || resolveFactoryUrl(config)
