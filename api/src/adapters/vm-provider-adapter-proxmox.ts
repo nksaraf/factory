@@ -283,21 +283,24 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
       const lifecycle = mapVmLifecycle(pvm.status || "stopped")
 
       let ipAddressValue: string | null = null
-      try {
-        if (pvm.node && pvm.vmid) {
-          const vmConfig = await client.getVmConfig(
-            pvm.node,
-            pvm.vmid,
-            pvm.type || "qemu"
-          )
-          ipAddressValue = getPrimaryIpFromConfig(vmConfig)
-        }
-      } catch {
-        // Config fetch failed, continue
-      }
-
-      if (!ipAddressValue && pvm.node && pvm.vmid && pvm.status === "running") {
+      // For running VMs, prefer guest-agent (runtime truth) over cloud-init
+      // ipconfig0 (often stale after clone/reconfigure).
+      if (pvm.node && pvm.vmid && pvm.status === "running") {
         ipAddressValue = await getIpFromGuestAgent(client, pvm.node, pvm.vmid)
+      }
+      if (!ipAddressValue) {
+        try {
+          if (pvm.node && pvm.vmid) {
+            const vmConfig = await client.getVmConfig(
+              pvm.node,
+              pvm.vmid,
+              pvm.type || "qemu"
+            )
+            ipAddressValue = getPrimaryIpFromConfig(vmConfig)
+          }
+        } catch {
+          // Config fetch failed, continue
+        }
       }
 
       const vmName = pvm.name || `vm-${pvm.vmid}`
