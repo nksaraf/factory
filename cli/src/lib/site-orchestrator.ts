@@ -61,6 +61,7 @@ import {
   catalogToPortRequests,
   portEnvVars,
 } from "./port-manager.js"
+import type { EndpointMap } from "./endpoint-resolver.js"
 import { resolveLinkedSystemDeployments } from "./linked-sd-resolver.js"
 import { SiteManager } from "./site-manager.js"
 import { ComposeExecutor } from "../site/execution/compose.js"
@@ -542,10 +543,14 @@ export class SiteOrchestrator {
         : Array.isArray(opts.connect)
           ? opts.connect
           : [opts.connect]
+      const endpointsBySystem = await this.fetchEndpointsForTarget(
+        opts.connectTo
+      )
       const linkedSds = resolveLinkedSystemDeployments({
         connects: connectList,
         connectTo: opts.connectTo,
         catalog: this.project.catalog,
+        endpointsBySystem,
       })
       // Collect cross-system env from deps' envMapping. These are the BASE
       // layer — component-level connection env (from applyConnections above)
@@ -1395,6 +1400,40 @@ export class SiteOrchestrator {
         }
       }
       console.log("")
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Endpoint discovery (Factory API)
+  // ------------------------------------------------------------------
+
+  private async fetchEndpointsForTarget(
+    targetSite?: string
+  ): Promise<Record<string, EndpointMap> | undefined> {
+    if (!targetSite) return undefined
+    try {
+      const { resolveSiteBackend } = await import("./site-backend.js")
+      const backend = await resolveSiteBackend({ siteSlug: targetSite })
+      const sds = await backend.getSystemDeployments()
+
+      const result: Record<string, EndpointMap> = {}
+      for (const sd of sds) {
+        const endpoints: EndpointMap = {}
+        for (const cd of sd.componentDeployments) {
+          const port = cd.status.port
+          if (!port) continue
+          endpoints[cd.componentSlug] = {
+            host: targetSite,
+            port,
+          }
+        }
+        if (Object.keys(endpoints).length > 0) {
+          result[sd.systemSlug] = endpoints
+        }
+      }
+      return Object.keys(result).length > 0 ? result : undefined
+    } catch {
+      return undefined
     }
   }
 
