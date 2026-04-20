@@ -59,5 +59,5 @@ ENV PORT=4100
 ENV WORKFLOW_TARGET_WORLD="@workflow/world-postgres"
 EXPOSE 4100 9090
 
-# Run Postgres World migration (idempotent) before starting the server
-CMD ["sh", "-c", "api/node_modules/.bin/workflow-postgres-setup && bun run api-server/src/bun-entry.ts"]
+# Wait for Postgres DNS to resolve, run workflow migration, then start
+CMD ["sh", "-c", "for i in 1 2 3 4 5; do api/node_modules/.bin/workflow-postgres-setup && break || sleep 3; done && bun run api-server/src/bun-entry.ts"]
