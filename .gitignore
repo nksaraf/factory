@@ -1,5 +1,6 @@
 .superpowers
 .dx
+!.dx/profiles/
 node_modules
 .vinxi
 .output
@@ -50,8 +51,6 @@ api/db/seeds/
 deps
 
 
-packages/npm/app-ui/  # dx-pkg-managed
-packages/npm/control-plane/  # dx-pkg-managed
 
 # Claude Code
 .claude/
@@ -59,3 +58,9 @@ packages/npm/control-plane/  # dx-pkg-managed
 # Scratch / session artifacts
 slack-users.json
 snapshots/
+# dx-pkg-managed
+packages/npm/app-ui
+# dx-pkg-managed
+packages/npm/control-plane
+# dx-pkg-managed
+packages/npm/auth-service

@@ -10,6 +10,36 @@ x-dx:
   lifecycle: production
   repo: https://github.com/nksaraf/factory
   tags: "dx,cli,platform,backstage"
+  dependencies:
+    - system: factory-core
+      defaultTarget: factory-prod
+      binding: optional
+      envMapping:
+        FACTORY_DATABASE_URL:
+          component: infra-postgres
+          port: postgres
+          template: "postgres://postgres:factory-prod-2026@{host}:{port}/postgres"
+          fallback: "postgres://postgres:postgres@localhost:5432/postgres"
+        FACTORY_AUTH_JWKS_URL:
+          component: infra-auth
+          port: http
+          template: "http://{host}:{port}/api/v1/auth/.well-known/jwks.json"
+          fallback: "http://localhost:8180/api/v1/auth/.well-known/jwks.json"
+        BETTER_AUTH_BASE_URL:
+          component: infra-auth
+          port: http
+          template: "http://{host}:{port}"
+          fallback: "http://localhost:8180"
+        NATS_URL:
+          component: infra-nats
+          port: nats
+          template: "nats://{host}:{port}"
+          fallback: "nats://localhost:4222"
+        PUBLIC_FACTORY_API_URL:
+          component: infra-factory
+          port: http
+          template: "http://{host}:{port}/api/v1/factory"
+          fallback: "http://localhost:4100/api/v1/factory"
 
 services:
   # ─── Components (things we build) ────────────────────────────
@@ -342,6 +372,8 @@ services:
       dx.component: infra-nats
       dx.type: message-queue
       dx.description: "NATS JetStream — real-time event broker"
+      dx.port.4222.name: nats
+      dx.port.4222.protocol: tcp
 
   # ---------------------------------------------------------------------------
   # Redis — used for presence WebSocket fan-out across API instances

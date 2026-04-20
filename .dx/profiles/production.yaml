@@ -1,0 +1,11 @@
+description: "Connect to factory production"
+
+systems:
+  factory-core:
+    site: factory-prod
+
+env:
+  FACTORY_DATABASE_URL: "postgres://postgres:factory-prod-2026@192.168.2.88:54111/postgres"
+  BETTER_AUTH_BASE_URL: "http://192.168.2.88:9000"
+  FACTORY_AUTH_JWKS_URL: "http://192.168.2.88:9000/api/v1/auth/.well-known/jwks.json"
+  NATS_URL: "nats://192.168.2.88:4222"
