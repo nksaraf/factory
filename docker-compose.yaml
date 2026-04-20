@@ -14,7 +14,7 @@ x-dx:
 services:
   # ─── Components (things we build) ────────────────────────────
 
-  svc-api:
+  infra-factory:
     image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/factory-service:latest"
     platform: linux/amd64
     build:
@@ -84,7 +84,7 @@ services:
       dx.dev.command: "pnpm --filter @smp/factory-api-server dev"
       dx.dev.sync: "./api/src,./shared/src"
       dx.runtime: node
-      dx.previous-slugs: "infra-factory"
+      dx.previous-slugs: "svc-api"
 
   # ─── Resources (infrastructure) ──────────────────────────────
 
