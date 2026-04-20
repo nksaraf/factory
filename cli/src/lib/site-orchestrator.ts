@@ -1417,19 +1417,38 @@ export class SiteOrchestrator {
   ): Promise<Record<string, EndpointMap> | undefined> {
     if (!targetSite) return undefined
     try {
-      const { resolveSiteBackend } = await import("./site-backend.js")
-      const backend = await resolveSiteBackend({ siteSlug: targetSite })
-      const sds = await backend.getSystemDeployments()
+      const { getFactoryRestClient } = await import("../client.js")
+      const client = await getFactoryRestClient()
+      const raw = await client.request<{
+        spec: {
+          systemDeployments: Array<{
+            systemSlug: string
+            componentDeployments: Array<{
+              componentSlug: string
+              ports?: Array<{ name: string; port: number }>
+            }>
+          }>
+        }
+        host?: { ip: string; slug: string } | null
+      }>("GET", `/api/v1/factory/ops/site-live/${targetSite}`)
 
+      const hostIp = raw.host?.ip ?? targetSite
       const result: Record<string, EndpointMap> = {}
-      for (const sd of sds) {
+
+      for (const sd of raw.spec.systemDeployments) {
         const endpoints: EndpointMap = {}
         for (const cd of sd.componentDeployments) {
-          const port = cd.status.port
-          if (!port) continue
+          if (!cd.ports?.length) continue
+          const allPorts = cd.ports.map((p) => p.port).sort((a, b) => b - a)
+          const publishedPort = allPorts[0]
+          const namedPorts: Record<string, number> = {}
+          for (const p of cd.ports) {
+            namedPorts[p.name.replace(/^port-/, "")] = p.port
+          }
           endpoints[cd.componentSlug] = {
-            host: targetSite,
-            port,
+            host: hostIp,
+            port: publishedPort,
+            ports: namedPorts,
           }
         }
         if (Object.keys(endpoints).length > 0) {
