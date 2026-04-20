@@ -4,6 +4,11 @@
  * Exposes operational endpoints under /api/v1/site/ for operators
  * and Factory to interact with the running controller.
  */
+/**
+ * @deprecated Use agent-server.ts instead. This file is kept for
+ * backward compatibility with code that directly imports
+ * createControllerServer. New code should use createAgentServer.
+ */
 import { Elysia, t } from "elysia"
 
 import type { SiteController } from "./controller.js"

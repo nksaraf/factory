@@ -2,12 +2,10 @@
  * Site controller startup — wires together executor, factory link,
  * health monitor, state store, and HTTP server into a running controller.
  */
-import { unlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readConfig, resolveFactoryUrl } from "../config.js"
 import { SiteManager } from "../lib/site-manager.js"
-import { createControllerServer } from "./controller-server.js"
 import { type ControllerMode, SiteController } from "./controller.js"
 import { detectExecutor, formatExecutorTypeLabel } from "./execution/detect.js"
 import { FactoryLink } from "./factory-link.js"
@@ -44,7 +42,15 @@ function loadSiteIdentity(workingDir: string, cliName?: string): SiteIdentity {
   )
 }
 
+/**
+ * @deprecated Use agent-daemon.ts instead. This function is kept
+ * for backward compatibility.
+ */
 export async function startSiteController(opts: StartOptions): Promise<void> {
+  console.warn(
+    "startSiteController is deprecated. Use `dx site start` (agent daemon) instead."
+  )
+  // Fall through to legacy behavior for backward compat
   const identity = loadSiteIdentity(opts.workingDir, opts.siteName)
   const siteName = identity.slug
 
@@ -59,32 +65,26 @@ export async function startSiteController(opts: StartOptions): Promise<void> {
 
   if (opts.standalone) {
     mode = "standalone"
-    console.log("  Mode: standalone (no Factory connection)")
   } else if (opts.airGapped) {
     mode = "air-gapped"
-    console.log("  Mode: air-gapped (manifest from file only)")
   } else {
     const config = await readConfig()
     const factoryUrl = resolveFactoryUrl(config)
     if (factoryUrl) {
       factoryLink = new FactoryLink({ factoryUrl, siteName })
-      console.log(`  Mode: connected → ${factoryUrl}`)
     } else {
       mode = "standalone"
-      console.log("  Mode: standalone (no Factory URL configured)")
     }
   }
 
   const stateDir = join(opts.workingDir, ".dx")
   const state = new StateStore(stateDir)
-
   const healthMonitor = new HealthMonitor(
     executor,
     { intervalMs: 15_000 },
-    (snapshot) => {
-      if (snapshot.overallStatus !== "healthy") {
-        console.warn(`Health degradation: ${snapshot.overallStatus}`)
-      }
+    (s) => {
+      if (s.overallStatus !== "healthy")
+        console.warn(`Health: ${s.overallStatus}`)
     }
   )
 
@@ -101,36 +101,50 @@ export async function startSiteController(opts: StartOptions): Promise<void> {
     state
   )
 
-  const { start } = createControllerServer(controller, { port: opts.port })
+  // Use the unified agent server instead of the old controller server
+  const { SiteAgent } = await import("./agent.js")
+  const { createAgentServer } = await import("./agent-server.js")
+  const { writeAgentState, clearAgentState } =
+    await import("./agent-lifecycle.js")
 
-  const server = await start()
-  console.log(`  API server: http://0.0.0.0:${opts.port}`)
+  const agent = new SiteAgent({
+    config: {
+      mode: "controller",
+      port: opts.port,
+      workingDir: opts.workingDir,
+    },
+    executor,
+    controller,
+    healthMonitor,
+  })
 
-  const pidFile = join(stateDir, "controller.pid")
-  writeFileSync(pidFile, String(process.pid))
+  const agentServer = createAgentServer(agent, { port: opts.port })
+  const serverInfo = await agentServer.start()
+  agent.setServerHandle(agentServer)
+
+  writeAgentState(opts.workingDir, {
+    pid: process.pid,
+    port: serverInfo.port,
+    mode: "controller",
+    startedAt: new Date().toISOString(),
+    workingDir: opts.workingDir,
+  })
 
   const stopLoop = controller.startLoop()
-  console.log(`  Reconcile loop: every ${opts.reconcileIntervalMs / 1000}s`)
+
   console.log(
-    `\nSite controller running (PID ${process.pid}). Press Ctrl+C to stop.\n`
+    `Site agent running (PID ${process.pid}, port ${serverInfo.port})`
   )
 
   const shutdown = () => {
-    console.log("\nShutting down site controller...")
     stopLoop()
-    server.stop()
-    try {
-      unlinkSync(pidFile)
-    } catch {
-      /* already removed */
-    }
+    agentServer.stop()
+    clearAgentState(opts.workingDir)
     process.exit(0)
   }
 
   process.on("SIGINT", shutdown)
   process.on("SIGTERM", shutdown)
 
-  await new Promise(() => {
-    // keep process alive
-  })
+  await new Promise(() => {})
 }

@@ -994,6 +994,11 @@ export class SiteOrchestrator {
     return this.consolePort
   }
 
+  /**
+   * @deprecated The dev console is now served by the unified agent server.
+   * This method is kept for backward compatibility but is a no-op
+   * when the agent daemon is managing the HTTP server.
+   */
   async startConsole(): Promise<{ port: number; url: string }> {
     const allocated = await this.portManager.resolveMulti([
       {

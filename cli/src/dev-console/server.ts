@@ -5,6 +5,11 @@
  * for all other paths. In dev, Bun's fullstack mode provides HMR for
  * the React UI; in the compiled binary, the SPA + assets are embedded.
  */
+/**
+ * @deprecated Use agent-server.ts instead. This file is kept for
+ * backward compatibility with code that directly imports
+ * createDevConsoleServer. New code should use createAgentServer.
+ */
 import { Elysia, t } from "elysia"
 import { existsSync, statSync, readFileSync } from "node:fs"
 import { hostname, platform, arch, networkInterfaces, homedir } from "node:os"
