@@ -24,6 +24,8 @@ services:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    dns:
+      - 127.0.0.11
     restart: unless-stopped
     ports:
       - "${INFRA_FACTORY_PORT:-4100}:4100"
