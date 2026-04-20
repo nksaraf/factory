@@ -10,7 +10,7 @@ import type {
   ServiceSpec,
   TunnelSpec,
 } from "@smp/factory-shared/schemas/infra"
-import { index, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { newId } from "../../lib/id"
 import {
@@ -131,7 +131,7 @@ export const realmHost = infraSchema.table(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("infra_realm_host_unique").on(t.realmId, t.hostId),
+    primaryKey({ columns: [t.realmId, t.hostId] }),
     index("infra_realm_host_realm_idx").on(t.realmId),
     index("infra_realm_host_host_idx").on(t.hostId),
   ]

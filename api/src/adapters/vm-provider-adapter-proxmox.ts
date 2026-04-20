@@ -324,10 +324,27 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
       }
 
       if (existing) {
-        await db
-          .update(host)
-          .set({ spec: hostSpec, type: vmType, updatedAt: new Date() })
-          .where(eq(host.id, existing.id))
+        const updates: Record<string, unknown> = {
+          spec: hostSpec,
+          type: vmType,
+          updatedAt: new Date(),
+        }
+        if (existing.name !== vmName) {
+          updates.name = vmName
+          updates.slug = await allocateSlug({
+            baseLabel: vmName,
+            isTaken: async (s) => {
+              if (s === existing.slug) return false
+              const [r] = await db
+                .select()
+                .from(host)
+                .where(eq(host.slug, s))
+                .limit(1)
+              return r != null
+            },
+          })
+        }
+        await db.update(host).set(updates).where(eq(host.id, existing.id))
 
         const effectiveIp = hostSpec.ipAddress
         if (effectiveIp) {
