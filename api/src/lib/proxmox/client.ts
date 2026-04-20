@@ -539,7 +539,7 @@ export class ProxmoxClient {
     const result = await this.client.nodes
       .get(nodeName)
       .qemu.get(vmid)
-      .agent.get("network-get-interfaces")
+      .agent.networkGetInterfaces.networkGetInterfaces()
 
     if (!result.isSuccessStatusCode) {
       throw new Error(

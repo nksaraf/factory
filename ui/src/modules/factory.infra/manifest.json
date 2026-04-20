@@ -83,7 +83,21 @@
         "id": "factory.infra.route.certs",
         "displayName": "Certificates & Secrets",
         "path": "/(root)/(app)/infra/certs/"
-      }
+      },
+      { "id": "factory.infra.route.services", "displayName": "Services", "path": "/(root)/(app)/infra/services/" },
+      { "id": "factory.infra.route.service-detail", "displayName": "Service Detail", "path": "/(root)/(app)/infra/services/:slug/" },
+      { "id": "factory.infra.route.routes", "displayName": "Routes", "path": "/(root)/(app)/infra/routes/" },
+      { "id": "factory.infra.route.route-detail", "displayName": "Route Detail", "path": "/(root)/(app)/infra/routes/:slug/" },
+      { "id": "factory.infra.route.dns", "displayName": "DNS", "path": "/(root)/(app)/infra/dns/" },
+      { "id": "factory.infra.route.dns-detail", "displayName": "DNS Detail", "path": "/(root)/(app)/infra/dns/:slug/" },
+      { "id": "factory.infra.route.tunnels", "displayName": "Tunnels", "path": "/(root)/(app)/infra/tunnels/" },
+      { "id": "factory.infra.route.tunnel-detail", "displayName": "Tunnel Detail", "path": "/(root)/(app)/infra/tunnels/:slug/" },
+      { "id": "factory.infra.route.secrets", "displayName": "Secrets", "path": "/(root)/(app)/infra/secrets/" },
+      { "id": "factory.infra.route.secret-detail", "displayName": "Secret Detail", "path": "/(root)/(app)/infra/secrets/:slug/" },
+      { "id": "factory.infra.route.host-terminal", "displayName": "Host Terminal", "path": "/(root)/(app)/infra/hosts/:slug/terminal/" },
+      { "id": "factory.infra.route.host-files", "displayName": "Host Files", "path": "/(root)/(app)/infra/hosts/:slug/files/" },
+      { "id": "factory.infra.route.host-monitoring", "displayName": "Host Monitoring", "path": "/(root)/(app)/infra/hosts/:slug/monitoring/" },
+      { "id": "factory.infra.route.host-activity", "displayName": "Host Activity", "path": "/(root)/(app)/infra/hosts/:slug/activity/" }
     ],
     "sidebarGroups": [
       {
@@ -166,7 +180,12 @@
         "href": "/infra/certs",
         "group": "factory.infra.sidebar.group",
         "order": 7
-      }
+      },
+      { "id": "factory.infra.sidebar.services", "displayName": "Services", "icon": "icon-[ph--plugs-connected-duotone]", "href": "/infra/services", "group": "factory.infra.sidebar.group", "order": 8 },
+      { "id": "factory.infra.sidebar.routes", "displayName": "Routes", "icon": "icon-[ph--signpost-duotone]", "href": "/infra/routes", "group": "factory.infra.sidebar.group", "order": 9 },
+      { "id": "factory.infra.sidebar.dns", "displayName": "DNS", "icon": "icon-[ph--globe-simple-duotone]", "href": "/infra/dns", "group": "factory.infra.sidebar.group", "order": 10 },
+      { "id": "factory.infra.sidebar.tunnels", "displayName": "Tunnels", "icon": "icon-[ph--arrows-in-line-vertical-duotone]", "href": "/infra/tunnels", "group": "factory.infra.sidebar.group", "order": 11 },
+      { "id": "factory.infra.sidebar.secrets", "displayName": "Secrets", "icon": "icon-[ph--lock-key-duotone]", "href": "/infra/secrets", "group": "factory.infra.sidebar.group", "order": 12 }
     ],
     "layouts": [],
     "views": [],

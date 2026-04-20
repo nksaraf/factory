@@ -1,5 +1,5 @@
 // ui/src/lib/infra/use-infra.ts
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { infraFetch } from "./api"
 import type {
@@ -461,5 +461,99 @@ export function useInfraAssets() {
       return res.data
     },
     refetchInterval: POLL_INTERVAL,
+  })
+}
+
+// ── Ontology hooks (new entities) ───────────────────
+
+import type {
+  DnsDomain,
+  Route,
+  Secret,
+  Service,
+  Tunnel,
+} from "./types"
+
+function ontologyList<T>(entity: string, opts?: Record<string, string | undefined>) {
+  const qs = buildQs({ ...opts, limit: "500" })
+  return useQuery<T[]>({
+    queryKey: ["infra", entity, opts],
+    queryFn: async () => {
+      const res = await infraFetch<SuccessResponse<T[]>>(`/${entity}${qs}`)
+      return res.data
+    },
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+function ontologyDetail<T>(entity: string, slugOrId: string | undefined) {
+  return useQuery<T | null>({
+    queryKey: ["infra", entity, slugOrId],
+    queryFn: async () => {
+      const res = await infraFetch<SuccessResponse<T>>(`/${entity}/${slugOrId}`)
+      return res.data
+    },
+    enabled: !!slugOrId,
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+export function useServices(opts?: { type?: string }) {
+  return ontologyList<Service>("services", opts)
+}
+
+export function useService(slugOrId: string | undefined) {
+  return ontologyDetail<Service>("services", slugOrId)
+}
+
+export function useRoutes(opts?: { type?: string; realmId?: string }) {
+  return ontologyList<Route>("routes", opts)
+}
+
+export function useRoute(slugOrId: string | undefined) {
+  return ontologyDetail<Route>("routes", slugOrId)
+}
+
+export function useDnsDomains(opts?: { type?: string }) {
+  return ontologyList<DnsDomain>("dns-domains", opts)
+}
+
+export function useDnsDomain(slugOrId: string | undefined) {
+  return ontologyDetail<DnsDomain>("dns-domains", slugOrId)
+}
+
+export function useTunnels(opts?: { phase?: string }) {
+  return ontologyList<Tunnel>("tunnels", opts)
+}
+
+export function useTunnel(slugOrId: string | undefined) {
+  return ontologyDetail<Tunnel>("tunnels", slugOrId)
+}
+
+export function useSecrets() {
+  return ontologyList<Secret>("secrets")
+}
+
+export function useSecret(slugOrId: string | undefined) {
+  return ontologyDetail<Secret>("secrets", slugOrId)
+}
+
+export function useInfraAction(
+  entityPath: string,
+  slugOrId: string,
+  action: string
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body?: Record<string, unknown>) => {
+      const res = await infraFetch<SuccessResponse<unknown>>(
+        `/${entityPath}/${slugOrId}/actions/${action}`,
+        { method: "POST", body: body ? JSON.stringify(body) : undefined }
+      )
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["infra", entityPath] })
+    },
   })
 }
