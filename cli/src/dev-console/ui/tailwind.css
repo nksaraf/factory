@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@plugin "@iconify/tailwind4";
+@plugin "@tailwindcss/typography";
+
+@source "./**/*.{ts,tsx,html}";
+
+@theme {
+  --font-sans:
+    "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  --font-serif:
+    "Newsreader", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+@theme {
+  --color-surface-0: oklch(0.14 0.005 260);
+  --color-surface-1: oklch(0.17 0.006 260);
+  --color-surface-2: oklch(0.2 0.008 260);
+  --color-border-subtle: oklch(0.28 0.008 260);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      oklch(0.25 0.08 270 / 0.35),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 100%,
+      oklch(0.3 0.1 190 / 0.18),
+      transparent 60%
+    ),
+    var(--color-surface-0);
+  color: var(--color-zinc-200);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+code,
+pre,
+kbd,
+samp,
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "calt", "liga", "ss01", "ss02", "zero";
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.28 0.008 260 / 0.6);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.38 0.008 260 / 0.8);
+  background-clip: content-box;
+}
+
+[class*="icon-["] {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}

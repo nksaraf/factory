@@ -36,8 +36,7 @@ describe("getSiteState", () => {
       .values({
         slug: "trafficure",
         name: "Trafficure",
-        type: "system",
-        spec: { namespace: "default", lifecycle: "ga", tags: [] },
+        spec: { namespace: "default", lifecycle: "production", tags: [] },
       })
       .returning()
 
@@ -52,7 +51,7 @@ describe("getSiteState", () => {
           updatePolicy: "auto",
           lifecycle: "persistent",
           mode: "up",
-        } satisfies DbSiteSpec & { mode: string },
+        } satisfies DbSiteSpec,
         status: { phase: "running" } satisfies SiteObservedStatus,
       } as typeof site.$inferInsert)
       .returning()
@@ -86,7 +85,7 @@ describe("getSiteState", () => {
       spec: {
         desiredImage: "registry/api:v1",
         replicas: 2,
-        mode: "container",
+        mode: "deployed",
       },
     } as typeof componentDeployment.$inferInsert)
 
@@ -139,8 +138,7 @@ describe("getSiteState", () => {
       .values({
         slug: "empty-sys",
         name: "Empty",
-        type: "system",
-        spec: { namespace: "default", lifecycle: "ga", tags: [] },
+        spec: { namespace: "default", lifecycle: "production", tags: [] },
       })
       .returning()
 
@@ -183,8 +181,7 @@ describe("getSiteState", () => {
       .values({
         slug: "auth",
         name: "Auth",
-        type: "system",
-        spec: { namespace: "default", lifecycle: "ga", tags: [] },
+        spec: { namespace: "default", lifecycle: "production", tags: [] },
       })
       .returning()
 

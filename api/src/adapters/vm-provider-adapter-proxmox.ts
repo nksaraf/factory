@@ -17,6 +17,8 @@ import type {
   ProxmoxNodeStatus,
   ProxmoxVmConfig,
 } from "../lib/proxmox/types"
+import { PostgresSecretBackend } from "../lib/secrets/postgres-backend"
+import { createSpecRefResolver } from "../lib/spec-ref-resolver"
 import { allocateSlug } from "../lib/slug"
 import type {
   InfraEstate,
@@ -46,15 +48,20 @@ function mapVmLifecycle(status: string): HostLifecycle {
   return "maintenance"
 }
 
-/** Extract Proxmox connection info from a hypervisor estate spec. */
-function getClusterConfig(hypervisor: InfraEstate) {
+/**
+ * Extract Proxmox connection info from a hypervisor estate spec,
+ * resolving `$secret()` / `$var()` references.
+ */
+async function getClusterConfig(db: Database, hypervisor: InfraEstate) {
   const spec = (hypervisor.spec ?? {}) as Record<string, unknown>
+  const resolver = createSpecRefResolver(db, new PostgresSecretBackend(db))
+  const resolved = await resolver.resolve(spec)
   return {
-    host: spec.apiHost as string,
-    port: spec.apiPort as number,
-    tokenId: spec.tokenId as string,
-    tokenSecret: spec.tokenSecret as string,
-    fingerprint: spec.sslFingerprint as string | undefined,
+    host: resolved.apiHost as string,
+    port: resolved.apiPort as number,
+    tokenId: resolved.tokenId as string,
+    tokenSecret: resolved.tokenSecret as string,
+    fingerprint: resolved.sslFingerprint as string | undefined,
   }
 }
 
@@ -77,7 +84,7 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
         .where(eq(estate.id, hypervisor.id))
 
       const client = createProxmoxClientFromCluster(
-        getClusterConfig(hypervisor)
+        await getClusterConfig(db, hypervisor)
       )
 
       const totalHosts = await this.syncNodes(db, client, hypervisor)
@@ -414,7 +421,9 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
     hypervisor: InfraEstate,
     spec: VmCreateSpec
   ): Promise<VmProvisionResult> {
-    const client = createProxmoxClientFromCluster(getClusterConfig(hypervisor))
+    const client = createProxmoxClientFromCluster(
+      await getClusterConfig(this.db, hypervisor)
+    )
 
     // Find template
     const templates = await client.getTemplates()

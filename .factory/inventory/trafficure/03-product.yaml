@@ -1,0 +1,90 @@
+version: "1"
+
+# NOTE: capabilities and product-system junction require a newer API schema
+# (CreateCapabilitySchema.productId optional, CreateProductSystemSchema added
+# in shared/src/schemas/software.ts). Until prod API is redeployed, they are
+# applied via 03-product-extras.sql. Once deployed, uncomment below and drop
+# the SQL script.
+
+entities:
+  - kind: product
+    slug: trafficure
+    name: Trafficure
+    spec:
+      description: "Real-time traffic metrics platform"
+      brand: Trafficure
+      website: https://trafficure.io
+
+  # - kind: product-system
+  #   productSlug: trafficure
+  #   systemSlug: traffic-platform
+  # - kind: product-system
+  #   productSlug: trafficure
+  #   systemSlug: traffic-airflow
+
+  # - kind: capability
+  #   slug: trafficure-core
+  #   name: Core Platform
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     requiresComponents: [traffic-platform, postgres, kafka]
+  #     description: Core traffic data platform
+  # - kind: capability
+  #   slug: trafficure-dags
+  #   name: Data Pipelines (Airflow)
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     requiresComponents: [airflow-scheduler, airflow-worker, airflow-webserver]
+  #     dependsOn: [trafficure-core]
+  # - kind: capability
+  #   slug: trafficure-web-app
+  #   name: Web App
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     requiresComponents: [trafficure-app]
+  #     dependsOn: [trafficure-core]
+  # - kind: capability
+  #   slug: trafficure-mobile-app
+  #   name: Mobile App
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     dependsOn: [trafficure-core]
+  # - kind: capability
+  #   slug: trafficure-analytics
+  #   name: Analytics Module
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     dependsOn: [trafficure-core]
+  # - kind: capability
+  #   slug: trafficure-alerts
+  #   name: Alerts Module
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: production
+  #     dependsOn: [trafficure-core]
+  # - kind: capability
+  #   slug: trafficure-ai
+  #   name: AI Module
+  #   type: feature
+  #   productSlug: trafficure
+  #   ownerTeamSlug: trafficure
+  #   spec:
+  #     lifecycle: experimental
+  #     dependsOn: [trafficure-core]

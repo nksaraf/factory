@@ -1,0 +1,56 @@
+{
+  "id": "factory.threads",
+  "displayName": "Factory Threads",
+  "description": "AI agent threads, plans, and exchanges",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["threads", "agents", "plans"],
+  "categories": ["agents"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--chats-circle-duotone]",
+      "label": "Threads",
+      "order": 20
+    },
+    "routePrefix": "/threads"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.threads.route.home",
+        "displayName": "Threads",
+        "path": "/(root)/(app)/threads/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.threads.sidebar.group",
+        "displayName": "Agents",
+        "icon": "icon-[ph--robot-duotone]",
+        "group": "Agents",
+        "order": 20
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.threads.sidebar.threads",
+        "displayName": "Threads",
+        "icon": "icon-[ph--chats-circle-duotone]",
+        "href": "/threads",
+        "group": "factory.threads.sidebar.group",
+        "order": 1
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

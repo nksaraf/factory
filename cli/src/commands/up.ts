@@ -78,14 +78,13 @@ export function upCommand(app: DxBase) {
           spawnAgentDaemon,
           waitForHealthy,
           attachToAgent,
+          printSessionBanner,
         } = await import("../site/agent-lifecycle.js")
 
         const existing = await getRunningAgent(workingDir)
         if (existing) {
           if (!f.quiet) {
-            console.log(
-              `Site agent already running (PID ${existing.pid}, port ${existing.port})`
-            )
+            await printSessionBanner(existing.port)
           }
           if (flags.attach) {
             await attachToAgent(existing.port, { quiet: f.quiet })
@@ -177,13 +176,7 @@ export function upCommand(app: DxBase) {
         }
 
         if (!f.json && !f.quiet) {
-          const parts: string[] = []
-          if (resolvedProfiles.length > 0)
-            parts.push(`profiles: ${resolvedProfiles.join(", ")}`)
-          if (services.length > 0)
-            parts.push(`services: ${services.join(", ")}`)
-          const detail = parts.length > 0 ? ` (${parts.join("; ")})` : ""
-          console.log(`Stack started${detail} via site agent (port ${port})`)
+          await printSessionBanner(port)
         }
 
         if (flags.attach) {

@@ -322,7 +322,10 @@ async function streamUrlLogs(
   // Fall back to SSH log streaming on the resolved host
   if (!logSource && resolved.hostEntity && resolved.hostEntity.sshHost) {
     const project = resolved.composeProject ?? undefined
-    logSource = new SshLogSource(resolved.hostEntity, project, svc)
+    const hostWithSsh = resolved.hostEntity as typeof resolved.hostEntity & {
+      sshHost: string
+    }
+    logSource = new SshLogSource(hostWithSsh, project, svc)
   }
 
   if (!logSource) {

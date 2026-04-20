@@ -11,10 +11,33 @@
     "jsx": "react-jsx",
     "plugins": [
       {
-        "name": "@effect/language-service"
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "asyncFunction": "suggestion",
+          "cryptoRandomUUID": "suggestion",
+          "cryptoRandomUUIDInEffect": "suggestion",
+          "extendsNativeError": "suggestion",
+          "globalConsole": "suggestion",
+          "globalConsoleInEffect": "suggestion",
+          "globalDate": "suggestion",
+          "globalDateInEffect": "suggestion",
+          "globalFetch": "suggestion",
+          "globalFetchInEffect": "suggestion",
+          "globalRandom": "suggestion",
+          "globalRandomInEffect": "suggestion",
+          "globalTimers": "suggestion",
+          "globalTimersInEffect": "suggestion",
+          "instanceOfSchema": "suggestion",
+          "newPromise": "suggestion",
+          "nodeBuiltinImport": "suggestion",
+          "preferSchemaOverJson": "suggestion",
+          "processEnv": "suggestion",
+          "processEnvInEffect": "suggestion"
+        }
       }
     ]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/__tests__/fixtures/**"],
   "$schema": "https://raw.githubusercontent.com/Effect-TS/tsgo/refs/heads/main/schema.json"
 }

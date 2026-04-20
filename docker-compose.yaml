@@ -10,46 +10,12 @@ x-dx:
   lifecycle: production
   repo: https://github.com/nksaraf/factory
   tags: "dx,cli,platform,backstage"
-  dependencies:
-    - system: factory-core
-      defaultTarget: factory-prod
-      binding: optional
-      envMapping:
-        FACTORY_DATABASE_URL:
-          component: infra-postgres
-          port: postgres
-          template: "postgres://postgres:factory-prod-2026@{host}:{port}/postgres"
-          fallback: "postgres://postgres:postgres@localhost:5432/postgres"
-        FACTORY_AUTH_JWKS_URL:
-          component: infra-auth
-          port: http
-          template: "http://{host}:{port}/api/v1/auth/.well-known/jwks.json"
-          fallback: "http://localhost:8180/api/v1/auth/.well-known/jwks.json"
-        BETTER_AUTH_BASE_URL:
-          component: infra-auth
-          port: http
-          template: "http://{host}:{port}"
-          fallback: "http://localhost:8180"
-        PUBLIC_FACTORY_API_URL:
-          component: svc-api
-          port: http
-          template: "http://{host}:{port}/api/v1/factory"
-          fallback: "http://localhost:4100/api/v1/factory"
-        PUBLIC_AUTH_URL:
-          component: infra-auth
-          port: http
-          template: "http://{host}:{port}"
-          fallback: "http://localhost:8180"
-        NATS_URL:
-          component: infra-nats
-          port: nats
-          template: "nats://{host}:{port}"
-          fallback: "nats://localhost:4222"
+  dependencies: []
 
 services:
   # ─── Components (things we build) ────────────────────────────
 
-  svc-api:
+  infra-factory:
     image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/factory-service:latest"
     platform: linux/amd64
     build:
@@ -117,6 +83,11 @@ services:
       dx.dev.sync: "./api/src,./shared/src"
       dx.runtime: node
       dx.previous-slugs: "infra-factory"
+      dx.dep.infra-postgres.env.FACTORY_DATABASE_URL: "postgres://postgres:postgres@{host}:{port}/postgres"
+      dx.dep.infra-postgres.env.WORKFLOW_POSTGRES_URL: "postgres://postgres:postgres@{host}:{port}/postgres"
+      dx.dep.infra-auth.env.FACTORY_AUTH_JWKS_URL: "http://{host}:{port}/api/v1/auth/.well-known/jwks.json"
+      dx.dep.infra-auth.env.BETTER_AUTH_BASE_URL: "http://{host}:{port}"
+      dx.dep.infra-nats.env.NATS_URL: "nats://{host}:{port}"
 
   factory-ui:
     image: node:22-slim
@@ -137,11 +108,10 @@ services:
       dx.dev.sync: "./ui/src,./shared/src"
       dx.dev.mode: native
       dx.runtime: node
-      dx.dep.svc-api: "api"
+      dx.dep.infra-factory: "api"
+      dx.dep.infra-factory.env.PUBLIC_FACTORY_API_URL: "http://{host}:{port}/api/v1/factory"
       dx.dep.infra-auth: "auth"
-      dx.env.PUBLIC_FACTORY_API_URL: "http://localhost:${INFRA_FACTORY_PORT:-4100}/api/v1/factory"
-      dx.env.PUBLIC_AUTH_URL: "http://localhost:${INFRA_AUTH_PORT:-8180}"
-      dx.env.PUBLIC_ENABLE_POWERSYNC: "false"
+      dx.dep.infra-auth.env.PUBLIC_AUTH_URL: "http://{host}:{port}"
 
   # ─── Resources (infrastructure) ──────────────────────────────
 

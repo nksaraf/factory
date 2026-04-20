@@ -1,0 +1,7 @@
+version: "1"
+
+entities:
+  - kind: site
+    slug: smart-market-prod
+    name: SmartMarket Production
+    type: production

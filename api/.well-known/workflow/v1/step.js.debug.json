@@ -1,0 +1,17 @@
+{
+  "stepFiles": [
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/steps/work-tracker.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/steps/workbench.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/steps/notify.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/steps/agent.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/steps/git.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/node_modules/.pnpm/workflow@4.0.1-beta.39_@opentelemetry+api@1.9.1_@swc+helpers@0.5.17_@types+react@19.2.1_magic_tv6slpo3qxzfu7nzxo6fzrhckq/node_modules/workflow/dist/stdlib.js",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/node_modules/.pnpm/@workflow+ai@4.0.1-beta.39_ai@6.0.142_zod@3.25.76__workflow@4.0.1-beta.39_@opentelemetry+api@_56m3aquvpiudul47vut73jxwyy/node_modules/@workflow/ai/dist/agent/durable-agent.js",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/node_modules/.pnpm/@workflow+ai@4.0.1-beta.39_ai@6.0.142_zod@3.25.76__workflow@4.0.1-beta.39_@opentelemetry+api@_56m3aquvpiudul47vut73jxwyy/node_modules/@workflow/ai/dist/agent/stream-text-iterator.js",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/node_modules/.pnpm/@workflow+ai@4.0.1-beta.39_ai@6.0.142_zod@3.25.76__workflow@4.0.1-beta.39_@opentelemetry+api@_56m3aquvpiudul47vut73jxwyy/node_modules/@workflow/ai/dist/agent/do-stream-step.js"
+  ],
+  "workflowFiles": [
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/workflows/echo-workflow.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/workflows/god-workflow.ts"
+  ]
+}

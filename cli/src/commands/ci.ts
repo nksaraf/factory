@@ -128,6 +128,7 @@ export function ciCommand(app: DxBase) {
             },
           })
           .run(async ({ flags }) => {
+            // @ts-ignore TS2589 — Elysia Treaty type exceeds TS recursion limit
             const api = await getFactoryClient()
 
             const query: Record<string, unknown> = {}

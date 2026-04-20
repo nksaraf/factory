@@ -283,9 +283,16 @@ export class NativeExecutor implements Executor {
       Object.assign(portEnv, portEnvVars(service, ports))
     }
 
+    const depEnvResolved = resolveDepEnvForNative(
+      resolved.name,
+      this.config.catalog,
+      allPorts
+    )
+
     const procEnv = {
       ...process.env,
       ...portEnv,
+      ...depEnvResolved,
       ...desired.envOverrides,
       PORT: String(actualPort),
     }
@@ -383,4 +390,31 @@ export class NativeExecutor implements Executor {
     }
     return result
   }
+}
+
+function resolveDepEnvForNative(
+  componentName: string,
+  catalog: CatalogSystem,
+  allPorts: Record<string, Record<string, number>>
+): Record<string, string> {
+  const comp =
+    catalog.components[componentName] ?? catalog.resources[componentName]
+  if (!comp) return {}
+  const depEnv = comp.spec.depEnv
+  if (!depEnv) return {}
+
+  const result: Record<string, string> = {}
+  for (const [dep, envMap] of Object.entries(depEnv)) {
+    const ports = allPorts[dep]
+    if (!ports) continue
+    const portNames = Object.keys(ports)
+    const primaryPort =
+      ports["http"] ?? (portNames.length > 0 ? ports[portNames[0]!]! : 0)
+    for (const [envKey, template] of Object.entries(envMap)) {
+      result[envKey] = template
+        .replace(/\{host\}/g, "localhost")
+        .replace(/\{port\}/g, String(primaryPort))
+    }
+  }
+  return result
 }

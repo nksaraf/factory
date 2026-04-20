@@ -1,0 +1,194 @@
+x-dx:
+  name: registry-cache
+  owner: platform
+  description: "Registry Cache — local pull-through mirrors for Docker Hub, ghcr.io, GCP AR, and npm"
+  lifecycle: production
+  tags: "registry,cache,docker,npm,infrastructure"
+
+services:
+  registry-dockerhub:
+    image: registry:2
+    restart: unless-stopped
+    ports:
+      - "${REGISTRY_DOCKERHUB_PORT:-5001}:5000"
+    volumes:
+      - dockerhub-data:/var/lib/registry
+      - ./config/dockerhub.yml:/etc/docker/registry/config.yml:ro
+    environment:
+      REGISTRY_PROXY_USERNAME: "${DOCKERHUB_USERNAME:-}"
+      REGISTRY_PROXY_PASSWORD: "${DOCKERHUB_PASSWORD:-}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/v2/",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      dx.description: "Docker Hub pull-through cache registry"
+      dx.owner: platform
+      dx.type: registry
+      dx.tags: "docker,cache,dockerhub"
+      dx.lifecycle: production
+      dx.port.5000.name: registry
+      dx.port.5000.protocol: http
+      dx.port.5000.exposure: internal
+
+  registry-ghcr:
+    image: registry:2
+    restart: unless-stopped
+    ports:
+      - "${REGISTRY_GHCR_PORT:-5002}:5000"
+    volumes:
+      - ghcr-data:/var/lib/registry
+      - ./config/ghcr.yml:/etc/docker/registry/config.yml:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/v2/",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    environment:
+      REGISTRY_PROXY_USERNAME: "${GHCR_USERNAME:-}"
+      REGISTRY_PROXY_PASSWORD: "${GHCR_TOKEN:-}"
+    labels:
+      dx.description: "ghcr.io pull-through cache registry"
+      dx.owner: platform
+      dx.type: registry
+      dx.tags: "docker,cache,ghcr"
+      dx.lifecycle: production
+      dx.port.5000.name: registry
+      dx.port.5000.protocol: http
+      dx.port.5000.exposure: internal
+
+  registry-gcpar:
+    image: registry:2
+    restart: unless-stopped
+    ports:
+      - "${REGISTRY_GCPAR_PORT:-5003}:5000"
+    volumes:
+      - gcpar-data:/var/lib/registry
+      - ./config/gcpar.yml:/etc/docker/registry/config.yml:ro
+    environment:
+      REGISTRY_PROXY_USERNAME: _json_key_base64
+      REGISTRY_PROXY_PASSWORD: "${GCP_SA_JSON_BASE64}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/v2/",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      dx.description: "GCP Artifact Registry pull-through cache"
+      dx.owner: platform
+      dx.type: registry
+      dx.tags: "docker,cache,gcp,artifact-registry"
+      dx.lifecycle: production
+      dx.port.5000.name: registry
+      dx.port.5000.protocol: http
+      dx.port.5000.exposure: internal
+
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    restart: unless-stopped
+    ports:
+      - "${VERDACCIO_PORT:-4873}:4873"
+    volumes:
+      - verdaccio-data:/verdaccio/storage
+      - ./config/verdaccio.yaml:/verdaccio/conf/config.yaml:ro
+    environment:
+      VERDACCIO_PORT: "4873"
+      GCP_NPM_SA_JSON_BASE64: "${GCP_SA_JSON_BASE64}"
+      GCP_NPM_TOKEN: "${GCP_NPM_TOKEN}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:4873/-/ping",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      dx.description: "npm proxy cache (npmjs + GCP AR)"
+      dx.owner: platform
+      dx.type: registry
+      dx.tags: "npm,cache,verdaccio"
+      dx.lifecycle: production
+      dx.port.4873.name: registry
+      dx.port.4873.protocol: http
+      dx.port.4873.exposure: internal
+
+  health:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${REGISTRY_HEALTH_PORT:-8080}:80"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      registry-dockerhub:
+        condition: service_healthy
+      registry-ghcr:
+        condition: service_healthy
+      registry-gcpar:
+        condition: service_healthy
+      verdaccio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/health",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      dx.description: "Health endpoint aggregator for all cache registries"
+      dx.owner: platform
+      dx.type: gateway
+      dx.tags: "health,nginx,monitoring"
+      dx.lifecycle: production
+      dx.port.80.name: health
+      dx.port.80.protocol: http
+      dx.port.80.exposure: internal
+
+volumes:
+  dockerhub-data:
+  ghcr-data:
+  gcpar-data:
+  verdaccio-data:

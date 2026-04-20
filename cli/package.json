@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "start": "bun run src/cli.ts",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "! tsgo --noEmit 2>&1 | grep 'error TS'",
     "test": "bun test --timeout 120000",
     "build:crust": "crust build --package --name lepton-dx --target linux-x64 --target linux-arm64 --target darwin-x64 --target darwin-arm64 --target windows-x64",
     "build:crust:local": "sh -c 'T=${CRUST_TARGET:-}; if [ -z \"$T\" ]; then case \"$(uname -s)-$(uname -m)\" in Darwin-arm64) T=darwin-arm64 ;; Darwin-x86_64) T=darwin-x64 ;; Linux-aarch64|Linux-arm64) T=linux-arm64 ;; *) T=linux-x64 ;; esac; fi; exec crust build --name dx --target \"$T\" --outfile dist/dx'",

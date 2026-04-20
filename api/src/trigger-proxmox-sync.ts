@@ -1,6 +1,6 @@
 /**
  * One-shot Proxmox inventory sync trigger.
- * Run: FACTORY_DATABASE_URL=postgres://... bun run api/src/trigger-proxmox-sync.ts
+ * Run: FACTORY_DATABASE_URL=postgres://... ./node_modules/.bin/tsx src/trigger-proxmox-sync.ts
  */
 import { and, eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
@@ -44,6 +44,8 @@ for (const hyp of hypervisors) {
     )
   } catch (err: any) {
     console.error(`  ✗ FAILED: ${err.message}`)
+    console.error(`  cause:`, err.cause)
+    console.error(err.stack)
   }
 }
 

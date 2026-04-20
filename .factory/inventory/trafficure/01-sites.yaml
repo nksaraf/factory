@@ -1,0 +1,32 @@
+version: "1"
+
+# Sites = logical deployment targets. Two production sites:
+#   - trafficure-prod    : SaaS, shared multi-tenant
+#   - trafficure-sydney  : dedicated single-customer (Sydney region)
+# Staging + dev share the same VM but are logically separate environments.
+
+entities:
+  - kind: site
+    slug: trafficure-prod
+    name: Trafficure Production (SaaS)
+    type: production
+    spec:
+      tenancy: shared
+
+  - kind: site
+    slug: trafficure-sydney
+    name: Trafficure Sydney (Dedicated)
+    type: production
+    spec:
+      tenancy: dedicated
+      region: sydney
+
+  - kind: site
+    slug: trafficure-staging
+    name: Trafficure Staging
+    type: staging
+
+  - kind: site
+    slug: trafficure-dev
+    name: Trafficure Dev
+    type: development

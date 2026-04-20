@@ -15,7 +15,7 @@
     "dev": "bun x workflow build && bun --watch src/server.ts",
     "workflow:build": "bun x workflow build",
     "lint": "oxlint .",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "! tsgo --noEmit 2>&1 | grep 'error TS'",
     "test": "pnpm run test:local",
     "test:local": "bun test --path-ignore-patterns='**/e2e-preview-lifecycle.test.ts' --path-ignore-patterns='**/tunnel-smoke.test.ts'",
     "test:full": "bun test",

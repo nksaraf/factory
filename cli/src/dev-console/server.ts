@@ -448,6 +448,7 @@ export function createDevConsoleServer(
           externalId?: string | null
           repoSlug?: string | null
           createdAt?: string
+          updatedAt?: string
         }> = []
         for (let offset = 0; offset < 2000; offset += 200) {
           const page = (await rest.request(

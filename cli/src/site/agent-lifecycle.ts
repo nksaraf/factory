@@ -18,6 +18,14 @@ import {
 import { join } from "node:path"
 import { spawn as cpSpawn, type ChildProcess } from "node:child_process"
 
+import {
+  styleBold,
+  styleMuted,
+  styleInfo,
+  styleSuccess,
+  styleWarn,
+  styleServiceStatus,
+} from "../cli-style.js"
 import type { AgentMode } from "./agent.js"
 
 // ── Agent state file ────────────────────────────────────────────────
@@ -218,6 +226,153 @@ export async function stopAgent(workingDir: string): Promise<boolean> {
 
   clearAgentState(workingDir)
   return true
+}
+
+// ── Session banner ─────────────────────────────────────────────────
+
+interface ServiceInfo {
+  name: string
+  mode: string
+  status: string
+  ports: Array<{
+    name: string
+    host: number
+    container: number
+    url: string
+    tunnelUrl?: string
+  }>
+  pid?: number
+  kind?: string | null
+  type?: string | null
+  deps?: string[]
+}
+
+interface StatusInfo {
+  mode: string
+  uptime: string
+  project?: string
+  tunnel?: { status: string; info?: { url: string } }
+  site?: { slug: string }
+  workbench?: { slug: string }
+}
+
+/**
+ * Fetch agent status + services and print a concise session banner.
+ * Shows what's running, in what mode, on what ports, and connections.
+ * Silently falls back to nothing if the agent isn't ready yet.
+ */
+export async function printSessionBanner(port: number): Promise<void> {
+  let status: StatusInfo
+  let services: ServiceInfo[]
+
+  try {
+    const [statusRes, servicesRes] = await Promise.all([
+      fetch(`http://localhost:${port}/api/v1/site/status`, {
+        signal: AbortSignal.timeout(3000),
+      }),
+      fetch(`http://localhost:${port}/api/v1/site/services`, {
+        signal: AbortSignal.timeout(3000),
+      }),
+    ])
+
+    if (!statusRes.ok || !servicesRes.ok) return
+
+    const statusBody = (await statusRes.json()) as { data: StatusInfo }
+    const servicesBody = (await servicesRes.json()) as { data: ServiceInfo[] }
+    status = statusBody.data
+    services = servicesBody.data
+  } catch {
+    return // Agent not ready, skip banner
+  }
+
+  const PAD_NAME = 24
+  const PAD_MODE = 10
+  const PAD_PORT = 20
+
+  // ── Header ──
+  console.log("")
+  const projectLabel = status.project ? styleInfo(status.project) : "unknown"
+  const modeLabel =
+    status.mode === "dev" ? styleSuccess("dev") : styleSuccess(status.mode)
+  console.log(
+    `  ${styleBold(projectLabel)} ${styleMuted("·")} mode: ${modeLabel} ${styleMuted("·")} uptime: ${styleMuted(status.uptime)}`
+  )
+
+  // ── Tunnel ──
+  if (status.tunnel && status.tunnel.status !== "disconnected") {
+    const tunnelStatus =
+      status.tunnel.status === "connected"
+        ? styleSuccess("connected")
+        : styleWarn(status.tunnel.status)
+    const tunnelUrl = status.tunnel.info?.url
+      ? styleMuted(` ${status.tunnel.info.url}`)
+      : ""
+    console.log(`  ${styleMuted("tunnel:")} ${tunnelStatus}${tunnelUrl}`)
+  }
+
+  console.log("")
+
+  if (services.length === 0) {
+    console.log(`  ${styleMuted("No services running.")}`)
+    console.log("")
+    return
+  }
+
+  // ── Group services by mode ──
+  const devServices = services.filter((s) => s.mode === "native")
+  const containerServices = services.filter((s) => s.mode === "container")
+  const remoteServices = services.filter(
+    (s) => s.mode !== "native" && s.mode !== "container"
+  )
+
+  // ── Dev servers ──
+  if (devServices.length > 0) {
+    console.log(`  ${styleBold("Dev Servers")}`)
+    for (const svc of devServices) {
+      const statusStr = styleServiceStatus(svc.status)
+      const portStr =
+        svc.ports.length > 0
+          ? styleInfo(svc.ports.map((p) => `:${p.host}`).join(", "))
+          : styleMuted("no port")
+      const pidStr = svc.pid ? styleMuted(`PID ${svc.pid}`) : ""
+      console.log(
+        `    ${styleInfo(svc.name.padEnd(PAD_NAME))} ${statusStr.padEnd(PAD_MODE)} ${portStr.padEnd(PAD_PORT)} ${pidStr}`
+      )
+    }
+    console.log("")
+  }
+
+  // ── Containers (Docker deps) ──
+  if (containerServices.length > 0) {
+    console.log(`  ${styleBold("Docker Dependencies")}`)
+    for (const svc of containerServices) {
+      const statusStr = styleServiceStatus(svc.status)
+      const portStr =
+        svc.ports.length > 0
+          ? styleMuted(svc.ports.map((p) => `:${p.host}`).join(", "))
+          : styleMuted("—")
+      const typeStr = svc.type ? styleMuted(`(${svc.type})`) : ""
+      console.log(
+        `    ${svc.name.padEnd(PAD_NAME)} ${statusStr.padEnd(PAD_MODE)} ${portStr.padEnd(PAD_PORT)} ${typeStr}`
+      )
+    }
+    console.log("")
+  }
+
+  // ── Remote / linked ──
+  if (remoteServices.length > 0) {
+    console.log(`  ${styleBold("Remote")}`)
+    for (const svc of remoteServices) {
+      console.log(
+        `    ${svc.name.padEnd(PAD_NAME)} ${styleMuted(`→ ${svc.mode}`)}`
+      )
+    }
+    console.log("")
+  }
+
+  // ── Console URL ──
+  console.log(`  ${styleMuted(`Dev Console: http://localhost:${port}`)}`)
+  console.log("")
 }
 
 // ── Attach ──────────────────────────────────────────────────────────

@@ -1,0 +1,14 @@
+version: "1"
+
+entities:
+  - kind: system-deployment
+    slug: smart-market-prod
+    name: SmartMarket Production
+    systemSlug: smart-market-platform
+    siteSlug: smart-market-prod
+    type: production
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-smart-market-2
+      workDir: /root/smart-market-platform

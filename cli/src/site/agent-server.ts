@@ -900,7 +900,7 @@ export function createAgentServer(agent: SiteAgent, config: AgentServerConfig) {
               "/threads": indexHtml,
               "/threads/:threadId": indexHtml,
             }
-          : {},
+          : undefined,
         fetch: combinedApp.fetch,
         development:
           process.env.NODE_ENV !== "production" ? { hmr: true } : false,

@@ -1,0 +1,1449 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lepton Admin — Alert Rule Builder</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fafaf9;
+        --surface: #ffffff;
+        --border: #eeece6;
+        --border-strong: #e4e2da;
+        --ink: #1a1a17;
+        --ink-2: #525049;
+        --ink-3: #8a877d;
+        --ink-4: #b5b2a8;
+        --brand: #0d3b2e;
+        --brand-2: #1db954;
+        --red: #c0362c;
+        --amber: #b8791e;
+        --green: #1e7a4a;
+        --blue: #2c5aa8;
+        --red-bg: #fdf2f0;
+        --amber-bg: #fdf7e9;
+        --green-bg: #eef7f1;
+        --blue-bg: #eef2fa;
+        --radius: 6px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.45;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        height: 100vh;
+      }
+
+      .sb {
+        background: #0d3b2e;
+        color: #e8eae6;
+        padding: 18px 0;
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+      }
+      .sb-brand {
+        padding: 4px 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 12px;
+      }
+      .sb-logo {
+        width: 26px;
+        height: 26px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #1db954, #0d3b2e);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .sb-brand-text {
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .sb-brand-sub {
+        font-size: 10.5px;
+        color: #8fb6a8;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        margin-top: 1px;
+      }
+      .sb-section {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: #7a9b8d;
+        padding: 14px 18px 6px;
+      }
+      .sb-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 18px;
+        cursor: pointer;
+        color: #cfd8d2;
+        border-left: 2px solid transparent;
+      }
+      .sb-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .sb-item.active {
+        color: #fff;
+        background: rgba(29, 185, 84, 0.08);
+        border-left-color: #1db954;
+      }
+      .sb-item svg {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .topbar {
+        height: 50px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 22px;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      .crumbs {
+        font-size: 12.5px;
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .crumbs a {
+        color: var(--ink-2);
+        text-decoration: none;
+      }
+      .crumbs .sep {
+        color: var(--ink-4);
+      }
+      .crumbs .current {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .topbar-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: inherit;
+      }
+      .btn:hover {
+        background: var(--bg);
+      }
+      .btn.primary {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+      .btn.primary:hover {
+        background: #0a2d22;
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--ink-2);
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ============ LAYOUT ============ */
+      .work {
+        flex: 1;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      }
+      .builder {
+        overflow-y: auto;
+        padding: 20px 24px 40px;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .preview {
+        overflow-y: auto;
+        padding: 20px 22px 40px;
+        background: var(--bg);
+      }
+
+      .page-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .ph-left {
+        flex: 1;
+      }
+      .ph-title {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ph-sub {
+        font-size: 12.5px;
+        color: var(--ink-3);
+        margin-top: 4px;
+      }
+      .mode-switch {
+        display: inline-flex;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        overflow: hidden;
+        font-size: 11.5px;
+      }
+      .mode-switch button {
+        padding: 4px 10px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        color: var(--ink-3);
+        font-family: inherit;
+      }
+      .mode-switch button.on {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+      }
+
+      /* ============ SECTIONS ============ */
+      .section {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 14px;
+        background: var(--surface);
+      }
+      .section-head {
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sec-num {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--brand);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .section-sub {
+        font-size: 11.5px;
+        color: var(--ink-3);
+        margin-top: 2px;
+        font-weight: 400;
+      }
+      .chev {
+        color: var(--ink-4);
+      }
+      .section-body {
+        padding: 14px;
+      }
+
+      .field {
+        margin-bottom: 12px;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+      .label {
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--ink-2);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .label .tip {
+        color: var(--ink-4);
+        cursor: help;
+      }
+      .input,
+      .select,
+      .textarea {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 5px;
+        font-size: 13px;
+        font-family: inherit;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        outline: none;
+        border-color: var(--brand-2);
+        box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.1);
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+      }
+      .row > * {
+        flex: 1;
+      }
+
+      .radios {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .radio-btn {
+        padding: 6px 11px;
+        border: 1px solid var(--border-strong);
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        background: var(--surface);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .radio-btn.on {
+        border-color: var(--brand);
+        background: var(--green-bg);
+        color: var(--brand);
+      }
+      .radio-btn .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .radio-btn.on .dot {
+        background: var(--brand);
+      }
+      .radio-btn .dot.info {
+        background: #6a80a8;
+      }
+      .radio-btn .dot.low {
+        background: var(--blue);
+      }
+      .radio-btn .dot.med {
+        background: var(--amber);
+      }
+      .radio-btn .dot.high {
+        background: #d47a1a;
+      }
+      .radio-btn .dot.crit {
+        background: var(--red);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        padding: 4px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        font-size: 11.5px;
+        cursor: pointer;
+        background: var(--surface);
+        color: var(--ink-2);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .chip.on {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+
+      /* ============ CONDITION EDITOR ============ */
+      .cond-tree {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 10px;
+      }
+      .cond-op {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        background: var(--brand);
+        color: #fff;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      .cond-op.alt {
+        background: #4a4a45;
+      }
+      .cond-clauses {
+        margin-top: 10px;
+        padding-left: 14px;
+        border-left: 2px solid var(--border-strong);
+      }
+      .clause {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 7px 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        margin-bottom: 7px;
+        font-size: 12.5px;
+      }
+      .clause .sel {
+        padding: 4px 8px;
+        border: 1px solid var(--border-strong);
+        border-radius: 4px;
+        background: var(--surface);
+        font-family: inherit;
+        font-size: 12px;
+      }
+      .clause .val {
+        flex: 1;
+        padding: 4px 8px;
+        border: 1px solid var(--border-strong);
+        border-radius: 4px;
+        font-family: "JetBrains Mono", mono;
+        font-size: 12px;
+      }
+      .clause .val-ref {
+        background: var(--green-bg);
+        color: var(--brand);
+        border-color: #c7e3d4;
+        font-weight: 500;
+      }
+      .clause .x {
+        color: var(--ink-4);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 0 4px;
+      }
+      .clause .x:hover {
+        color: var(--red);
+      }
+      .cond-add {
+        display: inline-flex;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .cond-add button {
+        background: transparent;
+        border: 1px dashed var(--border-strong);
+        padding: 5px 11px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        color: var(--ink-2);
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .cond-add button:hover {
+        border-color: var(--brand-2);
+        color: var(--brand);
+      }
+
+      /* ============ ESCALATION ============ */
+      .esc-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 1fr 24px;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border);
+        align-items: center;
+      }
+      .esc-row:last-child {
+        border-bottom: none;
+      }
+      .esc-when {
+        font-family: "JetBrains Mono", mono;
+        font-size: 12px;
+        color: var(--ink-2);
+      }
+      .esc-channels,
+      .esc-roles {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .esc-tag {
+        padding: 2px 7px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+
+      /* ============ PREVIEW PANEL ============ */
+      .preview-head {
+        margin-bottom: 14px;
+      }
+      .preview-title {
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--brand-2);
+        box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.2);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .preview-sub {
+        font-size: 11.5px;
+        color: var(--ink-3);
+        margin-top: 2px;
+      }
+
+      .prev-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .prev-stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 10px 12px;
+      }
+      .prev-stat-label {
+        font-size: 10.5px;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 500;
+      }
+      .prev-stat-val {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+        margin-top: 3px;
+      }
+      .prev-stat-sub {
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+
+      .prev-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 14px;
+      }
+      .prev-card-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .prev-card-title {
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+
+      .sim-alert {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        font-size: 12.5px;
+      }
+      .sim-alert:last-child {
+        border-bottom: none;
+      }
+      .sim-seg {
+        font-weight: 500;
+        color: var(--ink);
+      }
+      .sim-time {
+        font-family: "JetBrains Mono", mono;
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 2px;
+      }
+      .sim-ev {
+        font-size: 11.5px;
+        color: var(--ink-3);
+        margin-top: 3px;
+      }
+      .sev-pill {
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .sev-high {
+        background: #fbe9d9;
+        color: #a65714;
+      }
+      .sev-crit {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .sev-med {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+
+      .hint {
+        font-size: 11.5px;
+        color: var(--ink-3);
+        background: var(--blue-bg);
+        border: 1px solid #d2dcef;
+        padding: 9px 11px;
+        border-radius: 5px;
+        display: flex;
+        gap: 8px;
+      }
+      .hint svg {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        color: var(--blue);
+      }
+
+      .save-bar {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 12px 24px;
+        margin: 0 -24px -40px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .save-bar .spacer {
+        flex: 1;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- SIDEBAR -->
+      <aside class="sb">
+        <div class="sb-brand">
+          <div class="sb-logo">L</div>
+          <div>
+            <div class="sb-brand-text">TraffiCure</div>
+            <div class="sb-brand-sub">Lepton Admin</div>
+          </div>
+        </div>
+        <div class="sb-section">Platform</div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" /></svg
+          >Dashboard
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M3 21h18M5 21V7l7-4 7 4v14" /></svg
+          >Customers
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg
+          >Organizations
+        </div>
+        <div class="sb-section">Controls</div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"
+            /></svg
+          >Configuration
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M4 4h16v4H4zM4 12h16v4H4zM4 20h10" /></svg
+          >Feature Flags
+        </div>
+        <div class="sb-item active">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg
+          >Alerts
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <div class="main">
+        <div class="topbar">
+          <div class="crumbs">
+            <a href="#">Organizations</a><span class="sep">/</span>
+            <a href="#">Pune City</a><span class="sep">/</span>
+            <a href="#">Alert rules</a><span class="sep">/</span>
+            <span class="current">New rule</span>
+          </div>
+          <div class="topbar-actions">
+            <button class="btn ghost">Cancel</button>
+            <button class="btn">Save draft</button>
+            <button class="btn primary">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <polyline points="20 6 9 17 4 12" /></svg
+              >Save & enable
+            </button>
+          </div>
+        </div>
+
+        <div class="work">
+          <!-- BUILDER -->
+          <div class="builder">
+            <div class="page-head">
+              <div class="ph-left">
+                <div class="ph-title">Alert rule builder</div>
+                <div class="ph-sub">
+                  Pune City · template: <strong>Sustained Congestion</strong>
+                </div>
+              </div>
+              <div class="mode-switch">
+                <button class="on">Visual</button>
+                <button>Advanced JSON</button>
+              </div>
+            </div>
+
+            <!-- SECTION 1: BASICS -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">1</span>Basics
+                  </div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div class="field">
+                  <div class="label">Rule name</div>
+                  <input
+                    class="input"
+                    value="Sustained congestion on arterials"
+                  />
+                </div>
+                <div class="field">
+                  <div class="label">
+                    Description <span class="tip">ℹ</span>
+                  </div>
+                  <input
+                    class="input"
+                    placeholder="Optional — shown in alert detail"
+                  />
+                </div>
+                <div class="field">
+                  <div class="label">Severity</div>
+                  <div class="radios">
+                    <div class="radio-btn">
+                      <span class="dot info"></span>Info
+                    </div>
+                    <div class="radio-btn">
+                      <span class="dot low"></span>Low
+                    </div>
+                    <div class="radio-btn">
+                      <span class="dot med"></span>Medium
+                    </div>
+                    <div class="radio-btn on">
+                      <span class="dot high"></span>High
+                    </div>
+                    <div class="radio-btn">
+                      <span class="dot crit"></span>Critical
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 2: TARGET -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">2</span>Target
+                  </div>
+                  <div class="section-sub">Where this rule applies</div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div class="field">
+                  <div class="label">Scope type</div>
+                  <div class="radios">
+                    <div class="radio-btn on">Road type</div>
+                    <div class="radio-btn">Specific segments</div>
+                    <div class="radio-btn">Zones</div>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">Road types (multi-select)</div>
+                  <div class="chips">
+                    <div class="chip on">motorway</div>
+                    <div class="chip on">trunk</div>
+                    <div class="chip on">primary</div>
+                    <div class="chip">secondary</div>
+                    <div class="chip">tertiary</div>
+                    <div class="chip">residential</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 3: CONDITION -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">3</span>Condition
+                  </div>
+                  <div class="section-sub">When should this rule fire?</div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div class="cond-tree">
+                  <span class="cond-op">ALL OF</span>
+                  <div class="cond-clauses">
+                    <div class="clause">
+                      <select class="sel">
+                        <option>speed_kmh</option>
+                        <option>jam_factor</option>
+                        <option>duration_minutes</option>
+                        <option>confidence</option>
+                      </select>
+                      <select class="sel">
+                        <option>&lt;</option>
+                        <option>&gt;</option>
+                        <option>&le;</option>
+                        <option>&ge;</option>
+                        <option>==</option>
+                      </select>
+                      <div class="val val-ref">
+                        🔗 alerts.congestion_speed_threshold_kmh
+                        <span style="color: var(--ink-3); font-weight: 400"
+                          >(= 12 km/h)</span
+                        >
+                      </div>
+                      <span class="x">×</span>
+                    </div>
+                    <div class="clause">
+                      <select class="sel">
+                        <option>duration_minutes</option>
+                      </select>
+                      <select class="sel">
+                        <option>&ge;</option>
+                      </select>
+                      <div class="val val-ref">
+                        🔗 alerts.congestion_min_duration_minutes
+                        <span style="color: var(--ink-3); font-weight: 400"
+                          >(= 10 min)</span
+                        >
+                      </div>
+                      <span class="x">×</span>
+                    </div>
+                    <div class="clause">
+                      <select class="sel">
+                        <option>confidence</option>
+                      </select>
+                      <select class="sel">
+                        <option>&ge;</option>
+                      </select>
+                      <div
+                        class="val"
+                        style="font-family: &quot;JetBrains Mono&quot;, mono"
+                      >
+                        0.7
+                      </div>
+                      <span class="x">×</span>
+                    </div>
+                  </div>
+                  <div class="cond-add">
+                    <button>+ Add clause</button>
+                    <button>+ Add group</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 4: WINDOW + DEDUP -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">4</span>Window & deduplication
+                  </div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div class="row">
+                  <div class="field">
+                    <div class="label">Evaluation window</div>
+                    <div class="row">
+                      <select class="select" style="flex: 0 0 140px">
+                        <option>Rolling</option>
+                        <option>Calendar</option>
+                      </select>
+                      <input class="input" value="15 minutes" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="label">Dedup key</div>
+                    <select class="select">
+                      <option>segment_id</option>
+                      <option>zone_id</option>
+                      <option>road_type</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <div class="label">Dedup window</div>
+                    <input
+                      class="input"
+                      value="🔗 alerts.dedup_window_minutes (20 min)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 5: ESCALATION -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">5</span>Escalation ladder
+                  </div>
+                  <div class="section-sub">Who gets notified, and when</div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div
+                  class="esc-row"
+                  style="
+                    background: var(--bg);
+                    font-weight: 500;
+                    color: var(--ink-3);
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.4px;
+                    padding: 7px 8px;
+                    border-radius: 4px;
+                  "
+                >
+                  <div>After</div>
+                  <div>Channels</div>
+                  <div>Roles</div>
+                  <div></div>
+                </div>
+                <div class="esc-row">
+                  <div class="esc-when">+ 0 min</div>
+                  <div class="esc-channels">
+                    <span class="esc-tag">in_app</span>
+                  </div>
+                  <div class="esc-roles">
+                    <span class="esc-tag">operator</span>
+                  </div>
+                  <div style="color: var(--ink-4); cursor: pointer">×</div>
+                </div>
+                <div class="esc-row">
+                  <div class="esc-when">+ 10 min</div>
+                  <div class="esc-channels">
+                    <span class="esc-tag">email</span>
+                  </div>
+                  <div class="esc-roles">
+                    <span class="esc-tag">operator</span
+                    ><span class="esc-tag">org_admin</span>
+                  </div>
+                  <div style="color: var(--ink-4); cursor: pointer">×</div>
+                </div>
+                <div class="esc-row">
+                  <div class="esc-when">+ 30 min</div>
+                  <div class="esc-channels">
+                    <span class="esc-tag">email</span
+                    ><span class="esc-tag">sms</span>
+                  </div>
+                  <div class="esc-roles">
+                    <span class="esc-tag">org_admin</span>
+                  </div>
+                  <div style="color: var(--ink-4); cursor: pointer">×</div>
+                </div>
+                <div class="esc-row">
+                  <div class="esc-when">+ 60 min</div>
+                  <div class="esc-channels">
+                    <span class="esc-tag">voice</span>
+                  </div>
+                  <div class="esc-roles">
+                    <span class="esc-tag">customer_admin</span>
+                  </div>
+                  <div style="color: var(--ink-4); cursor: pointer">×</div>
+                </div>
+                <button class="btn" style="margin-top: 12px">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" /></svg
+                  >Add step
+                </button>
+              </div>
+            </div>
+
+            <!-- SECTION 6: AUTO-RESOLVE + WORKING HOURS -->
+            <div class="section">
+              <div class="section-head">
+                <div>
+                  <div class="section-title">
+                    <span class="sec-num">6</span>Auto-resolve & working hours
+                  </div>
+                </div>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  width="14"
+                  height="14"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              <div class="section-body">
+                <div class="field">
+                  <div class="label">Auto-resolve when</div>
+                  <div class="row">
+                    <select class="select" style="flex: 0 0 140px">
+                      <option>speed_kmh</option>
+                    </select>
+                    <select class="select" style="flex: 0 0 70px">
+                      <option>&ge;</option>
+                    </select>
+                    <input
+                      class="input"
+                      style="flex: 0 0 160px"
+                      value="🔗 auto_resolve_speed_kmh"
+                    />
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: var(--ink-3);
+                        padding: 7px 0;
+                      "
+                      >sustained for</span
+                    >
+                    <input class="input" style="flex: 0 0 90px" value="5 min" />
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">Working hours</div>
+                  <div class="radios">
+                    <div class="radio-btn on">Inherit from org</div>
+                    <div class="radio-btn">Custom</div>
+                    <div class="radio-btn">Always on</div>
+                  </div>
+                  <div
+                    style="
+                      margin-top: 7px;
+                      font-size: 11.5px;
+                      color: var(--ink-3);
+                    "
+                  >
+                    Currently: Mon–Sat, 07:00–22:00 Asia/Kolkata
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SAVE BAR -->
+            <div class="save-bar">
+              <span class="spacer"
+                >3 config refs · 4 escalation steps · valid ✓</span
+              >
+              <button class="btn ghost">Cancel</button>
+              <button class="btn">Save draft</button>
+              <button class="btn primary">Save & enable</button>
+            </div>
+          </div>
+
+          <!-- PREVIEW -->
+          <div class="preview">
+            <div class="preview-head">
+              <div class="preview-title">
+                <span class="live-dot"></span>Live preview
+              </div>
+              <div class="preview-sub">
+                Running this rule against the last 24h of observations · 1,482
+                segments evaluated
+              </div>
+            </div>
+
+            <div class="prev-stats">
+              <div class="prev-stat">
+                <div class="prev-stat-label">Would fire</div>
+                <div class="prev-stat-val">37</div>
+                <div class="prev-stat-sub">times</div>
+              </div>
+              <div class="prev-stat">
+                <div class="prev-stat-label">Segments</div>
+                <div class="prev-stat-val">14</div>
+                <div class="prev-stat-sub">distinct</div>
+              </div>
+              <div class="prev-stat">
+                <div class="prev-stat-label">Preview ran</div>
+                <div class="prev-stat-val">1.2s</div>
+                <div class="prev-stat-sub">last eval</div>
+              </div>
+            </div>
+
+            <div class="hint">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+              <span
+                >Preview excludes dedup & escalation — it shows raw matches.
+                Real firings will be ~8–10 after dedup window (20m)
+                applies.</span
+              >
+            </div>
+
+            <div class="prev-card" style="margin-top: 14px">
+              <div class="prev-card-head">
+                <div class="prev-card-title">Simulated alerts (last 24h)</div>
+                <span style="font-size: 11.5px; color: var(--ink-3)"
+                  >Top 8 by severity</span
+                >
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">FC Road · Deccan jn → Goodluck Café</div>
+                  <div class="sim-time">Today 08:42 · 23 min sustained</div>
+                  <div class="sim-ev">
+                    speed 6.2 km/h · jam 8.4 · confidence 0.91
+                  </div>
+                </div>
+                <span class="sev-pill sev-high">high</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">
+                    Senapati Bapat Marg · Shivaji Nagar stretch
+                  </div>
+                  <div class="sim-time">Today 09:04 · 18 min sustained</div>
+                  <div class="sim-ev">
+                    speed 8.1 km/h · jam 7.9 · confidence 0.88
+                  </div>
+                </div>
+                <span class="sev-pill sev-high">high</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">Sinhagad Road · Rajaram Bridge</div>
+                  <div class="sim-time">Today 18:21 · 32 min sustained</div>
+                  <div class="sim-ev">
+                    speed 4.8 km/h · jam 9.1 · confidence 0.94
+                  </div>
+                </div>
+                <span class="sev-pill sev-crit">critical</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">JM Road · Sambhaji Park end</div>
+                  <div class="sim-time">Today 19:02 · 14 min sustained</div>
+                  <div class="sim-ev">
+                    speed 10.4 km/h · jam 7.2 · confidence 0.82
+                  </div>
+                </div>
+                <span class="sev-pill sev-high">high</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">
+                    Baner Road · Balewadi Phata → Pashan
+                  </div>
+                  <div class="sim-time">Yesterday 19:41 · 28 min sustained</div>
+                  <div class="sim-ev">
+                    speed 5.9 km/h · jam 8.6 · confidence 0.90
+                  </div>
+                </div>
+                <span class="sev-pill sev-crit">critical</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">Karve Road · Kothrud stretch</div>
+                  <div class="sim-time">Yesterday 18:14 · 11 min sustained</div>
+                  <div class="sim-ev">
+                    speed 11.2 km/h · jam 6.8 · confidence 0.79
+                  </div>
+                </div>
+                <span class="sev-pill sev-med">medium</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">
+                    Nagar Road · Kalyani Nagar → Viman Nagar
+                  </div>
+                  <div class="sim-time">Yesterday 09:33 · 19 min sustained</div>
+                  <div class="sim-ev">
+                    speed 7.4 km/h · jam 7.8 · confidence 0.86
+                  </div>
+                </div>
+                <span class="sev-pill sev-high">high</span>
+              </div>
+              <div class="sim-alert">
+                <div>
+                  <div class="sim-seg">Tilak Road · Mandai → Swargate</div>
+                  <div class="sim-time">Yesterday 08:58 · 15 min sustained</div>
+                  <div class="sim-ev">
+                    speed 9.1 km/h · jam 7.4 · confidence 0.84
+                  </div>
+                </div>
+                <span class="sev-pill sev-high">high</span>
+              </div>
+            </div>
+
+            <div class="prev-card">
+              <div class="prev-card-head">
+                <div class="prev-card-title">Rule JSON</div>
+                <span
+                  style="
+                    font-size: 11.5px;
+                    color: var(--ink-3);
+                    cursor: pointer;
+                  "
+                  >Copy</span
+                >
+              </div>
+              <pre
+                style="
+                  padding: 12px 14px;
+                  font-family: &quot;JetBrains Mono&quot;, mono;
+                  font-size: 11px;
+                  color: var(--ink-2);
+                  overflow-x: auto;
+                  line-height: 1.55;
+                  margin: 0;
+                "
+              >
+{
+  "schema_version": 1,
+  "name": "Sustained congestion on arterials",
+  "severity": "high",
+  "target": {
+    "scope": "road_type",
+    "road_types": ["motorway","trunk","primary"]
+  },
+  "condition": {
+    "op": "AND",
+    "clauses": [
+      { "metric":"speed_kmh", "cmp":"&lt;",
+        "value": {"ref":"alerts.congestion_speed_threshold_kmh"} },
+      { "metric":"duration_minutes", "cmp":"&gt;=",
+        "value": {"ref":"alerts.congestion_min_duration_minutes"} },
+      { "metric":"confidence", "cmp":"&gt;=", "value": 0.7 }
+    ]
+  },
+  "window": { "kind":"rolling", "minutes": 15 },
+  "dedup": { "key":["segment_id"],
+             "window_minutes":{"ref":"alerts.dedup_window_minutes"}},
+  "escalation": { "ladder_ref":"alerts.escalation_ladder",
+                  "start_after_minutes": 10 },
+  "auto_resolve": {
+    "when": { "metric":"speed_kmh", "cmp":"&gt;=",
+              "value": {"ref":"alerts.auto_resolve_speed_kmh"}},
+    "sustain_minutes": 5
+  },
+  "working_hours": { "ref":"alerts.working_hours" }
+}</pre
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "workflowFiles": [
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/workflows/echo-workflow.ts",
+    "/Users/nikhilsaraf/conductor/workspaces/factory/colombo/api/src/modules/workflow/workflows/god-workflow.ts"
+  ]
+}

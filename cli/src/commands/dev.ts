@@ -107,16 +107,16 @@ export function devCommand(app: DxBase) {
           spawnAgentDaemon,
           waitForHealthy,
           attachToAgent,
-          stopAgent,
+          printSessionBanner,
         } = await import("../site/agent-lifecycle.js")
 
         const existing = await getRunningAgent(workingDir)
         if (existing) {
           if (!f.quiet) {
+            await printSessionBanner(existing.port)
             console.log(
-              `Site agent already running (PID ${existing.pid}, port ${existing.port})`
+              styleMuted("Attaching to log stream... (Ctrl+C to detach)")
             )
-            console.log(`Attaching to log stream... (Ctrl+C to detach)`)
           }
           await attachToAgent(existing.port, { quiet: f.quiet })
           return
@@ -189,7 +189,15 @@ export function devCommand(app: DxBase) {
         }
 
         if (flags["dry-run"]) {
-          console.log("[dry-run] Would start site agent daemon")
+          const orch = await SiteOrchestrator.create({ quiet: f.quiet })
+          await orch.startDevSession({
+            components: args.components,
+            connectTo: flags["connect-to"] as string | undefined,
+            connect: connectFlagForSession,
+            profile: flags.profile as string | undefined,
+            env: flags.env as string | string[] | undefined,
+            dryRun: true,
+          })
           return
         }
 
@@ -226,10 +234,9 @@ export function devCommand(app: DxBase) {
         }
 
         if (!f.quiet) {
-          console.log(`  Site agent running (port ${port})`)
-          console.log(`  Dev Console: http://localhost:${port}`)
+          await printSessionBanner(port)
           console.log(
-            `${styleMuted("Attaching to agent logs. Press Ctrl+C to detach.")}`
+            styleMuted("Attaching to agent logs. Press Ctrl+C to detach.")
           )
         }
 

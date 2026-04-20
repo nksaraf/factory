@@ -1,0 +1,36 @@
+version: "1"
+
+entities:
+  - kind: product
+    slug: factory
+    name: Factory
+    spec:
+      description: "Internal developer platform"
+      brand: Factory
+      website: https://factory.lepton.software
+
+  - kind: product-system
+    productSlug: factory
+    systemSlug: factory-core
+
+  - kind: capability
+    slug: factory-core
+    name: Core Product
+    type: feature
+    productSlug: factory
+    ownerTeamSlug: platform
+    spec:
+      lifecycle: stable
+      requiresComponents: [infra-factory, infra-postgres]
+      description: Core factory platform — catalog, inventory, sites, deployments
+
+  - kind: capability
+    slug: factory-cli
+    name: DX CLI
+    type: feature
+    productSlug: factory
+    ownerTeamSlug: platform
+    spec:
+      lifecycle: stable
+      dependsOn: [factory-core]
+      description: Developer CLI for local dev, catalog sync, site deploys

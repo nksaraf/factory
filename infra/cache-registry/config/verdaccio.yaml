@@ -1,0 +1,50 @@
+storage: /verdaccio/storage
+plugins: /verdaccio/plugins
+
+web:
+  enable: true
+  title: "Lepton npm Cache"
+
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+    max_users: -1
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    timeout: 30s
+    maxage: 30m
+    cache: true
+  gcp-ar:
+    url: https://asia-npm.pkg.dev/rio-platform/npm/
+    timeout: 30s
+    maxage: 30m
+    cache: true
+    auth:
+      type: bearer
+      token_env: GCP_NPM_TOKEN
+
+packages:
+  "@lepton/*":
+    access: $all
+    publish: $authenticated
+    proxy: gcp-ar
+
+  "@rio.js/*":
+    access: $all
+    publish: $authenticated
+    proxy: gcp-ar
+
+  "**":
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+
+listen: 0.0.0.0:4873
+max_body_size: 100mb
+
+log:
+  type: stdout
+  format: pretty
+  level: warn

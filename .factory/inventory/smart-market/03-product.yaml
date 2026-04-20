@@ -1,0 +1,89 @@
+version: "1"
+
+entities:
+  - kind: product
+    slug: smart-market
+    name: SmartMarket
+    spec:
+      description: "AI-powered market intelligence platform"
+      brand: SmartMarket
+      website: https://smartmarket.ai
+
+  - kind: product-system
+    productSlug: smart-market
+    systemSlug: smart-market-platform
+
+  - kind: capability
+    slug: smart-market-core
+    name: Core Platform
+    type: feature
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      requiresComponents: [service-data, service-graph, service-ai]
+      description: Core market intelligence platform — data + graph + AI services
+
+  - kind: capability
+    slug: smart-market-web-app
+    name: Web App
+    type: feature
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      requiresComponents: [app-web]
+      dependsOn: [smart-market-core]
+
+  - kind: capability
+    slug: smart-market-mobile-app
+    name: Mobile App
+    type: feature
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      dependsOn: [smart-market-core]
+
+  - kind: capability
+    slug: smart-market-revenue-prediction
+    name: Revenue Prediction Module
+    type: feature
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      requiresComponents: [service-ml-engine]
+      dependsOn: [smart-market-core]
+
+  - kind: capability
+    slug: smart-market-site-selection
+    name: Site Selection Module
+    type: feature
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      requiresComponents: [service-data-query]
+      dependsOn: [smart-market-core]
+
+  - kind: capability
+    slug: smart-market-slack
+    name: Slack Chat Integration
+    type: integration
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: stable
+      requiresComponents: [frontend-slack-bot]
+      dependsOn: [smart-market-core]
+
+  - kind: capability
+    slug: smart-market-teams
+    name: Microsoft Teams Chat Integration
+    type: integration
+    productSlug: smart-market
+    ownerTeamSlug: smartmarket
+    spec:
+      lifecycle: experimental
+      dependsOn: [smart-market-core]

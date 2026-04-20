@@ -1,0 +1,2219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lepton Admin — Create New Customer</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --forest: #0d3b2e;
+        --forest-light: #165c46;
+        --emerald: #1db954;
+        --white: #ffffff;
+        --cream: #faf8f5;
+        --cream-dark: #f2ede7;
+        --text-primary: #1a1a1a;
+        --text-secondary: #5f6368;
+        --text-muted: #9aa0a6;
+        --text-inverse: #ffffff;
+        --text-inverse-muted: rgba(255, 255, 255, 0.55);
+        --border: #e8e2da;
+        --border-light: #f0ebe4;
+        --sev-high: #d93025;
+        --sev-high-bg: #fef2f2;
+        --sev-med: #e37400;
+        --sev-med-bg: #fef8ee;
+        --sev-low: #1e8e3e;
+        --sev-low-bg: #f0fdf4;
+        --info: #1a73e8;
+        --info-bg: #e8f0fe;
+        --hover-light: rgba(0, 0, 0, 0.03);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        font-family:
+          "Inter",
+          -apple-system,
+          sans-serif;
+        background: var(--cream);
+        color: var(--text-primary);
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        font-size: 14px;
+      }
+      .app {
+        display: flex;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* === SIDEBAR === */
+      .sidebar {
+        width: 208px;
+        background: var(--forest);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        color: var(--text-inverse);
+      }
+      .brand {
+        padding: 16px 16px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .brand-tier {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        color: var(--text-inverse-muted);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        background: var(--emerald);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--forest);
+      }
+      .brand-name {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .scope {
+        padding: 10px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        color: var(--text-inverse-muted);
+      }
+      .scope-val {
+        color: #fff;
+        font-weight: 500;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .side-section {
+        padding: 14px 10px 4px;
+      }
+      .side-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--text-inverse-muted);
+        text-transform: uppercase;
+        padding: 0 8px 6px;
+      }
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 30px;
+        padding: 0 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.65);
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .nav-item:hover {
+        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .nav-item.active {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .nav-item svg {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+      .nav-badge {
+        margin-left: auto;
+        font-size: 10px;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.85);
+        padding: 1px 7px;
+        border-radius: 10px;
+      }
+      .side-footer {
+        margin-top: auto;
+        padding: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--forest-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+      }
+      .user-name {
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .user-email {
+        font-size: 10px;
+        color: var(--text-inverse-muted);
+      }
+
+      /* === MAIN === */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        background: var(--cream);
+      }
+      .topbar {
+        height: 44px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 14px;
+        flex-shrink: 0;
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .crumbs .here {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .crumbs svg {
+        width: 12px;
+        height: 12px;
+      }
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--emerald);
+      }
+
+      /* === WIZARD LAYOUT === */
+      .wiz {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+      .wiz-steps {
+        width: 272px;
+        background: #fff;
+        border-right: 1px solid var(--border);
+        padding: 24px 20px;
+        flex-shrink: 0;
+        overflow-y: auto;
+      }
+      .wiz-title {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        margin-bottom: 4px;
+      }
+      .wiz-subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 22px;
+        line-height: 1.5;
+      }
+      .step-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .step {
+        display: flex;
+        gap: 12px;
+        padding: 10px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        position: relative;
+        transition: background 0.15s;
+      }
+      .step:hover {
+        background: var(--hover-light);
+      }
+      .step.current {
+        background: var(--cream-dark);
+      }
+      .step-dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #fff;
+        border: 1.5px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        z-index: 1;
+      }
+      .step.done .step-dot {
+        background: var(--forest);
+        border-color: var(--forest);
+        color: #fff;
+      }
+      .step.current .step-dot {
+        border-color: var(--forest);
+        color: var(--forest);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(13, 59, 46, 0.08);
+      }
+      .step:not(:last-child):after {
+        content: "";
+        position: absolute;
+        left: 22px;
+        top: 32px;
+        width: 1.5px;
+        height: calc(100% - 20px);
+        background: var(--border);
+      }
+      .step.done:after {
+        background: var(--forest);
+      }
+      .step-body {
+        padding-top: 2px;
+        min-width: 0;
+      }
+      .step-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1.3;
+      }
+      .step-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+      .step.current .step-label {
+        color: var(--forest);
+      }
+
+      /* === WIZARD CONTENT === */
+      .wiz-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 28px 40px 120px;
+        max-width: 100%;
+        position: relative;
+      }
+      .wiz-content-inner {
+        max-width: 720px;
+      }
+      .panel-eyebrow {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .panel-h {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+      }
+      .panel-p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.55;
+        margin-bottom: 24px;
+      }
+
+      .group {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 22px;
+        margin-bottom: 16px;
+      }
+      .group-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 2px;
+      }
+      .group-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .row.single {
+        grid-template-columns: 1fr;
+      }
+      .row.thirds {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .label .req {
+        color: var(--sev-high);
+      }
+      .hint-inline {
+        font-size: 10px;
+        color: var(--text-muted);
+        font-weight: 400;
+      }
+      .input,
+      .select,
+      .textarea {
+        width: 100%;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0 10px;
+        background: #fff;
+        font-family: inherit;
+        font-size: 13px;
+        color: var(--text-primary);
+        transition: all 0.15s;
+      }
+      .textarea {
+        height: auto;
+        padding: 8px 10px;
+        min-height: 64px;
+        resize: vertical;
+      }
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        outline: none;
+        border-color: var(--forest);
+        box-shadow: 0 0 0 3px rgba(13, 59, 46, 0.08);
+      }
+      .input.mono {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+      .input-group {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .input-group .input {
+        border: 0;
+        height: 32px;
+      }
+      .input-prefix,
+      .input-suffix {
+        padding: 0 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+        background: var(--cream);
+        height: 32px;
+        display: flex;
+        align-items: center;
+        border-right: 1px solid var(--border);
+      }
+      .input-suffix {
+        border-right: 0;
+        border-left: 1px solid var(--border);
+      }
+
+      /* Option card (radio group) */
+      .opt-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .opt {
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        cursor: pointer;
+        background: #fff;
+        transition: all 0.15s;
+        position: relative;
+      }
+      .opt:hover {
+        border-color: #cfc7bb;
+      }
+      .opt.selected {
+        border-color: var(--forest);
+        background: rgba(13, 59, 46, 0.02);
+      }
+      .opt.selected:before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--forest);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .opt.selected:after {
+        content: "";
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 6px;
+        height: 3px;
+        border-left: 1.5px solid #fff;
+        border-bottom: 1.5px solid #fff;
+        transform: rotate(-45deg);
+      }
+      .opt-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 3px;
+      }
+      .opt-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.45;
+      }
+      .opt-tag {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 8px;
+        text-transform: uppercase;
+      }
+      .tag-poc {
+        background: var(--info-bg);
+        color: var(--info);
+      }
+      .tag-paid {
+        background: var(--sev-low-bg);
+        color: var(--sev-low);
+      }
+      .tag-int {
+        background: var(--cream-dark);
+        color: var(--text-secondary);
+      }
+
+      /* Toggle */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .toggle-row:last-child {
+        border-bottom: 0;
+      }
+      .toggle-main {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        flex: 1;
+      }
+      .toggle-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: var(--cream);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+      }
+      .toggle-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .toggle-text .t-title {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .toggle-text .t-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.45;
+      }
+      .toggle {
+        width: 34px;
+        height: 20px;
+        border-radius: 10px;
+        background: var(--border);
+        position: relative;
+        cursor: pointer;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle:after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        transition: left 0.2s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+      }
+      .toggle.on {
+        background: var(--forest);
+      }
+      .toggle.on:after {
+        left: 16px;
+      }
+
+      /* Limits table */
+      .limits {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .limit-row {
+        display: grid;
+        grid-template-columns: 1fr 160px 120px;
+        align-items: center;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border-light);
+        font-size: 12px;
+      }
+      .limit-row:last-child {
+        border-bottom: 0;
+      }
+      .limit-row.head {
+        background: var(--cream);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 8px 14px;
+      }
+      .limit-name {
+        font-weight: 500;
+      }
+      .limit-key {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .limit-input {
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0 8px;
+        font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        width: 100%;
+        text-align: right;
+      }
+      .limit-meta {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      /* Invite list */
+      .invite-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .invite-row {
+        display: grid;
+        grid-template-columns: 1fr 180px 32px;
+        gap: 10px;
+        align-items: center;
+      }
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        background: var(--cream);
+        color: var(--sev-high);
+      }
+      .add-link {
+        font-size: 12px;
+        color: var(--forest);
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .add-link svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Review */
+      .review-grid {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 10px 20px;
+        font-size: 13px;
+      }
+      .review-grid dt {
+        font-size: 11px;
+        color: var(--text-muted);
+        padding-top: 2px;
+      }
+      .review-grid dd {
+        color: var(--text-primary);
+        font-weight: 500;
+      }
+      .review-grid dd.mono {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+      .divider {
+        height: 1px;
+        background: var(--border-light);
+        margin: 14px 0;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--cream-dark);
+        color: var(--text-secondary);
+      }
+      .badge.ok {
+        background: var(--sev-low-bg);
+        color: var(--sev-low);
+      }
+      .badge.info {
+        background: var(--info-bg);
+        color: var(--info);
+      }
+      .badge.warn {
+        background: var(--sev-med-bg);
+        color: var(--sev-med);
+      }
+      .badge .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .callout {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        display: flex;
+        gap: 10px;
+        background: var(--cream);
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin-bottom: 16px;
+      }
+      .callout svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        color: var(--info);
+        margin-top: 1px;
+      }
+      .callout.warn {
+        background: var(--sev-med-bg);
+        border-color: #f5e2c8;
+      }
+      .callout.warn svg {
+        color: var(--sev-med);
+      }
+
+      /* Action bar */
+      .action-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border-top: 1px solid var(--border);
+        padding: 12px 40px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .action-progress {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .action-spacer {
+        flex: 1;
+      }
+      .btn {
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+      }
+      .btn:hover {
+        background: var(--cream);
+        border-color: #cfc7bb;
+      }
+      .btn.primary {
+        background: var(--forest);
+        border-color: var(--forest);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: var(--forest-light);
+        border-color: var(--forest-light);
+      }
+      .btn.ghost {
+        border-color: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--hover-light);
+      }
+      .btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Chip input */
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        min-height: 34px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--cream-dark);
+        color: var(--text-primary);
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 6px 3px 8px;
+        border-radius: 4px;
+      }
+      .chip svg {
+        width: 10px;
+        height: 10px;
+        cursor: pointer;
+        color: var(--text-muted);
+      }
+      .chip-input {
+        border: 0;
+        outline: 0;
+        font-family: inherit;
+        font-size: 12px;
+        flex: 1;
+        min-width: 80px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-tier">Internal Control Plane</div>
+          <div class="brand-row">
+            <div class="brand-icon">
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <polyline points="13 2 4 14 12 14 11 22 20 10 12 10 13 2" />
+              </svg>
+            </div>
+            <div class="brand-name">Lepton Admin</div>
+          </div>
+        </div>
+        <div class="scope">
+          Scope
+          <div class="scope-val">
+            All Customers
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
+        <div class="side-section">
+          <div class="side-label">Overview</div>
+          <div class="nav">
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" /></svg
+              >Global Dashboard
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg
+              >Alerts<span class="nav-badge">5</span>
+            </div>
+          </div>
+        </div>
+        <div class="side-section">
+          <div class="side-label">Manage</div>
+          <div class="nav">
+            <div class="nav-item active">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" /></svg
+              >Customers<span class="nav-badge">12</span>
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg
+              >Organizations
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" /></svg
+              >Users
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" /></svg
+              >Entitlements
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path
+                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                /></svg
+              >Partner Demos
+            </div>
+          </div>
+        </div>
+        <div class="side-section">
+          <div class="side-label">Operate</div>
+          <div class="nav">
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg
+              >Data Pipelines
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <polyline points="20 6 9 17 4 12" /></svg
+              >Onboarding
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" /></svg
+              >Usage Analytics
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path d="M4 21v-7" />
+                <path d="M4 10V3" />
+                <path d="M12 21v-9" />
+                <path d="M12 8V3" />
+                <path d="M20 21v-5" />
+                <path d="M20 12V3" />
+                <line x1="1" y1="14" x2="7" y2="14" />
+                <line x1="9" y1="8" x2="15" y2="8" />
+                <line x1="17" y1="16" x2="23" y2="16" /></svg
+              >Feature Flags
+            </div>
+            <div class="nav-item">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" /></svg
+              >Audit Log
+            </div>
+          </div>
+        </div>
+        <div class="side-footer">
+          <div class="user-avatar">US</div>
+          <div>
+            <div class="user-name">Umang Saraf</div>
+            <div class="user-email">Super Admin</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="main">
+        <div class="topbar">
+          <div class="crumbs">
+            <span>Manage</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <span>Customers</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <span class="here">New Customer</span>
+          </div>
+          <div class="topbar-right">
+            <span class="live-dot"></span>
+            <span>Auto-saving draft · 3s ago</span>
+          </div>
+        </div>
+
+        <div class="wiz">
+          <!-- STEP RAIL -->
+          <aside class="wiz-steps">
+            <div class="wiz-title">Onboard a new customer</div>
+            <div class="wiz-subtitle">
+              Provisions a tenant, entitlement envelope, first organization, and
+              admin invites. Can be cancelled anytime before activation.
+            </div>
+            <div class="step-list" id="stepList">
+              <div class="step done" data-step="1">
+                <div class="step-dot">✓</div>
+                <div class="step-body">
+                  <div class="step-label">Customer Basics</div>
+                  <div class="step-hint">Name, type, contract, region</div>
+                </div>
+              </div>
+              <div class="step current" data-step="2">
+                <div class="step-dot">2</div>
+                <div class="step-body">
+                  <div class="step-label">Entitlements</div>
+                  <div class="step-hint">Seats, modules, quotas, retention</div>
+                </div>
+              </div>
+              <div class="step" data-step="3">
+                <div class="step-dot">3</div>
+                <div class="step-body">
+                  <div class="step-label">First Organization</div>
+                  <div class="step-hint">City, timezone, pilot zones</div>
+                </div>
+              </div>
+              <div class="step" data-step="4">
+                <div class="step-dot">4</div>
+                <div class="step-body">
+                  <div class="step-label">Admin Invites</div>
+                  <div class="step-hint">First admin + stakeholders</div>
+                </div>
+              </div>
+              <div class="step" data-step="5">
+                <div class="step-dot">5</div>
+                <div class="step-body">
+                  <div class="step-label">Data Provisioning</div>
+                  <div class="step-hint">Schema, region, ingestion source</div>
+                </div>
+              </div>
+              <div class="step" data-step="6">
+                <div class="step-dot">6</div>
+                <div class="step-body">
+                  <div class="step-label">Review &amp; Activate</div>
+                  <div class="step-hint">Preview migration plan, confirm</div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- CONTENT (step 2 shown; full content for all steps in DOM, toggled) -->
+          <div class="wiz-content">
+            <div class="wiz-content-inner">
+              <!-- STEP 1: CUSTOMER BASICS -->
+              <div class="step-panel" data-panel="1" hidden>
+                <div class="panel-eyebrow">Step 1 of 6</div>
+                <div class="panel-h">Customer basics</div>
+                <div class="panel-p">
+                  A <b>Customer</b> is the contract/billing entity. One customer
+                  can own multiple organizations (cities). This is the top of
+                  the tenancy tree — everything else hangs off it.
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Identity</div>
+                  <div class="group-sub">
+                    Legal and display names for this customer.
+                  </div>
+                  <div class="row">
+                    <div class="field">
+                      <div class="label">
+                        Customer name <span class="req">*</span>
+                      </div>
+                      <input class="input" value="Pune Smart City Corp" />
+                    </div>
+                    <div class="field">
+                      <div class="label">
+                        Slug
+                        <span class="hint-inline"
+                          >· used in URLs + schema name</span
+                        >
+                      </div>
+                      <input class="input mono" value="pune-smart-city" />
+                    </div>
+                  </div>
+                  <div class="row single">
+                    <div class="field">
+                      <div class="label">Legal entity</div>
+                      <input
+                        class="input"
+                        value="Pune Smart City Development Corporation Ltd."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Customer type</div>
+                  <div class="group-sub">
+                    Determines default entitlement preset, billing treatment,
+                    and watermarks.
+                  </div>
+                  <div class="opt-grid">
+                    <div class="opt">
+                      <div class="opt-title">POC / Pilot</div>
+                      <div class="opt-desc">
+                        30–90 day evaluation. Auto-expires unless converted.
+                      </div>
+                      <span class="opt-tag tag-poc">POC</span>
+                    </div>
+                    <div class="opt selected">
+                      <div class="opt-title">Paid Customer</div>
+                      <div class="opt-desc">
+                        Signed contract, live billing, production SLAs.
+                      </div>
+                      <span class="opt-tag tag-paid">Paid</span>
+                    </div>
+                    <div class="opt">
+                      <div class="opt-title">Internal / Partner</div>
+                      <div class="opt-desc">
+                        Demo tenant for sales or partner presentations.
+                      </div>
+                      <span class="opt-tag tag-int">Internal</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Contract &amp; region</div>
+                  <div class="row thirds">
+                    <div class="field">
+                      <div class="label">Contract start</div>
+                      <input class="input" type="date" value="2026-04-15" />
+                    </div>
+                    <div class="field">
+                      <div class="label">Contract end</div>
+                      <input class="input" type="date" value="2027-04-14" />
+                    </div>
+                    <div class="field">
+                      <div class="label">Primary region</div>
+                      <select class="select">
+                        <option>asia-south1 (Mumbai)</option>
+                        <option>asia-south2 (Delhi)</option>
+                        <option>me-central1 (Riyadh)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="field">
+                      <div class="label">Primary contact name</div>
+                      <input class="input" value="Shekhar Gaikwad" />
+                    </div>
+                    <div class="field">
+                      <div class="label">Primary contact email</div>
+                      <input
+                        class="input"
+                        value="shekhar@punesmartcity.gov.in"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 2: ENTITLEMENTS -->
+              <div class="step-panel" data-panel="2">
+                <div class="panel-eyebrow">Step 2 of 6</div>
+                <div class="panel-h">
+                  Set entitlements for Pune Smart City Corp
+                </div>
+                <div class="panel-p">
+                  Entitlements define what this customer can do and how much.
+                  Every limit is enforced in real time via the
+                  <code
+                    style="
+                      font-family: &quot;JetBrains Mono&quot;, monospace;
+                      font-size: 11.5px;
+                      background: var(--cream-dark);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >entitlement</code
+                  >
+                  engine — nothing is hardcoded. You can raise limits later
+                  without a redeploy.
+                </div>
+
+                <!-- Plan template -->
+                <div class="group">
+                  <div class="group-title">Plan template</div>
+                  <div class="group-sub">
+                    Start from a preset — you can still adjust individual limits
+                    below.
+                  </div>
+                  <div class="opt-grid">
+                    <div class="opt">
+                      <div class="opt-title">POC Starter</div>
+                      <div class="opt-desc">
+                        30-day pilot envelope. 1 org, 15 seats, Ask AI capped at
+                        500/mo.
+                      </div>
+                      <span class="opt-tag tag-poc">POC</span>
+                    </div>
+                    <div class="opt selected">
+                      <div class="opt-title">City Enterprise</div>
+                      <div class="opt-desc">
+                        Production-grade envelope. Up to 5 orgs, 100 seats,
+                        unrestricted Ask AI within quota.
+                      </div>
+                      <span class="opt-tag tag-paid">Paid</span>
+                    </div>
+                    <div class="opt">
+                      <div class="opt-title">Partner Demo</div>
+                      <div class="opt-desc">
+                        7-day sandbox. Read-only, synthetic data, auto-expires.
+                      </div>
+                      <span class="opt-tag tag-int">Internal</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Modules -->
+                <div class="group">
+                  <div class="group-title">Modules</div>
+                  <div class="group-sub">
+                    Toggle what this customer can access. Gated at the route
+                    level.
+                  </div>
+
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <rect x="3" y="3" width="7" height="7" rx="1" />
+                          <rect x="14" y="3" width="7" height="7" rx="1" />
+                          <rect x="3" y="14" width="7" height="7" rx="1" />
+                          <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">City Overview</div>
+                        <div class="t-desc">
+                          Dashboard, heatmap, alerts, reports — the core
+                          product.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle on"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M2 12h20" />
+                          <path
+                            d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"
+                          />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">CityPulse + Ask AI</div>
+                        <div class="t-desc">
+                          Natural-language querying over traffic data. Subject
+                          to query quota below.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle on"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <line x1="18" y1="20" x2="18" y2="10" />
+                          <line x1="12" y1="20" x2="12" y2="4" />
+                          <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">Junction Analytics</div>
+                        <div class="t-desc">
+                          Corridor-level diagnostics, baselines, incident
+                          overlays.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle on"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <path
+                            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                          />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">Client Admin Module</div>
+                        <div class="t-desc">
+                          Customer can manage their own orgs, users, and roles.
+                          Hidden until Phase 2 GA.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <path
+                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                          />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">Data Export API</div>
+                        <div class="t-desc">
+                          Programmatic CSV / Parquet export. Audited; counts
+                          against the API quota.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle"></div>
+                  </div>
+                </div>
+
+                <!-- Limits -->
+                <div class="group">
+                  <div class="group-title">Quantitative limits</div>
+                  <div class="group-sub">
+                    Real-time enforced via Redis. Over-quota requests return
+                    <code
+                      style="
+                        font-family: &quot;JetBrains Mono&quot;, monospace;
+                        font-size: 11.5px;
+                        background: var(--cream-dark);
+                        padding: 1px 5px;
+                        border-radius: 3px;
+                      "
+                      >429 entitlement_exceeded</code
+                    >.
+                  </div>
+                  <div class="limits">
+                    <div class="limit-row head">
+                      <div>Limit</div>
+                      <div>Value</div>
+                      <div>Enforcement</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">Seats</div>
+                        <div class="limit-key">entitlement.seat_limit</div>
+                      </div>
+                      <div><input class="limit-input" value="100" /></div>
+                      <div class="limit-meta">Hard block</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">Organizations</div>
+                        <div class="limit-key">entitlement.org_limit</div>
+                      </div>
+                      <div><input class="limit-input" value="5" /></div>
+                      <div class="limit-meta">Hard block</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">Ask AI queries / month</div>
+                        <div class="limit-key">entitlement.ask_ai_monthly</div>
+                      </div>
+                      <div><input class="limit-input" value="10,000" /></div>
+                      <div class="limit-meta">Soft · 80% alert</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">Saved segments</div>
+                        <div class="limit-key">entitlement.segment_limit</div>
+                      </div>
+                      <div><input class="limit-input" value="250" /></div>
+                      <div class="limit-meta">Hard block</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">
+                          Historical retention (days)
+                        </div>
+                        <div class="limit-key">entitlement.retention_days</div>
+                      </div>
+                      <div><input class="limit-input" value="730" /></div>
+                      <div class="limit-meta">Auto-prune</div>
+                    </div>
+                    <div class="limit-row">
+                      <div>
+                        <div class="limit-name">API requests / minute</div>
+                        <div class="limit-key">entitlement.api_rpm</div>
+                      </div>
+                      <div><input class="limit-input" value="600" /></div>
+                      <div class="limit-meta">Rate limit</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="callout">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <div>
+                    Changes take effect within 30 seconds via Redis cache
+                    invalidation. A <b>platform.entitlement_change</b> audit
+                    event is emitted automatically.
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 3: FIRST ORGANIZATION -->
+              <div class="step-panel" data-panel="3" hidden>
+                <div class="panel-eyebrow">Step 3 of 6</div>
+                <div class="panel-h">Create the first organization</div>
+                <div class="panel-p">
+                  An <b>Organization</b> is a city or deployment unit within
+                  this customer. Every customer must have at least one org — you
+                  can add more later from the Customer Detail page.
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Organization</div>
+                  <div class="row">
+                    <div class="field">
+                      <div class="label">
+                        Organization name <span class="req">*</span>
+                      </div>
+                      <input class="input" value="Pune" />
+                    </div>
+                    <div class="field">
+                      <div class="label">Org slug</div>
+                      <input class="input mono" value="pune" />
+                    </div>
+                  </div>
+                  <div class="row thirds">
+                    <div class="field">
+                      <div class="label">Timezone</div>
+                      <select class="select">
+                        <option>Asia/Kolkata (IST)</option>
+                        <option>Asia/Dubai</option>
+                        <option>Asia/Riyadh</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <div class="label">Country</div>
+                      <select class="select">
+                        <option>India</option>
+                        <option>Saudi Arabia</option>
+                        <option>UAE</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <div class="label">Org type</div>
+                      <select class="select">
+                        <option>City</option>
+                        <option>State / Province</option>
+                        <option>Highway Authority</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Geographic scope</div>
+                  <div class="group-sub">
+                    Defines the default map extent and data boundary for this
+                    org.
+                  </div>
+                  <div class="row">
+                    <div class="field">
+                      <div class="label">Center latitude</div>
+                      <input class="input mono" value="18.5204" />
+                    </div>
+                    <div class="field">
+                      <div class="label">Center longitude</div>
+                      <input class="input mono" value="73.8567" />
+                    </div>
+                  </div>
+                  <div class="row single">
+                    <div class="field">
+                      <div class="label">
+                        Bounding box <span class="hint-inline">· optional</span>
+                      </div>
+                      <input
+                        class="input mono"
+                        value="18.40,73.70,18.65,74.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">
+                    Pilot zones
+                    <span
+                      class="hint-inline"
+                      style="font-weight: 400; margin-left: 6px"
+                      >· optional</span
+                    >
+                  </div>
+                  <div class="group-sub">
+                    Sub-areas for scoped RBAC later. Add now or add via the
+                    Zones admin.
+                  </div>
+                  <div class="chips">
+                    <span class="chip"
+                      >Hinjewadi
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" /></svg
+                    ></span>
+                    <span class="chip"
+                      >Koregaon Park
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" /></svg
+                    ></span>
+                    <span class="chip"
+                      >Baner
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" /></svg
+                    ></span>
+                    <input class="chip-input" placeholder="Add zone…" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 4: ADMIN INVITES -->
+              <div class="step-panel" data-panel="4" hidden>
+                <div class="panel-eyebrow">Step 4 of 6</div>
+                <div class="panel-h">Invite the first admins</div>
+                <div class="panel-p">
+                  At least one <b>Customer Admin</b> is required. They'll get a
+                  Better Auth invite email and can invite others themselves once
+                  activated.
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Invites</div>
+                  <div class="group-sub">
+                    Roles are scoped: Customer Admin sees all orgs; Org Admin
+                    sees a single org.
+                  </div>
+                  <div class="invite-list">
+                    <div class="invite-row">
+                      <input
+                        class="input"
+                        placeholder="email@domain"
+                        value="shekhar@punesmartcity.gov.in"
+                      />
+                      <select class="select">
+                        <option>Customer Admin</option>
+                        <option>Org Admin — Pune</option>
+                        <option>Analyst</option>
+                        <option>Viewer</option>
+                      </select>
+                      <button class="icon-btn">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path
+                            d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="invite-row">
+                      <input
+                        class="input"
+                        placeholder="email@domain"
+                        value="ops@punesmartcity.gov.in"
+                      />
+                      <select class="select">
+                        <option>Org Admin — Pune</option>
+                        <option>Customer Admin</option>
+                        <option>Analyst</option>
+                        <option>Viewer</option>
+                      </select>
+                      <button class="icon-btn">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path
+                            d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="invite-row">
+                      <input
+                        class="input"
+                        placeholder="email@domain"
+                        value="analyst@punesmartcity.gov.in"
+                      />
+                      <select class="select">
+                        <option>Analyst</option>
+                        <option>Viewer</option>
+                      </select>
+                      <button class="icon-btn">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path
+                            d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="add-link">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" /></svg
+                    >Add another invite
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Invite settings</div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <path
+                            d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                          />
+                          <polyline points="22 6 12 13 2 6" />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">Send invite emails now</div>
+                        <div class="t-desc">
+                          Each invitee receives a magic-link sign-in valid for
+                          14 days.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle on"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-main">
+                      <div class="toggle-icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      </div>
+                      <div class="toggle-text">
+                        <div class="t-title">
+                          Require 2FA for Customer Admins
+                        </div>
+                        <div class="t-desc">
+                          Enforced on first login. Recommended for any non-POC
+                          customer.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="toggle on"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 5: DATA PROVISIONING -->
+              <div class="step-panel" data-panel="5" hidden>
+                <div class="panel-eyebrow">Step 5 of 6</div>
+                <div class="panel-h">Data provisioning</div>
+                <div class="panel-p">
+                  Creates the per-customer Postgres schema for traffic data and
+                  connects the ingestion pipeline. Platform + identity tables
+                  stay shared.
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Database schema</div>
+                  <div class="row">
+                    <div class="field">
+                      <div class="label">Schema name</div>
+                      <input
+                        class="input mono"
+                        value="customer_pune_smart_city"
+                      />
+                    </div>
+                    <div class="field">
+                      <div class="label">DB instance</div>
+                      <select class="select">
+                        <option>trafficure-prod-01 (asia-south1)</option>
+                        <option>trafficure-prod-02 (asia-south2)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="row thirds">
+                    <div class="field">
+                      <div class="label">Isolation</div>
+                      <select class="select">
+                        <option>Schema-per-customer (recommended)</option>
+                        <option>Shared (legacy)</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <div class="label">Backup policy</div>
+                      <select class="select">
+                        <option>Daily · 30d retention</option>
+                        <option>Hourly · 7d retention</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <div class="label">At-rest encryption</div>
+                      <select class="select">
+                        <option>AES-256 (default)</option>
+                        <option>Customer-managed KMS</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Ingestion source</div>
+                  <div class="group-sub">
+                    Where traffic observations will come from. Can be changed
+                    later.
+                  </div>
+                  <div class="opt-grid">
+                    <div class="opt selected">
+                      <div class="opt-title">HERE Traffic API</div>
+                      <div class="opt-desc">
+                        Pull every 60s. Standard for Indian city deployments.
+                      </div>
+                    </div>
+                    <div class="opt">
+                      <div class="opt-title">TomTom Move</div>
+                      <div class="opt-desc">
+                        Pull every 120s. Better Middle East coverage.
+                      </div>
+                    </div>
+                    <div class="opt">
+                      <div class="opt-title">Custom / CCTV</div>
+                      <div class="opt-desc">
+                        Webhook or SFTP drop. Requires mapping.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="callout warn">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  >
+                    <path
+                      d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                    />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <div>
+                    First ingest backfill takes 2–6 hours. The customer will see
+                    "Provisioning data" on their dashboard until it completes.
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 6: REVIEW & ACTIVATE -->
+              <div class="step-panel" data-panel="6" hidden>
+                <div class="panel-eyebrow">Step 6 of 6</div>
+                <div class="panel-h">Review &amp; activate</div>
+                <div class="panel-p">
+                  Here's everything that will be created when you click
+                  Activate. Each action is idempotent and rolls back as a unit
+                  if any step fails.
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Customer</div>
+                  <dl class="review-grid">
+                    <dt>Name</dt>
+                    <dd>Pune Smart City Corp</dd>
+                    <dt>Slug</dt>
+                    <dd class="mono">pune-smart-city</dd>
+                    <dt>Type</dt>
+                    <dd>
+                      <span class="badge ok"
+                        ><span class="dot"></span>Paid Customer</span
+                      >
+                    </dd>
+                    <dt>Contract</dt>
+                    <dd>
+                      2026-04-15 → 2027-04-14
+                      <span class="badge" style="margin-left: 6px"
+                        >12 months</span
+                      >
+                    </dd>
+                    <dt>Region</dt>
+                    <dd>asia-south1 (Mumbai)</dd>
+                    <dt>Primary contact</dt>
+                    <dd>Shekhar Gaikwad · shekhar@punesmartcity.gov.in</dd>
+                  </dl>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Entitlements</div>
+                  <dl class="review-grid">
+                    <dt>Plan template</dt>
+                    <dd>City Enterprise</dd>
+                    <dt>Modules</dt>
+                    <dd>
+                      City Overview, CityPulse + Ask AI, Junction Analytics
+                    </dd>
+                    <dt>Seats</dt>
+                    <dd class="mono">100</dd>
+                    <dt>Organizations</dt>
+                    <dd class="mono">5</dd>
+                    <dt>Ask AI / month</dt>
+                    <dd class="mono">10,000</dd>
+                    <dt>Retention</dt>
+                    <dd class="mono">730 days</dd>
+                  </dl>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">First organization</div>
+                  <dl class="review-grid">
+                    <dt>Name</dt>
+                    <dd>Pune</dd>
+                    <dt>Timezone</dt>
+                    <dd>Asia/Kolkata (IST)</dd>
+                    <dt>Pilot zones</dt>
+                    <dd>Hinjewadi, Koregaon Park, Baner</dd>
+                  </dl>
+                </div>
+
+                <div class="group">
+                  <div class="group-title">Provisioning plan</div>
+                  <dl class="review-grid">
+                    <dt>Schema</dt>
+                    <dd class="mono">customer_pune_smart_city</dd>
+                    <dt>DB instance</dt>
+                    <dd>trafficure-prod-01</dd>
+                    <dt>Ingestion</dt>
+                    <dd>HERE Traffic API · every 60s</dd>
+                    <dt>Invites to send</dt>
+                    <dd>3 emails · 2FA required for Customer Admins</dd>
+                    <dt>Audit event</dt>
+                    <dd class="mono">platform.customer_created</dd>
+                  </dl>
+                </div>
+
+                <div class="callout">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <div>
+                    Activation takes ~90 seconds. You'll be redirected to the
+                    Customer Detail page. Invites send immediately.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action bar -->
+            <div class="action-bar">
+              <div class="action-progress" id="progressText">
+                Step 2 of 6 · Draft auto-saved
+              </div>
+              <div class="action-spacer"></div>
+              <button class="btn ghost" id="btnCancel">Cancel</button>
+              <button class="btn" id="btnBack">Back</button>
+              <button class="btn primary" id="btnNext">
+                Continue
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const TOTAL = 6
+      let current = 2
+      const stepLabels = {
+        1: "Entitlements",
+        2: "Organization",
+        3: "Admin Invites",
+        4: "Data Provisioning",
+        5: "Review",
+        6: "Activate",
+      }
+      const steps = [...document.querySelectorAll("#stepList .step")]
+      const panels = [...document.querySelectorAll(".step-panel")]
+      const progressText = document.getElementById("progressText")
+      const btnBack = document.getElementById("btnBack")
+      const btnNext = document.getElementById("btnNext")
+      const wizContent = document.querySelector(".wiz-content")
+
+      function render() {
+        steps.forEach((s) => {
+          const n = +s.dataset.step
+          s.classList.toggle("current", n === current)
+          s.classList.toggle("done", n < current)
+          const dot = s.querySelector(".step-dot")
+          dot.textContent = n < current ? "✓" : n
+        })
+        panels.forEach((p) => (p.hidden = +p.dataset.panel !== current))
+        progressText.textContent = `Step ${current} of ${TOTAL} · Draft auto-saved`
+        btnBack.disabled = current === 1
+        btnBack.style.opacity = current === 1 ? 0.4 : 1
+        if (current === TOTAL) {
+          btnNext.innerHTML =
+            'Activate customer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'
+        } else {
+          const next = stepLabels[current] || ""
+          btnNext.innerHTML = `Continue to ${next} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`
+        }
+        wizContent.scrollTop = 0
+      }
+      steps.forEach((s) =>
+        s.addEventListener("click", () => {
+          current = +s.dataset.step
+          render()
+        })
+      )
+      btnBack.addEventListener("click", () => {
+        if (current > 1) {
+          current--
+          render()
+        }
+      })
+      btnNext.addEventListener("click", () => {
+        if (current < TOTAL) {
+          current++
+          render()
+        } else {
+          alert("Activating customer… (demo)")
+        }
+      })
+      document.getElementById("btnCancel").addEventListener("click", () => {
+        if (confirm("Discard this draft?")) {
+        }
+      })
+
+      // toggles
+      document
+        .querySelectorAll(".toggle")
+        .forEach((t) =>
+          t.addEventListener("click", () => t.classList.toggle("on"))
+        )
+      // option cards
+      document.querySelectorAll(".opt-grid").forEach((g) => {
+        g.addEventListener("click", (e) => {
+          const opt = e.target.closest(".opt")
+          if (!opt) return
+          g.querySelectorAll(".opt").forEach((o) =>
+            o.classList.remove("selected")
+          )
+          opt.classList.add("selected")
+        })
+      })
+      // chip remove
+      document
+        .querySelectorAll(".chip svg")
+        .forEach((x) =>
+          x.addEventListener("click", (e) => e.target.closest(".chip").remove())
+        )
+
+      render()
+    </script>
+  </body>
+</html>

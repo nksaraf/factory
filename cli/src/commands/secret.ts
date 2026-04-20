@@ -23,7 +23,8 @@ const SCOPE_FLAGS = {
   },
   scope: {
     type: "string" as const,
-    description: "Secret scope: org, team, project (default: org)",
+    description:
+      "Secret scope: org, team, project, system, site, deployment (default: org)",
   },
   team: {
     type: "string" as const,
@@ -32,6 +33,18 @@ const SCOPE_FLAGS = {
   project: {
     type: "string" as const,
     description: "Project slug (for project scope)",
+  },
+  system: {
+    type: "string" as const,
+    description: "System slug (for system scope)",
+  },
+  site: {
+    type: "string" as const,
+    description: "Site slug (for site scope)",
+  },
+  deployment: {
+    type: "string" as const,
+    description: "Deployment slug (for deployment scope)",
   },
   env: {
     type: "string" as const,
@@ -70,6 +83,9 @@ export function secretCommand(app: DxBase) {
               scope: flags.scope as string | undefined,
               team: flags.team as string | undefined,
               project: flags.project as string | undefined,
+              system: flags.system as string | undefined,
+              site: flags.site as string | undefined,
+              deployment: flags.deployment as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
             })
@@ -99,6 +115,9 @@ export function secretCommand(app: DxBase) {
               scope: flags.scope as string | undefined,
               team: flags.team as string | undefined,
               project: flags.project as string | undefined,
+              system: flags.system as string | undefined,
+              site: flags.site as string | undefined,
+              deployment: flags.deployment as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
             })
@@ -120,6 +139,9 @@ export function secretCommand(app: DxBase) {
               scope: flags.scope as string | undefined,
               team: flags.team as string | undefined,
               project: flags.project as string | undefined,
+              system: flags.system as string | undefined,
+              site: flags.site as string | undefined,
+              deployment: flags.deployment as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
             })
@@ -149,6 +171,9 @@ export function secretCommand(app: DxBase) {
               scope: flags.scope as string | undefined,
               team: flags.team as string | undefined,
               project: flags.project as string | undefined,
+              system: flags.system as string | undefined,
+              site: flags.site as string | undefined,
+              deployment: flags.deployment as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
             })
@@ -184,6 +209,9 @@ export function secretCommand(app: DxBase) {
               scope: flags.scope as string | undefined,
               team: flags.team as string | undefined,
               project: flags.project as string | undefined,
+              system: flags.system as string | undefined,
+              site: flags.site as string | undefined,
+              deployment: flags.deployment as string | undefined,
               env: flags.env as string | undefined,
               json: f.json,
             })

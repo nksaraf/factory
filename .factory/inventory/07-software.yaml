@@ -1,0 +1,9 @@
+version: "1"
+
+entities:
+  - kind: system
+    slug: factory-core
+    name: Factory Core
+    ownerTeamSlug: platform
+    spec:
+      lifecycle: production

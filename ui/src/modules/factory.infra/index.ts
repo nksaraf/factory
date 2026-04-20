@@ -33,7 +33,7 @@ export const extension = {
       () => import("./(app)/(dashboard)/infra/hosts/page")
     ),
     "factory.infra.route.host-detail": lazy(
-      () => import("./(app)/(dashboard)/infra/hosts/[id]/page")
+      () => import("./(app)/(dashboard)/infra/hosts/[slug]/page")
     ),
     "factory.infra.route.network": lazy(
       () => import("./(app)/(dashboard)/infra/network/page")

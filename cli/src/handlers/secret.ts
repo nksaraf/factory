@@ -32,24 +32,37 @@ export interface SecretFlags {
   scope?: string
   team?: string
   project?: string
+  system?: string
+  site?: string
+  deployment?: string
   env?: string
   json?: boolean
 }
 
 function buildScopeParams(flags: SecretFlags): Record<string, string> {
   const params: Record<string, string> = {}
-  if (flags.scope) {
-    params.scopeType = flags.scope
+  if (flags.deployment) {
+    params.scopeType = "deployment"
+    params.scopeId = flags.deployment
+  } else if (flags.site) {
+    params.scopeType = "site"
+    params.scopeId = flags.site
   } else if (flags.project) {
     params.scopeType = "project"
+    params.scopeId = flags.project
   } else if (flags.team) {
     params.scopeType = "team"
+    params.scopeId = flags.team
+  } else if (flags.system) {
+    params.scopeType = "system"
+    params.scopeId = flags.system
+  } else if (flags.scope) {
+    params.scopeType = flags.scope
+    params.scopeId = "default"
   } else {
     params.scopeType = "org"
+    params.scopeId = "default"
   }
-  if (flags.team) params.scopeId = flags.team
-  if (flags.project) params.scopeId = flags.project
-  if (!params.scopeId) params.scopeId = "default"
   if (flags.env) params.environment = flags.env
   return params
 }

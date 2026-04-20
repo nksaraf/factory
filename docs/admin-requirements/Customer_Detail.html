@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lepton Admin — Customer Detail</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fafaf9;
+        --surface: #ffffff;
+        --border: #eeece6;
+        --border-strong: #e4e2da;
+        --ink: #1a1a17;
+        --ink-2: #525049;
+        --ink-3: #8a877d;
+        --ink-4: #b5b2a8;
+        --brand: #0d3b2e;
+        --brand-2: #1db954;
+        --red: #c0362c;
+        --amber: #b8791e;
+        --green: #1e7a4a;
+        --blue: #2c5aa8;
+        --red-bg: #fdf2f0;
+        --amber-bg: #fdf7e9;
+        --green-bg: #eef7f1;
+        --blue-bg: #eef2fa;
+        --radius: 6px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.45;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        height: 100vh;
+      }
+
+      /* ============ SIDEBAR ============ */
+      .sb {
+        background: #0d3b2e;
+        color: #e8eae6;
+        display: flex;
+        flex-direction: column;
+        padding: 18px 0;
+        font-size: 13px;
+      }
+      .sb-brand {
+        padding: 4px 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 12px;
+      }
+      .sb-logo {
+        width: 26px;
+        height: 26px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #1db954, #0d3b2e);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .sb-brand-text {
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .sb-brand-sub {
+        font-size: 10.5px;
+        color: #8fb6a8;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        margin-top: 1px;
+      }
+      .sb-section {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: #7a9b8d;
+        padding: 14px 18px 6px;
+      }
+      .sb-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 18px;
+        cursor: pointer;
+        color: #cfd8d2;
+        border-left: 2px solid transparent;
+      }
+      .sb-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .sb-item.active {
+        color: #fff;
+        background: rgba(29, 185, 84, 0.08);
+        border-left-color: #1db954;
+      }
+      .sb-item svg {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+      .sb-foot {
+        margin-top: auto;
+        padding: 12px 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11.5px;
+        color: #8fb6a8;
+      }
+      .sb-user {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .sb-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #1db954;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #0d3b2e;
+        font-size: 11px;
+      }
+
+      /* ============ TOP BAR ============ */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .imp-banner {
+        background: #c0362c;
+        color: #fff;
+        font-size: 12.5px;
+        padding: 8px 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: space-between;
+      }
+      .imp-banner svg {
+        width: 14px;
+        height: 14px;
+      }
+      .imp-end {
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #fff;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      .topbar {
+        height: 50px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      .crumbs {
+        font-size: 12.5px;
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .crumbs a {
+        color: var(--ink-2);
+        text-decoration: none;
+      }
+      .crumbs .sep {
+        color: var(--ink-4);
+      }
+      .crumbs .current {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .cmdk {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        color: var(--ink-3);
+        min-width: 260px;
+        cursor: pointer;
+      }
+      .cmdk-kbd {
+        margin-left: auto;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-family: "JetBrains Mono", mono;
+        font-size: 10.5px;
+      }
+
+      /* ============ CONTENT ============ */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 22px 28px 40px;
+      }
+      .page-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+      .ph-left {
+        flex: 1;
+        min-width: 0;
+      }
+      .ph-title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .ph-title {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+      }
+      .state-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        font-weight: 500;
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .state-badge.active::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        background: var(--green);
+        border-radius: 50%;
+      }
+      .ph-meta {
+        font-size: 12.5px;
+        color: var(--ink-3);
+        margin-top: 4px;
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .ph-meta code {
+        font-family: "JetBrains Mono", mono;
+        font-size: 11.5px;
+        background: var(--bg);
+        padding: 1.5px 6px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+      }
+      .ph-actions {
+        display: flex;
+        gap: 7px;
+      }
+      .btn {
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: inherit;
+      }
+      .btn:hover {
+        background: var(--bg);
+      }
+      .btn.primary {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+      .btn.primary:hover {
+        background: #0a2d22;
+      }
+      .btn.danger {
+        color: var(--red);
+        border-color: #e9cdc9;
+      }
+      .btn.danger:hover {
+        background: var(--red-bg);
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ============ TABS ============ */
+      .tabs {
+        display: flex;
+        gap: 2px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 22px;
+      }
+      .tab {
+        padding: 8px 14px;
+        font-size: 12.5px;
+        color: var(--ink-2);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        font-weight: 500;
+      }
+      .tab:hover {
+        color: var(--ink);
+      }
+      .tab.active {
+        color: var(--ink);
+        border-bottom-color: var(--brand-2);
+      }
+      .tab-count {
+        color: var(--ink-4);
+        font-size: 11px;
+        margin-left: 4px;
+      }
+
+      /* ============ STAT CARDS ============ */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 13px 14px;
+      }
+      .stat-label {
+        font-size: 11px;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+      .stat-val {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+      }
+      .stat-delta {
+        font-size: 11.5px;
+        color: var(--green);
+        margin-top: 3px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .stat-delta.neg {
+        color: var(--red);
+      }
+      .stat-delta svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* ============ GRID ============ */
+      .grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 18px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-title {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .card-sub {
+        font-size: 11.5px;
+        color: var(--ink-3);
+        margin-top: 1px;
+      }
+      .card-action {
+        font-size: 12px;
+        color: var(--ink-2);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .card-action:hover {
+        color: var(--ink);
+      }
+      .card-body {
+        padding: 0;
+      }
+
+      /* ============ HEALTH GRID ============ */
+      .health {
+        padding: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .health-item {
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 10px 12px;
+      }
+      .health-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+      .h-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .h-dot.healthy {
+        background: var(--green);
+      }
+      .h-dot.degraded {
+        background: var(--amber);
+      }
+      .h-dot.failing {
+        background: var(--red);
+      }
+      .health-city {
+        font-weight: 500;
+        font-size: 12.5px;
+      }
+      .health-meta {
+        font-size: 11.5px;
+        color: var(--ink-3);
+      }
+      .health-num {
+        font-family: "JetBrains Mono", mono;
+        font-size: 11px;
+        color: var(--ink-2);
+        margin-top: 3px;
+      }
+
+      /* ============ TABLES ============ */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      th {
+        text-align: left;
+        font-weight: 500;
+        font-size: 11px;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      td {
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+        color: var(--ink-2);
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: #fafaf7;
+      }
+      td.strong {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      td code {
+        font-family: "JetBrains Mono", mono;
+        font-size: 11.5px;
+        background: var(--bg);
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+      }
+
+      /* ============ AUDIT FEED ============ */
+      .audit {
+        padding: 4px 14px;
+      }
+      .audit-row {
+        display: flex;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .audit-row:last-child {
+        border-bottom: none;
+      }
+      .audit-time {
+        color: var(--ink-4);
+        font-family: "JetBrains Mono", mono;
+        font-size: 11px;
+        flex-shrink: 0;
+        padding-top: 1px;
+      }
+      .audit-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .audit-actor {
+        font-weight: 500;
+        color: var(--ink);
+      }
+      .audit-action {
+        color: var(--ink-2);
+      }
+      .audit-tag {
+        display: inline-block;
+        font-family: "JetBrains Mono", mono;
+        font-size: 10.5px;
+        background: var(--bg);
+        padding: 1px 6px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+        color: var(--ink-3);
+        margin-left: 6px;
+      }
+
+      /* ============ RIGHT COLUMN ============ */
+      .impersonate-card {
+        background: linear-gradient(135deg, #0d3b2e, #1a5742);
+        color: #fff;
+        border-radius: var(--radius);
+        padding: 14px;
+        margin-bottom: 18px;
+      }
+      .impersonate-card h4 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .impersonate-card p {
+        font-size: 11.5px;
+        color: #a8c7bc;
+        margin-bottom: 10px;
+      }
+      .impersonate-card .btn {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.2);
+        width: 100%;
+        justify-content: center;
+      }
+      .impersonate-card .btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .usage-bar {
+        height: 5px;
+        background: var(--bg);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 6px;
+      }
+      .usage-fill {
+        height: 100%;
+        background: var(--brand-2);
+      }
+      .usage-fill.warn {
+        background: var(--amber);
+      }
+      .usage-row {
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .usage-row:last-child {
+        border-bottom: none;
+      }
+      .usage-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .usage-key {
+        color: var(--ink-2);
+      }
+      .usage-val {
+        font-family: "JetBrains Mono", mono;
+        font-size: 11.5px;
+        color: var(--ink);
+      }
+      .usage-pct {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ================ SIDEBAR ================ -->
+      <aside class="sb">
+        <div class="sb-brand">
+          <div class="sb-logo">L</div>
+          <div>
+            <div class="sb-brand-text">TraffiCure</div>
+            <div class="sb-brand-sub">Lepton Admin</div>
+          </div>
+        </div>
+
+        <div class="sb-section">Platform</div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" /></svg
+          >Dashboard
+        </div>
+        <div class="sb-item active">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path
+              d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"
+            /></svg
+          >Customers
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg
+          >Organizations
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" /></svg
+          >Users
+        </div>
+
+        <div class="sb-section">Controls</div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M12 2v20M2 12h20" /></svg
+          >Entitlements
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"
+            /></svg
+          >Configuration
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M4 4h16v4H4zM4 12h16v4H4zM4 20h10" /></svg
+          >Feature Flags
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg
+          >Alerts
+        </div>
+
+        <div class="sb-section">Ops</div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" /></svg
+          >Billing
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+            <path d="M2 12h20" /></svg
+          >Data Sources
+        </div>
+        <div class="sb-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            />
+            <polyline points="14 2 14 8 20 8" /></svg
+          >Audit Log
+        </div>
+
+        <div class="sb-foot">
+          <div class="sb-user">
+            <div class="sb-avatar">US</div>
+            <div>
+              <div style="color: #fff; font-weight: 500; font-size: 12px">
+                Umang Saraf
+              </div>
+              <div>super_admin</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ================ MAIN ================ -->
+      <div class="main">
+        <div class="imp-banner">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span
+              ><strong>Impersonating</strong> rahul.nair@punetraffic.gov.in
+              (Pune Traffic Dept) · started 14:22 · expires
+              <strong>14:52</strong></span
+            >
+          </div>
+          <button class="imp-end">End impersonation</button>
+        </div>
+
+        <div class="topbar">
+          <div class="crumbs">
+            <a href="#">Customers</a>
+            <span class="sep">/</span>
+            <span class="current">Pune Smart City Mission</span>
+          </div>
+          <div class="cmdk">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              width="13"
+              height="13"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <span>Search customers, orgs, users…</span>
+            <span class="cmdk-kbd">⌘K</span>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- PAGE HEAD -->
+          <div class="page-head">
+            <div class="ph-left">
+              <div class="ph-title-row">
+                <div class="ph-title">Pune Smart City Mission</div>
+                <div class="state-badge active">active</div>
+              </div>
+              <div class="ph-meta">
+                <span><code>cust_pune</code></span>
+                <span>Enterprise · India · Tenant: lepton-primary</span>
+                <span>Created Mar 14, 2024</span>
+                <span>Schema: <code>customer_pune</code></span>
+              </div>
+            </div>
+            <div class="ph-actions">
+              <button class="btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path d="M10 13a5 5 0 0 0 7 0l4-4a5 5 0 0 0-7-7l-1 1" />
+                  <path d="M14 11a5 5 0 0 0-7 0l-4 4a5 5 0 0 0 7 7l1-1" /></svg
+                >Copy slug
+              </button>
+              <button class="btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path
+                    d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                  />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" /></svg
+                >Suspend
+              </button>
+              <button class="btn danger">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path
+                    d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                  /></svg
+                >Churn
+              </button>
+            </div>
+          </div>
+
+          <!-- TABS -->
+          <div class="tabs">
+            <div class="tab active">Overview</div>
+            <div class="tab">Organizations<span class="tab-count">6</span></div>
+            <div class="tab">Members<span class="tab-count">42</span></div>
+            <div class="tab">Entitlements</div>
+            <div class="tab">Billing</div>
+            <div class="tab">Security</div>
+            <div class="tab">Retention</div>
+            <div class="tab">Audit</div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Orgs</div>
+              <div class="stat-val">6</div>
+              <div class="stat-delta">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="18 15 12 9 6 15" /></svg
+                >+1 this month
+              </div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Active members</div>
+              <div class="stat-val">42</div>
+              <div class="stat-delta">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="18 15 12 9 6 15" /></svg
+                >+3 this week
+              </div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">MRR</div>
+              <div class="stat-val">₹2.5L</div>
+              <div class="stat-delta">Enterprise plan</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Ask AI this month</div>
+              <div class="stat-val">3,847</div>
+              <div class="stat-delta">of 5,000 · 77%</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Retention</div>
+              <div class="stat-val">730d</div>
+              <div class="stat-delta">Obs · 365d metrics</div>
+            </div>
+          </div>
+
+          <!-- GRID -->
+          <div class="grid">
+            <!-- LEFT COL -->
+            <div>
+              <!-- DATA SOURCE HEALTH -->
+              <div class="card" style="margin-bottom: 18px">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Data source health</div>
+                    <div class="card-sub">
+                      Per-org ingestion status · refreshed 12s ago
+                    </div>
+                  </div>
+                  <div class="card-action">View all →</div>
+                </div>
+                <div class="health">
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot healthy"></span
+                      ><span class="health-city">Pune City</span>
+                    </div>
+                    <div class="health-meta">HERE · 60s poll</div>
+                    <div class="health-num">12,482 rows/hr</div>
+                  </div>
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot healthy"></span
+                      ><span class="health-city">PCMC</span>
+                    </div>
+                    <div class="health-meta">HERE · 60s poll</div>
+                    <div class="health-num">6,204 rows/hr</div>
+                  </div>
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot degraded"></span
+                      ><span class="health-city">Hinjewadi Zone</span>
+                    </div>
+                    <div class="health-meta">HERE · 2 failures</div>
+                    <div class="health-num">last ok 4m ago</div>
+                  </div>
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot healthy"></span
+                      ><span class="health-city">Baner Corridor</span>
+                    </div>
+                    <div class="health-meta">HERE · 60s poll</div>
+                    <div class="health-num">4,118 rows/hr</div>
+                  </div>
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot healthy"></span
+                      ><span class="health-city">Kharadi</span>
+                    </div>
+                    <div class="health-meta">HERE · 60s poll</div>
+                    <div class="health-num">3,602 rows/hr</div>
+                  </div>
+                  <div class="health-item">
+                    <div class="health-top">
+                      <span class="h-dot failing"></span
+                      ><span class="health-city">Airport Link</span>
+                    </div>
+                    <div class="health-meta">TomTom (failover)</div>
+                    <div class="health-num">primary down 18m</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ORGANIZATIONS -->
+              <div class="card" style="margin-bottom: 18px">
+                <div class="card-head">
+                  <div class="card-title">Organizations</div>
+                  <div class="card-action">+ Add organization</div>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>State</th>
+                      <th>Members</th>
+                      <th>Segments</th>
+                      <th>Alerts (24h)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="strong">Pune City</td>
+                      <td>city</td>
+                      <td>
+                        <span
+                          class="state-badge active"
+                          style="font-size: 10.5px"
+                          >active</span
+                        >
+                      </td>
+                      <td>18</td>
+                      <td>2,842</td>
+                      <td>14</td>
+                    </tr>
+                    <tr>
+                      <td class="strong">PCMC</td>
+                      <td>city</td>
+                      <td>
+                        <span
+                          class="state-badge active"
+                          style="font-size: 10.5px"
+                          >active</span
+                        >
+                      </td>
+                      <td>9</td>
+                      <td>1,604</td>
+                      <td>6</td>
+                    </tr>
+                    <tr>
+                      <td class="strong">Hinjewadi Zone</td>
+                      <td>virtual</td>
+                      <td>
+                        <span
+                          class="state-badge active"
+                          style="font-size: 10.5px"
+                          >active</span
+                        >
+                      </td>
+                      <td>6</td>
+                      <td>412</td>
+                      <td>3</td>
+                    </tr>
+                    <tr>
+                      <td class="strong">Baner Corridor</td>
+                      <td>virtual</td>
+                      <td>
+                        <span
+                          class="state-badge active"
+                          style="font-size: 10.5px"
+                          >active</span
+                        >
+                      </td>
+                      <td>4</td>
+                      <td>208</td>
+                      <td>1</td>
+                    </tr>
+                    <tr>
+                      <td class="strong">Kharadi</td>
+                      <td>city</td>
+                      <td>
+                        <span
+                          class="state-badge active"
+                          style="font-size: 10.5px"
+                          >active</span
+                        >
+                      </td>
+                      <td>3</td>
+                      <td>318</td>
+                      <td>2</td>
+                    </tr>
+                    <tr>
+                      <td class="strong">Airport Link</td>
+                      <td>virtual</td>
+                      <td>
+                        <span
+                          class="state-badge"
+                          style="
+                            font-size: 10.5px;
+                            background: var(--amber-bg);
+                            color: var(--amber);
+                          "
+                          >degraded</span
+                        >
+                      </td>
+                      <td>2</td>
+                      <td>84</td>
+                      <td>0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- RECENT ACTIVITY -->
+              <div class="card">
+                <div class="card-head">
+                  <div class="card-title">Recent activity</div>
+                  <div class="card-action">Full audit →</div>
+                </div>
+                <div class="audit">
+                  <div class="audit-row">
+                    <div class="audit-time">14:41:03</div>
+                    <div class="audit-body">
+                      <span class="audit-actor">Umang S.</span>
+                      <span class="audit-action"
+                        >started impersonation of
+                        rahul.nair@punetraffic.gov.in</span
+                      >
+                      <span class="audit-tag">impersonation.started</span>
+                    </div>
+                  </div>
+                  <div class="audit-row">
+                    <div class="audit-time">14:18:22</div>
+                    <div class="audit-body">
+                      <span class="audit-actor">rahul.nair@…</span>
+                      <span class="audit-action"
+                        >acknowledged alert <code>alert_01J9K...</code> on FC
+                        Road</span
+                      >
+                      <span class="audit-tag">alert.acknowledged</span>
+                    </div>
+                  </div>
+                  <div class="audit-row">
+                    <div class="audit-time">13:02:11</div>
+                    <div class="audit-body">
+                      <span class="audit-actor">priya.joshi@…</span>
+                      <span class="audit-action"
+                        >updated
+                        <code>alerts.congestion_speed_threshold_kmh</code> 12 →
+                        14</span
+                      >
+                      <span class="audit-tag">config.updated</span>
+                    </div>
+                  </div>
+                  <div class="audit-row">
+                    <div class="audit-time">09:41:00</div>
+                    <div class="audit-body">
+                      <span class="audit-actor">system</span>
+                      <span class="audit-action"
+                        >retention run completed · 1.2M rows pruned from
+                        traffic_observation</span
+                      >
+                      <span class="audit-tag">retention.run_completed</span>
+                    </div>
+                  </div>
+                  <div class="audit-row">
+                    <div class="audit-time">Apr 14</div>
+                    <div class="audit-body">
+                      <span class="audit-actor">Umang S.</span>
+                      <span class="audit-action"
+                        >invited amit.bhosle@punetraffic.gov.in as operator on
+                        Pune City</span
+                      >
+                      <span class="audit-tag">invite.created</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT COL -->
+            <div>
+              <!-- IMPERSONATE CTA -->
+              <div class="impersonate-card">
+                <h4>Act as a user</h4>
+                <p>
+                  Reproduce what a customer sees. All actions are audited with
+                  both your ID and the target's.
+                </p>
+                <button class="btn">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  Start impersonation
+                </button>
+              </div>
+
+              <!-- ENTITLEMENT USAGE -->
+              <div class="card" style="margin-bottom: 18px">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Entitlements</div>
+                    <div class="card-sub">Period Apr 1 – Apr 30</div>
+                  </div>
+                  <div class="card-action">Edit →</div>
+                </div>
+                <div>
+                  <div class="usage-row">
+                    <div class="usage-top">
+                      <span class="usage-key">Seats</span
+                      ><span class="usage-val">42 / 50</span>
+                    </div>
+                    <div class="usage-bar">
+                      <div class="usage-fill" style="width: 84%"></div>
+                    </div>
+                    <div class="usage-pct">84%</div>
+                  </div>
+                  <div class="usage-row">
+                    <div class="usage-top">
+                      <span class="usage-key">Ask AI queries</span
+                      ><span class="usage-val">3,847 / 5,000</span>
+                    </div>
+                    <div class="usage-bar">
+                      <div class="usage-fill" style="width: 77%"></div>
+                    </div>
+                    <div class="usage-pct">77% · 13 days left in cycle</div>
+                  </div>
+                  <div class="usage-row">
+                    <div class="usage-top">
+                      <span class="usage-key">Alert rules</span
+                      ><span class="usage-val">18 / 50</span>
+                    </div>
+                    <div class="usage-bar">
+                      <div class="usage-fill" style="width: 36%"></div>
+                    </div>
+                    <div class="usage-pct">36%</div>
+                  </div>
+                  <div class="usage-row">
+                    <div class="usage-top">
+                      <span class="usage-key">SMS / month</span
+                      ><span class="usage-val">1,840 / 2,000</span>
+                    </div>
+                    <div class="usage-bar">
+                      <div class="usage-fill warn" style="width: 92%"></div>
+                    </div>
+                    <div class="usage-pct" style="color: var(--amber)">
+                      92% · approaching limit
+                    </div>
+                  </div>
+                  <div class="usage-row">
+                    <div class="usage-top">
+                      <span class="usage-key">Reports exported</span
+                      ><span class="usage-val">28 / ∞</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BILLING -->
+              <div class="card">
+                <div class="card-head">
+                  <div class="card-title">Billing</div>
+                  <div class="card-action">Open →</div>
+                </div>
+                <div style="padding: 14px">
+                  <div
+                    style="
+                      font-size: 12px;
+                      color: var(--ink-3);
+                      margin-bottom: 3px;
+                    "
+                  >
+                    Current plan
+                  </div>
+                  <div style="font-size: 15px; font-weight: 600">
+                    Enterprise (India)
+                  </div>
+                  <div
+                    style="
+                      font-size: 12px;
+                      color: var(--ink-3);
+                      margin-top: 10px;
+                    "
+                  >
+                    Next invoice
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 500; margin-top: 2px"
+                  >
+                    May 1, 2026 ·
+                    <span style="font-family: &quot;JetBrains Mono&quot;, mono"
+                      >₹2,50,000</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      font-size: 12px;
+                      color: var(--ink-3);
+                      margin-top: 10px;
+                    "
+                  >
+                    Billing contact
+                  </div>
+                  <div style="font-size: 12.5px; margin-top: 2px">
+                    finance@punesmartcity.gov.in
+                  </div>
+                  <div
+                    style="
+                      font-size: 12px;
+                      color: var(--ink-3);
+                      margin-top: 10px;
+                    "
+                  >
+                    GSTIN
+                  </div>
+                  <div
+                    style="
+                      font-size: 12.5px;
+                      margin-top: 2px;
+                      font-family: &quot;JetBrains Mono&quot;, mono;
+                    "
+                  >
+                    27AABCP1234F1Z5
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+{
+  "id": "factory.build",
+  "displayName": "Factory Build",
+  "description": "Repos, systems, components, and releases",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["build", "repos", "systems", "components"],
+  "categories": ["build"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--hammer-duotone]",
+      "label": "Build",
+      "order": 5
+    },
+    "routePrefix": "/build"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.build.route.home",
+        "displayName": "Build",
+        "path": "/(root)/(app)/build/"
+      },
+      {
+        "id": "factory.build.route.repos",
+        "displayName": "Repos",
+        "path": "/(root)/(app)/build/repos/"
+      },
+      {
+        "id": "factory.build.route.systems",
+        "displayName": "Systems",
+        "path": "/(root)/(app)/build/systems/"
+      },
+      {
+        "id": "factory.build.route.components",
+        "displayName": "Components",
+        "path": "/(root)/(app)/build/components/"
+      },
+      {
+        "id": "factory.build.route.system-detail",
+        "displayName": "System Detail",
+        "path": "/(root)/(app)/build/systems/:slug/"
+      },
+      {
+        "id": "factory.build.route.system-components",
+        "displayName": "System Components",
+        "path": "/(root)/(app)/build/systems/:slug/components/"
+      },
+      {
+        "id": "factory.build.route.system-deployments",
+        "displayName": "System Deployments",
+        "path": "/(root)/(app)/build/systems/:slug/deployments/"
+      },
+      {
+        "id": "factory.build.route.system-graph",
+        "displayName": "System Architecture",
+        "path": "/(root)/(app)/build/systems/:slug/graph/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.build.sidebar.group",
+        "displayName": "Build",
+        "icon": "icon-[ph--hammer-duotone]",
+        "group": "Build",
+        "order": 5
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.build.sidebar.repos",
+        "displayName": "Repos",
+        "icon": "icon-[ph--git-branch-duotone]",
+        "href": "/build/repos",
+        "group": "factory.build.sidebar.group",
+        "order": 1
+      },
+      {
+        "id": "factory.build.sidebar.systems",
+        "displayName": "Systems",
+        "icon": "icon-[ph--stack-duotone]",
+        "href": "/build/systems",
+        "group": "factory.build.sidebar.group",
+        "order": 2
+      },
+      {
+        "id": "factory.build.sidebar.components",
+        "displayName": "Components",
+        "icon": "icon-[ph--puzzle-piece-duotone]",
+        "href": "/build/components",
+        "group": "factory.build.sidebar.group",
+        "order": 3
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

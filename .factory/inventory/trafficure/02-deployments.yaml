@@ -1,0 +1,111 @@
+version: "1"
+
+# Trafficure is backed by two systems that live in this same repo:
+#   - traffic-platform  → root docker-compose.yaml
+#   - traffic-airflow   → ./traffic-airflow/docker-compose.yaml
+# Each site gets one system-deployment per system. workDir points at the
+# subfolder compose is run from on the host.
+#
+# Host slug for dev assumes Proxmox VM will be renamed to `app-trafficure-dev`
+# (currently `utc-app-trafficure` — see inventory note).
+
+entities:
+  # ── traffic-platform ────────────────────────────────────────────────
+  - kind: system-deployment
+    slug: trafficure-prod
+    name: Trafficure Production (platform)
+    systemSlug: traffic-platform
+    siteSlug: trafficure-prod
+    type: production
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-prod
+      workDir: /home/lepton/traffic-platform
+
+  - kind: system-deployment
+    slug: trafficure-sydney
+    name: Trafficure Sydney (platform)
+    systemSlug: traffic-platform
+    siteSlug: trafficure-sydney
+    type: production
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: prod-trafficure-sydney
+      # Legacy path — compose project "trafficure" at /home/lepton/trafficure.
+      # Will normalize to `traffic-platform` on next deploy via x-dx.name.
+      workDir: /home/lepton/trafficure
+
+  - kind: system-deployment
+    slug: trafficure-staging
+    name: Trafficure Staging (platform)
+    systemSlug: traffic-platform
+    siteSlug: trafficure-staging
+    type: staging
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-staging
+      workDir: /root/traffic-platform
+
+  - kind: system-deployment
+    slug: trafficure-dev
+    name: Trafficure Dev (platform)
+    systemSlug: traffic-platform
+    siteSlug: trafficure-dev
+    type: dev
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-dev-server
+      workDir: /root/traffic-platform
+
+  # ── traffic-airflow ─────────────────────────────────────────────────
+  - kind: system-deployment
+    slug: trafficure-airflow-prod
+    name: Trafficure Production (airflow)
+    systemSlug: traffic-airflow
+    siteSlug: trafficure-prod
+    type: production
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-prod
+      workDir: /home/lepton/traffic-platform/traffic-airflow
+
+  - kind: system-deployment
+    slug: trafficure-airflow-sydney
+    name: Trafficure Sydney (airflow)
+    systemSlug: traffic-airflow
+    siteSlug: trafficure-sydney
+    type: production
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: prod-trafficure-sydney
+      workDir: /home/lepton/trafficure/traffic-airflow
+
+  - kind: system-deployment
+    slug: trafficure-airflow-staging
+    name: Trafficure Staging (airflow)
+    systemSlug: traffic-airflow
+    siteSlug: trafficure-staging
+    type: staging
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-staging
+      workDir: /root/traffic-platform/traffic-airflow
+
+  - kind: system-deployment
+    slug: trafficure-airflow-dev
+    name: Trafficure Dev (airflow)
+    systemSlug: traffic-airflow
+    siteSlug: trafficure-dev
+    type: dev
+    spec:
+      runtime: docker-compose
+      trigger: manual
+      hostSlug: app-trafficure-dev-server
+      workDir: /root/traffic-platform/traffic-airflow

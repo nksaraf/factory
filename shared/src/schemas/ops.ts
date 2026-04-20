@@ -51,6 +51,7 @@ export const SiteSpecSchema = z.object({
   ttl: z.string().optional(),
   authMode: z.enum(["public", "team", "private"]).optional(),
   trigger: SiteTriggerSchema.optional(),
+  mode: z.enum(["up", "dev"]).optional(),
 })
 export type SiteSpec = z.infer<typeof SiteSpecSchema>
 
@@ -59,6 +60,10 @@ export const SitePhaseSchema = z.enum([
   "pending_image",
   "deploying",
   "active",
+  "running",
+  "degraded",
+  "stopped",
+  "pending",
   "suspended",
   "failed",
   "decommissioned",

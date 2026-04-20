@@ -297,13 +297,12 @@ export function siteCommand(app: DxBase) {
               spawnAgentDaemon,
               waitForHealthy,
               attachToAgent,
+              printSessionBanner,
             } = await import("../site/agent-lifecycle.js")
 
             const existing = await getRunningAgent(workingDir)
             if (existing) {
-              console.log(
-                `Site agent already running (PID ${existing.pid}, port ${existing.port})`
-              )
+              await printSessionBanner(existing.port)
               if (flags.attach) {
                 await attachToAgent(existing.port)
               }
@@ -329,9 +328,7 @@ export function siteCommand(app: DxBase) {
               return
             }
 
-            console.log(
-              `Site agent running (PID file in .dx/agent.json, port ${port})`
-            )
+            await printSessionBanner(port)
 
             if (flags.attach) {
               await attachToAgent(port)

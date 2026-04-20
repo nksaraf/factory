@@ -1,0 +1,2 @@
+[serve.static]
+plugins = ["./cli/node_modules/bun-plugin-tailwind"]

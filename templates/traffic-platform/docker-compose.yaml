@@ -1,0 +1,943 @@
+# docker-compose.yaml
+#
+# Factory-annotated compose file for the traffic-platform system.
+# Lives alongside the existing docker-compose.yml (which stays untouched as
+# the known-good fallback). Service names, volume keys, env vars, and
+# depends_on graphs match the existing .yml exactly so `up -d` reuses the
+# same containers and volumes on brownfield hosts — no data migration.
+#
+# This file adds:
+#   • x-dx.name:        declarative system slug (overrides directory name in dx scan)
+#   • dx.* labels:      component type, owner, ports, APIs, source repo, docs
+#
+# Archetype renames (postgres → infra-postgres, traffic-platform → svc-core,
+# etc.) are deferred to a separate PR. That PR will rename the service keys
+# AND add `dx.previous-slugs` pointing back at the current names, so the
+# catalog reconciler migrates existing rows instead of creating duplicates.
+
+x-dx:
+  name: traffic-platform
+  owner: trafficure
+  description: "Trafficure — real-time traffic metrics platform with CDC streaming pipeline"
+  lifecycle: production
+  repo: https://github.com/LeptonSoftware/traffic-platform
+  tags: "traffic,gis,realtime,cdc,kafka,iceberg"
+  dependsOn: "traffic-airflow"
+
+services:
+  # ══════════════════════════════════════════════════════════════
+  # Components (built from source)
+  # ══════════════════════════════════════════════════════════════
+
+  trafficure-app:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/trafficure-app:latest
+    platform: linux/amd64
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      dx.description: "Trafficure web app — user-facing traffic dashboard"
+      dx.owner: trafficure
+      dx.type: website
+      dx.lifecycle: production
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
+      dx.port.3000.exposure: public
+      dx.api.consumes: "traffic-platform-api"
+      dx.source.repo: LeptonSoftware/traffic-platform
+      dx.source.path: trafficure
+      dx.source.required: "true"
+      dx.runtime: node
+
+  traffic-platform:
+    platform: linux/amd64
+    container_name: traffic-platform
+    build:
+      context: .
+      dockerfile: traffic-metrics-platform/traffic-platform-app/Dockerfile
+    ports:
+      - "8090:8090"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8090
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: traffic
+      DB_USER: traffic
+      DB_PASSWORD: traffic
+      METRICS_ENABLED: "true"
+      INGESTION_ENABLED: "true"
+      BASELINE_BATCH_ENABLED: "false"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8090/actuator/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    labels:
+      dx.description: "Traffic Platform API — metrics, ingestion, WebSocket surfaces"
+      dx.owner: trafficure
+      dx.type: service
+      dx.lifecycle: production
+      dx.port.8090.name: http
+      dx.port.8090.protocol: http
+      dx.port.8090.exposure: public
+      dx.api.provides: "traffic-platform-api"
+      dx.api.type: rest
+      dx.api.consumes: "crud-api,auth-api"
+      dx.docs.api: "/actuator/openapi"
+      dx.source.repo: LeptonSoftware/traffic-platform
+      dx.source.path: traffic-metrics-platform
+      dx.source.required: "true"
+      dx.runtime: java
+
+  data-management:
+    platform: linux/amd64
+    image: data-management:local
+    container_name: data-management
+    build:
+      context: .
+      dockerfile: data-management/Dockerfile
+    ports:
+      - "8091:8091"
+    depends_on:
+      kafka_topics:
+        condition: service_completed_successfully
+      debezium_setup:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      nessie:
+        condition: service_healthy
+      trino_init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema_registry:8081
+      ICEBERG_CATALOG_TYPE: rest
+      ICEBERG_CATALOG_WAREHOUSE: s3://warehouse
+      ICEBERG_CATALOG_URI: http://nessie:19120/api/v2
+      ICEBERG_S3_ENDPOINT: http://minio:9000
+      ICEBERG_S3_ACCESS_KEY: minioadmin
+      ICEBERG_S3_SECRET_KEY: minioadmin
+      SERVER_PORT: 8091
+      CDC_ENABLED: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8091/actuator/health",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    labels:
+      dx.description: "Data Management — CDC pipeline + Iceberg writer"
+      dx.owner: trafficure
+      dx.type: worker
+      dx.lifecycle: production
+      dx.port.8091.name: http
+      dx.port.8091.protocol: http
+      dx.api.provides: "data-management-api"
+      dx.api.type: rest
+      dx.source.repo: LeptonSoftware/traffic-platform
+      dx.source.path: data-management
+      dx.source.required: "true"
+      dx.runtime: java
+
+  # ══════════════════════════════════════════════════════════════
+  # Gateway
+  # ══════════════════════════════════════════════════════════════
+
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "9081:8080"
+    volumes:
+      - ./infra/traefik/services.yml:/etc/traefik/dynamic/services.yml:ro
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/api/rawdata",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    labels:
+      dx.description: "Traefik gateway — routes /api/v1/* and /admin/* to services"
+      dx.owner: trafficure
+      dx.type: gateway
+      dx.port.80.name: http
+      dx.port.80.protocol: http
+      dx.port.80.exposure: public
+      dx.port.9081.name: dashboard
+      dx.port.9081.protocol: http
+
+  # ══════════════════════════════════════════════════════════════
+  # Data stores
+  # ══════════════════════════════════════════════════════════════
+
+  postgres:
+    networks:
+      - traffic-network
+    image: postgis/postgis:16-3.4-alpine
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: traffic
+      POSTGRES_USER: traffic
+      POSTGRES_PASSWORD: traffic
+      POSTGRES_INITDB_ARGS: "-c wal_level=logical"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traffic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      dx.description: "PostgreSQL with PostGIS — history + baselines + CDC source"
+      dx.owner: trafficure
+      dx.type: database
+      dx.port.5432.name: postgres
+      dx.port.5432.protocol: tcp
+
+  redis:
+    networks:
+      - traffic-network
+    image: redis:7.2-alpine
+    container_name: traffic-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    labels:
+      dx.description: "Redis — real-time state cache"
+      dx.owner: trafficure
+      dx.type: cache
+      dx.port.6379.name: redis
+      dx.port.6379.protocol: tcp
+
+  minio:
+    platform: linux/amd64
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    labels:
+      dx.description: "MinIO — S3-compatible Iceberg warehouse storage"
+      dx.owner: trafficure
+      dx.type: storage
+      dx.port.9000.name: s3
+      dx.port.9000.protocol: http
+      dx.port.9001.name: console
+      dx.port.9001.protocol: http
+
+  nessie:
+    platform: linux/amd64
+    image: projectnessie/nessie:0.60.1
+    container_name: nessie
+    ports:
+      - "19120:19120"
+    environment:
+      QUARKUS_HTTP_PORT: "19120"
+      QUARKUS_PROFILE: prod
+      QUARKUS_OIDC_ENABLED: "false"
+      QUARKUS_OPENTELEMETRY_ENABLED: "false"
+      nessie.version.store.type: ROCKS
+    volumes:
+      - nessie_data:/nessie
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      dx.description: "Nessie — Iceberg catalog service"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.19120.name: http
+      dx.port.19120.protocol: http
+
+  # ══════════════════════════════════════════════════════════════
+  # Kafka stack
+  # ══════════════════════════════════════════════════════════════
+
+  zookeeper:
+    platform: linux/amd64
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "*"
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 | grep -q 'Mode:'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      dx.description: "ZooKeeper — Kafka coordination"
+      dx.owner: trafficure
+      dx.type: queue
+      dx.port.2181.name: client
+      dx.port.2181.protocol: tcp
+
+  kafka:
+    platform: linux/amd64
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 18000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 18000
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+    volumes:
+      - kafka_data:/var/lib/kafka
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "nc -z localhost 9092 && echo 'Kafka port is open' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    labels:
+      dx.description: "Kafka broker — event streaming + CDC topics"
+      dx.owner: trafficure
+      dx.type: message-queue
+      dx.port.9092.name: internal
+      dx.port.9092.protocol: tcp
+      dx.port.29092.name: host
+      dx.port.29092.protocol: tcp
+
+  schema_registry:
+    platform: linux/amd64
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema_registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema_registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    labels:
+      dx.description: "Confluent Schema Registry"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.8081.name: http
+      dx.port.8081.protocol: http
+
+  kafka_connect:
+    platform: linux/amd64
+    image: debezium/connect:2.5
+    container_name: kafka_connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka_connect
+      CONNECT_REST_PORT: 8083
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    labels:
+      dx.description: "Kafka Connect with Debezium — CDC connector runtime"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.8083.name: http
+      dx.port.8083.protocol: http
+
+  kafka_ui:
+    platform: linux/amd64
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema_registry:8081
+      LOGGING_LEVEL_ROOT: INFO
+    depends_on:
+      - kafka
+      - schema_registry
+    restart: unless-stopped
+    networks:
+      - traffic-network
+    labels:
+      dx.description: "Kafka UI dashboard"
+      dx.owner: trafficure
+      dx.type: dashboard
+      dx.port.8082.name: http
+      dx.port.8082.protocol: http
+
+  # ══════════════════════════════════════════════════════════════
+  # Analytics & auth
+  # ══════════════════════════════════════════════════════════════
+
+  trino:
+    platform: linux/amd64
+    image: trinodb/trino:460
+    container_name: trino
+    ports:
+      - "8080:8080"
+    depends_on:
+      nessie:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./infra/trino/etc:/etc/trino:ro
+      - trino_data:/data/trino
+    command: >
+      bash -c "
+        mkdir -p /data/trino &&
+        chown -R 1000:1000 /data/trino &&
+        /usr/lib/trino/bin/launcher run --etc-dir /etc/trino
+      "
+    environment:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    labels:
+      dx.description: "Trino — SQL query engine for Iceberg"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.8080.name: http
+      dx.port.8080.protocol: http
+
+  spicedb:
+    image: authzed/spicedb:latest
+    networks:
+      - traffic-network
+    ports:
+      - ${SPICEDB_GRPC_PORT:-50051}:50051
+      - ${SPICEDB_HTTP_PORT:-8443}:8443
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      spicedb-migrate:
+        condition: service_completed_successfully
+    command:
+      - "serve"
+      - "--http-enabled=true"
+      - "--grpc-preshared-key"
+      - "${SPICEDB_TOKEN:-secret}"
+      - "--datastore-engine=postgres"
+      - "--datastore-conn-uri=postgres://${POSTGRES_USER:-traffic}:${POSTGRES_PASSWORD:-traffic}@postgres:5432/spicedb?sslmode=disable"
+    labels:
+      dx.description: "SpiceDB — permissions service"
+      dx.owner: trafficure
+      dx.type: auth-provider
+      dx.port.50051.name: grpc
+      dx.port.50051.protocol: grpc
+      dx.port.8443.name: http
+      dx.port.8443.protocol: http
+
+  auth-service:
+    image: asia-south2-docker.pkg.dev/rio-platform/docker/enterprise-auth:latest
+    platform: linux/amd64
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      spicedb-migrate:
+        condition: service_completed_successfully
+    networks:
+      - traffic-network
+    labels:
+      dx.description: "Enterprise Auth — JWT issuer + identity"
+      dx.owner: trafficure
+      dx.type: auth-provider
+      dx.api.provides: "auth-api"
+
+  postgrest:
+    platform: linux/amd64
+    image: postgrest/postgrest:v11.2.2
+    container_name: traffic_postgrest
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-traffic}:${POSTGRES_PASSWORD:-traffic}@postgres:5432/traffic
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-traffic}
+      PGRST_SERVER_HOST: "0.0.0.0"
+      PGRST_SERVER_PORT: 3000
+      PGRST_OPENAPI_SERVER_PROXY_URI: https://trafficure.rio.software/api/internal/crud
+      PGRST_LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      dx.description: "PostgREST — auto-generated REST API over Postgres"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.3000.name: http
+      dx.port.3000.protocol: http
+      dx.api.provides: "crud-api"
+      dx.api.type: openapi
+
+  pgadmin:
+    networks:
+      - traffic-network
+    image: dpage/pgadmin4:9.11
+    container_name: traffic-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@traffic.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    restart: unless-stopped
+    labels:
+      dx.description: "pgAdmin — PostgreSQL UI"
+      dx.owner: trafficure
+      dx.type: dashboard
+      dx.port.5050.name: http
+      dx.port.5050.protocol: http
+
+  superset:
+    build:
+      context: ./infra/superset
+    container_name: superset
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: "super_secret_superset_key_123_traffic_platform"
+      SUPERSET_DATABASE_URI: "postgresql+psycopg2://traffic:traffic@postgres:5432/traffic"
+      PYTHONPATH: "/app/pythonpath"
+    volumes:
+      - superset_home:/app/superset_home
+    command: >
+      /bin/bash -c "
+        superset db upgrade &&
+        superset fab create-admin --username admin --password admin --firstname Admin --lastname User --email admin@traffic.com || true &&
+        superset init &&
+        gunicorn --bind 0.0.0.0:8088 --workers 3 --timeout 120 'superset.app:create_app()'
+      "
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      dx.description: "Superset — BI dashboards over Postgres/Iceberg"
+      dx.owner: trafficure
+      dx.type: dashboard
+      dx.port.8088.name: http
+      dx.port.8088.protocol: http
+
+  traffic-tiler:
+    platform: linux/amd64
+    image: pramsey/pg_tileserv:latest
+    container_name: traffic-tiler
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://traffic:traffic@postgres:5432/traffic
+      TS_URLBASE: https://api.traffic.management.tiler.rio.software
+      TS_HTTPHOST: 0.0.0.0
+      TS_HTTPPORT: 7800
+      TS_DBSCHEMAS: public
+      TS_GEOMETRY_COLUMN: geometry
+      TS_TIMEOUT: 1800s
+      TS_MAX_FEATURES_PER_TILE: 100000
+      TS_SIMPLIFY_BELOW_ZOOM: 0
+      TS_DEFAULT_SIMPLIFY: 0.0
+      TS_TRANSFORM_SIMPLIFY: "false"
+    ports:
+      - 3000:7800
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - traffic-network
+    healthcheck:
+      test:
+        ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/7800' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      dx.description: "pg_tileserv — vector tile server from PostGIS"
+      dx.owner: trafficure
+      dx.type: service
+      dx.port.7800.name: http
+      dx.port.7800.protocol: http
+
+  # ══════════════════════════════════════════════════════════════
+  # Init sidecars (one-shot, restart: "no")
+  # ══════════════════════════════════════════════════════════════
+
+  postgres-init:
+    platform: linux/amd64
+    image: postgis/postgis:16-3.4-alpine
+    networks:
+      - traffic-network
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-traffic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-traffic}
+      POSTGRES_DB: ${POSTGRES_DB:-traffic}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./infra/spicedb/ensure-db.sh:/ensure-db.sh
+    command: ["/bin/bash", "/ensure-db.sh"]
+    restart: "no"
+    labels:
+      dx.description: "Init — create SpiceDB database in Postgres"
+      dx.owner: trafficure
+      dx.type: init
+
+  spicedb-migrate:
+    image: authzed/spicedb:latest
+    networks:
+      - traffic-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+    command:
+      - "datastore"
+      - "migrate"
+      - "head"
+      - "--datastore-engine=postgres"
+      - "--datastore-conn-uri=postgres://${POSTGRES_USER:-traffic}:${POSTGRES_PASSWORD:-traffic}@postgres:5432/spicedb?sslmode=disable"
+    restart: "no"
+    labels:
+      dx.description: "Init — migrate SpiceDB datastore"
+      dx.owner: trafficure
+      dx.type: init
+
+  kafka_topics:
+    platform: linux/amd64
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka_topics
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        cub kafka-ready -b kafka:9092 1 60 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic docker-connect-configs --partitions 1 --replication-factor 1 --config cleanup.policy=compact &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic docker-connect-offsets --partitions 25 --replication-factor 1 --config cleanup.policy=compact &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic docker-connect-status --partitions 5 --replication-factor 1 --config cleanup.policy=compact &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_raw --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_baseline_raw --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_history_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_history_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_history_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_baseline_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_baseline_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_baseline_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_observation_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_observation_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_observation_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_metrics_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_metrics_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_metrics_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic realtime_road_status_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic realtime_road_status_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic realtime_road_status_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic road_master_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic road_master_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic road_master_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_geometry_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_geometry_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic segment_geometry_gold --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_enriched --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_bronze --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_silver --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic traffic_gold --partitions 3 --replication-factor 1
+      "
+    restart: "no"
+    networks:
+      - traffic-network
+    labels:
+      dx.description: "Init — create Kafka topics (see docker-compose.yml for full topic list)"
+      dx.owner: trafficure
+      dx.type: init
+
+  debezium_setup:
+    platform: linux/amd64
+    image: alpine:latest
+    container_name: debezium_setup
+    depends_on:
+      kafka_topics:
+        condition: service_completed_successfully
+      kafka_connect:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./setup-debezium-connector.sh:/setup-debezium-connector.sh:ro
+    command: >
+      /bin/sh -c "
+        apk add --no-cache curl bash &&
+        sh /setup-debezium-connector.sh
+      "
+    networks:
+      - traffic-network
+    restart: "no"
+    labels:
+      dx.description: "Init — register Debezium CDC connector on Kafka Connect"
+      dx.owner: trafficure
+      dx.type: init
+
+  minio_init:
+    platform: linux/amd64
+    image: minio/mc:latest
+    container_name: minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb -p local/warehouse || true
+      "
+    networks:
+      - traffic-network
+    restart: "no"
+    labels:
+      dx.description: "Init — create MinIO bucket for Iceberg warehouse"
+      dx.owner: trafficure
+      dx.type: init
+
+  trino_init:
+    platform: linux/amd64
+    image: trinodb/trino:460
+    container_name: trino_init
+    depends_on:
+      trino:
+        condition: service_healthy
+    entrypoint: >
+      /bin/bash -c "
+        set +e
+        for i in {1..30}; do
+          if curl -f -s http://trino:8080/v1/info > /dev/null 2>&1; then break; fi
+          sleep 2
+        done &&
+        curl -L https://repo1.maven.org/maven2/io/trino/trino-cli/460/trino-cli-460-executable.jar -o /tmp/trino-cli.jar &&
+        chmod +x /tmp/trino-cli.jar &&
+        java -jar /tmp/trino-cli.jar --server http://trino:8080 --execute 'CREATE SCHEMA IF NOT EXISTS iceberg.traffic_db'
+      "
+    networks:
+      - traffic-network
+    restart: "no"
+    labels:
+      dx.description: "Init — create Iceberg schema in Nessie via Trino"
+      dx.owner: trafficure
+      dx.type: init
+
+volumes:
+  redis_data:
+  postgres_data:
+  pgadmin_data:
+  kafka_data:
+  zookeeper_data:
+  minio_data:
+  nessie_data:
+  superset_home:
+  trino_data:
+
+networks:
+  traffic-network:
+    driver: bridge

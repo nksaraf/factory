@@ -917,6 +917,7 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [x] Transactional rotation — `POST /secrets/rotate` loop wrapped in `db.transaction()`
 - [x] API-level input validation for `scopeType` — validate before DB, return 400 instead of relying on check constraint (500)
 - [ ] Rate limiting on resolve endpoints — unbounded SELECTs across multiple scope levels
+- [ ] **`dx secret set` / `dx var set` flags for `system`, `site`, `deployment` scopes** — `cli/src/handlers/secret.ts:41-52` + `var.ts` equivalent only wire `--team` and `--project` to `scopeId` (scopeType auto-infers from whichever flag is used). `--scope system/site/deployment` sets scopeType but leaves `scopeId="default"`. Add `--system <slug>`, `--site <slug>`, `--deployment <slug>` flags + inference in `buildScopeParams`. API already supports these (scope-models.ts enum). Unblocks system-scope credential storage for trafficure-core (currently stored at org/default as a workaround).
 - [x] Tests for Phase 10 — crypto key versioning (13 tests), config var + secret controller (18 tests)
 - [x] `localVarList` should return values — returns `{ key, value }` pairs, list output shows `key=value`
 - [x] Auto-infer `--scope` from `--team`/`--project` flags — `buildScopeParams` now infers scopeType from flag used

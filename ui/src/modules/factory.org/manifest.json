@@ -1,0 +1,118 @@
+{
+  "id": "factory.org",
+  "displayName": "Factory Org",
+  "description": "People, teams, secrets, and roles",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--users-three-duotone]",
+      "label": "Org",
+      "order": 25
+    },
+    "routePrefix": "/org"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.org.route.home",
+        "displayName": "Org",
+        "path": "/(root)/(app)/org/"
+      },
+      {
+        "id": "factory.org.route.principals",
+        "displayName": "People",
+        "path": "/(root)/(app)/org/principals/"
+      },
+      {
+        "id": "factory.org.route.principal-detail",
+        "displayName": "Person",
+        "path": "/(root)/(app)/org/principals/:slug/"
+      },
+      {
+        "id": "factory.org.route.principal-identities",
+        "displayName": "Identities",
+        "path": "/(root)/(app)/org/principals/:slug/identities/"
+      },
+      {
+        "id": "factory.org.route.principal-timeline",
+        "displayName": "Timeline",
+        "path": "/(root)/(app)/org/principals/:slug/timeline/"
+      },
+      {
+        "id": "factory.org.route.teams",
+        "displayName": "Teams",
+        "path": "/(root)/(app)/org/teams/"
+      },
+      {
+        "id": "factory.org.route.team-detail",
+        "displayName": "Team",
+        "path": "/(root)/(app)/org/teams/:slug/"
+      },
+      {
+        "id": "factory.org.route.secrets",
+        "displayName": "Secrets",
+        "path": "/(root)/(app)/org/secrets/"
+      },
+      {
+        "id": "factory.org.route.roles",
+        "displayName": "Roles",
+        "path": "/(root)/(app)/org/roles/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.org.sidebar.group",
+        "displayName": "Org",
+        "icon": "icon-[ph--users-three-duotone]",
+        "group": "Org",
+        "order": 25
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.org.sidebar.principals",
+        "displayName": "People",
+        "icon": "icon-[ph--user-circle-duotone]",
+        "href": "/org/principals",
+        "group": "factory.org.sidebar.group",
+        "order": 1
+      },
+      {
+        "id": "factory.org.sidebar.teams",
+        "displayName": "Teams",
+        "icon": "icon-[ph--users-duotone]",
+        "href": "/org/teams",
+        "group": "factory.org.sidebar.group",
+        "order": 2
+      },
+      {
+        "id": "factory.org.sidebar.secrets",
+        "displayName": "Secrets",
+        "icon": "icon-[ph--key-duotone]",
+        "href": "/org/secrets",
+        "group": "factory.org.sidebar.group",
+        "order": 3
+      },
+      {
+        "id": "factory.org.sidebar.roles",
+        "displayName": "Roles",
+        "icon": "icon-[ph--shield-check-duotone]",
+        "href": "/org/roles",
+        "group": "factory.org.sidebar.group",
+        "order": 4
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

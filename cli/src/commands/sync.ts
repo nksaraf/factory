@@ -1,6 +1,23 @@
-import { existsSync, statSync } from "node:fs"
+import { existsSync, statSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { spawnSync } from "node:child_process"
+
+const GITIGNORE_ENTRIES = ["**/.dx/generated/", "**/.dx/workbench.json", ".env"]
+
+function ensureGitignore(rootDir: string): { added: string[] } {
+  const path = join(rootDir, ".gitignore")
+  const existing = existsSync(path) ? readFileSync(path, "utf-8") : ""
+  const lines = new Set(existing.split("\n").map((l) => l.trim()))
+  const added: string[] = []
+  for (const entry of GITIGNORE_ENTRIES) {
+    if (!lines.has(entry)) added.push(entry)
+  }
+  if (added.length === 0) return { added: [] }
+  const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : ""
+  const block = `${prefix}# dx\n${added.join("\n")}\n`
+  writeFileSync(path, existing + block, "utf-8")
+  return { added }
+}
 
 import type { DxBase } from "../dx-root.js"
 import { resolveDxContext } from "../lib/dx-context.js"
@@ -80,7 +97,19 @@ export function syncCommand(app: DxBase) {
         })
       }
 
-      // 2. Environment (.env from .env.example)
+      // 2. Gitignore — ensure dx-managed paths are excluded
+      const giResult = ensureGitignore(rootDir)
+      if (giResult.added.length > 0) {
+        results.push({
+          step: "Gitignore",
+          status: "updated",
+          detail: `added: ${giResult.added.join(", ")}`,
+        })
+      } else {
+        results.push({ step: "Gitignore", status: "ok" })
+      }
+
+      // 3. Environment (.env from .env.example)
       const examplePath = join(rootDir, ".env.example")
       if (existsSync(examplePath)) {
         try {

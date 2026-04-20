@@ -76,11 +76,9 @@ export function useRoutes() {
 export function useDomains() {
   return usePoll(
     async () => {
-      const api = await getFactoryClient()
-      const res = await api.api.v1.factory.infra["dns-domains"].get({
-        query: {},
-      })
-      return unwrap(res)
+      const rest = await getFactoryRestClient()
+      const res = await rest.listEntities("infra", "dns-domains")
+      return res?.data ?? []
     },
     [],
     { interval: 10000 }

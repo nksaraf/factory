@@ -21,6 +21,7 @@ setExamples("artifact", [
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getApi(): Promise<any> {
+  // @ts-ignore TS2589 — Elysia Treaty type exceeds TS recursion limit
   return getFactoryClient()
 }
 

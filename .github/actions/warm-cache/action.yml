@@ -1,0 +1,52 @@
+name: Warm Registry Cache
+description: >
+  Pulls an image through the local pull-through cache so subsequent
+  developer pulls are served from LAN. Call after pushing to upstream.
+
+inputs:
+  image-ref:
+    description: >
+      Fully qualified upstream image reference (e.g.
+      asia-south2-docker.pkg.dev/rio-platform/docker/factory-service:latest
+      or ghcr.io/nksaraf/dx-sandbox:latest)
+    required: true
+  cache-host:
+    description: Cache registry base domain
+    required: false
+    default: registry.lepton.software
+
+runs:
+  using: composite
+  steps:
+    - name: Warm pull-through cache
+      shell: bash
+      env:
+        IMAGE_REF: ${{ inputs.image-ref }}
+        CACHE_HOST: ${{ inputs.cache-host }}
+      run: |
+        # Map upstream registry to cache subdomain
+        case "$IMAGE_REF" in
+          asia-south2-docker.pkg.dev/*)
+            CACHE_IMAGE="gcpar.${CACHE_HOST}/${IMAGE_REF#asia-south2-docker.pkg.dev/}"
+            ;;
+          ghcr.io/*)
+            CACHE_IMAGE="ghcr.${CACHE_HOST}/${IMAGE_REF#ghcr.io/}"
+            ;;
+          docker.io/*|registry-1.docker.io/*)
+            CACHE_IMAGE="docker.${CACHE_HOST}/${IMAGE_REF#*docker.io/}"
+            ;;
+          *)
+            # Assume Docker Hub if no registry prefix
+            CACHE_IMAGE="docker.${CACHE_HOST}/library/${IMAGE_REF}"
+            ;;
+        esac
+
+        echo "::group::Warming cache: ${CACHE_IMAGE}"
+        # Pull through cache to warm it, then remove locally (CI doesn't need it)
+        if docker pull "${CACHE_IMAGE}" 2>&1; then
+          docker rmi "${CACHE_IMAGE}" > /dev/null 2>&1 || true
+          echo "Cache warmed: ${CACHE_IMAGE}"
+        else
+          echo "::warning::Cache warming failed for ${CACHE_IMAGE} — non-fatal, continuing"
+        fi
+        echo "::endgroup::"
