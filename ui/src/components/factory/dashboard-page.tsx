@@ -140,7 +140,7 @@ export function DashboardPage({
     <div className={cn("flex flex-col h-full", className)}>
       <div
         className={cn(
-          "px-6 pt-6 shrink-0 space-y-4 flex justify-between w-full container mx-auto",
+          "px-6 pt-6 shrink-0 space-y-4 flex justify-between w-full",
           flush ? "pb-2" : "pb-4"
         )}
       >
@@ -155,8 +155,8 @@ export function DashboardPage({
       </div>
       <div
         className={cn(
-          "flex-1 min-h-0",
-          flush ? "" : "overflow-auto px-6 pb-6 pt-4"
+          "flex-1 min-h-0 overflow-auto",
+          flush ? "" : "px-6 pb-6 pt-4"
         )}
       >
         {children}
