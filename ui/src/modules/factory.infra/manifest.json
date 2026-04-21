@@ -1,7 +1,7 @@
 {
   "id": "factory.infra",
   "displayName": "Factory Infrastructure",
-  "description": "Infrastructure management — estates, hosts, realms, services, routes, DNS, tunnels, secrets",
+  "description": "Infrastructure management — estates, hosts, realms, services, routes, DNS, tunnels",
   "version": "0.0.2",
   "publisher": "factory",
   "engines": { "rio": ">=0.0.1" },
@@ -113,16 +113,6 @@
         "id": "factory.infra.route.tunnel-detail",
         "displayName": "Tunnel Detail",
         "path": "/(root)/(app)/infra/tunnels/:slug/"
-      },
-      {
-        "id": "factory.infra.route.secrets",
-        "displayName": "Secrets",
-        "path": "/(root)/(app)/infra/secrets/"
-      },
-      {
-        "id": "factory.infra.route.secret-detail",
-        "displayName": "Secret Detail",
-        "path": "/(root)/(app)/infra/secrets/:slug/"
       }
     ],
     "sidebarGroups": [
@@ -190,14 +180,6 @@
         "href": "/infra/tunnels",
         "group": "factory.infra.sidebar.group",
         "order": 6
-      },
-      {
-        "id": "factory.infra.sidebar.secrets",
-        "displayName": "Secrets",
-        "icon": "icon-[ph--lock-key-duotone]",
-        "href": "/infra/secrets",
-        "group": "factory.infra.sidebar.group",
-        "order": 7
       }
     ],
     "layouts": [],

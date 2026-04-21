@@ -64,11 +64,5 @@ export const extension = {
     "factory.infra.route.tunnel-detail": lazy(
       () => import("./(app)/(dashboard)/infra/tunnels/[slug]/page")
     ),
-    "factory.infra.route.secrets": lazy(
-      () => import("./(app)/(dashboard)/infra/secrets/page")
-    ),
-    "factory.infra.route.secret-detail": lazy(
-      () => import("./(app)/(dashboard)/infra/secrets/[slug]/page")
-    ),
   },
 } satisfies ExtensionManifest
