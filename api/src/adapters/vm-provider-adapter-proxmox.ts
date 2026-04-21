@@ -244,7 +244,9 @@ export class ProxmoxVmProviderAdapter implements VMProviderAdapter {
     hypervisor: InfraEstate
   ): Promise<number> {
     const allVms = await client.getAllVms()
-    const vms = allVms.filter((v) => v.template !== 1)
+    // Skip templates and locked VMs (e.g. the locked base of a linked clone).
+    // These aren't real hosts — they're artifacts of Proxmox's cloning model.
+    const vms = allVms.filter((v) => v.template !== 1 && !v.lock)
 
     // Get existing VM hosts under this hypervisor
     const existingVmHosts = await db
