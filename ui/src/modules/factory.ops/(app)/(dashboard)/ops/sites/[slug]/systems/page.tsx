@@ -42,6 +42,7 @@ export default function SiteSystemsTab() {
   }
 
   return (
+    <SiteLayout>
     <div className="space-y-6">
       {(Object.entries(grouped) as [string, SystemDeployment[]][]).map(
         ([kind, deps]) => (
@@ -84,5 +85,6 @@ export default function SiteSystemsTab() {
         )
       )}
     </div>
+    </SiteLayout>
   )
 }

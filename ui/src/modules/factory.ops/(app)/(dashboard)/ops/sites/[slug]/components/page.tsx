@@ -6,6 +6,7 @@ import {
   useSystemDeployments,
   useComponentDeployments,
 } from "@/lib/ops"
+import { SiteLayout } from "../site-layout"
 
 export default function SiteComponentsTab() {
   const { slug } = useParams<{ slug: string }>()
@@ -24,15 +25,18 @@ export default function SiteComponentsTab() {
 
   if (siteComponents.length === 0) {
     return (
-      <EmptyState
-        icon="icon-[ph--puzzle-piece-duotone]"
-        title="No components"
-        description="No component deployments found for this site."
-      />
+      <SiteLayout>
+        <EmptyState
+          icon="icon-[ph--puzzle-piece-duotone]"
+          title="No components"
+          description="No component deployments found for this site."
+        />
+      </SiteLayout>
     )
   }
 
   return (
+    <SiteLayout>
     <div className="space-y-2">
       {siteComponents.map((comp) => {
         const phase = (comp.status?.phase as string) ?? "unknown"
@@ -55,5 +59,6 @@ export default function SiteComponentsTab() {
         )
       })}
     </div>
+    </SiteLayout>
   )
 }

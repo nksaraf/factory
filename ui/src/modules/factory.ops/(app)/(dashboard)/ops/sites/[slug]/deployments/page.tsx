@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router"
 
 import { EmptyState, StatusBadge } from "@/components/factory"
 import { useOpsSite, useSystemDeployments, useRollouts } from "@/lib/ops"
+import { SiteLayout } from "../site-layout"
 
 export default function SiteDeploymentsTab() {
   const { slug } = useParams<{ slug: string }>()
@@ -28,15 +29,18 @@ export default function SiteDeploymentsTab() {
 
   if (siteRollouts.length === 0) {
     return (
-      <EmptyState
-        icon="icon-[ph--rocket-launch-duotone]"
-        title="No rollouts"
-        description="No rollouts found for this site."
-      />
+      <SiteLayout>
+        <EmptyState
+          icon="icon-[ph--rocket-launch-duotone]"
+          title="No rollouts"
+          description="No rollouts found for this site."
+        />
+      </SiteLayout>
     )
   }
 
   return (
+    <SiteLayout>
     <div className="space-y-2">
       {siteRollouts.map((rollout) => {
         const status = (rollout.spec?.status as string) ?? "unknown"
@@ -61,5 +65,6 @@ export default function SiteDeploymentsTab() {
         )
       })}
     </div>
+    </SiteLayout>
   )
 }
