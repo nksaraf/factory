@@ -50,6 +50,7 @@ services:
   # ─── Components (things we build) ────────────────────────────
 
   infra-factory:
+    profiles: ["deploy"]
     image: "${DOCKER_REGISTRY_GCP:-asia-south2-docker.pkg.dev}/rio-platform/docker/factory-service:latest"
     platform: linux/amd64
     build:
@@ -58,7 +59,7 @@ services:
       args:
         GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GCP_NPM_SA_JSON_BASE64}
     dns: [127.0.0.11]
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "${INFRA_FACTORY_PORT:-4100}:4100"
       - "${INFRA_GATEWAY_PROXY_PORT:-9090}:9090"

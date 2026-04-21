@@ -17,5 +17,5 @@
   "importOrderSideEffects": false,
   "printWidth": 80,
   "sortPackageJson": false,
-  "ignorePatterns": []
+  "ignorePatterns": ["docker-compose.yaml", "docker-compose.*.yaml"]
 }
