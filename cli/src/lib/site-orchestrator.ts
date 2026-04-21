@@ -1464,6 +1464,11 @@ export class SiteOrchestrator {
           const name = cd.name ?? cd.componentSlug
           flatEndpoints[name] = ep
           flatEndpoints[cd.componentSlug] = ep
+          // Fallback: strip system prefix (factory-infra-postgres → infra-postgres)
+          const dash = cd.componentSlug.indexOf("-")
+          if (dash > 0) {
+            flatEndpoints[cd.componentSlug.slice(dash + 1)] = ep
+          }
         }
       }
 
