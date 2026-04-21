@@ -325,86 +325,60 @@ export function useProxmoxClusters(opts?: { providerId?: string }) {
 
 // --- Estates ---
 
-export interface Estate {
-  id: string
-  name: string
-  slug: string
-  type: string
-  status: string
-  spec: Record<string, unknown>
-  createdAt: string
-}
+// --- Estates ---
 
-function flattenEstate(r: Record<string, unknown>): Estate {
-  const spec = (r.spec ?? {}) as Record<string, unknown>
-  return {
-    id: r.id as string,
-    name: (r.name ?? r.slug ?? "") as string,
-    slug: (r.slug ?? "") as string,
-    type: (r.type ?? "unknown") as string,
-    status: (spec.lifecycle as string) ?? extractStatus(r.status),
-    spec: spec,
-    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
-  }
-}
+import type { Estate, Realm } from "./types"
 
-export function useEstates() {
+export function useEstates(opts?: { type?: string }) {
   return useQuery<Estate[]>({
-    queryKey: ["infra", "estates"],
+    queryKey: ["infra", "estates", opts],
     queryFn: async () => {
-      const res =
-        await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
-          "/estates?limit=500"
-        )
-      return res.data.map(flattenEstate)
+      const qs = buildQs({ ...opts, limit: "500" })
+      const res = await infraFetch<SuccessResponse<Estate[]>>(`/estates${qs}`)
+      return res.data
     },
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+export function useEstate(slugOrId: string | undefined) {
+  return useQuery<Estate | null>({
+    queryKey: ["infra", "estate", slugOrId],
+    queryFn: async () => {
+      const res = await infraFetch<SuccessResponse<Estate>>(
+        `/estates/${slugOrId}`
+      )
+      return res.data
+    },
+    enabled: !!slugOrId,
     refetchInterval: POLL_INTERVAL,
   })
 }
 
 // --- Realms ---
 
-export interface Realm {
-  id: string
-  name: string
-  slug: string
-  type: string
-  hostId: string | null
-  hostName: string | null
-  status: string
-  spec: Record<string, unknown>
-  serviceCount: number
-  createdAt: string
-}
-
-function flattenRealm(r: Record<string, unknown>): Realm {
-  const spec = (r.spec ?? {}) as Record<string, unknown>
-  const statusObj = (r.status ?? {}) as Record<string, unknown>
-  const lastScan = (statusObj.lastScan ?? {}) as Record<string, unknown>
-  return {
-    id: r.id as string,
-    name: (r.name ?? r.slug ?? "") as string,
-    slug: (r.slug ?? "") as string,
-    type: (r.type ?? "unknown") as string,
-    hostId: (r.hostId ?? r.host_id ?? null) as string | null,
-    hostName: null,
-    status: (spec.status as string) ?? extractStatus(r.status),
-    spec: spec,
-    serviceCount: (lastScan.serviceCount as number) ?? 0,
-    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
-  }
-}
-
-export function useRealms() {
+export function useRealms(opts?: { type?: string }) {
   return useQuery<Realm[]>({
-    queryKey: ["infra", "realms"],
+    queryKey: ["infra", "realms", opts],
     queryFn: async () => {
-      const res =
-        await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
-          "/realms?limit=500"
-        )
-      return res.data.map(flattenRealm)
+      const qs = buildQs({ ...opts, limit: "500" })
+      const res = await infraFetch<SuccessResponse<Realm[]>>(`/realms${qs}`)
+      return res.data
     },
+    refetchInterval: POLL_INTERVAL,
+  })
+}
+
+export function useRealm(slugOrId: string | undefined) {
+  return useQuery<Realm | null>({
+    queryKey: ["infra", "realm", slugOrId],
+    queryFn: async () => {
+      const res = await infraFetch<SuccessResponse<Realm>>(
+        `/realms/${slugOrId}`
+      )
+      return res.data
+    },
+    enabled: !!slugOrId,
     refetchInterval: POLL_INTERVAL,
   })
 }

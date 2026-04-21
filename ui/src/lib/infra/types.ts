@@ -130,6 +130,32 @@ export interface ProxmoxCluster {
   createdAt: string
 }
 
+export interface Estate {
+  id: string
+  slug: string
+  name: string
+  type: string
+  parentEstateId: string | null
+  spec: Record<string, unknown>
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Realm {
+  id: string
+  slug: string
+  name: string
+  type: string
+  parentRealmId: string | null
+  estateId: string | null
+  workbenchId: string | null
+  spec: Record<string, unknown>
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Service {
   id: string
   slug: string
