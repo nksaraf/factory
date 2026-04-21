@@ -46,6 +46,7 @@ export async function getSiteState(db: Database, slugOrId: string) {
         .select({
           cd: componentDeployment,
           componentSlug: component.slug,
+          componentName: component.name,
           componentSpec: component.spec,
         })
         .from(componentDeployment)
@@ -59,14 +60,21 @@ export async function getSiteState(db: Database, slugOrId: string) {
         composeFiles: (sdSpec.composeFiles as string[]) ?? [],
         realm: realmRow ? { slug: realmRow.slug, type: realmRow.type } : null,
         componentDeployments: cds.map(
-          ({ cd, componentSlug, componentSpec }) => {
+          ({ cd, componentSlug, componentName, componentSpec }) => {
             const spec = (cd.spec ?? {}) as Record<string, unknown>
             const status = (cd.status ?? {}) as Record<string, unknown>
             const cSpec = (componentSpec ?? {}) as Record<string, unknown>
             const ports =
-              (cSpec.ports as Array<{ name: string; port: number }>) ?? []
+              (cSpec.ports as Array<{
+                name: string
+                port: number
+                hostPort?: number
+              }>) ?? []
+            const name =
+              (cSpec.name as string) ?? componentName ?? componentSlug
             return {
               componentSlug,
+              name,
               mode: mapMode((spec.mode as string) ?? "container"),
               ports,
               spec: {

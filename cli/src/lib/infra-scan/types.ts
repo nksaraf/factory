@@ -14,6 +14,11 @@ export type ScanPort = {
   state?: string
 }
 
+export type ScanPortMapping = {
+  container: number
+  host: number
+}
+
 export type ScanService = {
   name: string
   displayName?: string
@@ -25,6 +30,7 @@ export type ScanService = {
     | "process"
   status: string
   ports: number[]
+  portMappings?: ScanPortMapping[]
   image?: string
   command?: string
   pid?: number

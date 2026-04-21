@@ -304,15 +304,28 @@ export async function reconcileHostScan(
 
       discoveredComponentSlugs.push(componentSlug)
 
-      // Build spec with ports
-      const ports = svc.ports.map((p) => ({
-        name: `port-${p}`,
-        port: p,
-        protocol: "tcp" as const,
-      }))
+      // Build spec with ports — use structured mappings when available
+      const hostPortMap = new Map<number, number>()
+      if (svc.portMappings) {
+        for (const m of svc.portMappings) {
+          hostPortMap.set(m.container, m.host)
+        }
+      }
+      const ports = svc.ports
+        .filter((p) => !hostPortMap.has(p) || hostPortMap.get(p) === p)
+        .map((p) => {
+          const hostPort = hostPortMap.get(p)
+          return {
+            name: `port-${p}`,
+            port: p,
+            ...(hostPort && hostPort !== p ? { hostPort } : {}),
+            protocol: "tcp" as const,
+          }
+        })
 
       const spec = {
         ports,
+        name: svc.name,
         ...(svc.image ? { image: svc.image } : {}),
         ...(svc.command ? { command: svc.command } : {}),
       }

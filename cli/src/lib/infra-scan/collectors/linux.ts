@@ -170,12 +170,15 @@ for p in projects:
                 publishers = c.get('Publishers', [])
                 ports_str = c.get('Ports', '')
                 port_nums = []
+                port_mappings = []
                 if isinstance(publishers, list) and publishers:
                     for pp in publishers:
                         pub = pp.get('PublishedPort', 0)
-                        if pub > 0: port_nums.append(pub)
                         target = pp.get('TargetPort', 0)
+                        if pub > 0: port_nums.append(pub)
                         if target > 0: port_nums.append(target)
+                        if pub > 0 and target > 0 and pub != target:
+                            port_mappings.append({'container': target, 'host': pub})
                 elif isinstance(ports_str, str) and ports_str:
                     import re
                     for m in re.finditer(r'(?::)(\\d+)->', ports_str):
@@ -188,6 +191,7 @@ for p in projects:
                     'realmType': 'docker-compose',
                     'status': svc_status,
                     'ports': sorted(set(port_nums)),
+                    'portMappings': port_mappings if port_mappings else None,
                     'image': c.get('Image', ''),
                     'composeProject': name,
                 })

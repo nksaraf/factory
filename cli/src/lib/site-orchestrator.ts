@@ -704,36 +704,51 @@ export class SiteOrchestrator {
           "Docker is not running. Start Docker for infrastructure dependencies."
         )
       }
-      if (!this.opts.quiet) {
-        if (skipBuild) {
-          const reason = opts.noBuild ? "(--no-build)" : "(no source changes)"
-          console.log(
-            `  Starting Docker deps ${styleMuted(reason)}: ${localDockerDeps.join(", ")}`
-          )
-        } else {
-          console.log(
-            `  Building + starting Docker deps: ${buildCheck.needsBuild.join(", ")}`
-          )
+      // Build and run are separate steps so that `docker compose up`
+      // only starts the listed services — `--build` would build (and
+      // potentially start) every service with a build context.
+      const depsNeedingBuild = skipBuild
+        ? []
+        : buildCheck.needsBuild.filter((s) => localDockerDeps.includes(s))
+
+      if (depsNeedingBuild.length > 0) {
+        if (!this.opts.quiet) {
+          console.log(`  Building Docker deps: ${depsNeedingBuild.join(", ")}`)
         }
+        this.compose.build(depsNeedingBuild)
+        recordBuild(
+          this.project.rootDir,
+          this.project.catalog,
+          depsNeedingBuild
+        )
+      }
+
+      if (!this.opts.quiet) {
+        const reason =
+          depsNeedingBuild.length > 0
+            ? "(freshly built)"
+            : opts.noBuild
+              ? "(--no-build)"
+              : "(no source changes)"
+        console.log(
+          `  Starting Docker deps ${styleMuted(reason)}: ${localDockerDeps.join(", ")}`
+        )
       }
       this.compose.up({
         detach: true,
         services: localDockerDeps,
-        noBuild: skipBuild,
-        noDeps: remoteDepSet.size > 0,
+        noBuild: true,
+        noDeps: true,
       })
-      // Record build hashes for services that were built
-      if (!skipBuild) {
-        recordBuild(
-          this.project.rootDir,
-          this.project.catalog,
-          buildCheck.needsBuild
-        )
-      }
     }
 
     // ── Start native dev servers via executor ─────────────────
     for (const component of targets) {
+      // Docker may auto-create this container when infra deps become
+      // healthy (depends_on). Stop it so the native process can bind.
+      if (this.compose && localDockerDeps.length > 0) {
+        this.compose.stop([component])
+      }
       try {
         const sd = this.site.getSystemDeployment(this.sdSlug)
         const cd = sd?.componentDeployments.find(
@@ -1436,20 +1451,19 @@ export class SiteOrchestrator {
       const flatEndpoints: EndpointMap = {}
 
       for (const sd of raw.spec.systemDeployments) {
-        for (const cd of sd.componentDeployments) {
+        for (const cd of sd.componentDeployments as any[]) {
           if (!cd.ports?.length) continue
-          const allPorts = cd.ports.map((p) => p.port).sort((a, b) => b - a)
-          const publishedPort = allPorts[0]
+          const firstHostPort = cd.ports.find((p: any) => p.hostPort)?.hostPort
+          const defaultPort = firstHostPort ?? cd.ports[0].port
           const namedPorts: Record<string, number> = {}
           for (const p of cd.ports) {
-            namedPorts[p.name.replace(/^port-/, "")] = p.port
+            const portName = p.name?.replace(/^port-/, "") ?? String(p.port)
+            namedPorts[portName] = p.hostPort ?? p.port
           }
-          const ep = { host: hostIp, port: publishedPort, ports: namedPorts }
+          const ep = { host: hostIp, port: defaultPort, ports: namedPorts }
+          const name = cd.name ?? cd.componentSlug
+          flatEndpoints[name] = ep
           flatEndpoints[cd.componentSlug] = ep
-          const dash = cd.componentSlug.indexOf("-")
-          if (dash > 0) {
-            flatEndpoints[cd.componentSlug.slice(dash + 1)] = ep
-          }
         }
       }
 

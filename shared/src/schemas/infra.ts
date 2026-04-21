@@ -803,6 +803,11 @@ export const HostScanPortSchema = z.object({
 })
 export type HostScanPort = z.infer<typeof HostScanPortSchema>
 
+export const ScanPortMappingSchema = z.object({
+  container: z.number().int(),
+  host: z.number().int(),
+})
+
 export const HostScanServiceSchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
@@ -815,6 +820,7 @@ export const HostScanServiceSchema = z.object({
   ]),
   status: z.string(),
   ports: z.array(z.number().int()).default([]),
+  portMappings: z.array(ScanPortMappingSchema).optional(),
   image: z.string().optional(),
   command: z.string().optional(),
   pid: z.number().int().optional(),
