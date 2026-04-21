@@ -29,39 +29,6 @@ function extractStatus(v: unknown): string {
   return "unknown"
 }
 
-function flattenHost(r: Record<string, unknown>): Host {
-  const spec = (r.spec ?? {}) as Record<string, unknown>
-  const statusObj = (r.status ?? {}) as Record<string, unknown>
-  const lastScan = (statusObj.lastScan ?? {}) as Record<string, unknown>
-  return {
-    id: r.id as string,
-    name: (r.name ?? spec.hostname ?? r.slug ?? "") as string,
-    slug: (r.slug ?? "") as string,
-    hostname: (spec.hostname ?? r.hostname ?? null) as string | null,
-    hostType: (r.type ?? "unknown") as string,
-    providerId: (r.providerId ?? r.provider_id ?? "") as string,
-    datacenterId: (r.datacenterId ?? r.datacenter_id ?? null) as string | null,
-    ipAddress: (spec.ipAddress ?? r.ipAddress ?? r.ip_address ?? null) as
-      | string
-      | null,
-    ipmiAddress: (spec.ipmiAddress ?? r.ipmiAddress ?? null) as string | null,
-    status: (spec.lifecycle as string) ?? extractStatus(r.status),
-    osType: (spec.os ?? r.osType ?? r.os_type ?? "") as string,
-    accessMethod: (spec.accessMethod ?? r.accessMethod ?? "") as string,
-    cpuCores: (spec.cpu ??
-      spec.cpuCores ??
-      r.cpuCores ??
-      r.cpu_cores ??
-      0) as number,
-    memoryMb: (spec.memoryMb ?? r.memoryMb ?? r.memory_mb ?? 0) as number,
-    diskGb: (spec.diskGb ?? r.diskGb ?? r.disk_gb ?? 0) as number,
-    rackLocation: (spec.rackLocation ?? r.rackLocation ?? null) as
-      | string
-      | null,
-    createdAt: (r.createdAt ?? r.created_at ?? "") as string,
-  }
-}
-
 function flattenProvider(r: Record<string, unknown>): Provider {
   const spec = (r.spec ?? {}) as Record<string, unknown>
   return {
@@ -228,35 +195,26 @@ export function useDatacenters(opts?: { regionId?: string }) {
 
 // --- Hosts ---
 
-export function useHosts(opts?: {
-  providerId?: string
-  datacenterId?: string
-  status?: string
-  osType?: string
-}) {
+export function useHosts(opts?: { type?: string; estateId?: string }) {
   return useQuery<Host[]>({
     queryKey: ["infra", "hosts", opts],
     queryFn: async () => {
       const qs = buildQs({ ...opts, limit: "500" })
-      const res = await infraFetch<SuccessResponse<Record<string, unknown>[]>>(
-        `/hosts${qs}`
-      )
-      return res.data.map(flattenHost)
+      const res = await infraFetch<SuccessResponse<Host[]>>(`/hosts${qs}`)
+      return res.data
     },
     refetchInterval: POLL_INTERVAL,
   })
 }
 
-export function useHost(id: string | undefined) {
+export function useHost(slugOrId: string | undefined) {
   return useQuery<Host | null>({
-    queryKey: ["infra", "host", id],
+    queryKey: ["infra", "host", slugOrId],
     queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<Record<string, unknown>>>(
-        `/hosts/${id}`
-      )
-      return flattenHost(res.data)
+      const res = await infraFetch<SuccessResponse<Host>>(`/hosts/${slugOrId}`)
+      return res.data
     },
-    enabled: !!id,
+    enabled: !!slugOrId,
     refetchInterval: POLL_INTERVAL,
   })
 }
@@ -460,32 +418,6 @@ export function useInfraAssets() {
       const res = await infraFetch<SuccessResponse<unknown[]>>("/assets")
       return res.data
     },
-    refetchInterval: POLL_INTERVAL,
-  })
-}
-
-export interface OntologyHost {
-  id: string
-  slug: string
-  name: string
-  type: string
-  estateId: string | null
-  spec: Record<string, unknown>
-  metadata: Record<string, unknown> | null
-  createdAt: string
-  updatedAt: string
-}
-
-export function useHostRaw(slugOrId: string | undefined) {
-  return useQuery<OntologyHost | null>({
-    queryKey: ["infra", "host-raw", slugOrId],
-    queryFn: async () => {
-      const res = await infraFetch<SuccessResponse<OntologyHost>>(
-        `/hosts/${slugOrId}`
-      )
-      return res.data
-    },
-    enabled: !!slugOrId,
     refetchInterval: POLL_INTERVAL,
   })
 }

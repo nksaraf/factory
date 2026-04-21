@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router"
 import { Icon } from "@rio.js/ui/icon"
 
 import { MetricCard, StatusBadge } from "@/components/factory"
-import { useHostRaw as useHost, useRealms } from "@/lib/infra"
+import { useHost, useRealms } from "@/lib/infra"
 import { REALM_TYPE_ICONS } from "../../../../../components/type-icons"
 import { CopyCell } from "../../../../../components/copy-cell"
 import { HostLayout } from "./host-layout"

@@ -44,9 +44,7 @@ export {
   useTunnel,
   useSecrets,
   useSecret,
-  useHostRaw,
   useInfraAction,
-  type OntologyHost,
   type Estate,
   type Realm,
 } from "./use-infra"

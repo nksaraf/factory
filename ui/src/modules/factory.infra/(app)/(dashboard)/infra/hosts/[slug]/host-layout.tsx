@@ -1,4 +1,4 @@
-import { useHostRaw as useHost } from "@/lib/infra"
+import { useHost } from "@/lib/infra"
 import { Link, useLocation, useParams } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"

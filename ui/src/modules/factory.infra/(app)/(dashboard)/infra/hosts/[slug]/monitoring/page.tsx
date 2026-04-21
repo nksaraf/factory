@@ -3,7 +3,7 @@ import { useParams } from "react-router"
 import { Icon } from "@rio.js/ui/icon"
 
 import { MetricCard } from "@/components/factory"
-import { useHostRaw as useHost } from "@/lib/infra"
+import { useHost } from "@/lib/infra"
 import { HostLayout } from "../host-layout"
 
 export default function HostMonitoringTab() {

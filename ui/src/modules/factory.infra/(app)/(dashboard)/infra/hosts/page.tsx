@@ -14,15 +14,23 @@ const TYPE_ICON: Record<string, string> = {
   "network-appliance": "icon-[ph--router-duotone]",
 }
 
+function s(host: Host, key: string): string {
+  return (host.spec[key] as string) ?? ""
+}
+
+function n(host: Host, key: string): number {
+  return (host.spec[key] as number) ?? 0
+}
+
 type SortKey =
   | "name"
-  | "hostType"
+  | "type"
   | "ipAddress"
-  | "osType"
-  | "cpuCores"
+  | "os"
+  | "cpu"
   | "memoryMb"
   | "diskGb"
-  | "status"
+  | "lifecycle"
 type SortDir = "asc" | "desc"
 
 function CopyCell({ value }: { value: string | null | undefined }) {
@@ -108,33 +116,33 @@ function compareHosts(a: Host, b: Host, key: SortKey, dir: SortDir): number {
       av = a.name.toLowerCase()
       bv = b.name.toLowerCase()
       break
-    case "hostType":
-      av = a.hostType
-      bv = b.hostType
+    case "type":
+      av = a.type
+      bv = b.type
       break
     case "ipAddress":
-      av = a.ipAddress ?? ""
-      bv = b.ipAddress ?? ""
+      av = s(a, "ipAddress")
+      bv = s(b, "ipAddress")
       break
-    case "osType":
-      av = a.osType
-      bv = b.osType
+    case "os":
+      av = s(a, "os")
+      bv = s(b, "os")
       break
-    case "cpuCores":
-      av = a.cpuCores
-      bv = b.cpuCores
+    case "cpu":
+      av = n(a, "cpu")
+      bv = n(b, "cpu")
       break
     case "memoryMb":
-      av = a.memoryMb
-      bv = b.memoryMb
+      av = n(a, "memoryMb")
+      bv = n(b, "memoryMb")
       break
     case "diskGb":
-      av = a.diskGb
-      bv = b.diskGb
+      av = n(a, "diskGb")
+      bv = n(b, "diskGb")
       break
-    case "status":
-      av = a.status
-      bv = b.status
+    case "lifecycle":
+      av = s(a, "lifecycle")
+      bv = s(b, "lifecycle")
       break
     default:
       return 0
@@ -167,7 +175,7 @@ export default function HostsPage() {
   const all = hosts ?? []
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const h of all) counts[h.hostType] = (counts[h.hostType] ?? 0) + 1
+    for (const h of all) counts[h.type] = (counts[h.type] ?? 0) + 1
     return counts
   }, [all])
 
@@ -175,12 +183,12 @@ export default function HostsPage() {
     const q = search.toLowerCase()
     return all
       .filter((h) => {
-        if (typeFilter && h.hostType !== typeFilter) return false
+        if (typeFilter && h.type !== typeFilter) return false
         if (!q) return true
         return (
           h.name.toLowerCase().includes(q) ||
-          (h.ipAddress ?? "").includes(q) ||
-          h.osType.toLowerCase().includes(q)
+          s(h, "ipAddress").includes(q) ||
+          s(h, "os").toLowerCase().includes(q)
         )
       })
       .sort((a, b) => compareHosts(a, b, sortKey, sortDir))
@@ -259,7 +267,7 @@ export default function HostsPage() {
             />
             <SortHeader
               label="Type"
-              sortKey="hostType"
+              sortKey="type"
               currentKey={sortKey}
               currentDir={sortDir}
               onSort={onSort}
@@ -274,7 +282,7 @@ export default function HostsPage() {
             />
             <SortHeader
               label="OS"
-              sortKey="osType"
+              sortKey="os"
               currentKey={sortKey}
               currentDir={sortDir}
               onSort={onSort}
@@ -282,7 +290,7 @@ export default function HostsPage() {
             <SortHeader
               label="CPU"
               icon="icon-[ph--cpu-duotone]"
-              sortKey="cpuCores"
+              sortKey="cpu"
               currentKey={sortKey}
               currentDir={sortDir}
               onSort={onSort}
@@ -305,7 +313,7 @@ export default function HostsPage() {
             />
             <SortHeader
               label="Status"
-              sortKey="status"
+              sortKey="lifecycle"
               currentKey={sortKey}
               currentDir={sortDir}
               onSort={onSort}
@@ -320,13 +328,12 @@ export default function HostsPage() {
             >
               <td className="py-2.5 pr-4 font-medium">
                 <Link
-                  to={`/infra/hosts/${h.id}`}
+                  to={`/infra/hosts/${h.slug}`}
                   className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
                 >
                   <Icon
                     icon={
-                      TYPE_ICON[h.hostType] ??
-                      "icon-[ph--desktop-tower-duotone]"
+                      TYPE_ICON[h.type] ?? "icon-[ph--desktop-tower-duotone]"
                     }
                     className="text-base text-muted-foreground"
                   />
@@ -334,39 +341,39 @@ export default function HostsPage() {
                 </Link>
               </td>
               <td className="py-2.5 pr-4 text-xs text-muted-foreground">
-                {h.hostType}
+                {h.type}
               </td>
               <td className="py-2.5 pr-4 text-xs">
-                <CopyCell value={h.ipAddress} />
+                <CopyCell value={s(h, "ipAddress") || null} />
               </td>
               <td className="py-2.5 pr-4 text-xs">
-                {h.osType || (
+                {s(h, "os") || (
                   <span className="text-muted-foreground">&mdash;</span>
                 )}
               </td>
               <td className="py-2.5 pr-4 text-xs font-mono">
-                {h.cpuCores > 0 ? (
-                  `${h.cpuCores}c`
+                {n(h, "cpu") > 0 ? (
+                  `${n(h, "cpu")}c`
                 ) : (
                   <span className="text-muted-foreground">&mdash;</span>
                 )}
               </td>
               <td className="py-2.5 pr-4 text-xs font-mono">
-                {h.memoryMb > 0 ? (
-                  `${Math.round(h.memoryMb / 1024)}G`
+                {n(h, "memoryMb") > 0 ? (
+                  `${Math.round(n(h, "memoryMb") / 1024)}G`
                 ) : (
                   <span className="text-muted-foreground">&mdash;</span>
                 )}
               </td>
               <td className="py-2.5 pr-4 text-xs font-mono">
-                {h.diskGb > 0 ? (
-                  `${h.diskGb}G`
+                {n(h, "diskGb") > 0 ? (
+                  `${n(h, "diskGb")}G`
                 ) : (
                   <span className="text-muted-foreground">&mdash;</span>
                 )}
               </td>
               <td className="py-2.5 pr-4">
-                <StatusBadge status={h.status} />
+                <StatusBadge status={s(h, "lifecycle") || "unknown"} />
               </td>
             </tr>
           ))}

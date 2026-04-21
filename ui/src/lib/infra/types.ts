@@ -46,22 +46,14 @@ export interface Datacenter {
 
 export interface Host {
   id: string
-  name: string
   slug: string
-  hostname: string | null
-  hostType: string
-  providerId: string
-  datacenterId: string | null
-  ipAddress: string | null
-  ipmiAddress: string | null
-  status: string
-  osType: string
-  accessMethod: string
-  cpuCores: number
-  memoryMb: number
-  diskGb: number
-  rackLocation: string | null
+  name: string
+  type: string
+  estateId: string | null
+  spec: Record<string, unknown>
+  metadata: Record<string, unknown> | null
   createdAt: string
+  updatedAt: string
 }
 
 export interface VM {
