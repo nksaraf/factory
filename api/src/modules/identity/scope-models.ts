@@ -2,7 +2,7 @@
  * Shared scope models and resolve logic for config vars and secrets.
  *
  * Scope hierarchy (low → high priority):
- *   system(0) < org(1) < team(2) < project(3) < principal(4)
+ *   system(0) < org(1) < team(2) < project(3) < site(4) < deployment(5) < principal(6)
  *
  * Environment is orthogonal — env-specific entries get a +10 bonus
  * over 'all' within the same scope level.
@@ -22,6 +22,8 @@ export const VALID_SCOPE_TYPES = [
   "project",
   "principal",
   "system",
+  "site",
+  "deployment",
 ] as const
 export type ScopeType = (typeof VALID_SCOPE_TYPES)[number]
 
@@ -41,6 +43,8 @@ export const ResolveBody = t.Object({
   teamId: t.Optional(t.Union([t.String(), t.Null()])),
   projectId: t.Optional(t.Union([t.String(), t.Null()])),
   principalId: t.Optional(t.Union([t.String(), t.Null()])),
+  siteId: t.Optional(t.Union([t.String(), t.Null()])),
+  deploymentId: t.Optional(t.Union([t.String(), t.Null()])),
   environment: t.Optional(t.Union([t.String(), t.Null()])),
 })
 
@@ -71,7 +75,9 @@ export const SCOPE_PRIORITY: Record<string, number> = {
   org: 1,
   team: 2,
   project: 3,
-  principal: 4,
+  site: 4,
+  deployment: 5,
+  principal: 6,
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +110,8 @@ export function buildResolveScopeConditions(
     teamId?: string | null
     projectId?: string | null
     principalId?: string | null
+    siteId?: string | null
+    deploymentId?: string | null
   }
 ) {
   const conditions = [
@@ -118,6 +126,16 @@ export function buildResolveScopeConditions(
   if (body.projectId) {
     conditions.push(
       and(eq(cols.scopeType, "project"), eq(cols.scopeId, body.projectId))
+    )
+  }
+  if (body.siteId) {
+    conditions.push(
+      and(eq(cols.scopeType, "site"), eq(cols.scopeId, body.siteId))
+    )
+  }
+  if (body.deploymentId) {
+    conditions.push(
+      and(eq(cols.scopeType, "deployment"), eq(cols.scopeId, body.deploymentId))
     )
   }
   if (body.principalId) {

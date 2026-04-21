@@ -291,6 +291,122 @@ describe("config var & secret controllers", () => {
           noProject.vars.find((v: any) => v.slug === "TIMEOUT").value
         ).toBe("90")
       })
+
+      it("site and deployment scopes override project", async () => {
+        await request(app, "POST", "/vars", {
+          slug: "URL",
+          value: "project",
+          scopeType: "project",
+          scopeId: "trafficure",
+        })
+        await request(app, "POST", "/vars", {
+          slug: "URL",
+          value: "site",
+          scopeType: "site",
+          scopeId: "trafficure-prod",
+        })
+        await request(app, "POST", "/vars", {
+          slug: "URL",
+          value: "deployment",
+          scopeType: "deployment",
+          scopeId: "trafficure-prod-platform",
+        })
+
+        // Site scope only: site wins over project
+        const { body: siteOnly } = await request(app, "POST", "/vars/resolve", {
+          projectId: "trafficure",
+          siteId: "trafficure-prod",
+        })
+        expect(siteOnly.vars.find((v: any) => v.slug === "URL").value).toBe(
+          "site"
+        )
+
+        // Deployment beats site
+        const { body: deploy } = await request(app, "POST", "/vars/resolve", {
+          projectId: "trafficure",
+          siteId: "trafficure-prod",
+          deploymentId: "trafficure-prod-platform",
+        })
+        expect(deploy.vars.find((v: any) => v.slug === "URL").value).toBe(
+          "deployment"
+        )
+      })
+    })
+
+    describe("site/deployment scope CRUD", () => {
+      it("sets and gets a site-scoped variable", async () => {
+        const { status } = await request(app, "POST", "/vars", {
+          slug: "PUBLIC_APP_URL",
+          value: "https://prod.example.com",
+          scopeType: "site",
+          scopeId: "trafficure-prod",
+        })
+        expect(status).toBe(200)
+
+        const { body } = await request(
+          app,
+          "GET",
+          "/vars/PUBLIC_APP_URL?scopeType=site&scopeId=trafficure-prod"
+        )
+        expect(body.value).toBe("https://prod.example.com")
+        expect(body.scopeType).toBe("site")
+        expect(body.scopeId).toBe("trafficure-prod")
+      })
+
+      it("sets and gets a deployment-scoped variable", async () => {
+        await request(app, "POST", "/vars", {
+          slug: "DEPLOY_VAR",
+          value: "x",
+          scopeType: "deployment",
+          scopeId: "trafficure-prod-platform",
+        })
+
+        const { body } = await request(
+          app,
+          "GET",
+          "/vars/DEPLOY_VAR?scopeType=deployment&scopeId=trafficure-prod-platform"
+        )
+        expect(body.value).toBe("x")
+        expect(body.scopeType).toBe("deployment")
+      })
+
+      it("lists variables by site scope", async () => {
+        await request(app, "POST", "/vars", {
+          slug: "A",
+          value: "1",
+          scopeType: "site",
+          scopeId: "trafficure-prod",
+        })
+        await request(app, "POST", "/vars", {
+          slug: "B",
+          value: "2",
+          scopeType: "site",
+          scopeId: "trafficure-staging",
+        })
+
+        const { body } = await request(
+          app,
+          "GET",
+          "/vars?scopeType=site&scopeId=trafficure-prod"
+        )
+        expect(body.vars.length).toBe(1)
+        expect(body.vars[0].slug).toBe("A")
+      })
+
+      it("deletes a site-scoped variable", async () => {
+        await request(app, "POST", "/vars", {
+          slug: "TMP",
+          value: "v",
+          scopeType: "site",
+          scopeId: "trafficure-prod",
+        })
+        const { status } = await request(
+          app,
+          "DELETE",
+          "/vars/TMP?scopeType=site&scopeId=trafficure-prod"
+        )
+        expect(status).toBe(200)
+      })
     })
   })
 
