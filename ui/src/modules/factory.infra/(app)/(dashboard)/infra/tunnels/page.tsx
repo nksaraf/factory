@@ -1,6 +1,10 @@
 import { Link } from "react-router"
 
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+  ItemsTableHead as TableHead,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
 import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"

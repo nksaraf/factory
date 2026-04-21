@@ -1,74 +1,115 @@
-import { useOpsSites } from "@/lib/ops"
-import { useRealms } from "@/lib/infra"
-import { useState } from "react"
 import { Link } from "react-router"
 
-import { DashboardPage, EmptyState, StatusBadge } from "@/components/factory"
+import { Icon } from "@rio.js/ui/icon"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+  ItemsTableHead as TableHead,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
+import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
+import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
+import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
+import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
+import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
+import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
+import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
+import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
-export default function OpsSitesPage() {
-  const { data: sites, isLoading } = useOpsSites()
-  const { data: realms } = useRealms({ type: "k8s-cluster" })
-  const [search, setSearch] = useState("")
+import { DashboardPage, StatusBadge } from "@/components/factory"
+import { opsFetch } from "@/lib/ops"
+import type { Site } from "@/lib/ops/types"
+import { SITE_TYPE_ICONS } from "../../../../components/type-icons"
 
-  const clusterMap = new Map((realms ?? []).map((r) => [r.id, r.name]))
+const SITE_TYPES = [
+  { value: "all", label: "All" },
+  { value: "production", label: "Production" },
+  { value: "staging", label: "Staging" },
+  { value: "preview", label: "Preview" },
+  { value: "development", label: "Development" },
+  { value: "sandbox", label: "Sandbox" },
+  { value: "demo", label: "Demo" },
+  { value: "feature-branch", label: "Feature Branch" },
+  { value: "qat", label: "QAT" },
+  { value: "test", label: "Test" },
+]
 
-  const filtered = (sites ?? []).filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.product.toLowerCase().includes(search.toLowerCase())
+const getItems = async (filters: Record<string, any>) => {
+  const res = await opsFetch<{ success: boolean; data: Site[] }>(
+    "/sites?limit=500"
   )
+  let items = res.data
+  if (filters.searchTerm) {
+    const q = filters.searchTerm.toLowerCase()
+    items = items.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) || s.slug.toLowerCase().includes(q)
+    )
+  }
+  if (filters.type && filters.type !== "all") {
+    items = items.filter((s) => s.type === filters.type)
+  }
+  return items
+}
 
-  const toolbar = (
-    <input
-      placeholder="Search sites..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="max-w-sm text-base px-3 py-2 rounded-md border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-    />
+const ListHeader = (
+  <TableRow>
+    <TableHead>Name</TableHead>
+    <TableHead>Type</TableHead>
+    <TableHead>Product</TableHead>
+    <TableHead>Phase</TableHead>
+  </TableRow>
+)
+
+function SiteRow({ item }: { item: Site }) {
+  const icon =
+    SITE_TYPE_ICONS[item.type] ?? "icon-[ph--globe-hemisphere-west-duotone]"
+  const phase = (item.status?.phase as string) ?? "unknown"
+  const product = (item.spec?.product as string) ?? "—"
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        <Link
+          to={`/ops/sites/${item.slug}`}
+          className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+        >
+          <Icon icon={icon} className="text-base text-muted-foreground" />
+          {item.name}
+        </Link>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{item.type}</TableCell>
+      <TableCell className="text-muted-foreground">{product}</TableCell>
+      <TableCell>
+        <StatusBadge status={phase} />
+      </TableCell>
+    </TableRow>
   )
+}
 
+export default function SitesPage() {
   return (
     <DashboardPage
       plane="ops"
       title="Sites"
-      description="All deployed sites"
-      toolbar={toolbar}
+      description="Deployment environments -- production, staging, preview, and development sites"
     >
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">Loading sites...</p>
-      )}
-
-      {!isLoading && filtered.length === 0 && (
-        <EmptyState
-          icon="icon-[ph--globe-hemisphere-west-duotone]"
-          title="No sites found"
-          description="No deployed sites match your search."
-        />
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 content-start">
-        {filtered.map((site) => (
-          <Link
-            key={site.id}
-            to={`/ops/sites/${site.slug}`}
-            className="block rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-medium text-base">{site.name}</h3>
-              <StatusBadge status={site.status} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">{site.product}</p>
-            <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-              <span>
-                Cluster: {clusterMap.get(site.clusterId) ?? site.clusterId}
-              </span>
-              {site.currentManifestVersion && (
-                <span>Manifest v{site.currentManifestVersion}</span>
-              )}
-            </div>
-          </Link>
-        ))}
-      </div>
+      <ItemsProvider getItems={getItems} itemType="site" initialViewMode="list">
+        <ItemsPage>
+          <ItemsView>
+            <ItemsToolbar>
+              <ItemsSearchbar placeholder="Search sites..." />
+              <ItemsSelectFilter
+                name="type"
+                label="Type"
+                options={SITE_TYPES}
+              />
+            </ItemsToolbar>
+            <ItemsContent>
+              <ItemsListView ListHeader={ListHeader} itemComponent={SiteRow} />
+            </ItemsContent>
+          </ItemsView>
+        </ItemsPage>
+      </ItemsProvider>
     </DashboardPage>
   )
 }
