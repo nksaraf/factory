@@ -2,5 +2,5 @@
 import { Navigate } from "react-router"
 
 export default function InfraHome() {
-  return <Navigate to="/infra/providers" replace />
+  return <Navigate to="/infra/estates" replace />
 }

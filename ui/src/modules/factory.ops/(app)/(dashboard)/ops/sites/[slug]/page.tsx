@@ -1,5 +1,5 @@
 import { useDeploymentTargets, useOpsSite } from "@/lib/ops"
-import { useCluster } from "@/lib/infra"
+import { useRealm } from "@/lib/infra"
 import { Link, useParams } from "react-router"
 
 import { MetricCard, StatusBadge } from "@/components/factory"
@@ -11,7 +11,7 @@ export default function SiteOverviewTab() {
   const { data: targets } = useDeploymentTargets(
     site ? ({ siteId: site.id } as any) : undefined
   )
-  const { data: cluster } = useCluster(site?.clusterId)
+  const { data: cluster } = useRealm(site?.clusterId)
 
   if (!site) return null
   const siteTargets = (targets ?? []).filter((t: any) => t.siteId === site.id)

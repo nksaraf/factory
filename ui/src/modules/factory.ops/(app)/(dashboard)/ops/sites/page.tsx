@@ -1,5 +1,5 @@
 import { useOpsSites } from "@/lib/ops"
-import { useClusters } from "@/lib/infra"
+import { useRealms } from "@/lib/infra"
 import { useState } from "react"
 import { Link } from "react-router"
 
@@ -7,10 +7,10 @@ import { DashboardPage, EmptyState, StatusBadge } from "@/components/factory"
 
 export default function OpsSitesPage() {
   const { data: sites, isLoading } = useOpsSites()
-  const { data: clusters } = useClusters()
+  const { data: realms } = useRealms({ type: "k8s-cluster" })
   const [search, setSearch] = useState("")
 
-  const clusterMap = new Map((clusters ?? []).map((c) => [c.id, c.name]))
+  const clusterMap = new Map((realms ?? []).map((r) => [r.id, r.name]))
 
   const filtered = (sites ?? []).filter(
     (s) =>

@@ -1,12 +1,12 @@
 {
   "id": "factory.infra",
   "displayName": "Factory Infrastructure",
-  "description": "Infrastructure management — providers, clusters, hosts, VMs, networking",
-  "version": "0.0.1",
+  "description": "Infrastructure management — estates, hosts, realms, services, routes, DNS, tunnels, secrets",
+  "version": "0.0.2",
   "publisher": "factory",
   "engines": { "rio": ">=0.0.1" },
   "category": "platform",
-  "tags": ["infra", "clusters", "hosts", "networking"],
+  "tags": ["infra", "hosts", "realms", "networking"],
   "categories": ["infrastructure"],
   "main": "extension.ts",
   "module": {
@@ -30,74 +30,100 @@
         "path": "/(root)/(app)/infra/estates/"
       },
       {
-        "id": "factory.infra.route.realms",
-        "displayName": "Realms",
-        "path": "/(root)/(app)/infra/realms/"
-      },
-      {
-        "id": "factory.infra.route.providers",
-        "displayName": "Providers",
-        "path": "/(root)/(app)/infra/providers/"
-      },
-      {
-        "id": "factory.infra.route.provider-detail",
-        "displayName": "Provider Detail",
-        "path": "/(root)/(app)/infra/providers/:slug/"
-      },
-      {
-        "id": "factory.infra.route.clusters",
-        "displayName": "Clusters",
-        "path": "/(root)/(app)/infra/clusters/"
-      },
-      {
-        "id": "factory.infra.route.cluster-detail",
-        "displayName": "Cluster Detail",
-        "path": "/(root)/(app)/infra/clusters/:slug/"
+        "id": "factory.infra.route.estate-detail",
+        "displayName": "Estate Detail",
+        "path": "/(root)/(app)/infra/estates/:slug/"
       },
       {
         "id": "factory.infra.route.hosts",
-        "displayName": "Hosts & VMs",
+        "displayName": "Hosts",
         "path": "/(root)/(app)/infra/hosts/"
       },
       {
         "id": "factory.infra.route.host-detail",
         "displayName": "Host Detail",
-        "path": "/(root)/(app)/infra/hosts/:id/"
+        "path": "/(root)/(app)/infra/hosts/:slug/"
       },
       {
-        "id": "factory.infra.route.network",
-        "displayName": "Network Topology",
-        "path": "/(root)/(app)/infra/network/"
+        "id": "factory.infra.route.host-terminal",
+        "displayName": "Host Terminal",
+        "path": "/(root)/(app)/infra/hosts/:slug/terminal/"
       },
       {
-        "id": "factory.infra.route.proxmox",
-        "displayName": "Proxmox Clusters",
-        "path": "/(root)/(app)/infra/proxmox/"
+        "id": "factory.infra.route.host-files",
+        "displayName": "Host Files",
+        "path": "/(root)/(app)/infra/hosts/:slug/files/"
       },
       {
-        "id": "factory.infra.route.utilization",
-        "displayName": "Resource Utilization",
-        "path": "/(root)/(app)/infra/utilization/"
+        "id": "factory.infra.route.host-monitoring",
+        "displayName": "Host Monitoring",
+        "path": "/(root)/(app)/infra/hosts/:slug/monitoring/"
       },
       {
-        "id": "factory.infra.route.certs",
-        "displayName": "Certificates & Secrets",
-        "path": "/(root)/(app)/infra/certs/"
+        "id": "factory.infra.route.host-activity",
+        "displayName": "Host Activity",
+        "path": "/(root)/(app)/infra/hosts/:slug/activity/"
       },
-      { "id": "factory.infra.route.services", "displayName": "Services", "path": "/(root)/(app)/infra/services/" },
-      { "id": "factory.infra.route.service-detail", "displayName": "Service Detail", "path": "/(root)/(app)/infra/services/:slug/" },
-      { "id": "factory.infra.route.routes", "displayName": "Routes", "path": "/(root)/(app)/infra/routes/" },
-      { "id": "factory.infra.route.route-detail", "displayName": "Route Detail", "path": "/(root)/(app)/infra/routes/:slug/" },
-      { "id": "factory.infra.route.dns", "displayName": "DNS", "path": "/(root)/(app)/infra/dns/" },
-      { "id": "factory.infra.route.dns-detail", "displayName": "DNS Detail", "path": "/(root)/(app)/infra/dns/:slug/" },
-      { "id": "factory.infra.route.tunnels", "displayName": "Tunnels", "path": "/(root)/(app)/infra/tunnels/" },
-      { "id": "factory.infra.route.tunnel-detail", "displayName": "Tunnel Detail", "path": "/(root)/(app)/infra/tunnels/:slug/" },
-      { "id": "factory.infra.route.secrets", "displayName": "Secrets", "path": "/(root)/(app)/infra/secrets/" },
-      { "id": "factory.infra.route.secret-detail", "displayName": "Secret Detail", "path": "/(root)/(app)/infra/secrets/:slug/" },
-      { "id": "factory.infra.route.host-terminal", "displayName": "Host Terminal", "path": "/(root)/(app)/infra/hosts/:slug/terminal/" },
-      { "id": "factory.infra.route.host-files", "displayName": "Host Files", "path": "/(root)/(app)/infra/hosts/:slug/files/" },
-      { "id": "factory.infra.route.host-monitoring", "displayName": "Host Monitoring", "path": "/(root)/(app)/infra/hosts/:slug/monitoring/" },
-      { "id": "factory.infra.route.host-activity", "displayName": "Host Activity", "path": "/(root)/(app)/infra/hosts/:slug/activity/" }
+      {
+        "id": "factory.infra.route.realms",
+        "displayName": "Realms",
+        "path": "/(root)/(app)/infra/realms/"
+      },
+      {
+        "id": "factory.infra.route.realm-detail",
+        "displayName": "Realm Detail",
+        "path": "/(root)/(app)/infra/realms/:slug/"
+      },
+      {
+        "id": "factory.infra.route.services",
+        "displayName": "Services",
+        "path": "/(root)/(app)/infra/services/"
+      },
+      {
+        "id": "factory.infra.route.service-detail",
+        "displayName": "Service Detail",
+        "path": "/(root)/(app)/infra/services/:slug/"
+      },
+      {
+        "id": "factory.infra.route.routes",
+        "displayName": "Routes",
+        "path": "/(root)/(app)/infra/routes/"
+      },
+      {
+        "id": "factory.infra.route.route-detail",
+        "displayName": "Route Detail",
+        "path": "/(root)/(app)/infra/routes/:slug/"
+      },
+      {
+        "id": "factory.infra.route.dns",
+        "displayName": "DNS",
+        "path": "/(root)/(app)/infra/dns/"
+      },
+      {
+        "id": "factory.infra.route.dns-detail",
+        "displayName": "DNS Detail",
+        "path": "/(root)/(app)/infra/dns/:slug/"
+      },
+      {
+        "id": "factory.infra.route.tunnels",
+        "displayName": "Tunnels",
+        "path": "/(root)/(app)/infra/tunnels/"
+      },
+      {
+        "id": "factory.infra.route.tunnel-detail",
+        "displayName": "Tunnel Detail",
+        "path": "/(root)/(app)/infra/tunnels/:slug/"
+      },
+      {
+        "id": "factory.infra.route.secrets",
+        "displayName": "Secrets",
+        "path": "/(root)/(app)/infra/secrets/"
+      },
+      {
+        "id": "factory.infra.route.secret-detail",
+        "displayName": "Secret Detail",
+        "path": "/(root)/(app)/infra/secrets/:slug/"
+      }
     ],
     "sidebarGroups": [
       {
@@ -118,28 +144,12 @@
         "order": 0
       },
       {
-        "id": "factory.infra.sidebar.providers",
-        "displayName": "Providers",
-        "icon": "icon-[ph--cloud-duotone]",
-        "href": "/infra/providers",
-        "group": "factory.infra.sidebar.group",
-        "order": 1
-      },
-      {
-        "id": "factory.infra.sidebar.clusters",
-        "displayName": "Clusters",
-        "icon": "icon-[ph--circles-three-plus-duotone]",
-        "href": "/infra/clusters",
-        "group": "factory.infra.sidebar.group",
-        "order": 2
-      },
-      {
         "id": "factory.infra.sidebar.hosts",
-        "displayName": "Hosts & VMs",
+        "displayName": "Hosts",
         "icon": "icon-[ph--desktop-tower-duotone]",
         "href": "/infra/hosts",
         "group": "factory.infra.sidebar.group",
-        "order": 3
+        "order": 1
       },
       {
         "id": "factory.infra.sidebar.realms",
@@ -147,45 +157,48 @@
         "icon": "icon-[ph--circles-three-duotone]",
         "href": "/infra/realms",
         "group": "factory.infra.sidebar.group",
-        "order": 4
+        "order": 2
       },
       {
-        "id": "factory.infra.sidebar.network",
-        "displayName": "Network",
-        "icon": "icon-[ph--graph-duotone]",
-        "href": "/infra/network",
+        "id": "factory.infra.sidebar.services",
+        "displayName": "Services",
+        "icon": "icon-[ph--plugs-connected-duotone]",
+        "href": "/infra/services",
+        "group": "factory.infra.sidebar.group",
+        "order": 3
+      },
+      {
+        "id": "factory.infra.sidebar.routes",
+        "displayName": "Routes",
+        "icon": "icon-[ph--signpost-duotone]",
+        "href": "/infra/routes",
         "group": "factory.infra.sidebar.group",
         "order": 4
       },
       {
-        "id": "factory.infra.sidebar.proxmox",
-        "displayName": "Proxmox",
-        "icon": "icon-[ph--cube-duotone]",
-        "href": "/infra/proxmox",
+        "id": "factory.infra.sidebar.dns",
+        "displayName": "DNS",
+        "icon": "icon-[ph--globe-simple-duotone]",
+        "href": "/infra/dns",
         "group": "factory.infra.sidebar.group",
         "order": 5
       },
       {
-        "id": "factory.infra.sidebar.utilization",
-        "displayName": "Utilization",
-        "icon": "icon-[ph--chart-bar-duotone]",
-        "href": "/infra/utilization",
+        "id": "factory.infra.sidebar.tunnels",
+        "displayName": "Tunnels",
+        "icon": "icon-[ph--arrows-in-line-vertical-duotone]",
+        "href": "/infra/tunnels",
         "group": "factory.infra.sidebar.group",
         "order": 6
       },
       {
-        "id": "factory.infra.sidebar.certs",
-        "displayName": "Certificates",
-        "icon": "icon-[ph--shield-check-duotone]",
-        "href": "/infra/certs",
+        "id": "factory.infra.sidebar.secrets",
+        "displayName": "Secrets",
+        "icon": "icon-[ph--lock-key-duotone]",
+        "href": "/infra/secrets",
         "group": "factory.infra.sidebar.group",
         "order": 7
-      },
-      { "id": "factory.infra.sidebar.services", "displayName": "Services", "icon": "icon-[ph--plugs-connected-duotone]", "href": "/infra/services", "group": "factory.infra.sidebar.group", "order": 8 },
-      { "id": "factory.infra.sidebar.routes", "displayName": "Routes", "icon": "icon-[ph--signpost-duotone]", "href": "/infra/routes", "group": "factory.infra.sidebar.group", "order": 9 },
-      { "id": "factory.infra.sidebar.dns", "displayName": "DNS", "icon": "icon-[ph--globe-simple-duotone]", "href": "/infra/dns", "group": "factory.infra.sidebar.group", "order": 10 },
-      { "id": "factory.infra.sidebar.tunnels", "displayName": "Tunnels", "icon": "icon-[ph--arrows-in-line-vertical-duotone]", "href": "/infra/tunnels", "group": "factory.infra.sidebar.group", "order": 11 },
-      { "id": "factory.infra.sidebar.secrets", "displayName": "Secrets", "icon": "icon-[ph--lock-key-duotone]", "href": "/infra/secrets", "group": "factory.infra.sidebar.group", "order": 12 }
+      }
     ],
     "layouts": [],
     "views": [],
