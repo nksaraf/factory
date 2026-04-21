@@ -410,6 +410,7 @@ function resolveDepEnvForNative(
     const portNames = Object.keys(ports)
     const primaryPort =
       ports["http"] ?? (portNames.length > 0 ? ports[portNames[0]!]! : 0)
+    if (primaryPort === 0) continue
     for (const [envKey, template] of Object.entries(envMap)) {
       result[envKey] = template
         .replace(/\{host\}/g, "localhost")

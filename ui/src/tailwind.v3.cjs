@@ -101,11 +101,12 @@ module.exports = {
       colors: buildAllColors(),
       fontFamily: {
         sans: ["var(--font-sans)"],
+        heading: ["var(--font-heading)"],
         mono: ["var(--font-mono)"],
         inter: ["var(--font-inter)"],
         numbers: ["var(--font-numbers)"],
       },
-      fontWeight: {
+      /* fontWeight: {
         // Quicksand renders thin — shift the entire scale up by 100.
         // If you switch to Inter/system fonts, revert to standard
         // Tailwind weights (thin:100, light:300, normal:400, etc.).
@@ -118,7 +119,7 @@ module.exports = {
         bold: "800",
         extrabold: "900",
         black: "900",
-      },
+      }, */
       fontSize: {
         // md: ["1rem", "1rem"],
         // sm: ["0.75rem", "0.75rem"],

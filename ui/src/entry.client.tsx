@@ -62,6 +62,7 @@ async function boot() {
     "factory.build": () => import("./modules/factory.build"),
     "factory.org": () => import("./modules/factory.org"),
     "factory.threads": () => import("./modules/factory.threads"),
+    "factory.commerce": () => import("./modules/factory.commerce"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
   })
 
@@ -89,6 +90,7 @@ async function boot() {
     "factory.infra",
     "factory.build",
     "factory.org",
+    "factory.commerce",
     "factory.threads",
     "factory.game-viz"
   )
@@ -156,7 +158,7 @@ async function boot() {
               fields: ["image", "name"],
             }}
             twoFactor={["otp", "totp"]}
-            redirectTo="/my-projects"
+            redirectTo="/ops/sites"
             organization={true}
             apiKey={true}
             social={{

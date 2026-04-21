@@ -36,7 +36,7 @@ export default function SiteComponentsTab() {
     <div className="space-y-2">
       {siteComponents.map((comp) => {
         const phase = (comp.status?.phase as string) ?? "unknown"
-        const image = (comp.spec?.desiredImage as string) ?? "\u2014"
+        const image = (comp.spec?.desiredImage as string) ?? "—"
         const replicas = (comp.spec?.replicas as number) ?? 1
         return (
           <Link

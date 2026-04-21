@@ -11,10 +11,12 @@ export function PlanDrawer({
   plan,
   onClose,
   onJumpToTurn,
+  mode = "drawer",
 }: {
   plan: PlanEntry | null
   onClose: () => void
   onJumpToTurn?: (turnId: string) => void
+  mode?: "drawer" | "inline"
 }) {
   const [showVersions, setShowVersions] = useState(false)
   useEffect(() => {
@@ -40,21 +42,29 @@ export function PlanDrawer({
     contentQuery.error instanceof Error ? contentQuery.error.message : null
   const latestVersion = contentQuery.data?.version ?? plan?.version ?? null
 
+  if (mode === "inline" && !open) return null
+
   return (
     <>
-      <div
-        onClick={onClose}
-        className={cn(
-          "fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      />
+      {mode === "drawer" && (
+        <div
+          onClick={onClose}
+          className={cn(
+            "fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity",
+            open ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+        />
+      )}
       <aside
         className={cn(
-          "fixed top-0 right-0 z-40 h-screen w-full max-w-2xl",
-          "border-l bg-background shadow-2xl",
-          "transition-transform duration-200 ease-out flex flex-col",
-          open ? "translate-x-0" : "translate-x-full"
+          "border-l bg-background flex flex-col",
+          mode === "drawer"
+            ? cn(
+                "fixed top-0 right-0 z-40 h-screen w-full max-w-2xl shadow-2xl",
+                "transition-transform duration-200 ease-out",
+                open ? "translate-x-0" : "translate-x-full"
+              )
+            : "h-full w-full"
         )}
       >
         <header className="flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0">

@@ -1,0 +1,118 @@
+{
+  "id": "factory.commerce",
+  "displayName": "Factory Commerce",
+  "description": "Customers, plans, subscriptions, entitlements, and billing",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["commerce", "billing", "subscriptions", "entitlements"],
+  "categories": ["commerce"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--storefront-duotone]",
+      "label": "Commerce",
+      "order": 13
+    },
+    "routePrefix": "/commerce"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.commerce.route.home",
+        "displayName": "Commerce",
+        "path": "/(root)/(app)/commerce/"
+      },
+      {
+        "id": "factory.commerce.route.customers",
+        "displayName": "Customers",
+        "path": "/(root)/(app)/commerce/customers/"
+      },
+      {
+        "id": "factory.commerce.route.customer-detail",
+        "displayName": "Customer Detail",
+        "path": "/(root)/(app)/commerce/customers/:slug/"
+      },
+      {
+        "id": "factory.commerce.route.customer-layout",
+        "displayName": "Customer Layout",
+        "path": "/(root)/(app)/commerce/customers/:slug/",
+        "layout": true
+      },
+      {
+        "id": "factory.commerce.route.customer-subscriptions",
+        "displayName": "Customer Subscriptions",
+        "path": "/(root)/(app)/commerce/customers/:slug/subscriptions/"
+      },
+      {
+        "id": "factory.commerce.route.customer-bundles",
+        "displayName": "Customer Bundles",
+        "path": "/(root)/(app)/commerce/customers/:slug/bundles/"
+      },
+      {
+        "id": "factory.commerce.route.plans",
+        "displayName": "Plans",
+        "path": "/(root)/(app)/commerce/plans/"
+      },
+      {
+        "id": "factory.commerce.route.plan-detail",
+        "displayName": "Plan Detail",
+        "path": "/(root)/(app)/commerce/plans/:slug/"
+      },
+      {
+        "id": "factory.commerce.route.subscriptions",
+        "displayName": "Subscriptions",
+        "path": "/(root)/(app)/commerce/subscriptions/"
+      },
+      {
+        "id": "factory.commerce.route.subscription-detail",
+        "displayName": "Subscription Detail",
+        "path": "/(root)/(app)/commerce/subscriptions/:id/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.commerce.sidebar.group",
+        "displayName": "Commerce",
+        "icon": "icon-[ph--storefront-duotone]",
+        "group": "Commerce",
+        "order": 13
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.commerce.sidebar.customers",
+        "displayName": "Customers",
+        "icon": "icon-[ph--users-three-duotone]",
+        "href": "/commerce/customers",
+        "group": "factory.commerce.sidebar.group",
+        "order": 0
+      },
+      {
+        "id": "factory.commerce.sidebar.plans",
+        "displayName": "Plans",
+        "icon": "icon-[ph--list-checks-duotone]",
+        "href": "/commerce/plans",
+        "group": "factory.commerce.sidebar.group",
+        "order": 1
+      },
+      {
+        "id": "factory.commerce.sidebar.subscriptions",
+        "displayName": "Subscriptions",
+        "icon": "icon-[ph--repeat-duotone]",
+        "href": "/commerce/subscriptions",
+        "group": "factory.commerce.sidebar.group",
+        "order": 2
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

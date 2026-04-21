@@ -1,0 +1,233 @@
+version: "1"
+
+# Commerce plane for Trafficure — customers, plan, subscriptions, entitlements.
+#
+# All trial customers on the single "Trafficure Platform" plan which includes
+# all product capabilities. When a customer converts, update their subscription
+# status from "trialing" to "active" and their customer status from "trial" to "active".
+
+entities:
+  # ── Plan ──────────────────────────────────────────────────
+  - kind: plan
+    slug: trafficure-platform
+    name: Trafficure Platform
+    type: base
+    spec:
+      description: "Full Trafficure platform — all capabilities included"
+      price: 0
+      billingInterval: monthly
+      currency: usd
+      trialDays: 90
+      isPublic: false
+      includedCapabilities:
+        - trafficure-core
+        - trafficure-web-app
+        - trafficure-mobile-app
+        - trafficure-analytics
+        - trafficure-alerts
+        - trafficure-ai
+        - trafficure-dags
+
+  # ── Customers ─────────────────────────────────────────────
+  - kind: customer
+    slug: pune-police
+    name: Pune City Police
+    spec:
+      type: direct
+      status: trial
+      companyName: Pune City Traffic Police
+      address:
+        city: Pune
+        state: Maharashtra
+        country: IN
+
+  - kind: customer
+    slug: kolkata-police
+    name: Kolkata Police
+    spec:
+      type: direct
+      status: trial
+      companyName: Kolkata Traffic Police
+      address:
+        city: Kolkata
+        state: West Bengal
+        country: IN
+
+  - kind: customer
+    slug: sydney-police
+    name: NSW Police Force — Sydney
+    spec:
+      type: direct
+      status: trial
+      companyName: New South Wales Police Force
+      website: https://www.police.nsw.gov.au
+      address:
+        city: Sydney
+        state: NSW
+        country: AU
+
+  - kind: customer
+    slug: mumbai-police
+    name: Mumbai Traffic Police
+    spec:
+      type: direct
+      status: trial
+      companyName: Mumbai Traffic Police
+      address:
+        city: Mumbai
+        state: Maharashtra
+        country: IN
+
+  - kind: customer
+    slug: hyderabad-police
+    name: Hyderabad City Police
+    spec:
+      type: direct
+      status: trial
+      companyName: Hyderabad City Traffic Police
+      address:
+        city: Hyderabad
+        state: Telangana
+        country: IN
+
+  # ── Tenants (link customers to sites) ──────────────────────
+  # Each trial customer gets a tenant on the shared SaaS site,
+  # except Sydney which has a dedicated site.
+  - kind: tenant
+    slug: pune-police-tenant
+    name: Pune Police
+    siteSlug: trafficure-prod
+    customerSlug: pune-police
+    spec:
+      isolation: shared
+
+  - kind: tenant
+    slug: kolkata-police-tenant
+    name: Kolkata Police
+    siteSlug: trafficure-prod
+    customerSlug: kolkata-police
+    spec:
+      isolation: shared
+
+  - kind: tenant
+    slug: sydney-police-tenant
+    name: NSW Police — Sydney
+    siteSlug: trafficure-sydney
+    customerSlug: sydney-police
+    spec:
+      isolation: dedicated
+
+  - kind: tenant
+    slug: mumbai-police-tenant
+    name: Mumbai Police
+    siteSlug: trafficure-prod
+    customerSlug: mumbai-police
+    spec:
+      isolation: shared
+
+  - kind: tenant
+    slug: hyderabad-police-tenant
+    name: Hyderabad Police
+    siteSlug: trafficure-prod
+    customerSlug: hyderabad-police
+    spec:
+      isolation: shared
+
+  # ── Subscriptions (all on trial) ──────────────────────────
+  - kind: subscription
+    customerSlug: pune-police
+    planSlug: trafficure-platform
+    spec:
+      status: trialing
+      currentPeriodStart: "2026-03-01T00:00:00Z"
+      currentPeriodEnd: "2026-06-01T00:00:00Z"
+      trialEndsAt: "2026-06-01T00:00:00Z"
+
+  - kind: subscription
+    customerSlug: kolkata-police
+    planSlug: trafficure-platform
+    spec:
+      status: trialing
+      currentPeriodStart: "2026-03-15T00:00:00Z"
+      currentPeriodEnd: "2026-06-15T00:00:00Z"
+      trialEndsAt: "2026-06-15T00:00:00Z"
+
+  - kind: subscription
+    customerSlug: sydney-police
+    planSlug: trafficure-platform
+    spec:
+      status: trialing
+      currentPeriodStart: "2026-02-01T00:00:00Z"
+      currentPeriodEnd: "2026-05-01T00:00:00Z"
+      trialEndsAt: "2026-05-01T00:00:00Z"
+
+  - kind: subscription
+    customerSlug: mumbai-police
+    planSlug: trafficure-platform
+    spec:
+      status: trialing
+      currentPeriodStart: "2026-04-01T00:00:00Z"
+      currentPeriodEnd: "2026-07-01T00:00:00Z"
+      trialEndsAt: "2026-07-01T00:00:00Z"
+
+  - kind: subscription
+    customerSlug: hyderabad-police
+    planSlug: trafficure-platform
+    spec:
+      status: trialing
+      currentPeriodStart: "2026-04-10T00:00:00Z"
+      currentPeriodEnd: "2026-07-10T00:00:00Z"
+      trialEndsAt: "2026-07-10T00:00:00Z"
+
+  # ── Entitlement Bundles ───────────────────────────────────
+  # TODO: uncomment once entitlement-bundle kind is in prod inventory schema
+  # Each trial customer gets a bundle with all capabilities, valid through trial end.
+  # - kind: entitlement-bundle
+  #   customerSlug: pune-police
+  #   spec:
+  #     signedPayload: "trial-bundle-pune"
+  #     signature: "unsigned-trial"
+  #     issuer: factory
+  #     bundleVersion: 1
+  #     expiresAt: "2026-06-01T00:00:00Z"
+  #     capabilities: [trafficure-core, trafficure-web-app, trafficure-mobile-app, trafficure-analytics, trafficure-alerts, trafficure-ai]
+
+  # - kind: entitlement-bundle
+  #   customerSlug: kolkata-police
+  #   spec:
+  #     signedPayload: "trial-bundle-kolkata"
+  #     signature: "unsigned-trial"
+  #     issuer: factory
+  #     bundleVersion: 1
+  #     expiresAt: "2026-06-15T00:00:00Z"
+  #     capabilities: [trafficure-core, trafficure-web-app, trafficure-mobile-app, trafficure-analytics, trafficure-alerts, trafficure-ai]
+
+  # - kind: entitlement-bundle
+  #   customerSlug: sydney-police
+  #   spec:
+  #     signedPayload: "trial-bundle-sydney"
+  #     signature: "unsigned-trial"
+  #     issuer: factory
+  #     bundleVersion: 1
+  #     expiresAt: "2026-05-01T00:00:00Z"
+  #     capabilities: [trafficure-core, trafficure-web-app, trafficure-mobile-app, trafficure-analytics, trafficure-alerts, trafficure-ai]
+
+  # - kind: entitlement-bundle
+  #   customerSlug: mumbai-police
+  #   spec:
+  #     signedPayload: "trial-bundle-mumbai"
+  #     signature: "unsigned-trial"
+  #     issuer: factory
+  #     bundleVersion: 1
+  #     expiresAt: "2026-07-01T00:00:00Z"
+  #     capabilities: [trafficure-core, trafficure-web-app, trafficure-mobile-app, trafficure-analytics, trafficure-alerts, trafficure-ai]
+
+  # - kind: entitlement-bundle
+  #   customerSlug: hyderabad-police
+  #   spec:
+  #     signedPayload: "trial-bundle-hyderabad"
+  #     signature: "unsigned-trial"
+  #     issuer: factory
+  #     bundleVersion: 1
+  #     expiresAt: "2026-07-10T00:00:00Z"
+  #     capabilities: [trafficure-core, trafficure-web-app, trafficure-mobile-app, trafficure-analytics, trafficure-alerts, trafficure-ai]

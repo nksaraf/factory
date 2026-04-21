@@ -222,16 +222,31 @@ export const CreatePlanSchema = z.object({
 export const UpdatePlanSchema = CreatePlanSchema.partial()
 
 export const CreateSubscriptionSchema = z.object({
-  customerId: z.string(),
-  planId: z.string(),
+  customerId: z.string().optional(),
+  planId: z.string().optional(),
   spec: SubscriptionSpecSchema,
 })
 export const UpdateSubscriptionSchema = CreateSubscriptionSchema.partial()
 
+export const CreateSubscriptionItemSchema = z.object({
+  subscriptionId: z.string(),
+  capabilityId: z.string().optional(),
+  spec: SubscriptionItemSpecSchema.default({}),
+})
+export const UpdateSubscriptionItemSchema =
+  CreateSubscriptionItemSchema.partial()
+
+export const CreateEntitlementBundleSchema = z.object({
+  customerId: z.string(),
+  spec: EntitlementBundleSpecSchema,
+})
+export const UpdateEntitlementBundleSchema =
+  CreateEntitlementBundleSchema.partial()
+
 export const CreateBillableMetricSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
-  capabilityId: z.string(),
+  capabilityId: z.string().optional(),
   spec: BillableMetricSpecSchema,
 })
 export const UpdateBillableMetricSchema = CreateBillableMetricSchema.partial()

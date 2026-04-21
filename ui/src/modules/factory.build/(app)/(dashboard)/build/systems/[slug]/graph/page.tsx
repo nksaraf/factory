@@ -12,43 +12,28 @@ import {
   Handle,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import dagre from "@dagrejs/dagre"
 
 import { cn } from "@rio.js/ui/lib/utils"
 import { Icon } from "@rio.js/ui/icon"
 
 import { EmptyState } from "@/components/factory"
 import { useSystemComponents } from "../../../../../../data/use-build"
+import {
+  COMPONENT_KIND_COLOR,
+  COMPONENT_KIND_DOT,
+  COMPONENT_KIND_ICON,
+  inferComponentKind,
+} from "../../../../../../data/component-kind"
 import { SystemLayout } from "../system-layout"
-
-const TYPE_COLOR: Record<string, string> = {
-  service: "border-blue-400 bg-blue-50 dark:bg-blue-950/30",
-  website: "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30",
-  database: "border-amber-400 bg-amber-50 dark:bg-amber-950/30",
-  queue: "border-purple-400 bg-purple-50 dark:bg-purple-950/30",
-  cache: "border-red-400 bg-red-50 dark:bg-red-950/30",
-  worker: "border-cyan-400 bg-cyan-50 dark:bg-cyan-950/30",
-  proxy: "border-zinc-400 bg-zinc-50 dark:bg-zinc-950/30",
-  library: "border-pink-400 bg-pink-50 dark:bg-pink-950/30",
-}
-
-const TYPE_ICON: Record<string, string> = {
-  service: "icon-[ph--gear-duotone]",
-  website: "icon-[ph--globe-duotone]",
-  database: "icon-[ph--database-duotone]",
-  queue: "icon-[ph--queue-duotone]",
-  cache: "icon-[ph--lightning-duotone]",
-  worker: "icon-[ph--robot-duotone]",
-  proxy: "icon-[ph--arrows-split-duotone]",
-  library: "icon-[ph--book-open-duotone]",
-}
 
 function ComponentNode({
   data,
 }: {
   data: { label: string; type: string; ports: any[]; image?: string }
 }) {
-  const color = TYPE_COLOR[data.type] ?? "border-zinc-300 bg-card"
-  const icon = TYPE_ICON[data.type] ?? "icon-[ph--puzzle-piece-duotone]"
+  const color = COMPONENT_KIND_COLOR[data.type] ?? "border-zinc-300 bg-card"
+  const icon = COMPONENT_KIND_ICON[data.type] ?? "icon-[ph--cube-duotone]"
   return (
     <>
       <Handle
@@ -95,78 +80,194 @@ function ComponentNode({
 
 const nodeTypes = { component: ComponentNode }
 
+const NODE_WIDTH = 200
+const NODE_HEIGHT = 80
+
+const LAYER_RANK: Record<string, number> = {
+  website: 0,
+  cli: 0,
+  gateway: 1,
+  proxy: 1,
+  service: 2,
+  worker: 2,
+  agent: 2,
+  task: 2,
+  cronjob: 2,
+  library: 2,
+  database: 3,
+  queue: 3,
+  cache: 3,
+  storage: 3,
+  search: 3,
+}
+
+function typeRank(type: string): number {
+  return LAYER_RANK[type] ?? 2
+}
+
+function inferConnections(c: any, allNames: Set<string>): string[] {
+  const spec = c.spec ?? {}
+  const targets = new Set<string>()
+  const selfName = c.name ?? c.slug
+
+  // 1. Explicit connectsTo
+  if (Array.isArray(spec.connectsTo)) {
+    for (const t of spec.connectsTo) targets.add(t)
+  }
+
+  // 2. depEnv keys — each key is a dependency this component connects to
+  if (spec.depEnv && typeof spec.depEnv === "object") {
+    for (const dep of Object.keys(spec.depEnv)) targets.add(dep)
+  }
+
+  // 3. consumesApis — implies connection to the providing component
+  if (Array.isArray(spec.consumesApis)) {
+    for (const api of spec.consumesApis) targets.add(api)
+  }
+
+  // 4. Gateway targets
+  if (Array.isArray(spec.gatewayTargets)) {
+    for (const gt of spec.gatewayTargets) {
+      if (gt.service) targets.add(gt.service)
+    }
+  }
+
+  // 5. Environment variable scanning — match service names in env values
+  const env: Record<string, string> = spec.environment ?? {}
+  for (const v of Object.values(env)) {
+    if (typeof v !== "string") continue
+    for (const svc of allNames) {
+      if (svc !== selfName && v.includes(svc)) {
+        targets.add(svc)
+      }
+    }
+  }
+
+  targets.delete(selfName)
+  return [...targets]
+}
+
 function buildGraph(components: any[]): { nodes: Node[]; edges: Edge[] } {
+  const allNames = new Set<string>()
   const slugMap = new Map<string, string>()
+  const typeMap = new Map<string, string>()
   for (const c of components) {
-    slugMap.set(c.slug, c.id ?? c.slug)
-    slugMap.set(c.name, c.id ?? c.slug)
-    const shortName = (c.name ?? "").split("-").pop() ?? c.name
-    slugMap.set(shortName, c.id ?? c.slug)
+    const nodeId = c.id ?? c.slug
+    const name = c.name ?? c.slug
+    allNames.add(name)
+    allNames.add(c.slug)
+    slugMap.set(c.slug, nodeId)
+    slugMap.set(name, nodeId)
+    const shortName = name.split("-").pop() ?? name
+    slugMap.set(shortName, nodeId)
+    typeMap.set(nodeId, inferComponentKind(c))
   }
 
   const nodes: Node[] = []
-  const edges: Edge[] = []
-  const cols = Math.max(3, Math.ceil(Math.sqrt(components.length)))
+  const depEdges: Edge[] = []
+  const connectionEdges: Edge[] = []
+  const depPairs = new Set<string>()
+  const connPairs = new Set<string>()
 
-  for (let i = 0; i < components.length; i++) {
-    const c = components[i]
-    const col = i % cols
-    const row = Math.floor(i / cols)
+  for (const c of components) {
     const spec = c.spec ?? {}
+    const nodeId = c.id ?? c.slug
 
     nodes.push({
-      id: c.id ?? c.slug,
+      id: nodeId,
       type: "component",
-      position: { x: col * 240, y: row * 160 },
+      position: { x: 0, y: 0 },
       data: {
         label: c.name ?? c.slug,
-        type: c.type ?? "service",
+        type: inferComponentKind(c),
         ports: Array.isArray(spec.ports) ? spec.ports : [],
         image: spec.image,
       },
     })
 
+    // Dependencies (solid edges, drive layout)
     const deps = Array.isArray(spec.dependsOn) ? spec.dependsOn : []
     for (const dep of deps) {
       const targetId = slugMap.get(dep)
-      if (targetId) {
-        edges.push({
-          id: `${c.id ?? c.slug}->${targetId}`,
-          source: c.id ?? c.slug,
+      if (targetId && targetId !== nodeId) {
+        depPairs.add(`${nodeId}::${targetId}`)
+        depEdges.push({
+          id: `${nodeId}->${targetId}`,
+          source: nodeId,
           target: targetId,
-          type: "smoothstep",
-          animated: true,
+          type: "default",
           style: { stroke: "#6366f1", strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
-          label: "depends",
+          label: "depends on",
           labelStyle: { fontSize: 10, fill: "#6366f1" },
         })
       }
     }
 
-    const connections = Array.isArray(spec.connectsTo) ? spec.connectsTo : []
+    // Connections (dashed edges, inferred from env vars, depEnv, gateway targets, etc.)
+    const connections = inferConnections(c, allNames)
     for (const conn of connections) {
       const targetId = slugMap.get(conn)
-      if (targetId) {
-        edges.push({
-          id: `${c.id ?? c.slug}~>${targetId}`,
-          source: c.id ?? c.slug,
+      const pairKey = `${nodeId}::${targetId}`
+      if (
+        targetId &&
+        targetId !== nodeId &&
+        !depPairs.has(pairKey) &&
+        !connPairs.has(pairKey)
+      ) {
+        connPairs.add(pairKey)
+        connectionEdges.push({
+          id: `${nodeId}~>${targetId}`,
+          source: nodeId,
           target: targetId,
-          type: "smoothstep",
+          type: "default",
           style: {
-            stroke: "#22c55e",
+            stroke: "#a78bfa",
             strokeWidth: 1.5,
-            strokeDasharray: "5 5",
+            strokeDasharray: "6 4",
           },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e" },
-          label: "connects",
-          labelStyle: { fontSize: 10, fill: "#22c55e" },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#a78bfa" },
+          label: "connects to",
+          labelStyle: { fontSize: 10, fill: "#a78bfa" },
         })
       }
     }
   }
 
-  return { nodes, edges }
+  const g = new dagre.graphlib.Graph()
+  g.setDefaultEdgeLabel(() => ({}))
+  g.setGraph({ rankdir: "TB", nodesep: 60, ranksep: 100 })
+
+  for (const node of nodes) {
+    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
+  }
+  for (const edge of depEdges) {
+    g.setEdge(edge.source, edge.target)
+  }
+
+  // Add invisible edges between layer anchors to enforce type-based layering:
+  // apps (website) → proxy → services/workers → resources (db/queue/cache)
+  const layerGroups: Map<number, string[]> = new Map()
+  for (const node of nodes) {
+    const rank = typeRank(typeMap.get(node.id) ?? "service")
+    if (!layerGroups.has(rank)) layerGroups.set(rank, [])
+    layerGroups.get(rank)!.push(node.id)
+  }
+  const sortedLayers = [...layerGroups.keys()].sort((a, b) => a - b)
+  for (let i = 0; i < sortedLayers.length - 1; i++) {
+    const upper = layerGroups.get(sortedLayers[i])!
+    const lower = layerGroups.get(sortedLayers[i + 1])!
+    g.setEdge(upper[0], lower[0], { minlen: 1, weight: 0 })
+  }
+
+  dagre.layout(g)
+
+  for (const node of nodes) {
+    const pos = g.node(node.id)
+    node.position = { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 }
+  }
+
+  return { nodes, edges: [...depEdges, ...connectionEdges] }
 }
 
 export default function SystemGraphTab() {
@@ -195,21 +296,15 @@ export default function SystemGraphTab() {
             nodeTypes={nodeTypes}
             fitView
             fitViewOptions={{ padding: 0.2 }}
-            defaultEdgeOptions={{ type: "smoothstep" }}
+            defaultEdgeOptions={{ type: "default" }}
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={20} size={1} />
             <Controls position="bottom-right" />
             <MiniMap
-              nodeColor={(n) => {
-                const type = n.data?.type as string
-                if (type === "service") return "#60a5fa"
-                if (type === "website") return "#34d399"
-                if (type === "database") return "#fbbf24"
-                if (type === "queue") return "#a78bfa"
-                if (type === "cache") return "#f87171"
-                return "#a1a1aa"
-              }}
+              nodeColor={(n) =>
+                COMPONENT_KIND_DOT[n.data?.type as string] ?? "#a1a1aa"
+              }
               position="bottom-left"
             />
           </ReactFlow>
@@ -218,11 +313,11 @@ export default function SystemGraphTab() {
       {edges.length > 0 && (
         <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
           <span className="flex items-center gap-2">
-            <span className="w-8 h-0.5 bg-indigo-500" /> dependency (solid)
+            <span className="w-8 h-0.5 bg-indigo-500" /> depends on (solid)
           </span>
           <span className="flex items-center gap-2">
-            <span className="w-8 h-0.5 bg-emerald-500 border-dashed border-t-2 border-emerald-500" />{" "}
-            connection (dashed)
+            <span className="w-8 h-0.5 border-dashed border-t-2 border-purple-400" />{" "}
+            connects to (dashed)
           </span>
         </div>
       )}

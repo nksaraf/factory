@@ -461,6 +461,12 @@ export const EntityKindSchema = z.enum([
   "work-item",
   "git-host-provider",
   "work-tracker-provider",
+  "customer",
+  "plan",
+  "subscription",
+  "subscription-item",
+  "entitlement-bundle",
+  "billable-metric",
 ])
 export type EntityKind = z.infer<typeof EntityKindSchema>
 

@@ -32,7 +32,7 @@ entities:
     spec:
       runtime: docker-compose
       trigger: manual
-      hostSlug: prod-trafficure-sydney
+      hostSlug: app-trafficure-prod-sydney
       # Legacy path — compose project "trafficure" at /home/lepton/trafficure.
       # Will normalize to `traffic-platform` on next deploy via x-dx.name.
       workDir: /home/lepton/trafficure
@@ -83,7 +83,7 @@ entities:
     spec:
       runtime: docker-compose
       trigger: manual
-      hostSlug: prod-trafficure-sydney
+      hostSlug: app-trafficure-prod-sydney
       workDir: /home/lepton/trafficure/traffic-airflow
 
   - kind: system-deployment

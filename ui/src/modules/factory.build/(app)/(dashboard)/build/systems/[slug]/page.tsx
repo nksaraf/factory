@@ -2,21 +2,33 @@ import { Link, useParams } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
 
+import { cn } from "@rio.js/ui/lib/utils"
+
 import { MetricCard, StatusBadge } from "@/components/factory"
 import { useSystem, useSystemComponents } from "../../../../../data/use-build"
+import {
+  COMPONENT_KIND_COLOR,
+  COMPONENT_KIND_ICON,
+  inferComponentKind,
+} from "../../../../../data/component-kind"
+import { useTeams } from "../../../../../../factory.org/data/use-org"
 import { SystemLayout } from "./system-layout"
 
 export default function SystemOverview() {
   const { slug } = useParams<{ slug: string }>()
   const { data: system } = useSystem(slug)
   const { data: components } = useSystemComponents(slug)
+  const { data: teams } = useTeams()
 
   if (!system) return null
   const spec = (system.spec ?? {}) as Record<string, unknown>
+  const ownerTeam = teams?.find((t: any) => t.id === system.ownerTeamId)
   const comps = components ?? []
   const types: Record<string, number> = {}
-  for (const c of comps)
-    types[c.type ?? "unknown"] = (types[c.type ?? "unknown"] ?? 0) + 1
+  for (const c of comps) {
+    const kind = inferComponentKind(c)
+    types[kind] = (types[kind] ?? 0) + 1
+  }
 
   return (
     <SystemLayout>
@@ -25,7 +37,7 @@ export default function SystemOverview() {
           <MetricCard label="Components" value={comps.length} plane="build" />
           <MetricCard
             label="Owner Team"
-            value={system.ownerTeamId ?? "\u2014"}
+            value={ownerTeam?.name ?? ownerTeam?.slug ?? "\u2014"}
             plane="build"
           />
           <MetricCard
@@ -57,11 +69,16 @@ export default function SystemOverview() {
               .map(([type, count]) => (
                 <span
                   key={type}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-card text-sm"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-sm",
+                    COMPONENT_KIND_COLOR[type] ?? "border-zinc-300 bg-card"
+                  )}
                 >
                   <Icon
-                    icon="icon-[ph--puzzle-piece-duotone]"
-                    className="text-sm text-muted-foreground"
+                    icon={
+                      COMPONENT_KIND_ICON[type] ?? "icon-[ph--cube-duotone]"
+                    }
+                    className="text-sm text-foreground/70"
                   />
                   <span className="font-medium">{type}</span>
                   <span className="text-muted-foreground font-mono">
@@ -78,12 +95,25 @@ export default function SystemOverview() {
             {comps.slice(0, 12).map((c: any) => (
               <div
                 key={c.id ?? c.slug}
-                className="rounded-lg border bg-card p-3 hover:bg-accent/50 transition-colors"
+                className={cn(
+                  "rounded-lg border-2 p-3 hover:bg-accent/50 transition-colors",
+                  COMPONENT_KIND_COLOR[inferComponentKind(c)] ??
+                    "border-zinc-300 bg-card"
+                )}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-base truncate">
-                    {c.name ?? c.slug}
-                  </span>
+                  <div className="flex items-center gap-2 truncate">
+                    <Icon
+                      icon={
+                        COMPONENT_KIND_ICON[inferComponentKind(c)] ??
+                        "icon-[ph--cube-duotone]"
+                      }
+                      className="text-base text-foreground/70 shrink-0"
+                    />
+                    <span className="font-medium text-base truncate">
+                      {c.name ?? c.slug}
+                    </span>
+                  </div>
                   <StatusBadge
                     status={
                       typeof c.lifecycle === "string" ? c.lifecycle : "unknown"
@@ -91,8 +121,8 @@ export default function SystemOverview() {
                   />
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="px-1.5 py-0.5 rounded bg-muted font-mono">
-                    {c.type ?? "service"}
+                  <span className="px-1.5 py-0.5 rounded bg-background/80 font-mono">
+                    {inferComponentKind(c)}
                   </span>
                   {c.spec?.image && (
                     <span className="truncate">{c.spec.image}</span>

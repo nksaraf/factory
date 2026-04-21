@@ -5,10 +5,13 @@ import { Icon } from "@rio.js/ui/icon"
 
 import { DashboardPage, EmptyState, StatusBadge } from "@/components/factory"
 import { useSystems } from "../../../../data/use-build"
+import { useTeams } from "../../../../../factory.org/data/use-org"
 
 export default function SystemsPage() {
   const { data: systems, isLoading } = useSystems()
+  const { data: teams } = useTeams()
   const [search, setSearch] = useState("")
+  const teamMap = new Map((teams ?? []).map((t: any) => [t.id, t]))
 
   const filtered = (systems ?? []).filter((s: any) => {
     if (!search) return true
@@ -73,7 +76,9 @@ export default function SystemsPage() {
                   icon="icon-[ph--users-duotone]"
                   className="text-sm inline mr-1"
                 />
-                {sys.ownerTeamId}
+                {teamMap.get(sys.ownerTeamId)?.name ??
+                  teamMap.get(sys.ownerTeamId)?.slug ??
+                  sys.ownerTeamId}
               </p>
             )}
           </Link>

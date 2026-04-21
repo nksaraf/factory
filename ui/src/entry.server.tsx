@@ -564,8 +564,12 @@ export default eventHandler((event) => {
           href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <link
+        {/* <link
           href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Quicksand:wght@300..700&display=swap"
+          rel="stylesheet"
+        /> */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800;900&family=Google+Sans:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
         <link

@@ -82,12 +82,14 @@ export class Compose {
     build?: boolean // defaults to true
     noBuild?: boolean
     noDeps?: boolean // pass --no-deps (don't start linked services)
+    wait?: boolean // pass --wait (block until healthy)
     services?: string[]
     profiles?: string[]
   }): void {
     const args = this.baseArgs({ profiles: opts?.profiles })
     args.push("up")
     if (opts?.detach !== false) args.push("-d") // default: detach
+    if (opts?.wait) args.push("--wait")
     if (opts?.noDeps) args.push("--no-deps")
     if (opts?.noBuild) {
       args.push("--no-build")
@@ -117,6 +119,12 @@ export class Compose {
   stop(services: string[]): void {
     const args = this.baseArgs()
     args.push("stop", ...services)
+    spawnSync("docker", args, this.spawnOpts("inherit"))
+  }
+
+  wait(services: string[]): void {
+    const args = this.baseArgs()
+    args.push("wait", ...services)
     spawnSync("docker", args, this.spawnOpts("inherit"))
   }
 

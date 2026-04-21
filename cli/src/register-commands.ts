@@ -43,6 +43,7 @@ import { openCommand } from "./commands/open.js"
 import { opsCommand } from "./commands/ops.js"
 import { orgCommand } from "./commands/org.js"
 import { pkgCommand } from "./commands/pkg.js"
+import { billableMetricCommand } from "./commands/billable-metric.js"
 import { planCommand } from "./commands/plan.js"
 import { previewCommand } from "./commands/preview.js"
 import { psCommand } from "./commands/ps.js"
@@ -60,6 +61,7 @@ import { siteCommand } from "./commands/site.js"
 import { sshCommand } from "./commands/ssh.js"
 import { statusCommand } from "./commands/status.js"
 import { stopCommand } from "./commands/stop.js"
+import { subscriptionCommand } from "./commands/subscription.js"
 import { syncCommand } from "./commands/sync.js"
 import { tenantCommand } from "./commands/tenant.js"
 import { testCommand } from "./commands/test.js"
@@ -158,7 +160,9 @@ export function registerCommands(app: DxBase): DxBase {
       .command(orgCommand(app))
       .command(pkgCommand(app))
       .command(sourceCommand(app))
+      .command(billableMetricCommand(app))
       .command(planCommand(app))
+      .command(subscriptionCommand(app))
       .command(routeCommand(app))
       .command(runCommand(app))
       .command(scriptCommand(app))

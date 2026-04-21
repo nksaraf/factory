@@ -368,6 +368,181 @@ export const Workbench = defineEntity("workbench", {
 })
 
 // ---------------------------------------------------------------------------
+// Commerce namespace
+// ---------------------------------------------------------------------------
+
+export const Customer = defineEntity("customer", {
+  namespace: "commerce",
+  prefix: "cust",
+  description: "A billing customer — company or individual with subscriptions",
+  traits: [Bitemporal],
+  bitemporal: true,
+  metadata: "standard",
+  spec: z.object({
+    type: z.enum(["direct", "reseller", "partner"]),
+    status: z.enum(["trial", "active", "suspended", "terminated"]),
+    billingEmail: z.string().optional(),
+    companyName: z.string().optional(),
+    stripeId: z.string().optional(),
+    website: z.string().optional(),
+    address: z
+      .object({
+        line1: z.string().optional(),
+        line2: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        postalCode: z.string().optional(),
+        country: z.string().optional(),
+      })
+      .optional(),
+  }),
+  links: {
+    subscriptions: link.oneToMany("subscription", {
+      targetFk: "customerId",
+      inverse: "customer",
+    }),
+    entitlementBundles: link.oneToMany("entitlementBundle", {
+      targetFk: "customerId",
+      inverse: "customer",
+    }),
+  },
+})
+
+export const Plan = defineEntity("plan", {
+  namespace: "commerce",
+  prefix: "pln",
+  description:
+    "A billing plan with pricing, interval, and included capabilities",
+  metadata: "standard",
+  spec: z.object({
+    type: z.enum(["base", "add-on", "suite"]),
+    description: z.string().optional(),
+    price: z.number(),
+    billingInterval: z.enum(["monthly", "yearly"]),
+    currency: z.string(),
+    includedCapabilities: z.array(z.string()).optional(),
+    trialDays: z.number().optional(),
+    isPublic: z.boolean().optional(),
+    stripePriceId: z.string().optional(),
+  }),
+  links: {
+    subscriptions: link.oneToMany("subscription", {
+      targetFk: "planId",
+      inverse: "plan",
+    }),
+  },
+})
+
+export const Subscription = defineEntity("subscription", {
+  namespace: "commerce",
+  prefix: "csub",
+  description:
+    "A customer's subscription to a plan with billing period and status",
+  traits: [Bitemporal],
+  bitemporal: true,
+  metadata: "standard",
+  spec: z.object({
+    status: z.enum(["active", "past_due", "cancelled", "trialing", "paused"]),
+    currentPeriodStart: z.string().optional(),
+    currentPeriodEnd: z.string().optional(),
+    cancelAtPeriodEnd: z.boolean().optional(),
+    trialEndsAt: z.string().optional(),
+    stripeSubscriptionId: z.string().optional(),
+    cancelledAt: z.string().optional(),
+    cancelReason: z.string().optional(),
+  }),
+  links: {
+    customer: link.manyToOne("customer", {
+      fk: "customerId",
+      inverse: "subscriptions",
+      required: true,
+    }),
+    plan: link.manyToOne("plan", {
+      fk: "planId",
+      inverse: "subscriptions",
+      required: true,
+    }),
+    items: link.oneToMany("subscriptionItem", {
+      targetFk: "subscriptionId",
+      inverse: "subscription",
+    }),
+  },
+})
+
+export const SubscriptionItem = defineEntity("subscriptionItem", {
+  namespace: "commerce",
+  prefix: "subi",
+  plural: "subscriptionItems",
+  description: "A line item within a subscription tied to a capability",
+  spec: z.object({
+    status: z.enum(["active", "suspended", "revoked"]),
+    quantity: z.number().optional(),
+    usageLimit: z.number().optional(),
+    overagePolicy: z.enum(["block", "charge", "notify"]).optional(),
+    currentUsage: z.number().optional(),
+    lastResetAt: z.string().optional(),
+  }),
+  links: {
+    subscription: link.manyToOne("subscription", {
+      fk: "subscriptionId",
+      inverse: "items",
+      required: true,
+    }),
+    capability: link.manyToOne("capability", {
+      fk: "capabilityId",
+      description: "The software capability this item grants access to",
+    }),
+  },
+})
+
+export const EntitlementBundle = defineEntity("entitlementBundle", {
+  namespace: "commerce",
+  prefix: "bndl",
+  plural: "entitlementBundles",
+  description:
+    "A signed capability bundle issued to a customer from their subscriptions",
+  spec: z.object({
+    signedPayload: z.string(),
+    signature: z.string(),
+    issuer: z.string(),
+    bundleVersion: z.number(),
+    expiresAt: z.string(),
+    capabilities: z.array(z.string()).optional(),
+    maxSites: z.number().optional(),
+  }),
+  links: {
+    customer: link.manyToOne("customer", {
+      fk: "customerId",
+      inverse: "entitlementBundles",
+      required: true,
+    }),
+  },
+})
+
+export const BillableMetric = defineEntity("billableMetric", {
+  namespace: "commerce",
+  prefix: "bmet",
+  plural: "billableMetrics",
+  description: "A usage-based metric tied to a capability for metered billing",
+  spec: z.object({
+    aggregation: z.enum(["sum", "count", "max", "unique", "last"]),
+    eventName: z.string(),
+    property: z.string().optional(),
+    resetInterval: z
+      .enum(["billing_period", "daily", "monthly", "never"])
+      .optional(),
+    unit: z.string().optional(),
+    description: z.string().optional(),
+  }),
+  links: {
+    capability: link.manyToOne("capability", {
+      fk: "capabilityId",
+      description: "The software capability this metric measures usage for",
+    }),
+  },
+})
+
+// ---------------------------------------------------------------------------
 // Compiled ontology
 // ---------------------------------------------------------------------------
 
@@ -384,6 +559,12 @@ export const FactoryOntology = compileOntology(
     SystemDeployment,
     ComponentDeployment,
     Workbench,
+    Customer,
+    Plan,
+    Subscription,
+    SubscriptionItem,
+    EntitlementBundle,
+    BillableMetric,
   ],
   { traits: [Reconcilable, Bitemporal, TeamOwned, Addressable] }
 )

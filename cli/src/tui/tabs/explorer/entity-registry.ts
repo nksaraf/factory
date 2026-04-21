@@ -112,6 +112,16 @@ const commerce: EntityDef[] = [
   { module: "commerce", entity: "customers", label: "Customers" },
   { module: "commerce", entity: "plans", label: "Plans" },
   { module: "commerce", entity: "subscriptions", label: "Subscriptions" },
+  {
+    module: "commerce",
+    entity: "subscription-items",
+    label: "Subscription Items",
+  },
+  {
+    module: "commerce",
+    entity: "entitlement-bundles",
+    label: "Entitlement Bundles",
+  },
   { module: "commerce", entity: "billable-metrics", label: "Billable Metrics" },
 ]
 
@@ -225,6 +235,16 @@ const PREFIX_TO_ENTITY: Record<string, EntityDef> = {
   cust: { module: "commerce", entity: "customers", label: "Customers" },
   pln: { module: "commerce", entity: "plans", label: "Plans" },
   csub: { module: "commerce", entity: "subscriptions", label: "Subscriptions" },
+  subi: {
+    module: "commerce",
+    entity: "subscription-items",
+    label: "Subscription Items",
+  },
+  bndl: {
+    module: "commerce",
+    entity: "entitlement-bundles",
+    label: "Entitlement Bundles",
+  },
   bmet: {
     module: "commerce",
     entity: "billable-metrics",
@@ -262,6 +282,12 @@ const ENTITY_KIND_BY_PATH: Record<string, EntityKind> = {
   "build/work-items": "work-item",
   "build/git-host-providers": "git-host-provider",
   "build/work-tracker-providers": "work-tracker-provider",
+  "commerce/customers": "customer",
+  "commerce/plans": "plan",
+  "commerce/subscriptions": "subscription",
+  "commerce/subscription-items": "subscription-item",
+  "commerce/entitlement-bundles": "entitlement-bundle",
+  "commerce/billable-metrics": "billable-metric",
 }
 
 export function entityToKind(entity: EntityDef): EntityKind | null {

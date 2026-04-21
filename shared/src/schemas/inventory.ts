@@ -67,10 +67,12 @@ import {
 } from "./build"
 
 import {
-  CreateCustomerSchema,
-  CreatePlanSchema,
-  CreateSubscriptionSchema,
   CreateBillableMetricSchema,
+  CreateCustomerSchema,
+  CreateEntitlementBundleSchema,
+  CreatePlanSchema,
+  CreateSubscriptionItemSchema,
+  CreateSubscriptionSchema,
 } from "./commerce"
 
 // ── arm() helper ──────────────────────────────────────────────
@@ -146,6 +148,8 @@ export const InventoryEntitySchema = z.discriminatedUnion("kind", [
   arm("customer", CreateCustomerSchema),
   arm("plan", CreatePlanSchema),
   arm("subscription", CreateSubscriptionSchema),
+  arm("subscription-item", CreateSubscriptionItemSchema),
+  arm("entitlement-bundle", CreateEntitlementBundleSchema),
   arm("billable-metric", CreateBillableMetricSchema),
 ])
 export type InventoryEntity = z.infer<typeof InventoryEntitySchema>

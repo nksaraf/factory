@@ -5,3 +5,4 @@ packages:
   - "./ontology"
   - "./shared"
   - "./ui"
+  - "./packages/npm/*"

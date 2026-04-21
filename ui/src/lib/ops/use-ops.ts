@@ -1,338 +1,161 @@
-/**
- * Dual-mode ops-plane data hooks — PowerSync (realtime) or REST API (polling).
- *
- * Each hook is a thin config passed to useDualListQuery / useDualOneQuery.
- * The helpers handle PowerSync vs REST switching, polling, and transforms.
- */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { opsFetch } from "./api"
 import type {
-  DeploymentTarget,
-  OpsSite,
+  ComponentDeployment,
   Intervention,
-  Release,
-  ReleaseBundle,
+  OpsDatabase,
   Rollout,
-  Sandbox,
-  Workload,
+  Site,
+  SystemDeployment,
+  Workbench,
 } from "./types"
-import {
-  buildQueryString,
-  buildWhere,
-  parseJson,
-  useDualListQuery,
-  useDualOneQuery,
-} from "./use-dual-query"
 
-// ---------------------------------------------------------------------------
-// Row transformers (PowerSync snake_case → domain camelCase)
-// ---------------------------------------------------------------------------
-
-function extractStatus(v: unknown): string {
-  if (typeof v === "string") return v
-  if (typeof v === "object" && v !== null)
-    return ((v as Record<string, unknown>).phase as string) ?? "unknown"
-  return "unknown"
+interface SuccessResponse<T> {
+  success: boolean
+  data: T
 }
 
-function specVal(r: Record<string, unknown>, key: string): unknown {
-  if (r[key] !== undefined) return r[key]
-  const spec = r.spec as Record<string, unknown> | undefined
-  return spec?.[key]
+const POLL_INTERVAL = 60_000
+
+function buildQs(params: Record<string, string | undefined>): string {
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null) qs.set(k, v)
+  }
+  const s = qs.toString()
+  return s ? `?${s}` : ""
 }
 
-const toDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget => ({
-  id: r.id as string,
-  name: r.name as string,
-  slug: r.slug as string,
-  kind: r.kind as string,
-  realm: r.realm as string,
-  hostId: (r.host_id ?? r.hostId ?? null) as string | null,
-  vmId: (r.vm_id ?? r.vmId ?? null) as string | null,
-  siteId: (r.site_id ?? r.siteId ?? null) as string | null,
-  clusterId: (r.cluster_id ?? r.clusterId ?? null) as string | null,
-  namespace: (r.namespace as string) ?? null,
-  createdBy: (r.created_by ?? r.createdBy ?? "") as string,
-  trigger: (r.trigger as string) ?? "",
-  ttl: (r.ttl as string) ?? null,
-  expiresAt: (r.expires_at ?? r.expiresAt ?? null) as string | null,
-  tierPolicies: parseJson(r.tier_policies ?? r.tierPolicies),
-  status: extractStatus(r.status),
-  labels: parseJson(r.labels),
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  destroyedAt: (r.destroyed_at ?? r.destroyedAt ?? null) as string | null,
-})
-
-// REST returns deploymentTargetId as the PK name
-const apiToDeploymentTarget = (r: Record<string, unknown>): DeploymentTarget =>
-  toDeploymentTarget({ ...r, id: r.deploymentTargetId ?? r.id })
-
-const toWorkload = (r: Record<string, unknown>): Workload => ({
-  id: r.id as string,
-  deploymentTargetId: (r.deployment_target_id ??
-    r.deploymentTargetId) as string,
-  moduleVersionId: (r.module_version_id ?? r.moduleVersionId) as string,
-  componentId: (r.component_id ?? r.componentId) as string,
-  artifactId: (r.artifact_id ?? r.artifactId) as string,
-  replicas: (r.replicas as number) ?? 1,
-  envOverrides: parseJson(r.env_overrides ?? r.envOverrides),
-  resourceOverrides: parseJson(r.resource_overrides ?? r.resourceOverrides),
-  status: extractStatus(r.status),
-  desiredImage: (r.desired_image ?? r.desiredImage) as string,
-  desiredArtifactUri: (r.desired_artifact_uri ??
-    r.desiredArtifactUri ??
-    null) as string | null,
-  actualImage: (r.actual_image ?? r.actualImage ?? null) as string | null,
-  driftDetected:
-    r.drift_detected === 1 ||
-    r.driftDetected === true ||
-    r.drift_detected === true,
-  lastReconciledAt: (r.last_reconciled_at ?? r.lastReconciledAt ?? null) as
-    | string
-    | null,
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  updatedAt: (r.updated_at ?? r.updatedAt ?? "") as string,
-})
-
-const apiToWorkload = (r: Record<string, unknown>): Workload =>
-  toWorkload({ ...r, id: r.workloadId ?? r.id })
-
-const toSandbox = (r: Record<string, unknown>): Sandbox => ({
-  id: r.id as string,
-  deploymentTargetId: (r.deployment_target_id ??
-    r.deploymentTargetId) as string,
-  name: r.name as string,
-  slug: r.slug as string,
-  realmType: (r.realm_type ?? r.realmType) as string,
-  vmId: (r.vm_id ?? r.vmId ?? null) as string | null,
-  podName: (r.pod_name ?? r.podName ?? null) as string | null,
-  ownerId: (r.owner_id ?? r.ownerId) as string,
-  ownerType: (r.owner_type ?? r.ownerType) as string,
-  statusMessage: (r.status_message ?? r.statusMessage ?? null) as string | null,
-  cpu: (r.cpu as string) ?? null,
-  memory: (r.memory as string) ?? null,
-  storageGb: (r.storage_gb ?? r.storageGb ?? 10) as number,
-  sshHost: (r.ssh_host ?? r.sshHost ?? null) as string | null,
-  sshPort: (r.ssh_port ?? r.sshPort ?? null) as number | null,
-  webTerminalUrl: (r.web_terminal_url ?? r.webTerminalUrl ?? null) as
-    | string
-    | null,
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  updatedAt: (r.updated_at ?? r.updatedAt ?? "") as string,
-})
-
-const apiToSandbox = (r: Record<string, unknown>): Sandbox =>
-  toSandbox({ ...r, id: r.sandboxId ?? r.id })
-
-const toRelease = (r: Record<string, unknown>): Release => ({
-  id: r.id as string,
-  version: r.version as string,
-  status: extractStatus(r.status),
-  createdBy: (r.created_by ?? r.createdBy) as string,
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-})
-
-const apiToRelease = (r: Record<string, unknown>): Release =>
-  toRelease({ ...r, id: r.releaseId ?? r.id })
-
-const toRollout = (r: Record<string, unknown>): Rollout => ({
-  id: r.id as string,
-  releaseId: (r.release_id ?? r.releaseId) as string,
-  deploymentTargetId: (r.deployment_target_id ??
-    r.deploymentTargetId) as string,
-  status: extractStatus(r.status),
-  startedAt: (r.started_at ?? r.startedAt) as string,
-  completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,
-})
-
-const apiToRollout = (r: Record<string, unknown>): Rollout =>
-  toRollout({ ...r, id: r.rolloutId ?? r.id })
-
-const toSite = (r: Record<string, unknown>): OpsSite => {
-  const status = r.status
-  const statusStr =
-    typeof status === "string"
-      ? status
-      : typeof status === "object" && status !== null
-        ? (((status as Record<string, unknown>).phase as string) ?? "unknown")
-        : "unknown"
+function listHook<T>(
+  entity: string,
+  opts?: Record<string, string | undefined>
+) {
+  const qs = buildQs({ ...opts, limit: "500" })
   return {
-    id: r.id as string,
-    name: r.name as string,
-    slug: r.slug as string,
-    product: (r.product ?? r.type ?? "") as string,
-    clusterId: (r.cluster_id ?? r.clusterId ?? null) as string,
-    status: statusStr,
-    createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-    lastCheckinAt: (r.last_checkin_at ?? r.lastCheckinAt ?? null) as
-      | string
-      | null,
-    currentManifestVersion: (r.current_manifest_version ??
-      r.currentManifestVersion ??
-      null) as number | null,
+    queryKey: ["ops", entity, opts],
+    queryFn: async () => {
+      const res = await opsFetch<SuccessResponse<T[]>>(`/${entity}${qs}`)
+      return res.data
+    },
+    refetchInterval: POLL_INTERVAL,
   }
 }
 
-const apiToSite = (r: Record<string, unknown>): OpsSite =>
-  toSite({ ...r, id: r.siteId ?? r.id })
+function detailHook<T>(entity: string, slugOrId: string | undefined) {
+  return {
+    queryKey: ["ops", entity, slugOrId],
+    queryFn: async () => {
+      const res = await opsFetch<SuccessResponse<T>>(`/${entity}/${slugOrId}`)
+      return res.data
+    },
+    enabled: !!slugOrId,
+    refetchInterval: POLL_INTERVAL,
+  }
+}
 
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
+// ── Sites ──────────────────────────────────────────
 
-export function useDeploymentTargets(opts?: {
-  kind?: string
-  status?: string
+export function useOpsSites(opts?: { type?: string }) {
+  return useQuery<Site[]>(listHook("sites", opts))
+}
+
+export function useOpsSite(slugOrId: string | undefined) {
+  return useQuery<Site | null>(detailHook("sites", slugOrId))
+}
+
+// ── System Deployments ─────────────────────────────
+
+export function useSystemDeployments(opts?: {
+  type?: string
+  siteId?: string
 }) {
-  const where = buildWhere(opts)
-  return useDualListQuery<DeploymentTarget>({
-    queryKey: ["ops", "deployment-targets", opts],
-    sql: `SELECT * FROM deployment_target${where.sql}`,
-    sqlParams: where.params,
-    fetchPath: `/deployment-targets${buildQueryString(opts ?? {})}`,
-    fromRow: toDeploymentTarget,
-    fromApi: apiToDeploymentTarget,
-  })
+  return useQuery<SystemDeployment[]>(listHook("system-deployments", opts))
 }
 
-export function useDeploymentTarget(id: string | undefined) {
-  return useDualOneQuery<DeploymentTarget>({
-    queryKey: ["ops", "deployment-target", id],
-    sql: "SELECT * FROM deployment_target WHERE id = ?",
-    sqlParams: id ? [id] : [],
-    fetchPath: `/deployment-targets/${id}`,
-    fromRow: toDeploymentTarget,
-    fromApi: apiToDeploymentTarget,
-    enabled: !!id,
-    single: true,
-  })
+export function useSystemDeployment(slugOrId: string | undefined) {
+  return useQuery<SystemDeployment | null>(
+    detailHook("system-deployments", slugOrId)
+  )
 }
 
-export function useWorkloads(deploymentTargetId: string | undefined) {
-  return useDualListQuery<Workload>({
-    queryKey: ["ops", "workloads", deploymentTargetId],
-    sql: "SELECT * FROM workload WHERE deployment_target_id = ?",
-    sqlParams: deploymentTargetId ? [deploymentTargetId] : [],
-    fetchPath: `/deployment-targets/${deploymentTargetId}/workloads`,
-    fromRow: toWorkload,
-    fromApi: apiToWorkload,
-    enabled: !!deploymentTargetId,
-  })
-}
+// ── Component Deployments ──────────────────────────
 
-export function useSandboxes() {
-  return useDualListQuery<Sandbox>({
-    queryKey: ["ops", "sandboxes"],
-    sql: "SELECT * FROM sandbox",
-    fetchPath: "/sandboxes",
-    fromRow: toSandbox,
-    fromApi: apiToSandbox,
-  })
-}
-
-export function useReleases() {
-  return useDualListQuery<Release>({
-    queryKey: ["ops", "releases"],
-    sql: "SELECT * FROM release ORDER BY created_at DESC",
-    fetchPath: "/releases",
-    fromRow: toRelease,
-    fromApi: apiToRelease,
-  })
-}
-
-export function useRollouts() {
-  return useDualListQuery<Rollout>({
-    queryKey: ["ops", "rollouts"],
-    sql: "SELECT * FROM rollout ORDER BY started_at DESC",
-    fetchPath: "/rollouts",
-    fromRow: toRollout,
-    fromApi: apiToRollout,
-  })
-}
-
-export function useOpsSites() {
-  return useDualListQuery<OpsSite>({
-    queryKey: ["ops", "sites"],
-    sql: "SELECT * FROM site",
-    fetchPath: "/sites",
-    fromRow: toSite,
-    fromApi: apiToSite,
-  })
-}
-
-export function useOpsSite(slug: string | undefined) {
-  return useDualOneQuery<OpsSite>({
-    queryKey: ["ops", "site", slug],
-    sql: "SELECT * FROM site WHERE slug = ?",
-    sqlParams: slug ? [slug] : [],
-    fetchPath: `/sites/${slug}`,
-    fromRow: toSite,
-    fromApi: apiToSite,
-    enabled: !!slug,
-    single: true,
-  })
-}
-
-// --- Interventions (REST-only, no PowerSync table) ---
-
-const toIntervention = (r: Record<string, unknown>): Intervention => ({
-  id: (r.interventionId ?? r.id) as string,
-  deploymentTargetId: (r.deployment_target_id ??
-    r.deploymentTargetId) as string,
-  workloadId: (r.workload_id ?? r.workloadId ?? null) as string | null,
-  action: r.action as string,
-  principalId: (r.principal_id ?? r.principalId) as string,
-  reason: r.reason as string,
-  details: parseJson(r.details),
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-})
-
-export function useInterventions(deploymentTargetId?: string) {
-  return useDualListQuery<Intervention>({
-    queryKey: ["ops", "interventions", deploymentTargetId],
-    sql: deploymentTargetId
-      ? "SELECT * FROM intervention WHERE deployment_target_id = ? ORDER BY created_at DESC"
-      : "SELECT * FROM intervention ORDER BY created_at DESC",
-    sqlParams: deploymentTargetId ? [deploymentTargetId] : [],
-    fetchPath: deploymentTargetId
-      ? `/deployment-targets/${deploymentTargetId}/interventions`
-      : "/deployment-targets/all/interventions",
-    fromRow: toIntervention,
-    fromApi: toIntervention,
-    enabled: true,
-  })
-}
-
-// --- Release Bundles (REST-only) ---
-
-const toReleaseBundle = (r: Record<string, unknown>): ReleaseBundle => ({
-  id: (r.releaseBundleId ?? r.id) as string,
-  releaseId: (r.release_id ?? r.releaseId) as string,
-  role: r.role as string,
-  arch: r.arch as string,
-  dxVersion: (r.dx_version ?? r.dxVersion) as string,
-  k3sVersion: (r.k3s_version ?? r.k3sVersion) as string,
-  helmChartVersion: (r.helm_chart_version ?? r.helmChartVersion) as string,
-  imageCount: (r.image_count ?? r.imageCount ?? 0) as number,
-  sizeBytes: (r.size_bytes ?? r.sizeBytes ?? null) as string | null,
-  checksumSha256: (r.checksum_sha256 ?? r.checksumSha256 ?? null) as
-    | string
-    | null,
-  storagePath: (r.storage_path ?? r.storagePath ?? null) as string | null,
-  status: extractStatus(r.status),
-  createdBy: (r.created_by ?? r.createdBy) as string,
-  createdAt: (r.created_at ?? r.createdAt ?? "") as string,
-  completedAt: (r.completed_at ?? r.completedAt ?? null) as string | null,
-})
-
-export function useReleaseBundles(opts?: {
-  releaseId?: string
-  status?: string
+export function useComponentDeployments(opts?: {
+  systemDeploymentId?: string
 }) {
-  const qs = buildQueryString(opts ?? {})
-  return useDualListQuery<ReleaseBundle>({
-    queryKey: ["ops", "bundles", opts],
-    sql: "SELECT * FROM release_bundle ORDER BY created_at DESC",
-    fetchPath: `/bundles${qs}`,
-    fromRow: toReleaseBundle,
-    fromApi: toReleaseBundle,
+  return useQuery<ComponentDeployment[]>(
+    listHook("component-deployments", opts)
+  )
+}
+
+export function useComponentDeployment(id: string | undefined) {
+  return useQuery<ComponentDeployment | null>(
+    detailHook("component-deployments", id)
+  )
+}
+
+// ── Workbenches ────────────────────────────────────
+
+export function useWorkbenches(opts?: { type?: string; siteId?: string }) {
+  return useQuery<Workbench[]>(listHook("workbenches", opts))
+}
+
+export function useWorkbench(slugOrId: string | undefined) {
+  return useQuery<Workbench | null>(detailHook("workbenches", slugOrId))
+}
+
+// ── Rollouts ───────────────────────────────────────
+
+export function useRollouts(opts?: { systemDeploymentId?: string }) {
+  return useQuery<Rollout[]>(listHook("rollouts", opts))
+}
+
+export function useRollout(id: string | undefined) {
+  return useQuery<Rollout | null>(detailHook("rollouts", id))
+}
+
+// ── Interventions ──────────────────────────────────
+
+export function useInterventions(opts?: {
+  systemDeploymentId?: string
+  type?: string
+}) {
+  return useQuery<Intervention[]>(listHook("interventions", opts))
+}
+
+export function useIntervention(id: string | undefined) {
+  return useQuery<Intervention | null>(detailHook("interventions", id))
+}
+
+// ── Databases ──────────────────────────────────────
+
+export function useDatabases(opts?: { systemDeploymentId?: string }) {
+  return useQuery<OpsDatabase[]>(listHook("databases", opts))
+}
+
+export function useDatabase(slugOrId: string | undefined) {
+  return useQuery<OpsDatabase | null>(detailHook("databases", slugOrId))
+}
+
+// ── Actions ────────────────────────────────────────
+
+export function useOpsAction(
+  entityPath: string,
+  slugOrId: string,
+  action: string
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body?: Record<string, unknown>) => {
+      const res = await opsFetch<SuccessResponse<unknown>>(
+        `/${entityPath}/${slugOrId}/actions/${action}`,
+        { method: "POST", body: body ? JSON.stringify(body) : undefined }
+      )
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ops", entityPath] })
+    },
   })
 }

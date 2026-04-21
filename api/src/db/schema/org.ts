@@ -1243,3 +1243,33 @@ export const documentVersion = orgSchema.table(
     index("org_docver_source_tool_call_idx").on(t.sourceToolCallId),
   ]
 )
+
+// ─── Idempotency Key (platform infrastructure) ──────────────
+
+export const idempotencyKey = orgSchema.table(
+  "idempotency_key",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("idk")),
+    key: text("key").notNull(),
+    userId: text("user_id").notNull().default("anonymous"),
+    requestMethod: text("request_method").notNull(),
+    requestPath: text("request_path").notNull(),
+    requestBody: jsonb("request_body")
+      .notNull()
+      .default(sql`'{}'`),
+    responseCode: integer("response_code"),
+    responseBody: jsonb("response_body"),
+    lockedAt: timestamp("locked_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("org_idempotency_key_user_key").on(t.userId, t.key),
+    index("org_idempotency_key_expires_idx").on(t.expiresAt),
+  ]
+)

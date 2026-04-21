@@ -46,6 +46,14 @@ export function useThreadPlans(threadId: string | null | undefined) {
   })
 }
 
+export function usePlans(opts?: { limit?: number; offset?: number }) {
+  return useQuery({
+    queryKey: ["plans", opts?.limit ?? 500, opts?.offset ?? 0],
+    queryFn: () => threadsApi.listPlans({ limit: opts?.limit ?? 500 }),
+    refetchInterval: 30_000,
+  })
+}
+
 export function usePlanContent(slug: string | null | undefined) {
   return useQuery({
     queryKey: ["plan-content", slug],

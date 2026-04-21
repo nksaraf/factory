@@ -6,6 +6,11 @@ import { Icon } from "@rio.js/ui/icon"
 
 import { EmptyState, StatusBadge } from "@/components/factory"
 import { useSystemComponents } from "../../../../../../data/use-build"
+import {
+  COMPONENT_KIND_COLOR,
+  COMPONENT_KIND_ICON,
+  inferComponentKind,
+} from "../../../../../../data/component-kind"
 import { SystemLayout } from "../system-layout"
 
 export default function SystemComponentsTab() {
@@ -16,13 +21,15 @@ export default function SystemComponentsTab() {
   const all = components ?? []
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const c of all)
-      counts[c.type ?? "unknown"] = (counts[c.type ?? "unknown"] ?? 0) + 1
+    for (const c of all) {
+      const kind = inferComponentKind(c)
+      counts[kind] = (counts[kind] ?? 0) + 1
+    }
     return counts
   }, [all])
 
   const filtered = typeFilter
-    ? all.filter((c: any) => (c.type ?? "unknown") === typeFilter)
+    ? all.filter((c: any) => inferComponentKind(c) === typeFilter)
     : all
 
   return (
@@ -79,13 +86,20 @@ export default function SystemComponentsTab() {
             return (
               <div
                 key={c.id ?? c.slug}
-                className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors"
+                className={cn(
+                  "rounded-lg border-2 p-4 hover:bg-accent/50 transition-colors",
+                  COMPONENT_KIND_COLOR[inferComponentKind(c)] ??
+                    "border-zinc-300 bg-card"
+                )}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Icon
-                      icon="icon-[ph--puzzle-piece-duotone]"
-                      className="text-base text-muted-foreground"
+                      icon={
+                        COMPONENT_KIND_ICON[inferComponentKind(c)] ??
+                        "icon-[ph--cube-duotone]"
+                      }
+                      className="text-base text-foreground/70"
                     />
                     <span className="font-medium text-base">
                       {c.name ?? c.slug}
@@ -99,8 +113,8 @@ export default function SystemComponentsTab() {
                 </div>
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted font-mono text-muted-foreground">
-                      {c.type ?? "service"}
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-background/80 font-mono text-muted-foreground">
+                      {inferComponentKind(c)}
                     </span>
                     {c.spec?.image && (
                       <span className="text-xs text-muted-foreground truncate max-w-[200px]">

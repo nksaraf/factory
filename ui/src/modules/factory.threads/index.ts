@@ -10,5 +10,8 @@ export const extension = {
     "factory.threads.route.home": lazy(
       () => import("./(app)/(dashboard)/threads/page")
     ),
+    "factory.threads.route.plans": lazy(
+      () => import("./(app)/(dashboard)/plans/page")
+    ),
   },
 } satisfies ExtensionManifest

@@ -1,12 +1,12 @@
 {
   "id": "factory.ops",
   "displayName": "Factory Ops",
-  "description": "Sites, deployments, releases, rollouts, and incidents",
-  "version": "0.0.1",
+  "description": "Sites, system deployments, workbenches, rollouts, interventions, and databases",
+  "version": "0.0.2",
   "publisher": "factory",
   "engines": { "rio": ">=0.0.1" },
   "category": "platform",
-  "tags": ["ops", "deployments", "releases"],
+  "tags": ["ops", "deployments", "sites", "workbenches"],
   "categories": ["operations"],
   "main": "extension.ts",
   "module": {
@@ -56,19 +56,34 @@
         "path": "/(root)/(app)/ops/sites/:slug/deployments/"
       },
       {
-        "id": "factory.ops.route.targets",
-        "displayName": "Deployment Targets",
-        "path": "/(root)/(app)/ops/targets/"
+        "id": "factory.ops.route.system-deployments",
+        "displayName": "System Deployments",
+        "path": "/(root)/(app)/ops/system-deployments/"
       },
       {
-        "id": "factory.ops.route.target-detail",
-        "displayName": "Target Detail",
-        "path": "/(root)/(app)/ops/targets/:slug/"
+        "id": "factory.ops.route.system-deployment-detail",
+        "displayName": "System Deployment Detail",
+        "path": "/(root)/(app)/ops/system-deployments/:slug/"
       },
       {
-        "id": "factory.ops.route.releases",
-        "displayName": "Releases",
-        "path": "/(root)/(app)/ops/releases/"
+        "id": "factory.ops.route.component-deployments",
+        "displayName": "Component Deployments",
+        "path": "/(root)/(app)/ops/component-deployments/"
+      },
+      {
+        "id": "factory.ops.route.component-deployment-detail",
+        "displayName": "Component Deployment Detail",
+        "path": "/(root)/(app)/ops/component-deployments/:id/"
+      },
+      {
+        "id": "factory.ops.route.workbenches",
+        "displayName": "Workbenches",
+        "path": "/(root)/(app)/ops/workbenches/"
+      },
+      {
+        "id": "factory.ops.route.workbench-detail",
+        "displayName": "Workbench Detail",
+        "path": "/(root)/(app)/ops/workbenches/:slug/"
       },
       {
         "id": "factory.ops.route.rollouts",
@@ -76,39 +91,29 @@
         "path": "/(root)/(app)/ops/rollouts/"
       },
       {
-        "id": "factory.ops.route.incidents",
-        "displayName": "Incidents",
-        "path": "/(root)/(app)/ops/incidents/"
-      },
-      {
-        "id": "factory.ops.route.sandboxes",
-        "displayName": "Sandboxes",
-        "path": "/(root)/(app)/ops/sandboxes/"
-      },
-      {
-        "id": "factory.ops.route.routes",
-        "displayName": "Routes & Domains",
-        "path": "/(root)/(app)/ops/routes/"
-      },
-      {
-        "id": "factory.ops.route.workloads",
-        "displayName": "Workload Inspector",
-        "path": "/(root)/(app)/ops/workloads/:id/"
-      },
-      {
-        "id": "factory.ops.route.drift",
-        "displayName": "Drift Report",
-        "path": "/(root)/(app)/ops/drift/"
+        "id": "factory.ops.route.rollout-detail",
+        "displayName": "Rollout Detail",
+        "path": "/(root)/(app)/ops/rollouts/:id/"
       },
       {
         "id": "factory.ops.route.interventions",
-        "displayName": "Intervention Log",
+        "displayName": "Interventions",
         "path": "/(root)/(app)/ops/interventions/"
       },
       {
-        "id": "factory.ops.route.bundles",
-        "displayName": "Release Bundles",
-        "path": "/(root)/(app)/ops/bundles/"
+        "id": "factory.ops.route.intervention-detail",
+        "displayName": "Intervention Detail",
+        "path": "/(root)/(app)/ops/interventions/:id/"
+      },
+      {
+        "id": "factory.ops.route.databases",
+        "displayName": "Databases",
+        "path": "/(root)/(app)/ops/databases/"
+      },
+      {
+        "id": "factory.ops.route.database-detail",
+        "displayName": "Database Detail",
+        "path": "/(root)/(app)/ops/databases/:slug/"
       }
     ],
     "sidebarGroups": [
@@ -130,20 +135,28 @@
         "order": 1
       },
       {
-        "id": "factory.ops.sidebar.targets",
-        "displayName": "Targets",
-        "icon": "icon-[ph--crosshair-duotone]",
-        "href": "/ops/targets",
+        "id": "factory.ops.sidebar.system-deployments",
+        "displayName": "System Deployments",
+        "icon": "icon-[ph--rocket-launch-duotone]",
+        "href": "/ops/system-deployments",
         "group": "factory.ops.sidebar.group",
         "order": 2
       },
       {
-        "id": "factory.ops.sidebar.releases",
-        "displayName": "Releases",
-        "icon": "icon-[ph--package-duotone]",
-        "href": "/ops/releases",
+        "id": "factory.ops.sidebar.component-deployments",
+        "displayName": "Component Deployments",
+        "icon": "icon-[ph--puzzle-piece-duotone]",
+        "href": "/ops/component-deployments",
         "group": "factory.ops.sidebar.group",
         "order": 3
+      },
+      {
+        "id": "factory.ops.sidebar.workbenches",
+        "displayName": "Workbenches",
+        "icon": "icon-[ph--terminal-window-duotone]",
+        "href": "/ops/workbenches",
+        "group": "factory.ops.sidebar.group",
+        "order": 4
       },
       {
         "id": "factory.ops.sidebar.rollouts",
@@ -151,29 +164,21 @@
         "icon": "icon-[ph--arrow-circle-up-duotone]",
         "href": "/ops/rollouts",
         "group": "factory.ops.sidebar.group",
-        "order": 4
-      },
-      {
-        "id": "factory.ops.sidebar.incidents",
-        "displayName": "Incidents",
-        "icon": "icon-[ph--warning-diamond-duotone]",
-        "href": "/ops/incidents",
-        "group": "factory.ops.sidebar.group",
         "order": 5
       },
       {
-        "id": "factory.ops.sidebar.sandboxes",
-        "displayName": "Sandboxes",
-        "icon": "icon-[ph--terminal-window-duotone]",
-        "href": "/ops/sandboxes",
+        "id": "factory.ops.sidebar.interventions",
+        "displayName": "Interventions",
+        "icon": "icon-[ph--hand-duotone]",
+        "href": "/ops/interventions",
         "group": "factory.ops.sidebar.group",
         "order": 6
       },
       {
-        "id": "factory.ops.sidebar.drift",
-        "displayName": "Drift Report",
-        "icon": "icon-[ph--git-diff-duotone]",
-        "href": "/ops/drift",
+        "id": "factory.ops.sidebar.databases",
+        "displayName": "Databases",
+        "icon": "icon-[ph--database-duotone]",
+        "href": "/ops/databases",
         "group": "factory.ops.sidebar.group",
         "order": 7
       }

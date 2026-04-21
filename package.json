@@ -53,7 +53,7 @@
       "@types/node": "25.0.9",
       "@aws-sdk/credential-provider-web-identity": "3.972.18",
       "ioredis": "5.10.1",
-      "@rio.js/app-ui": "0.0.30",
+      "@rio.js/app-ui": "workspace:*",
       "drizzle-orm": "0.45.2",
       "@electric-sql/pglite": "0.3.16",
       "@types/pg": "8.20.0",

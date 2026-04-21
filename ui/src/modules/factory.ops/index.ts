@@ -28,38 +28,41 @@ export const extension = {
     "factory.ops.route.site-deployments": lazy(
       () => import("./(app)/(dashboard)/ops/sites/[slug]/deployments/page")
     ),
-    "factory.ops.route.targets": lazy(
-      () => import("./(app)/(dashboard)/ops/targets/page")
+    "factory.ops.route.system-deployments": lazy(
+      () => import("./(app)/(dashboard)/ops/system-deployments/page")
     ),
-    "factory.ops.route.target-detail": lazy(
-      () => import("./(app)/(dashboard)/ops/targets/[slug]/page")
+    "factory.ops.route.system-deployment-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/system-deployments/[slug]/page")
     ),
-    "factory.ops.route.releases": lazy(
-      () => import("./(app)/(dashboard)/ops/releases/page")
+    "factory.ops.route.component-deployments": lazy(
+      () => import("./(app)/(dashboard)/ops/component-deployments/page")
+    ),
+    "factory.ops.route.component-deployment-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/component-deployments/[id]/page")
+    ),
+    "factory.ops.route.workbenches": lazy(
+      () => import("./(app)/(dashboard)/ops/workbenches/page")
+    ),
+    "factory.ops.route.workbench-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/workbenches/[slug]/page")
     ),
     "factory.ops.route.rollouts": lazy(
       () => import("./(app)/(dashboard)/ops/rollouts/page")
     ),
-    "factory.ops.route.incidents": lazy(
-      () => import("./(app)/(dashboard)/ops/incidents/page")
-    ),
-    "factory.ops.route.sandboxes": lazy(
-      () => import("./(app)/(dashboard)/ops/sandboxes/page")
-    ),
-    "factory.ops.route.routes": lazy(
-      () => import("./(app)/(dashboard)/ops/routes/page")
-    ),
-    "factory.ops.route.workloads": lazy(
-      () => import("./(app)/(dashboard)/ops/workloads/[id]/page")
-    ),
-    "factory.ops.route.drift": lazy(
-      () => import("./(app)/(dashboard)/ops/drift/page")
+    "factory.ops.route.rollout-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/rollouts/[id]/page")
     ),
     "factory.ops.route.interventions": lazy(
       () => import("./(app)/(dashboard)/ops/interventions/page")
     ),
-    "factory.ops.route.bundles": lazy(
-      () => import("./(app)/(dashboard)/ops/bundles/page")
+    "factory.ops.route.intervention-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/interventions/[id]/page")
+    ),
+    "factory.ops.route.databases": lazy(
+      () => import("./(app)/(dashboard)/ops/databases/page")
+    ),
+    "factory.ops.route.database-detail": lazy(
+      () => import("./(app)/(dashboard)/ops/databases/[slug]/page")
     ),
   },
 } satisfies ExtensionManifest

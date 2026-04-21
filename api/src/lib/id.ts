@@ -114,6 +114,7 @@ export type EntityPrefix =
   | "subi" // subscription_item
   | "bmet" // billable_metric
   | "csub" // subscription
+  | "idk" // idempotency_key
   // software (continued)
   | "erel" // entity_relationship
   // workflow

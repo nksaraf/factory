@@ -1,10 +1,12 @@
-import { getFactoryClient } from "../client.js"
+import { getFactoryClient, getFactoryRestClient } from "../client.js"
 import {
+  actionResult,
   apiCall,
   colorStatus,
   detailView,
   styleBold,
   styleMuted,
+  styleSuccess,
   tableOrJson,
   timeAgo,
 } from "../commands/list-helpers.js"
@@ -44,4 +46,32 @@ export async function runCustomerShow(
     ["Status", (r) => colorStatus(String(r.status ?? ""))],
     ["Created", (r) => timeAgo(String(r.createdAt ?? ""))],
   ])
+}
+
+export async function runCustomerCreate(
+  flags: DxFlags,
+  opts: { slug: string; name: string; type?: string; billingEmail?: string }
+): Promise<void> {
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.customers.post({
+      slug: opts.slug,
+      name: opts.name,
+      spec: { type: opts.type ?? "direct", billingEmail: opts.billingEmail },
+    })
+  )
+  actionResult(flags, data, styleSuccess(`Customer "${opts.slug}" created.`))
+}
+
+export async function runCustomerAction(
+  flags: DxFlags,
+  slug: string,
+  action: string
+): Promise<void> {
+  const rest = await getFactoryRestClient()
+  const data = await apiCall(flags, async () => {
+    const res = await rest.entityAction("commerce", "customers", slug, action)
+    return { data: res.data, error: undefined }
+  })
+  actionResult(flags, data, styleSuccess(`Customer "${slug}" ${action}d.`))
 }

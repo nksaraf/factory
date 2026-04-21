@@ -1,36 +1,108 @@
-import { styleSuccess, styleMuted } from "../cli-style.js"
 import { getFactoryClient } from "../client.js"
-import { exitWithError } from "../lib/cli-exit.js"
+import {
+  actionResult,
+  apiCall,
+  detailView,
+  styleBold,
+  styleMuted,
+  styleSuccess,
+  tableOrJson,
+  timeAgo,
+} from "../commands/list-helpers.js"
 import type { DxFlags } from "../stub.js"
 
 export async function runPlanList(flags: DxFlags): Promise<void> {
-  try {
-    const api = await getFactoryClient()
-    const res = await api.api.v1.factory.commerce.plans.get()
-    if (flags.json) {
-      console.log(JSON.stringify(res.data, null, 2))
-      return
-    }
-    const resRaw = res.data
-    const resData = (
-      resRaw && typeof resRaw === "object" ? resRaw : undefined
-    ) as Record<string, unknown> | undefined
-    const plansRaw = resData && "data" in resData ? resData.data : resData
-    const plans = (Array.isArray(plansRaw) ? plansRaw : undefined) as
-      | Array<{ planId: string; name: string; includedModules: string[] }>
-      | undefined
-    if (!plans?.length) {
-      console.log(styleMuted("No plans found."))
-      return
-    }
-    for (const p of plans) {
-      console.log(
-        styleSuccess(
-          `${p.planId}  ${p.name}  modules=${(p.includedModules ?? []).join(",")}`
-        )
-      )
-    }
-  } catch (err) {
-    exitWithError(flags, err instanceof Error ? err.message : String(err))
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.plans.get()
+  )
+  tableOrJson(
+    flags,
+    data,
+    ["SLUG", "NAME", "TYPE", "PRICE", "INTERVAL"],
+    (p) => {
+      const spec = (p.spec ?? {}) as Record<string, unknown>
+      return [
+        String(p.slug ?? "-"),
+        String(p.name ?? ""),
+        String(spec.type ?? p.type ?? "-"),
+        String(spec.price ?? "-"),
+        String(spec.billingInterval ?? "monthly"),
+      ]
+    },
+    undefined,
+    { emptyMessage: "No plans found." }
+  )
+}
+
+export async function runPlanShow(flags: DxFlags, slug: string): Promise<void> {
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.plans({ slugOrId: slug }).get()
+  )
+  detailView(flags, data, [
+    ["Name", (r) => styleBold(String(r.name ?? ""))],
+    ["Slug", (r) => String(r.slug ?? "-")],
+    [
+      "Type",
+      (r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return String(spec.type ?? r.type ?? "-")
+      },
+    ],
+    [
+      "Price",
+      (r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return String(spec.price ?? "-")
+      },
+    ],
+    [
+      "Interval",
+      (r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return String(spec.billingInterval ?? "monthly")
+      },
+    ],
+    [
+      "Trial Days",
+      (r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return String(spec.trialDays ?? "0")
+      },
+    ],
+    [
+      "Public",
+      (r) => {
+        const spec = (r.spec ?? {}) as Record<string, unknown>
+        return String(spec.isPublic ?? false)
+      },
+    ],
+    ["Created", (r) => timeAgo(String(r.createdAt ?? ""))],
+  ])
+}
+
+export async function runPlanCreate(
+  flags: DxFlags,
+  opts: {
+    slug: string
+    name: string
+    type: string
+    price: number
+    billingInterval?: string
   }
+): Promise<void> {
+  const api = await getFactoryClient()
+  const data = await apiCall(flags, () =>
+    api.api.v1.factory.commerce.plans.post({
+      slug: opts.slug,
+      name: opts.name,
+      type: opts.type,
+      spec: {
+        price: opts.price,
+        billingInterval: opts.billingInterval ?? "monthly",
+      },
+    })
+  )
+  actionResult(flags, data, styleSuccess(`Plan "${opts.slug}" created.`))
 }

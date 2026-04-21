@@ -165,6 +165,7 @@ export function devCommand(app: DxBase) {
           connectTo: flags["connect-to"] as string | undefined,
           connectProfile: flags.profile as string | undefined,
           connectSpecific: connectFlagForSession,
+          skipInfra: true,
           quiet: Boolean(f.quiet),
         })
 

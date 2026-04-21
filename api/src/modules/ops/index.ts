@@ -77,6 +77,7 @@ import {
   workbench,
   workbenchSnapshot,
 } from "../../db/schema/ops"
+import { customer } from "../../db/schema/commerce"
 import { principal } from "../../db/schema/org"
 import { ontologyRoutes } from "../../lib/crud"
 import { newId } from "../../lib/id"
@@ -188,6 +189,20 @@ export function opsController(db: Database) {
           idColumn: tenant.id,
           prefix: "tnt",
           kindAlias: "tenant",
+          slugRefs: {
+            siteSlug: {
+              fk: "siteId",
+              lookupTable: site,
+              lookupSlugCol: site.slug,
+              lookupIdCol: site.id,
+            },
+            customerSlug: {
+              fk: "customerId",
+              lookupTable: customer,
+              lookupSlugCol: customer.slug,
+              lookupIdCol: customer.id,
+            },
+          },
           createSchema: CreateTenantSchema,
           updateSchema: UpdateTenantSchema,
           deletable: "bitemporal",
@@ -965,6 +980,20 @@ export const opsOntologyConfigs: Pick<
     idColumn: tenant.id,
     prefix: "tnt",
     kindAlias: "tenant",
+    slugRefs: {
+      siteSlug: {
+        fk: "siteId",
+        lookupTable: site,
+        lookupSlugCol: site.slug,
+        lookupIdCol: site.id,
+      },
+      customerSlug: {
+        fk: "customerId",
+        lookupTable: customer,
+        lookupSlugCol: customer.slug,
+        lookupIdCol: customer.id,
+      },
+    },
   },
   {
     entity: "system-deployments",

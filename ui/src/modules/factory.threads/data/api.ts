@@ -77,6 +77,24 @@ export const threadsApi = {
   threadPlans: (id: string) =>
     threadsFetch<ThreadPlan[]>(`/threads/${encodeURIComponent(id)}/plans`),
 
+  listPlans: async (opts?: { limit?: number; offset?: number }) => {
+    const base =
+      rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"
+    const token = getAuthToken()
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (token) headers["Authorization"] = `Bearer ${token}`
+    const params = new URLSearchParams()
+    if (opts?.limit) params.set("limit", String(opts.limit))
+    if (opts?.offset) params.set("offset", String(opts.offset))
+    const qs = params.toString()
+    const res = await fetch(`${base}/plans${qs ? `?${qs}` : ""}`, { headers })
+    if (!res.ok) throw new Error(`Failed to load plans: ${res.status}`)
+    const body = await res.json()
+    return (body.plans ?? []) as ThreadPlan[]
+  },
+
   planContent: async (slug: string) => {
     const base =
       rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"

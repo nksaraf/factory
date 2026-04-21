@@ -790,8 +790,8 @@ export const UpdateSiteSchema = CreateSiteSchema.partial()
 export const CreateTenantSchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
-  siteId: z.string(),
-  customerId: z.string(),
+  siteId: z.string().optional(),
+  customerId: z.string().optional(),
   spec: TenantSpecSchema.default({}),
 })
 export const UpdateTenantSchema = CreateTenantSchema.partial()

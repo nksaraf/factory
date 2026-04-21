@@ -23,6 +23,11 @@
         "id": "factory.threads.route.home",
         "displayName": "Threads",
         "path": "/(root)/(app)/threads/"
+      },
+      {
+        "id": "factory.threads.route.plans",
+        "displayName": "Plans",
+        "path": "/(root)/(app)/plans/"
       }
     ],
     "sidebarGroups": [
@@ -42,6 +47,14 @@
         "href": "/threads",
         "group": "factory.threads.sidebar.group",
         "order": 1
+      },
+      {
+        "id": "factory.threads.sidebar.plans",
+        "displayName": "Plans",
+        "icon": "icon-[ph--scroll-duotone]",
+        "href": "/plans",
+        "group": "factory.threads.sidebar.group",
+        "order": 2
       }
     ],
     "layouts": [],

@@ -1,10 +1,10 @@
-import { useOpsSite } from "@/lib/ops"
 import { Link, Outlet, useLocation, useParams } from "react-router"
 
-import { Icon } from "@rio.js/ui/icon"
 import { cn } from "@rio.js/ui/lib/utils"
+import { Icon } from "@rio.js/ui/icon"
 
-import { EmptyState, PageHeader, StatusBadge } from "@/components/factory"
+import { EmptyState, PlaneHeader, StatusBadge } from "@/components/factory"
+import { useOpsSite } from "@/lib/ops"
 
 const TABS = [
   { path: "", label: "Overview", icon: "icon-[ph--squares-four-duotone]" },
@@ -42,8 +42,8 @@ export default function SiteDetailLayout() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 pb-0 space-y-4 shrink-0">
-        <PageHeader
-          pageGroup="ops"
+        <PlaneHeader
+          plane="ops"
           title={site.name}
           description={`${site.type} site`}
           actions={<StatusBadge status={phase} />}

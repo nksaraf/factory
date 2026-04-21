@@ -451,7 +451,11 @@
   /* Base spacing unit — all component spacing is relative to this */
   --spacing-unit: 0.25rem;
 
-  --font-sans: "Quicksand", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* --font-sans: "Quicksand", ui-sans-serif, system-ui, -apple-system, sans-serif; */
+  --font-sans:
+    "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading:
+    "Google Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
 }
 

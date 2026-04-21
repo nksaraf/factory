@@ -1,2 +1,7 @@
 export * from "./ids.js"
 export * from "./errors.js"
+export * from "./config-store.js"
+export * from "./event-journal.js"
+export * from "./health-probe.js"
+export * from "./port-registry.js"
+export * from "./process-manager.js"

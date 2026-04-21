@@ -1,108 +1,105 @@
-import { useDeploymentTargets, useReleases, useRollouts } from "@/lib/ops"
+import { Link } from "react-router"
 
-import {
-  EmptyState,
-  PlaneHeader,
-  StatusBadge,
-  TimelineView,
-} from "@/components/factory"
+import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
+import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
+import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
+import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
+import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
+import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
+import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
-export default function RolloutsPage() {
-  const { data: rollouts, isLoading } = useRollouts()
-  const { data: releases } = useReleases()
-  const { data: targets } = useDeploymentTargets()
+import { DashboardPage, StatusBadge } from "@/components/factory"
+import { opsFetch } from "@/lib/ops"
+import type { Rollout } from "@/lib/ops/types"
 
-  const releaseMap = Object.fromEntries((releases ?? []).map((r) => [r.id, r]))
-  const targetMap = Object.fromEntries((targets ?? []).map((t) => [t.id, t]))
+const STATUS_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "succeeded", label: "Succeeded" },
+  { value: "failed", label: "Failed" },
+  { value: "rolled_back", label: "Rolled Back" },
+]
 
-  const active = (rollouts ?? []).filter(
-    (r) => r.status === "pending" || r.status === "in_progress"
+const getItems = async (filters: Record<string, any>) => {
+  const res = await opsFetch<{ success: boolean; data: Rollout[] }>(
+    "/rollouts?limit=500"
   )
-  const completed = (rollouts ?? []).filter(
-    (r) => r.status !== "pending" && r.status !== "in_progress"
-  )
+  let items = res.data
+  if (filters.status && filters.status !== "all") {
+    items = items.filter((r) => (r.spec?.status as string) === filters.status)
+  }
+  return items
+}
 
-  const toTimelineEntries = (items: typeof active) =>
-    items.map((r) => ({
-      id: r.id,
-      label: `${releaseMap[r.releaseId]?.version ?? r.releaseId} → ${targetMap[r.deploymentTargetId]?.name ?? r.deploymentTargetId}`,
-      timestamp: new Date(r.startedAt).toLocaleString(),
-      status:
-        r.status === "succeeded"
-          ? ("complete" as const)
-          : r.status === "in_progress"
-            ? ("active" as const)
-            : r.status === "failed" || r.status === "rolled_back"
-              ? ("error" as const)
-              : ("pending" as const),
-    }))
+const ListHeader = (
+  <TableRow>
+    <TableHead>ID</TableHead>
+    <TableHead>Strategy</TableHead>
+    <TableHead>Progress</TableHead>
+    <TableHead>Created</TableHead>
+    <TableHead>Status</TableHead>
+  </TableRow>
+)
+
+function RolloutRow({ item }: { item: Rollout }) {
+  const status = (item.spec?.status as string) ?? "unknown"
+  const strategy = (item.spec?.strategy as string) ?? "—"
+  const progress = (item.spec?.progress as number) ?? 0
 
   return (
-    <div className="space-y-6 p-6">
-      <PlaneHeader
-        plane="ops"
-        title="Rollout Tracker"
-        description="Active and recent deployment rollouts"
-      />
+    <TableRow>
+      <TableCell className="font-medium">
+        <Link
+          to={`/ops/rollouts/${item.id}`}
+          className="hover:text-primary hover:underline font-mono text-sm"
+        >
+          {item.id.slice(0, 12)}...
+        </Link>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{strategy}</TableCell>
+      <TableCell className="text-muted-foreground">{progress}%</TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Date(item.createdAt).toLocaleDateString()}
+      </TableCell>
+      <TableCell>
+        <StatusBadge status={status} />
+      </TableCell>
+    </TableRow>
+  )
+}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
-
-      {active.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold">Active Rollouts</h2>
-          <TimelineView entries={toTimelineEntries(active)} />
-        </div>
-      )}
-
-      {completed.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold">History</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="pb-2 pr-4">Release</th>
-                  <th className="pb-2 pr-4">Target</th>
-                  <th className="pb-2 pr-4">Status</th>
-                  <th className="pb-2 pr-4">Started</th>
-                  <th className="pb-2 pr-4">Completed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completed.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0">
-                    <td className="py-2 pr-4 font-mono">
-                      {releaseMap[r.releaseId]?.version ?? r.releaseId}
-                    </td>
-                    <td className="py-2 pr-4">
-                      {targetMap[r.deploymentTargetId]?.name ??
-                        r.deploymentTargetId}
-                    </td>
-                    <td className="py-2 pr-4">
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td className="py-2 pr-4 text-muted-foreground">
-                      {new Date(r.startedAt).toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-4 text-muted-foreground">
-                      {r.completedAt
-                        ? new Date(r.completedAt).toLocaleString()
-                        : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {!isLoading && (rollouts ?? []).length === 0 && (
-        <EmptyState
-          icon="icon-[ph--arrow-circle-up-duotone]"
-          title="No rollouts yet"
-        />
-      )}
-    </div>
+export default function RolloutsPage() {
+  return (
+    <DashboardPage
+      plane="ops"
+      title="Rollouts"
+      description="Progressive deployment rollouts across system deployments"
+    >
+      <ItemsProvider
+        getItems={getItems}
+        itemType="rollout"
+        initialViewMode="list"
+      >
+        <ItemsPage>
+          <ItemsView>
+            <ItemsToolbar>
+              <ItemsSelectFilter
+                name="status"
+                label="Status"
+                options={STATUS_OPTIONS}
+              />
+            </ItemsToolbar>
+            <ItemsContent>
+              <ItemsListView
+                ListHeader={ListHeader}
+                itemComponent={RolloutRow}
+              />
+            </ItemsContent>
+          </ItemsView>
+        </ItemsPage>
+      </ItemsProvider>
+    </DashboardPage>
   )
 }

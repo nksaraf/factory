@@ -6,6 +6,7 @@ import { EmptyState, StatusBadge } from "@/components/factory"
 import { useOpsSite, useSystemDeployments } from "@/lib/ops"
 import type { SystemDeployment } from "@/lib/ops/types"
 import { SYSTEM_DEPLOYMENT_TYPE_ICONS } from "../../../../../../components/type-icons"
+import { SiteLayout } from "../site-layout"
 
 export default function SiteSystemsTab() {
   const { slug } = useParams<{ slug: string }>()
@@ -30,11 +31,13 @@ export default function SiteSystemsTab() {
 
   if (siteDeployments.length === 0) {
     return (
-      <EmptyState
-        icon="icon-[ph--stack-duotone]"
-        title="No system deployments"
-        description="This site has no system deployments yet."
-      />
+      <SiteLayout>
+        <EmptyState
+          icon="icon-[ph--stack-duotone]"
+          title="No system deployments"
+          description="This site has no system deployments yet."
+        />
+      </SiteLayout>
     )
   }
 

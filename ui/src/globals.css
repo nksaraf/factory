@@ -162,7 +162,8 @@
     --sidebar-accent-foreground: 0 0% 20.3922%;
     --sidebar-border: 0 0% 92.1569%;
     --sidebar-ring: 0 0% 70.9804%;
-    --font-sans: Quicksand, sans-serif;
+    --font-sans: "Hanken Grotesk", sans-serif;
+    --font-heading: "Google Sans", sans-serif;
     --font-serif: Georgia, serif;
     --font-mono: monospace;
     --radius: 0.5rem;
@@ -255,7 +256,8 @@
     --sidebar-accent-foreground: 216.9231 9.7744% 73.9216%;
     --sidebar-border: 0 0% 92.1569%;
     --sidebar-ring: 0 0% 70.9804%;
-    --font-sans: Quicksand, sans-serif;
+    --font-sans: "Hanken Grotesk", sans-serif;
+    --font-heading: "Google Sans", sans-serif;
     --font-serif: Georgia, serif;
     --font-mono: monospace;
     --radius: 0.5rem;
@@ -330,6 +332,15 @@ form {
 @layer base {
   * {
     @apply border-border;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
   }
 
   body {

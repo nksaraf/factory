@@ -8,6 +8,8 @@
     "./*": "./src/*.ts",
     "./effect": "./src/effect/index.ts",
     "./effect/*": "./src/effect/*.ts",
+    "./effect/reconcile": "./src/effect/reconcile/index.ts",
+    "./effect/reconcile/*": "./src/effect/reconcile/*.ts",
     "./formats/*": "./src/formats/*.ts"
   },
   "scripts": {

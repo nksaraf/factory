@@ -2,8 +2,7 @@
  * Re-export shared Effect error types for CLI use.
  *
  * The canonical error definitions live in @smp/factory-shared/effect/errors.
- * This module re-exports them so CLI code has a single import path, and adds
- * the CliEffectError union type for the bridge.
+ * This module re-exports them so CLI code has a single import path.
  */
 
 export {
@@ -19,13 +18,30 @@ export {
   ConfigurationError,
   QuotaExceededError,
   TimeoutError,
+  StateCorruptionError,
   RecoverySuggestion,
   type FactoryError,
   FactoryErrorTag,
   hasTag,
 } from "@smp/factory-shared/effect/errors"
 
-import type { FactoryError } from "@smp/factory-shared/effect/errors"
+export {
+  ExecutorError,
+  ProcessSpawnError,
+  DockerNotAvailableError,
+  BuildError,
+  ManifestError,
+  ControlPlaneLinkError,
+  ComponentNotFoundError,
+  CircularDependencyError,
+  TunnelError,
+  ConnectionError,
+  ProbeFailedError,
+  FinalizerTimeoutError,
+  type SiteError,
+} from "./errors/site.js"
 
-/** Union of all typed CLI errors — same as shared FactoryError. */
-export type CliEffectError = FactoryError
+import type { FactoryError } from "@smp/factory-shared/effect/errors"
+import type { SiteError } from "./errors/site.js"
+
+export type CliEffectError = FactoryError | SiteError

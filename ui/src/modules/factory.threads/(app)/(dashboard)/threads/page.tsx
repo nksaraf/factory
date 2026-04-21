@@ -483,22 +483,14 @@ function TurnCard({
         </span>
       </header>
 
-      {turn.role === "user" && text && (
-        <div className="text-base text-foreground whitespace-pre-wrap leading-relaxed">
-          {text}
-        </div>
-      )}
+      {turn.role === "user" && text && <Markdown text={text} />}
 
       {turn.role === "assistant" && text && <Markdown text={text} />}
 
       {text &&
         turn.role !== "user" &&
         turn.role !== "assistant" &&
-        turn.role !== "tool" && (
-          <div className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
-            {text}
-          </div>
-        )}
+        turn.role !== "tool" && <Markdown text={text} />}
 
       {Array.isArray(turn.spec.toolCalls) && turn.spec.toolCalls.length > 0 && (
         <InlineToolCalls

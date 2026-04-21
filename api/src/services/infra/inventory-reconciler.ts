@@ -52,6 +52,8 @@ const KIND_ORDER = [
   "template",
   "capability",
   "subscription",
+  "subscription-item",
+  "entitlement-bundle",
   "messaging-provider",
   "config-var",
   // Final tier — ip-address before network-link (NAT links target ip-addresses)
