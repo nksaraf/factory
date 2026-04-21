@@ -3,7 +3,6 @@ import { Link } from "react-router"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
@@ -12,6 +11,7 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { infraFetch } from "@/lib/infra"
@@ -42,16 +42,14 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Subdomain</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Phase</TableHead>
-    <TableHead>Local Port</TableHead>
-    <TableHead>Remote Port</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
+const COLUMNS: ColumnDef[] = [
+  { label: "Subdomain", key: "subdomain", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Phase", key: "phase", sortable: true },
+  { label: "Local Port", key: "spec.localPort", sortable: true },
+  { label: "Remote Port", key: "spec.remotePort", sortable: true },
+  { label: "", className: "w-12" },
+]
 
 function TunnelRow({ item }: { item: Tunnel }) {
   const spec = item.spec as Record<string, any>
@@ -109,7 +107,7 @@ export default function TunnelsPage() {
             />
           </ItemsToolbar>
           <ItemsContent>
-            <ItemsListView ListHeader={ListHeader} itemComponent={TunnelRow} />
+            <ItemsListView columns={COLUMNS} itemComponent={TunnelRow} />
           </ItemsContent>
         </ItemsPage>
       </ItemsProvider>

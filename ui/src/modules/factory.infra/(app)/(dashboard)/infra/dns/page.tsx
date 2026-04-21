@@ -4,7 +4,6 @@ import { Icon } from "@rio.js/ui/icon"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 
 import { DashboardPage } from "@/components/factory"
@@ -16,6 +15,7 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { infraFetch } from "@/lib/infra"
 import type { DnsDomain } from "@/lib/infra/types"
@@ -49,16 +49,14 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>FQDN</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Provider</TableHead>
-    <TableHead>Verified</TableHead>
-    <TableHead>Records</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
+const COLUMNS: ColumnDef[] = [
+  { label: "FQDN", key: "fqdn", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Provider", key: "spec.dnsProvider", sortable: true },
+  { label: "Verified", key: "spec.verified", sortable: true },
+  { label: "Records" },
+  { label: "", className: "w-12" },
+]
 
 function DnsRow({ item }: { item: DnsDomain }) {
   const spec = item.spec as Record<string, any>
@@ -129,7 +127,7 @@ export default function DnsPage() {
           </ItemsToolbar>
           <ItemsContent>
             <ItemsView>
-              <ItemsListView ListHeader={ListHeader} itemComponent={DnsRow} />
+              <ItemsListView columns={COLUMNS} itemComponent={DnsRow} />
             </ItemsView>
           </ItemsContent>
         </ItemsPage>

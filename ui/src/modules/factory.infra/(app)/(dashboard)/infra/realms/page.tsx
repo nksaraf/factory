@@ -4,7 +4,6 @@ import { Icon } from "@rio.js/ui/icon"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
@@ -14,6 +13,7 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { infraFetch } from "@/lib/infra"
@@ -49,16 +49,14 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Category</TableHead>
-    <TableHead>Status</TableHead>
-    <TableHead>Version</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Category", key: "spec.category", sortable: true },
+  { label: "Status", key: "spec.status", sortable: true },
+  { label: "Version", key: "spec.version", sortable: true },
+  { label: "", className: "w-12" },
+]
 
 function RealmRow({ item }: { item: Realm }) {
   const icon = REALM_TYPE_ICONS[item.type] ?? "icon-[ph--gear-six-duotone]"
@@ -116,7 +114,7 @@ export default function RealmsPage() {
               />
             </ItemsToolbar>
             <ItemsContent>
-              <ItemsListView ListHeader={ListHeader} itemComponent={RealmRow} />
+              <ItemsListView columns={COLUMNS} itemComponent={RealmRow} />
             </ItemsContent>
           </ItemsView>
         </ItemsPage>

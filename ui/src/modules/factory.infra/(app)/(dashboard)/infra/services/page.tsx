@@ -4,7 +4,6 @@ import { Icon } from "@rio.js/ui/icon"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 
 import { DashboardPage } from "@/components/factory"
@@ -16,11 +15,13 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { infraFetch } from "@/lib/infra"
 import type { Service } from "@/lib/infra/types"
 
 import { SERVICE_TYPE_ICONS } from "../../../../components/type-icons"
+import { InfraActionMenu } from "../../../../components/infra-action-menu"
 
 const SERVICE_TYPES = [
   { value: "all", label: "All" },
@@ -54,16 +55,14 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Provider</TableHead>
-    <TableHead>Endpoint</TableHead>
-    <TableHead>Version</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Provider", key: "spec.provider", sortable: true },
+  { label: "Endpoint", key: "spec.endpoint", sortable: true },
+  { label: "Version", key: "spec.version", sortable: true },
+  { label: "", className: "w-12" },
+]
 
 function ServiceRow({ item }: { item: Service }) {
   const spec = item.spec as Record<string, any>
@@ -94,7 +93,9 @@ function ServiceRow({ item }: { item: Service }) {
       <TableCell className="text-muted-foreground">
         {(spec.version as string) ?? "\u2014"}
       </TableCell>
-      <TableCell />
+      <TableCell>
+        <InfraActionMenu entityPath="services" entityId={item.id} />
+      </TableCell>
     </TableRow>
   )
 }
@@ -124,7 +125,7 @@ export default function ServicesPage() {
           <ItemsContent>
             <ItemsView>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={ServiceRow}
               />
             </ItemsView>

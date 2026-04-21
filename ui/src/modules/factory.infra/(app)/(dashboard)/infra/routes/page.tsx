@@ -4,7 +4,6 @@ import { Icon } from "@rio.js/ui/icon"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
@@ -14,12 +13,14 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { infraFetch } from "@/lib/infra"
 import type { Route } from "@/lib/infra/types"
 
 import { ROUTE_TYPE_ICONS } from "../../../../components/type-icons"
+import { InfraActionMenu } from "../../../../components/infra-action-menu"
 
 const ROUTE_TYPES = [
   { value: "all", label: "All" },
@@ -50,16 +51,14 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Domain</TableHead>
-    <TableHead>Status</TableHead>
-    <TableHead>Protocol</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Domain", key: "domain", sortable: true },
+  { label: "Status", key: "spec.status", sortable: true },
+  { label: "Protocol", key: "spec.protocol", sortable: true },
+  { label: "", className: "w-12" },
+]
 
 function RouteRow({ item }: { item: Route }) {
   const spec = item.spec as Record<string, any>
@@ -94,7 +93,9 @@ function RouteRow({ item }: { item: Route }) {
       <TableCell className="text-muted-foreground">
         {(spec.protocol as string) ?? "\u2014"}
       </TableCell>
-      <TableCell />
+      <TableCell>
+        <InfraActionMenu entityPath="routes" entityId={item.id} />
+      </TableCell>
     </TableRow>
   )
 }
@@ -119,7 +120,7 @@ export default function RoutesPage() {
           </ItemsToolbar>
           <ItemsContent>
             <ItemsView>
-              <ItemsListView ListHeader={ListHeader} itemComponent={RouteRow} />
+              <ItemsListView columns={COLUMNS} itemComponent={RouteRow} />
             </ItemsView>
           </ItemsContent>
         </ItemsPage>

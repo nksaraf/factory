@@ -4,7 +4,6 @@ import { Icon } from "@rio.js/ui/icon"
 import {
   ItemsTableCell as TableCell,
   ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
 } from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
@@ -14,6 +13,7 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { infraFetch } from "@/lib/infra"
@@ -35,6 +35,14 @@ const ESTATE_TYPES = [
   { value: "hypervisor", label: "Hypervisor" },
 ]
 
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Provider Kind", key: "spec.providerKind", sortable: true },
+  { label: "Lifecycle", key: "spec.lifecycle", sortable: true },
+  { label: "", className: "w-12" },
+]
+
 const getItems = async (filters: Record<string, any>) => {
   const res = await infraFetch<{ success: boolean; data: Estate[] }>(
     "/estates?limit=500"
@@ -53,19 +61,9 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Provider Kind</TableHead>
-    <TableHead>Lifecycle</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
-
 function EstateRow({ item }: { item: Estate }) {
   const icon = ESTATE_TYPE_ICONS[item.type] ?? "icon-[ph--buildings-duotone]"
-  const providerKind = (item.spec.providerKind as string) ?? "\u2014"
+  const providerKind = (item.spec.providerKind as string) ?? "—"
   const lifecycle = (item.spec.lifecycle as string) ?? "unknown"
 
   return (
@@ -116,7 +114,7 @@ export default function EstatesPage() {
             </ItemsToolbar>
             <ItemsContent>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={EstateRow}
               />
             </ItemsContent>
