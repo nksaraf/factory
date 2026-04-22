@@ -1,0 +1,12 @@
+**/node_modules
+**/.pnpm-store
+**/.output
+**/.cache
+**/dist
+**/.next
+**/.vinxi
+**/.turbo
+**/coverage
+.git
+.github
+**/*.log
