@@ -1,13 +1,18 @@
 import { Link } from "react-router"
 
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
 import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
 import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
+import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
@@ -22,31 +27,32 @@ const STATUS_OPTIONS = [
   { value: "rolled_back", label: "Rolled Back" },
 ]
 
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "id", sortable: true },
+  { label: "Strategy", key: "spec.strategy" },
+  { label: "Status", key: "spec.status", sortable: true },
+  { label: "Created", key: "createdAt", sortable: true },
+  { label: "", className: "w-12" },
+]
+
 const getItems = async (filters: Record<string, any>) => {
   const res = await opsFetch<{ success: boolean; data: Rollout[] }>(
     "/rollouts?limit=500"
   )
   let items = res.data
+  if (filters.searchTerm) {
+    const q = filters.searchTerm.toLowerCase()
+    items = items.filter((r) => r.id.toLowerCase().includes(q))
+  }
   if (filters.status && filters.status !== "all") {
     items = items.filter((r) => (r.spec?.status as string) === filters.status)
   }
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>ID</TableHead>
-    <TableHead>Strategy</TableHead>
-    <TableHead>Progress</TableHead>
-    <TableHead>Created</TableHead>
-    <TableHead>Status</TableHead>
-  </TableRow>
-)
-
 function RolloutRow({ item }: { item: Rollout }) {
   const status = (item.spec?.status as string) ?? "unknown"
   const strategy = (item.spec?.strategy as string) ?? "—"
-  const progress = (item.spec?.progress as number) ?? 0
 
   return (
     <TableRow>
@@ -59,13 +65,13 @@ function RolloutRow({ item }: { item: Rollout }) {
         </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{strategy}</TableCell>
-      <TableCell className="text-muted-foreground">{progress}%</TableCell>
-      <TableCell className="text-muted-foreground">
-        {new Date(item.createdAt).toLocaleDateString()}
-      </TableCell>
       <TableCell>
         <StatusBadge status={status} />
       </TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Date(item.createdAt).toLocaleDateString()}
+      </TableCell>
+      <TableCell />
     </TableRow>
   )
 }
@@ -73,6 +79,7 @@ function RolloutRow({ item }: { item: Rollout }) {
 export default function RolloutsPage() {
   return (
     <DashboardPage
+      flush
       plane="ops"
       title="Rollouts"
       description="Progressive deployment rollouts across system deployments"
@@ -85,6 +92,7 @@ export default function RolloutsPage() {
         <ItemsPage>
           <ItemsView>
             <ItemsToolbar>
+              <ItemsSearchbar placeholder="Search rollouts..." />
               <ItemsSelectFilter
                 name="status"
                 label="Status"
@@ -92,10 +100,7 @@ export default function RolloutsPage() {
               />
             </ItemsToolbar>
             <ItemsContent>
-              <ItemsListView
-                ListHeader={ListHeader}
-                itemComponent={RolloutRow}
-              />
+              <ItemsListView columns={COLUMNS} itemComponent={RolloutRow} />
             </ItemsContent>
           </ItemsView>
         </ItemsPage>

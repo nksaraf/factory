@@ -1,14 +1,19 @@
 import { Link } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
 import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
 import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
+import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
@@ -23,30 +28,35 @@ const TYPE_OPTIONS = [
   { value: "manual", label: "Manual" },
 ]
 
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "type", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Status", key: "spec.status", sortable: true },
+  { label: "Created", key: "createdAt", sortable: true },
+  { label: "", className: "w-12" },
+]
+
 const getItems = async (filters: Record<string, any>) => {
   const res = await opsFetch<{ success: boolean; data: Intervention[] }>(
     "/interventions?limit=500"
   )
   let items = res.data
+  if (filters.searchTerm) {
+    const q = filters.searchTerm.toLowerCase()
+    items = items.filter(
+      (i) =>
+        i.type.toLowerCase().includes(q) || i.id.toLowerCase().includes(q)
+    )
+  }
   if (filters.type && filters.type !== "all") {
     items = items.filter((i) => i.type === filters.type)
   }
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Type</TableHead>
-    <TableHead>Reason</TableHead>
-    <TableHead>Result</TableHead>
-    <TableHead>Created</TableHead>
-  </TableRow>
-)
-
 function InterventionRow({ item }: { item: Intervention }) {
   const icon = INTERVENTION_TYPE_ICONS[item.type] ?? "icon-[ph--hand-duotone]"
-  const reason = (item.spec?.reason as string) ?? "—"
-  const result = (item.spec?.result as string) ?? "unknown"
+  const status = (item.spec?.status as string) ?? "unknown"
 
   return (
     <TableRow>
@@ -59,15 +69,14 @@ function InterventionRow({ item }: { item: Intervention }) {
           {item.type}
         </Link>
       </TableCell>
-      <TableCell className="text-muted-foreground max-w-[300px] truncate">
-        {reason}
-      </TableCell>
+      <TableCell className="text-muted-foreground">{item.type}</TableCell>
       <TableCell>
-        <StatusBadge status={result} />
+        <StatusBadge status={status} />
       </TableCell>
       <TableCell className="text-muted-foreground">
         {new Date(item.createdAt).toLocaleDateString()}
       </TableCell>
+      <TableCell />
     </TableRow>
   )
 }
@@ -75,6 +84,7 @@ function InterventionRow({ item }: { item: Intervention }) {
 export default function InterventionsPage() {
   return (
     <DashboardPage
+      flush
       plane="ops"
       title="Interventions"
       description="Manual operational interventions -- restarts, scaling, rollbacks"
@@ -87,6 +97,7 @@ export default function InterventionsPage() {
         <ItemsPage>
           <ItemsView>
             <ItemsToolbar>
+              <ItemsSearchbar placeholder="Search interventions..." />
               <ItemsSelectFilter
                 name="type"
                 label="Type"
@@ -95,7 +106,7 @@ export default function InterventionsPage() {
             </ItemsToolbar>
             <ItemsContent>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={InterventionRow}
               />
             </ItemsContent>

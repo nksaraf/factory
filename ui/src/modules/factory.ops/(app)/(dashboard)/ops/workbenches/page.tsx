@@ -1,7 +1,10 @@
 import { Link } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
@@ -10,12 +13,12 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
 import type { Workbench } from "@/lib/ops/types"
 import { WORKBENCH_TYPE_ICONS } from "../../../../components/type-icons"
-import { OpsActionMenu } from "../../../../components/ops-action-menu"
 
 const WORKBENCH_TYPES = [
   { value: "all", label: "All" },
@@ -27,6 +30,15 @@ const WORKBENCH_TYPES = [
   { value: "namespace", label: "Namespace" },
   { value: "pod", label: "Pod" },
   { value: "sandbox", label: "Sandbox" },
+]
+
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Phase", key: "spec.lifecycle", sortable: true },
+  { label: "Host", key: "hostId" },
+  { label: "Created", key: "createdAt", sortable: true },
+  { label: "", className: "w-12" },
 ]
 
 const getItems = async (filters: Record<string, any>) => {
@@ -47,20 +59,11 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Owner</TableHead>
-    <TableHead>Lifecycle</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
-
 function WorkbenchRow({ item }: { item: Workbench }) {
   const icon =
     WORKBENCH_TYPE_ICONS[item.type] ?? "icon-[ph--terminal-window-duotone]"
   const lifecycle = (item.spec?.lifecycle as string) ?? "unknown"
+  const host = item.hostId ?? "—"
 
   return (
     <TableRow>
@@ -74,13 +77,14 @@ function WorkbenchRow({ item }: { item: Workbench }) {
         </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{item.type}</TableCell>
-      <TableCell className="text-muted-foreground">{item.ownerId}</TableCell>
       <TableCell>
         <StatusBadge status={lifecycle} />
       </TableCell>
-      <TableCell>
-        <OpsActionMenu entityPath="workbenches" entityId={item.id} />
+      <TableCell className="text-muted-foreground">{host}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Date(item.createdAt).toLocaleDateString()}
       </TableCell>
+      <TableCell />
     </TableRow>
   )
 }
@@ -110,7 +114,7 @@ export default function WorkbenchesPage() {
             </ItemsToolbar>
             <ItemsContent>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={WorkbenchRow}
               />
             </ItemsContent>

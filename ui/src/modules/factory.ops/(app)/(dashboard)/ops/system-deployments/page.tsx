@@ -1,7 +1,10 @@
 import { Link } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
@@ -10,6 +13,7 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
@@ -22,6 +26,14 @@ const DEPLOYMENT_TYPES = [
   { value: "staging", label: "Staging" },
   { value: "dev", label: "Dev" },
   { value: "preview", label: "Preview" },
+]
+
+const COLUMNS: ColumnDef[] = [
+  { label: "Name", key: "name", sortable: true },
+  { label: "Type", key: "type", sortable: true },
+  { label: "Site", key: "siteId" },
+  { label: "Phase", key: "status.phase", sortable: true },
+  { label: "", className: "w-12" },
 ]
 
 const getItems = async (filters: Record<string, any>) => {
@@ -42,22 +54,11 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Name</TableHead>
-    <TableHead>Type</TableHead>
-    <TableHead>Runtime</TableHead>
-    <TableHead>Phase</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
-
 function DeploymentRow({ item }: { item: SystemDeployment }) {
   const icon =
     SYSTEM_DEPLOYMENT_TYPE_ICONS[item.type] ??
     "icon-[ph--rocket-launch-duotone]"
   const phase = (item.status?.phase as string) ?? "unknown"
-  const runtime = (item.spec?.runtime as string) ?? "\u2014"
 
   return (
     <TableRow>
@@ -71,10 +72,11 @@ function DeploymentRow({ item }: { item: SystemDeployment }) {
         </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{item.type}</TableCell>
-      <TableCell className="text-muted-foreground">{runtime}</TableCell>
+      <TableCell className="text-muted-foreground">{item.siteId}</TableCell>
       <TableCell>
         <StatusBadge status={phase} />
       </TableCell>
+      <TableCell />
     </TableRow>
   )
 }
@@ -104,7 +106,7 @@ export default function SystemDeploymentsPage() {
             </ItemsToolbar>
             <ItemsContent>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={DeploymentRow}
               />
             </ItemsContent>

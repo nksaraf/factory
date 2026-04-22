@@ -1,6 +1,9 @@
 import { Link } from "react-router"
 
-import { TableCell, TableRow, TableHead } from "@rio.js/ui/table"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
 import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
 import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
 import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
@@ -9,11 +12,11 @@ import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
 import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
 import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
 import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items-list-view"
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
 import type { ComponentDeployment } from "@/lib/ops/types"
-import { OpsActionMenu } from "../../../../components/ops-action-menu"
 
 const PHASE_OPTIONS = [
   { value: "all", label: "All" },
@@ -23,6 +26,15 @@ const PHASE_OPTIONS = [
   { value: "degraded", label: "Degraded" },
   { value: "failed", label: "Failed" },
   { value: "stopped", label: "Stopped" },
+]
+
+const COLUMNS: ColumnDef[] = [
+  { label: "Component", key: "componentId", sortable: true },
+  { label: "System Deployment", key: "systemDeploymentId" },
+  { label: "Image", key: "spec.desiredImage" },
+  { label: "Replicas", key: "spec.replicas" },
+  { label: "Phase", key: "status.phase", sortable: true },
+  { label: "", className: "w-12" },
 ]
 
 const getItems = async (filters: Record<string, any>) => {
@@ -44,22 +56,10 @@ const getItems = async (filters: Record<string, any>) => {
   return items
 }
 
-const ListHeader = (
-  <TableRow>
-    <TableHead>Component</TableHead>
-    <TableHead>Image</TableHead>
-    <TableHead>Replicas</TableHead>
-    <TableHead>Mode</TableHead>
-    <TableHead>Phase</TableHead>
-    <TableHead className="w-12" />
-  </TableRow>
-)
-
 function ComponentRow({ item }: { item: ComponentDeployment }) {
   const phase = (item.status?.phase as string) ?? "unknown"
-  const image = (item.spec?.desiredImage as string) ?? "\u2014"
+  const image = (item.spec?.desiredImage as string) ?? "—"
   const replicas = (item.spec?.replicas as number) ?? 1
-  const mode = (item.spec?.mode as string) ?? "deployed"
 
   return (
     <TableRow>
@@ -71,17 +71,17 @@ function ComponentRow({ item }: { item: ComponentDeployment }) {
           {item.componentId}
         </Link>
       </TableCell>
+      <TableCell className="text-muted-foreground font-mono text-sm">
+        {item.systemDeploymentId.slice(0, 12)}...
+      </TableCell>
       <TableCell className="text-muted-foreground font-mono text-sm max-w-[300px] truncate">
         {image}
       </TableCell>
       <TableCell className="text-muted-foreground">{replicas}</TableCell>
-      <TableCell className="text-muted-foreground">{mode}</TableCell>
       <TableCell>
         <StatusBadge status={phase} />
       </TableCell>
-      <TableCell>
-        <OpsActionMenu entityPath="component-deployments" entityId={item.id} />
-      </TableCell>
+      <TableCell />
     </TableRow>
   )
 }
@@ -111,7 +111,7 @@ export default function ComponentDeploymentsPage() {
             </ItemsToolbar>
             <ItemsContent>
               <ItemsListView
-                ListHeader={ListHeader}
+                columns={COLUMNS}
                 itemComponent={ComponentRow}
               />
             </ItemsContent>
