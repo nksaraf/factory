@@ -13,17 +13,21 @@ export const TunnelManagerLive = Layer.effect(
     const stateRef = yield* Ref.make<TunnelState>({
       status: "disconnected",
     })
+    const handleRef = yield* Ref.make<{ close: () => void } | null>(null)
 
     return TunnelManagerTag.of({
       open: (opts) =>
         Effect.gen(function* () {
           yield* Ref.set(stateRef, { status: "connecting" })
 
-          const result = yield* Effect.tryPromise({
+          const { info, handle } = yield* Effect.tryPromise({
             try: async () => {
               const { openTunnel } = await import("../../lib/tunnel-client.js")
 
-              return new Promise<TunnelInfo>((resolve, reject) => {
+              return new Promise<{
+                info: TunnelInfo
+                handle: { close: () => void }
+              }>((resolve, reject) => {
                 openTunnel(
                   {
                     port: opts.port,
@@ -33,23 +37,32 @@ export const TunnelManagerLive = Layer.effect(
                     portMap: opts.portMap,
                   },
                   {
-                    onRegistered: (info) => {
+                    onRegistered: (regInfo) => {
                       resolve({
-                        url: info.url,
-                        subdomain: info.subdomain,
-                        portUrls: info.portUrls,
+                        info: {
+                          url: regInfo.url,
+                          subdomain: regInfo.subdomain,
+                          portUrls: regInfo.portUrls,
+                        },
+                        handle: { close: () => {} },
                       })
                     },
-                    onError: (err) => {
-                      reject(err)
-                    },
-                    onClose: () => {
-                      reject(new Error("Tunnel closed before registration"))
-                    },
+                    onError: (err) => reject(err),
+                    onClose: () =>
+                      reject(new Error("Tunnel closed before registration")),
                     onReconnecting: () => {},
                     onReconnected: () => {},
                   }
-                ).catch(reject)
+                )
+                  .then((h) => {
+                    if (h && typeof h === "object" && "close" in h) {
+                      resolve({
+                        info: { url: "", subdomain: opts.subdomain },
+                        handle: h as { close: () => void },
+                      })
+                    }
+                  })
+                  .catch(reject)
               })
             },
             catch: (error) =>
@@ -59,13 +72,23 @@ export const TunnelManagerLive = Layer.effect(
               }),
           })
 
-          yield* Ref.set(stateRef, { status: "connected", info: result })
+          yield* Ref.set(stateRef, { status: "connected", info })
+          yield* Ref.set(handleRef, handle)
 
           yield* Effect.addFinalizer(() =>
-            Ref.set(stateRef, { status: "disconnected" })
+            Effect.gen(function* () {
+              const h = yield* Ref.get(handleRef)
+              if (h) {
+                try {
+                  h.close()
+                } catch {}
+              }
+              yield* Ref.set(stateRef, { status: "disconnected" })
+              yield* Ref.set(handleRef, null)
+            })
           )
 
-          return result
+          return info
         }).pipe(
           Effect.withSpan("TunnelManager.open", {
             attributes: { "tunnel.subdomain": opts.subdomain },

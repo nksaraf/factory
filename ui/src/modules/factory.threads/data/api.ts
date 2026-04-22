@@ -5,16 +5,49 @@ import type {
   PlanVersion,
   Thread,
   ThreadChannel,
+  ThreadExchange,
+  ThreadMessage,
   ThreadPlan,
+  ThreadToolCall,
   ThreadTurn,
 } from "./types"
 
+function getFactoryBaseUrl(): string {
+  return (
+    rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"
+  )
+}
+
 function getBaseUrl(): string {
-  return `${rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"}/threads`
+  return `${getFactoryBaseUrl()}/threads`
 }
 
 function getAuthToken(): string | null {
   return localStorage.getItem("jwt") ?? localStorage.getItem("bearer_token")
+}
+
+async function factoryFetch<T = unknown>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const baseUrl = getFactoryBaseUrl()
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  }
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers })
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: response.statusText }))
+    throw new Error(
+      error.error || `Factory API request failed: ${response.status}`
+    )
+  }
+  const body = await response.json()
+  return body.data ?? body
 }
 
 async function threadsFetch<T = unknown>(
@@ -74,8 +107,14 @@ export const threadsApi = {
     return all.sort((a, b) => a.turnIndex - b.turnIndex)
   },
 
-  threadPlans: (id: string) =>
-    threadsFetch<ThreadPlan[]>(`/threads/${encodeURIComponent(id)}/plans`),
+  threadPlans: async (id: string) => {
+    const result = await threadsFetch<{ plans: ThreadPlan[] } | ThreadPlan[]>(
+      `/threads/${encodeURIComponent(id)}/plans`
+    )
+    return (
+      Array.isArray(result) ? result : (result.plans ?? [])
+    ) as ThreadPlan[]
+  },
 
   listPlans: async (opts?: { limit?: number; offset?: number }) => {
     const base =
@@ -110,6 +149,27 @@ export const threadsApi = {
     if (!res.ok) throw new Error(`Failed to load plan: ${res.status}`)
     const body = await res.json()
     return (body.data ?? body) as PlanContent
+  },
+
+  threadMessages: async (threadId: string, limit = 5000) => {
+    const data = await factoryFetch<{ messages: ThreadMessage[] }>(
+      `/messages/threads/${encodeURIComponent(threadId)}/messages?limit=${limit}`
+    )
+    return data.messages ?? []
+  },
+
+  threadExchanges: async (threadId: string) => {
+    const data = await factoryFetch<{ exchanges: ThreadExchange[] }>(
+      `/messages/threads/${encodeURIComponent(threadId)}/exchanges`
+    )
+    return data.exchanges ?? []
+  },
+
+  threadToolCalls: async (threadId: string, limit = 5000) => {
+    const data = await factoryFetch<{ toolCalls: ThreadToolCall[] }>(
+      `/messages/threads/${encodeURIComponent(threadId)}/tool-calls?limit=${limit}`
+    )
+    return data.toolCalls ?? []
   },
 
   planVersions: async (slug: string) => {

@@ -18,15 +18,16 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
+    "@effect/rpc": "0.75.0",
     "effect": "3.21.1",
     "yaml": "^2.8.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@effect/tsgo": "0.4.0",
     "@types/bun": "^1.2.0",
     "@types/node": "^22.10.0",
-    "typescript": "^5.8.0",
     "@typescript/native-preview": "latest",
-    "@effect/tsgo": "0.4.0"
+    "typescript": "^5.8.0"
   }
 }

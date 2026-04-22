@@ -43,6 +43,8 @@ export interface SiteConfig {
   readonly port: number
   readonly focusSystem: FocusSystem
   readonly siteName?: string
+  readonly factoryUrl?: string
+  readonly apiToken?: string
   readonly controllerMode?: "connected" | "standalone" | "air-gapped"
   readonly reconcileIntervalMs: number
   readonly connectionFlags?: ConnectionFlags

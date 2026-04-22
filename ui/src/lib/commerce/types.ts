@@ -91,6 +91,19 @@ export interface EntitlementBundle {
   updatedAt: string
 }
 
+export interface Tenant {
+  id: string
+  slug: string
+  name: string
+  siteId: string
+  customerId: string
+  spec: {
+    isolation?: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
 export interface BillableMetric {
   id: string
   slug: string

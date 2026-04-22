@@ -94,9 +94,18 @@ export function detectPlanSlug(
   return m ? m[1]! : null
 }
 
+function stripCwd(path: string, cwd?: string): string {
+  if (!cwd) return path
+  const normalized = cwd.endsWith("/") ? cwd : cwd + "/"
+  if (path.startsWith(normalized)) return path.slice(normalized.length)
+  if (path.startsWith(cwd)) return path.slice(cwd.length + 1)
+  return path
+}
+
 export function summarizeToolInput(
   toolName: string | undefined,
-  input: string | undefined
+  input: string | undefined,
+  cwd?: string
 ): string {
   if (!input) return ""
   let parsed: Record<string, unknown> | null = null
@@ -110,25 +119,29 @@ export function summarizeToolInput(
     const v = parsed?.[k]
     return typeof v === "string" ? v : undefined
   }
-  if (name === "bash") return pick("command") ?? pick("description") ?? ""
+
+  const description = pick("description")
+  if (description) return description
+
+  if (name === "bash") return pick("command") ?? ""
   if (name === "read" || name === "edit" || name === "write")
-    return pick("file_path") ?? ""
+    return stripCwd(pick("file_path") ?? "", cwd)
   if (name === "glob") return pick("pattern") ?? ""
   if (name === "grep") {
     const p = pick("pattern") ?? ""
     const path = pick("path")
-    return path ? `${p}  ${path}` : p
+    return path ? `${p}  ${stripCwd(path, cwd)}` : p
   }
   if (name === "webfetch") return pick("url") ?? ""
+  if (name === "agent") return pick("prompt")?.slice(0, 120) ?? ""
   const first =
     pick("command") ??
-    pick("description") ??
     pick("file_path") ??
     pick("pattern") ??
     pick("url") ??
     pick("prompt") ??
     ""
-  return first || JSON.stringify(parsed).slice(0, 160)
+  return first ? stripCwd(first, cwd) : JSON.stringify(parsed).slice(0, 160)
 }
 
 export function channelLabel(c: {

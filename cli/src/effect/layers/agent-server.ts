@@ -27,6 +27,12 @@ export const AgentServerLive = Layer.effect(
           catch: (e) => new Error(`Failed to import agent: ${e}`),
         }).pipe(Effect.orDie)
 
+        /**
+         * @transitional executor is null — only /health and /status routes work.
+         * Routes that depend on executor (/services, /services/:name/logs) will
+         * throw at runtime. Phase 8 bridges Elysia routes to Effect services
+         * via ManagedRuntime, eliminating the SiteAgent class entirely.
+         */
         const agent = new SiteAgent({
           config: {
             mode: config.mode,

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Ref } from "effect"
 import { SiteConfigTag } from "../services/site-config.js"
 import { SiteStateTag } from "../services/site-state.js"
 import { DockerComposeOpsTag } from "../services/docker-compose-ops.js"
@@ -11,9 +11,8 @@ import { ConnectionError } from "../errors/site.js"
 
 /**
  * @transitional Wraps the connection resolution logic from site-orchestrator.ts.
- * Phase 8 replaces this with a native Effect implementation.
- * Currently delegates to the SiteOrchestrator's resolveConnections/applyConnections
- * methods via a dynamically imported instance.
+ * Creates a single SiteOrchestrator lazily on first use and reuses it.
+ * Phase 8 replaces with native Effect implementation.
  */
 export const DependencyConnectorLive = Layer.effect(
   DependencyConnectorTag,
@@ -22,54 +21,74 @@ export const DependencyConnectorLive = Layer.effect(
     const siteState = yield* SiteStateTag
     const composeOps = yield* DockerComposeOpsTag
 
+    type Orch = import("../../lib/site-orchestrator.js").SiteOrchestrator
+    const orchRef = yield* Ref.make<Orch | null>(null)
+
+    const getOrch = Effect.gen(function* () {
+      const cached = yield* Ref.get(orchRef)
+      if (cached) return cached
+      const orch = yield* Effect.tryPromise({
+        try: async () => {
+          const { SiteOrchestrator } =
+            await import("../../lib/site-orchestrator.js")
+          return SiteOrchestrator.create({ quiet: true })
+        },
+        catch: (error) =>
+          new ConnectionError({
+            profile: "unknown",
+            cause: `Failed to create orchestrator: ${error instanceof Error ? error.message : String(error)}`,
+          }),
+      })
+      yield* Ref.set(orchRef, orch)
+      return orch
+    })
+
     return DependencyConnectorTag.of({
       resolve: (flags) =>
-        Effect.tryPromise({
-          try: async () => {
-            const { SiteOrchestrator } =
-              await import("../../lib/site-orchestrator.js")
-            const orch = await SiteOrchestrator.create({ quiet: true })
-            const result = orch.resolveConnections(flags)
-            if (!result) return null
-            return {
-              env: result.env,
-              profileName: result.profileName,
-              remoteDeps: result.remoteDeps,
-            } satisfies ConnectionResult
-          },
-          catch: (error) =>
-            new ConnectionError({
-              profile: flags.connectTo ?? flags.profile ?? "unknown",
-              cause: error instanceof Error ? error.message : String(error),
-            }),
-        }).pipe(Effect.withSpan("DependencyConnector.resolve")),
+        Effect.gen(function* () {
+          const orch = yield* getOrch
+          const result = orch.resolveConnections(flags)
+          if (!result) return null
+          return {
+            env: result.env,
+            profileName: result.profileName,
+            remoteDeps: result.remoteDeps,
+          } satisfies ConnectionResult
+        }).pipe(
+          Effect.catchAllDefect((error) =>
+            Effect.fail(
+              new ConnectionError({
+                profile: flags.connectTo ?? flags.profile ?? "unknown",
+                cause: error instanceof Error ? error.message : String(error),
+              })
+            )
+          ),
+          Effect.withSpan("DependencyConnector.resolve")
+        ),
 
       apply: (conn, envPath, dryRun) =>
-        Effect.tryPromise({
-          try: async () => {
-            const { SiteOrchestrator } =
-              await import("../../lib/site-orchestrator.js")
-            const orch = await SiteOrchestrator.create({ quiet: true })
-            return orch.applyConnections(conn as any, envPath, dryRun)
-          },
-          catch: (error) =>
-            new ConnectionError({
-              profile: conn.profileName,
-              cause: error instanceof Error ? error.message : String(error),
-            }),
-        }).pipe(Effect.withSpan("DependencyConnector.apply")),
+        Effect.gen(function* () {
+          const orch = yield* getOrch
+          return orch.applyConnections(conn as any, envPath, dryRun)
+        }).pipe(
+          Effect.catchAllDefect((error) =>
+            Effect.fail(
+              new ConnectionError({
+                profile: conn.profileName,
+                cause: error instanceof Error ? error.message : String(error),
+              })
+            )
+          ),
+          Effect.withSpan("DependencyConnector.apply")
+        ),
 
       restoreLocal: (envPath) =>
-        Effect.tryPromise({
-          try: async () => {
-            const { SiteOrchestrator } =
-              await import("../../lib/site-orchestrator.js")
-            const orch = await SiteOrchestrator.create({ quiet: true })
-            orch.restoreLocalState(envPath)
-          },
-          catch: () => void 0 as never,
+        Effect.gen(function* () {
+          const orch = yield* getOrch
+          orch.restoreLocalState(envPath)
         }).pipe(
           Effect.catchAll(() => Effect.void),
+          Effect.catchAllDefect(() => Effect.void),
           Effect.withSpan("DependencyConnector.restoreLocal")
         ),
     }) satisfies DependencyConnectorService

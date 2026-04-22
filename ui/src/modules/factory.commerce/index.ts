@@ -19,6 +19,9 @@ export const extension = {
     "factory.commerce.route.customer-layout": lazy(
       () => import("./(app)/(dashboard)/commerce/customers/[slug]/layout")
     ),
+    "factory.commerce.route.customer-sites": lazy(
+      () => import("./(app)/(dashboard)/commerce/customers/[slug]/sites/page")
+    ),
     "factory.commerce.route.customer-subscriptions": lazy(
       () =>
         import("./(app)/(dashboard)/commerce/customers/[slug]/subscriptions/page")

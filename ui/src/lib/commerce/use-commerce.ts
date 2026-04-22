@@ -6,6 +6,7 @@ import type {
   EntitlementBundle,
   Plan,
   Subscription,
+  Tenant,
 } from "./types"
 import { commerceFetch } from "./api"
 
@@ -105,6 +106,10 @@ export function useCustomerBundles(customerId: string | undefined) {
     customerId,
     "bundles"
   )
+}
+
+export function useCustomerTenants(slugOrId: string | undefined) {
+  return useCommerceRelation<Tenant>("customers", slugOrId, "tenants")
 }
 
 export function useBillableMetrics() {

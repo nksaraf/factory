@@ -71,3 +71,29 @@ export function usePlanVersions(slug: string | null | undefined) {
     staleTime: 30_000,
   })
 }
+
+export function useThreadMessages(
+  threadId: string | null | undefined,
+  threadStatus?: string
+) {
+  const isActive = threadStatus === "active"
+  return useQuery({
+    queryKey: ["thread-messages", threadId],
+    queryFn: () => threadsApi.threadMessages(threadId!),
+    enabled: !!threadId,
+    refetchInterval: isActive ? 2000 : 30_000,
+  })
+}
+
+export function useThreadExchanges(
+  threadId: string | null | undefined,
+  threadStatus?: string
+) {
+  const isActive = threadStatus === "active"
+  return useQuery({
+    queryKey: ["thread-exchanges", threadId],
+    queryFn: () => threadsApi.threadExchanges(threadId!),
+    enabled: !!threadId,
+    refetchInterval: isActive ? 5000 : 30_000,
+  })
+}

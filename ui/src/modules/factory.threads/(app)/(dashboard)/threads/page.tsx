@@ -6,7 +6,10 @@ import { Icon } from "@rio.js/ui/icon"
 
 import {
   useChannelThreads,
+  useThread,
   useThreadChannels,
+  useThreadExchanges,
+  useThreadMessages,
   useThreadPlans,
   useThreadTurns,
 } from "../../../data/use-threads"
@@ -30,6 +33,7 @@ import {
 } from "../../../components/thread-helpers"
 import { PlanDrawer } from "../../../components/plan-drawer"
 import { ThreadContextPanel } from "../../../components/thread-context-panel"
+import { ExchangeView } from "../../../components/exchange-view"
 import { Markdown } from "../../../components/markdown"
 
 function StatusPill({ status }: { status: string }) {
@@ -116,14 +120,16 @@ function ToolCallChip({
   input,
   failed,
   onOpenPlan,
+  cwd,
 }: {
   name: string
   input?: string
   failed?: boolean
   onOpenPlan?: (slug: string) => void
+  cwd?: string
 }) {
   const [open, setOpen] = useState(false)
-  const summary = summarizeToolInput(name, input)
+  const summary = summarizeToolInput(name, input, cwd)
   const planSlug = detectPlanSlug(name, input)
   return (
     <div
@@ -202,13 +208,19 @@ function ToolCallChip({
 function ToolTurnRow({
   turn,
   onOpenPlan,
+  cwd,
 }: {
   turn: ThreadTurn
   onOpenPlan?: (slug: string) => void
+  cwd?: string
 }) {
   const [open, setOpen] = useState(false)
   const name = turn.spec.toolName ?? "tool"
-  const summary = summarizeToolInput(turn.spec.toolName, turn.spec.toolInput)
+  const summary = summarizeToolInput(
+    turn.spec.toolName,
+    turn.spec.toolInput,
+    cwd
+  )
   const failed = !!turn.spec.failed
   const planSlug = detectPlanSlug(turn.spec.toolName, turn.spec.toolInput)
   return (
@@ -584,13 +596,21 @@ function planToEntry(
 
 function ThreadView({
   threadId,
+  threadStatus,
+  threadCwd,
   panelOpen,
   onClosePanel,
 }: {
   threadId: string
+  threadStatus?: string
+  threadCwd?: string
   panelOpen: boolean
   onClosePanel: () => void
 }) {
+  const messages = useThreadMessages(threadId, threadStatus)
+  const exchanges = useThreadExchanges(threadId, threadStatus)
+  const hasMessages = (messages.data?.length ?? 0) > 0
+
   const turns = useThreadTurns(threadId)
   const threadPlans = useThreadPlans(threadId)
   const list = turns.data ?? []
@@ -636,6 +656,35 @@ function ThreadView({
   useEffect(() => {
     setOpenPlanSlug(null)
   }, [threadId])
+
+  if (hasMessages) {
+    return (
+      <div className="flex gap-3 min-w-0 flex-1 min-h-0">
+        <ExchangeView
+          messages={messages.data!}
+          exchanges={exchanges.data ?? []}
+          threadStatus={threadStatus}
+          cwd={threadCwd}
+        />
+        {panelOpen && (
+          <div className="w-80 shrink-0 h-full">
+            <ThreadContextPanel
+              turns={list}
+              plans={plans}
+              onOpenPlan={setOpenPlanSlug}
+              onJumpToTurn={jumpToTurn}
+              onClose={onClosePanel}
+            />
+          </div>
+        )}
+        <PlanDrawer
+          plan={openPlan}
+          onClose={() => setOpenPlanSlug(null)}
+          onJumpToTurn={jumpToTurn}
+        />
+      </div>
+    )
+  }
 
   if (turns.isLoading)
     return (
@@ -725,13 +774,32 @@ export default function ThreadsPage() {
     setParams(next, { replace: false })
   }
 
+  // When a thread is in the URL but the channel isn't, look up the thread's
+  // channel and backfill it so the list + context render correctly.
+  const threadLookup = useThread(!channelId && threadId ? threadId : null)
+
   useEffect(() => {
-    if (!channelId && channels.data && channels.data.length > 0) {
+    if (channelId) return
+    const threadChannel = threadLookup.data?.channelId
+    if (threadId && threadChannel) {
+      const next = new URLSearchParams(params)
+      next.set("channel", threadChannel)
+      setParams(next, { replace: true })
+      return
+    }
+    if (!threadId && channels.data && channels.data.length > 0) {
       const next = new URLSearchParams(params)
       next.set("channel", channels.data[0]!.id)
       setParams(next, { replace: true })
     }
-  }, [channels.data, channelId, params, setParams])
+  }, [
+    channels.data,
+    channelId,
+    threadId,
+    threadLookup.data?.channelId,
+    params,
+    setParams,
+  ])
 
   const threads = useChannelThreads(channelId)
   const threadList = useMemo(() => {
@@ -946,6 +1014,12 @@ export default function ThreadsPage() {
           {threadId ? (
             <ThreadView
               threadId={threadId}
+              threadStatus={selectedThread?.status}
+              threadCwd={
+                (selectedThread?.spec?.cwd as string | undefined) ??
+                ((channels.data ?? []).find((c) => c.id === channelId)?.spec
+                  ?.cwd as string | undefined)
+              }
               panelOpen={panelOpen}
               onClosePanel={() => setPanelOpen(false)}
             />

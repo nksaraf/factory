@@ -6,6 +6,7 @@ export type {
   Plan,
   Subscription,
   SubscriptionItem,
+  Tenant,
 } from "./types"
 export {
   useBillableMetrics,
@@ -13,6 +14,7 @@ export {
   useCustomer,
   useCustomerBundles,
   useCustomerSubscriptions,
+  useCustomerTenants,
   useCustomers,
   usePlan,
   usePlans,

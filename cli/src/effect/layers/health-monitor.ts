@@ -1,6 +1,7 @@
 import { Effect, Layer, Duration } from "effect"
 import { makeHealthProbe } from "@smp/factory-shared/effect/health-probe"
 import { ExecutorTag } from "../services/executor.js"
+import type { HealthStatus } from "../../site/execution/executor.js"
 import {
   HealthMonitorTag,
   type HealthMonitorService,
@@ -8,7 +9,7 @@ import {
 } from "../services/health-monitor.js"
 
 function deriveOverallStatus(
-  components: Record<string, string>
+  components: Record<string, HealthStatus>
 ): HealthSnapshot["overallStatus"] {
   const statuses = Object.values(components)
   if (statuses.length === 0) return "healthy"
@@ -30,10 +31,7 @@ export const HealthMonitorLive = Layer.effect(
           checkedAt: new Date().toISOString(),
         })),
         Effect.orElseSucceed(() => ({
-          components: {} as Record<
-            string,
-            import("../../site/execution/executor.js").HealthStatus
-          >,
+          components: {} as Record<string, HealthStatus>,
           overallStatus: "unhealthy" as const,
           checkedAt: new Date().toISOString(),
         }))

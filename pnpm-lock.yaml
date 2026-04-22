@@ -278,6 +278,9 @@ importers:
       '@effect/platform':
         specifier: 0.96.0
         version: 0.96.0(effect@3.21.1)
+      '@effect/rpc':
+        specifier: 0.75.0
+        version: 0.75.0(@effect/platform@0.96.0(effect@3.21.1))(effect@3.21.1)
       '@iconify-json/lucide':
         specifier: 1.2.102
         version: 1.2.102
@@ -618,6 +621,9 @@ importers:
 
   shared:
     dependencies:
+      '@effect/rpc':
+        specifier: 0.75.0
+        version: 0.75.0(@effect/platform@0.96.0(effect@3.21.1))(effect@3.21.1)
       effect:
         specifier: 3.21.1
         version: 3.21.1
@@ -2140,6 +2146,12 @@ packages:
   '@effect/platform@0.96.0':
     resolution: {integrity: sha512-U7PLhkVzg7zzrgFvyWATOzD6reL87KG/fcdOxgLWBQ/J5CCU6qdPAVG+0o6o+IxcsLoqGwxs+rFxaFzrdtDV1A==}
     peerDependencies:
+      effect: ^3.21.0
+
+  '@effect/rpc@0.75.0':
+    resolution: {integrity: sha512-VFeJ16cZUXqiIzG9UHOVKGuiBPJ7fV+0lEbJU6xi12JnnxXe/19BQPpOwiRawCUbPOR3/xIURDUgGxU+Ft0pvQ==}
+    peerDependencies:
+      '@effect/platform': ^0.96.0
       effect: ^3.21.0
 
   '@effect/tsgo-darwin-arm64@0.4.0':
@@ -17643,6 +17655,12 @@ snapshots:
       find-my-way-ts: 0.1.6
       msgpackr: 1.11.9
       multipasta: 0.2.7
+
+  '@effect/rpc@0.75.0(@effect/platform@0.96.0(effect@3.21.1))(effect@3.21.1)':
+    dependencies:
+      '@effect/platform': 0.96.0(effect@3.21.1)
+      effect: 3.21.1
+      msgpackr: 1.11.9
 
   '@effect/tsgo-darwin-arm64@0.4.0':
     optional: true

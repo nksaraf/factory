@@ -10,15 +10,18 @@ import {
   type ReconcileResult,
   type ReconcileEvent,
 } from "../services/site-reconciler.js"
+import { SiteConfigTag } from "../services/site-config.js"
 import { ManifestError } from "../errors/site.js"
 import { makeEventJournal } from "@smp/factory-shared/effect/event-journal"
 
 export const SiteReconcilerLive = Layer.effect(
   SiteReconcilerTag,
   Effect.gen(function* () {
+    const config = yield* SiteConfigTag
     const executor = yield* ExecutorTag
     const siteState = yield* SiteStateTag
     const stateStore = yield* ControllerStateStoreTag
+    const sdSlug = config.focusSystem.sdSlug
     const journal = yield* makeEventJournal<ReconcileEvent>({ maxSize: 200 })
     const lastResultRef = yield* Ref.make<ReconcileResult | null>(null)
 
@@ -56,7 +59,7 @@ export const SiteReconcilerLive = Layer.effect(
                 result.actualImage,
                 0
               )
-              yield* siteState.setCondition("", step.component, {
+              yield* siteState.setCondition(sdSlug, step.component, {
                 type: "Deployed",
                 status: "True",
                 reason: "DeploySucceeded",

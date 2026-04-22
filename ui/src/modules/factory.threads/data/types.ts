@@ -113,3 +113,77 @@ export interface PlanEntry {
   editCount?: number
   text?: string
 }
+
+// ── Message IR types (lossless content blocks from org.message) ──
+
+export type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "thinking"; thinking: string; signature?: string }
+  | {
+      type: "tool_use"
+      id: string
+      name: string
+      input: Record<string, unknown>
+    }
+  | {
+      type: "tool_result"
+      tool_use_id: string
+      content: string | ContentBlock[]
+      is_error?: boolean
+    }
+  | {
+      type: "image"
+      source: { type: string; media_type: string; data: string }
+    }
+  | { type: "redacted_thinking"; data: string }
+  | { type: "document"; source: Record<string, unknown>; title?: string }
+
+export interface ThreadMessage {
+  id: string
+  threadId: string
+  parentId: string | null
+  role: "user" | "assistant" | "system"
+  source: string
+  content: ContentBlock[]
+  startedAt: string
+  completedAt: string | null
+  spec: {
+    sourceMessageId?: string
+    model?: string
+    stopReason?: string
+    usage?: {
+      inputTokens: number
+      outputTokens: number
+      cacheReadTokens: number
+      cacheWriteTokens: number
+    }
+  }
+  createdAt: string
+}
+
+export interface ThreadExchange {
+  id: string
+  threadId: string
+  triggerMessageId: string
+  terminalMessageId: string | null
+  status: "running" | "completed" | "interrupted" | "errored"
+  startedAt: string
+  endedAt: string | null
+  spec: Record<string, unknown>
+  createdAt: string
+}
+
+export interface ThreadToolCall {
+  id: string
+  threadId: string
+  messageId: string
+  exchangeId: string | null
+  name: string
+  input: Record<string, unknown> | null
+  result: Record<string, unknown> | null
+  resultMessageId: string | null
+  status: string
+  isError: boolean | null
+  startedAt: string
+  endedAt: string | null
+}

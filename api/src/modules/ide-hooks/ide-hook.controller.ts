@@ -637,11 +637,7 @@ async function handleToolPost(
  */
 // ── Plan document upsert ──────────────────────────────────
 
-type PlanPathClass = {
-  slug: string
-  basename: string
-  source: "claude-code" | "superpowers" | "context-plan"
-}
+import { classifyPlanPath, type PlanPathClass } from "../../lib/plan-paths"
 
 /**
  * Resolve the Factory public base URL used for `viewUrl` links.
@@ -670,54 +666,6 @@ function planContentRoot(slug: string): string {
     .map((p) => p.replace(/[^a-zA-Z0-9_-]/g, "_"))
     .filter((p) => p.length > 0)
   return `plan/${parts.join("/")}`
-}
-
-/**
- * Match a plan file path to a known plan-authoring directory.
- * Returns a qualified slug + source, or null if not a plan.
- *
- * Patterns (leading slash optional, handles absolute and relative paths):
- *   .../.claude/plans/<name>.md            → claude-code:<name>
- *   .../docs/superpowers/plans/<name>.md   → superpowers:<project>:<name>
- *   .../.context/plans/<name>.md           → context-plan:<project>:<name>
- *
- * `<project>` is the directory segment immediately before the matched
- * plan directory root (e.g. `factory/docs/superpowers/plans/x.md` → `factory`),
- * so repo-scoped plans with the same filename don't collide across repos.
- */
-function classifyPlanPath(filePath: string): PlanPathClass | null {
-  if (!filePath.endsWith(".md")) return null
-
-  const mClaude = filePath.match(/(?:^|\/)\.claude\/plans\/([^/]+)\.md$/)
-  if (mClaude) {
-    return {
-      slug: `claude-code:${mClaude[1]}`,
-      basename: mClaude[1],
-      source: "claude-code",
-    }
-  }
-
-  const mSuper = filePath.match(
-    /(?:^|\/)([^/]+)\/docs\/superpowers\/plans\/([^/]+)\.md$/
-  )
-  if (mSuper) {
-    return {
-      slug: `superpowers:${mSuper[1]}:${mSuper[2]}`,
-      basename: mSuper[2],
-      source: "superpowers",
-    }
-  }
-
-  const mCtx = filePath.match(/(?:^|\/)([^/]+)\/\.context\/plans\/([^/]+)\.md$/)
-  if (mCtx) {
-    return {
-      slug: `context-plan:${mCtx[1]}:${mCtx[2]}`,
-      basename: mCtx[2],
-      source: "context-plan",
-    }
-  }
-
-  return null
 }
 
 const TITLE_MAX_LENGTH = 200

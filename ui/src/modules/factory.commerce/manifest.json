@@ -41,6 +41,11 @@
         "layout": true
       },
       {
+        "id": "factory.commerce.route.customer-sites",
+        "displayName": "Customer Sites",
+        "path": "/(root)/(app)/commerce/customers/:slug/sites/"
+      },
+      {
         "id": "factory.commerce.route.customer-subscriptions",
         "displayName": "Customer Subscriptions",
         "path": "/(root)/(app)/commerce/customers/:slug/subscriptions/"

@@ -24,7 +24,6 @@ function wrapWithRetry<T>(
         cause: error instanceof Error ? error.message : String(error),
       }),
   }).pipe(
-    Effect.retry(retryPolicy),
     Effect.timeout(Duration.seconds(10)),
     Effect.catchTag("TimeoutException", () =>
       Effect.fail(
@@ -34,6 +33,7 @@ function wrapWithRetry<T>(
         })
       )
     ),
+    Effect.retry(retryPolicy),
     Effect.withSpan(`ControlPlaneLink.${operation}`)
   )
 }
@@ -43,9 +43,28 @@ export const FactoryControlPlaneLinkLive = Layer.effect(
   Effect.gen(function* () {
     const config = yield* SiteConfigTag
     const siteName = config.siteName ?? config.focusSystem.name
-    const factoryUrl = "" // resolved from host config at runtime
+    const factoryUrl = config.factoryUrl ?? ""
 
-    const link = new FactoryLink({ factoryUrl, siteName })
+    if (!factoryUrl) {
+      return ControlPlaneLinkTag.of({
+        checkin: () => Effect.succeed({ manifestChanged: false }),
+        fetchManifest: Effect.fail(
+          new ControlPlaneLinkError({
+            operation: "fetchManifest",
+            cause:
+              "No Factory URL configured — set factoryUrl in SiteConfig or use standalone mode",
+          })
+        ),
+        reportState: () => Effect.void,
+        checkForUpdates: () => Effect.succeed(null),
+      })
+    }
+
+    const link = new FactoryLink({
+      factoryUrl,
+      siteName,
+      apiToken: config.apiToken,
+    })
 
     return ControlPlaneLinkTag.of({
       checkin: (payload) =>

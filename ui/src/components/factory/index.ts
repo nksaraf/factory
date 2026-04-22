@@ -1,3 +1,5 @@
+export { DetailLayout } from "./detail-layout"
+export type { TabDef } from "./detail-layout"
 export { StatusBadge } from "./status-badge"
 export { MetricCard } from "./metric-card"
 export { HealthGauge } from "./health-gauge"

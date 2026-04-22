@@ -6,6 +6,11 @@ import { useCustomer } from "@/lib/commerce"
 const TABS: TabDef[] = [
   { path: "", label: "Overview", icon: "icon-[ph--squares-four-duotone]" },
   {
+    path: "/sites",
+    label: "Sites",
+    icon: "icon-[ph--globe-hemisphere-west-duotone]",
+  },
+  {
     path: "/subscriptions",
     label: "Subscriptions",
     icon: "icon-[ph--repeat-duotone]",
@@ -17,7 +22,7 @@ const TABS: TabDef[] = [
   },
 ]
 
-export default function CustomerDetailLayout() {
+export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { slug } = useParams<{ slug: string }>()
   const { data: customer, isLoading } = useCustomer(slug)
 
@@ -40,6 +45,8 @@ export default function CustomerDetailLayout() {
             }
           : undefined
       }
-    />
+    >
+      {children}
+    </DetailLayout>
   )
 }

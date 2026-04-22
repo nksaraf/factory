@@ -42,6 +42,7 @@ import {
   subscription,
   subscriptionItem,
 } from "../../db/schema/commerce"
+import { tenant } from "../../db/schema/ops"
 import { ontologyRoutes } from "../../lib/crud"
 import { idempotencyPlugin } from "../../plugins/idempotency.plugin"
 
@@ -82,6 +83,15 @@ export function commerceController(db: Database) {
               path: "bundles",
               table: entitlementBundle,
               fk: entitlementBundle.customerId,
+            },
+            tenants: {
+              path: "tenants",
+              table: tenant,
+              fk: tenant.customerId,
+              bitemporal: {
+                validTo: tenant.validTo,
+                systemTo: tenant.systemTo,
+              },
             },
           },
           actions: {
