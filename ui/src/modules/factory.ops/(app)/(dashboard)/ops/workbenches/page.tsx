@@ -17,6 +17,7 @@ import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import type { Workbench } from "@/lib/ops/types"
 import { WORKBENCH_TYPE_ICONS } from "../../../../components/type-icons"
 
@@ -84,7 +85,7 @@ function WorkbenchRow({ item }: { item: Workbench }) {
       <TableCell className="text-muted-foreground">
         {new Date(item.createdAt).toLocaleDateString()}
       </TableCell>
-      <TableCell />
+      <TableCell><OpsActionMenu entityPath="workbenches" entityId={item.id} /></TableCell>
     </TableRow>
   )
 }

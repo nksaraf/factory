@@ -16,6 +16,7 @@ import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import type { Rollout } from "@/lib/ops/types"
 
 const STATUS_OPTIONS = [
@@ -71,7 +72,7 @@ function RolloutRow({ item }: { item: Rollout }) {
       <TableCell className="text-muted-foreground">
         {new Date(item.createdAt).toLocaleDateString()}
       </TableCell>
-      <TableCell />
+      <TableCell><OpsActionMenu entityPath="rollouts" entityId={item.id} /></TableCell>
     </TableRow>
   )
 }

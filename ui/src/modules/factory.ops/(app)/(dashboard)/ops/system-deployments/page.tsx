@@ -17,6 +17,7 @@ import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import type { SystemDeployment } from "@/lib/ops/types"
 import { SYSTEM_DEPLOYMENT_TYPE_ICONS } from "../../../../components/type-icons"
 
@@ -76,7 +77,7 @@ function DeploymentRow({ item }: { item: SystemDeployment }) {
       <TableCell>
         <StatusBadge status={phase} />
       </TableCell>
-      <TableCell />
+      <TableCell><OpsActionMenu entityPath="system-deployments" entityId={item.id} /></TableCell>
     </TableRow>
   )
 }

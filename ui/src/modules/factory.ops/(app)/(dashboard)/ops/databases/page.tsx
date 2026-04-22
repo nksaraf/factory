@@ -17,6 +17,7 @@ import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import type { OpsDatabase } from "@/lib/ops/types"
 import { DATABASE_ENGINE_ICONS } from "../../../../components/type-icons"
 
@@ -77,7 +78,7 @@ function DatabaseRow({ item }: { item: OpsDatabase }) {
       <TableCell className="text-muted-foreground">
         {new Date(item.createdAt).toLocaleDateString()}
       </TableCell>
-      <TableCell />
+      <TableCell><OpsActionMenu entityPath="databases" entityId={item.id} /></TableCell>
     </TableRow>
   )
 }

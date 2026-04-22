@@ -16,6 +16,7 @@ import type { ColumnDef } from "@rio.js/app-ui/components/items/items-list/items
 
 import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import type { ComponentDeployment } from "@/lib/ops/types"
 
 const PHASE_OPTIONS = [
@@ -81,7 +82,7 @@ function ComponentRow({ item }: { item: ComponentDeployment }) {
       <TableCell>
         <StatusBadge status={phase} />
       </TableCell>
-      <TableCell />
+      <TableCell><OpsActionMenu entityPath="component-deployments" entityId={item.id} /></TableCell>
     </TableRow>
   )
 }

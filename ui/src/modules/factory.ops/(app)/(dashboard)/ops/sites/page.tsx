@@ -1,23 +1,25 @@
-import { Link } from "react-router"
-
-import { Icon } from "@rio.js/ui/icon"
-import {
-  ItemsTableCell as TableCell,
-  ItemsTableRow as TableRow,
-  ItemsTableHead as TableHead,
-} from "@rio.js/app-ui/components/items/items-list/items-table"
-import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
-import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
-import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
-import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
-import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
-import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
-import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
-import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
-
-import { DashboardPage, StatusBadge } from "@/components/factory"
 import { opsFetch } from "@/lib/ops"
 import type { Site } from "@/lib/ops/types"
+import { Link } from "react-router"
+
+import { ItemsContent } from "@rio.js/app-ui/components/items/items-content"
+import { ItemsListView } from "@rio.js/app-ui/components/items/items-list/items-list-view"
+import {
+  ItemsTableCell as TableCell,
+  ItemsTableHead as TableHead,
+  ItemsTableRow as TableRow,
+} from "@rio.js/app-ui/components/items/items-list/items-table"
+import { ItemsPage } from "@rio.js/app-ui/components/items/items-page"
+import { ItemsProvider } from "@rio.js/app-ui/components/items/items-provider"
+import { ItemsSearchbar } from "@rio.js/app-ui/components/items/items-searchbar"
+import { ItemsSelectFilter } from "@rio.js/app-ui/components/items/items-select-filter"
+import { ItemsToolbar } from "@rio.js/app-ui/components/items/items-toolbar"
+import { ItemsView } from "@rio.js/app-ui/components/items/items-view"
+import { Icon } from "@rio.js/ui/icon"
+
+import { DashboardPage, StatusBadge } from "@/components/factory"
+
+import { OpsActionMenu } from "../../../../components/ops-action-menu"
 import { SITE_TYPE_ICONS } from "../../../../components/type-icons"
 
 const SITE_TYPES = [
@@ -57,6 +59,7 @@ const ListHeader = (
     <TableHead>Type</TableHead>
     <TableHead>Product</TableHead>
     <TableHead>Phase</TableHead>
+    <TableHead className="w-12" />
   </TableRow>
 )
 
@@ -82,6 +85,9 @@ function SiteRow({ item }: { item: Site }) {
       <TableCell>
         <StatusBadge status={phase} />
       </TableCell>
+      <TableCell>
+        <OpsActionMenu entityPath="sites" entityId={item.id} />
+      </TableCell>
     </TableRow>
   )
 }
@@ -89,6 +95,7 @@ function SiteRow({ item }: { item: Site }) {
 export default function SitesPage() {
   return (
     <DashboardPage
+      flush
       plane="ops"
       title="Sites"
       description="Deployment environments -- production, staging, preview, and development sites"

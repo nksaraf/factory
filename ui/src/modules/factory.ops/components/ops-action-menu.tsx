@@ -10,6 +10,20 @@ interface ActionDef {
 }
 
 const ENTITY_ACTIONS: Record<string, ActionDef[]> = {
+  sites: [
+    { action: "checkin", label: "Check In", icon: "icon-[ph--check-circle-duotone]" },
+    { action: "assign-release", label: "Assign Release", icon: "icon-[ph--tag-duotone]" },
+  ],
+  "system-deployments": [
+    { action: "scale", label: "Scale", icon: "icon-[ph--arrows-out-duotone]" },
+    { action: "restart", label: "Restart", icon: "icon-[ph--arrow-clockwise-duotone]" },
+  ],
+  rollouts: [
+    { action: "promote", label: "Promote", icon: "icon-[ph--arrow-fat-up-duotone]" },
+  ],
+  interventions: [
+    { action: "resolve", label: "Resolve", icon: "icon-[ph--check-circle-duotone]" },
+  ],
   workbenches: [
     { action: "start", label: "Start", icon: "icon-[ph--play-duotone]" },
     { action: "stop", label: "Stop", icon: "icon-[ph--stop-duotone]" },
