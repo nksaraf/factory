@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { FactoryOntology } from "../../factory/index"
+import { FactoryGraph } from "../../factory/index"
 import { generateTableSpec } from "./schema-generator"
 
 function columnNames(spec: ReturnType<typeof generateTableSpec>): string[] {
@@ -12,7 +12,7 @@ function findCol(spec: ReturnType<typeof generateTableSpec>, name: string) {
 
 describe("generateTableSpec", () => {
   test("estate: reconcilable entity with self-referencing FK", () => {
-    const entity = FactoryOntology.entities["estate"]
+    const entity = FactoryGraph.entities["estate"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("estate")
@@ -51,7 +51,7 @@ describe("generateTableSpec", () => {
   })
 
   test("team: bitemporal entity with self-referencing FK", () => {
-    const entity = FactoryOntology.entities["team"]
+    const entity = FactoryGraph.entities["team"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("team")
@@ -89,7 +89,7 @@ describe("generateTableSpec", () => {
   })
 
   test("systemDeployment: required FKs + reconcilable", () => {
-    const entity = FactoryOntology.entities["systemDeployment"]
+    const entity = FactoryGraph.entities["systemDeployment"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("system_deployment")
@@ -120,7 +120,7 @@ describe("generateTableSpec", () => {
   })
 
   test("workbench: multiple optional FKs + reconcilable + bitemporal", () => {
-    const entity = FactoryOntology.entities["workbench"]
+    const entity = FactoryGraph.entities["workbench"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("workbench")
@@ -148,7 +148,7 @@ describe("generateTableSpec", () => {
   })
 
   test("host: does not generate columns for one-to-many links", () => {
-    const entity = FactoryOntology.entities["host"]
+    const entity = FactoryGraph.entities["host"]
     const spec = generateTableSpec(entity)
 
     const names = columnNames(spec)
@@ -165,7 +165,7 @@ describe("generateTableSpec", () => {
   })
 
   test("componentDeployment: required FKs without metadata", () => {
-    const entity = FactoryOntology.entities["componentDeployment"]
+    const entity = FactoryGraph.entities["componentDeployment"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("component_deployment")
@@ -184,7 +184,7 @@ describe("generateTableSpec", () => {
   })
 
   test("column type assignments are correct", () => {
-    const entity = FactoryOntology.entities["site"]
+    const entity = FactoryGraph.entities["site"]
     const spec = generateTableSpec(entity)
 
     expect(findCol(spec, "id")!.columnType).toBe("PgText")

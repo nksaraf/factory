@@ -1,6 +1,6 @@
 /**
- * Ontology live layer — derives all accessors + parent traversal from the
- * ontology IR (FactoryOntology) and table bindings (FACTORY_BINDINGS).
+ * Graph live layer — derives all accessors + parent traversal from the
+ * graph IR (FactoryGraph) and table bindings (FACTORY_BINDINGS).
  */
 
 import { Effect, Layer } from "effect"
@@ -10,16 +10,16 @@ import { EntityNotFoundError } from "@smp/factory-shared/effect/errors"
 
 import { Db, query, type DatabaseError } from "./database"
 import {
-  Ontology,
+  Graph,
   makeEntityAccessor,
-  type OntologyService,
+  type GraphService,
   type AncestorRef,
-} from "../services/ontology"
+} from "../services/graph"
 import type { Database } from "../../db/connection"
-import { FactoryOntology } from "@smp/ontology/factory"
+import { FactoryGraph } from "@smp/graph/factory"
 import { FACTORY_BINDINGS } from "../factory-bindings"
-import type { TableBinding } from "@smp/ontology/adapters/postgres/bindings"
-import type { EntityIR } from "@smp/ontology"
+import type { TableBinding } from "@smp/graph/adapters/postgres/bindings"
+import type { EntityIR } from "@smp/graph"
 
 // ---------------------------------------------------------------------------
 // Types for the kind index
@@ -216,8 +216,8 @@ function buildSecretScopeChain(
 // Live layer
 // ---------------------------------------------------------------------------
 
-export const OntologyLive = Layer.effect(
-  Ontology,
+export const GraphLive = Layer.effect(
+  Graph,
   Effect.gen(function* () {
     const db = yield* Db
 
@@ -227,7 +227,7 @@ export const OntologyLive = Layer.effect(
     for (const [bindingKey, binding] of Object.entries(FACTORY_BINDINGS)) {
       // The binding key IS the kind string (e.g., "estate", "system-deployment")
       const kind = bindingKey
-      const entityIR = FactoryOntology.entities[kind]
+      const entityIR = FactoryGraph.entities[kind]
 
       kindIndex.set(kind, { kind, binding, entity: entityIR })
     }
@@ -289,6 +289,6 @@ export const OntologyLive = Layer.effect(
       find: dynamicFind,
       ancestors: ancestorsFn,
       secretScopeChain: secretScopeChainFn,
-    } as OntologyService
+    } as GraphService
   })
 )

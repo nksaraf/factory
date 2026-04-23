@@ -11,7 +11,7 @@ export type {
 } from "./types"
 
 export type {
-  OntologyIR,
+  GraphIR,
   EntityIR,
   TraitIR,
   LinkIR,
@@ -19,7 +19,7 @@ export type {
   DerivedIR,
 } from "./ir"
 
-export { defineEntity, compileEntity, compileOntology } from "./entity"
+export { defineEntity, compileEntity, compileGraph } from "./entity"
 export {
   defineTrait,
   Reconcilable,

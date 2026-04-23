@@ -13,15 +13,15 @@ export {
 // Config layer
 export { FactoryConfig, makeConfigLayer } from "./layers/config"
 
-// Ontology — typed entity access derived from IR + table bindings
+// Graph — typed entity access derived from IR + table bindings
 export {
-  Ontology,
-  type OntologyService,
+  Graph,
+  type GraphService,
   type EntityAccessor,
   makeEntityAccessor,
-} from "./services/ontology"
+} from "./services/graph"
 export { FACTORY_BINDINGS } from "./factory-bindings"
-export { OntologyLive } from "./layers/ontology"
+export { GraphLive } from "./layers/graph"
 
 // Spec resolver — $secret() and $var() resolution
 export { SpecResolver, type ResolveScope } from "./services/spec-resolver"
@@ -44,7 +44,7 @@ export { SecretsLive } from "./layers/secrets"
 // Bridge
 export { runEffect, runWithRuntime } from "./bridge"
 
-// Runtime — full service stack (Db + Config + Secrets + SpecResolver + Ontology)
+// Runtime — full service stack (Db + Config + Secrets + SpecResolver + Graph)
 export { createAppLayer, type AppLayer } from "./runtime"
 
 // Reconciliation framework

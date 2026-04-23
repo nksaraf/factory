@@ -3,7 +3,7 @@ import { z } from "zod"
 import {
   defineEntity,
   compileEntity,
-  compileOntology,
+  compileGraph,
   link,
   Reconcilable,
   TeamOwned,
@@ -178,8 +178,8 @@ describe("compileEntity", () => {
   })
 })
 
-describe("compileOntology", () => {
-  test("compiles multiple entities into a full OntologyIR", () => {
+describe("compileGraph", () => {
+  test("compiles multiple entities into a full GraphIR", () => {
     const Host = defineEntity("host", {
       namespace: "infra",
       prefix: "hst",
@@ -217,12 +217,12 @@ describe("compileOntology", () => {
       spec: TeamSpec,
     })
 
-    const ir = compileOntology([Host, Site, Team], {
+    const ir = compileGraph([Host, Site, Team], {
       traits: [Reconcilable, TeamOwned, Addressable],
     })
 
     // Schema metadata
-    expect(ir.$schema).toBe("https://ontology.dev/ir/v1")
+    expect(ir.$schema).toBe("https://graph.dev/ir/v1")
     expect(ir.version).toBe("1.0")
 
     // Namespaces
@@ -264,7 +264,7 @@ describe("compileOntology", () => {
       spec: { type: "object", properties: {} },
     })
 
-    const ir = compileOntology([A, B])
+    const ir = compileGraph([A, B])
 
     expect(ir.namespaces.ops.entityKinds).toContain("deployment")
     expect(ir.namespaces.ops.entityKinds).toContain("service")

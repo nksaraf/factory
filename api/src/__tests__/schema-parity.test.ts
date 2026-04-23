@@ -1,11 +1,11 @@
 import { describe, test, expect } from "bun:test"
 import { getTableColumns } from "drizzle-orm"
-import { FactoryOntology } from "@smp/ontology/factory"
-import { generateTableSpec } from "@smp/ontology/adapters/postgres/schema-generator"
+import { FactoryGraph } from "@smp/graph/factory"
+import { generateTableSpec } from "@smp/graph/adapters/postgres/schema-generator"
 import { FACTORY_BINDINGS } from "../effect/factory-bindings"
 
 describe("schema parity -- generated vs hand-written", () => {
-  for (const [kind, entityIR] of Object.entries(FactoryOntology.entities)) {
+  for (const [kind, entityIR] of Object.entries(FactoryGraph.entities)) {
     const binding = (FACTORY_BINDINGS as Record<string, any>)[kind]
     if (!binding) continue // skip entities without bindings (e.g., componentDeployment)
 

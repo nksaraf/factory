@@ -1,5 +1,5 @@
 /**
- * Tests for the Effect Ontology, Secrets, and SpecResolver services
+ * Tests for the Effect Graph, Secrets, and SpecResolver services
  * against an in-memory PGlite database.
  *
  * Uses the same pattern as effect-db-layer.test.ts:
@@ -16,7 +16,7 @@ import type { Database } from "../db/connection"
 import { createMigratedTestPglite } from "../test-helpers"
 import { newId } from "../lib/id"
 import { createAppLayer, type AppLayer } from "../effect/runtime"
-import { Ontology } from "../effect/services/ontology"
+import { Graph } from "../effect/services/graph"
 import { Secrets } from "../effect/services/secrets"
 import { SpecResolver } from "../effect/services/spec-resolver"
 import { Db, query } from "../effect"
@@ -44,16 +44,16 @@ function runExit<A, E>(effect: Effect.Effect<A, E, AppLayer>) {
 }
 
 // ---------------------------------------------------------------------------
-// Ontology
+// Graph
 // ---------------------------------------------------------------------------
 
-describe("Ontology", () => {
+describe("Graph", () => {
   describe("team (org domain)", () => {
     it("get(slug) — returns a team by slug", async () => {
       const slug = `ont-slug-${Date.now()}`
       const id = newId("team")
 
-      // Insert via raw Db layer so Ontology reads it back
+      // Insert via raw Db layer so Graph reads it back
       await run(
         Effect.gen(function* () {
           const db = yield* Db
@@ -61,7 +61,7 @@ describe("Ontology", () => {
             db.insert(team).values({
               id,
               slug,
-              name: "Ontology Team Slug",
+              name: "Graph Team Slug",
               type: "team",
             })
           )
@@ -70,14 +70,14 @@ describe("Ontology", () => {
 
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.get(slug)
+          const graph = yield* Graph
+          return yield* graph.team.get(slug)
         })
       )
 
       expect(result.slug).toBe(slug)
       expect(result.id).toBe(id)
-      expect(result.name).toBe("Ontology Team Slug")
+      expect(result.name).toBe("Graph Team Slug")
     })
 
     it("get(id) — returns a team by ID", async () => {
@@ -91,7 +91,7 @@ describe("Ontology", () => {
             db.insert(team).values({
               id,
               slug,
-              name: "Ontology Team ID",
+              name: "Graph Team ID",
               type: "team",
             })
           )
@@ -100,8 +100,8 @@ describe("Ontology", () => {
 
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.get(id)
+          const graph = yield* Graph
+          return yield* graph.team.get(id)
         })
       )
 
@@ -112,8 +112,8 @@ describe("Ontology", () => {
     it("get(nonexistent) — fails with EntityNotFoundError", async () => {
       const exit = await runExit(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.get("nonexistent-team-xyz")
+          const graph = yield* Graph
+          return yield* graph.team.get("nonexistent-team-xyz")
         })
       )
 
@@ -130,8 +130,8 @@ describe("Ontology", () => {
     it("find(nonexistent) — returns null without error", async () => {
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.find("nonexistent-team-find-xyz")
+          const graph = yield* Graph
+          return yield* graph.team.find("nonexistent-team-find-xyz")
         })
       )
 
@@ -160,8 +160,8 @@ describe("Ontology", () => {
 
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.list()
+          const graph = yield* Graph
+          return yield* graph.team.list()
         })
       )
 
@@ -175,8 +175,8 @@ describe("Ontology", () => {
     it("list({ limit: 2 }) — respects pagination", async () => {
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.team.list({ limit: 2 })
+          const graph = yield* Graph
+          return yield* graph.team.list({ limit: 2 })
         })
       )
 
@@ -206,8 +206,8 @@ describe("Ontology", () => {
 
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.estate.get(slug)
+          const graph = yield* Graph
+          return yield* graph.estate.get(slug)
         })
       )
 
@@ -238,8 +238,8 @@ describe("Ontology", () => {
 
       const result = await run(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.get("team", slug)
+          const graph = yield* Graph
+          return yield* graph.get("team", slug)
         })
       )
 
@@ -250,8 +250,8 @@ describe("Ontology", () => {
     it("fails with EntityNotFoundError for unknown kind", async () => {
       const exit = await runExit(
         Effect.gen(function* () {
-          const ontology = yield* Ontology
-          return yield* ontology.get("nonexistent-kind", "x")
+          const graph = yield* Graph
+          return yield* graph.get("nonexistent-kind", "x")
         })
       )
 

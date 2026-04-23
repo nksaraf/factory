@@ -7,7 +7,7 @@ import type {
 } from "./types"
 import type {
   EntityIR,
-  OntologyIR,
+  GraphIR,
   TraitIR,
   LinkIR,
   ActionIR,
@@ -170,11 +170,11 @@ export function compileEntity(entity: EntityDefinition): EntityIR {
   }
 }
 
-/** Compile all entity definitions into a full OntologyIR. */
-export function compileOntology(
+/** Compile all entity definitions into a full GraphIR. */
+export function compileGraph(
   entities: EntityDefinition[],
   opts?: { traits?: TraitDefinition[] }
-): OntologyIR {
+): GraphIR {
   // Collect namespaces
   const namespaces: Record<
     string,
@@ -223,7 +223,7 @@ export function compileOntology(
   }
 
   return {
-    $schema: "https://ontology.dev/ir/v1",
+    $schema: "https://graph.dev/ir/v1",
     version: "1.0",
     namespaces,
     traits: traitsIR,

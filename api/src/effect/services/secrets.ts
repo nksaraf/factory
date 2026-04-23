@@ -72,13 +72,13 @@ export class Secrets extends Context.Tag("Secrets")<
      * Resolve all secrets for a scope chain (from ontology.secretScopeChain).
      *
      * Queries secrets at each scope level and merges with most specific winning.
-     * The caller provides the chain — typically from `ontology.secretScopeChain()`.
+     * The caller provides the chain — typically from `graph.secretScopeChain()`.
      *
      * @example
      * ```ts
-     * const ontology = yield* Ontology
+     * const graph = yield* Graph
      * const secrets = yield* Secrets
-     * const chain = yield* ontology.secretScopeChain("system-deployment", "api-prod")
+     * const chain = yield* graph.secretScopeChain("system-deployment", "api-prod")
      * const resolved = yield* secrets.resolveForScopeChain(chain)
      * ```
      */

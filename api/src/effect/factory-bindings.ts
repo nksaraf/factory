@@ -1,9 +1,9 @@
 /**
- * Factory-specific table bindings — maps each ontology entity kind to its
+ * Factory-specific table bindings — maps each graph entity kind to its
  * existing Drizzle table + slug/id columns + FK columns for parent links.
  */
 
-import type { TableBindings } from "@smp/ontology/adapters/postgres/bindings"
+import type { TableBindings } from "@smp/graph/adapters/postgres/bindings"
 import {
   estate,
   host,

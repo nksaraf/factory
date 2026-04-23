@@ -6,7 +6,7 @@
  *   - FactoryConfig (application settings)
  *   - Secrets (encrypted secret storage)
  *   - SpecResolver ($secret/$var resolution)
- *   - Ontology (typed entity access)
+ *   - Graph (typed entity access)
  *
  * Controllers just call `runEffect(Effect.provide(program, appLayer))` —
  * no manual layer assembly per route.
@@ -19,7 +19,7 @@ import { makeDbLayer } from "./layers/database"
 import { makeConfigLayer } from "./layers/config"
 import { SecretsLive } from "./layers/secrets"
 import { SpecResolverLive } from "./layers/spec-resolver"
-import { OntologyLive } from "./layers/ontology"
+import { GraphLive } from "./layers/graph"
 
 /**
  * Build the full application layer from a Database and FactorySettings.
@@ -28,7 +28,7 @@ import { OntologyLive } from "./layers/ontology"
  *   Db + FactoryConfig (base)
  *     └→ SecretsLive (depends on Db)
  *         └→ SpecResolverLive (depends on Db + Secrets)
- *     └→ OntologyLive (depends on Db)
+ *     └→ GraphLive (depends on Db)
  */
 export function createAppLayer(db: Database, settings?: FactorySettings) {
   const base = settings
@@ -41,10 +41,10 @@ export function createAppLayer(db: Database, settings?: FactorySettings) {
   // SpecResolverLive depends on Db + Secrets
   const withSpecResolver = Layer.provideMerge(SpecResolverLive, withSecrets)
 
-  // OntologyLive depends on Db
-  const withOntology = Layer.provideMerge(OntologyLive, withSpecResolver)
+  // GraphLive depends on Db
+  const withGraph = Layer.provideMerge(GraphLive, withSpecResolver)
 
-  return withOntology
+  return withGraph
 }
 
 export type AppLayer = Layer.Layer.Success<ReturnType<typeof createAppLayer>>

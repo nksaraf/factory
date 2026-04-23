@@ -2,7 +2,7 @@ packages:
   - "./api"
   - "./api-server"
   - "./cli"
-  - "./ontology"
+  - "./graph"
   - "./shared"
   - "./ui"
   - "./packages/npm/*"

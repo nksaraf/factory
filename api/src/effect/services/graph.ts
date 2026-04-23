@@ -1,13 +1,13 @@
 /**
- * Ontology service — strongly typed entity access + parent hierarchy.
+ * Graph service — strongly typed entity access + parent hierarchy.
  *
- * The ontology IR (from @smp/ontology/factory) defines the entity graph and
+ * The graph IR (from @smp/graph/factory) defines the entity graph and
  * link relationships. FACTORY_BINDINGS (from ../factory-bindings) maps each
  * entity kind to its Drizzle table + columns. Together they replace ENTITY_MAP.
  *
- *   const ontology = yield* Ontology
- *   const est = yield* ontology.estate.get("my-estate")
- *   const chain = yield* ontology.ancestors("component-deployment", "api-prod")
+ *   const graph = yield* Graph
+ *   const est = yield* graph.estate.get("my-estate")
+ *   const chain = yield* graph.ancestors("component-deployment", "api-prod")
  *   //=> [componentDeployment, systemDeployment, site, component, system, org]
  */
 
@@ -22,7 +22,7 @@ import type { Database } from "../../db/connection"
 import { FACTORY_BINDINGS } from "../factory-bindings"
 
 // ---------------------------------------------------------------------------
-// Entity accessor — what each ontology.X returns
+// Entity accessor — what each graph.X returns
 // ---------------------------------------------------------------------------
 
 export interface EntityAccessor<T extends PgTable> {
@@ -104,7 +104,7 @@ export interface AncestorRef {
 }
 
 // ---------------------------------------------------------------------------
-// Derived types — OntologyService from FACTORY_BINDINGS
+// Derived types — GraphService from FACTORY_BINDINGS
 // ---------------------------------------------------------------------------
 
 type Bindings = typeof FACTORY_BINDINGS
@@ -112,15 +112,15 @@ type Bindings = typeof FACTORY_BINDINGS
 /**
  * The key mapping from FACTORY_BINDINGS uses hyphenated kind strings as keys
  * for some entities (e.g., "system-deployment"). To provide camelCase property
- * accessors on OntologyService, we need to map the binding keys to accessor
+ * accessors on GraphService, we need to map the binding keys to accessor
  * names. The binding file uses the camelCase JS-identifier form for most
  * entities, with the exception of hyphenated keys for multi-word entity kinds.
  *
  * Since bindings already use JS-identifier keys (e.g., "system-deployment"),
- * the service exposes them as-is. Callers use ontology["system-deployment"]
- * or ontology.estate, etc.
+ * the service exposes them as-is. Callers use graph["system-deployment"]
+ * or graph.estate, etc.
  */
-export type OntologyService = {
+export type GraphService = {
   readonly [K in keyof Bindings]: EntityAccessor<Bindings[K]["table"]>
 } & {
   /** Dynamic access by kind string. */
@@ -144,7 +144,7 @@ export type OntologyService = {
    * For entities with dual lineage (e.g., systemDeployment has both site
    * and system parents), both lineages are walked breadth-first.
    *
-   * Parent links are derived from the ontology IR: any link with
+   * Parent links are derived from the graph IR: any link with
    * cardinality === "many-to-one" is treated as a parent link. The FK
    * column is resolved from the binding's fks record.
    */
@@ -171,7 +171,4 @@ export type OntologyService = {
 // Service tag
 // ---------------------------------------------------------------------------
 
-export class Ontology extends Context.Tag("Ontology")<
-  Ontology,
-  OntologyService
->() {}
+export class Graph extends Context.Tag("Graph")<Graph, GraphService>() {}

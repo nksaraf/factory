@@ -1,7 +1,7 @@
 import { z } from "zod"
 import {
   defineEntity,
-  compileOntology,
+  compileGraph,
   link,
   Reconcilable,
   Bitemporal,
@@ -543,10 +543,10 @@ export const BillableMetric = defineEntity("billableMetric", {
 })
 
 // ---------------------------------------------------------------------------
-// Compiled ontology
+// Compiled graph
 // ---------------------------------------------------------------------------
 
-export const FactoryOntology = compileOntology(
+export const FactoryGraph = compileGraph(
   [
     Team,
     Principal,

@@ -1,7 +1,7 @@
 import type { JsonSchema, PropertyAnnotations, AccessDefinition } from "./types"
 
-export interface OntologyIR {
-  $schema: "https://ontology.dev/ir/v1"
+export interface GraphIR {
+  $schema: "https://graph.dev/ir/v1"
   version: "1.0"
   namespaces: Record<string, { description?: string; entityKinds: string[] }>
   traits: Record<string, TraitIR>
