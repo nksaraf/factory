@@ -3,7 +3,7 @@
  *
  * Provides two resolution modes:
  *   1. Direct — set/get/list/remove by explicit scope (scopeType + scopeId)
- *   2. Entity — resolveForEntity walks the ontology ancestry chain to merge
+ *   2. Entity — resolveForEntity walks the graph ancestry chain to merge
  *      secrets from all parent scopes with proper precedence
  *
  * Secret inheritance (most specific wins):
@@ -69,7 +69,7 @@ export class Secrets extends Context.Tag("Secrets")<
 
     // ── Entity-scoped resolution ──────────────────────────
     /**
-     * Resolve all secrets for a scope chain (from ontology.secretScopeChain).
+     * Resolve all secrets for a scope chain (from graph.secretScopeChain).
      *
      * Queries secrets at each scope level and merges with most specific winning.
      * The caller provides the chain — typically from `graph.secretScopeChain()`.

@@ -1,8 +1,8 @@
-# Factory Ontology — Meta
+# Factory Graph — Meta
 # Machine-readable declaration of the Factory knowledge graph.
 # Inspired by Palantir Foundry's ontology model: Object Types, Links, Actions.
 
-ontology:
+graph:
   name: factory
   version: "1.0"
   description: >

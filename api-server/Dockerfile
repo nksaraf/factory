@@ -25,7 +25,7 @@ COPY .npmrc* ./
 COPY ./api/package.json ./api/
 COPY ./api-server/package.json ./api-server/
 COPY ./shared/package.json ./shared/
-COPY ./ontology/package.json ./ontology/
+COPY ./graph/package.json ./graph/
 
 RUN npx get-artifactregistry-token@3.4.2
 
@@ -34,7 +34,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY ./api ./api
 COPY ./api-server ./api-server
 COPY ./shared ./shared
-COPY ./ontology ./ontology
+COPY ./graph ./graph
 COPY ./scripts ./scripts
 # Migrations: generate in api (`pnpm --filter @smp/factory-api run db:generate`).
 COPY ./api/drizzle ./drizzle

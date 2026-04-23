@@ -2,7 +2,7 @@
  * Live layer for the Secrets service.
  *
  * Wraps PostgresSecretBackend for direct operations, and adds
- * `resolveForEntity` which walks the ontology ancestry chain
+ * `resolveForEntity` which walks the graph ancestry chain
  * to merge secrets with proper scope precedence.
  */
 
