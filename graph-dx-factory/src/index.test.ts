@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
-  FactoryGraph,
+  DxFactoryGraph,
   Team,
   Principal,
   Estate,
@@ -14,27 +14,27 @@ import {
   Workbench,
 } from "./index"
 
-describe("FactoryGraph", () => {
+describe("DxFactoryGraph", () => {
   test("compiles without errors", () => {
-    expect(FactoryGraph).toBeDefined()
-    expect(FactoryGraph.$schema).toBe("https://graph.dev/ir/v1")
-    expect(FactoryGraph.version).toBe("1.0")
+    expect(DxFactoryGraph).toBeDefined()
+    expect(DxFactoryGraph.$schema).toBe("https://graph.dev/ir/v1")
+    expect(DxFactoryGraph.version).toBe("1.0")
   })
 
   test("has 4 namespaces", () => {
-    const ns = Object.keys(FactoryGraph.namespaces).sort()
+    const ns = Object.keys(DxFactoryGraph.namespaces).sort()
     expect(ns).toEqual(["infra", "ops", "org", "software"])
   })
 
   test("org namespace has team and principal", () => {
-    const org = FactoryGraph.namespaces.org
+    const org = DxFactoryGraph.namespaces.org
     expect(org.entityKinds).toContain("team")
     expect(org.entityKinds).toContain("principal")
     expect(org.entityKinds).toHaveLength(2)
   })
 
   test("infra namespace has estate, host, realm", () => {
-    const infra = FactoryGraph.namespaces.infra
+    const infra = DxFactoryGraph.namespaces.infra
     expect(infra.entityKinds).toContain("estate")
     expect(infra.entityKinds).toContain("host")
     expect(infra.entityKinds).toContain("realm")
@@ -42,14 +42,14 @@ describe("FactoryGraph", () => {
   })
 
   test("software namespace has system and component", () => {
-    const sw = FactoryGraph.namespaces.software
+    const sw = DxFactoryGraph.namespaces.software
     expect(sw.entityKinds).toContain("system")
     expect(sw.entityKinds).toContain("component")
     expect(sw.entityKinds).toHaveLength(2)
   })
 
   test("ops namespace has site, systemDeployment, componentDeployment, workbench", () => {
-    const ops = FactoryGraph.namespaces.ops
+    const ops = DxFactoryGraph.namespaces.ops
     expect(ops.entityKinds).toContain("site")
     expect(ops.entityKinds).toContain("systemDeployment")
     expect(ops.entityKinds).toContain("componentDeployment")
@@ -73,7 +73,7 @@ describe("FactoryGraph", () => {
     ]
 
     for (const { kind, prefix, namespace } of expectations) {
-      const entity = FactoryGraph.entities[kind]
+      const entity = DxFactoryGraph.entities[kind]
       expect(entity).toBeDefined()
       expect(entity.prefix).toBe(prefix)
       expect(entity.namespace).toBe(namespace)
@@ -83,7 +83,7 @@ describe("FactoryGraph", () => {
 
 describe("entity links", () => {
   test("team has parent self-ref link", () => {
-    const team = FactoryGraph.entities.team
+    const team = DxFactoryGraph.entities.team
     expect(team.links.parent).toBeDefined()
     expect(team.links.parent.target).toBe("team")
     expect(team.links.parent.fk).toBe("parentTeamId")
@@ -91,7 +91,7 @@ describe("entity links", () => {
   })
 
   test("host has estate link", () => {
-    const host = FactoryGraph.entities.host
+    const host = DxFactoryGraph.entities.host
     expect(host.links.estate).toBeDefined()
     expect(host.links.estate.target).toBe("estate")
     expect(host.links.estate.fk).toBe("estateId")
@@ -99,7 +99,7 @@ describe("entity links", () => {
   })
 
   test("estate has hosts and realms one-to-many links", () => {
-    const estate = FactoryGraph.entities.estate
+    const estate = DxFactoryGraph.entities.estate
     expect(estate.links.hosts).toBeDefined()
     expect(estate.links.hosts.target).toBe("host")
     expect(estate.links.hosts.cardinality).toBe("one-to-many")
@@ -111,7 +111,7 @@ describe("entity links", () => {
   })
 
   test("systemDeployment has dual lineage — both site and system links", () => {
-    const sd = FactoryGraph.entities.systemDeployment
+    const sd = DxFactoryGraph.entities.systemDeployment
     expect(sd.links.site).toBeDefined()
     expect(sd.links.site.target).toBe("site")
     expect(sd.links.site.required).toBe(true)
@@ -125,7 +125,7 @@ describe("entity links", () => {
   })
 
   test("componentDeployment has dual lineage — systemDeployment and component", () => {
-    const cd = FactoryGraph.entities.componentDeployment
+    const cd = DxFactoryGraph.entities.componentDeployment
     expect(cd.links.systemDeployment).toBeDefined()
     expect(cd.links.systemDeployment.target).toBe("systemDeployment")
     expect(cd.links.systemDeployment.required).toBe(true)
@@ -136,7 +136,7 @@ describe("entity links", () => {
   })
 
   test("workbench links to site, host, realm, and owner", () => {
-    const wb = FactoryGraph.entities.workbench
+    const wb = DxFactoryGraph.entities.workbench
     expect(wb.links.site.target).toBe("site")
     expect(wb.links.host.target).toBe("host")
     expect(wb.links.realm.target).toBe("realm")
@@ -144,14 +144,14 @@ describe("entity links", () => {
   })
 
   test("component links to system", () => {
-    const cmp = FactoryGraph.entities.component
+    const cmp = DxFactoryGraph.entities.component
     expect(cmp.links.system).toBeDefined()
     expect(cmp.links.system.target).toBe("system")
     expect(cmp.links.system.fk).toBe("systemId")
   })
 
   test("site has recursive parent link", () => {
-    const site = FactoryGraph.entities.site
+    const site = DxFactoryGraph.entities.site
     expect(site.links.parent).toBeDefined()
     expect(site.links.parent.target).toBe("site")
     expect(site.links.parent.fk).toBe("parentSiteId")
@@ -160,7 +160,7 @@ describe("entity links", () => {
 
 describe("traits", () => {
   test("estate has reconcilable trait", () => {
-    const estate = FactoryGraph.entities.estate
+    const estate = DxFactoryGraph.entities.estate
     expect(estate.traits).toContain("reconcilable")
     expect(estate.reconciliation).toBe(true)
     expect(estate.derived.isConverged).toBeDefined()
@@ -168,7 +168,7 @@ describe("traits", () => {
   })
 
   test("system has bitemporal and team-owned traits", () => {
-    const sys = FactoryGraph.entities.system
+    const sys = DxFactoryGraph.entities.system
     expect(sys.traits).toContain("bitemporal")
     expect(sys.traits).toContain("team-owned")
     expect(sys.bitemporal).toBe(true)
@@ -177,7 +177,7 @@ describe("traits", () => {
   })
 
   test("site has both reconcilable and bitemporal traits", () => {
-    const site = FactoryGraph.entities.site
+    const site = DxFactoryGraph.entities.site
     expect(site.traits).toContain("reconcilable")
     expect(site.traits).toContain("bitemporal")
     expect(site.reconciliation).toBe(true)
@@ -185,7 +185,7 @@ describe("traits", () => {
   })
 
   test("component has team-owned trait with ownerTeam link", () => {
-    const cmp = FactoryGraph.entities.component
+    const cmp = DxFactoryGraph.entities.component
     expect(cmp.traits).toContain("team-owned")
     expect(cmp.links.ownerTeam).toBeDefined()
     expect(cmp.links.ownerTeam.target).toBe("team")
@@ -193,7 +193,7 @@ describe("traits", () => {
   })
 
   test("team is bitemporal but not reconcilable", () => {
-    const team = FactoryGraph.entities.team
+    const team = DxFactoryGraph.entities.team
     expect(team.bitemporal).toBe(true)
     expect(team.reconciliation).toBe(false)
     expect(team.traits).not.toContain("reconcilable")
@@ -202,7 +202,7 @@ describe("traits", () => {
 
 describe("serialization", () => {
   test("the IR is fully serializable to JSON", () => {
-    const json = JSON.stringify(FactoryGraph)
+    const json = JSON.stringify(DxFactoryGraph)
     expect(json).toBeDefined()
     expect(typeof json).toBe("string")
 
@@ -213,7 +213,7 @@ describe("serialization", () => {
   })
 
   test("roundtrip preserves entity structure", () => {
-    const json = JSON.stringify(FactoryGraph)
+    const json = JSON.stringify(DxFactoryGraph)
     const parsed = JSON.parse(json)
 
     const host = parsed.entities.host
@@ -248,7 +248,7 @@ describe("entity definitions", () => {
   })
 
   test("component spec has 14 type enum values", () => {
-    const cmp = FactoryGraph.entities.component
+    const cmp = DxFactoryGraph.entities.component
     const typeSchema = cmp.schemas.spec.properties?.type
     expect(typeSchema?.enum).toHaveLength(14)
     expect(typeSchema?.enum).toContain("service")

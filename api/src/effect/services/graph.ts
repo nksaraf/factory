@@ -1,8 +1,8 @@
 /**
  * Graph service — strongly typed entity access + parent hierarchy.
  *
- * The graph IR (from @smp/graph/factory) defines the entity graph and
- * link relationships. FACTORY_BINDINGS (from ../factory-bindings) maps each
+ * The graph IR (from @smp/graph-dx-factory) defines the entity graph and
+ * link relationships. FACTORY_BINDINGS (from ../../db/bindings) maps each
  * entity kind to its Drizzle table + columns. Together they replace ENTITY_MAP.
  *
  *   const graph = yield* Graph
@@ -19,7 +19,7 @@ import { EntityNotFoundError } from "@smp/factory-shared/effect/errors"
 import { query, type DatabaseError } from "../layers/database"
 import { isPrefixedId } from "../../lib/resolvers"
 import type { Database } from "../../db/connection"
-import { FACTORY_BINDINGS } from "../factory-bindings"
+import { FACTORY_BINDINGS } from "../../db/bindings"
 
 // ---------------------------------------------------------------------------
 // Entity accessor — what each graph.X returns

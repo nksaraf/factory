@@ -1,6 +1,6 @@
 /**
  * Graph live layer — derives all accessors + parent traversal from the
- * graph IR (FactoryGraph) and table bindings (FACTORY_BINDINGS).
+ * graph IR (DxFactoryGraph) and table bindings (FACTORY_BINDINGS).
  */
 
 import { Effect, Layer } from "effect"
@@ -16,8 +16,8 @@ import {
   type AncestorRef,
 } from "../services/graph"
 import type { Database } from "../../db/connection"
-import { FactoryGraph } from "@smp/graph/factory"
-import { FACTORY_BINDINGS } from "../factory-bindings"
+import { DxFactoryGraph } from "@smp/graph-dx-factory"
+import { FACTORY_BINDINGS } from "../../db/bindings"
 import type { TableBinding } from "@smp/graph/adapters/postgres/bindings"
 import type { EntityIR } from "@smp/graph"
 
@@ -227,7 +227,7 @@ export const GraphLive = Layer.effect(
     for (const [bindingKey, binding] of Object.entries(FACTORY_BINDINGS)) {
       // The binding key IS the kind string (e.g., "estate", "system-deployment")
       const kind = bindingKey
-      const entityIR = FactoryGraph.entities[kind]
+      const entityIR = DxFactoryGraph.entities[kind]
 
       kindIndex.set(kind, { kind, binding, entity: entityIR })
     }

@@ -1,13 +1,12 @@
 import { z } from "zod"
 import {
   defineEntity,
-  compileGraph,
   link,
   Reconcilable,
   Bitemporal,
   TeamOwned,
   Addressable,
-} from "../schema/index"
+} from "@smp/graph"
 
 // ---------------------------------------------------------------------------
 // Org namespace
@@ -541,30 +540,3 @@ export const BillableMetric = defineEntity("billableMetric", {
     }),
   },
 })
-
-// ---------------------------------------------------------------------------
-// Compiled graph
-// ---------------------------------------------------------------------------
-
-export const FactoryGraph = compileGraph(
-  [
-    Team,
-    Principal,
-    Estate,
-    Host,
-    Realm,
-    System,
-    Component,
-    Site,
-    SystemDeployment,
-    ComponentDeployment,
-    Workbench,
-    Customer,
-    Plan,
-    Subscription,
-    SubscriptionItem,
-    EntitlementBundle,
-    BillableMetric,
-  ],
-  { traits: [Reconcilable, Bitemporal, TeamOwned, Addressable] }
-)

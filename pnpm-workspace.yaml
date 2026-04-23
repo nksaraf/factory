@@ -3,6 +3,7 @@ packages:
   - "./api-server"
   - "./cli"
   - "./graph"
+  - "./graph-dx-factory"
   - "./shared"
   - "./ui"
   - "./packages/npm/*"

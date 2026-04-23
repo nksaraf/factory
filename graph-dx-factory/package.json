@@ -1,22 +1,18 @@
 {
-  "name": "@smp/graph",
+  "name": "@smp/graph-dx-factory",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts",
-    "./schema/*": "./src/schema/*.ts",
-    "./runtime": "./src/runtime/index.ts",
-    "./runtime/*": "./src/runtime/*.ts",
-    "./adapters/*": "./src/adapters/*.ts",
-    "./adapters/postgres/*": "./src/adapters/postgres/*.ts"
+    "./entities": "./src/entities/index.ts"
   },
   "scripts": {
     "test": "bun test",
     "typecheck": "! tsgo --noEmit 2>&1 | grep 'error TS'"
   },
   "dependencies": {
+    "@smp/graph": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "zod": "^3.23.8"
   },

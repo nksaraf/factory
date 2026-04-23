@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
-import { FactoryGraph } from "../../factory/index"
-import { generateTableSpec } from "./schema-generator"
+import { DxFactoryGraph } from "./index"
+import { generateTableSpec } from "@smp/graph/adapters/postgres/schema-generator"
 
 function columnNames(spec: ReturnType<typeof generateTableSpec>): string[] {
   return spec.columns.map((c) => c.name)
@@ -12,7 +12,7 @@ function findCol(spec: ReturnType<typeof generateTableSpec>, name: string) {
 
 describe("generateTableSpec", () => {
   test("estate: reconcilable entity with self-referencing FK", () => {
-    const entity = FactoryGraph.entities["estate"]
+    const entity = DxFactoryGraph.entities["estate"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("estate")
@@ -51,7 +51,7 @@ describe("generateTableSpec", () => {
   })
 
   test("team: bitemporal entity with self-referencing FK", () => {
-    const entity = FactoryGraph.entities["team"]
+    const entity = DxFactoryGraph.entities["team"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("team")
@@ -89,7 +89,7 @@ describe("generateTableSpec", () => {
   })
 
   test("systemDeployment: required FKs + reconcilable", () => {
-    const entity = FactoryGraph.entities["systemDeployment"]
+    const entity = DxFactoryGraph.entities["systemDeployment"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("system_deployment")
@@ -120,7 +120,7 @@ describe("generateTableSpec", () => {
   })
 
   test("workbench: multiple optional FKs + reconcilable + bitemporal", () => {
-    const entity = FactoryGraph.entities["workbench"]
+    const entity = DxFactoryGraph.entities["workbench"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("workbench")
@@ -148,7 +148,7 @@ describe("generateTableSpec", () => {
   })
 
   test("host: does not generate columns for one-to-many links", () => {
-    const entity = FactoryGraph.entities["host"]
+    const entity = DxFactoryGraph.entities["host"]
     const spec = generateTableSpec(entity)
 
     const names = columnNames(spec)
@@ -165,7 +165,7 @@ describe("generateTableSpec", () => {
   })
 
   test("componentDeployment: required FKs without metadata", () => {
-    const entity = FactoryGraph.entities["componentDeployment"]
+    const entity = DxFactoryGraph.entities["componentDeployment"]
     const spec = generateTableSpec(entity)
 
     expect(spec.tableName).toBe("component_deployment")
@@ -184,7 +184,7 @@ describe("generateTableSpec", () => {
   })
 
   test("column type assignments are correct", () => {
-    const entity = FactoryGraph.entities["site"]
+    const entity = DxFactoryGraph.entities["site"]
     const spec = generateTableSpec(entity)
 
     expect(findCol(spec, "id")!.columnType).toBe("PgText")

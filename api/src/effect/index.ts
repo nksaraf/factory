@@ -20,7 +20,7 @@ export {
   type EntityAccessor,
   makeEntityAccessor,
 } from "./services/graph"
-export { FACTORY_BINDINGS } from "./factory-bindings"
+export { FACTORY_BINDINGS } from "../db/bindings"
 export { GraphLive } from "./layers/graph"
 
 // Spec resolver — $secret() and $var() resolution
