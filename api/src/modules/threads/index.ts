@@ -196,8 +196,10 @@ export function threadsController(db: Database) {
       )
 
       // ── Thread-scoped plans (authored + referenced) ───────────
-      .get("/threads/:id/plans", async ({ params }) => {
-        const threadId = params.id
+      // Uses :slugOrId to stay compatible with the ontologyRoutes generator
+      // above which registers other /threads/:slugOrId/* sub-paths.
+      .get("/threads/:slugOrId/plans", async ({ params }) => {
+        const threadId = params.slugOrId
 
         const authored = await db
           .select({
