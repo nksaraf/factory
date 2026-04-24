@@ -26,6 +26,7 @@ COPY ./api/package.json ./api/
 COPY ./api-server/package.json ./api-server/
 COPY ./shared/package.json ./shared/
 COPY ./graph/package.json ./graph/
+COPY ./graph-dx-factory/package.json ./graph-dx-factory/
 
 RUN npx get-artifactregistry-token@3.4.2
 
@@ -35,6 +36,7 @@ COPY ./api ./api
 COPY ./api-server ./api-server
 COPY ./shared ./shared
 COPY ./graph ./graph
+COPY ./graph-dx-factory ./graph-dx-factory
 COPY ./scripts ./scripts
 # Migrations: generate in api (`pnpm --filter @smp/factory-api run db:generate`).
 COPY ./api/drizzle ./drizzle
