@@ -10,7 +10,8 @@
 
 import { Effect } from "effect"
 import { eq } from "drizzle-orm"
-import type { EntityIR, JsonSchema } from "../schema/ir"
+import type { EntityIR } from "../schema/ir"
+import type { JsonSchema, PropertyAnnotations } from "../schema/types"
 import type { CustomerLoader, CustomerLoadResult } from "./registry"
 
 interface Deps {
@@ -32,7 +33,7 @@ function rowToEntity(row: Record<string, unknown>): EntityIR {
       status: (row.statusSchema as JsonSchema) ?? {},
       metadata: {},
     },
-    annotations: (row.annotations as Record<string, unknown>) ?? {},
+    annotations: (row.annotations as PropertyAnnotations) ?? {},
     identity: { slugScope: "global" },
     reconciliation: false,
     bitemporal: false,

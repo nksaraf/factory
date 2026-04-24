@@ -50,6 +50,10 @@ export interface AdapterCapabilities {
   readonly supportsAggregate: boolean
 }
 
+/** Adapter operations can fail. We don't prescribe the error type here —
+ *  implementations use whatever error their storage backend surfaces. */
+export type AdapterError = unknown
+
 export interface Adapter {
   readonly name: string
   readonly capabilities: AdapterCapabilities
@@ -58,39 +62,39 @@ export interface Adapter {
     kind: string,
     idOrSlug: string,
     graphId: string | null
-  ) => Effect.Effect<InstanceRow | null>
+  ) => Effect.Effect<InstanceRow | null, AdapterError>
 
   readonly list: (
     kind: string,
     opts: ListOpts,
     graphId: string | null
-  ) => Effect.Effect<InstanceRow[]>
+  ) => Effect.Effect<InstanceRow[], AdapterError>
 
   readonly create: (
     kind: string,
     input: Partial<InstanceRow>,
     graphId: string | null
-  ) => Effect.Effect<InstanceRow>
+  ) => Effect.Effect<InstanceRow, AdapterError>
 
   readonly update: (
     kind: string,
     id: string,
     patch: Partial<InstanceRow>,
     graphId: string | null
-  ) => Effect.Effect<InstanceRow>
+  ) => Effect.Effect<InstanceRow, AdapterError>
 
   readonly delete: (
     kind: string,
     id: string,
     graphId: string | null
-  ) => Effect.Effect<void>
+  ) => Effect.Effect<void, AdapterError>
 
-  readonly link: (row: LinkRow) => Effect.Effect<void>
-  readonly unlink: (row: LinkRow) => Effect.Effect<void>
+  readonly link: (row: LinkRow) => Effect.Effect<void, AdapterError>
+  readonly unlink: (row: LinkRow) => Effect.Effect<void, AdapterError>
 
   readonly listLinks: (
     source: Ref,
     linkName: string,
     graphId: string | null
-  ) => Effect.Effect<LinkRow[]>
+  ) => Effect.Effect<LinkRow[], AdapterError>
 }

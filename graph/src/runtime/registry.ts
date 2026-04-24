@@ -27,7 +27,7 @@ export type CustomerLoader = (
 ) => Effect.Effect<CustomerLoadResult>
 
 export interface GraphRegistry {
-  readonly forGraph: (graphId: string) => Effect.Effect<GraphIR>
+  readonly forGraph: (graphId: string) => Effect.Effect<GraphIR, Error>
   readonly invalidate: (graphId?: string) => Effect.Effect<void>
 }
 
@@ -67,17 +67,20 @@ export function makeGraphRegistry(deps: Deps): GraphRegistry {
 
   return {
     forGraph: (graphId) =>
-      Effect.tryPromise(() => {
-        const cached = cache.get(graphId)
-        if (cached) return cached
-        const promise = Effect.runPromise(deps.loadCustomer(graphId)).then(
-          (customer) => mergeCustomer(deps.base, customer)
-        )
-        // Only cache successful resolutions so a merge failure doesn't pin
-        // the cache to a rejected promise forever.
-        promise.catch(() => cache.delete(graphId))
-        cache.set(graphId, promise)
-        return promise
+      Effect.tryPromise({
+        try: () => {
+          const cached = cache.get(graphId)
+          if (cached) return cached
+          const promise = Effect.runPromise(deps.loadCustomer(graphId)).then(
+            (customer) => mergeCustomer(deps.base, customer)
+          )
+          // Only cache successful resolutions so a merge failure doesn't pin
+          // the cache to a rejected promise forever.
+          promise.catch(() => cache.delete(graphId))
+          cache.set(graphId, promise)
+          return promise
+        },
+        catch: (err) => (err instanceof Error ? err : new Error(String(err))),
       }),
 
     invalidate: (graphId) =>
