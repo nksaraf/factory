@@ -3,6 +3,7 @@ import { type JWTPayload, createRemoteJWKSet, jwtVerify } from "jose"
 
 import type { Database } from "../db/connection"
 import type { FactoryAuthzClient } from "../lib/authz-client"
+import { UnauthorizedError } from "../lib/errors"
 import { logger } from "../logger"
 import { IdentityService } from "../modules/identity/identity.service"
 
@@ -22,7 +23,6 @@ export function authPlugin(jwksUrl: string) {
     { as: "scoped" },
     async ({
       headers,
-      set,
       request,
     }): Promise<{ user: AuthUser; principal: string }> => {
       const authorization = headers["authorization"]
@@ -40,8 +40,7 @@ export function authPlugin(jwksUrl: string) {
       }
 
       if (!token) {
-        set.status = 401
-        throw new Error("Missing authentication token")
+        throw new UnauthorizedError("Missing authentication token")
       }
 
       try {
@@ -49,8 +48,7 @@ export function authPlugin(jwksUrl: string) {
         const user = extractUser(payload)
         return { user, principal: user.id }
       } catch (err) {
-        set.status = 401
-        throw new Error(
+        throw new UnauthorizedError(
           err instanceof Error
             ? `Invalid token: ${err.message}`
             : "Invalid token"
