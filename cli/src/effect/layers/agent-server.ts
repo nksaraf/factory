@@ -1,9 +1,6 @@
 import { Effect, Layer } from "effect"
-import { SiteConfigTag } from "../services/site-config.js"
-import {
-  AgentServerTag,
-  type AgentServerService,
-} from "../services/agent-server.js"
+import { SiteConfig } from "../services/site-config.js"
+import { AgentServer, type IAgentServer } from "../services/agent-server.js"
 
 /**
  * @transitional Wraps the existing Elysia-based agent server.
@@ -11,11 +8,11 @@ import {
  * Phase 8 will bridge individual routes to Effect services via ManagedRuntime.
  */
 export const AgentServerLive = Layer.effect(
-  AgentServerTag,
+  AgentServer,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
 
-    return AgentServerTag.of({
+    return AgentServer.of({
       start: Effect.gen(function* () {
         const { createAgentServer } = yield* Effect.tryPromise({
           try: () => import("../../site/agent-server.js"),
@@ -65,6 +62,6 @@ export const AgentServerLive = Layer.effect(
           }),
         }
       }).pipe(Effect.withSpan("AgentServer.start")),
-    }) satisfies AgentServerService
+    }) satisfies IAgentServer
   })
 )

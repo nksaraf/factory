@@ -21,11 +21,11 @@ export interface DiscoveredWorkspace {
   readonly raw: DxContextWithProject
 }
 
-export interface WorkspaceDiscovery {
+export interface IWorkspaceDiscovery {
   readonly discover: Effect.Effect<DiscoveredWorkspace>
 }
 
-export class WorkspaceDiscoveryTag extends Context.Tag("WorkspaceDiscovery")<
-  WorkspaceDiscoveryTag,
-  WorkspaceDiscovery
+export class WorkspaceDiscovery extends Context.Tag("WorkspaceDiscovery")<
+  WorkspaceDiscovery,
+  IWorkspaceDiscovery
 >() {}

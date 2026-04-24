@@ -1,9 +1,9 @@
 import { Effect, Layer, Schedule, Duration } from "effect"
 import { FactoryLink } from "../../site/factory-link.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteConfig } from "../services/site-config.js"
 import {
-  ControlPlaneLinkTag,
-  type ControlPlaneLinkService,
+  ControlPlaneLink,
+  type IControlPlaneLink,
 } from "../services/control-plane-link.js"
 import { ControlPlaneLinkError } from "../errors/site.js"
 
@@ -39,14 +39,14 @@ function wrapWithRetry<T>(
 }
 
 export const FactoryControlPlaneLinkLive = Layer.effect(
-  ControlPlaneLinkTag,
+  ControlPlaneLink,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
     const siteName = config.siteName ?? config.focusSystem.name
     const factoryUrl = config.factoryUrl ?? ""
 
     if (!factoryUrl) {
-      return ControlPlaneLinkTag.of({
+      return ControlPlaneLink.of({
         checkin: () => Effect.succeed({ manifestChanged: false }),
         fetchManifest: Effect.fail(
           new ControlPlaneLinkError({
@@ -66,7 +66,7 @@ export const FactoryControlPlaneLinkLive = Layer.effect(
       apiToken: config.apiToken,
     })
 
-    return ControlPlaneLinkTag.of({
+    return ControlPlaneLink.of({
       checkin: (payload) =>
         wrapWithRetry("checkin", () => link.checkin(payload)),
 
@@ -81,13 +81,13 @@ export const FactoryControlPlaneLinkLive = Layer.effect(
         wrapWithRetry("checkForUpdates", () =>
           link.checkForUpdates(currentVersion, states, executorType)
         ),
-    }) satisfies ControlPlaneLinkService
+    }) satisfies IControlPlaneLink
   })
 )
 
 export const ControlPlaneLinkNoop = Layer.succeed(
-  ControlPlaneLinkTag,
-  ControlPlaneLinkTag.of({
+  ControlPlaneLink,
+  ControlPlaneLink.of({
     checkin: () => Effect.succeed({ manifestChanged: false }),
     fetchManifest: Effect.fail(
       new ControlPlaneLinkError({

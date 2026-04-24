@@ -39,7 +39,7 @@ export interface SpawnResult {
   readonly process: ChildProcess
 }
 
-export interface ProcessManager {
+export interface IProcessManager {
   readonly spawn: (
     opts: SpawnOpts
   ) => Effect.Effect<SpawnResult, ProcessError, Scope.Scope>
@@ -51,9 +51,9 @@ export interface ProcessManager {
   readonly isRunning: (pid: number) => Effect.Effect<boolean>
 }
 
-export class ProcessManagerTag extends Context.Tag("ProcessManager")<
-  ProcessManagerTag,
-  ProcessManager
+export class ProcessManager extends Context.Tag("ProcessManager")<
+  ProcessManager,
+  IProcessManager
 >() {}
 
 function isAlive(pid: number): boolean {
@@ -105,8 +105,8 @@ function waitForExit(
 }
 
 export const ProcessManagerLive = Layer.succeed(
-  ProcessManagerTag,
-  ProcessManagerTag.of({
+  ProcessManager,
+  ProcessManager.of({
     spawn: (opts: SpawnOpts) =>
       Effect.gen(function* () {
         const [cmd, ...args] = opts.cmd

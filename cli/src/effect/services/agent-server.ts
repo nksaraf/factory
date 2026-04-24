@@ -1,6 +1,6 @@
 import { Context, Effect, Scope } from "effect"
 
-export interface AgentServerService {
+export interface IAgentServer {
   readonly start: Effect.Effect<
     { port: number; stop: Effect.Effect<void> },
     never,
@@ -8,7 +8,7 @@ export interface AgentServerService {
   >
 }
 
-export class AgentServerTag extends Context.Tag("AgentServer")<
-  AgentServerTag,
-  AgentServerService
+export class AgentServer extends Context.Tag("AgentServer")<
+  AgentServer,
+  IAgentServer
 >() {}

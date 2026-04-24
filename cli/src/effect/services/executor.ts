@@ -32,7 +32,7 @@ export interface ProbeResult {
   readonly latencyMs: number
 }
 
-export interface ExecutorService {
+export interface IExecutor {
   readonly type: string
   readonly parseCatalog: Effect.Effect<CatalogSystem, ExecutorError>
   readonly inspect: Effect.Effect<ComponentState[], ExecutorError>
@@ -80,7 +80,4 @@ export interface ExecutorService {
   ) => Effect.Effect<ProbeResult, ProbeFailedError>
 }
 
-export class ExecutorTag extends Context.Tag("Executor")<
-  ExecutorTag,
-  ExecutorService
->() {}
+export class Executor extends Context.Tag("Executor")<Executor, IExecutor>() {}

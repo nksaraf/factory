@@ -37,7 +37,7 @@ export interface SessionFlags {
   readonly quiet?: boolean
 }
 
-export interface SiteConfig {
+export interface ISiteConfig {
   readonly mode: SiteMode
   readonly workingDir: string
   readonly port: number
@@ -51,7 +51,7 @@ export interface SiteConfig {
   readonly sessionFlags?: SessionFlags
 }
 
-export class SiteConfigTag extends Context.Tag("SiteConfig")<
-  SiteConfigTag,
-  SiteConfig
+export class SiteConfig extends Context.Tag("SiteConfig")<
+  SiteConfig,
+  ISiteConfig
 >() {}

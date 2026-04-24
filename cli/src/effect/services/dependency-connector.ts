@@ -8,7 +8,7 @@ export interface ConnectionResult {
   readonly remoteDeps: string[]
 }
 
-export interface DependencyConnectorService {
+export interface IDependencyConnector {
   readonly resolve: (
     flags: ConnectionFlags
   ) => Effect.Effect<ConnectionResult | null, ConnectionError>
@@ -20,7 +20,7 @@ export interface DependencyConnectorService {
   readonly restoreLocal: (envPath: string) => Effect.Effect<void>
 }
 
-export class DependencyConnectorTag extends Context.Tag("DependencyConnector")<
-  DependencyConnectorTag,
-  DependencyConnectorService
+export class DependencyConnector extends Context.Tag("DependencyConnector")<
+  DependencyConnector,
+  IDependencyConnector
 >() {}

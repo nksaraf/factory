@@ -1,14 +1,14 @@
 import { Context, Effect, Layer, Stream } from "effect"
 import { NativeExecutor } from "../../../site/execution/native.js"
-import { SiteConfigTag } from "../../services/site-config.js"
-import { SiteStateTag } from "../../services/site-state.js"
-import type { ExecutorService } from "../../services/executor.js"
+import { SiteConfig } from "../../services/site-config.js"
+import { SiteState } from "../../services/site-state.js"
+import type { IExecutor } from "../../services/executor.js"
 import { ExecutorError, ProbeFailedError } from "../../errors/site.js"
 import { SiteManager } from "../../../lib/site-manager.js"
 
-export class DevProcessExecutorTag extends Context.Tag("DevProcessExecutor")<
-  DevProcessExecutorTag,
-  ExecutorService
+export class DevProcessExecutor extends Context.Tag("DevProcessExecutor")<
+  DevProcessExecutor,
+  IExecutor
 >() {}
 
 function wrapPromise<T>(
@@ -29,17 +29,17 @@ function wrapPromise<T>(
 }
 
 export const DevProcessExecutorLive = Layer.effect(
-  DevProcessExecutorTag,
+  DevProcessExecutor,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
-    const siteState = yield* SiteStateTag
+    const config = yield* SiteConfig
+    const siteState = yield* SiteState
     const sys = config.focusSystem
 
     /**
      * @transitional NativeExecutor requires a SiteManager instance that it
      * mutates directly (updateComponentStatus, save). This creates a dual-write:
-     * NativeExecutor writes to disk via its own SiteManager, bypassing SiteStateTag.
-     * Phase 8 replaces this with a native Effect implementation using SiteStateTag.
+     * NativeExecutor writes to disk via its own SiteManager, bypassing SiteState.
+     * Phase 8 replaces this with a native Effect implementation using SiteState.
      */
     const state = yield* siteState.getState
     const manager =
@@ -58,7 +58,7 @@ export const DevProcessExecutorLive = Layer.effect(
       sdSlug: sys.sdSlug,
     })
 
-    return DevProcessExecutorTag.of({
+    return DevProcessExecutor.of({
       type: "dev-process",
 
       parseCatalog: wrapPromise("parseCatalog", "*", () => impl.parseCatalog()),
@@ -120,6 +120,6 @@ export const DevProcessExecutorLive = Layer.effect(
               "Probe execution not yet implemented for dev-process executor",
           })
         ),
-    }) satisfies ExecutorService
+    }) satisfies IExecutor
   })
 )

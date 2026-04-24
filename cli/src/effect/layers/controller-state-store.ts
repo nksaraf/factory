@@ -2,20 +2,20 @@ import { Effect, Layer } from "effect"
 import { StateCorruptionError } from "@smp/factory-shared/effect/errors"
 import { StateStore } from "../../site/state.js"
 import {
-  ControllerStateStoreTag,
-  type ControllerStateStoreService,
+  ControllerStateStore,
+  type IControllerStateStore,
 } from "../services/controller-state-store.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteConfig } from "../services/site-config.js"
 import { join } from "node:path"
 
 export const ControllerStateStoreLive = Layer.effect(
-  ControllerStateStoreTag,
+  ControllerStateStore,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
     const stateDir = join(config.workingDir, ".dx")
     const store = new StateStore(stateDir)
 
-    return ControllerStateStoreTag.of({
+    return ControllerStateStore.of({
       getLastManifest: Effect.sync(() => store.getLastManifest()),
 
       saveManifest: (manifest) =>
@@ -45,6 +45,6 @@ export const ControllerStateStoreLive = Layer.effect(
         Effect.sync(() => store.getImageHistory(component)),
 
       getStartedAt: Effect.sync(() => store.getStartedAt()),
-    }) satisfies ControllerStateStoreService
+    }) satisfies IControllerStateStore
   })
 )

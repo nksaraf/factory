@@ -1,10 +1,10 @@
 import { Effect, Layer, Duration } from "effect"
 import { makeHealthProbe } from "@smp/factory-shared/effect/health-probe"
-import { ExecutorTag } from "../services/executor.js"
+import { Executor } from "../services/executor.js"
 import type { HealthStatus } from "../../site/execution/executor.js"
 import {
-  HealthMonitorTag,
-  type HealthMonitorService,
+  HealthMonitor,
+  type IHealthMonitor,
   type HealthSnapshot,
 } from "../services/health-monitor.js"
 
@@ -19,9 +19,9 @@ function deriveOverallStatus(
 }
 
 export const HealthMonitorLive = Layer.effect(
-  HealthMonitorTag,
+  HealthMonitor,
   Effect.gen(function* () {
-    const executor = yield* ExecutorTag
+    const executor = yield* Executor
 
     const probe = yield* makeHealthProbe<HealthSnapshot>({
       check: executor.healthCheckAll.pipe(
@@ -39,10 +39,10 @@ export const HealthMonitorLive = Layer.effect(
       interval: Duration.seconds(15),
     })
 
-    return HealthMonitorTag.of({
+    return HealthMonitor.of({
       latest: probe.latest,
       changes: probe.changes,
       fiber: probe.fiber,
-    }) satisfies HealthMonitorService
+    }) satisfies IHealthMonitor
   })
 )

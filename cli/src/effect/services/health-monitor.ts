@@ -7,13 +7,13 @@ export interface HealthSnapshot {
   readonly checkedAt: string
 }
 
-export interface HealthMonitorService {
+export interface IHealthMonitor {
   readonly latest: Effect.Effect<HealthSnapshot | null>
   readonly changes: PubSub.PubSub<HealthSnapshot>
   readonly fiber: Effect.Effect<never>
 }
 
-export class HealthMonitorTag extends Context.Tag("HealthMonitor")<
-  HealthMonitorTag,
-  HealthMonitorService
+export class HealthMonitor extends Context.Tag("HealthMonitor")<
+  HealthMonitor,
+  IHealthMonitor
 >() {}

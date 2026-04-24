@@ -14,7 +14,7 @@ export interface GatewayReconcileResult {
   readonly errors: number
 }
 
-export interface GatewayReconcilerService {
+export interface IGatewayReconciler {
   readonly apply: (
     gateway: ManifestGateway
   ) => Effect.Effect<GatewayReconcileResult, ExecutorError>
@@ -24,7 +24,7 @@ export interface GatewayReconcilerService {
   >
 }
 
-export class GatewayReconcilerTag extends Context.Tag("GatewayReconciler")<
-  GatewayReconcilerTag,
-  GatewayReconcilerService
+export class GatewayReconciler extends Context.Tag("GatewayReconciler")<
+  GatewayReconciler,
+  IGatewayReconciler
 >() {}

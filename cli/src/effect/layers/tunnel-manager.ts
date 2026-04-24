@@ -1,21 +1,21 @@
 import { Effect, Layer, Ref } from "effect"
 import {
-  TunnelManagerTag,
-  type TunnelManagerService,
+  TunnelManager,
+  type ITunnelManager,
   type TunnelInfo,
   type TunnelState,
 } from "../services/tunnel-manager.js"
 import { TunnelError } from "../errors/site.js"
 
 export const TunnelManagerLive = Layer.effect(
-  TunnelManagerTag,
+  TunnelManager,
   Effect.gen(function* () {
     const stateRef = yield* Ref.make<TunnelState>({
       status: "disconnected",
     })
     const handleRef = yield* Ref.make<{ close: () => void } | null>(null)
 
-    return TunnelManagerTag.of({
+    return TunnelManager.of({
       open: (opts) =>
         Effect.gen(function* () {
           yield* Ref.set(stateRef, { status: "connecting" })
@@ -96,6 +96,6 @@ export const TunnelManagerLive = Layer.effect(
         ),
 
       getState: Ref.get(stateRef),
-    }) satisfies TunnelManagerService
+    }) satisfies ITunnelManager
   })
 )

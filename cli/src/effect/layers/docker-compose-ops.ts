@@ -1,17 +1,17 @@
 import { Effect, Layer } from "effect"
 import { Compose, isDockerRunning } from "../../lib/docker.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteConfig } from "../services/site-config.js"
 import {
-  DockerComposeOpsTag,
-  type DockerComposeOpsService,
+  DockerComposeOps,
+  type IDockerComposeOps,
 } from "../services/docker-compose-ops.js"
 import { ExecutorError, BuildError } from "../errors/site.js"
 import { basename } from "node:path"
 
 export const DockerComposeOpsLive = Layer.effect(
-  DockerComposeOpsTag,
+  DockerComposeOps,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
     const sys = config.focusSystem
 
     const compose =
@@ -19,7 +19,7 @@ export const DockerComposeOpsLive = Layer.effect(
         ? new Compose(sys.composeFiles, basename(sys.rootDir))
         : null
 
-    return DockerComposeOpsTag.of({
+    return DockerComposeOps.of({
       build: (services) =>
         Effect.try({
           try: () => {
@@ -79,6 +79,6 @@ export const DockerComposeOpsLive = Layer.effect(
         ),
 
       isDockerRunning: Effect.sync(() => isDockerRunning()),
-    }) satisfies DockerComposeOpsService
+    }) satisfies IDockerComposeOps
   })
 )

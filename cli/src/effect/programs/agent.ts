@@ -1,38 +1,40 @@
 import { Effect, Schedule, Duration } from "effect"
 import { isDevComponent } from "@smp/factory-shared"
 import { DependencyGraph } from "@smp/factory-shared/dependency-graph"
-import { SiteConfigTag } from "../services/site-config.js"
-import { SiteStateTag } from "../services/site-state.js"
-import { DockerComposeOpsTag } from "../services/docker-compose-ops.js"
-import { DependencyConnectorTag } from "../services/dependency-connector.js"
-import { CrossSystemLinkerTag } from "../services/cross-system-linker.js"
-import { TunnelManagerTag } from "../services/tunnel-manager.js"
-import { BuildCacheTag } from "../services/build-cache.js"
-import { HealthMonitorTag } from "../services/health-monitor.js"
-import { AgentServerTag } from "../services/agent-server.js"
-import { SiteReconcilerTag } from "../services/site-reconciler.js"
-import { ControlPlaneLinkTag } from "../services/control-plane-link.js"
-import { ControllerStateStoreTag } from "../services/controller-state-store.js"
+import { SiteConfig } from "../services/site-config.js"
+import { SiteState } from "../services/site-state.js"
+import { DockerComposeOps } from "../services/docker-compose-ops.js"
+import { DependencyConnector } from "../services/dependency-connector.js"
+import { CrossSystemLinker } from "../services/cross-system-linker.js"
+import { TunnelManager } from "../services/tunnel-manager.js"
+import { BuildCache } from "../services/build-cache.js"
+import { HealthMonitor } from "../services/health-monitor.js"
+import { AgentServer } from "../services/agent-server.js"
+import { SiteReconciler } from "../services/site-reconciler.js"
+import { ControlPlaneLink } from "../services/control-plane-link.js"
+import { ControllerStateStore } from "../services/controller-state-store.js"
 import { hostname } from "node:os"
 
 const workbenchSlug = () => hostname().replace(/\.local$/, "")
 
 // ---------------------------------------------------------------------------
-// Phase 1a: Write desired state from CLI flags (dev + up)
+// Phase 1a: Write desired state from local source (dev + up)
+//
+// Requires a project directory with docker-compose.yaml.
 //
 // Dev and up are the same flow. The only difference: in dev mode, components
-// with a dev command run as native processes; in up mode, everything is a
-// container.
+// with a dev command run as native processes and only they + their deps are
+// started. In up mode, everything is a container.
 // ---------------------------------------------------------------------------
 
 const writeLocalSpec = Effect.gen(function* () {
-  const config = yield* SiteConfigTag
-  const siteState = yield* SiteStateTag
-  const composeOps = yield* DockerComposeOpsTag
-  const connResolver = yield* DependencyConnectorTag
-  const crossLinker = yield* CrossSystemLinkerTag
-  const buildCache = yield* BuildCacheTag
-  const stateStore = yield* ControllerStateStoreTag
+  const config = yield* SiteConfig
+  const siteState = yield* SiteState
+  const composeOps = yield* DockerComposeOps
+  const connResolver = yield* DependencyConnector
+  const crossLinker = yield* CrossSystemLinker
+  const buildCache = yield* BuildCache
+  const stateStore = yield* ControllerStateStore
 
   const sys = config.focusSystem
   const sdSlug = sys.sdSlug
@@ -70,69 +72,100 @@ const writeLocalSpec = Effect.gen(function* () {
     connectionEnv = yield* crossLinker.apply(linkedSds, connectionEnv)
   }
 
-  // 4. Assign component modes
-  //    - remote deps → linked (served by another site)
-  //    - dev mode + has dev command → native (source-linked process)
-  //    - everything else → container (Docker Compose)
+  // 4. Determine which components to run and in what mode
   const remoteDepSet = new Set(remoteDeps)
   const wb = workbenchSlug()
-
   const allComponentNames = Object.keys(catalog.components)
   const allResourceNames = Object.keys(catalog.resources)
-  const allNames = [...allComponentNames, ...allResourceNames]
-
-  // In dev mode, figure out which components are dev targets
-  const devTargets = isDev
-    ? new Set(
-        flags.components?.length
-          ? flags.components
-          : allComponentNames.filter((name) =>
-              isDevComponent(catalog.components[name]!)
-            )
-      )
-    : new Set<string>()
-
-  // In dev mode, also bring up transitive deps of dev targets as containers
   const graph = DependencyGraph.fromCatalog(catalog)
-  const neededDeps = new Set<string>()
-  for (const target of devTargets) {
-    for (const dep of graph.transitiveDeps(target)) {
-      if (!devTargets.has(dep)) neededDeps.add(dep)
-    }
-  }
 
-  for (const name of allNames) {
-    if (remoteDepSet.has(name)) {
-      yield* siteState.setComponentMode(sdSlug, name, "linked")
-    } else if (devTargets.has(name)) {
-      yield* siteState.setComponentMode(sdSlug, name, "native", {
-        workbenchSlug: wb,
-      })
-      yield* siteState.bumpGeneration(sdSlug, name)
-    } else {
+  if (isDev) {
+    // Dev mode: only start targets + their transitive deps
+    // dx dev           → all devable components
+    // dx dev api web   → just api and web
+    const devTargets = new Set(
+      flags.components?.length
+        ? flags.components
+        : allComponentNames.filter((name) =>
+            isDevComponent(catalog.components[name]!)
+          )
+    )
+
+    // Transitive deps of dev targets → container
+    const localDockerDeps = new Set<string>()
+    for (const target of devTargets) {
+      for (const dep of graph.transitiveDeps(target)) {
+        if (!devTargets.has(dep) && !remoteDepSet.has(dep)) {
+          localDockerDeps.add(dep)
+        }
+      }
+    }
+
+    // Set modes for only the components we need
+    for (const name of devTargets) {
+      if (remoteDepSet.has(name)) {
+        yield* siteState.setComponentMode(sdSlug, name, "linked")
+      } else {
+        yield* siteState.setComponentMode(sdSlug, name, "native", {
+          workbenchSlug: wb,
+        })
+        yield* siteState.bumpGeneration(sdSlug, name)
+      }
+    }
+    for (const name of localDockerDeps) {
       yield* siteState.setComponentMode(sdSlug, name, "container")
     }
-  }
+    for (const name of remoteDeps) {
+      if (!devTargets.has(name)) {
+        yield* siteState.setComponentMode(sdSlug, name, "linked")
+      }
+    }
 
-  // 5. Restore runtime status from prior run (PIDs, ports survive restarts)
-  for (const name of allNames) {
-    yield* siteState.restoreStatus(sdSlug, name, savedStatuses)
-  }
+    // Restore runtime status + build check for docker deps
+    const allActive = [...devTargets, ...localDockerDeps]
+    for (const name of allActive) {
+      yield* siteState.restoreStatus(sdSlug, name, savedStatuses)
+    }
 
-  // 6. Build check — only for components with build contexts, not resources
-  const containerComponents = allComponentNames.filter(
-    (name) => !devTargets.has(name) && !remoteDepSet.has(name)
-  )
-  if (containerComponents.length > 0) {
-    const buildCheck = yield* buildCache.check(catalog, containerComponents)
-    const needsBuild = flags.noBuild ? [] : buildCheck.needsBuild
-    if (needsBuild.length > 0) {
-      yield* composeOps.build(needsBuild)
-      yield* buildCache.record(catalog, needsBuild)
+    const containerDeps = [...localDockerDeps].filter((name) =>
+      allComponentNames.includes(name)
+    )
+    if (containerDeps.length > 0) {
+      const buildCheck = yield* buildCache.check(catalog, containerDeps)
+      const needsBuild = flags.noBuild ? [] : buildCheck.needsBuild
+      if (needsBuild.length > 0) {
+        yield* composeOps.build(needsBuild)
+        yield* buildCache.record(catalog, needsBuild)
+      }
+    }
+  } else {
+    // Up mode: everything runs as container
+    const allNames = [...allComponentNames, ...allResourceNames]
+    for (const name of allNames) {
+      if (remoteDepSet.has(name)) {
+        yield* siteState.setComponentMode(sdSlug, name, "linked")
+      } else {
+        yield* siteState.setComponentMode(sdSlug, name, "container")
+      }
+    }
+
+    for (const name of allNames) {
+      yield* siteState.restoreStatus(sdSlug, name, savedStatuses)
+    }
+
+    // Build check — only for components, not resources
+    const buildable = allComponentNames.filter((n) => !remoteDepSet.has(n))
+    if (buildable.length > 0) {
+      const buildCheck = yield* buildCache.check(catalog, buildable)
+      const needsBuild = flags.noBuild ? [] : buildCheck.needsBuild
+      if (needsBuild.length > 0) {
+        yield* composeOps.build(needsBuild)
+        yield* buildCache.record(catalog, needsBuild)
+      }
     }
   }
 
-  // 7. Save state + derive manifest for reconciler
+  // 5. Save state + derive manifest for reconciler
   yield* siteState.save
   const manifest = yield* siteState.toManifest(sdSlug, catalog)
   if (manifest) {
@@ -142,11 +175,14 @@ const writeLocalSpec = Effect.gen(function* () {
 
 // ---------------------------------------------------------------------------
 // Phase 1b: Write desired state from control plane (controller)
+//
+// Does NOT require source code. The manifest comes from the Factory API.
+// Can run from any directory on any host.
 // ---------------------------------------------------------------------------
 
 const writeControllerSpec = Effect.gen(function* () {
-  const controlPlane = yield* ControlPlaneLinkTag
-  const stateStore = yield* ControllerStateStoreTag
+  const controlPlane = yield* ControlPlaneLink
+  const stateStore = yield* ControllerStateStore
 
   const manifest = yield* controlPlane.fetchManifest.pipe(
     Effect.catchAll(() => Effect.succeed(null))
@@ -162,16 +198,32 @@ const writeControllerSpec = Effect.gen(function* () {
 
 // ---------------------------------------------------------------------------
 // Phase 2: Reconcile + Monitor + Serve (identical in all modes)
+//
+// 1. Reconcile ONCE synchronously (wait for completion — user sees results)
+// 2. Fork background reconcile loop (catches drift, handles restarts)
+// 3. Fork health monitor
+// 4. Start HTTP server
+// 5. Block forever (scope finalizers handle shutdown)
 // ---------------------------------------------------------------------------
 
 const runDaemon = Effect.gen(function* () {
-  const config = yield* SiteConfigTag
-  const reconciler = yield* SiteReconcilerTag
-  const healthMonitor = yield* HealthMonitorTag
-  const agentServer = yield* AgentServerTag
-  const tunnelManager = yield* TunnelManagerTag
+  const config = yield* SiteConfig
+  const reconciler = yield* SiteReconciler
+  const healthMonitor = yield* HealthMonitor
+  const agentServer = yield* AgentServer
+  const tunnelManager = yield* TunnelManager
 
-  // Reconcile loop — converges actual state toward desired state
+  // Initial reconcile — synchronous, so the user sees containers come up
+  yield* reconciler.reconcile.pipe(
+    Effect.catchAll((err) =>
+      Effect.logWarning("Initial reconcile failed").pipe(
+        Effect.annotateLogs({ error: err.message })
+      )
+    ),
+    Effect.withSpan("runDaemon.initialReconcile")
+  )
+
+  // Background reconcile loop — catches drift, handles crashed components
   const reconcileLoop = reconciler.reconcile.pipe(
     Effect.catchAll((err) =>
       Effect.logWarning("Reconcile cycle failed").pipe(
@@ -186,7 +238,7 @@ const runDaemon = Effect.gen(function* () {
 
   // Tunnel (dev mode with --tunnel flag)
   if (config.mode === "dev" && config.sessionFlags?.tunnel) {
-    const siteState = yield* SiteStateTag
+    const siteState = yield* SiteState
     const sd = yield* siteState.getSystemDeployment(config.focusSystem.sdSlug)
     const declaredPorts: number[] = []
     for (const cd of sd?.componentDeployments ?? []) {
@@ -211,7 +263,7 @@ const runDaemon = Effect.gen(function* () {
 
 export const agentDaemon = Effect.scoped(
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
 
     // Phase 1: Write desired state
     if (config.mode === "controller") {
@@ -220,7 +272,7 @@ export const agentDaemon = Effect.scoped(
       yield* writeLocalSpec
     }
 
-    // Phase 2: Reconcile + monitor + serve
+    // Phase 2: Reconcile once, then loop + monitor + serve
     return yield* runDaemon
   })
 ).pipe(Effect.withSpan("agentDaemon"))

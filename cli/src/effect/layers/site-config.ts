@@ -1,16 +1,16 @@
 import { Effect, Layer } from "effect"
-import { SiteConfigTag, type SiteConfig } from "../services/site-config.js"
-import { WorkspaceDiscoveryTag } from "../services/workspace-discovery.js"
+import { SiteConfig, type ISiteConfig } from "../services/site-config.js"
+import { WorkspaceDiscovery } from "../services/workspace-discovery.js"
 import type { SpawnAgentOpts } from "../../site/agent-lifecycle.js"
 
 export function SiteConfigFromDaemonOpts(opts: SpawnAgentOpts) {
   return Layer.effect(
-    SiteConfigTag,
+    SiteConfig,
     Effect.gen(function* () {
-      const discovery = yield* WorkspaceDiscoveryTag
+      const discovery = yield* WorkspaceDiscovery
       const workspace = yield* discovery.discover
 
-      return SiteConfigTag.of({
+      return SiteConfig.of({
         mode: opts.mode,
         workingDir: opts.workingDir,
         port: opts.port,
@@ -45,6 +45,6 @@ export function SiteConfigFromDaemonOpts(opts: SpawnAgentOpts) {
   )
 }
 
-export function SiteConfigFromValues(config: SiteConfig) {
-  return Layer.succeed(SiteConfigTag, SiteConfigTag.of(config))
+export function SiteConfigFromValues(config: ISiteConfig) {
+  return Layer.succeed(SiteConfig, SiteConfig.of(config))
 }

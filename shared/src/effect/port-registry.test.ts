@@ -2,6 +2,27 @@ import { describe, test, expect } from "bun:test"
 import { Effect } from "effect"
 import { makePortRegistry, PortConflictError } from "./port-registry"
 
+describe("PortConflictError", () => {
+  test("message with component", () => {
+    const err = new PortConflictError({ port: 3000, component: "api" })
+    expect(err.message).toBe("Port 3000 already in use for api")
+    expect(err.httpStatus).toBe(409)
+    expect(err.errorCode).toBe("PORT_CONFLICT")
+    expect(err.cliMetadata).toEqual({ port: 3000, component: "api" })
+  })
+
+  test("message without component", () => {
+    const err = new PortConflictError({ port: 3000 })
+    expect(err.message).toBe("Port 3000 already in use")
+    expect(err.cliMetadata).toEqual({ port: 3000 })
+  })
+
+  test("message with cause", () => {
+    const err = new PortConflictError({ port: 3000, cause: "EADDRINUSE" })
+    expect(err.message).toBe("Port 3000 already in use")
+  })
+})
+
 describe("PortRegistry", () => {
   test("allocate returns ports for requests", async () => {
     const program = Effect.gen(function* () {

@@ -65,6 +65,30 @@ describe("HealthProbe", () => {
     await Effect.runPromise(program)
   })
 
+  test("calls onCheck callback on each snapshot", async () => {
+    const snapshots: string[] = []
+
+    const program = Effect.gen(function* () {
+      const probe = yield* makeHealthProbe({
+        check: Effect.succeed("ok"),
+        interval: Duration.millis(50),
+        onCheck: (s) =>
+          Effect.sync(() => {
+            snapshots.push(s)
+          }),
+      })
+
+      const fiber = yield* Effect.fork(probe.fiber)
+      yield* Effect.sleep(Duration.millis(180))
+      yield* Fiber.interrupt(fiber)
+
+      expect(snapshots.length).toBeGreaterThanOrEqual(2)
+      expect(snapshots[0]).toBe("ok")
+    })
+
+    await Effect.runPromise(program)
+  })
+
   test("handles check failures gracefully", async () => {
     let callCount = 0
 

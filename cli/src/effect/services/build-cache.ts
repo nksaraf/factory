@@ -4,7 +4,7 @@ import type { BuildCheckResult } from "../../lib/build-cache.js"
 
 export type { BuildCheckResult }
 
-export interface BuildCacheService {
+export interface IBuildCache {
   readonly check: (
     catalog: CatalogSystem,
     services: string[]
@@ -15,7 +15,7 @@ export interface BuildCacheService {
   ) => Effect.Effect<void>
 }
 
-export class BuildCacheTag extends Context.Tag("BuildCache")<
-  BuildCacheTag,
-  BuildCacheService
+export class BuildCache extends Context.Tag("BuildCache")<
+  BuildCache,
+  IBuildCache
 >() {}

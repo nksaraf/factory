@@ -1,8 +1,8 @@
 import { Effect, Layer, Ref } from "effect"
 import { StateCorruptionError } from "@smp/factory-shared/effect/errors"
 import { SiteManager } from "../../lib/site-manager.js"
-import { SiteStateTag, type SiteStateService } from "../services/site-state.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteState, type ISiteState } from "../services/site-state.js"
+import { SiteConfig } from "../services/site-config.js"
 import { join } from "node:path"
 
 function persistSiteJson(
@@ -27,9 +27,9 @@ function persistSiteJson(
  * Phase 8 replaces this with ConfigStore<SiteStateData> + immutable Ref.update.
  */
 export const SiteStateLive = Layer.effect(
-  SiteStateTag,
+  SiteState,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
     const rootDir = config.workingDir
 
     const existing = SiteManager.load(rootDir)
@@ -47,7 +47,7 @@ export const SiteStateLive = Layer.effect(
       return mgr
     })
 
-    const service: SiteStateService = {
+    const service: ISiteState = {
       getState: Effect.flatMap(getManager, (m) =>
         Effect.sync(() => m.getState())
       ),

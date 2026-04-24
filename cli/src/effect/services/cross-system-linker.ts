@@ -12,7 +12,7 @@ export interface CrossSystemLinkOpts {
   readonly connectTo?: string
 }
 
-export interface CrossSystemLinkerService {
+export interface ICrossSystemLinker {
   readonly resolve: (
     opts: CrossSystemLinkOpts
   ) => Effect.Effect<CrossSystemLink[]>
@@ -22,7 +22,7 @@ export interface CrossSystemLinkerService {
   ) => Effect.Effect<Record<string, string>>
 }
 
-export class CrossSystemLinkerTag extends Context.Tag("CrossSystemLinker")<
-  CrossSystemLinkerTag,
-  CrossSystemLinkerService
+export class CrossSystemLinker extends Context.Tag("CrossSystemLinker")<
+  CrossSystemLinker,
+  ICrossSystemLinker
 >() {}

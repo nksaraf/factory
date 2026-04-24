@@ -5,17 +5,17 @@ import {
   clearAgentState,
 } from "../../site/agent-lifecycle.js"
 import {
-  AgentStateStoreTag,
-  type AgentStateStoreService,
+  AgentStateStore,
+  type IAgentStateStore,
 } from "../services/agent-state-store.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteConfig } from "../services/site-config.js"
 
 export const AgentStateStoreLive = Layer.effect(
-  AgentStateStoreTag,
+  AgentStateStore,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
 
-    return AgentStateStoreTag.of({
+    return AgentStateStore.of({
       read: Effect.sync(() => readAgentState(config.workingDir)),
 
       write: (state) =>
@@ -27,6 +27,6 @@ export const AgentStateStoreLive = Layer.effect(
       clear: Effect.sync(() => clearAgentState(config.workingDir)).pipe(
         Effect.catchAllDefect(() => Effect.void)
       ),
-    }) satisfies AgentStateStoreService
+    }) satisfies IAgentStateStore
   })
 )

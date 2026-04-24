@@ -41,7 +41,7 @@ export class ComponentStatus extends Schema.Class<ComponentStatus>(
 )({
   name: Schema.String,
   status: Schema.String,
-  mode: Schema.String,
+  health: HealthStatus,
 }) {}
 
 export class SiteCondition extends Schema.Class<SiteCondition>("SiteCondition")(
@@ -99,6 +99,41 @@ export class LogLine extends Schema.Class<LogLine>("LogLine")({
   line: Schema.String,
 }) {}
 
+export class FilePath extends Schema.Class<FilePath>("FilePath")({
+  path: Schema.String,
+}) {}
+
+export class ReadDirPayload extends Schema.Class<ReadDirPayload>(
+  "ReadDirPayload"
+)({
+  root: Schema.optionalWith(Schema.String, { default: () => "." }),
+}) {}
+
+export class FileContent extends Schema.Class<FileContent>("FileContent")({
+  path: Schema.String,
+  content: Schema.String,
+  language: Schema.String,
+}) {}
+
+export class ReadFilePayload extends Schema.Class<ReadFilePayload>(
+  "ReadFilePayload"
+)({
+  path: Schema.String,
+}) {}
+
+export class ServicePayload extends Schema.Class<ServicePayload>(
+  "ServicePayload"
+)({
+  name: Schema.String,
+}) {}
+
+export class ServiceLogsPayload extends Schema.Class<ServiceLogsPayload>(
+  "ServiceLogsPayload"
+)({
+  name: Schema.String,
+  tail: Schema.optionalWith(Schema.Number, { default: () => 200 }),
+}) {}
+
 export class WorkbenchRpcs extends RpcGroup.make(
   Rpc.make("SiteStatus", {
     success: SiteStatusRpc,
@@ -111,17 +146,12 @@ export class WorkbenchRpcs extends RpcGroup.make(
   Rpc.make("SiteReconcile", {
     success: ReconcileResultRpc,
     error: Schema.String,
-    payload: {
-      dryRun: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-    },
   }),
 
   Rpc.make("ServiceRestart", {
     success: Schema.Void,
     error: Schema.String,
-    payload: {
-      name: Schema.String,
-    },
+    payload: ServicePayload,
   }),
 
   Rpc.make("SiteEvents", {
@@ -136,10 +166,21 @@ export class WorkbenchRpcs extends RpcGroup.make(
 
   Rpc.make("ServiceLogs", {
     success: LogLine,
+    error: Schema.String,
     stream: true,
-    payload: {
-      name: Schema.String,
-      tail: Schema.optionalWith(Schema.Number, { default: () => 200 }),
-    },
+    payload: ServiceLogsPayload,
+  }),
+
+  Rpc.make("ReadDir", {
+    success: FilePath,
+    error: Schema.String,
+    stream: true,
+    payload: ReadDirPayload,
+  }),
+
+  Rpc.make("ReadFile", {
+    success: FileContent,
+    error: Schema.String,
+    payload: ReadFilePayload,
   })
 ) {}

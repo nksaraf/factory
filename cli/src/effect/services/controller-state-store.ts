@@ -5,7 +5,7 @@ import type { ImageHistoryEntry } from "../../site/state.js"
 
 export type { ImageHistoryEntry }
 
-export interface ControllerStateStoreService {
+export interface IControllerStateStore {
   readonly getLastManifest: Effect.Effect<SiteManifest | null>
   readonly saveManifest: (
     manifest: SiteManifest
@@ -22,6 +22,7 @@ export interface ControllerStateStoreService {
   readonly getStartedAt: Effect.Effect<string>
 }
 
-export class ControllerStateStoreTag extends Context.Tag(
-  "ControllerStateStore"
-)<ControllerStateStoreTag, ControllerStateStoreService>() {}
+export class ControllerStateStore extends Context.Tag("ControllerStateStore")<
+  ControllerStateStore,
+  IControllerStateStore
+>() {}

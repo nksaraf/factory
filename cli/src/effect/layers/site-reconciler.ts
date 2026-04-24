@@ -1,26 +1,26 @@
 import { Effect, Layer, Ref } from "effect"
 import { randomUUID } from "node:crypto"
 import { planChanges } from "../../site/reconcile.js"
-import { ExecutorTag } from "../services/executor.js"
-import { SiteStateTag } from "../services/site-state.js"
-import { ControllerStateStoreTag } from "../services/controller-state-store.js"
+import { Executor } from "../services/executor.js"
+import { SiteState } from "../services/site-state.js"
+import { ControllerStateStore } from "../services/controller-state-store.js"
 import {
-  SiteReconcilerTag,
-  type SiteReconcilerService,
+  SiteReconciler,
+  type ISiteReconciler,
   type ReconcileResult,
   type ReconcileEvent,
 } from "../services/site-reconciler.js"
-import { SiteConfigTag } from "../services/site-config.js"
+import { SiteConfig } from "../services/site-config.js"
 import { ManifestError } from "../errors/site.js"
 import { makeEventJournal } from "@smp/factory-shared/effect/event-journal"
 
 export const SiteReconcilerLive = Layer.effect(
-  SiteReconcilerTag,
+  SiteReconciler,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
-    const executor = yield* ExecutorTag
-    const siteState = yield* SiteStateTag
-    const stateStore = yield* ControllerStateStoreTag
+    const config = yield* SiteConfig
+    const executor = yield* Executor
+    const siteState = yield* SiteState
+    const stateStore = yield* ControllerStateStore
     const sdSlug = config.focusSystem.sdSlug
     const journal = yield* makeEventJournal<ReconcileEvent>({ maxSize: 200 })
     const lastResultRef = yield* Ref.make<ReconcileResult | null>(null)
@@ -147,7 +147,7 @@ export const SiteReconcilerLive = Layer.effect(
         return result
       }).pipe(Effect.withSpan("SiteReconciler.reconcileOnce"))
 
-    return SiteReconcilerTag.of({
+    return SiteReconciler.of({
       planChanges: (manifest, actual) =>
         Effect.sync(() => planChanges(manifest, actual)),
 
@@ -168,6 +168,6 @@ export const SiteReconcilerLive = Layer.effect(
       events: journal,
 
       lastResult: Ref.get(lastResultRef),
-    }) satisfies SiteReconcilerService
+    }) satisfies ISiteReconciler
   })
 )

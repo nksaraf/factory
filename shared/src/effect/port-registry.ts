@@ -48,7 +48,7 @@ export interface PortAllocation {
   readonly component?: string
 }
 
-export interface PortRegistry {
+export interface IPortRegistry {
   readonly allocate: (
     requests: PortRequest[]
   ) => Effect.Effect<Record<string, number>, PortConflictError>
@@ -60,9 +60,9 @@ export interface PortRegistry {
   readonly snapshot: Effect.Effect<PortAllocation[]>
 }
 
-export class PortRegistryTag extends Context.Tag("PortRegistry")<
-  PortRegistryTag,
-  PortRegistry
+export class PortRegistry extends Context.Tag("PortRegistry")<
+  PortRegistry,
+  IPortRegistry
 >() {}
 
 function probePort(port: number): Effect.Effect<boolean> {
@@ -80,7 +80,7 @@ function probePort(port: number): Effect.Effect<boolean> {
   })
 }
 
-export function makePortRegistry(): Effect.Effect<PortRegistry> {
+export function makePortRegistry(): Effect.Effect<IPortRegistry> {
   return Effect.gen(function* () {
     const allocations = yield* Ref.make<PortAllocation[]>([])
     const mutex = yield* Effect.makeSemaphore(1)
@@ -108,7 +108,7 @@ export function makePortRegistry(): Effect.Effect<PortRegistry> {
         )
       })
 
-    const registry: PortRegistry = {
+    const registry: IPortRegistry = {
       allocate: (requests) =>
         mutex
           .withPermits(1)(

@@ -9,7 +9,7 @@ import type {
 
 export type { CheckinPayload, CheckinResponse }
 
-export interface ControlPlaneLinkService {
+export interface IControlPlaneLink {
   readonly checkin: (
     payload: CheckinPayload
   ) => Effect.Effect<CheckinResponse, ControlPlaneLinkError>
@@ -25,7 +25,7 @@ export interface ControlPlaneLinkService {
   ) => Effect.Effect<SiteManifest | null, ControlPlaneLinkError>
 }
 
-export class ControlPlaneLinkTag extends Context.Tag("ControlPlaneLink")<
-  ControlPlaneLinkTag,
-  ControlPlaneLinkService
+export class ControlPlaneLink extends Context.Tag("ControlPlaneLink")<
+  ControlPlaneLink,
+  IControlPlaneLink
 >() {}

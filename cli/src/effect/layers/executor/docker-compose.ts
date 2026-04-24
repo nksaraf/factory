@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Stream } from "effect"
 import { ComposeExecutor } from "../../../site/execution/compose.js"
-import { SiteConfigTag } from "../../services/site-config.js"
-import type { ExecutorService } from "../../services/executor.js"
+import { SiteConfig } from "../../services/site-config.js"
+import type { IExecutor } from "../../services/executor.js"
 import {
   ExecutorError,
   ComponentNotFoundError,
@@ -9,9 +9,10 @@ import {
 } from "../../errors/site.js"
 import { basename } from "node:path"
 
-export class DockerComposeExecutorTag extends Context.Tag(
-  "DockerComposeExecutor"
-)<DockerComposeExecutorTag, ExecutorService>() {}
+export class DockerComposeExecutor extends Context.Tag("DockerComposeExecutor")<
+  DockerComposeExecutor,
+  IExecutor
+>() {}
 
 function wrapPromise<T>(
   executor: string,
@@ -32,9 +33,9 @@ function wrapPromise<T>(
 }
 
 export const DockerComposeExecutorLive = Layer.effect(
-  DockerComposeExecutorTag,
+  DockerComposeExecutor,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
+    const config = yield* SiteConfig
     const sys = config.focusSystem
 
     const impl = new ComposeExecutor({
@@ -43,7 +44,7 @@ export const DockerComposeExecutorLive = Layer.effect(
       cwd: sys.rootDir,
     })
 
-    return DockerComposeExecutorTag.of({
+    return DockerComposeExecutor.of({
       type: "docker-compose",
 
       parseCatalog: wrapPromise("docker-compose", "parseCatalog", "*", () =>
@@ -126,6 +127,6 @@ export const DockerComposeExecutorLive = Layer.effect(
               "Probe execution not yet implemented for docker-compose executor",
           })
         ),
-    }) satisfies ExecutorService
+    }) satisfies IExecutor
   })
 )

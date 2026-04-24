@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { Effect, Scope } from "effect"
+import { Effect, Either, Scope } from "effect"
 import { makeJsonFileConfigStore, makeMemoryConfigStore } from "./config-store"
 import { mkdirSync, existsSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
@@ -114,8 +114,8 @@ describe("ConfigStore", () => {
             defaultValue: { n: 0 },
           })
 
-          yield* store.update((v: any) => ({ n: v.n + 1 }))
-          yield* store.update((v: any) => ({ n: v.n + 1 }))
+          yield* store.update((v: { n: number }) => ({ n: v.n + 1 }))
+          yield* store.update((v: { n: number }) => ({ n: v.n + 1 }))
 
           const value = yield* store.get
           expect(value).toEqual({ n: 2 })
@@ -156,6 +156,50 @@ describe("ConfigStore", () => {
 
       await Effect.runPromise(program)
       cleanTestDir()
+    })
+
+    test("handles corrupted JSON file", async () => {
+      cleanTestDir()
+      mkdirSync(testDir, { recursive: true })
+      const path = join(testDir, "test-corrupt.json")
+      const { writeFileSync } = await import("node:fs")
+      writeFileSync(path, "NOT VALID JSON {{{")
+
+      const program = Effect.scoped(
+        Effect.gen(function* () {
+          const result = yield* makeJsonFileConfigStore({
+            path,
+            parse: JSON.parse,
+            serialize: (v) => JSON.stringify(v),
+            defaultValue: { fallback: true },
+          }).pipe(Effect.either)
+
+          expect(result._tag).toBe("Left")
+        })
+      )
+
+      await Effect.runPromise(program)
+      cleanTestDir()
+    })
+
+    test("handles write to read-only path", async () => {
+      const path = "/nonexistent/impossible/test.json"
+
+      const program = Effect.scoped(
+        Effect.gen(function* () {
+          const store = yield* makeJsonFileConfigStore({
+            path,
+            parse: JSON.parse,
+            serialize: (v) => JSON.stringify(v),
+            defaultValue: { x: 1 },
+          })
+
+          const result = yield* store.set({ x: 2 }).pipe(Effect.either)
+          expect(result._tag).toBe("Left")
+        })
+      )
+
+      await Effect.runPromise(program)
     })
   })
 })

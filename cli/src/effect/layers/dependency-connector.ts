@@ -1,10 +1,10 @@
 import { Effect, Layer, Ref } from "effect"
-import { SiteConfigTag } from "../services/site-config.js"
-import { SiteStateTag } from "../services/site-state.js"
-import { DockerComposeOpsTag } from "../services/docker-compose-ops.js"
+import { SiteConfig } from "../services/site-config.js"
+import { SiteState } from "../services/site-state.js"
+import { DockerComposeOps } from "../services/docker-compose-ops.js"
 import {
-  DependencyConnectorTag,
-  type DependencyConnectorService,
+  DependencyConnector,
+  type IDependencyConnector,
   type ConnectionResult,
 } from "../services/dependency-connector.js"
 import { ConnectionError } from "../errors/site.js"
@@ -15,11 +15,11 @@ import { ConnectionError } from "../errors/site.js"
  * Phase 8 replaces with native Effect implementation.
  */
 export const DependencyConnectorLive = Layer.effect(
-  DependencyConnectorTag,
+  DependencyConnector,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
-    const siteState = yield* SiteStateTag
-    const composeOps = yield* DockerComposeOpsTag
+    const config = yield* SiteConfig
+    const siteState = yield* SiteState
+    const composeOps = yield* DockerComposeOps
 
     type Orch = import("../../lib/site-orchestrator.js").SiteOrchestrator
     const orchRef = yield* Ref.make<Orch | null>(null)
@@ -43,7 +43,7 @@ export const DependencyConnectorLive = Layer.effect(
       return orch
     })
 
-    return DependencyConnectorTag.of({
+    return DependencyConnector.of({
       resolve: (flags) =>
         Effect.gen(function* () {
           const orch = yield* getOrch
@@ -91,6 +91,6 @@ export const DependencyConnectorLive = Layer.effect(
           Effect.catchAllDefect(() => Effect.void),
           Effect.withSpan("DependencyConnector.restoreLocal")
         ),
-    }) satisfies DependencyConnectorService
+    }) satisfies IDependencyConnector
   })
 )

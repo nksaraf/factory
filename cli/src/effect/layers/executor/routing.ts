@@ -1,28 +1,28 @@
 import { Effect, Layer, Stream } from "effect"
 import {
-  ExecutorTag,
-  type ExecutorService,
+  Executor,
+  type IExecutor,
   type ComponentState,
 } from "../../services/executor.js"
-import { SiteStateTag } from "../../services/site-state.js"
-import { DockerComposeExecutorTag } from "./docker-compose.js"
-import { DevProcessExecutorTag } from "./dev-process.js"
+import { SiteState } from "../../services/site-state.js"
+import { DockerComposeExecutor } from "./docker-compose.js"
+import { DevProcessExecutor } from "./dev-process.js"
 import { ExecutorError, ProbeFailedError } from "../../errors/site.js"
 import type { ComponentDeploymentMode } from "@smp/factory-shared"
 
 export const RoutingExecutorLive = Layer.effect(
-  ExecutorTag,
+  Executor,
   Effect.gen(function* () {
-    const siteState = yield* SiteStateTag
-    const composeExec = yield* DockerComposeExecutorTag
-    const devExec = yield* DevProcessExecutorTag
+    const siteState = yield* SiteState
+    const composeExec = yield* DockerComposeExecutor
+    const devExec = yield* DevProcessExecutor
 
     const spec = yield* siteState.getSpec
     const sdSlug = spec.systemDeployments[0]?.slug ?? ""
 
     function executorFor(
       mode: ComponentDeploymentMode | null
-    ): ExecutorService | null {
+    ): IExecutor | null {
       switch (mode) {
         case "native":
           return devExec
@@ -68,7 +68,7 @@ export const RoutingExecutorLive = Layer.effect(
     function withExecutor<T>(
       component: string,
       operation: string,
-      fn: (exec: ExecutorService) => Effect.Effect<T, ExecutorError>
+      fn: (exec: IExecutor) => Effect.Effect<T, ExecutorError>
     ): Effect.Effect<T, ExecutorError> {
       return Effect.flatMap(getMode(component), (mode) => {
         const exec = executorFor(mode)
@@ -86,7 +86,7 @@ export const RoutingExecutorLive = Layer.effect(
       })
     }
 
-    return ExecutorTag.of({
+    return Executor.of({
       type: "routing",
 
       parseCatalog: composeExec.parseCatalog,
@@ -233,6 +233,6 @@ export const RoutingExecutorLive = Layer.effect(
           }
           return exec.runProbe(component, probe)
         }),
-    }) satisfies ExecutorService
+    }) satisfies IExecutor
   })
 )

@@ -1,14 +1,14 @@
 import { Effect, Layer } from "effect"
 import { hostname } from "node:os"
 import {
-  WorkspaceDiscoveryTag,
+  WorkspaceDiscovery,
   type DiscoveredWorkspace,
 } from "../services/workspace-discovery.js"
 import type { FocusSystem } from "../services/site-config.js"
 
 export const WorkspaceDiscoveryLive = Layer.succeed(
-  WorkspaceDiscoveryTag,
-  WorkspaceDiscoveryTag.of({
+  WorkspaceDiscovery,
+  WorkspaceDiscovery.of({
     discover: Effect.tryPromise({
       try: async () => {
         const { resolveDxContext } = await import("../../lib/dx-context.js")

@@ -22,14 +22,14 @@ export interface TunnelState {
   readonly info?: TunnelInfo
 }
 
-export interface TunnelManagerService {
+export interface ITunnelManager {
   readonly open: (
     opts: TunnelOpts
   ) => Effect.Effect<TunnelInfo, TunnelError, Scope.Scope>
   readonly getState: Effect.Effect<TunnelState>
 }
 
-export class TunnelManagerTag extends Context.Tag("TunnelManager")<
-  TunnelManagerTag,
-  TunnelManagerService
+export class TunnelManager extends Context.Tag("TunnelManager")<
+  TunnelManager,
+  ITunnelManager
 >() {}

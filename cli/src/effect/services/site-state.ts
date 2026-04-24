@@ -24,7 +24,7 @@ export interface SavedComponentStatus {
   mode: ComponentDeploymentMode
 }
 
-export interface SiteStateService {
+export interface ISiteState {
   readonly getState: Effect.Effect<SiteStateData>
   readonly getSpec: Effect.Effect<SiteSpec>
   readonly getStatus: Effect.Effect<LocalSiteStatus>
@@ -99,7 +99,7 @@ export interface SiteStateService {
   ) => Effect.Effect<void>
 }
 
-export class SiteStateTag extends Context.Tag("SiteState")<
-  SiteStateTag,
-  SiteStateService
+export class SiteState extends Context.Tag("SiteState")<
+  SiteState,
+  ISiteState
 >() {}

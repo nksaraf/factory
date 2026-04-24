@@ -15,7 +15,7 @@ export interface ComposeUpOpts {
   readonly profiles?: string[]
 }
 
-export interface DockerComposeOpsService {
+export interface IDockerComposeOps {
   readonly build: (
     services: string[]
   ) => Effect.Effect<void, ExecutorError | BuildError>
@@ -26,7 +26,7 @@ export interface DockerComposeOpsService {
   readonly isDockerRunning: Effect.Effect<boolean>
 }
 
-export class DockerComposeOpsTag extends Context.Tag("DockerComposeOps")<
-  DockerComposeOpsTag,
-  DockerComposeOpsService
+export class DockerComposeOps extends Context.Tag("DockerComposeOps")<
+  DockerComposeOps,
+  IDockerComposeOps
 >() {}

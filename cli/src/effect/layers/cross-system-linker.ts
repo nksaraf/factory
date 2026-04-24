@@ -1,20 +1,20 @@
 import { Effect, Layer } from "effect"
 import { resolveLinkedSystemDeployments } from "../../lib/linked-sd-resolver.js"
-import { SiteConfigTag } from "../services/site-config.js"
-import { SiteStateTag } from "../services/site-state.js"
+import { SiteConfig } from "../services/site-config.js"
+import { SiteState } from "../services/site-state.js"
 import {
-  CrossSystemLinkerTag,
-  type CrossSystemLinkerService,
+  CrossSystemLinker,
+  type ICrossSystemLinker,
   type CrossSystemLink,
 } from "../services/cross-system-linker.js"
 
 export const CrossSystemLinkerLive = Layer.effect(
-  CrossSystemLinkerTag,
+  CrossSystemLinker,
   Effect.gen(function* () {
-    const config = yield* SiteConfigTag
-    const siteState = yield* SiteStateTag
+    const config = yield* SiteConfig
+    const siteState = yield* SiteState
 
-    return CrossSystemLinkerTag.of({
+    return CrossSystemLinker.of({
       resolve: (opts) =>
         Effect.sync(() => {
           const linkedSds = resolveLinkedSystemDeployments({
@@ -61,6 +61,6 @@ export const CrossSystemLinkerLive = Layer.effect(
 
           return merged
         }).pipe(Effect.withSpan("CrossSystemLinker.apply")),
-    }) satisfies CrossSystemLinkerService
+    }) satisfies ICrossSystemLinker
   })
 )

@@ -31,7 +31,7 @@ export interface ReconcileEvent {
   readonly details: Record<string, unknown>
 }
 
-export interface SiteReconcilerService {
+export interface ISiteReconciler {
   readonly planChanges: (
     manifest: SiteManifest,
     actual: ComponentState[]
@@ -53,7 +53,7 @@ export interface SiteReconcilerService {
   readonly lastResult: Effect.Effect<ReconcileResult | null>
 }
 
-export class SiteReconcilerTag extends Context.Tag("SiteReconciler")<
-  SiteReconcilerTag,
-  SiteReconcilerService
+export class SiteReconciler extends Context.Tag("SiteReconciler")<
+  SiteReconciler,
+  ISiteReconciler
 >() {}

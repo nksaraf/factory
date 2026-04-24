@@ -9,11 +9,11 @@ import { AgentStateStoreLive } from "./layers/agent-state-store.js"
 import { DockerComposeOpsLive } from "./layers/docker-compose-ops.js"
 import {
   DockerComposeExecutorLive,
-  DockerComposeExecutorTag,
+  DockerComposeExecutor,
 } from "./layers/executor/docker-compose.js"
 import { DevProcessExecutorLive } from "./layers/executor/dev-process.js"
 import { RoutingExecutorLive } from "./layers/executor/routing.js"
-import { ExecutorTag } from "./services/executor.js"
+import { Executor } from "./services/executor.js"
 import { SiteReconcilerLive } from "./layers/site-reconciler.js"
 import { HealthMonitorLive } from "./layers/health-monitor.js"
 import {
@@ -26,6 +26,7 @@ import { CrossSystemLinkerLive } from "./layers/cross-system-linker.js"
 import { TunnelManagerLive } from "./layers/tunnel-manager.js"
 import { BuildCacheLive } from "./layers/build-cache.js"
 import { AgentServerLive } from "./layers/agent-server.js"
+import { WorkbenchRpcServerLive } from "./layers/workbench-rpc.js"
 
 /**
  * Single layer factory for all modes (dev, up, controller).
@@ -54,8 +55,8 @@ export function createSiteLayer(opts: SpawnAgentOpts) {
   // Executor — mode determines which layers
   const composeExec = DockerComposeExecutorLive.pipe(Layer.provide(config))
 
-  // In dev mode: RoutingExecutor (routes native vs container) provides ExecutorTag
-  // In up/controller: DockerComposeExecutor aliased as ExecutorTag
+  // In dev mode: RoutingExecutor (routes native vs container) provides Executor
+  // In up/controller: DockerComposeExecutor aliased as Executor
   const executor =
     mode === "dev"
       ? (() => {
@@ -67,8 +68,8 @@ export function createSiteLayer(opts: SpawnAgentOpts) {
           )
         })()
       : Layer.effect(
-          ExecutorTag,
-          Effect.map(DockerComposeExecutorTag, (exec) => exec)
+          Executor,
+          Effect.map(DockerComposeExecutor, (exec) => exec)
         ).pipe(Layer.provide(composeExec))
 
   // Controller state — needed by reconciler in all modes (stores manifest)
@@ -115,13 +116,21 @@ export function createSiteLayer(opts: SpawnAgentOpts) {
     reconciler
   )
 
+  const rpcPort = opts.port ? opts.port + 1 : 4401
+  const workbenchRpc = WorkbenchRpcServerLive(rpcPort).pipe(
+    Layer.provide(
+      Layer.mergeAll(config, state, executor, healthMonitor, reconciler)
+    )
+  )
+
   const services = Layer.mergeAll(
     healthMonitor,
     connResolver,
     crossLinker,
     tunnelManager,
     buildCache,
-    agentServer
+    agentServer,
+    workbenchRpc
   )
 
   return Layer.merge(core, services)
