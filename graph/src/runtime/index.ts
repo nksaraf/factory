@@ -4,3 +4,4 @@ export {
   type CustomerLoader,
   type CustomerLoadResult,
 } from "./registry"
+export { makeCustomerLoader } from "./loader"
