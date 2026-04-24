@@ -11,7 +11,6 @@ import {
   type ReconcileEvent,
 } from "../services/site-reconciler.js"
 import { SiteConfig } from "../services/site-config.js"
-import { ManifestError } from "../errors/site.js"
 import { makeEventJournal } from "@smp/factory-shared/effect/event-journal"
 
 export const SiteReconcilerLive = Layer.effect(
@@ -22,6 +21,7 @@ export const SiteReconcilerLive = Layer.effect(
     const siteState = yield* SiteState
     const stateStore = yield* ControllerStateStore
     const sdSlug = config.focusSystem.sdSlug
+    const catalog = config.focusSystem.catalog
     const journal = yield* makeEventJournal<ReconcileEvent>({ maxSize: 200 })
     const lastResultRef = yield* Ref.make<ReconcileResult | null>(null)
 
@@ -88,15 +88,32 @@ export const SiteReconcilerLive = Layer.effect(
         })
       )
 
-    const reconcileOnceImpl = (
-      manifest: import("../../site/manifest.js").SiteManifest
-    ) =>
-      Effect.gen(function* () {
+    return SiteReconciler.of({
+      executeStep,
+
+      reconcile: Effect.gen(function* () {
         const reconciliationId = randomUUID()
         const start = performance.now()
 
+        // Derive manifest from SiteState — no external manifest needed
+        const manifest = yield* siteState.toManifest(sdSlug, catalog)
+        if (!manifest) {
+          yield* emitEvent(reconciliationId, "reconcile-error", {
+            reason: "No system deployment found",
+          })
+          return {
+            success: true,
+            stepsApplied: 0,
+            stepsTotal: 0,
+            errors: [],
+            plan: { steps: [], upToDate: [] },
+            durationMs: performance.now() - start,
+            reconciliationId,
+          } satisfies ReconcileResult
+        }
+
         yield* emitEvent(reconciliationId, "reconcile-start", {
-          manifestVersion: manifest.version,
+          componentCount: manifest.componentDeployments.length,
         })
 
         const actual = yield* executor.inspect
@@ -145,25 +162,7 @@ export const SiteReconcilerLive = Layer.effect(
         })
 
         return result
-      }).pipe(Effect.withSpan("SiteReconciler.reconcileOnce"))
-
-    return SiteReconciler.of({
-      planChanges: (manifest, actual) =>
-        Effect.sync(() => planChanges(manifest, actual)),
-
-      executeStep,
-
-      reconcileOnce: reconcileOnceImpl,
-
-      reconcile: Effect.gen(function* () {
-        const manifest = yield* stateStore.getLastManifest
-        if (!manifest) {
-          return yield* Effect.fail(
-            new ManifestError({ reason: "No manifest available" })
-          )
-        }
-        return yield* reconcileOnceImpl(manifest)
-      }),
+      }).pipe(Effect.withSpan("SiteReconciler.reconcile")),
 
       events: journal,
 

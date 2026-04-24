@@ -80,11 +80,11 @@ export function makeRecordingExecutor(opts?: {
     parseCatalog: Effect.succeed({
       name: "",
       slug: "",
-      spec: {} as any,
+      spec: {},
       components: {},
       resources: {},
       apis: {},
-    }),
+    } as any),
     inspect: Effect.succeed(opts?.inspectResult ?? []),
     inspectOne: (component) => {
       calls.push({ method: "inspectOne", args: [component] })

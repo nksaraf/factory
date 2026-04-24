@@ -42,7 +42,7 @@ const infraComponent = (
     },
   }) as unknown as CatalogComponent
 
-export const testCatalog: CatalogSystem = {
+export const testCatalog = {
   name: "test-system",
   slug: "test-system",
   spec: {} as any,
@@ -57,16 +57,16 @@ export const testCatalog: CatalogSystem = {
     redis: infraComponent([6379]),
   },
   apis: {},
-}
+} as unknown as CatalogSystem
 
-export const emptyCatalog: CatalogSystem = {
+export const emptyCatalog = {
   name: "empty",
   slug: "empty",
   spec: {} as any,
   components: {},
   resources: {},
   apis: {},
-}
+} as unknown as CatalogSystem
 
 // ---------------------------------------------------------------------------
 // Manifests

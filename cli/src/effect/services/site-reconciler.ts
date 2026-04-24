@@ -1,8 +1,7 @@
-import { Context, Effect, PubSub } from "effect"
-import type { SiteManifest } from "../../site/manifest.js"
+import { Context, Effect } from "effect"
 import type { ReconcilePlan, ReconcileStep } from "../../site/reconcile.js"
 import type { ComponentState } from "../../site/execution/executor.js"
-import type { ExecutorError, ManifestError } from "../errors/site.js"
+import type { ExecutorError } from "../errors/site.js"
 import type { EventJournal } from "@smp/factory-shared/effect/event-journal"
 
 export interface ReconcileResult {
@@ -32,23 +31,13 @@ export interface ReconcileEvent {
 }
 
 export interface ISiteReconciler {
-  readonly planChanges: (
-    manifest: SiteManifest,
-    actual: ComponentState[]
-  ) => Effect.Effect<ReconcilePlan>
   readonly executeStep: (
     step: ReconcileStep
   ) => Effect.Effect<
     void,
     ExecutorError | import("../errors/site.js").FinalizerTimeoutError
   >
-  readonly reconcileOnce: (
-    manifest: SiteManifest
-  ) => Effect.Effect<ReconcileResult, ExecutorError>
-  readonly reconcile: Effect.Effect<
-    ReconcileResult,
-    ExecutorError | ManifestError
-  >
+  readonly reconcile: Effect.Effect<ReconcileResult, ExecutorError>
   readonly events: EventJournal<ReconcileEvent>
   readonly lastResult: Effect.Effect<ReconcileResult | null>
 }

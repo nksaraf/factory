@@ -12,29 +12,30 @@ import { HealthMonitor } from "../services/health-monitor.js"
 import { AgentServer } from "../services/agent-server.js"
 import { SiteReconciler } from "../services/site-reconciler.js"
 import { ControlPlaneLink } from "../services/control-plane-link.js"
-import { ControllerStateStore } from "../services/controller-state-store.js"
 import { hostname } from "node:os"
 
 const workbenchSlug = () => hostname().replace(/\.local$/, "")
 
 // ---------------------------------------------------------------------------
-// Phase 1a: Write desired state from local source (dev + up)
+// updateSite: Write desired state into SiteState.spec
 //
-// Requires a project directory with docker-compose.yaml.
+// For dev/up (local): reads catalog from local docker-compose, resolves
+// connections, sets component modes (native/container/linked).
 //
-// Dev and up are the same flow. The only difference: in dev mode, components
-// with a dev command run as native processes and only they + their deps are
-// started. In up mode, everything is a container.
+// For controller: receives desired state from the Factory API and writes
+// it into SiteState.
+//
+// After this, the reconciler reads SiteState.spec directly — no separate
+// manifest needed.
 // ---------------------------------------------------------------------------
 
-const writeLocalSpec = Effect.gen(function* () {
+const updateSiteFromLocal = Effect.gen(function* () {
   const config = yield* SiteConfig
   const siteState = yield* SiteState
   const composeOps = yield* DockerComposeOps
   const connResolver = yield* DependencyConnector
   const crossLinker = yield* CrossSystemLinker
   const buildCache = yield* BuildCache
-  const stateStore = yield* ControllerStateStore
 
   const sys = config.focusSystem
   const sdSlug = sys.sdSlug
@@ -80,9 +81,6 @@ const writeLocalSpec = Effect.gen(function* () {
   const graph = DependencyGraph.fromCatalog(catalog)
 
   if (isDev) {
-    // Dev mode: only start targets + their transitive deps
-    // dx dev           → all devable components
-    // dx dev api web   → just api and web
     const devTargets = new Set(
       flags.components?.length
         ? flags.components
@@ -91,7 +89,6 @@ const writeLocalSpec = Effect.gen(function* () {
           )
     )
 
-    // Transitive deps of dev targets → container
     const localDockerDeps = new Set<string>()
     for (const target of devTargets) {
       for (const dep of graph.transitiveDeps(target)) {
@@ -101,7 +98,6 @@ const writeLocalSpec = Effect.gen(function* () {
       }
     }
 
-    // Set modes for only the components we need
     for (const name of devTargets) {
       if (remoteDepSet.has(name)) {
         yield* siteState.setComponentMode(sdSlug, name, "linked")
@@ -121,7 +117,6 @@ const writeLocalSpec = Effect.gen(function* () {
       }
     }
 
-    // Restore runtime status + build check for docker deps
     const allActive = [...devTargets, ...localDockerDeps]
     for (const name of allActive) {
       yield* siteState.restoreStatus(sdSlug, name, savedStatuses)
@@ -139,7 +134,6 @@ const writeLocalSpec = Effect.gen(function* () {
       }
     }
   } else {
-    // Up mode: everything runs as container
     const allNames = [...allComponentNames, ...allResourceNames]
     for (const name of allNames) {
       if (remoteDepSet.has(name)) {
@@ -153,7 +147,6 @@ const writeLocalSpec = Effect.gen(function* () {
       yield* siteState.restoreStatus(sdSlug, name, savedStatuses)
     }
 
-    // Build check — only for components, not resources
     const buildable = allComponentNames.filter((n) => !remoteDepSet.has(n))
     if (buildable.length > 0) {
       const buildCheck = yield* buildCache.check(catalog, buildable)
@@ -165,42 +158,33 @@ const writeLocalSpec = Effect.gen(function* () {
     }
   }
 
-  // 5. Save state + derive manifest for reconciler
+  // 5. Save state — reconciler reads SiteState.spec directly
   yield* siteState.save
-  const manifest = yield* siteState.toManifest(sdSlug, catalog)
-  if (manifest) {
-    yield* stateStore.saveManifest(manifest)
-  }
-}).pipe(Effect.withSpan("writeDesiredState.local"))
+}).pipe(Effect.withSpan("updateSite.local"))
 
-// ---------------------------------------------------------------------------
-// Phase 1b: Write desired state from control plane (controller)
-//
-// Does NOT require source code. The manifest comes from the Factory API.
-// Can run from any directory on any host.
-// ---------------------------------------------------------------------------
-
-const writeControllerSpec = Effect.gen(function* () {
+const updateSiteFromControlPlane = Effect.gen(function* () {
   const controlPlane = yield* ControlPlaneLink
-  const stateStore = yield* ControllerStateStore
+  const siteState = yield* SiteState
 
+  // TODO: Convert control plane manifest into SiteState writes.
+  // For now, fetch and log — the reconciler reads SiteState which
+  // should already reflect the desired state from the control plane.
   const manifest = yield* controlPlane.fetchManifest.pipe(
     Effect.catchAll(() => Effect.succeed(null))
   )
 
   if (manifest) {
-    yield* stateStore.saveManifest(manifest)
-    yield* Effect.logInfo(
-      "Received and saved manifest from control plane"
-    ).pipe(Effect.annotateLogs({ version: manifest.version }))
+    yield* Effect.logInfo("Received desired state from control plane").pipe(
+      Effect.annotateLogs({ version: manifest.version })
+    )
   }
-}).pipe(Effect.withSpan("writeDesiredState.controller"))
+}).pipe(Effect.withSpan("updateSite.controlPlane"))
 
 // ---------------------------------------------------------------------------
-// Phase 2: Reconcile + Monitor + Serve (identical in all modes)
+// runDaemon: Reconcile + Monitor + Serve (identical in all modes)
 //
-// 1. Reconcile ONCE synchronously (wait for completion — user sees results)
-// 2. Fork background reconcile loop (catches drift, handles restarts)
+// 1. Reconcile ONCE synchronously (user sees results)
+// 2. Fork background reconcile loop (catches drift)
 // 3. Fork health monitor
 // 4. Start HTTP server
 // 5. Block forever (scope finalizers handle shutdown)
@@ -265,14 +249,14 @@ export const agentDaemon = Effect.scoped(
   Effect.gen(function* () {
     const config = yield* SiteConfig
 
-    // Phase 1: Write desired state
+    // Update site desired state (mode-specific)
     if (config.mode === "controller") {
-      yield* writeControllerSpec
+      yield* updateSiteFromControlPlane
     } else {
-      yield* writeLocalSpec
+      yield* updateSiteFromLocal
     }
 
-    // Phase 2: Reconcile once, then loop + monitor + serve
+    // Reconcile + monitor + serve (always the same)
     return yield* runDaemon
   })
 ).pipe(Effect.withSpan("agentDaemon"))
