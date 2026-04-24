@@ -1,5 +1,5 @@
 {
-  "id": "b8e83d79-3a35-4401-9fbd-6724e8d173a5",
+  "id": "38ec8aa6-3d9a-4c9e-95e1-7f1d97262ceb",
   "prevId": "d15854fd-bb1c-48bd-9be2-9db4cb38ae50",
   "version": "7",
   "dialect": "postgresql",
@@ -2414,7 +2414,35 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "action_type_pk": {
+          "name": "action_type_pk",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "action_type_graph_id_registry_id_fk": {
           "name": "action_type_graph_id_registry_id_fk",
@@ -2427,12 +2455,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "action_type_pk": {
-          "name": "action_type_pk",
-          "columns": ["graph_id", "target_kind", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2486,7 +2509,35 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "extension_graph_target_property": {
+          "name": "extension_graph_target_property",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "property_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "extension_graph_id_registry_id_fk": {
           "name": "extension_graph_id_registry_id_fk",
@@ -2499,12 +2550,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "extension_graph_target_property": {
-          "name": "extension_graph_target_property",
-          "columns": ["graph_id", "target_kind", "property_name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2553,7 +2599,18 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "extension_value_graph_id_registry_id_fk": {
+          "name": "extension_value_graph_id_registry_id_fk",
+          "tableFrom": "extension_value",
+          "tableTo": "registry",
+          "schemaTo": "graph",
+          "columnsFrom": ["graph_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "extension_value_pk": {
           "name": "extension_value_pk",
@@ -2631,7 +2688,35 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "function_type_pk": {
+          "name": "function_type_pk",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "function_type_graph_id_registry_id_fk": {
           "name": "function_type_graph_id_registry_id_fk",
@@ -2644,12 +2729,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "function_type_pk": {
-          "name": "function_type_pk",
-          "columns": ["graph_id", "target_kind", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2838,7 +2918,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "interface_type_graph_name": {
+          "name": "interface_type_graph_name",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "interface_type_graph_id_registry_id_fk": {
           "name": "interface_type_graph_id_registry_id_fk",
@@ -2851,12 +2953,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "interface_type_graph_name": {
-          "name": "interface_type_graph_name",
-          "columns": ["graph_id", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2983,8 +3080,8 @@
           "method": "btree",
           "with": {}
         },
-        "link_type_idx": {
-          "name": "link_type_idx",
+        "link_by_type_idx": {
+          "name": "link_by_type_idx",
           "columns": [
             {
               "expression": "graph_id",
@@ -3096,6 +3193,27 @@
         }
       },
       "indexes": {
+        "link_type_graph_name": {
+          "name": "link_type_graph_name",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "link_type_source_idx": {
           "name": "link_type_source_idx",
           "columns": [
@@ -3130,12 +3248,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "link_type_graph_name": {
-          "name": "link_type_graph_name",
-          "columns": ["graph_id", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3191,7 +3304,18 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "materialized_derived_graph_id_registry_id_fk": {
+          "name": "materialized_derived_graph_id_registry_id_fk",
+          "tableFrom": "materialized_derived",
+          "tableTo": "registry",
+          "schemaTo": "graph",
+          "columnsFrom": ["graph_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "materialized_derived_pk": {
           "name": "materialized_derived_pk",
@@ -3282,7 +3406,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "object_type_graph_kind": {
+          "name": "object_type_graph_kind",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "object_type_graph_id_registry_id_fk": {
           "name": "object_type_graph_id_registry_id_fk",
@@ -3295,12 +3441,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "object_type_graph_kind": {
-          "name": "object_type_graph_kind",
-          "columns": ["graph_id", "kind"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3410,7 +3551,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "shared_property_graph_name": {
+          "name": "shared_property_graph_name",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "shared_property_graph_id_registry_id_fk": {
           "name": "shared_property_graph_id_registry_id_fk",
@@ -3423,12 +3586,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "shared_property_graph_name": {
-          "name": "shared_property_graph_name",
-          "columns": ["graph_id", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3482,7 +3640,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "struct_type_graph_name": {
+          "name": "struct_type_graph_name",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "struct_type_graph_id_registry_id_fk": {
           "name": "struct_type_graph_id_registry_id_fk",
@@ -3495,12 +3675,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "struct_type_graph_name": {
-          "name": "struct_type_graph_name",
-          "columns": ["graph_id", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3543,7 +3718,18 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "ui_override_graph_id_registry_id_fk": {
+          "name": "ui_override_graph_id_registry_id_fk",
+          "tableFrom": "ui_override",
+          "tableTo": "registry",
+          "schemaTo": "graph",
+          "columnsFrom": ["graph_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "ui_override_pk": {
           "name": "ui_override_pk",
@@ -3609,7 +3795,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "value_type_graph_name": {
+          "name": "value_type_graph_name",
+          "columns": [
+            {
+              "expression": "graph_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "value_type_graph_id_registry_id_fk": {
           "name": "value_type_graph_id_registry_id_fk",
@@ -3622,12 +3830,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "value_type_graph_name": {
-          "name": "value_type_graph_name",
-          "columns": ["graph_id", "name"]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

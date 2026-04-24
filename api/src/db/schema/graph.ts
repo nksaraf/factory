@@ -17,6 +17,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 
 export const graphSchema = pgSchema("graph")
@@ -62,10 +63,7 @@ export const objectType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphKind: primaryKey({
-      columns: [t.graphId, t.kind],
-      name: "object_type_graph_kind",
-    }),
+    uniqGraphKind: uniqueIndex("object_type_graph_kind").on(t.graphId, t.kind),
   })
 )
 
@@ -87,10 +85,7 @@ export const linkType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphName: primaryKey({
-      columns: [t.graphId, t.name],
-      name: "link_type_graph_name",
-    }),
+    uniqGraphName: uniqueIndex("link_type_graph_name").on(t.graphId, t.name),
     bySource: index("link_type_source_idx").on(t.graphId, t.sourceKind),
   })
 )
@@ -108,10 +103,10 @@ export const interfaceType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphName: primaryKey({
-      columns: [t.graphId, t.name],
-      name: "interface_type_graph_name",
-    }),
+    uniqGraphName: uniqueIndex("interface_type_graph_name").on(
+      t.graphId,
+      t.name
+    ),
   })
 )
 
@@ -129,10 +124,10 @@ export const sharedProperty = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphName: primaryKey({
-      columns: [t.graphId, t.name],
-      name: "shared_property_graph_name",
-    }),
+    uniqGraphName: uniqueIndex("shared_property_graph_name").on(
+      t.graphId,
+      t.name
+    ),
   })
 )
 
@@ -151,10 +146,7 @@ export const valueType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphName: primaryKey({
-      columns: [t.graphId, t.name],
-      name: "value_type_graph_name",
-    }),
+    uniqGraphName: uniqueIndex("value_type_graph_name").on(t.graphId, t.name),
   })
 )
 
@@ -172,10 +164,7 @@ export const structType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphName: primaryKey({
-      columns: [t.graphId, t.name],
-      name: "struct_type_graph_name",
-    }),
+    uniqGraphName: uniqueIndex("struct_type_graph_name").on(t.graphId, t.name),
   })
 )
 
@@ -198,10 +187,7 @@ export const actionType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniq: primaryKey({
-      columns: [t.graphId, t.targetKind, t.name],
-      name: "action_type_pk",
-    }),
+    uniq: uniqueIndex("action_type_pk").on(t.graphId, t.targetKind, t.name),
   })
 )
 
@@ -222,10 +208,7 @@ export const functionType = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniq: primaryKey({
-      columns: [t.graphId, t.targetKind, t.name],
-      name: "function_type_pk",
-    }),
+    uniq: uniqueIndex("function_type_pk").on(t.graphId, t.targetKind, t.name),
   })
 )
 
@@ -243,10 +226,11 @@ export const extension = graphSchema.table(
       .notNull(),
   },
   (t) => ({
-    uniqGraphTargetProp: primaryKey({
-      columns: [t.graphId, t.targetKind, t.propertyName],
-      name: "extension_graph_target_property",
-    }),
+    uniqGraphTargetProp: uniqueIndex("extension_graph_target_property").on(
+      t.graphId,
+      t.targetKind,
+      t.propertyName
+    ),
   })
 )
 
@@ -300,14 +284,14 @@ export const link = graphSchema.table(
       t.linkTypeName
     ),
     byTarget: index("link_target_idx").on(t.graphId, t.targetKind, t.targetId),
-    byType: index("link_type_idx").on(t.graphId, t.linkTypeName),
+    byType: index("link_by_type_idx").on(t.graphId, t.linkTypeName),
   })
 )
 
 export const extensionValue = graphSchema.table(
   "extension_value",
   {
-    graphId: text("graph_id").notNull(),
+    graphId: graphIdRef(),
     targetKind: text("target_kind").notNull(),
     targetId: text("target_id").notNull(),
     propertyName: text("property_name").notNull(),
@@ -329,7 +313,7 @@ export const extensionValue = graphSchema.table(
 export const uiOverride = graphSchema.table(
   "ui_override",
   {
-    graphId: text("graph_id").notNull(),
+    graphId: graphIdRef(),
     kind: text("kind").notNull(),
     viewKind: text("view_kind").notNull(),
     code: text("code").notNull(),
@@ -348,7 +332,7 @@ export const uiOverride = graphSchema.table(
 export const materializedDerived = graphSchema.table(
   "materialized_derived",
   {
-    graphId: text("graph_id").notNull(),
+    graphId: graphIdRef(),
     targetKind: text("target_kind").notNull(),
     targetId: text("target_id").notNull(),
     propertyName: text("property_name").notNull(),

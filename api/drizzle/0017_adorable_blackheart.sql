@@ -12,8 +12,7 @@ CREATE TABLE "graph"."action_type" (
 	"side_effects" jsonb,
 	"annotations" jsonb,
 	"access" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "action_type_pk" PRIMARY KEY("graph_id","target_kind","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."extension" (
@@ -23,8 +22,7 @@ CREATE TABLE "graph"."extension" (
 	"property_name" text NOT NULL,
 	"schema" jsonb NOT NULL,
 	"annotations" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "extension_graph_target_property" PRIMARY KEY("graph_id","target_kind","property_name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."extension_value" (
@@ -47,8 +45,7 @@ CREATE TABLE "graph"."function_type" (
 	"body" jsonb NOT NULL,
 	"kind" text NOT NULL,
 	"annotations" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "function_type_pk" PRIMARY KEY("graph_id","target_kind","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."instance" (
@@ -71,8 +68,7 @@ CREATE TABLE "graph"."interface_type" (
 	"name" text NOT NULL,
 	"properties_schema" jsonb NOT NULL,
 	"annotations" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "interface_type_graph_name" PRIMARY KEY("graph_id","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."link" (
@@ -98,8 +94,7 @@ CREATE TABLE "graph"."link_type" (
 	"properties_schema" jsonb,
 	"annotations" jsonb,
 	"access" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "link_type_graph_name" PRIMARY KEY("graph_id","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."materialized_derived" (
@@ -125,8 +120,7 @@ CREATE TABLE "graph"."object_type" (
 	"traits" jsonb,
 	"access" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "object_type_graph_kind" PRIMARY KEY("graph_id","kind")
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."registry" (
@@ -146,8 +140,7 @@ CREATE TABLE "graph"."shared_property" (
 	"schema" jsonb NOT NULL,
 	"annotations" jsonb,
 	"display" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "shared_property_graph_name" PRIMARY KEY("graph_id","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."struct_type" (
@@ -157,8 +150,7 @@ CREATE TABLE "graph"."struct_type" (
 	"fields_schema" jsonb NOT NULL,
 	"main_field" text,
 	"description" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "struct_type_graph_name" PRIMARY KEY("graph_id","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "graph"."ui_override" (
@@ -178,24 +170,35 @@ CREATE TABLE "graph"."value_type" (
 	"description" text,
 	"display" jsonb,
 	"validation" jsonb,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "value_type_graph_name" PRIMARY KEY("graph_id","name")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "graph"."action_type" ADD CONSTRAINT "action_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."extension" ADD CONSTRAINT "extension_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "graph"."extension_value" ADD CONSTRAINT "extension_value_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."function_type" ADD CONSTRAINT "function_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."instance" ADD CONSTRAINT "instance_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."interface_type" ADD CONSTRAINT "interface_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."link" ADD CONSTRAINT "link_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."link_type" ADD CONSTRAINT "link_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "graph"."materialized_derived" ADD CONSTRAINT "materialized_derived_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."object_type" ADD CONSTRAINT "object_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."shared_property" ADD CONSTRAINT "shared_property_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."struct_type" ADD CONSTRAINT "struct_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "graph"."ui_override" ADD CONSTRAINT "ui_override_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "graph"."value_type" ADD CONSTRAINT "value_type_graph_id_registry_id_fk" FOREIGN KEY ("graph_id") REFERENCES "graph"."registry"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "action_type_pk" ON "graph"."action_type" USING btree ("graph_id","target_kind","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "extension_graph_target_property" ON "graph"."extension" USING btree ("graph_id","target_kind","property_name");--> statement-breakpoint
+CREATE UNIQUE INDEX "function_type_pk" ON "graph"."function_type" USING btree ("graph_id","target_kind","name");--> statement-breakpoint
 CREATE INDEX "instance_graph_kind_idx" ON "graph"."instance" USING btree ("graph_id","kind");--> statement-breakpoint
 CREATE INDEX "instance_slug_idx" ON "graph"."instance" USING btree ("graph_id","kind","slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "interface_type_graph_name" ON "graph"."interface_type" USING btree ("graph_id","name");--> statement-breakpoint
 CREATE INDEX "link_source_idx" ON "graph"."link" USING btree ("graph_id","source_kind","source_id","link_type_name");--> statement-breakpoint
 CREATE INDEX "link_target_idx" ON "graph"."link" USING btree ("graph_id","target_kind","target_id");--> statement-breakpoint
-CREATE INDEX "link_type_idx" ON "graph"."link" USING btree ("graph_id","link_type_name");--> statement-breakpoint
-CREATE INDEX "link_type_source_idx" ON "graph"."link_type" USING btree ("graph_id","source_kind");
+CREATE INDEX "link_by_type_idx" ON "graph"."link" USING btree ("graph_id","link_type_name");--> statement-breakpoint
+CREATE UNIQUE INDEX "link_type_graph_name" ON "graph"."link_type" USING btree ("graph_id","name");--> statement-breakpoint
+CREATE INDEX "link_type_source_idx" ON "graph"."link_type" USING btree ("graph_id","source_kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "object_type_graph_kind" ON "graph"."object_type" USING btree ("graph_id","kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "shared_property_graph_name" ON "graph"."shared_property" USING btree ("graph_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "struct_type_graph_name" ON "graph"."struct_type" USING btree ("graph_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "value_type_graph_name" ON "graph"."value_type" USING btree ("graph_id","name");
