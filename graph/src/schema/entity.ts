@@ -170,10 +170,16 @@ export function compileEntity(entity: EntityDefinition): EntityIR {
   }
 }
 
-/** Compile all entity definitions into a full GraphIR. */
+/**
+ * Compile entity definitions into a full GraphIR.
+ *
+ * `extends` merges a parent IR (framework -> product layering). Namespaces
+ * and traits are unioned; entity kinds collide loudly (child must not
+ * redefine a parent kind — use a new kind + `extendsKind` instead).
+ */
 export function compileGraph(
   entities: EntityDefinition[],
-  opts?: { traits?: TraitDefinition[] }
+  opts?: { traits?: TraitDefinition[]; extends?: GraphIR }
 ): GraphIR {
   // Collect namespaces
   const namespaces: Record<
@@ -182,8 +188,31 @@ export function compileGraph(
   > = {}
   const compiledEntities: Record<string, EntityIR> = {}
 
+  // Seed from parent IR if extending
+  if (opts?.extends) {
+    for (const [kind, entity] of Object.entries(opts.extends.entities)) {
+      compiledEntities[kind] = entity
+    }
+    for (const [ns, def] of Object.entries(opts.extends.namespaces)) {
+      namespaces[ns] = {
+        description: def.description,
+        entityKinds: [...def.entityKinds],
+      }
+    }
+  }
+
   for (const entity of entities) {
     const ir = compileEntity(entity)
+    if (compiledEntities[ir.kind] && !opts?.extends?.entities[ir.kind]) {
+      throw new Error(
+        `compileGraph: duplicate entity kind "${ir.kind}" in child definitions`
+      )
+    }
+    if (opts?.extends?.entities[ir.kind]) {
+      throw new Error(
+        `compileGraph: entity kind "${ir.kind}" is already defined in the parent graph; use a new kind + extendsKind to specialize it`
+      )
+    }
     compiledEntities[ir.kind] = ir
 
     if (!namespaces[ir.namespace]) {
@@ -192,8 +221,13 @@ export function compileGraph(
     namespaces[ir.namespace].entityKinds.push(ir.kind)
   }
 
-  // Compile traits
+  // Compile traits (seeded from parent if extending)
   const traitsIR: Record<string, TraitIR> = {}
+  if (opts?.extends) {
+    for (const [k, v] of Object.entries(opts.extends.traits)) {
+      traitsIR[k] = v
+    }
+  }
   if (opts?.traits) {
     for (const trait of opts.traits) {
       traitsIR[trait.name] = {
