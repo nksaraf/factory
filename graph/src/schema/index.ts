@@ -17,9 +17,21 @@ export type {
   LinkIR,
   ActionIR,
   DerivedIR,
+  StructIR,
+  SharedPropertyIR,
+  ValueTypeIR,
+  InterfaceIR,
 } from "./ir"
 
 export { defineEntity, compileEntity, compileGraph } from "./entity"
+export { defineStruct, compileStruct } from "./struct"
+export type { StructDefinition } from "./struct"
+export { defineProperty, compileSharedProperty, property } from "./property"
+export type { SharedPropertyDefinition } from "./property"
+export { defineValueType, compileValueType } from "./value"
+export type { ValueTypeDefinition } from "./value"
+export { defineInterface, compileInterface } from "./interface"
+export type { InterfaceDefinition } from "./interface"
 export {
   defineTrait,
   Reconcilable,

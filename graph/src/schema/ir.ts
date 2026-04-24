@@ -6,6 +6,38 @@ export interface GraphIR {
   namespaces: Record<string, { description?: string; entityKinds: string[] }>
   traits: Record<string, TraitIR>
   entities: Record<string, EntityIR>
+  structs?: Record<string, StructIR>
+  sharedProperties?: Record<string, SharedPropertyIR>
+  valueTypes?: Record<string, ValueTypeIR>
+  interfaces?: Record<string, InterfaceIR>
+}
+
+export interface StructIR {
+  name: string
+  description?: string
+  fields: JsonSchema
+  mainField?: string
+}
+
+export interface SharedPropertyIR {
+  name: string
+  schema: JsonSchema
+  annotations?: PropertyAnnotations
+  display?: Record<string, unknown>
+}
+
+export interface ValueTypeIR {
+  name: string
+  base: "string" | "number" | "boolean" | "date"
+  description?: string
+  display?: Record<string, unknown>
+  validation?: Record<string, unknown>
+}
+
+export interface InterfaceIR {
+  name: string
+  description?: string
+  properties: JsonSchema
 }
 
 export interface TraitIR {
@@ -25,6 +57,7 @@ export interface EntityIR {
   plural: string
   description?: string
   traits: string[]
+  implements?: string[]
 
   schemas: {
     spec: JsonSchema
