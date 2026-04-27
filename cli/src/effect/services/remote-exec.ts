@@ -40,7 +40,7 @@ export class RemoteExec extends Context.Tag("RemoteExec")<
 
 type SshFailure = SshError["failure"]
 
-function diagnoseSshFailure(
+export function diagnoseSshFailure(
   transport: SshTransport,
   code: number,
   stderr: string
@@ -109,7 +109,7 @@ function diagnoseSshFailure(
   }
 
   if (stderr.includes("Could not resolve hostname")) {
-    const match = stderr.match(/Could not resolve hostname (\S+)/)
+    const match = stderr.match(/Could not resolve hostname ([^\s:]+)/)
     return {
       failure: { _tag: "HostNotFound", hostname: match?.[1] ?? transport.host },
       autoFixed: false,
