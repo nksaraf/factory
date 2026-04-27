@@ -10,6 +10,10 @@ import {
   type SshTransport,
 } from "../index.js"
 import { diagnoseSshFailure } from "../services/remote-exec.js"
+import {
+  parseInspectOutput,
+  buildContainerMap,
+} from "../services/container-inspector.js"
 import { SshError } from "@smp/factory-shared/effect"
 import { JumpHop } from "../services/remote-access.js"
 
@@ -269,6 +273,109 @@ describe("RemoteAccess.fromEntity", () => {
   })
 })
 
+// ── RemoteAccess.resolve with mock (test cache + error handling) ─
+
+describe("RemoteAccess.resolve", () => {
+  it("returns EntityNotFoundError for unknown slug", async () => {
+    const program = Effect.gen(function* () {
+      const access = yield* RemoteAccess
+      return yield* access.resolve("nonexistent-host")
+    })
+
+    const result = await Effect.runPromiseExit(
+      Effect.provide(program, RemoteAccessLive)
+    )
+    expect(result._tag).toBe("Failure")
+  })
+
+  it("fromEntity + resolve consistency: same transport fields", () => {
+    const entity = {
+      type: "vm" as const,
+      id: "host_1",
+      slug: "test-vm",
+      displayName: "Test VM",
+      status: "active",
+      transport: "ssh" as const,
+      sshHost: "10.0.0.1",
+      sshPort: 2222,
+      sshUser: "deploy",
+      jumpHost: "bastion.example.com",
+      jumpUser: "jump",
+      jumpPort: 22,
+      identityFile: "/home/user/.ssh/deploy_key",
+    }
+
+    const layer = RemoteAccessLive
+    const program = Effect.gen(function* () {
+      const access = yield* RemoteAccess
+      const target = access.fromEntity(entity)
+
+      expect(target.slug).toBe("test-vm")
+      expect(target.transport.kind).toBe("ssh")
+      if (target.transport.kind === "ssh") {
+        expect(target.transport.host).toBe("10.0.0.1")
+        expect(target.transport.port).toBe(2222)
+        expect(target.transport.user).toBe("deploy")
+        expect(target.transport.identity).toBe("/home/user/.ssh/deploy_key")
+        expect(target.transport.jumpChain).toHaveLength(1)
+        expect(target.transport.jumpChain[0].host).toBe("bastion.example.com")
+        expect(target.transport.jumpChain[0].user).toBe("jump")
+        expect(target.transport.jumpChain[0].port).toBe(22)
+      }
+    })
+
+    return Effect.runPromise(Effect.provide(program, layer))
+  })
+})
+
+// ── RemoteExec with mock layer (test SSH diagnosis flow) ────
+
+describe("RemoteExec.run with mock SSH transport", () => {
+  const sshTarget: AccessTarget = {
+    slug: "test-host",
+    displayName: "Test Host",
+    status: "active",
+    entityType: "vm",
+    transport: {
+      kind: "ssh",
+      host: "10.0.0.1",
+      port: 22,
+      user: "root",
+      jumpChain: [],
+    },
+    raw: {
+      type: "vm",
+      id: "h1",
+      slug: "test-host",
+      displayName: "Test Host",
+      status: "active",
+      transport: "ssh",
+      sshHost: "10.0.0.1",
+    },
+  }
+
+  it("rejects non-SSH targets with SshError", async () => {
+    const kubectlTarget: AccessTarget = {
+      ...sshTarget,
+      transport: {
+        kind: "kubectl",
+        podName: "pod-1",
+        namespace: "default",
+      },
+    }
+
+    const program = Effect.gen(function* () {
+      const exec = yield* RemoteExec
+      return yield* exec.run(kubectlTarget, "hostname")
+    })
+
+    const result = await Effect.runPromiseExit(
+      Effect.provide(program, RemoteExecLive)
+    )
+    expect(result._tag).toBe("Failure")
+  })
+})
+
 // ── RemoteExec.runLocal (real process, no SSH) ──────────────
 
 describe("RemoteExec.runLocal", () => {
@@ -304,5 +411,94 @@ describe("RemoteExec.runLocal", () => {
     })
 
     await Effect.runPromise(Effect.provide(program, layer))
+  })
+})
+
+// ── ContainerInspector parser (pure functions) ──────────────
+
+const SAMPLE_INSPECT_OUTPUT = [
+  '/traffic-airflow-airflow-webserver-1|172.20.0.5|traffic-airflow|airflow-webserver|8002 8002|8080/tcp 8002/tcp|["airflow","webserver"]',
+  '/traffic-platform-trafficure-app-1|172.18.0.4|traffic-platform|trafficure-app||3000/tcp|["node","server.js"]',
+  '/traefik|172.18.0.2|traefik|reverse-proxy|80 443 8085|80/tcp 443/tcp 8080/tcp|["--api.insecure=true","--entrypoints.web.address=:80"]',
+  "",
+  "  ",
+  "bad-line",
+].join("\n")
+
+describe("parseInspectOutput", () => {
+  it("parses valid docker inspect lines", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries).toHaveLength(3)
+  })
+
+  it("strips leading / from container names", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries[0].containerName).toBe("traffic-airflow-airflow-webserver-1")
+  })
+
+  it("extracts compose project and service", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries[0].composeProject).toBe("traffic-airflow")
+    expect(entries[0].composeService).toBe("airflow-webserver")
+  })
+
+  it("extracts host ports (published)", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries[0].hostPorts).toEqual([8002])
+  })
+
+  it("extracts exposed ports (unpublished)", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries[0].exposedPorts).toContain(8080)
+    expect(entries[0].exposedPorts).toContain(8002)
+  })
+
+  it("handles containers with no host ports", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const app = entries.find((e) => e.composeService === "trafficure-app")!
+    expect(app.hostPorts).toEqual([])
+    expect(app.exposedPorts).toEqual([3000])
+  })
+
+  it("parses container command args from JSON", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const traefik = entries.find((e) => e.composeService === "reverse-proxy")!
+    expect(traefik.cmd).toContain("--api.insecure=true")
+    expect(traefik.cmd).toContain("--entrypoints.web.address=:80")
+  })
+
+  it("skips blank lines and malformed lines", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    expect(entries).toHaveLength(3)
+  })
+})
+
+describe("buildContainerMap", () => {
+  it("indexes by IP", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const map = buildContainerMap(entries)
+    const byIp = map.byIp.get("172.20.0.5")
+    expect(byIp?.composeService).toBe("airflow-webserver")
+  })
+
+  it("indexes by service name", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const map = buildContainerMap(entries)
+    const byName = map.byServiceName.get("trafficure-app")
+    expect(byName).toHaveLength(1)
+    expect(byName![0].containerName).toBe("traffic-platform-trafficure-app-1")
+  })
+
+  it("indexes by host port", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const map = buildContainerMap(entries)
+    const byPort = map.byHostPort.get(8002)
+    expect(byPort?.composeService).toBe("airflow-webserver")
+  })
+
+  it("host port lookup returns undefined for unpublished ports", () => {
+    const entries = parseInspectOutput(SAMPLE_INSPECT_OUTPUT)
+    const map = buildContainerMap(entries)
+    expect(map.byHostPort.get(3000)).toBeUndefined()
   })
 })

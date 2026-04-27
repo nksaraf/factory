@@ -38,7 +38,7 @@ export class ContainerInspector extends Context.Tag("ContainerInspector")<
 
 const INSPECT_CMD = `docker ps -q | xargs -I{} docker inspect {} --format '{{.Name}}|{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range $p, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{.HostPort}} {{end}}{{end}}|{{range $p, $v := .Config.ExposedPorts}}{{$p}} {{end}}|{{json .Config.Cmd}}'`
 
-function parseInspectOutput(stdout: string): ContainerEntry[] {
+export function parseInspectOutput(stdout: string): ContainerEntry[] {
   const entries: ContainerEntry[] = []
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim()
@@ -87,7 +87,7 @@ function parseInspectOutput(stdout: string): ContainerEntry[] {
   return entries
 }
 
-function buildContainerMap(entries: ContainerEntry[]): ContainerMap {
+export function buildContainerMap(entries: ContainerEntry[]): ContainerMap {
   const byIp = new Map<string, ContainerEntry>()
   const byServiceName = new Map<string, ContainerEntry[]>()
   const byHostPort = new Map<number, ContainerEntry>()
