@@ -41,6 +41,8 @@ export interface SpawnResult {
 
 export interface CaptureOpts {
   readonly cmd: string[]
+  readonly cwd?: string
+  readonly env?: Record<string, string | undefined>
   readonly timeoutMs?: number
   readonly component?: string
 }
@@ -51,11 +53,32 @@ export interface CaptureResult {
   readonly stderr: string
 }
 
+export interface StreamOpts {
+  readonly cmd: string[]
+  readonly cwd?: string
+  readonly env?: Record<string, string | undefined>
+  readonly onStdout: (line: string) => void
+  readonly onStderr?: (line: string) => void
+  readonly signal?: AbortSignal
+  readonly timeoutMs?: number
+  readonly component?: string
+}
+
+export interface InteractiveOpts {
+  readonly cmd: string[]
+  readonly cwd?: string
+  readonly env?: Record<string, string | undefined>
+}
+
 export interface IProcessManager {
   readonly spawn: (
     opts: SpawnOpts
   ) => Effect.Effect<SpawnResult, ProcessError, Scope.Scope>
   readonly capture: (opts: CaptureOpts) => Effect.Effect<CaptureResult, never>
+  readonly stream: (opts: StreamOpts) => Effect.Effect<number, never>
+  readonly interactive: (
+    opts: InteractiveOpts
+  ) => Effect.Effect<number, ProcessError>
   readonly kill: (
     pid: number,
     signal?: string
@@ -252,6 +275,91 @@ export const ProcessManagerLive = Layer.succeed(
             "process.cmd": opts.cmd.join(" "),
             ...(opts.component ? { "process.component": opts.component } : {}),
           },
+        })
+      ),
+
+    stream: (opts: StreamOpts) =>
+      Effect.async<number, never>((resume) => {
+        const [cmd, ...args] = opts.cmd
+        if (!cmd) {
+          resume(Effect.succeed(-1))
+          return
+        }
+        const proc = nodeSpawn(cmd, args, {
+          cwd: opts.cwd,
+          env: opts.env as Record<string, string> | undefined,
+          stdio: ["ignore", "pipe", "pipe"],
+        })
+        const { createInterface } =
+          require("node:readline") as typeof import("node:readline")
+        const rl = createInterface({ input: proc.stdout! })
+        rl.on("line", (line: string) => opts.onStdout(line))
+        if (opts.onStderr) {
+          const rlErr = createInterface({ input: proc.stderr! })
+          rlErr.on("line", (line: string) => opts.onStderr!(line))
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined
+        if (opts.timeoutMs) {
+          timer = setTimeout(() => proc.kill("SIGKILL"), opts.timeoutMs)
+        }
+        proc.on("close", (code) => {
+          if (timer) clearTimeout(timer)
+          rl.close()
+          resume(Effect.succeed(code ?? -1))
+        })
+        proc.on("error", () => {
+          if (timer) clearTimeout(timer)
+          rl.close()
+          resume(Effect.succeed(-1))
+        })
+        if (opts.signal) {
+          opts.signal.addEventListener("abort", () => proc.kill("SIGTERM"))
+        }
+        return Effect.sync(() => {
+          if (timer) clearTimeout(timer)
+          proc.kill("SIGKILL")
+        })
+      }).pipe(
+        Effect.withSpan("ProcessManager.stream", {
+          attributes: {
+            "process.cmd": opts.cmd.join(" "),
+            ...(opts.component ? { "process.component": opts.component } : {}),
+          },
+        })
+      ),
+
+    interactive: (opts: InteractiveOpts) =>
+      Effect.async<number, ProcessError>((resume) => {
+        const [cmd, ...args] = opts.cmd
+        if (!cmd) {
+          resume(
+            Effect.fail(
+              new ProcessError({ operation: "spawn", cause: "Empty command" })
+            )
+          )
+          return
+        }
+        const proc = nodeSpawn(cmd, args, {
+          cwd: opts.cwd,
+          env: opts.env as Record<string, string> | undefined,
+          stdio: "inherit",
+        })
+        proc.on("close", (code) => {
+          resume(Effect.succeed(code ?? -1))
+        })
+        proc.on("error", (err) => {
+          resume(
+            Effect.fail(
+              new ProcessError({
+                operation: "spawn",
+                cause: err.message,
+              })
+            )
+          )
+        })
+      }).pipe(
+        Effect.withSpan("ProcessManager.interactive", {
+          attributes: { "process.cmd": opts.cmd.join(" ") },
         })
       ),
 
