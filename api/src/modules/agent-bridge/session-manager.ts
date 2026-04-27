@@ -4,13 +4,11 @@
  * For MVP: local sessions only (agent process on same machine as API).
  * Remote sessions (via tunnel to dx dev) come in Phase 2.4.
  */
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import type { Database } from "../../db/connection"
-import { session, thread, message } from "../../db/schema/org"
+import { session } from "../../db/schema/org"
 import { newId } from "../../lib/id"
 import { logger } from "../../logger"
-import { ingestMessages } from "../messages/message.service"
-import type { IRMessage } from "@smp/factory-shared/schemas/message-ir"
 
 const log = logger.child({ module: "session-manager" })
 
@@ -23,7 +21,7 @@ export interface ActiveSession {
   process?: {
     pid: number
     stdin: WritableStream | null
-    kill: (signal?: string) => void
+    kill: (signal?: "SIGINT" | "SIGTERM") => void
   }
   cursorMessageId: string | null
 }

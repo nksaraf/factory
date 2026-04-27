@@ -7,7 +7,6 @@
  * GET   /agent-bridge/sessions/:id       — get session status
  * GET   /agent-bridge/sessions           — list active sessions
  */
-import { eq } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 
 import type { Database } from "../../db/connection"
@@ -18,7 +17,6 @@ import {
   createSession,
   endSession,
   getActiveSession,
-  getSessionForThread,
   listActiveSessions,
   updateSessionStatus,
 } from "./session-manager"
@@ -31,63 +29,61 @@ export function agentBridgeController(db: Database) {
     .post(
       "/sessions",
       async ({ body, set }) => {
-        const {
-          threadId,
-          principalId,
-          mode,
-          agentType,
-          siteId,
-          workbenchId,
-          prompt,
-        } = body
+        const { threadId, principalId, mode, agentType, siteId, workbenchId } =
+          body
 
-        let resolvedThreadId: string = threadId ?? ""
+        try {
+          let resolvedThreadId: string = threadId ?? ""
 
-        if (!resolvedThreadId) {
-          const [newThread] = await (db as any)
-            .insert(thread)
-            .values({
-              id: newId("thrd"),
-              type: "agent-session",
-              source: agentType ?? "claude-code",
-              principalId,
-              status: "active",
-              siteId: siteId ?? null,
-              workbenchId: workbenchId ?? null,
-              startedAt: new Date(),
-              spec: {} as any,
-            })
-            .returning({ id: thread.id })
+          if (!resolvedThreadId) {
+            const [newThread] = await (db as any)
+              .insert(thread)
+              .values({
+                id: newId("thrd"),
+                type: "agent-session",
+                source: agentType ?? "claude-code",
+                principalId,
+                status: "active",
+                siteId: siteId ?? null,
+                workbenchId: workbenchId ?? null,
+                startedAt: new Date(),
+                spec: {} as any,
+              })
+              .returning({ id: thread.id })
 
-          resolvedThreadId = newThread.id
-          log.info(
-            { threadId: resolvedThreadId },
-            "created new thread for session"
-          )
-        }
+            resolvedThreadId = newThread.id
+            log.info(
+              { threadId: resolvedThreadId },
+              "created new thread for session"
+            )
+          }
 
-        const sessionId = await createSession(db, {
-          threadId: resolvedThreadId,
-          principalId,
-          mode: mode as "drive" | "follow" | "native",
-          agentType: agentType ?? "claude-code",
-          siteId,
-          workbenchId,
-        })
+          const sessionId = await createSession(db, {
+            threadId: resolvedThreadId,
+            principalId,
+            mode: mode as "drive" | "follow" | "native",
+            agentType: agentType ?? "claude-code",
+            siteId,
+            workbenchId,
+          })
 
-        await updateSessionStatus(db, sessionId, "starting")
+          await updateSessionStatus(db, sessionId, "starting")
 
-        // TODO (Step 2.3 continued): spawn agent process here
-        // For now, just mark as ready — actual process spawning comes
-        // when we implement DriveSession/FollowSession/NativeSession
+          // TODO: spawn agent process here — actual drive/follow/native
+          // session implementations come in the next step
 
-        await updateSessionStatus(db, sessionId, "ready")
+          await updateSessionStatus(db, sessionId, "ready")
 
-        set.status = 201
-        return {
-          sessionId,
-          threadId: resolvedThreadId,
-          status: "ready",
+          set.status = 201
+          return {
+            sessionId,
+            threadId: resolvedThreadId,
+            status: "ready",
+          }
+        } catch (err) {
+          log.error({ err }, "session creation failed")
+          set.status = 500
+          return { error: "Failed to create session" }
         }
       },
       {
