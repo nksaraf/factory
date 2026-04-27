@@ -138,6 +138,8 @@ export type EntityPrefix =
   | "exch" // exchange
   | "doc" // document
   | "docv" // document_version
+  | "sess" // session
+  | "rxn" // reaction
 
 export function newId(prefix: EntityPrefix): string {
   return `${prefix}_${cuid()}`

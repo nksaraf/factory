@@ -573,6 +573,9 @@ export const thread = orgSchema.table(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     parentThreadId: text("parent_thread_id"),
+    siteId: text("site_id"),
+    workbenchId: text("workbench_id"),
+    forkExchangeId: text("fork_exchange_id"),
     spec: specCol<ThreadSpec>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -589,6 +592,8 @@ export const thread = orgSchema.table(
     index("org_thread_repo_slug_idx").on(t.repoSlug),
     index("org_thread_started_at_idx").on(t.startedAt),
     index("org_thread_parent_idx").on(t.parentThreadId),
+    index("org_thread_site_idx").on(t.siteId),
+    index("org_thread_workbench_idx").on(t.workbenchId),
     index("org_thread_spec_gin_idx").using("gin", t.spec),
   ]
 )
@@ -672,6 +677,10 @@ export const threadChannel = orgSchema.table(
       .notNull()
       .references(() => channel.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
+    permissions: text("permissions")
+      .array()
+      .notNull()
+      .default(sql`'{observe}'`),
     status: text("status").notNull().default("connected"),
     spec: specCol<ThreadChannelSpec>(),
     createdAt: createdAt(),
@@ -702,6 +711,8 @@ export const message = orgSchema.table(
     role: text("role").notNull(),
     source: text("source").notNull(),
     content: jsonb("content").notNull().$type<Record<string, unknown>[]>(),
+    status: text("status").notNull().default("active"),
+    supersededBy: text("superseded_by"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     spec: specCol<MessageSpec>(),
@@ -713,6 +724,7 @@ export const message = orgSchema.table(
     index("org_message_parent_idx").on(t.parentId),
     index("org_message_role_idx").on(t.role),
     index("org_message_source_idx").on(t.source),
+    index("org_message_status_idx").on(t.status),
     index("org_message_spec_gin_idx").using("gin", t.spec),
     index("org_message_content_gin_idx").using("gin", t.content),
   ]
@@ -781,6 +793,9 @@ export const toolCall = orgSchema.table(
     }),
     status: text("status").notNull().default("pending"),
     isError: boolean("is_error"),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalSurface: text("approval_surface"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     spec: specCol<ToolCallSpec>(),
@@ -1241,6 +1256,82 @@ export const documentVersion = orgSchema.table(
     index("org_docver_source_turn_idx").on(t.sourceTurnId),
     index("org_docver_source_message_idx").on(t.sourceMessageId),
     index("org_docver_source_tool_call_idx").on(t.sourceToolCallId),
+  ]
+)
+
+// ─── Session ────────────────────────────────────────────────
+// Active agent process connected to a thread. Ephemeral — dies when process stops.
+
+export const session = orgSchema.table(
+  "session",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("sess")),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => thread.id, { onDelete: "cascade" }),
+    siteId: text("site_id"),
+    workbenchId: text("workbench_id"),
+    sandboxProvider: text("sandbox_provider").notNull().default("none"),
+    agentHostKind: text("agent_host_kind").notNull().default("site"),
+    agentHostRef: text("agent_host_ref"),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principal.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("created"),
+    agentType: text("agent_type"),
+    processInfo: jsonb("process_info").$type<Record<string, unknown>>(),
+    cursorMessageId: text("cursor_message_id"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    spec: specCol(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("org_session_thread_idx").on(t.threadId),
+    index("org_session_site_idx").on(t.siteId),
+    index("org_session_workbench_idx").on(t.workbenchId),
+    index("org_session_principal_idx").on(t.principalId),
+    index("org_session_status_idx").on(t.status),
+    index("org_session_mode_idx").on(t.mode),
+    index("org_session_agent_type_idx").on(t.agentType),
+  ]
+)
+
+// ─── Reaction ───────────────────────────────────────────────
+// Feedback on messages/exchanges. Separate table for RLHF queryability.
+
+export const reaction = orgSchema.table(
+  "reaction",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => newId("rxn")),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => message.id, { onDelete: "cascade" }),
+    exchangeId: text("exchange_id").references(() => exchange.id, {
+      onDelete: "set null",
+    }),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principal.id, { onDelete: "cascade" }),
+    surface: text("surface"),
+    kind: text("kind").notNull(),
+    comment: text("comment"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("org_reaction_message_idx").on(t.messageId),
+    index("org_reaction_exchange_idx").on(t.exchangeId),
+    index("org_reaction_principal_idx").on(t.principalId),
+    index("org_reaction_kind_idx").on(t.kind),
+    index("org_reaction_message_kind_idx").on(t.messageId, t.kind),
   ]
 )
 
