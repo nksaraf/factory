@@ -100,11 +100,10 @@ function diagnoseSshFailure(
     stderr.includes("Connection timed out") ||
     stderr.includes("Operation timed out")
   ) {
+    // TODO: probe jump host independently (nc -zvw 3 jumpHost jumpPort) to
+    // distinguish "jump host down" from "target unreachable through jump"
     return {
-      failure: {
-        _tag: "Timeout",
-        jumpReachable: jumpChain.length > 0 ? undefined : undefined,
-      },
+      failure: { _tag: "Timeout" },
       autoFixed: false,
     }
   }
@@ -128,7 +127,7 @@ function diagnoseSshFailure(
         path: transport.identity,
         current,
       },
-      autoFixed: false,
+      autoFixed: true,
     }
   }
 
@@ -156,7 +155,7 @@ function diagnoseSshFailure(
 
 function spawnProcess(
   args: string[],
-  command: string,
+  _command: string,
   timeoutMs: number
 ): Effect.Effect<ExecResult, never> {
   return Effect.async<ExecResult, never>((resume) => {
@@ -181,6 +180,10 @@ function spawnProcess(
       resume(
         Effect.succeed({ code: -1, stdout, stderr: stderr || "spawn error" })
       )
+    })
+    return Effect.sync(() => {
+      clearTimeout(timer)
+      proc.kill("SIGKILL")
     })
   })
 }
@@ -214,57 +217,73 @@ function makeSshError(
   })
 }
 
+function diagnoseAndRetry(
+  transport: SshTransport,
+  args: string[],
+  command: string,
+  timeoutMs: number,
+  result: ExecResult
+): Effect.Effect<ExecResult, SshError> {
+  return Effect.gen(function* () {
+    const diagnosis = diagnoseSshFailure(transport, result.code, result.stderr)
+
+    if (diagnosis.autoFixed && diagnosis.failure._tag === "HostKeyChanged") {
+      const retry = yield* spawnProcess(args, command, timeoutMs)
+      if (retry.code === 0) return retry
+      return yield* makeSshError(transport, { ...diagnosis, autoFixed: false })
+    }
+
+    if (
+      diagnosis.autoFixed &&
+      diagnosis.failure._tag === "KeyPermissions" &&
+      transport.identity
+    ) {
+      try {
+        const fs = yield* Effect.promise(() => import("node:fs"))
+        fs.chmodSync(transport.identity, 0o600)
+        const retry = yield* spawnProcess(args, command, timeoutMs)
+        if (retry.code === 0) return retry
+      } catch {}
+      return yield* makeSshError(transport, diagnosis)
+    }
+
+    return yield* makeSshError(transport, diagnosis)
+  })
+}
+
+function requireSsh(
+  target: AccessTarget
+): Effect.Effect<SshTransport, SshError> {
+  if (target.transport.kind !== "ssh") {
+    return Effect.fail(
+      new SshError({
+        host: target.slug,
+        failure: {
+          _tag: "CommandFailed",
+          exitCode: -1,
+          stderr: `Transport ${target.transport.kind} not supported — use kubectl exec for kubectl targets`,
+        },
+      })
+    )
+  }
+  return Effect.succeed(target.transport)
+}
+
 export const RemoteExecLive = Layer.succeed(RemoteExec, {
   run: (target, command, opts) =>
     Effect.gen(function* () {
-      if (target.transport.kind !== "ssh") {
-        return yield* new SshError({
-          host: target.slug,
-          failure: {
-            _tag: "CommandFailed",
-            exitCode: -1,
-            stderr: `Transport ${target.transport.kind} not supported by RemoteExec.run — use kubectl exec for kubectl targets`,
-          },
-        })
-      }
-
-      const transport = target.transport
+      const transport = yield* requireSsh(target)
       const timeoutMs = opts?.timeoutMs ?? 15_000
       const args = buildSshCommand(transport, command)
       const result = yield* spawnProcess(args, command, timeoutMs)
-
       if (result.code === 0) return result
-
-      const diagnosis = diagnoseSshFailure(
+      return yield* diagnoseAndRetry(
         transport,
-        result.code,
-        result.stderr
+        args,
+        command,
+        timeoutMs,
+        result
       )
-
-      if (diagnosis.autoFixed && diagnosis.failure._tag === "HostKeyChanged") {
-        const retry = yield* spawnProcess(args, command, timeoutMs)
-        if (retry.code === 0) return retry
-        return yield* makeSshError(transport, {
-          ...diagnosis,
-          autoFixed: false,
-        })
-      }
-
-      if (
-        diagnosis.autoFixed &&
-        diagnosis.failure._tag === "KeyPermissions" &&
-        transport.identity
-      ) {
-        try {
-          const fs = yield* Effect.promise(() => import("node:fs"))
-          fs.chmodSync(transport.identity, 0o600)
-          const retry = yield* spawnProcess(args, command, timeoutMs)
-          if (retry.code === 0) return retry
-        } catch {}
-        return yield* makeSshError(transport, diagnosis)
-      }
-
-      return yield* makeSshError(transport, diagnosis)
     }),
 
   runLocal: (command, opts) => {
@@ -274,29 +293,34 @@ export const RemoteExecLive = Layer.succeed(RemoteExec, {
 
   curlJson: <T>(target: AccessTarget, url: string) =>
     Effect.gen(function* () {
-      if (target.transport.kind !== "ssh") {
-        return yield* new SshError({
-          host: target.slug,
-          failure: {
-            _tag: "CommandFailed",
-            exitCode: -1,
-            stderr: "curlJson requires SSH transport",
-          },
-        })
-      }
-
-      const transport = target.transport
+      const transport = yield* requireSsh(target)
       const cmd = `curl -sf --max-time 10 '${url}'`
+      const timeoutMs = 15_000
       const args = buildSshCommand(transport, cmd)
-      const result = yield* spawnProcess(args, cmd, 15_000)
+      const result = yield* spawnProcess(args, cmd, timeoutMs)
 
       if (result.code !== 0 || !result.stdout.trim()) {
-        const diagnosis = diagnoseSshFailure(
+        // diagnoseAndRetry either retries successfully or fails with SshError
+        const retried = yield* diagnoseAndRetry(
           transport,
-          result.code,
-          result.stderr
+          args,
+          cmd,
+          timeoutMs,
+          result
         )
-        return yield* makeSshError(transport, diagnosis)
+        // If retry succeeded, try to parse its stdout
+        try {
+          return JSON.parse(retried.stdout) as T
+        } catch {
+          return yield* new SshError({
+            host: transport.host,
+            failure: {
+              _tag: "CommandFailed",
+              exitCode: 0,
+              stderr: `Invalid JSON after retry: ${retried.stdout.slice(0, 100)}`,
+            },
+          })
+        }
       }
 
       try {
