@@ -6,7 +6,8 @@ import {
   type IProcessManager,
   type CaptureResult,
 } from "@smp/factory-shared/effect/process-manager"
-import { buildSshArgs, clearStaleHostKey } from "../../lib/ssh-utils.js"
+import { SshAdapter } from "@smp/factory-shared/effect/transport-adapter"
+import { clearStaleHostKey } from "../../lib/ssh-utils.js"
 import type { AccessTarget, JumpHop, SshTransport } from "./remote-access.js"
 
 // ── Types ──────────────────────────────────────────────────
@@ -160,21 +161,14 @@ function captureWith(
   return pm.capture({ cmd: args, timeoutMs })
 }
 
-function buildSshCommand(transport: SshTransport, command: string): string[] {
-  const sshArgs = buildSshArgs({
+function adapterFor(transport: SshTransport): SshAdapter {
+  return new SshAdapter({
     host: transport.host,
     port: transport.port,
     user: transport.user,
     identity: transport.identity,
-    jumpHost: transport.jumpChain[0]?.host,
-    jumpUser: transport.jumpChain[0]?.user,
-    jumpPort: transport.jumpChain[0]?.port,
-    tty: "none",
-    hostKeyCheck: "accept-new",
-    extraArgs: ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"],
+    jumpChain: [...transport.jumpChain],
   })
-  sshArgs.push(command)
-  return ["ssh", ...sshArgs]
 }
 
 function makeSshError(
@@ -266,7 +260,7 @@ export const RemoteExecLive = Layer.effect(
         Effect.gen(function* () {
           const transport = yield* requireSsh(target)
           const timeoutMs = opts?.timeoutMs ?? 15_000
-          const args = buildSshCommand(transport, command)
+          const args = adapterFor(transport).buildCmd(command)
           const result = yield* cap(args, timeoutMs)
           if (result.code === 0) return result
           return yield* diagnoseAndRetry(transport, args, timeoutMs, result)
@@ -277,7 +271,7 @@ export const RemoteExecLive = Layer.effect(
           const transport = yield* requireSsh(target)
           const cmd = `curl -sf --max-time 10 '${url}'`
           const timeoutMs = 15_000
-          const args = buildSshCommand(transport, cmd)
+          const args = adapterFor(transport).buildCmd(cmd)
           const result = yield* cap(args, timeoutMs)
 
           if (result.code !== 0 || !result.stdout.trim()) {
