@@ -1108,6 +1108,18 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 
 ## dx CLI follow-ups
 
+- [ ] **Component-level depEnv resolution for native processes** — `resolveDepEnvForNative()` in `native.ts` resolves `dx.dep.*.env.*` templates against localhost + published ports. Works but untested end-to-end because Docker auto-starts `infra-factory` (see next item). Env resolution logic verified correct via unit test.
+
+- [ ] **Fix Docker auto-starting dev-target containers** — `docker compose up -d` for infra deps causes Docker to auto-create/start `infra-factory` when its `depends_on` services become healthy, even with `--no-deps`. Root cause: `CompositeExecutor.executorFor()` defaults to compose when `getMode()` returns null (line 53 in `composite.ts`). Likely because `project.name` is `undefined` → `sdSlug` is undefined → SD slug mismatch. Fix: use `project.catalog.metadata.name` for sdSlug, or set `skipInfra: true` in prelude + explicit `compose.stop(targets)` after health wait.
+
+- [ ] **Remove self-referencing `x-dx.dependencies` entry** — `docker-compose.yaml` still has `factory-core` depending on itself. Should be `dependencies: []` now that component-level `dx.dep.*.env.*` labels handle env resolution. The removal keeps getting reverted by deploy commits.
+
+- [ ] **Separate Docker build from run in orchestrator** — `compose.up --build` builds ALL services with build contexts, not just the listed ones. Split into `compose.build(depsNeedingBuild)` then `compose.up({ noBuild: true })` so dev targets don't get built/started as Docker containers.
+
+- [ ] **Prelude skipInfra for dx dev** — The prelude's infra step runs `compose.up()` on ALL services when `usingRemoteDeps` is false. For `dx dev`, the orchestrator manages Docker deps itself. Pass `skipInfra: true` from `dev.ts` to `runPrelude()`.
+
+- [ ] **Named port selection in depEnv templates** — `resolveDepEnvForNative` picks `http` port first, then first available. For multi-port services (e.g., infra-factory has http:4100 + gateway-proxy:9090), templates can't target a specific named port. Consider `{port:gateway-proxy}` syntax.
+
 - [ ] **Extract shared deps-install dispatcher** — `cli/src/lib/prelude.ts` and `cli/src/commands/sync.ts` both dispatch pnpm/bun/yarn/npm installs via an internal lockfile→command map. Extract to a shared primitive (`cli/src/lib/install-dispatcher.ts`) when a third caller appears or when they diverge. Leaving duplicated for now — premature extraction would lock an API before the second consumer's needs are settled.
 
 - [ ] **Multi-system slice 6: Factory API endpoint discovery** — `cli/src/lib/linked-sd-resolver.ts` currently guesses the remote SD slug as `<site>-<system>`. That's brittle for sites whose SDs don't follow that convention. Replace with `GET /api/v1/sites/:slug/system-deployments/:sd/endpoints` so the authoritative slug + endpoints come from the reconciler's source of truth. Covered by slice 6 in `.claude/plans/vivid-prancing-lake.md`.
@@ -1119,3 +1131,47 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] **Windows-native dx installer (PowerShell)** — current install script is bash-only; `curl | bash` path works on Git Bash/WSL but not native PowerShell. Add `api/src/modules/install/windows.ts` serving `install.ps1` at `/api/v1/factory/install.ps1`, mirroring the bash installer: detect arch via `$env:PROCESSOR_ARCHITECTURE`, fetch `lepton-dx-windows-x64` tarball, extract to `%LOCALAPPDATA%\dx\bin`, add to PATH. CI for it is already stubbed in `.github/workflows/test-dx-install.yml` (windows job currently no-ops). Not urgent — all production VMs are Linux.
 
 - [ ] **Native musl binaries for Alpine (optional follow-up)** — resolved for v1 by auto-installing `gcompat libstdc++ libgcc` on Alpine; the glibc binary runs fine under gcompat. A future native build (via `bun build --compile --target=bun-linux-x64-musl`) would shave the ~2MB gcompat shim but still requires `libstdc++`/`libgcc` at runtime, so the UX win is minimal. Path: either upstream `@crustjs/crust` musl targets, or a parallel `build:musl` script that directly invokes bun and post-processes `dist/npm/manifest.json` + `dist/npm/root/package.json` + resolver.
+
+- [ ] **`dx source link` — detect broken symlinks at target** — `cli/src/handlers/source/link.ts` uses `existsSync(targetPath)` which follows symlinks and returns false for broken ones, then `symlinkSync` fails with EEXIST. Switch to `lstatSync(target, { throwIfNoEntry: false })` so a stale symlink (e.g. carried over from a Conductor workspace clone) yields a clear error instead of EEXIST. Reverted by linter once already; re-apply with intent encoded in a comment so the lstat usage isn't auto-replaced.
+
+- [ ] **`dx source link` — automate pnpm.overrides for linked npm sources** — currently each link requires manually adding `"<pkg-name>": "link:./<path>"` to root `package.json#pnpm.overrides` and running `pnpm install`. Add a `cli/src/handlers/pkg/pnpm-overrides.ts` helper, read the package name from the linked source's `package.json`, store as `npm_name` in `.dx/packages.json`, and auto-add/remove the override in `integrateNpm` / `unintegrateNpm`. Avoid editing each dependent's `package.json`.
+
+---
+
+## Site Lifecycle & Remote Operations
+
+### Completed (2026-04-19–20)
+
+- [x] Spec/status split on site.json — `{spec: SiteSpec, status: LocalSiteStatus}`
+- [x] SiteOrchestrator (renamed from DevOrchestrator) + mode-aware create (up/dev)
+- [x] SiteBackend interface — LocalSiteBackend + RemoteSiteBackend (Factory API)
+- [x] `--site` flag on `dx status` and `dx ps` for remote operations
+- [x] `GET /api/v1/factory/ops/site-live/:slug` endpoint
+- [x] Orphaned process cleanup on intent change
+- [x] `dx stop`, `dx restart` commands + `dx down` lifecycle alignment
+- [x] `dx status` spec vs reality delta with dead PID detection
+- [x] Host-level port registry for multi-worktree dev
+- [x] Centralized host dirs (`host-dirs.ts`) — XDG config/data/cache split
+- [x] Partial site resolution — `x-dx.dependencies` + envMapping in docker-compose
+- [x] Endpoint discovery — host IP + published ports from Factory API
+- [x] Scan SSH user fix (factory-prod `accessUser` was `root`, should be `lepton`)
+
+### Deferred
+
+- [ ] **Remote write operations** — `dx restart/stop/down --site <slug>` need write methods on SiteBackend + API endpoints
+- [ ] **`--site` flag on `dx logs`, `dx down`, `dx restart`** — natural candidates for remote operation
+- [ ] **Deploy `feat/unified-site-agent` API to prod** — Drizzle migration error (`CREATE SCHEMA "public"` fails) blocks deployment. Likely `@workflow/world-postgres` compat issue with newer schema
+- [ ] **Component `name` field in site-live API** — prod API doesn't return compose service name alongside DB slug. CLI uses prefix-stripping fallback. Deploy updated `site-state.service.ts`
+- [ ] **Structured port mappings in scan reconciler** — collector sends `portMappings: [{container, host}]` but prod reconciler ignores them. Deploy updated `scan-reconciler.ts`
+- [ ] **Port name label standard** — every published port should have `dx.port.*.name`. Add validation in `dx check`
+- [ ] **`configDir("dx")` → `DX_CONFIG_DIR` migration** — 7 files still use `@crustjs/store`'s `configDir("dx")` instead of centralized `host-dirs.ts`. Same path on Linux, different on macOS
+- [ ] **`@crustjs/core` subcommand `.meta()` bug** — `.meta().flags()` and `.meta().args()` don't work on subcommand callbacks. Only `.meta().run()` works. Framework needs fix
+- [ ] **Docker stale port proxy on prod** — after `docker compose stop`, docker-proxy holds the port. Requires `fuser -k` or daemon restart. Investigate iptables cleanup
+- [ ] **DB migrations in prelude** — run after infra healthy, before dev servers start
+- [ ] **Source repo clone in prelude** — fetch `dx.sources` entries that haven't been cloned
+- [ ] **Docker compose service rename** — `svc-api` → `infra-factory` done on `feat/unified-site-agent` but not on `effect-ts-adoption`. Need to reconcile and rename `init-postgres-bootstrap` too
+- [ ] **oxfmt clears YAML block content** — oxfmt collapses `x-dx.dependencies` array to `[]` on format. Fixed by excluding `docker-compose.yaml` from oxfmt. Consider reporting upstream
+
+- [ ] **Use relative symlinks for dx-managed packages** — `cli/src/handlers/source/link.ts` calls `symlinkSync(absolutePkgSource, targetPath)`. When Conductor clones a workspace, the absolute target preserves a path back at the original workspace, leaving stale links in the new clone. Switch to `relative(dirname(targetPath), pkgSource)` so the symlink resolves within whichever workspace it's currently in.
+
+- [ ] **`dx sync` — heal stale dx-managed symlinks** — when a workspace is cloned (e.g. via Conductor), absolute symlinks under `packages/npm/*` point back at the original workspace. `dx sync` should detect dx-managed entries whose symlink target leaves the workspace root, and repoint them at the local `.dx/pkg-repos/<name>/<source_path>`.
