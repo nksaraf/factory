@@ -1,5 +1,12 @@
+import { Effect, Layer } from "effect"
 import type { DxBase } from "../dx-root.js"
-import { EntityFinder } from "../lib/entity-finder.js"
+import {
+  RemoteAccess,
+  RemoteAccessLive,
+  RemoteExec,
+  RemoteExecLive,
+  runEffect,
+} from "../effect/index.js"
 import { resolveUrl } from "../lib/trace-resolver.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
@@ -120,37 +127,39 @@ async function healthCheckUrl(url: string, verbose: boolean) {
 async function healthCheckSlug(slug: string) {
   console.log(`\n${styleBold("Health:")} ${slug}\n`)
 
-  const finder = new EntityFinder()
-  const entity = await finder.resolve(slug)
+  const program = Effect.gen(function* () {
+    const access = yield* RemoteAccess
+    const exec = yield* RemoteExec
 
-  if (!entity) {
-    console.error(`No entity found for: ${slug}`)
-    process.exit(1)
-  }
+    const target = yield* access.resolve(slug)
 
-  if (!entity.sshHost) {
-    printRow("Status", styleWarn("no SSH access configured"))
-    return
-  }
+    if (target.transport.kind !== "ssh") {
+      printRow("Host", target.displayName)
+      printRow("Transport", target.transport.kind)
+      printRow("Status", colorStatus(target.status))
+      return
+    }
 
-  const host = entity.sshHost
-  const port = entity.sshPort ?? 22
+    const { host, port } = target.transport
 
-  // Quick SSH connectivity check via nc
-  const result = await runLocal(
-    `nc -zvw 3 ${host} ${port} 2>&1 && echo OK || echo FAIL`
-  )
-  const ok =
-    result.code === 0 || /OK|succeeded/i.test(result.stdout + result.stderr)
+    const result = yield* exec.runLocal(
+      `nc -zvw 3 ${host} ${port} 2>&1 && echo OK || echo FAIL`
+    )
+    const ok =
+      result.code === 0 || /OK|succeeded/i.test(result.stdout + result.stderr)
 
-  printRow("Host", `${entity.displayName} (${host})`)
-  printRow(
-    "SSH",
-    ok
-      ? styleSuccess(`✓ port ${port} reachable`)
-      : styleError(`✗ port ${port} unreachable`)
-  )
-  printRow("Status", colorStatus(entity.status))
+    printRow("Host", `${target.displayName} (${host})`)
+    printRow(
+      "SSH",
+      ok
+        ? styleSuccess(`✓ port ${port} reachable`)
+        : styleError(`✗ port ${port} unreachable`)
+    )
+    printRow("Status", colorStatus(target.status))
+  })
+
+  const layer = Layer.mergeAll(RemoteAccessLive, RemoteExecLive)
+  await runEffect(Effect.provide(program, layer), "health-check")
   console.log()
 }
 
