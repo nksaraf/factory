@@ -295,13 +295,19 @@ function mockReader(opts: {
       return ports[`${hostId}:${port}`] ?? null
     },
     async findRoutesOnRealm(realmId) {
-      return routes[realmId] ?? []
+      const all = routes[realmId] ?? []
+      return all.filter((r) => {
+        const ts = (r.spec as Record<string, unknown>)?.targetService as
+          | string
+          | undefined
+        return !ts?.includes("@internal")
+      })
     },
     async findHostForRealm(realmId) {
       return hostForRealm[realmId] ?? null
     },
-    async findComponentBySlug() {
-      return null
+    async findComponentBySlug(slug) {
+      return entities[slug] ?? null
     },
   }
 }
@@ -436,7 +442,11 @@ describe("traceRequest", () => {
 
     expect(root.entity.slug).toBe("traefik")
     expect(root.children).toHaveLength(1)
-    expect(root.children[0].entity.slug).toBe("bugs-app")
+    // Route node wraps the service
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("bugs-rio-software")
+    expect(routeNode.children).toHaveLength(1)
+    expect(routeNode.children[0].entity.slug).toBe("bugs-app")
   })
 
   it("branches at load-balanced links", async () => {
@@ -646,9 +656,12 @@ describe("traceRequest", () => {
     expect(realmNode.entity.slug).toBe("traefik")
     expect(realmNode.implicit).toBe(true)
 
-    // realm → backend (via route)
+    // realm → route → backend
     expect(realmNode.children).toHaveLength(1)
-    const backendNode = realmNode.children[0]
+    const routeNode = realmNode.children[0]
+    expect(routeNode.entity.slug).toBe("bugs-rio-software")
+    expect(routeNode.children).toHaveLength(1)
+    const backendNode = routeNode.children[0]
     expect(backendNode.entity.slug).toBe("bugs-container")
   })
 
@@ -688,7 +701,10 @@ describe("traceRequest", () => {
     const root = await traceRequest(reader, request, "realm", "realm1")
 
     expect(root.children).toHaveLength(1)
-    expect(root.children[0].entity.slug).toBe("default-app")
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("catchall")
+    expect(routeNode.children).toHaveLength(1)
+    expect(routeNode.children[0].entity.slug).toBe("default-app")
   })
 
   it("prefers specific route over catch-all", async () => {
@@ -743,6 +759,169 @@ describe("traceRequest", () => {
 
     // Should follow the specific route, not the catch-all
     expect(root.children).toHaveLength(1)
-    expect(root.children[0].entity.slug).toBe("bugs-app")
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("bugs-rio")
+    expect(routeNode.children).toHaveLength(1)
+    expect(routeNode.children[0].entity.slug).toBe("bugs-app")
+  })
+
+  it("skips @internal routes and falls through to next match", async () => {
+    const reader = mockReader({
+      entities: {
+        realm1: entity("traefik", "reverse-proxy"),
+        backend1: entity("real-app", "service"),
+      },
+      links: [
+        link(
+          { kind: "route", id: "real-route" },
+          { kind: "service", id: "backend1" }
+        ),
+      ],
+      routes: {
+        realm1: [
+          {
+            id: "internal-route",
+            slug: "internal-api",
+            name: "api@internal",
+            domain: "*",
+            realmId: "realm1",
+            spec: { targetService: "api@internal" },
+            priority: 0,
+          },
+          {
+            id: "real-route",
+            slug: "real-route",
+            name: "real",
+            domain: "*",
+            realmId: "realm1",
+            spec: { targetService: "real-app-service" },
+            priority: -1,
+          },
+        ],
+      },
+    })
+
+    const request: RequestContext = {
+      protocol: "https",
+      port: 443,
+      domain: "example.com",
+    }
+
+    const root = await traceRequest(reader, request, "realm", "realm1")
+
+    expect(root.children).toHaveLength(1)
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("real-route")
+    expect(routeNode.children).toHaveLength(1)
+    expect(routeNode.children[0].entity.slug).toBe("real-app")
+  })
+
+  it("uses targetService fallback when resolvedTargets is empty", async () => {
+    const reader = mockReader({
+      entities: {
+        realm1: entity("traefik", "reverse-proxy"),
+        "my-app": entity("my-app", "component"),
+      },
+      links: [],
+      routes: {
+        realm1: [
+          {
+            id: "route1",
+            slug: "app-route",
+            name: "app",
+            domain: "app.example.com",
+            realmId: "realm1",
+            spec: { targetService: "my-app-service", targetPort: 3000 },
+            priority: 0,
+          },
+        ],
+      },
+    })
+
+    const request: RequestContext = {
+      protocol: "https",
+      port: 443,
+      domain: "app.example.com",
+    }
+
+    const root = await traceRequest(reader, request, "realm", "realm1")
+
+    expect(root.children).toHaveLength(1)
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("app-route")
+    // targetService "my-app-service" → strip "-service" → "my-app" → findComponentBySlug
+    expect(routeNode.children).toHaveLength(1)
+    expect(routeNode.children[0].entity.slug).toBe("my-app")
+    expect(routeNode.children[0].link?.type).toBe("forward")
+    expect(routeNode.children[0].link?.spec.egressPort).toBe(3000)
+  })
+
+  it("resolvedTargets creates forward links with exact component slug", async () => {
+    const reader = mockReader({
+      entities: {
+        realm1: entity("traefik", "reverse-proxy"),
+        "traffic-airflow-airflow-webserver": entity(
+          "traffic-airflow-airflow-webserver",
+          "service"
+        ),
+      },
+      links: [],
+      routes: {
+        realm1: [
+          {
+            id: "route1",
+            slug: "airflow-route",
+            name: "airflow",
+            domain: "*",
+            realmId: "realm1",
+            spec: { targetService: "airflow-service", targetPort: 8002 },
+            priority: -1,
+          },
+        ],
+      },
+    })
+
+    // Mock findEntity to return the route with resolvedTargets
+    const originalFindEntity = reader.findEntity.bind(reader)
+    reader.findEntity = async (kind: string, id: string) => {
+      if (kind === "route" && id === "route1") {
+        return {
+          id: "route1",
+          slug: "airflow-route",
+          name: "airflow",
+          type: "route",
+          status: {
+            phase: "resolved",
+            resolvedTargets: [
+              {
+                componentSlug: "traffic-airflow-airflow-webserver",
+                port: 8002,
+                address: "http://host.docker.internal:8002",
+              },
+            ],
+          },
+          spec: { targetService: "airflow-service", targetPort: 8002 },
+        }
+      }
+      return originalFindEntity(kind, id)
+    }
+
+    const request: RequestContext = {
+      protocol: "http",
+      port: 80,
+    }
+
+    const root = await traceRequest(reader, request, "realm", "realm1")
+
+    const routeNode = root.children[0]
+    expect(routeNode.entity.slug).toBe("airflow-route")
+    expect(routeNode.children).toHaveLength(1)
+    const component = routeNode.children[0]
+    expect(component.entity.slug).toBe("traffic-airflow-airflow-webserver")
+    expect(component.link?.type).toBe("forward")
+    expect(component.link?.spec.egressPort).toBe(8002)
+    expect(component.link?.spec.address).toBe(
+      "http://host.docker.internal:8002"
+    )
   })
 })
