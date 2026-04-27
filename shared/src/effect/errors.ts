@@ -530,6 +530,143 @@ export class TimeoutError extends Schema.TaggedError<TimeoutError>()(
 }
 
 // ---------------------------------------------------------------------------
+// SSH / Remote access
+// ---------------------------------------------------------------------------
+
+const JumpHop = Schema.Struct({
+  host: Schema.String,
+  port: Schema.Number,
+  user: Schema.String,
+})
+
+const SshFailureKind = Schema.Union(
+  Schema.TaggedStruct("HostKeyChanged", {
+    cleared: Schema.Boolean,
+  }),
+  Schema.TaggedStruct("AuthFailed", {
+    user: Schema.String,
+    keyExists: Schema.optional(Schema.Boolean),
+    keyPermissions: Schema.optional(Schema.String),
+  }),
+  Schema.TaggedStruct("Timeout", {
+    jumpReachable: Schema.optional(Schema.Boolean),
+    targetReachable: Schema.optional(Schema.Boolean),
+  }),
+  Schema.TaggedStruct("ConnectionRefused", {
+    port: Schema.Number,
+  }),
+  Schema.TaggedStruct("PasswordRequired", {}),
+  Schema.TaggedStruct("KeyPermissions", {
+    path: Schema.String,
+    current: Schema.String,
+  }),
+  Schema.TaggedStruct("HostNotFound", {
+    hostname: Schema.String,
+  }),
+  Schema.TaggedStruct("JumpForwardingFailed", {
+    jumpHost: Schema.String,
+  }),
+  Schema.TaggedStruct("CommandFailed", {
+    exitCode: Schema.Number,
+    stderr: Schema.optional(Schema.String),
+  })
+)
+
+export class SshError extends Schema.TaggedError<SshError>()("SshError", {
+  host: Schema.String,
+  jumpChain: Schema.optional(Schema.Array(JumpHop)),
+  failure: SshFailureKind,
+  autoFixed: Schema.optional(Schema.Boolean),
+  suggestions: Suggestions,
+}) {
+  get message(): string {
+    const via = this.jumpChain?.length
+      ? ` via ${this.jumpChain.map((h) => h.host).join(" → ")}`
+      : ""
+    switch (this.failure._tag) {
+      case "HostKeyChanged":
+        return `SSH to ${this.host}${via}: host key changed${this.failure.cleared ? " (cleared, retrying)" : ""}`
+      case "AuthFailed":
+        return `SSH to ${this.host}${via}: authentication failed for user ${this.failure.user}`
+      case "Timeout":
+        return `SSH to ${this.host}${via}: connection timed out`
+      case "ConnectionRefused":
+        return `SSH to ${this.host}${via}: port ${this.failure.port} refused`
+      case "PasswordRequired":
+        return `SSH to ${this.host}${via}: password required (BatchMode blocks interactive auth)`
+      case "KeyPermissions":
+        return `SSH key ${this.failure.path}: permissions ${this.failure.current} (must be 600)`
+      case "HostNotFound":
+        return `SSH: cannot resolve hostname ${this.failure.hostname}`
+      case "JumpForwardingFailed":
+        return `SSH to ${this.host}${via}: jump host ${this.failure.jumpHost} forwarding failed`
+      case "CommandFailed":
+        return `SSH command on ${this.host} exited with code ${this.failure.exitCode}`
+    }
+  }
+
+  get httpStatus(): number {
+    return 502
+  }
+
+  get errorCode(): string {
+    return `SSH_${this.failure._tag
+      .replace(/([A-Z])/g, "_$1")
+      .toUpperCase()
+      .slice(1)}`
+  }
+
+  get cliMetadata(): Record<string, unknown> {
+    return {
+      host: this.host,
+      failure: this.failure._tag,
+      ...(this.jumpChain?.length ? { jumpChain: this.jumpChain } : {}),
+    }
+  }
+
+  get effectiveSuggestions(): readonly RecoverySuggestion[] {
+    if (this.suggestions?.length) return this.suggestions
+    switch (this.failure._tag) {
+      case "AuthFailed":
+        return [
+          suggest("dx ssh keys generate", "Register an SSH key with Factory", {
+            command: "dx ssh keys generate",
+            agentActionable: true,
+          }),
+        ]
+      case "Timeout":
+        return [
+          suggest("check network", "Verify the host is reachable", {
+            command: `ping -c1 ${this.host}`,
+          }),
+        ]
+      case "ConnectionRefused":
+        return [
+          suggest("check sshd", `Verify SSH is running on ${this.host}`, {
+            command: `dx ssh ${this.host}`,
+          }),
+        ]
+      case "PasswordRequired":
+        return [
+          suggest("configure key auth", "Set up key-based SSH authentication", {
+            command: "dx ssh keys generate",
+            agentActionable: true,
+          }),
+        ]
+      case "KeyPermissions":
+        return [
+          suggest("fix permissions", `chmod 600 ${this.failure.path}`, {
+            command: `chmod 600 ${this.failure.path}`,
+            agentActionable: true,
+          }),
+        ]
+      default:
+        return [CommonSuggestions.rerunVerbose()]
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Union type + discriminant helper
 // ---------------------------------------------------------------------------
 
@@ -547,6 +684,7 @@ export type FactoryError =
   | QuotaExceededError
   | TimeoutError
   | StateCorruptionError
+  | SshError
 
 export const FactoryErrorTag = {
   EntityNotFoundError: "EntityNotFoundError",
@@ -562,6 +700,7 @@ export const FactoryErrorTag = {
   QuotaExceededError: "QuotaExceededError",
   TimeoutError: "TimeoutError",
   StateCorruptionError: "StateCorruptionError",
+  SshError: "SshError",
 } as const satisfies Record<FactoryError["_tag"], string>
 
 export function hasTag<T extends FactoryError["_tag"]>(

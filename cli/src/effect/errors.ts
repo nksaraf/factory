@@ -19,6 +19,7 @@ export {
   QuotaExceededError,
   TimeoutError,
   StateCorruptionError,
+  SshError,
   RecoverySuggestion,
   type FactoryError,
   FactoryErrorTag,
