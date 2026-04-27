@@ -3,8 +3,7 @@ import type { DxBase } from "../dx-root.js"
 import {
   RemoteAccess,
   RemoteAccessLive,
-  RemoteExec,
-  RemoteExecLive,
+  execLocal,
   runEffect,
 } from "../effect/index.js"
 import { resolveUrl } from "../lib/trace-resolver.js"
@@ -129,8 +128,6 @@ async function healthCheckSlug(slug: string) {
 
   const program = Effect.gen(function* () {
     const access = yield* RemoteAccess
-    const exec = yield* RemoteExec
-
     const target = yield* access.resolve(slug)
 
     if (target.transport.kind !== "ssh") {
@@ -142,7 +139,7 @@ async function healthCheckSlug(slug: string) {
 
     const { host, port } = target.transport
 
-    const result = yield* exec.runLocal(
+    const result = yield* execLocal(
       `nc -zvw 3 ${host} ${port} 2>&1 && echo OK || echo FAIL`
     )
     const ok =
@@ -158,8 +155,7 @@ async function healthCheckSlug(slug: string) {
     printRow("Status", colorStatus(target.status))
   })
 
-  const layer = Layer.mergeAll(RemoteAccessLive, RemoteExecLive)
-  await runEffect(Effect.provide(program, layer), "health-check")
+  await runEffect(Effect.provide(program, RemoteAccessLive), "health-check")
   console.log()
 }
 

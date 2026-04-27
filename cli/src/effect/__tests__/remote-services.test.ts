@@ -5,6 +5,7 @@ import {
   RemoteAccessLive,
   RemoteExec,
   RemoteExecLive,
+  execLocal,
   type AccessTarget,
   type ExecResult,
   type SshTransport,
@@ -378,39 +379,30 @@ describe("RemoteExec.run with mock SSH transport", () => {
 
 // ── RemoteExec.runLocal (real process, no SSH) ──────────────
 
-describe("RemoteExec.runLocal", () => {
+describe("execLocal", () => {
   it("runs a local command and captures stdout", async () => {
-    const layer = RemoteExecLive
     const program = Effect.gen(function* () {
-      const exec = yield* RemoteExec
-      const result = yield* exec.runLocal("echo hello")
+      const result = yield* execLocal("echo hello")
       expect(result.code).toBe(0)
       expect(result.stdout.trim()).toBe("hello")
     })
-
-    await Effect.runPromise(Effect.provide(program, layer))
+    await Effect.runPromise(program)
   })
 
   it("captures exit code for failed commands", async () => {
-    const layer = RemoteExecLive
     const program = Effect.gen(function* () {
-      const exec = yield* RemoteExec
-      const result = yield* exec.runLocal("exit 42")
+      const result = yield* execLocal("exit 42")
       expect(result.code).toBe(42)
     })
-
-    await Effect.runPromise(Effect.provide(program, layer))
+    await Effect.runPromise(program)
   })
 
   it("captures stderr", async () => {
-    const layer = RemoteExecLive
     const program = Effect.gen(function* () {
-      const exec = yield* RemoteExec
-      const result = yield* exec.runLocal("echo error >&2")
+      const result = yield* execLocal("echo error >&2")
       expect(result.stderr.trim()).toBe("error")
     })
-
-    await Effect.runPromise(Effect.provide(program, layer))
+    await Effect.runPromise(program)
   })
 })
 

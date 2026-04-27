@@ -24,17 +24,20 @@ export class RemoteExec extends Context.Tag("RemoteExec")<
       opts?: { timeoutMs?: number }
     ) => Effect.Effect<ExecResult, SshError>
 
-    readonly runLocal: (
-      command: string,
-      opts?: { timeoutMs?: number }
-    ) => Effect.Effect<ExecResult, never>
-
     readonly curlJson: <T>(
       target: AccessTarget,
       url: string
     ) => Effect.Effect<T, SshError>
   }
 >() {}
+
+export function execLocal(
+  command: string,
+  opts?: { timeoutMs?: number }
+): Effect.Effect<ExecResult, never> {
+  const timeoutMs = opts?.timeoutMs ?? 15_000
+  return spawnProcess(["bash", "-c", command], command, timeoutMs)
+}
 
 // ── SSH diagnostic engine ──────────────────────────────────
 
@@ -285,11 +288,6 @@ export const RemoteExecLive = Layer.succeed(RemoteExec, {
         result
       )
     }),
-
-  runLocal: (command, opts) => {
-    const timeoutMs = opts?.timeoutMs ?? 15_000
-    return spawnProcess(["bash", "-c", command], command, timeoutMs)
-  },
 
   curlJson: <T>(target: AccessTarget, url: string) =>
     Effect.gen(function* () {

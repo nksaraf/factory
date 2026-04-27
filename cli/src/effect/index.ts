@@ -31,6 +31,7 @@ export {
 export {
   RemoteExec,
   RemoteExecLive,
+  execLocal,
   type ExecResult,
 } from "./services/remote-exec.js"
 export {
