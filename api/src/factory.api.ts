@@ -37,6 +37,7 @@ import {
   plansController,
   publicDocumentViewerController,
 } from "./modules/documents/index"
+import { agentBridgeController } from "./modules/agent-bridge/index"
 import { healthController } from "./modules/health/index"
 import { ideHookController } from "./modules/ide-hooks/index"
 import { messagesController } from "./modules/messages/index"
@@ -159,6 +160,7 @@ export class FactoryAPI {
       .use(threadsController(db))
       .use(threadSurfacesController(db))
       .use(messagesController(db))
+      .use(agentBridgeController(db))
       .use(documentsController(db))
       .use(plansController(db))
       .use(catalogController(db))
