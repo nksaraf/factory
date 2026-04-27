@@ -80,6 +80,8 @@ export interface ThreadPlan {
   sourceTurnId: string | null
   editCount: number
   stub: boolean
+  authored?: boolean
+  referenced?: boolean
   updatedAt: string | null
   createdAt: string | null
   viewUrl: string
@@ -112,6 +114,8 @@ export interface PlanEntry {
   version?: number | null
   editCount?: number
   text?: string
+  authored?: boolean
+  referenced?: boolean
 }
 
 // ── Message IR types (lossless content blocks from org.message) ──

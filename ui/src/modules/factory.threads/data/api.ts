@@ -134,7 +134,7 @@ export const threadsApi = {
     return (body.plans ?? []) as ThreadPlan[]
   },
 
-  planContent: async (slug: string) => {
+  searchPlans: async (q: string, limit = 50) => {
     const base =
       rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"
     const token = getAuthToken()
@@ -142,8 +142,27 @@ export const threadsApi = {
       "Content-Type": "application/json",
     }
     if (token) headers["Authorization"] = `Bearer ${token}`
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    const res = await fetch(`${base}/plans/search?${params.toString()}`, {
+      headers,
+    })
+    if (!res.ok) throw new Error(`Failed to search plans: ${res.status}`)
+    const body = await res.json()
+    return (body.plans ?? []) as ThreadPlan[]
+  },
+
+  planContent: async (slug: string, version?: number | null) => {
+    const base =
+      rio.env.PUBLIC_FACTORY_API_URL ?? "http://localhost:3000/api/v1/factory"
+    const token = getAuthToken()
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (token) headers["Authorization"] = `Bearer ${token}`
+    const qs =
+      version != null && Number.isFinite(version) ? `?version=${version}` : ""
     const res = await fetch(
-      `${base}/documents/documents/${encodeURIComponent(slug)}/content`,
+      `${base}/documents/documents/${encodeURIComponent(slug)}/content${qs}`,
       { headers }
     )
     if (!res.ok) throw new Error(`Failed to load plan: ${res.status}`)

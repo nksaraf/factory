@@ -1,4 +1,4 @@
-import { useCustomer, useCustomerBundles } from "@/lib/commerce"
+import { useCustomerBundles } from "@/lib/commerce"
 import { useParams } from "react-router"
 
 import { EmptyState } from "@/components/factory"
@@ -6,8 +6,7 @@ import { CustomerLayout } from "../customer-layout"
 
 export default function CustomerBundlesTab() {
   const { slug } = useParams<{ slug: string }>()
-  const { data: customer } = useCustomer(slug)
-  const { data: bundles, isLoading } = useCustomerBundles(customer?.id)
+  const { data: bundles, isLoading } = useCustomerBundles(slug)
 
   return (
     <CustomerLayout>

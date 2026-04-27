@@ -64,3 +64,6 @@ packages/npm/app-ui
 packages/npm/control-plane
 # dx-pkg-managed
 packages/npm/auth-service
+# dx
+**/.dx/generated/
+**/.dx/workbench.json

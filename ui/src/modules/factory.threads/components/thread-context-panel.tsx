@@ -146,8 +146,26 @@ export function ThreadContextPanel({
                     className="text-xs text-amber-500/70 mt-0.5 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-foreground truncate group-hover:text-amber-700 dark:group-hover:text-amber-300">
-                      {p.title}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-foreground truncate group-hover:text-amber-700 dark:group-hover:text-amber-300 flex-1 min-w-0">
+                        {p.title}
+                      </span>
+                      {p.referenced && !p.authored && (
+                        <span
+                          title="Referenced by tool calls in this thread; authored elsewhere"
+                          className="shrink-0 text-xs uppercase tracking-wide px-1 py-0.5 rounded border border-sky-500/30 bg-sky-500/5 text-sky-600 dark:text-sky-400"
+                        >
+                          ref
+                        </span>
+                      )}
+                      {p.authored && (
+                        <span
+                          title="Authored in this thread"
+                          className="shrink-0 text-xs uppercase tracking-wide px-1 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400"
+                        >
+                          here
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground font-mono">
                       {p.version != null && <span>v{p.version}</span>}

@@ -822,6 +822,14 @@ These commands are registered but return "Not yet implemented":
 - [ ] Traefik v3 config validation: add CI check that HostRegexp rules use v3 syntax (not v2 `{name:.+}` which silently fails)
 - [ ] Edge Traefik health monitoring: alert when `*.tunnel.lepton.software` or `*.preview.lepton.software` routes stop resolving
 
+### Build & Deploy Hygiene
+
+- [x] Root `.dockerignore` — excludes `**/node_modules`, `.output`, `.cache`, `dist`, `.next`, `.vinxi`, `.turbo`, `coverage`, `.git`. Without it, `COPY ./api ./api` was pulling host's stale `node_modules` (with absolute pnpm-store paths baked into `.bin` wrappers) into the image and overriding the fresh builder install
+- [x] `api-server/Dockerfile` — copy `graph` and `graph-dx-factory` workspace packages (was still referencing renamed-away `ontology`)
+- [x] `authPlugin` throws `UnauthorizedError` so global error handler emits proper 401 + `{code:"unauthorized"}` body (was rewriting to 500)
+- [x] Surface curl errors when slack `setStatus` calls fail — switch `-s` to `-sS` and include exit code in the thrown error so timeout (28) / DNS (6) / TLS (35) failures are distinguishable in logs
+- [ ] Replace ad-hoc `factoryBaseUrl()` duplicates in `documents/index.ts`, `ide-hook.controller.ts`, `threads/index.ts` with a single shared helper
+
 ### Route Resolution & Network Topology
 
 - [ ] Compose-project port mapping resolution in route resolver (deferred — how do compose ports map to host ports?)
@@ -1012,6 +1020,19 @@ Inspired by Fly.io secrets, Doppler, Railway variables, GitHub Actions vars/secr
 - [ ] Sortable columns + copy-on-hover — generalize the hosts page pattern (SortHeader, CopyCell components) into shared components for all table views
 - [ ] Mobile responsive — thread list collapses, context panel becomes bottom sheet, PWA manifest
 - [ ] Message/Exchange/ToolCall API endpoints — `GET /threads/:id/messages`, `GET /threads/:id/exchanges`, `GET /threads/:id/tool-calls` for the new interaction model
+
+### Plans — Capture, Surfacing, Replay
+
+- [x] `GET /threads/:slugOrId/plans` — returns authored plans (where `document.thread_id = :id`) UNION plans referenced by Read/Edit/Bash/Grep tool inputs in the thread
+- [x] Inline plan viewer in `/plans` page (split layout: list + content), drawer mode preserved for narrow viewports
+- [x] Markdown syntax highlighting via `rehype-highlight` (github-dark) for plan + chat code blocks
+- [x] Auto-select channel from thread URL — backfill `?channel=` from `thread.channelId` when only `?thread=` is present
+- [ ] Backfill `thread_id` on the 580 legacy null-thread plan documents — scan turns for plan-path references and back-populate the originating thread (lossy: pick first/most-recent referencing thread)
+- [ ] Raise `toolInput` 2048-char truncation cap in `handleToolPost` — currently lossy for full session replay; design a separate fields/storage if too large for thread_turn.spec
+- [ ] Show `authored` vs `referenced` badge on plan rows in context panel + `/plans` page (data already returned by endpoint)
+- [ ] Plan grep/search across content — full-text index over `document_version.contentText`
+- [ ] Plan version diffs — render side-by-side comparison between two `document_version` rows with highlighted edits
+- [ ] Cross-thread "where else was this plan referenced" — reverse lookup from a plan slug to the list of threads that read/wrote it
 
 ### Data Model — Message-First Interaction Model
 

@@ -22,6 +22,8 @@ export interface PackageEntry {
   shared_repo?: string
   /** True when repo_path / local_path is a git worktree (use worktree remove, not rmSync). */
   is_worktree?: boolean
+  /** npm package name, captured at link time so unlink can remove the matching pnpm override. */
+  npm_name?: string
 }
 
 export class PackageState {

@@ -8,14 +8,15 @@
  * Uses shared bare clones at ~/.dx/shared-repos/ with git worktrees.
  */
 
-import { existsSync, mkdirSync, symlinkSync } from "node:fs"
-import { join, relative } from "node:path"
+import { existsSync, lstatSync, mkdirSync, symlinkSync } from "node:fs"
+import { dirname, join, relative } from "node:path"
 import { generateBranchSlug } from "@smp/factory-shared/slug"
 import { capture } from "../../lib/subprocess.js"
 import { PackageState, type PackageEntry } from "../pkg/state.js"
 import { resolveSource, deriveName, shortSource } from "../pkg/detect.js"
 import { addGitignoreEntry } from "../pkg/gitignore.js"
 import { integrateNpm, integrateJava } from "../pkg/integrate.js"
+import { readPackageName } from "../pkg/pnpm-overrides.js"
 import {
   ensureSharedClone,
   addWorktree,
@@ -85,9 +86,18 @@ export async function sourceLink(
     (await detectPkgTypeFromBare(sharedRepo, startPoint, effectivePath)) ??
     "npm"
 
-  // 6. Check target doesn't already exist
+  // 6. Check target doesn't already exist.
+  //    Use lstat (not existsSync, which follows symlinks): a broken symlink
+  //    left by a previous workspace must surface as a clear error rather than
+  //    EEXIST from symlinkSync.
   const targetPath = join(root, target)
-  if (existsSync(targetPath)) {
+  const targetEntry = lstatSync(targetPath, { throwIfNoEntry: false })
+  if (targetEntry) {
+    if (targetEntry.isSymbolicLink()) {
+      throw new Error(
+        `Target is an existing symlink: ${target}\n  Remove it first: rm ${target}`
+      )
+    }
     throw new Error(`Target directory already exists: ${target}`)
   }
 
@@ -111,7 +121,9 @@ export async function sourceLink(
       throw new Error(`Path ${effectivePath} does not exist in the cloned repo`)
     }
 
-    symlinkSync(pkgSource, targetPath)
+    // Relative target so cloning the workspace (e.g. via Conductor)
+    // doesn't carry an absolute path back at the original workspace.
+    symlinkSync(relative(dirname(targetPath), pkgSource), targetPath)
     repoPath = relative(root, worktreeDest)
   } else {
     // Single-repo source: worktree IS the target directory
@@ -135,11 +147,23 @@ export async function sourceLink(
     is_worktree: true,
   }
   if (repoPath) entry.repo_path = repoPath
+
+  // Capture the linked source's npm name for pnpm.overrides management.
+  if (pkgType === "npm") {
+    const npmName = readPackageName(targetPath)
+    if (npmName) entry.npm_name = npmName
+  }
   pm.add(name, entry)
 
   // 9. Integrate with build system
-  if (pkgType === "npm") await integrateNpm(root)
-  else if (pkgType === "java") await integrateJava(root, name)
+  if (pkgType === "npm") {
+    await integrateNpm(root, {
+      npmName: entry.npm_name,
+      localPath: entry.local_path,
+    })
+  } else if (pkgType === "java") {
+    await integrateJava(root, name)
+  }
 
   // 10. Handle required vs optional
   if (opts.require) {

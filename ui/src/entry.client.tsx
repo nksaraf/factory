@@ -64,6 +64,7 @@ async function boot() {
     "factory.threads": () => import("./modules/factory.threads"),
     "factory.commerce": () => import("./modules/factory.commerce"),
     "factory.game-viz": () => import("./modules/factory.game-viz"),
+    "factory.workbench": () => import("./modules/factory.workbench"),
   })
 
   const url = new URL(window.location.href)
@@ -92,7 +93,8 @@ async function boot() {
     "factory.org",
     "factory.commerce",
     "factory.threads",
-    "factory.game-viz"
+    "factory.game-viz",
+    "factory.workbench"
   )
 
   // Extract modules from enabled extensions that have a "module" field

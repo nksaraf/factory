@@ -141,6 +141,29 @@ export function syncCommand(app: DxBase) {
         }
       }
 
+      // 3a. Heal stale dx-managed symlinks (workspace clones leave absolute
+      //     targets pointing at the original workspace).
+      try {
+        const { healManagedSymlinks } =
+          await import("../handlers/pkg/heal-symlinks.js")
+        const heal = healManagedSymlinks(rootDir)
+        if (heal.repointed.length > 0) {
+          results.push({
+            step: "Symlinks",
+            status: "updated",
+            detail: `repointed: ${heal.repointed.join(", ")}`,
+          })
+        } else if (heal.unhealed.length > 0) {
+          results.push({
+            step: "Symlinks",
+            status: "warning",
+            detail: `stale (worktree missing): ${heal.unhealed.join(", ")}`,
+          })
+        }
+      } catch {
+        // Best-effort — don't block sync.
+      }
+
       // 3. Required source links
       try {
         const { syncSources } =

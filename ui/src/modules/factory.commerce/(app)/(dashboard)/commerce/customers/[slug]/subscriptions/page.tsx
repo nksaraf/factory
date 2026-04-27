@@ -1,4 +1,4 @@
-import { useCustomer, useCustomerSubscriptions } from "@/lib/commerce"
+import { useCustomerSubscriptions } from "@/lib/commerce"
 import { Link, useParams } from "react-router"
 
 import { EmptyState, StatusBadge } from "@/components/factory"
@@ -6,10 +6,7 @@ import { CustomerLayout } from "../customer-layout"
 
 export default function CustomerSubscriptionsTab() {
   const { slug } = useParams<{ slug: string }>()
-  const { data: customer } = useCustomer(slug)
-  const { data: subscriptions, isLoading } = useCustomerSubscriptions(
-    customer?.id
-  )
+  const { data: subscriptions, isLoading } = useCustomerSubscriptions(slug)
 
   return (
     <CustomerLayout>
@@ -31,8 +28,8 @@ export default function CustomerSubscriptionsTab() {
             >
               <div>
                 <span className="font-medium text-base">Subscription</span>
-                <span className="ml-2 text-sm text-muted-foreground">
-                  {s.planId}
+                <span className="ml-2 text-xs text-muted-foreground font-mono">
+                  {s.id.slice(0, 12)}…
                 </span>
               </div>
               <StatusBadge status={s.spec?.status} />

@@ -141,7 +141,7 @@ export async function pkgUnlink(
   }
 
   // Unintegrate
-  if (entry.type === "npm") await unintegrateNpm(root)
+  if (entry.type === "npm") await unintegrateNpm(root, entry.npm_name)
   else if (entry.type === "java") unintegrateJava(root, opts.package)
 
   // Remove .gitignore entry

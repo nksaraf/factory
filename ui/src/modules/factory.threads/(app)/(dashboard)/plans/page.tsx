@@ -3,7 +3,7 @@ import { useMemo, useState } from "react"
 import { cn } from "@rio.js/ui/lib/utils"
 import { Icon } from "@rio.js/ui/icon"
 
-import { usePlans } from "../../../data/use-threads"
+import { usePlans, usePlanSearch } from "../../../data/use-threads"
 import type { ThreadPlan, PlanEntry } from "../../../data/types"
 import { PlanDrawer } from "../../../components/plan-drawer"
 
@@ -103,8 +103,14 @@ export default function PlansPage() {
   const [openPlan, setOpenPlan] = useState<ThreadPlan | null>(null)
   const [search, setSearch] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string | null>(null)
-  const { data, isLoading, error } = usePlans({ limit: 500 })
+  const trimmed = search.trim()
+  const useServerSearch = trimmed.length >= 2
+  const fullList = usePlans({ limit: 500 })
+  const searchHit = usePlanSearch(trimmed)
 
+  const data = useServerSearch ? searchHit.data : fullList.data
+  const isLoading = useServerSearch ? searchHit.isLoading : fullList.isLoading
+  const error = useServerSearch ? searchHit.error : fullList.error
   const plans = data ?? []
 
   const sources = useMemo(() => {
@@ -113,16 +119,10 @@ export default function PlansPage() {
     return Array.from(set).sort()
   }, [plans])
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return plans.filter((p) => {
-      if (sourceFilter && p.source !== sourceFilter) return false
-      if (!q) return true
-      return (
-        p.title?.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q)
-      )
-    })
-  }, [plans, search, sourceFilter])
+  const filtered = useMemo(
+    () => plans.filter((p) => !sourceFilter || p.source === sourceFilter),
+    [plans, sourceFilter]
+  )
 
   const drawerEntry: PlanEntry | null = openPlan
     ? {

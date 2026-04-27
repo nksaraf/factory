@@ -16,7 +16,7 @@ import {
   CreateDocumentVersionSchema,
   UpdateDocumentSchema,
 } from "@smp/factory-shared/schemas/org"
-import { and, desc, eq, max } from "drizzle-orm"
+import { and, desc, eq, max, sql } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
@@ -214,22 +214,41 @@ export function documentsController(db: Database) {
         return renderMarkdownPage(title, markdown, version, updatedAt)
       })
       // ── Get latest content ──────────────────────────────────
-      .get("/documents/:slugOrId/content", async ({ params, set }) => {
+      .get("/documents/:slugOrId/content", async ({ params, query, set }) => {
         const doc = await resolveDocument(db, params.slugOrId)
         if (!doc) {
           set.status = 404
           return { error: "Document not found" }
         }
 
-        // Try latest version first
-        const [latestVersion] = await db
-          .select()
-          .from(documentVersion)
-          .where(eq(documentVersion.documentId, doc.id))
-          .orderBy(desc(documentVersion.version))
-          .limit(1)
+        const versionParam = (query as Record<string, string | undefined>)
+          ?.version
+        const wantedVersion = versionParam
+          ? Number.parseInt(versionParam, 10)
+          : null
 
-        const contentPath = latestVersion?.contentPath ?? doc.contentPath
+        let row: typeof documentVersion.$inferSelect | undefined
+        if (wantedVersion != null && Number.isFinite(wantedVersion)) {
+          ;[row] = await db
+            .select()
+            .from(documentVersion)
+            .where(
+              and(
+                eq(documentVersion.documentId, doc.id),
+                eq(documentVersion.version, wantedVersion)
+              )
+            )
+            .limit(1)
+        } else {
+          ;[row] = await db
+            .select()
+            .from(documentVersion)
+            .where(eq(documentVersion.documentId, doc.id))
+            .orderBy(desc(documentVersion.version))
+            .limit(1)
+        }
+
+        const contentPath = row?.contentPath ?? doc.contentPath
         if (!contentPath || !(await documentExists(contentPath))) {
           set.status = 404
           return { error: "Document content not found" }
@@ -239,7 +258,7 @@ export function documentsController(db: Database) {
         return {
           content: buf.toString("utf-8"),
           path: contentPath,
-          version: latestVersion?.version ?? null,
+          version: row?.version ?? null,
         }
       })
   )
@@ -331,71 +350,138 @@ function factoryBaseUrl(): string {
  * authenticated factory plane at GET /api/v1/factory/plans.
  */
 export function plansController(db: Database) {
-  return new Elysia({ prefix: "/plans" }).get("/", async ({ query }) => {
-    const q = (query ?? {}) as Record<string, string | undefined>
-    const limit = Math.min(
-      Math.max(Number.parseInt(q.limit ?? "100", 10) || 100, 1),
-      500
-    )
-    const offset = Math.max(Number.parseInt(q.offset ?? "0", 10) || 0, 0)
-
-    const latestVersionSub = db
-      .select({
-        documentId: documentVersion.documentId,
-        maxVersion: max(documentVersion.version).as("max_version"),
-      })
-      .from(documentVersion)
-      .groupBy(documentVersion.documentId)
-      .as("latest")
-
-    const rows = await db
-      .select({
-        slug: document.slug,
-        title: document.title,
-        source: document.source,
-        threadId: document.threadId,
-        updatedAt: document.updatedAt,
-        createdAt: document.createdAt,
-        spec: document.spec,
-        latestVersion: latestVersionSub.maxVersion,
-        sourceTurnId: documentVersion.sourceTurnId,
-      })
-      .from(document)
-      .leftJoin(latestVersionSub, eq(latestVersionSub.documentId, document.id))
-      .leftJoin(
-        documentVersion,
-        and(
-          eq(documentVersion.documentId, document.id),
-          eq(documentVersion.version, latestVersionSub.maxVersion)
-        )
+  return new Elysia({ prefix: "/plans" })
+    .get("/", async ({ query }) => {
+      const q = (query ?? {}) as Record<string, string | undefined>
+      const limit = Math.min(
+        Math.max(Number.parseInt(q.limit ?? "100", 10) || 100, 1),
+        500
       )
-      .where(eq(document.type, "plan"))
-      .orderBy(desc(document.updatedAt))
-      .limit(limit)
-      .offset(offset)
+      const offset = Math.max(Number.parseInt(q.offset ?? "0", 10) || 0, 0)
 
-    const base = factoryBaseUrl()
-    return {
-      plans: rows.map((r) => {
+      const latestVersionSub = db
+        .select({
+          documentId: documentVersion.documentId,
+          maxVersion: max(documentVersion.version).as("max_version"),
+        })
+        .from(documentVersion)
+        .groupBy(documentVersion.documentId)
+        .as("latest")
+
+      const rows = await db
+        .select({
+          slug: document.slug,
+          title: document.title,
+          source: document.source,
+          threadId: document.threadId,
+          updatedAt: document.updatedAt,
+          createdAt: document.createdAt,
+          spec: document.spec,
+          latestVersion: latestVersionSub.maxVersion,
+          sourceTurnId: documentVersion.sourceTurnId,
+        })
+        .from(document)
+        .leftJoin(
+          latestVersionSub,
+          eq(latestVersionSub.documentId, document.id)
+        )
+        .leftJoin(
+          documentVersion,
+          and(
+            eq(documentVersion.documentId, document.id),
+            eq(documentVersion.version, latestVersionSub.maxVersion)
+          )
+        )
+        .where(eq(document.type, "plan"))
+        .orderBy(desc(document.updatedAt))
+        .limit(limit)
+        .offset(offset)
+
+      const base = factoryBaseUrl()
+      return {
+        plans: rows.map((r) => {
+          const spec = (r.spec ?? {}) as Record<string, unknown>
+          return {
+            slug: r.slug,
+            title: r.title,
+            source: r.source,
+            latestVersion: r.latestVersion ?? null,
+            threadId: r.threadId,
+            sourceTurnId: r.sourceTurnId,
+            editCount: (spec.editCount as number | undefined) ?? 0,
+            stub: (spec.stub as boolean | undefined) ?? false,
+            updatedAt: r.updatedAt,
+            createdAt: r.createdAt,
+            viewUrl: `${base}/api/v1/factory/documents/${encodeURIComponent(r.slug)}/view`,
+          }
+        }),
+        limit,
+        offset,
+      }
+    })
+    .get("/search", async ({ query }) => {
+      const q = (query ?? {}) as Record<string, string | undefined>
+      const term = (q.q ?? "").trim()
+      const limit = Math.min(
+        Math.max(Number.parseInt(q.limit ?? "50", 10) || 50, 1),
+        200
+      )
+      if (term.length < 2) return { plans: [], q: term }
+
+      const pattern = `%${term.replace(/[%_]/g, (c) => `\\${c}`)}%`
+
+      const rows = await db.execute(sql`
+      SELECT
+        d.slug, d.title, d.source, d.thread_id, d.spec,
+        d.created_at, d.updated_at,
+        latest.max_version AS latest_version,
+        latest.source_turn_id AS source_turn_id,
+        CASE
+          WHEN d.title ILIKE ${pattern} THEN 100
+          WHEN d.slug ILIKE ${pattern} THEN 50
+          ELSE 10
+        END AS rank
+      FROM org.document d
+      LEFT JOIN LATERAL (
+        SELECT version AS max_version, source_turn_id
+        FROM org.document_version
+        WHERE document_id = d.id
+        ORDER BY version DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE d.type = 'plan'
+        AND (
+          d.title ILIKE ${pattern}
+          OR d.slug ILIKE ${pattern}
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(
+              COALESCE(d.spec->'titleHistory', '[]'::jsonb)
+            ) AS h(t) WHERE h.t ILIKE ${pattern}
+          )
+        )
+      ORDER BY rank DESC, d.updated_at DESC
+      LIMIT ${limit}
+    `)
+
+      const base = factoryBaseUrl()
+      const plans = ((rows as any).rows ?? []).map((r: any) => {
         const spec = (r.spec ?? {}) as Record<string, unknown>
         return {
           slug: r.slug,
           title: r.title,
           source: r.source,
-          latestVersion: r.latestVersion ?? null,
-          threadId: r.threadId,
-          sourceTurnId: r.sourceTurnId,
+          latestVersion: r.latest_version ?? null,
+          threadId: r.thread_id,
+          sourceTurnId: r.source_turn_id ?? null,
           editCount: (spec.editCount as number | undefined) ?? 0,
           stub: (spec.stub as boolean | undefined) ?? false,
-          updatedAt: r.updatedAt,
-          createdAt: r.createdAt,
+          updatedAt: r.updated_at,
+          createdAt: r.created_at,
           viewUrl: `${base}/api/v1/factory/documents/${encodeURIComponent(r.slug)}/view`,
         }
-      }),
-      limit,
-      offset,
-    }
-  })
+      })
+      return { plans, q: term }
+    })
 }
 
 export function publicDocumentViewerController(db: Database) {

@@ -1,0 +1,61 @@
+{
+  "id": "factory.workbench",
+  "displayName": "Workbench",
+  "description": "Local development workbench — live site status, agent sessions, service health, and logs",
+  "version": "0.0.1",
+  "publisher": "factory",
+  "engines": { "rio": ">=0.0.1" },
+  "category": "platform",
+  "tags": ["workbench", "agent", "devtools"],
+  "categories": ["development"],
+  "main": "extension.ts",
+  "module": {
+    "sidebar": {
+      "icon": "icon-[ph--monitor-duotone]",
+      "label": "Workbench",
+      "order": 2
+    },
+    "routePrefix": "/workbench"
+  },
+  "contributes": {
+    "routes": [
+      {
+        "id": "factory.workbench.route.home",
+        "displayName": "Workbench",
+        "path": "/(root)/(app)/workbench/"
+      },
+      {
+        "id": "factory.workbench.route.site",
+        "displayName": "Site Workbench",
+        "path": "/(root)/(app)/workbench/:siteSlug/"
+      }
+    ],
+    "sidebarGroups": [
+      {
+        "id": "factory.workbench.sidebar.group",
+        "displayName": "Workbench",
+        "icon": "icon-[ph--monitor-duotone]",
+        "group": "Workbench",
+        "order": 2
+      }
+    ],
+    "sidebarItems": [
+      {
+        "id": "factory.workbench.sidebar.home",
+        "displayName": "Dashboard",
+        "icon": "icon-[ph--squares-four-duotone]",
+        "href": "/workbench",
+        "group": "factory.workbench.sidebar.group",
+        "order": 1
+      }
+    ],
+    "layouts": [],
+    "views": [],
+    "panels": [],
+    "commands": [],
+    "layerRenderers": [],
+    "toolbarItems": [],
+    "menus": []
+  },
+  "activationEvents": ["onStart"]
+}

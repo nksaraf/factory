@@ -5,14 +5,15 @@
  * so multiple workspaces can link the same repo without redundant clones.
  */
 
-import { existsSync, mkdirSync, symlinkSync } from "node:fs"
-import { join, relative } from "node:path"
+import { existsSync, lstatSync, mkdirSync, symlinkSync } from "node:fs"
+import { dirname, join, relative } from "node:path"
 import { generateBranchSlug } from "@smp/factory-shared/slug"
 import { capture } from "../../lib/subprocess.js"
 import { PackageState, type PackageEntry } from "./state.js"
 import { resolveSource, deriveName, targetDir, shortSource } from "./detect.js"
 import { addGitignoreEntry } from "./gitignore.js"
 import { integrateNpm, integrateJava } from "./integrate.js"
+import { readPackageName } from "./pnpm-overrides.js"
 import {
   ensureSharedClone,
   addWorktree,
@@ -51,12 +52,20 @@ export async function pkgLink(root: string, opts: LinkOptions): Promise<void> {
     )
   }
 
-  // 4. Check target doesn't already exist
+  // 4. Check target doesn't already exist.
+  //    Use lstat (not existsSync, which follows symlinks): a broken symlink
+  //    left by a previous workspace must surface as a clear error rather than
+  //    EEXIST from symlinkSync.
   const target = targetDir(root, pkgType, name)
-  if (existsSync(target)) {
-    throw new Error(
-      `Package directory already exists: ${relative(root, target)}`
-    )
+  const targetEntry = lstatSync(target, { throwIfNoEntry: false })
+  if (targetEntry) {
+    const rel = relative(root, target)
+    if (targetEntry.isSymbolicLink()) {
+      throw new Error(
+        `Target is an existing symlink: ${rel}\n  Remove it first: rm ${rel}`
+      )
+    }
+    throw new Error(`Package directory already exists: ${rel}`)
   }
 
   // 5. Generate unique branch name
@@ -80,8 +89,10 @@ export async function pkgLink(root: string, opts: LinkOptions): Promise<void> {
       throw new Error(`Path ${opts.path} does not exist in the cloned repo`)
     }
 
-    // Symlink the subpath into packages/<type>/<name>/
-    symlinkSync(pkgSource, target)
+    // Symlink the subpath into packages/<type>/<name>/.
+    // Use a relative target so cloning the workspace (e.g. via Conductor)
+    // doesn't carry an absolute path back at the original workspace.
+    symlinkSync(relative(dirname(target), pkgSource), target)
     repoPath = relative(root, worktreeDest)
   } else {
     // Single-repo source: worktree IS the package directory
@@ -105,11 +116,23 @@ export async function pkgLink(root: string, opts: LinkOptions): Promise<void> {
     is_worktree: true,
   }
   if (repoPath) entry.repo_path = repoPath
+
+  // Capture the linked source's npm name so we can manage pnpm.overrides.
+  if (pkgType === "npm") {
+    const npmName = readPackageName(target)
+    if (npmName) entry.npm_name = npmName
+  }
   pm.add(name, entry)
 
   // Integrate with build system
-  if (pkgType === "npm") await integrateNpm(root)
-  else if (pkgType === "java") await integrateJava(root, name)
+  if (pkgType === "npm") {
+    await integrateNpm(root, {
+      npmName: entry.npm_name,
+      localPath: entry.local_path,
+    })
+  } else if (pkgType === "java") {
+    await integrateJava(root, name)
+  }
 
   // Add to .gitignore
   addGitignoreEntry(root, relative(root, target) + "/")

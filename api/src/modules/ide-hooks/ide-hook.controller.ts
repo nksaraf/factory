@@ -609,12 +609,17 @@ async function handleToolPost(
   const threadId = await ensureThread(db, source, payload, principalId)
   if (!threadId) return
 
+  // Cap at 256KB to keep thread_turn.spec rows reasonable while preserving
+  // enough fidelity for full session replay (covers most Write/Edit content).
+  // Plans-larger-than-this still get captured via the file-write path which
+  // stores into document_version, not thread_turn.
+  const TOOL_INPUT_CAP = 256 * 1024
   const turn = await insertThreadTurn(db, threadId, "tool", {
     toolName: payload.tool_name,
     toolInput:
       typeof payload.tool_input === "string"
-        ? payload.tool_input.slice(0, 2048)
-        : JSON.stringify(payload.tool_input ?? "").slice(0, 2048),
+        ? payload.tool_input.slice(0, TOOL_INPUT_CAP)
+        : JSON.stringify(payload.tool_input ?? "").slice(0, TOOL_INPUT_CAP),
     timestamp: payload.timestamp,
   })
 

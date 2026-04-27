@@ -19,16 +19,7 @@ import type { Database } from "../../db/connection"
 import { DxFactoryGraph } from "@smp/graph-dx-factory"
 import { FACTORY_BINDINGS } from "../../db/bindings"
 import type { TableBinding } from "@smp/graph/adapters/postgres/bindings"
-import type { Adapter } from "@smp/graph/adapters/types"
-import { makePostgresCodeAdapter } from "@smp/graph/adapters/postgres-code"
-import { makePostgresDynamicAdapter } from "@smp/graph/adapters/postgres-dynamic"
-import {
-  makeGraphRegistry,
-  makeCustomerLoader,
-  type GraphRegistry,
-} from "@smp/graph/runtime"
 import type { EntityIR } from "@smp/graph"
-import { graph as graphSchema } from "../../db/schema/index"
 
 // ---------------------------------------------------------------------------
 // Types for the kind index
@@ -225,60 +216,10 @@ function buildSecretScopeChain(
 // Live layer
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Adapter + registry wiring (Task A12)
-//
-// Phase A: these are constructed so the wiring is in place and typechecks
-// end-to-end (framework via postgres-code, customer via postgres-dynamic,
-// IR composition via GraphRegistry). Existing service methods (get/find/
-// list/ancestors) still resolve through the typed accessors below. Phase B
-// will route them through adapterFor(kind).
-// ---------------------------------------------------------------------------
-
-function makeAdapters(db: Database): {
-  code: Adapter
-  dynamic: Adapter
-  adapterFor: (kind: string) => Adapter
-  registry: GraphRegistry
-} {
-  const code = makePostgresCodeAdapter({
-    db,
-    bindings: FACTORY_BINDINGS as unknown as Record<
-      string,
-      {
-        table: any
-        slug: any
-        id: any
-        fks: Record<string, any>
-      }
-    >,
-  })
-  const dynamic = makePostgresDynamicAdapter({
-    db,
-    tables: { instance: graphSchema.instance, link: graphSchema.link },
-  })
-  const adapterFor = (kind: string): Adapter =>
-    kind in FACTORY_BINDINGS ? code : dynamic
-
-  const registry = makeGraphRegistry({
-    base: DxFactoryGraph,
-    loadCustomer: makeCustomerLoader({
-      db,
-      tables: { objectType: graphSchema.objectType },
-    }),
-  })
-
-  return { code, dynamic, adapterFor, registry }
-}
-
 export const GraphLive = Layer.effect(
   Graph,
   Effect.gen(function* () {
     const db = yield* Db
-
-    // Adapter + registry wiring — not yet consumed by service methods (Phase B).
-    const _wiring = makeAdapters(db)
-    void _wiring
 
     // Build kind index from IR entities + bindings
     const kindIndex = new Map<string, KindEntry>()

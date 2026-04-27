@@ -54,10 +54,23 @@ export function usePlans(opts?: { limit?: number; offset?: number }) {
   })
 }
 
-export function usePlanContent(slug: string | null | undefined) {
+export function usePlanSearch(q: string) {
+  const trimmed = q.trim()
   return useQuery({
-    queryKey: ["plan-content", slug],
-    queryFn: () => threadsApi.planContent(slug!),
+    queryKey: ["plans-search", trimmed],
+    queryFn: () => threadsApi.searchPlans(trimmed, 100),
+    enabled: trimmed.length >= 2,
+    staleTime: 10_000,
+  })
+}
+
+export function usePlanContent(
+  slug: string | null | undefined,
+  version?: number | null
+) {
+  return useQuery({
+    queryKey: ["plan-content", slug, version ?? "latest"],
+    queryFn: () => threadsApi.planContent(slug!, version),
     enabled: !!slug,
     staleTime: 30_000,
   })

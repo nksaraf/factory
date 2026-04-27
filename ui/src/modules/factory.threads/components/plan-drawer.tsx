@@ -6,6 +6,7 @@ import { Icon } from "@rio.js/ui/icon"
 import { usePlanContent, usePlanVersions } from "../data/use-threads"
 import type { PlanEntry } from "../data/types"
 import { Markdown } from "./markdown"
+import { PlanDiffView } from "./plan-diff-view"
 
 export function PlanDrawer({
   plan,
@@ -19,6 +20,7 @@ export function PlanDrawer({
   mode?: "drawer" | "inline"
 }) {
   const [showVersions, setShowVersions] = useState(false)
+  const [diff, setDiff] = useState<{ from: number; to: number } | null>(null)
   useEffect(() => {
     if (!plan) return
     const onKey = (e: KeyboardEvent) => {
@@ -30,6 +32,7 @@ export function PlanDrawer({
 
   useEffect(() => {
     setShowVersions(false)
+    setDiff(null)
   }, [plan?.slug])
 
   const open = plan !== null
@@ -172,6 +175,21 @@ export function PlanDrawer({
                             )}
                           </div>
                         </div>
+                        {v.version > 1 && plan?.slug && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDiff({ from: v.version - 1, to: v.version })
+                            }
+                            title={`Diff v${v.version - 1} → v${v.version}`}
+                            className="shrink-0 h-6 w-6 rounded border hover:border-amber-500/60 hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center"
+                          >
+                            <Icon
+                              icon="icon-[ph--git-diff-duotone]"
+                              className="text-xs"
+                            />
+                          </button>
+                        )}
                         {v.sourceTurnId && onJumpToTurn && (
                           <button
                             type="button"
@@ -192,28 +210,39 @@ export function PlanDrawer({
             </ol>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Icon
-                icon="icon-[ph--circle-notch-duotone]"
-                className="animate-spin text-sm"
-              />
-              Loading plan...
-            </div>
-          )}
-          {!loading && error && (
-            <div className="text-sm text-red-500 font-mono">
-              Failed to load: {error}
-            </div>
-          )}
-          {!loading && !error && body && <Markdown text={body} />}
-          {!loading && !error && !body && plan && (
-            <div className="text-sm text-muted-foreground">
-              No content available.
-            </div>
-          )}
-        </div>
+        {diff && plan?.slug ? (
+          <div className="flex-1 min-h-0">
+            <PlanDiffView
+              slug={plan.slug}
+              fromVersion={diff.from}
+              toVersion={diff.to}
+              onClose={() => setDiff(null)}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {loading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Icon
+                  icon="icon-[ph--circle-notch-duotone]"
+                  className="animate-spin text-sm"
+                />
+                Loading plan...
+              </div>
+            )}
+            {!loading && error && (
+              <div className="text-sm text-red-500 font-mono">
+                Failed to load: {error}
+              </div>
+            )}
+            {!loading && !error && body && <Markdown text={body} />}
+            {!loading && !error && !body && plan && (
+              <div className="text-sm text-muted-foreground">
+                No content available.
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     </>
   )

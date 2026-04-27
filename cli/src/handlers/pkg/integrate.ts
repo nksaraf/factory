@@ -5,25 +5,44 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { exec } from "../../lib/subprocess.js"
+import { addPnpmOverride, removePnpmOverride } from "./pnpm-overrides.js"
 
-/** Run pnpm install to relink workspaces (skips if no pnpm workspace). */
-export async function integrateNpm(root: string): Promise<void> {
-  if (
-    !existsSync(join(root, "pnpm-workspace.yaml")) &&
-    !existsSync(join(root, "package.json"))
-  ) {
-    return
+export interface NpmIntegration {
+  /** Linked source's npm name (from its package.json#name). */
+  npmName?: string
+  /** Path of the linked source relative to the workspace root. */
+  localPath: string
+}
+
+/**
+ * Wire a linked source into the workspace via pnpm.overrides at the root,
+ * then run `pnpm install`. Skips override + install when there's no
+ * package.json at the root.
+ */
+export async function integrateNpm(
+  root: string,
+  npm?: NpmIntegration
+): Promise<void> {
+  if (!existsSync(join(root, "package.json"))) return
+
+  if (npm?.npmName) {
+    addPnpmOverride(root, npm.npmName, npm.localPath)
   }
   await exec(["pnpm", "install"], { cwd: root })
 }
 
-/** Run pnpm install after removing a workspace package (skips if no pnpm workspace). */
-export async function unintegrateNpm(root: string): Promise<void> {
-  if (
-    !existsSync(join(root, "pnpm-workspace.yaml")) &&
-    !existsSync(join(root, "package.json"))
-  ) {
-    return
+/**
+ * Remove a linked source's pnpm.overrides entry (if recorded) and run
+ * `pnpm install` so workspaces re-resolve.
+ */
+export async function unintegrateNpm(
+  root: string,
+  npmName?: string
+): Promise<void> {
+  if (!existsSync(join(root, "package.json"))) return
+
+  if (npmName) {
+    removePnpmOverride(root, npmName)
   }
   await exec(["pnpm", "install"], { cwd: root })
 }

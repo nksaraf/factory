@@ -14,9 +14,9 @@ import { CustomerLayout } from "./customer-layout"
 export default function CustomerOverviewTab() {
   const { slug } = useParams<{ slug: string }>()
   const { data: customer } = useCustomer(slug)
-  const { data: subscriptions } = useCustomerSubscriptions(customer?.id)
-  const { data: bundles } = useCustomerBundles(customer?.id)
-  const { data: tenants } = useCustomerTenants(customer?.id)
+  const { data: subscriptions } = useCustomerSubscriptions(slug)
+  const { data: bundles } = useCustomerBundles(slug)
+  const { data: tenants } = useCustomerTenants(slug)
 
   if (!customer) return null
 
@@ -92,8 +92,8 @@ export default function CustomerOverviewTab() {
                 >
                   <div>
                     <span className="font-medium text-base">Subscription</span>
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      {s.planId}
+                    <span className="ml-2 text-xs text-muted-foreground font-mono">
+                      {s.id.slice(0, 12)}…
                     </span>
                   </div>
                   <StatusBadge status={s.spec?.status} />

@@ -9,9 +9,6 @@
     "./schema/*": "./src/schema/*.ts",
     "./runtime": "./src/runtime/index.ts",
     "./runtime/*": "./src/runtime/*.ts",
-    "./adapters/types": "./src/adapters/types.ts",
-    "./adapters/postgres-code": "./src/adapters/postgres-code/index.ts",
-    "./adapters/postgres-dynamic": "./src/adapters/postgres-dynamic/index.ts",
     "./adapters/*": "./src/adapters/*.ts",
     "./adapters/postgres/*": "./src/adapters/postgres/*.ts"
   },

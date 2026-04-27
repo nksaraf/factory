@@ -318,10 +318,12 @@ function InlineToolCalls({
   calls,
   errors,
   onOpenPlan,
+  cwd,
 }: {
   calls: Array<{ name: string; input?: string }>
   errors: Array<{ toolName: string; error: string; errorClass: string }>
   onOpenPlan?: (slug: string) => void
+  cwd?: string
 }) {
   const [open, setOpen] = useState(false)
   const failedCount = calls.filter((c) =>
@@ -362,6 +364,7 @@ function InlineToolCalls({
                 input={tc.input}
                 failed={failed}
                 onOpenPlan={onOpenPlan}
+                cwd={cwd}
               />
             )
           })}
@@ -374,9 +377,11 @@ function InlineToolCalls({
 function ToolGroup({
   turns,
   onOpenPlan,
+  cwd,
 }: {
   turns: ThreadTurn[]
   onOpenPlan?: (slug: string) => void
+  cwd?: string
 }) {
   const [open, setOpen] = useState(false)
   const failedCount = turns.filter((t) => t.spec.failed).length
@@ -412,7 +417,12 @@ function ToolGroup({
       {open && (
         <div className="border-t divide-y py-0.5">
           {turns.map((t) => (
-            <ToolTurnRow key={t.id} turn={t} onOpenPlan={onOpenPlan} />
+            <ToolTurnRow
+              key={t.id}
+              turn={t}
+              onOpenPlan={onOpenPlan}
+              cwd={cwd}
+            />
           ))}
         </div>
       )}
@@ -424,10 +434,12 @@ function TurnCard({
   turn,
   planSlug,
   onOpenPlan,
+  cwd,
 }: {
   turn: ThreadTurn
   planSlug?: string | null
   onOpenPlan?: (slug: string) => void
+  cwd?: string
 }) {
   const cls = ROLE_STYLE[turn.role] ?? "border-border bg-card"
   const text =
@@ -511,6 +523,7 @@ function TurnCard({
             Array.isArray(turn.spec.toolErrors) ? turn.spec.toolErrors : []
           }
           onOpenPlan={onOpenPlan}
+          cwd={cwd}
         />
       )}
 
@@ -591,6 +604,8 @@ function planToEntry(
     timestamp: p.updatedAt ?? undefined,
     version: p.latestVersion,
     editCount: p.editCount,
+    authored: p.authored,
+    referenced: p.referenced,
   }
 }
 
@@ -722,12 +737,14 @@ function ThreadView({
               turn={g.turn}
               planSlug={planByTurnId.get(g.turn.id)?.slug ?? null}
               onOpenPlan={setOpenPlanSlug}
+              cwd={threadCwd}
             />
           ) : (
             <ToolGroup
               key={`tools-${i}`}
               turns={g.turns}
               onOpenPlan={setOpenPlanSlug}
+              cwd={threadCwd}
             />
           )
         )}

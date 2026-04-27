@@ -1,5 +1,5 @@
-import { useCustomer, useCustomerTenants } from "@/lib/commerce"
-import { Link, useParams } from "react-router"
+import { useCustomerTenants } from "@/lib/commerce"
+import { useParams } from "react-router"
 
 import { Icon } from "@rio.js/ui/icon"
 
@@ -8,8 +8,7 @@ import { CustomerLayout } from "../customer-layout"
 
 export default function CustomerSitesTab() {
   const { slug } = useParams<{ slug: string }>()
-  const { data: customer } = useCustomer(slug)
-  const { data: tenants, isLoading } = useCustomerTenants(customer?.id)
+  const { data: tenants, isLoading } = useCustomerTenants(slug)
 
   return (
     <CustomerLayout>
@@ -24,10 +23,9 @@ export default function CustomerSitesTab() {
       ) : (
         <div className="space-y-3">
           {(tenants ?? []).map((t) => (
-            <Link
+            <div
               key={t.id}
-              to={`/ops/sites/${t.slug.replace(/-tenant$/, "")}`}
-              className="flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
+              className="flex items-center justify-between rounded-lg border bg-card p-4"
             >
               <div className="flex items-center gap-3">
                 <Icon
@@ -36,12 +34,14 @@ export default function CustomerSitesTab() {
                 />
                 <div>
                   <span className="font-medium text-base">{t.name}</span>
-                  <div className="flex gap-3 mt-0.5 text-sm text-muted-foreground">
-                    <span>Site: {t.siteId}</span>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {t.slug}
                     {t.spec?.isolation && (
-                      <span className="capitalize">{t.spec.isolation}</span>
+                      <span className="ml-2 capitalize">
+                        · {t.spec.isolation}
+                      </span>
                     )}
-                  </div>
+                  </p>
                 </div>
               </div>
               <StatusBadge
@@ -49,7 +49,7 @@ export default function CustomerSitesTab() {
                   t.spec?.isolation === "dedicated" ? "dedicated" : "shared"
                 }
               />
-            </Link>
+            </div>
           ))}
         </div>
       )}

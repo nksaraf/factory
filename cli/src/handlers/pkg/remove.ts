@@ -71,7 +71,7 @@ export async function pkgRemove(
   // Clean up state if still tracked
   if (entry) {
     // Unintegrate from build system
-    if (entry.type === "npm") await unintegrateNpm(root)
+    if (entry.type === "npm") await unintegrateNpm(root, entry.npm_name)
     else if (entry.type === "java") unintegrateJava(root, opts.package)
 
     // Remove .gitignore entry

@@ -70,7 +70,7 @@ export async function sourceUnlink(
   }
 
   // Unintegrate from build system
-  if (entry.type === "npm") await unintegrateNpm(root)
+  if (entry.type === "npm") await unintegrateNpm(root, entry.npm_name)
   else if (entry.type === "java") unintegrateJava(root, opts.package)
 
   // Handle required vs optional cleanup

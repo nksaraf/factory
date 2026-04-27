@@ -30,6 +30,7 @@
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
     "@effect/platform": "0.96.0",
+    "@effect/platform-bun": "0.89.0",
     "@effect/rpc": "0.75.0",
     "@iconify-json/lucide": "1.2.102",
     "@iconify-json/ph": "1.2.2",
