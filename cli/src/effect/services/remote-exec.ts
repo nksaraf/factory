@@ -35,20 +35,6 @@ export class RemoteExec extends Context.Tag("RemoteExec")<
   }
 >() {}
 
-export function execLocal(
-  command: string,
-  opts?: { timeoutMs?: number }
-): Effect.Effect<ExecResult, never, ProcessManager> {
-  return Effect.flatMap(ProcessManager, (pm) =>
-    pm.capture({
-      cmd: ["bash", "-c", command],
-      timeoutMs: opts?.timeoutMs ?? 15_000,
-    })
-  )
-}
-
-export { type CaptureResult, type IProcessManager }
-
 // ── SSH diagnostic engine ──────────────────────────────────
 
 type SshFailure = SshError["failure"]

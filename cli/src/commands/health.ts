@@ -1,12 +1,10 @@
 import { Effect, Layer } from "effect"
-import { ProcessManagerLive } from "@smp/factory-shared/effect/process-manager"
-import type { DxBase } from "../dx-root.js"
 import {
-  RemoteAccess,
-  RemoteAccessLive,
-  execLocal,
-  runEffect,
-} from "../effect/index.js"
+  ProcessManager,
+  ProcessManagerLive,
+} from "@smp/factory-shared/effect/process-manager"
+import type { DxBase } from "../dx-root.js"
+import { RemoteAccess, RemoteAccessLive, runEffect } from "../effect/index.js"
 import { resolveUrl } from "../lib/trace-resolver.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 import { toDxFlags } from "./dx-flags.js"
@@ -140,9 +138,15 @@ async function healthCheckSlug(slug: string) {
 
     const { host, port } = target.transport
 
-    const result = yield* execLocal(
-      `nc -zvw 3 ${host} ${port} 2>&1 && echo OK || echo FAIL`
-    )
+    const pm = yield* ProcessManager
+    const result = yield* pm.capture({
+      cmd: [
+        "bash",
+        "-c",
+        `nc -zvw 3 ${host} ${port} 2>&1 && echo OK || echo FAIL`,
+      ],
+      timeoutMs: 10_000,
+    })
     const ok =
       result.code === 0 || /OK|succeeded/i.test(result.stdout + result.stderr)
 
