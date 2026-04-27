@@ -55,6 +55,12 @@ export const objectType = graphSchema.table(
     implements: jsonb("implements"),
     traits: jsonb("traits"),
     access: jsonb("access"),
+    // JSONB bag for fields without dedicated columns: namespace, prefix,
+    // plural, description, links, identity, bitemporal, reconciliation,
+    // softDelete, visibility, lifecycle. The loader maps these into the
+    // EntityIR. Promote specific fields to columns when query patterns
+    // demand it.
+    metadata: jsonb("metadata"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

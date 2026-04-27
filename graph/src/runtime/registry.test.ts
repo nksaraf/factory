@@ -58,6 +58,29 @@ describe("GraphRegistry", () => {
     expect(loadCalls).toBe(2)
   })
 
+  it("dedups concurrent forGraph calls for the same graph_id", async () => {
+    let loadCalls = 0
+    const registry = makeGraphRegistry({
+      base,
+      loadCustomer: () =>
+        Effect.async<{ objectTypes: Record<string, never> }, Error>(
+          (resume) => {
+            loadCalls++
+            // Defer resolution to the next tick so both forGraph calls land
+            // before the loader resolves — proving the cache shares the
+            // in-flight Effect.
+            setTimeout(() => resume(Effect.succeed({ objectTypes: {} })), 5)
+          }
+        ),
+    })
+    await Promise.all([
+      Effect.runPromise(registry.forGraph("g_concurrent")),
+      Effect.runPromise(registry.forGraph("g_concurrent")),
+      Effect.runPromise(registry.forGraph("g_concurrent")),
+    ])
+    expect(loadCalls).toBe(1)
+  })
+
   it("rejects customer redefining a base entity kind", async () => {
     const badHost = compileGraph([
       defineEntity("host", {

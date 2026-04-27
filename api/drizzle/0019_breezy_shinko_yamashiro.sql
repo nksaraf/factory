@@ -1,0 +1,1 @@
+ALTER TABLE "graph"."object_type" ADD COLUMN "metadata" jsonb;

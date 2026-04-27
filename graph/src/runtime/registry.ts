@@ -9,6 +9,11 @@
  *
  * Callers interact via `forGraph(id)` which returns the composed IR.
  * `invalidate(id)` drops one entry; `invalidate()` drops all.
+ *
+ * Concurrency: the cache stores the memoized Effect itself (via
+ * Effect.cached) so concurrent forGraph(id) calls share a single
+ * loadCustomer + merge invocation. Failures evict the entry so subsequent
+ * calls retry rather than pin to a permanent error.
  */
 
 import { Effect } from "effect"
@@ -24,7 +29,7 @@ export interface CustomerLoadResult {
 
 export type CustomerLoader = (
   graphId: string
-) => Effect.Effect<CustomerLoadResult>
+) => Effect.Effect<CustomerLoadResult, Error>
 
 export interface GraphRegistry {
   readonly forGraph: (graphId: string) => Effect.Effect<GraphIR, Error>
@@ -63,25 +68,45 @@ function mergeCustomer(base: GraphIR, customer: CustomerLoadResult): GraphIR {
 }
 
 export function makeGraphRegistry(deps: Deps): GraphRegistry {
-  const cache = new Map<string, Promise<GraphIR>>()
+  // Cache holds the memoized Effect itself. Concurrent callers all observe
+  // the same fiber via Effect.cached's structural sharing — no second
+  // loadCustomer invocation, no detached fiber chain.
+  const cache = new Map<string, Effect.Effect<GraphIR, Error>>()
+
+  const buildCached = (
+    graphId: string
+  ): Effect.Effect<Effect.Effect<GraphIR, Error>, never> =>
+    Effect.cached(
+      deps.loadCustomer(graphId).pipe(
+        Effect.flatMap((customer) =>
+          Effect.try({
+            try: () => mergeCustomer(deps.base, customer),
+            catch: (err) =>
+              err instanceof Error ? err : new Error(String(err)),
+          })
+        ),
+        Effect.tapError(() =>
+          Effect.sync(() => {
+            // On failure, evict so subsequent forGraph calls retry.
+            cache.delete(graphId)
+          })
+        )
+      )
+    )
 
   return {
-    forGraph: (graphId) =>
-      Effect.tryPromise({
-        try: () => {
-          const cached = cache.get(graphId)
-          if (cached) return cached
-          const promise = Effect.runPromise(deps.loadCustomer(graphId)).then(
-            (customer) => mergeCustomer(deps.base, customer)
-          )
-          // Only cache successful resolutions so a merge failure doesn't pin
-          // the cache to a rejected promise forever.
-          promise.catch(() => cache.delete(graphId))
-          cache.set(graphId, promise)
-          return promise
-        },
-        catch: (err) => (err instanceof Error ? err : new Error(String(err))),
-      }),
+    forGraph: (graphId) => {
+      const cached = cache.get(graphId)
+      if (cached) return cached
+      // Effect.cached returns Effect<Effect<A,E>>; we run it synchronously
+      // (no DB work yet — just memoization wiring) to get the inner cached
+      // Effect, then store + return that. First call to inner runs the
+      // loader; subsequent calls (concurrent or sequential) reuse the
+      // memoized result.
+      const memoized = Effect.runSync(buildCached(graphId))
+      cache.set(graphId, memoized)
+      return memoized
+    },
 
     invalidate: (graphId) =>
       Effect.sync(() => {

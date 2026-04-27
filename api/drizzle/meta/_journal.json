@@ -134,6 +134,13 @@
       "when": 1777323202249,
       "tag": "0018_friendly_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777324211643,
+      "tag": "0019_breezy_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

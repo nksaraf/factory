@@ -19,47 +19,67 @@ interface Deps {
   readonly tables: { readonly objectType: any }
 }
 
+/**
+ * Map a graph.object_type row to an EntityIR.
+ *
+ * The schema columns we read from are: kind, extendsKind, specSchema,
+ * statusSchema, annotations, implements, traits, access, plus the JSONB
+ * `metadata` column which we use for fields that don't have dedicated
+ * columns (namespace, prefix, plural, description, links, identity,
+ * bitemporal, reconciliation, softDelete, visibility, lifecycle).
+ *
+ * The metadata fallback keeps the table narrow now and lets us promote
+ * specific fields to columns later (with a migration) without changing
+ * the IR shape.
+ */
 function rowToEntity(row: Record<string, unknown>): EntityIR {
+  const meta = (row.metadata as Record<string, unknown> | null) ?? {}
+  const kind = String(row.kind)
   return {
-    kind: String(row.kind),
-    namespace: (row.namespace as string) ?? "customer",
-    prefix: (row.prefix as string) ?? String(row.kind).slice(0, 4),
-    plural: (row.plural as string) ?? `${row.kind}s`,
-    description: (row.description as string) ?? undefined,
+    kind,
+    namespace: (meta.namespace as string) ?? "customer",
+    prefix: (meta.prefix as string) ?? kind.slice(0, 4),
+    plural: (meta.plural as string) ?? `${kind}s`,
+    description: (meta.description as string) ?? undefined,
     traits: (row.traits as string[] | null) ?? [],
     implements: (row.implements as string[] | null) ?? undefined,
     schemas: {
       spec: (row.specSchema as JsonSchema) ?? {},
       status: (row.statusSchema as JsonSchema) ?? {},
-      metadata: {},
+      metadata: (meta.schema as JsonSchema) ?? {},
     },
     annotations: (row.annotations as PropertyAnnotations) ?? {},
-    identity: { slugScope: "global" },
-    reconciliation: false,
-    bitemporal: false,
-    softDelete: false,
-    links: (row.links as Record<string, any>) ?? {},
+    identity: (meta.identity as EntityIR["identity"]) ?? {
+      slugScope: "global",
+    },
+    reconciliation: Boolean(meta.reconciliation),
+    bitemporal: Boolean(meta.bitemporal),
+    softDelete: (meta.softDelete as EntityIR["softDelete"]) ?? false,
+    links: (meta.links as Record<string, any>) ?? {},
     derived: {},
     actions: {},
-    access: (row.access as any) ?? undefined,
-    visibility: "normal",
-    lifecycle: "production",
+    access: (row.access as EntityIR["access"]) ?? undefined,
+    visibility: (meta.visibility as EntityIR["visibility"]) ?? "normal",
+    lifecycle: (meta.lifecycle as EntityIR["lifecycle"]) ?? "production",
   }
 }
 
 export function makeCustomerLoader(deps: Deps): CustomerLoader {
   return (graphId) =>
-    Effect.tryPromise(async (): Promise<CustomerLoadResult> => {
-      const t = deps.tables.objectType
-      const rows: Record<string, unknown>[] = await deps.db
-        .select()
-        .from(t)
-        .where(eq(t.graphId, graphId))
-      const objectTypes: Record<string, EntityIR> = {}
-      for (const row of rows) {
-        const entity = rowToEntity(row)
-        objectTypes[entity.kind] = entity
-      }
-      return { objectTypes }
-    }).pipe(Effect.orDie)
+    Effect.tryPromise({
+      try: async (): Promise<CustomerLoadResult> => {
+        const t = deps.tables.objectType
+        const rows: Record<string, unknown>[] = await deps.db
+          .select()
+          .from(t)
+          .where(eq(t.graphId, graphId))
+        const objectTypes: Record<string, EntityIR> = {}
+        for (const row of rows) {
+          const entity = rowToEntity(row)
+          objectTypes[entity.kind] = entity
+        }
+        return { objectTypes }
+      },
+      catch: (err) => (err instanceof Error ? err : new Error(String(err))),
+    })
 }
