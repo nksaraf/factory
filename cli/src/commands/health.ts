@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect"
+import { ProcessManagerLive } from "@smp/factory-shared/effect/process-manager"
 import type { DxBase } from "../dx-root.js"
 import {
   RemoteAccess,
@@ -155,7 +156,8 @@ async function healthCheckSlug(slug: string) {
     printRow("Status", colorStatus(target.status))
   })
 
-  await runEffect(Effect.provide(program, RemoteAccessLive), "health-check")
+  const layer = Layer.mergeAll(RemoteAccessLive, ProcessManagerLive)
+  await runEffect(Effect.provide(program, layer), "health-check")
   console.log()
 }
 

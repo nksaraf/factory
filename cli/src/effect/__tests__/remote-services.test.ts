@@ -10,6 +10,7 @@ import {
   type ExecResult,
   type SshTransport,
 } from "../index.js"
+import { ProcessManagerLive } from "@smp/factory-shared/effect/process-manager"
 import { diagnoseSshFailure } from "../services/remote-exec.js"
 import {
   parseInspectOutput,
@@ -379,14 +380,14 @@ describe("RemoteExec.run with mock SSH transport", () => {
 
 // ── RemoteExec.runLocal (real process, no SSH) ──────────────
 
-describe("execLocal", () => {
+describe("execLocal (via ProcessManager)", () => {
   it("runs a local command and captures stdout", async () => {
     const program = Effect.gen(function* () {
       const result = yield* execLocal("echo hello")
       expect(result.code).toBe(0)
       expect(result.stdout.trim()).toBe("hello")
     })
-    await Effect.runPromise(program)
+    await Effect.runPromise(Effect.provide(program, ProcessManagerLive))
   })
 
   it("captures exit code for failed commands", async () => {
@@ -394,7 +395,7 @@ describe("execLocal", () => {
       const result = yield* execLocal("exit 42")
       expect(result.code).toBe(42)
     })
-    await Effect.runPromise(program)
+    await Effect.runPromise(Effect.provide(program, ProcessManagerLive))
   })
 
   it("captures stderr", async () => {
@@ -402,7 +403,7 @@ describe("execLocal", () => {
       const result = yield* execLocal("echo error >&2")
       expect(result.stderr.trim()).toBe("error")
     })
-    await Effect.runPromise(program)
+    await Effect.runPromise(Effect.provide(program, ProcessManagerLive))
   })
 })
 

@@ -39,10 +39,23 @@ export interface SpawnResult {
   readonly process: ChildProcess
 }
 
+export interface CaptureOpts {
+  readonly cmd: string[]
+  readonly timeoutMs?: number
+  readonly component?: string
+}
+
+export interface CaptureResult {
+  readonly code: number
+  readonly stdout: string
+  readonly stderr: string
+}
+
 export interface IProcessManager {
   readonly spawn: (
     opts: SpawnOpts
   ) => Effect.Effect<SpawnResult, ProcessError, Scope.Scope>
+  readonly capture: (opts: CaptureOpts) => Effect.Effect<CaptureResult, never>
   readonly kill: (
     pid: number,
     signal?: string
@@ -188,6 +201,55 @@ export const ProcessManagerLive = Layer.succeed(
           attributes: {
             "process.cmd": opts.cmd.join(" "),
             "process.cwd": opts.cwd,
+            ...(opts.component ? { "process.component": opts.component } : {}),
+          },
+        })
+      ),
+
+    capture: (opts: CaptureOpts) =>
+      Effect.async<CaptureResult, never>((resume) => {
+        const [cmd, ...args] = opts.cmd
+        if (!cmd) {
+          resume(
+            Effect.succeed({ code: -1, stdout: "", stderr: "Empty command" })
+          )
+          return
+        }
+        const timeoutMs = opts.timeoutMs ?? 15_000
+        const proc = nodeSpawn(cmd, args, {
+          stdio: ["ignore", "pipe", "pipe"],
+        })
+        let stdout = ""
+        let stderr = ""
+        const timer = setTimeout(() => proc.kill("SIGKILL"), timeoutMs)
+        proc.stdout?.on("data", (d: Buffer) => {
+          stdout += d.toString()
+        })
+        proc.stderr?.on("data", (d: Buffer) => {
+          stderr += d.toString()
+        })
+        proc.on("close", (code) => {
+          clearTimeout(timer)
+          resume(Effect.succeed({ code: code ?? -1, stdout, stderr }))
+        })
+        proc.on("error", () => {
+          clearTimeout(timer)
+          resume(
+            Effect.succeed({
+              code: -1,
+              stdout,
+              stderr: stderr || "spawn error",
+            })
+          )
+        })
+        return Effect.sync(() => {
+          clearTimeout(timer)
+          proc.kill("SIGKILL")
+        })
+      }).pipe(
+        Effect.withSpan("ProcessManager.capture", {
+          attributes: {
+            "process.cmd": opts.cmd.join(" "),
             ...(opts.component ? { "process.component": opts.component } : {}),
           },
         })
