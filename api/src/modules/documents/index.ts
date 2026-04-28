@@ -428,7 +428,7 @@ export function plansController(db: Database) {
       )
       if (term.length < 2) return { plans: [], q: term }
 
-      const pattern = `%${term.replace(/[%_]/g, (c) => `\\${c}`)}%`
+      const pattern = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
 
       const rows = await db.execute(sql`
       SELECT

@@ -31,6 +31,9 @@ export function PlanDiffView({
     (toQ.error instanceof Error ? toQ.error.message : null)
 
   const fileDiff = useMemo(() => {
+    // Skip until both sides are loaded to avoid a misleading full-add/full-delete
+    // diff while one side is still resolving.
+    if (isLoading) return null
     if (!fromText && !toText) return null
     try {
       return parseDiffFromFile(
@@ -45,10 +48,11 @@ export function PlanDiffView({
           cacheKey: `${slug}@v${toVersion}`,
         }
       )
-    } catch {
+    } catch (err) {
+      console.error("PlanDiffView: parseDiffFromFile failed", err)
       return null
     }
-  }, [slug, fromText, toText, fromVersion, toVersion])
+  }, [slug, isLoading, fromText, toText, fromVersion, toVersion])
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -84,12 +88,10 @@ export function PlanDiffView({
           </div>
         )}
         {error && <div className="px-5 py-4 text-red-500 text-sm">{error}</div>}
-        {!isLoading && !error && fileDiff && (
-          <FileDiff fileDiff={fileDiff} disableWorkerPool />
-        )}
+        {!isLoading && !error && fileDiff && <FileDiff fileDiff={fileDiff} />}
         {!isLoading && !error && !fileDiff && (
           <div className="px-5 py-4 text-muted-foreground text-sm">
-            No differences.
+            No differences (or failed to render diff — check console).
           </div>
         )}
       </div>

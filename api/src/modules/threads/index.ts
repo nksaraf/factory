@@ -18,7 +18,7 @@ import {
   UpdateChannelSchema,
   UpdateThreadSchema,
 } from "@smp/factory-shared/schemas/org"
-import { and, eq, inArray, max } from "drizzle-orm"
+import { and, eq, inArray, max, sql } from "drizzle-orm"
 import { Elysia } from "elysia"
 
 import type { Database } from "../../db/connection"
@@ -216,16 +216,23 @@ export function threadsController(db: Database) {
             and(eq(document.type, "plan"), eq(document.threadId, threadId))
           )
 
-        const turns = await db
-          .select({ spec: threadTurn.spec })
-          .from(threadTurn)
-          .where(eq(threadTurn.threadId, threadId))
+        // Only project the toolInput field (not the whole spec) and only
+        // pull tool-role turns. Capped at 5000 to keep memory bounded for
+        // very long threads. Plan references in non-tool turns are vanishingly rare.
+        const TURN_SCAN_CAP = 5000
+        const turnRows = await db.execute(sql`
+          SELECT spec->>'toolInput' AS tool_input
+          FROM org.thread_turn
+          WHERE thread_id = ${threadId}
+            AND role = 'tool'
+            AND spec ? 'toolInput'
+          LIMIT ${TURN_SCAN_CAP}
+        `)
 
         const referencedSlugs = new Set<string>()
-        for (const t of turns) {
-          const s = (t.spec ?? {}) as Record<string, unknown>
-          const refs = extractPlanReferences(s.toolInput)
-          for (const r of refs) referencedSlugs.add(r.slug)
+        for (const r of (turnRows as any).rows ?? []) {
+          const refs = extractPlanReferences(r.tool_input)
+          for (const ref of refs) referencedSlugs.add(ref.slug)
         }
 
         const authoredSlugs = new Set(authored.map((r) => r.slug))
@@ -310,9 +317,9 @@ export function threadsController(db: Database) {
             }
           })
           .sort((a, b) => {
-            const at = a.updatedAt ?? ""
-            const bt = b.updatedAt ?? ""
-            return bt.localeCompare(at)
+            const at = a.updatedAt ? Date.parse(a.updatedAt) : 0
+            const bt = b.updatedAt ? Date.parse(b.updatedAt) : 0
+            return bt - at
           })
 
         return { plans }

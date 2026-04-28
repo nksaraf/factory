@@ -94,14 +94,15 @@ export function extractPlanReferences(toolInput: unknown): PlanPathClass[] {
   tryAdd(parsed.notebook_path)
 
   // Bash / free-text: scan for any path ending in .md that matches a plan root.
-  // Anchored by known directory markers to avoid matching arbitrary markdown files.
+  // Lead anchor `(?:^|[\s'"=:/])` requires a path-boundary character before the
+  // match so we don't match `my.claude/plans/...` when `my` precedes `.claude`.
   const freeText = [parsed.command, parsed.__raw]
     .filter((v) => typeof v === "string")
     .join("\n")
   if (freeText) {
     const re =
-      /(?:[\w./-]*\/)?(?:\.claude\/plans|\.context\/plans|docs\/superpowers\/plans)\/[A-Za-z0-9._-]+\.md/g
-    for (const m of freeText.matchAll(re)) tryAdd(m[0])
+      /(?:^|[\s'"=:])((?:[\w./-]*\/)?(?:\.claude\/plans|\.context\/plans|docs\/superpowers\/plans)\/[A-Za-z0-9._-]+\.md)/g
+    for (const m of freeText.matchAll(re)) tryAdd(m[1])
   }
 
   return Array.from(results.values())

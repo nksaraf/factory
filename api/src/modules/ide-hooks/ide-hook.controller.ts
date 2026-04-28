@@ -609,11 +609,15 @@ async function handleToolPost(
   const threadId = await ensureThread(db, source, payload, principalId)
   if (!threadId) return
 
-  // Cap at 256KB to keep thread_turn.spec rows reasonable while preserving
-  // enough fidelity for full session replay (covers most Write/Edit content).
-  // Plans-larger-than-this still get captured via the file-write path which
-  // stores into document_version, not thread_turn.
-  const TOOL_INPUT_CAP = 256 * 1024
+  // Cap toolInput to stay under the per-element limit of the GIN index on
+  // thread_turn.spec (`org_thread_turn_spec_gin_idx`, default `jsonb_ops`,
+  // ~2712 bytes per indexed scalar). Larger values would fail INSERT with
+  // "index row size exceeds maximum". 2048 chars is the previous, safe cap.
+  // For full replay fidelity of large Write/Edit bodies, the file-write path
+  // captures the whole content into document_version (not thread_turn).
+  // Future work: switch the index to jsonb_path_ops, drop it, or store the
+  // toolInput in a sibling typed column to lift this cap.
+  const TOOL_INPUT_CAP = 2048
   const turn = await insertThreadTurn(db, threadId, "tool", {
     toolName: payload.tool_name,
     toolInput:
