@@ -1,7 +1,7 @@
 import { useMemo } from "react"
-import { diffLines, type Change } from "diff"
+import { FileDiff } from "@pierre/diffs/react"
+import { parseDiffFromFile } from "@pierre/diffs"
 
-import { cn } from "@rio.js/ui/lib/utils"
 import { Icon } from "@rio.js/ui/icon"
 
 import { usePlanContent } from "../data/use-threads"
@@ -30,21 +30,25 @@ export function PlanDiffView({
     (fromQ.error instanceof Error ? fromQ.error.message : null) ??
     (toQ.error instanceof Error ? toQ.error.message : null)
 
-  const changes = useMemo<Change[]>(() => {
-    if (!fromText && !toText) return []
-    return diffLines(fromText, toText)
-  }, [fromText, toText])
-
-  const stats = useMemo(() => {
-    let added = 0
-    let removed = 0
-    for (const c of changes) {
-      const lines = (c.value.match(/\n/g) || []).length || (c.value ? 1 : 0)
-      if (c.added) added += lines
-      else if (c.removed) removed += lines
+  const fileDiff = useMemo(() => {
+    if (!fromText && !toText) return null
+    try {
+      return parseDiffFromFile(
+        {
+          name: `${slug}.md`,
+          contents: fromText,
+          cacheKey: `${slug}@v${fromVersion}`,
+        },
+        {
+          name: `${slug}.md`,
+          contents: toText,
+          cacheKey: `${slug}@v${toVersion}`,
+        }
+      )
+    } catch {
+      return null
     }
-    return { added, removed }
-  }, [changes])
+  }, [slug, fromText, toText, fromVersion, toVersion])
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -59,16 +63,6 @@ export function PlanDiffView({
             <span className="text-muted-foreground mx-1.5">→</span>
             {toLabel ?? `v${toVersion}`}
           </div>
-          {(stats.added > 0 || stats.removed > 0) && (
-            <div className="flex items-center gap-2 text-xs font-mono shrink-0">
-              <span className="text-emerald-600 dark:text-emerald-400">
-                +{stats.added}
-              </span>
-              <span className="text-red-600 dark:text-red-400">
-                -{stats.removed}
-              </span>
-            </div>
-          )}
         </div>
         <button
           type="button"
@@ -90,50 +84,15 @@ export function PlanDiffView({
           </div>
         )}
         {error && <div className="px-5 py-4 text-red-500 text-sm">{error}</div>}
-        {!isLoading && !error && changes.length === 0 && (
+        {!isLoading && !error && fileDiff && (
+          <FileDiff fileDiff={fileDiff} disableWorkerPool />
+        )}
+        {!isLoading && !error && !fileDiff && (
           <div className="px-5 py-4 text-muted-foreground text-sm">
             No differences.
           </div>
         )}
-        {!isLoading && !error && changes.length > 0 && (
-          <pre className="font-mono text-xs leading-relaxed">
-            {changes.map((c, idx) => (
-              <DiffBlock key={idx} change={c} />
-            ))}
-          </pre>
-        )}
       </div>
     </div>
-  )
-}
-
-function DiffBlock({ change }: { change: Change }) {
-  const lines = change.value.replace(/\n$/, "").split("\n")
-  const cls = change.added
-    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : change.removed
-      ? "bg-red-500/10 text-red-700 dark:text-red-300"
-      : "text-muted-foreground"
-  const prefix = change.added ? "+" : change.removed ? "-" : " "
-  return (
-    <>
-      {lines.map((line, i) => (
-        <div
-          key={i}
-          className={cn(
-            "px-5 py-px whitespace-pre-wrap break-all border-l-2",
-            change.added
-              ? "border-emerald-500/50"
-              : change.removed
-                ? "border-red-500/50"
-                : "border-transparent",
-            cls
-          )}
-        >
-          <span className="select-none mr-2 opacity-50">{prefix}</span>
-          {line || " "}
-        </div>
-      ))}
-    </>
   )
 }
