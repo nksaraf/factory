@@ -12,6 +12,7 @@
  */
 
 import { Context, Data, Effect } from "effect"
+import type { DatabaseError } from "../layers/database"
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export class DnsResolver extends Context.Tag("DnsResolver")<
     /** Find the Factory DNS entity for a hostname (exact or wildcard). DB lookup. */
     readonly findEntity: (
       hostname: string
-    ) => Effect.Effect<DnsEntity | null, never>
+    ) => Effect.Effect<DnsEntity | null, DatabaseError>
 
     /** Resolve hostname to IP addresses using live DNS (Node.js dns module). */
     readonly resolve: (

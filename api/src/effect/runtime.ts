@@ -20,6 +20,8 @@ import { makeConfigLayer } from "./layers/config"
 import { SecretsLive } from "./layers/secrets"
 import { SpecResolverLive } from "./layers/spec-resolver"
 import { GraphLive } from "./layers/graph"
+import { DnsResolverLive } from "./layers/dns-resolver"
+import { TraceLive } from "./layers/trace"
 
 /**
  * Build the full application layer from a Database and FactorySettings.
@@ -44,7 +46,13 @@ export function createAppLayer(db: Database, settings?: FactorySettings) {
   // GraphLive depends on Db
   const withGraph = Layer.provideMerge(GraphLive, withSpecResolver)
 
-  return withGraph
+  // DnsResolverLive depends on Db
+  const withDnsResolver = Layer.provideMerge(DnsResolverLive, withGraph)
+
+  // TraceLive depends on Db + DnsResolver
+  const withTrace = Layer.provideMerge(TraceLive, withDnsResolver)
+
+  return withTrace
 }
 
 export type AppLayer = Layer.Layer.Success<ReturnType<typeof createAppLayer>>

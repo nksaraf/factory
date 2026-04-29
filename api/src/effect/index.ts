@@ -44,7 +44,28 @@ export { SecretsLive } from "./layers/secrets"
 // Bridge
 export { runEffect, runWithRuntime } from "./bridge"
 
-// Runtime — full service stack (Db + Config + Secrets + SpecResolver + Graph)
+// DNS resolver — hostname resolution for trace pipeline
+export {
+  DnsResolver,
+  DnsResolutionError,
+  type DnsEntity,
+  type DnsRecord,
+  type DnsResolution,
+} from "./services/dns-resolver"
+export { DnsResolverLive, findDnsDomainForHost } from "./layers/dns-resolver"
+
+// Trace — request-aware network graph traversal
+export {
+  Trace,
+  TraceError,
+  TraceStartNotFoundError,
+  parseRequestInput,
+  makeTrace,
+  type TraceResult,
+} from "./services/trace"
+export { TraceLive } from "./layers/trace"
+
+// Runtime — full service stack (Db + Config + Secrets + SpecResolver + Graph + DnsResolver + Trace)
 export { createAppLayer, type AppLayer } from "./runtime"
 
 // Reconciliation framework
