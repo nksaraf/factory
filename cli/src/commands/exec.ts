@@ -1,14 +1,22 @@
-import { execFileSync } from "node:child_process"
+import { Effect, Layer } from "effect"
+import {
+  ProcessManager,
+  ProcessManagerLive,
+  type IProcessManager,
+} from "@smp/factory-shared/effect/process-manager"
+import {
+  SshAdapter,
+  KubectlAdapter,
+} from "@smp/factory-shared/effect/transport-adapter"
 
 import { styleBold, styleError, styleMuted } from "../cli-style.js"
-import { getFactoryClient } from "../client.js"
 import type { DxBase } from "../dx-root.js"
-import { EntityFinder } from "../lib/entity-finder.js"
-import {
-  buildKubectlExecArgs,
-  buildSshArgs,
-  wrapRemoteCommand,
-} from "../lib/ssh-utils.js"
+import { RemoteAccess, RemoteAccessLive, runEffect } from "../effect/index.js"
+import type {
+  AccessTarget,
+  SshTransport,
+  KubectlTransport,
+} from "../effect/services/remote-access.js"
 import { setExamples } from "../plugins/examples-plugin.js"
 
 setExamples("exec", [
@@ -17,6 +25,20 @@ setExamples("exec", [
   "$ dx exec my-workbench -- /bin/bash      Open shell in workbench",
   "$ dx exec my-vm --dir /app -- make build Run in specific directory",
 ])
+
+function wrapCommand(
+  cmd: string[],
+  opts: { dir?: string; sudo?: boolean }
+): string {
+  let command = cmd.join(" ")
+  if (opts.dir) {
+    command = `cd ${opts.dir} && ${command}`
+  }
+  if (opts.sudo) {
+    command = `sudo ${command}`
+  }
+  return command
+}
 
 export function execCommand(app: DxBase) {
   return app
@@ -55,80 +77,55 @@ export function execCommand(app: DxBase) {
       },
     })
     .run(async ({ args, flags }) => {
-      // Parse -- separated command
       const dashIdx = process.argv.indexOf("--")
       const cmd = dashIdx >= 0 ? process.argv.slice(dashIdx + 1) : ["/bin/bash"]
 
-      // Resolve target
-      const finder = new EntityFinder()
-      const entity = await finder.resolve(args.target)
+      const program = Effect.gen(function* () {
+        const access = yield* RemoteAccess
+        const target = yield* access.resolve(args.target)
+        const pm = yield* ProcessManager
 
-      if (!entity) {
-        console.error(styleError(`No machine found for "${args.target}".`))
-        console.log(styleMuted("\nSearched workbenches, VMs, and hosts. Try:"))
-        console.log(styleMuted("  dx ssh    — interactive picker"))
-        process.exit(1)
-      }
-
-      if (entity.transport === "none") {
-        console.error(
-          styleError(
-            `"${entity.displayName}" (${entity.type}) does not support exec.`
+        if (target.transport.kind === "local") {
+          console.error(
+            styleError(
+              `"${target.displayName}" (${target.entityType}) does not support exec.`
+            )
           )
-        )
-        process.exit(1)
-      }
-
-      if (entity.transport === "kubectl") {
-        // kubectl exec
-        const kubectlArgs = buildKubectlExecArgs({
-          podName: entity.podName!,
-          namespace: entity.namespace!,
-          container: (flags.container as string) ?? entity.container,
-          kubeContext: flags.context as string,
-          interactive:
-            cmd[0] === "/bin/bash" ||
-            cmd[0] === "/bin/sh" ||
-            cmd[0] === "bash" ||
-            cmd[0] === "sh",
-        })
-
-        // Add -- separator and command
-        const wrappedCmd = wrapRemoteCommand(cmd, {
-          dir: flags.dir as string,
-          sudo: flags.sudo as boolean,
-        })
-        kubectlArgs.push("--", ...wrappedCmd)
-
-        try {
-          execFileSync("kubectl", kubectlArgs, { stdio: "inherit" })
-        } catch (err: any) {
-          process.exit(err.status ?? 1)
+          process.exit(1)
         }
-      } else {
-        // SSH exec
-        const sshArgs = buildSshArgs({
-          host: entity.sshHost!,
-          port: entity.sshPort,
-          user: (flags.user as string) ?? entity.sshUser,
-          tty: "basic",
-          hostKeyCheck: "none",
+
+        const remoteCommand = wrapCommand(cmd, {
           dir: flags.dir as string,
           sudo: flags.sudo as boolean,
         })
 
-        const wrappedCmd = wrapRemoteCommand(cmd, {
-          dir: flags.dir as string,
-          sudo: flags.sudo as boolean,
-        })
-        sshArgs.push(...wrappedCmd)
-
-        try {
-          execFileSync("ssh", sshArgs, { stdio: "inherit" })
-        } catch (err: any) {
-          if (err.status != null) process.exit(err.status)
-          throw err
+        if (target.transport.kind === "kubectl") {
+          const adapter = new KubectlAdapter({
+            podName: target.transport.podName,
+            namespace: target.transport.namespace,
+            container:
+              (flags.container as string) ?? target.transport.container,
+            kubeContext:
+              (flags.context as string) ?? target.transport.kubeContext,
+          })
+          const execCmd = adapter.buildCmd(remoteCommand)
+          return yield* pm.interactive({ cmd: execCmd })
         }
-      }
+
+        const transport = target.transport as SshTransport
+        const adapter = new SshAdapter({
+          host: transport.host,
+          port: transport.port,
+          user: (flags.user as string) ?? transport.user,
+          identity: transport.identity,
+          jumpChain: [...transport.jumpChain],
+        })
+        const execCmd = adapter.buildCmd(remoteCommand)
+        return yield* pm.interactive({ cmd: execCmd })
+      })
+
+      const layer = Layer.mergeAll(RemoteAccessLive, ProcessManagerLive)
+      const exitCode = await runEffect(Effect.provide(program, layer), "exec")
+      if (exitCode !== 0) process.exit(exitCode)
     })
 }

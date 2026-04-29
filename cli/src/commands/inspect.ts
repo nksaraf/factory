@@ -1,5 +1,7 @@
+import { Effect } from "effect"
 import { getFactoryRestClient } from "../client.js"
 import type { DxBase } from "../dx-root.js"
+import { RemoteAccess, RemoteAccessLive, runEffect } from "../effect/index.js"
 import { EntityFinder } from "../lib/entity-finder.js"
 import { resolveUrl } from "../lib/trace-resolver.js"
 import { setExamples } from "../plugins/examples-plugin.js"
@@ -96,11 +98,12 @@ async function inspectFromUrl(url: string, flags: Record<string, unknown>) {
 }
 
 async function inspectFromSlug(slug: string, flags: Record<string, unknown>) {
-  // Try EntityFinder first (hosts, workbenches)
-  const finder = new EntityFinder()
-  const entity = await finder.resolve(slug)
+  // Try RemoteAccess first (hosts, workbenches — via Effect)
+  const program = Effect.gen(function* () {
+    const access = yield* RemoteAccess
+    const target = yield* access.resolve(slug)
+    const entity = target.raw
 
-  if (entity) {
     type E = NonNullable<typeof entity>
     detailView<E>(flags, entity, [
       ["Name", (e) => styleBold(e.displayName)],
@@ -123,10 +126,14 @@ async function inspectFromSlug(slug: string, flags: Record<string, unknown>) {
             : "—",
       ],
     ])
-    return
-  }
+  })
 
-  // Try the infra API for components/services
+  const layer = RemoteAccessLive
+  const resolved = await Effect.runPromiseExit(Effect.provide(program, layer))
+
+  if (resolved._tag === "Success") return
+
+  // Fall back to the infra API for components/services
   const rest = await getFactoryRestClient()
   try {
     const result = await rest.request<{

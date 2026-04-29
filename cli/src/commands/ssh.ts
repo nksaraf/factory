@@ -9,8 +9,25 @@ import {
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 
+import { Effect, Layer } from "effect"
+import {
+  ProcessManager,
+  ProcessManagerLive,
+  ProcessError,
+  type IProcessManager,
+} from "@smp/factory-shared/effect/process-manager"
+import {
+  SshAdapter,
+  KubectlAdapter,
+} from "@smp/factory-shared/effect/transport-adapter"
 import { getFactoryClient } from "../client.js"
 import type { DxBase } from "../dx-root.js"
+import { RemoteAccess, RemoteAccessLive, runEffect } from "../effect/index.js"
+import type {
+  AccessTarget,
+  SshTransport,
+  KubectlTransport,
+} from "../effect/services/remote-access.js"
 import { EntityFinder } from "../lib/entity-finder.js"
 import type { ResolvedEntity } from "../lib/entity-finder.js"
 import {
@@ -118,23 +135,11 @@ export function sshCommand(app: DxBase) {
           }
         }
 
-        const finder = new EntityFinder()
-        const entity = await finder.resolve(target)
-
-        if (!entity) {
-          console.error(styleError(`No SSH target found for "${target}".`))
-          console.log(styleMuted("\nSearched workbenches and hosts. Try:"))
-          console.log(
-            styleMuted("  dx ssh config sync   — see all available targets")
-          )
-          process.exit(1)
-        }
-
         // Capture remote command from args after "--"
         const ddIdx = process.argv.indexOf("--")
         const remoteCmd = ddIdx >= 0 ? process.argv.slice(ddIdx + 1) : []
 
-        return connectToEntity(entity, flags, remoteCmd)
+        await connectViaEffect(target, flags, remoteCmd)
       })
 
       // --- dx ssh config sync ---
@@ -465,7 +470,142 @@ export function sshCommand(app: DxBase) {
   )
 }
 
-// ─── Connect Helper ──────────────────────────────────────────
+// ─── Effect-based connect ────────────────────────────────────
+
+async function connectViaEffect(
+  slug: string,
+  flags: Record<string, unknown>,
+  remoteCmd: string[] = []
+) {
+  const hasCommand = remoteCmd.length > 0
+
+  const program = Effect.gen(function* () {
+    const access = yield* RemoteAccess
+    const target = yield* access.resolve(slug)
+    const pm = yield* ProcessManager
+
+    if (target.transport.kind === "kubectl") {
+      return yield* connectKubectl(
+        target,
+        target.transport,
+        flags,
+        remoteCmd,
+        pm
+      )
+    }
+
+    if (target.transport.kind === "ssh") {
+      return yield* connectSsh(target, target.transport, flags, remoteCmd, pm)
+    }
+
+    console.error(styleError(`"${target.displayName}" does not support SSH.`))
+    process.exit(1)
+  })
+
+  const layer = Layer.mergeAll(RemoteAccessLive, ProcessManagerLive)
+  await runEffect(Effect.provide(program, layer), "ssh")
+}
+
+function connectSsh(
+  target: AccessTarget,
+  transport: SshTransport,
+  flags: Record<string, unknown>,
+  remoteCmd: string[],
+  pm: IProcessManager
+): Effect.Effect<number, ProcessError> {
+  const hasCommand = remoteCmd.length > 0
+  const host = transport.host
+  const port = (flags.port as number) ?? transport.port
+  const user = (flags.user as string) ?? transport.user
+
+  clearStaleHostKey(host, port)
+
+  if (!hasCommand) {
+    console.log(
+      styleMuted(
+        `Connecting to ${styleBold(target.displayName)} (${target.entityType}) → ${user}@${host}:${port}`
+      )
+    )
+  }
+
+  const adapter = new SshAdapter({
+    host,
+    port,
+    user,
+    identity: (flags.identity as string) ?? transport.identity,
+    jumpChain: [...transport.jumpChain],
+  })
+
+  // For interactive: use buildArgv with force TTY (-tt instead of -T)
+  let cmd: string[]
+  if (hasCommand) {
+    cmd = adapter.buildCmd(remoteCmd.join(" "))
+  } else {
+    const args = adapter.buildCmd("/bin/bash")
+    // Replace -T (no TTY) with -tt (force TTY) for interactive sessions
+    cmd = args.map((a) => (a === "-T" ? "-tt" : a))
+    // Remove the /bin/bash command — interactive shell doesn't need it
+    cmd.pop()
+  }
+
+  return pm.interactive({ cmd })
+}
+
+function connectKubectl(
+  target: AccessTarget,
+  transport: KubectlTransport,
+  flags: Record<string, unknown>,
+  remoteCmd: string[],
+  pm: IProcessManager
+): Effect.Effect<number, ProcessError> {
+  const hasCommand = remoteCmd.length > 0
+
+  if (!hasCommand) {
+    console.log(
+      styleMuted(
+        `Connecting to ${styleBold(target.displayName)} (${target.entityType}) via kubectl exec`
+      )
+    )
+  }
+
+  const adapter = new KubectlAdapter({
+    podName: transport.podName,
+    namespace: transport.namespace,
+    container: (flags.container as string) ?? transport.container,
+    kubeContext: (flags.context as string) ?? transport.kubeContext,
+  })
+
+  let cmd: string[]
+  if (hasCommand) {
+    cmd = adapter.buildCmd(remoteCmd.join(" "))
+  } else {
+    cmd = adapter.buildCmd("/bin/bash")
+  }
+
+  if (transport.kubeconfig) {
+    return Effect.gen(function* () {
+      const hostKubeconfig = transport.kubeconfig!.replace(
+        /server:\s*https?:\/\/host\.docker\.internal/g,
+        (match) => match.replace("host.docker.internal", "localhost")
+      )
+      const kubeconfigTmp = join(tmpdir(), `dx-kubeconfig-${Date.now()}.yaml`)
+      writeFileSync(kubeconfigTmp, hostKubeconfig, { mode: 0o600 })
+
+      cmd.unshift("--kubeconfig", kubeconfigTmp)
+      try {
+        return yield* pm.interactive({ cmd })
+      } finally {
+        try {
+          unlinkSync(kubeconfigTmp)
+        } catch {}
+      }
+    })
+  }
+
+  return pm.interactive({ cmd })
+}
+
+// ─── Connect Helper (legacy, used by interactive picker) ─────
 
 export async function connectToEntity(
   entity: ResolvedEntity,

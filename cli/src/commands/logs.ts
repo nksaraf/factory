@@ -2,12 +2,21 @@ import { createReadStream, existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createInterface } from "node:readline"
 
+import { Effect, Layer } from "effect"
 import { isDevComponent } from "@smp/factory-shared"
+import {
+  ProcessManager,
+  ProcessManagerLive,
+} from "@smp/factory-shared/effect/process-manager"
+import { SshAdapter } from "@smp/factory-shared/effect/transport-adapter"
 
 import { getFactoryClient } from "../client.js"
 import { styleInfo, styleMuted } from "../cli-style.js"
 import type { DxBase } from "../dx-root.js"
+import { RemoteAccess, RemoteAccessLive, runEffect } from "../effect/index.js"
+import type { SshTransport } from "../effect/services/remote-access.js"
 import { streamDockerLogs } from "../lib/docker-logs.js"
+import { parseDockerLogLine } from "../lib/docker-logs.js"
 import { Compose } from "../lib/docker.js"
 import { resolveDxContext } from "../lib/dx-context.js"
 import type { LogSource } from "../lib/log-source.js"
@@ -319,7 +328,38 @@ async function streamUrlLogs(
     }
   }
 
-  // Fall back to SSH log streaming on the resolved host
+  // Fall back to SSH log streaming on the resolved host via Effect services
+  if (!logSource && resolved.hostSlug) {
+    const project = resolved.composeProject ?? undefined
+    console.log(styleInfo(`Streaming: ${svc} on ${resolved.hostSlug} via SSH`))
+
+    const ac = new AbortController()
+    process.on("SIGINT", () => ac.abort())
+
+    await streamViaSsh(
+      resolved.hostSlug,
+      svc,
+      project,
+      {
+        follow: !!flags.follow,
+        since: flags.since as string | undefined,
+        tail: (flags.tail as number) ?? (flags.follow ? 20 : 100),
+        grep: flags.grep as string | undefined,
+        level: flags.level as string | undefined,
+        signal: ac.signal,
+      },
+      (entry) => {
+        if (f.json) {
+          console.log(formatLogEntryJson(entry))
+        } else {
+          console.log(formatLogEntry(entry))
+        }
+      }
+    )
+    return
+  }
+
+  // Legacy SSH fallback when no hostSlug but hostEntity has sshHost
   if (!logSource && resolved.hostEntity && resolved.hostEntity.sshHost) {
     const project = resolved.composeProject ?? undefined
     const hostWithSsh = resolved.hostEntity as typeof resolved.hostEntity & {
@@ -433,4 +473,97 @@ async function fetchRemoteLogs(
       console.log(`\n... more entries available (use --limit to increase)`)
     }
   }
+}
+
+// ── Effect-based SSH log streaming ───────────────────────────
+
+import type { LogEntry } from "@smp/factory-shared/observability-types"
+
+interface SshLogOpts {
+  follow: boolean
+  since?: string
+  tail?: number
+  grep?: string
+  level?: string
+  signal?: AbortSignal
+}
+
+async function streamViaSsh(
+  hostSlug: string,
+  serviceName: string,
+  composeProject: string | undefined,
+  opts: SshLogOpts,
+  onEntry: (entry: LogEntry) => void
+) {
+  let remoteCmd: string
+  if (composeProject) {
+    const dockerArgs = ["compose", "-p", composeProject, "logs"]
+    if (opts.follow) dockerArgs.push("--follow")
+    if (opts.tail !== undefined) dockerArgs.push("--tail", String(opts.tail))
+    if (opts.since) dockerArgs.push("--since", opts.since)
+    dockerArgs.push("--no-log-prefix")
+    dockerArgs.push(serviceName)
+    remoteCmd = `docker ${dockerArgs.join(" ")}`
+  } else {
+    const tail = opts.tail !== undefined ? `--tail ${opts.tail}` : ""
+    const follow = opts.follow ? "--follow" : ""
+    const since = opts.since ? `--since ${opts.since}` : ""
+    const searchTerm = serviceName.replace(/-service$/, "").replace(/['"]/g, "")
+    remoteCmd = `CID=$(docker ps -q --filter name=${searchTerm} | head -1) && [ -n "$CID" ] && docker logs ${follow} ${tail} ${since} $CID 2>&1 || echo "No container matching ${searchTerm} found"`
+  }
+
+  const program = Effect.gen(function* () {
+    const access = yield* RemoteAccess
+    const target = yield* access.resolve(hostSlug)
+
+    if (target.transport.kind !== "ssh") {
+      throw new Error(
+        `Host ${hostSlug} uses ${target.transport.kind} transport, SSH required for log streaming`
+      )
+    }
+
+    const transport = target.transport as SshTransport
+    const adapter = new SshAdapter({
+      host: transport.host,
+      port: transport.port,
+      user: transport.user,
+      identity: transport.identity,
+      jumpChain: [...transport.jumpChain],
+    })
+
+    const cmd = adapter.buildCmd(remoteCmd)
+    const pm = yield* ProcessManager
+
+    return yield* pm.stream({
+      cmd,
+      onStdout: (line) => {
+        if (!line.trim()) return
+        const entry = parseDockerLogLine(line)
+        entry.source = entry.source || serviceName
+        if (opts.level && entry.level !== opts.level) return
+        if (opts.grep && !entry.message.includes(opts.grep)) return
+        onEntry(entry)
+      },
+      onStderr: (line) => {
+        const trimmed = line.trim()
+        if (!trimmed) return
+        if (
+          trimmed.startsWith("Warning:") ||
+          trimmed.startsWith("Pseudo-terminal")
+        )
+          return
+        onEntry({
+          timestamp: new Date().toISOString(),
+          level: "error",
+          message: trimmed,
+          source: "ssh",
+          attributes: {},
+        })
+      },
+      signal: opts.signal,
+    })
+  })
+
+  const layer = Layer.mergeAll(RemoteAccessLive, ProcessManagerLive)
+  await runEffect(Effect.provide(program, layer), "log-stream")
 }
